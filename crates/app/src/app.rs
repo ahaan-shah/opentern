@@ -36,6 +36,10 @@ pub struct App {
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
+    /// Strategy runs and the Strategy Report's state.
+    pub strategies: crate::strategy::Strategies,
+    /// The paper trading account and its ticket.
+    pub paper: crate::paper::Paper,
     pub editor: crate::editor::Editor,
     pub egui_ctx: egui::Context,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
@@ -108,6 +112,7 @@ impl App {
             }
         };
         let (watchlists, active_list) = App::load_watchlists(&store);
+        let paper = crate::paper::Paper::load(&store);
         let mut app = App {
             store,
             theme,
@@ -126,6 +131,8 @@ impl App {
             layout_name,
             study_menu: None,
             scripts: Vec::new(),
+            strategies: Default::default(),
+            paper,
             editor: Default::default(),
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
@@ -161,8 +168,21 @@ impl App {
         let Ok(what) = std::env::var("OPENTERN_STILL") else {
             return;
         };
-        if let Some(file) = what.strip_prefix("script:") {
-            self.add_script(file);
+        // Several at once: "script:x.pine,tab:report".
+        let mut rest = Vec::new();
+        for part in what.split(',') {
+            if let Some(file) = part.strip_prefix("script:") {
+                self.add_script(file);
+            } else if let Some(tab) = part.strip_prefix("tab:") {
+                self.layout.tab = crate::shell::Tab::ALL
+                    .into_iter()
+                    .find(|t| t.title().to_lowercase().starts_with(&tab.to_lowercase()));
+            } else {
+                rest.push(part);
+            }
+        }
+        let what = rest.join(",");
+        if what.is_empty() {
             return;
         }
         self.modal = match what.as_str() {
@@ -651,6 +671,8 @@ impl App {
         self.updater.launch_check(&ctx, self.store.settings().check_updates);
         self.poll_data();
         self.poll_scripts();
+        self.refresh_strategies();
+        self.poll_paper();
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);

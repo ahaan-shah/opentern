@@ -129,6 +129,38 @@ pub struct Chart {
     /// The symbol's timezone (sessions) and the display timezone.
     pub sym_tz: TimeZone,
     pub tz: TimeZone,
+    /// A strategy's fills and trades, drawn over the candles.
+    pub marks: Option<std::sync::Arc<TradeMarks>>,
+    /// The paper account's position and working orders on this symbol.
+    pub paper: Vec<PaperLine>,
+}
+
+#[derive(Clone, Debug)]
+pub struct PaperLine {
+    pub price: f64,
+    pub label: String,
+    pub buy: bool,
+    /// The position (solid) rather than an order (dashed).
+    pub position: bool,
+}
+
+/// What a strategy shows on the chart, as on TradingView.
+#[derive(Clone, Debug, Default)]
+pub struct TradeMarks {
+    pub fills: Vec<MarkFill>,
+    /// Entry → exit of each closed trade: (entry bar, price, exit bar, price, won).
+    pub links: Vec<(usize, f64, usize, f64, bool)>,
+    /// The open position's average price and side (long = true).
+    pub position: Option<(f64, bool)>,
+}
+
+#[derive(Clone, Debug)]
+pub struct MarkFill {
+    pub bar: usize,
+    pub price: f64,
+    pub buy: bool,
+    /// "Long +1", "Close entry(s) order Long -1", …
+    pub label: String,
 }
 
 /// What's saved of a chart: in the layout, and (studies only) in
@@ -184,6 +216,8 @@ impl Chart {
             id,
             tz: sym_tz.clone(),
             sym_tz,
+            marks: None,
+            paper: Vec::new(),
             symbol,
             tf,
             bars: Vec::new(),

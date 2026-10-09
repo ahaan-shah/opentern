@@ -61,6 +61,8 @@ pub struct ScriptRun {
     pub(crate) mtime: Option<std::time::SystemTime>,
     pub(crate) env_key: String,
     pub(crate) checked: Option<Instant>,
+    /// Bumped on every Python result (strategy runs rebuild on it).
+    pub(crate) out_seq: u64,
 }
 
 fn leak(s: impl Into<String>) -> &'static str {
@@ -292,6 +294,7 @@ impl App {
             mtime: None,
             env_key: String::new(),
             checked: None,
+            out_seq: 0,
         });
         if lang == Lang::Pine {
             let i = self.scripts.len() - 1;
@@ -397,6 +400,7 @@ impl App {
                             ..Default::default()
                         };
                         run.output = Some(out);
+                        run.out_seq += 1;
                         if let Some(uid) = run.uid
                             && let Some(s) = self.chart.study_mut(uid)
                         {

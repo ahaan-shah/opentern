@@ -3,6 +3,7 @@
 //! (see `docs/metrics.md` for every formula).
 
 pub mod broker;
+pub mod paper;
 pub mod report;
 
 pub use broker::{Broker, Commission, Fill, Lot, OcaType, Order, OrderKind, Props, QtyType, Trade};

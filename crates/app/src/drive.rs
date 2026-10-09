@@ -337,6 +337,79 @@ mod tests {
         assert_eq!(d.app.panics, 0);
     }
 
+    #[test]
+    fn strategy_report_and_trade_marks() {
+        let mut d = Driver::new("strategy");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("cross.pine"),
+            "//@version=5\nstrategy(\"Cross\", overlay = true)\nf = ta.sma(close, 5)\ns = ta.sma(close, 20)\n\
+             if ta.crossover(f, s)\n    strategy.entry(\"L\", strategy.long)\nif ta.crossunder(f, s)\n    strategy.close(\"L\")\n",
+        )
+        .unwrap();
+        d.app.add_script("cross.pine");
+        d.wait(|a| {
+            a.strategies
+                .runs
+                .iter()
+                .any(|r| r.name == "Cross" && !r.broker.trades.is_empty())
+        });
+        let run = &d.app.strategies.runs[0];
+        assert_eq!(run.report.all.total_trades, run.broker.trades.len());
+        let marks = d.app.chart.marks.clone().expect("trade marks");
+        assert!(marks.fills.len() >= 2 * run.broker.trades.len());
+        // The report tab draws without trouble on every sub-tab.
+        d.app.layout.tab = Some(crate::shell::Tab::Report);
+        for tab in [
+            crate::strategy::ReportTab::Overview,
+            crate::strategy::ReportTab::Performance,
+            crate::strategy::ReportTab::Trades,
+            crate::strategy::ReportTab::Ratios,
+            crate::strategy::ReportTab::List,
+            crate::strategy::ReportTab::Properties,
+        ] {
+            d.app.strategies.tab = tab;
+            for _ in 0..3 {
+                d.frame(vec![]);
+            }
+        }
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn paper_orders_fill_and_survive_a_restart() {
+        use opentern_engine::paper::{Kind, Ticket};
+        let mut d = Driver::new("paper");
+        let sym = d.app.chart.symbol.id.clone();
+        let last = d.app.last_price(&sym).expect("a price");
+        let ticket = Ticket {
+            symbol: sym.clone(),
+            buy: true,
+            qty: 2.0,
+            kind: Kind::Market,
+            take_profit: Some(last * 1.5),
+            stop_loss: Some(last * 0.5),
+        };
+        d.app.paper.account.place(ticket, Some(last), 0).unwrap();
+        d.app.layout.tab = Some(crate::shell::Tab::Paper);
+        for _ in 0..5 {
+            d.frame(vec![]);
+        }
+        assert_eq!(d.app.paper.account.position(&sym).unwrap().qty, 2.0);
+        assert_eq!(d.app.paper.account.orders.len(), 2, "take-profit and stop-loss");
+        assert!(d.app.chart.paper.len() >= 3, "position and both brackets on the chart");
+        // Saved when something happens in the tab; force one save, reopen.
+        d.app.paper.account.cancel(d.app.paper.account.orders[0].id);
+        let json = serde_json::to_string(&d.app.paper.account).unwrap();
+        d.app.store.set_value("paper_account", &json).unwrap();
+        let path = d.dir.clone();
+        std::mem::forget(d);
+        let d = Driver::open(path);
+        assert_eq!(d.app.paper.account.position(&sym).unwrap().qty, 2.0);
+        assert_eq!(d.app.paper.account.orders.len(), 1);
+    }
+
     /// Random clicks, drags, keys and scrolls for a while: the app must
     /// never panic (the crash shield counts any that happen).
     #[test]

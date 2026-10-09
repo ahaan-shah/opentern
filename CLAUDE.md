@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–6 built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–7 built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -544,16 +544,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ### Resume here (next session)
 The maintainer asked for Phases 6–13, committing after each, then they test and we iterate
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
-1. **Phase 7 (part 1 committed)**: done: Pine step 3 (`natives/strategy.rs`: entry/order/
-   exit/close/cancel, risk.allow_entry_in, all `strategy.*` variables, closedtrades/
-   opentrades.*), broker trailing stops, OCA, exit qty from entered size, pyramiding fix
-   (tested; a Pine MA-cross equals a hand-driven broker trade for trade). Left: read it
-   back with `PineStudy::broker()` via `Instance::state()`, the Strategy
-   Report tab (Overview with equity curve, Performance, Trades analysis, Risk/performance,
-   List of trades, Properties) from `opentern_engine::Report`, trade markers on the chart
-   from `Broker::fills`, Python strategies (replay `ScriptRun::output.intents` through a
-   `Broker`; see `python/opentern/__init__.py` `_Strategy`), and the Paper Trading tab (a
-   live `Broker` fed by ticks, manual buy/sell, positions/orders, saved in the workspace).
+1. Phase 7 is done (see "Phase 7 (done)").
 2. **Phase 8**: alerts (price/drawing/indicator/script `alert()`/`alertcondition`; Pine
    collects them in `PineStudy::alerts()`), evaluated on ticks, delivered by desktop
    notification (`notify-rust`), sound, webhook, Telegram; Alerts widget + Alerts log tab.
@@ -630,6 +621,30 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
   non-trivial expressions use the input defaults. Dynamic lengths rebuild `ta.*` state.
   `varip` behaves like `var` (the forming bar is always recomputed from a copy).
 
+### Phase 7 (done): strategies, Strategy Report, paper trading
+- Pine `strategy.*` (`natives/strategy.rs`) drives `opentern_engine::Broker`; a Pine MA
+  cross equals the same logic driven straight at the broker, trade for trade. Broker:
+  trailing stops, OCA cancel/reduce, exit `qty_percent` of the entered size,
+  `allow_entry_in`, running max drawdown/run-up, and **pyramiding fixed to TradingView's
+  rule** (0 and 1 = one entry). `docs/metrics.md` records the fill model.
+- `app/src/strategy.rs`: strategy runs are rebuilt only when `data_version`, `changed` or
+  a Python result (`ScriptRun::out_seq`) changes; Python strategies replay their
+  `intents` through a broker. Strategy Report tab: Overview (KPI cards, compact on short
+  panels; equity, buy & hold and drawdown chart with hover), Performance, Trades
+  analysis, Risk/performance ratios, List of trades (virtualised rows, Export → CSV in
+  `<workspace>/exports/`), Properties. Short tab names under 980 px.
+- Chart: `Chart::marks` (fills as arrows with "Long +1" labels, dashed entry→exit links,
+  the open position's average price) and `Chart::paper` (paper position solid, orders
+  dashed, with tags).
+- Paper trading: `opentern_engine::paper::Account` (market/limit/stop/stop-limit/
+  trailing, brackets as OCO, netting, commission), fed by the chart's last bar or quotes
+  (paper symbols are added to the quote subscription), saved as JSON under the settings
+  key `paper_account`. Tab: ticket, summary, Positions/Orders/History, Reset account.
+- **Gotcha:** bottom-panel tab bodies render in `ui.new_child` with a clip rect; content
+  taller than the panel used to grow it and push the tab strip under the range bar.
+- Not yet: Strategy Tester settings dialog (props come from the script), chart trading by
+  dragging SL/TP lines, DOM, multiple paper accounts.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -695,10 +710,10 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 122 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- 137 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phase 7 (strategies, Strategy Report, paper trading), Phase 8, then Phases 9–14. App
+Phase 8, then Phases 9–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
 in the shell: alerts, replay, compare, multi-chart, snapshot, hotlists/calendar/news/
-notifications widgets, Screener / Strategy Report / Paper Trading / Alerts log tabs.
+notifications widgets, Screener / Alerts log tabs.

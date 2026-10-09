@@ -569,6 +569,10 @@ pub fn show(
         {
             draw_study(&p, &chart.bars, s, &g.y, &x, first, last, n, ppp, g.rect);
         }
+        if let Some(m) = &chart.marks {
+            draw_trades(&p, m, &chart.bars, &g.y, &x, first, last, g.rect);
+        }
+        draw_paper(&p, &chart.paper, &g.y, g.rect);
     }
     // ---- sub panes
     for (k, g) in geos.iter().enumerate().skip(1) {
@@ -1241,6 +1245,111 @@ fn draw_study(
                 }
             }
         }
+    }
+}
+
+/// A strategy's trades: dashed links from entry to exit, an arrow at each
+/// fill, and its order label when there's room (TradingView's look).
+#[allow(clippy::too_many_arguments)]
+fn draw_trades(
+    p: &Painter,
+    m: &super::TradeMarks,
+    bars: &[Bar],
+    y: &YMap,
+    x: &XMap,
+    first: usize,
+    last: usize,
+    rect: Rect,
+) {
+    const BUY: Color32 = Color32::from_rgb(0x29, 0x62, 0xFF);
+    const SELL: Color32 = Color32::from_rgb(0xF2, 0x36, 0x45);
+    for &(a, pa, b, pb, won) in &m.links {
+        if b < first || a > last {
+            continue;
+        }
+        let c = if won { BUY } else { SELL }.gamma_multiply(0.7);
+        p.extend(egui::Shape::dashed_line(
+            &[pos2(x.x(a as f64), y.y(pa)), pos2(x.x(b as f64), y.y(pb))],
+            Stroke::new(1.0, c),
+            4.0,
+            3.0,
+        ));
+    }
+    let room = x.bar_w >= 6.0;
+    let font = egui::FontId::proportional(10.5);
+    // Several fills on one bar stack their labels.
+    let mut stack: std::collections::HashMap<(usize, bool), f32> = std::collections::HashMap::new();
+    for f in m.fills.iter().filter(|f| f.bar >= first && f.bar <= last) {
+        let Some(bar) = bars.get(f.bar) else { continue };
+        let cx = x.x(f.bar as f64);
+        let c = if f.buy { BUY } else { SELL };
+        let py = y.y(f.price);
+        let s = 5.0;
+        // An arrow pointing at the fill price, from below (buys) or above.
+        let tri = if f.buy {
+            vec![pos2(cx, py), pos2(cx - s, py + s * 1.4), pos2(cx + s, py + s * 1.4)]
+        } else {
+            vec![pos2(cx, py), pos2(cx - s, py - s * 1.4), pos2(cx + s, py - s * 1.4)]
+        };
+        p.add(egui::Shape::convex_polygon(tri, c, Stroke::NONE));
+        if room {
+            let off = stack.entry((f.bar, f.buy)).or_insert(0.0);
+            let galley = p.layout_no_wrap(f.label.clone(), font.clone(), Color32::WHITE);
+            let size = galley.size() + vec2(8.0, 4.0);
+            let top = if f.buy {
+                y.y(bar.low) + 10.0 + *off
+            } else {
+                y.y(bar.high) - 10.0 - size.y - *off
+            };
+            *off += size.y + 2.0;
+            let r = Rect::from_min_size(pos2(cx - size.x / 2.0, top), size);
+            if r.intersects(rect) {
+                p.rect_filled(r, CornerRadius::same(3), c);
+                p.galley(r.min + vec2(4.0, 2.0), galley, Color32::WHITE);
+            }
+        }
+    }
+    if let Some((avg, long)) = m.position {
+        let yy = y.y(avg);
+        let c = if long { BUY } else { SELL };
+        p.extend(egui::Shape::dashed_line(
+            &[pos2(rect.left(), yy), pos2(rect.right(), yy)],
+            Stroke::new(1.0, c),
+            6.0,
+            4.0,
+        ));
+    }
+}
+
+/// The paper account's position (solid) and orders (dashed), with a tag
+/// at the left edge.
+fn draw_paper(p: &Painter, lines: &[super::PaperLine], y: &YMap, rect: Rect) {
+    const BUY: Color32 = Color32::from_rgb(0x29, 0x62, 0xFF);
+    const SELL: Color32 = Color32::from_rgb(0xF2, 0x36, 0x45);
+    let font = egui::FontId::proportional(11.0);
+    for l in lines {
+        let yy = y.y(l.price);
+        if yy < rect.top() || yy > rect.bottom() {
+            continue;
+        }
+        let c = if l.buy { BUY } else { SELL };
+        if l.position {
+            p.hline(rect.x_range(), yy, Stroke::new(1.0, c));
+        } else {
+            p.extend(egui::Shape::dashed_line(
+                &[pos2(rect.left(), yy), pos2(rect.right(), yy)],
+                Stroke::new(1.0, c),
+                5.0,
+                4.0,
+            ));
+        }
+        let g = p.layout_no_wrap(l.label.clone(), font.clone(), Color32::WHITE);
+        let r = Rect::from_min_size(
+            pos2(rect.left() + 8.0, yy - g.size().y / 2.0 - 2.0),
+            g.size() + vec2(10.0, 4.0),
+        );
+        p.rect_filled(r, CornerRadius::same(3), c);
+        p.galley(r.min + vec2(5.0, 2.0), g, Color32::WHITE);
     }
 }
 

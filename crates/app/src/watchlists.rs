@@ -84,9 +84,13 @@ impl App {
 
     /// Live prices for every symbol in the active list.
     pub(crate) fn subscribe_quotes(&mut self) {
-        self.hub.send(Request::Quotes {
-            symbols: self.watchlist().to_vec(),
-        });
+        let mut symbols = self.watchlist().to_vec();
+        for s in self.paper_symbols() {
+            if !symbols.iter().any(|x| x.id == s.id) {
+                symbols.push(s);
+            }
+        }
+        self.hub.send(Request::Quotes { symbols });
     }
 
     pub fn add_to_watchlist(&mut self, s: Symbol) {

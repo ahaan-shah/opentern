@@ -801,13 +801,22 @@ impl App {
             let body = Rect::from_min_max(pos2(full.left(), strip.bottom()), full.max);
             ui.painter()
                 .hline(body.x_range(), body.top(), Stroke::new(1.0, t.border));
-            ui.scope_builder(egui::UiBuilder::new().max_rect(body.shrink(12.0)), |ui| {
+            // A child that can't grow the panel: content taller than the
+            // panel is clipped (and scrolls where it's long), never pushes
+            // the tab strip under the range bar.
+            let inner = body.shrink(12.0);
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
+            child.set_clip_rect(body.intersect(ui.clip_rect()));
+            {
+                let ui = &mut child;
                 ui.set_opacity(k);
                 match self.last_tab {
                     Tab::Editor => self.editor_tab(ui, t),
+                    Tab::Report => self.report_tab(ui, t),
+                    Tab::Paper => self.paper_tab(ui, t),
                     other => placeholder(ui, t, other.title()),
                 }
-            });
+            }
         }
     }
 
@@ -843,7 +852,7 @@ fn label_owned(compact: bool, s: &str) -> &str {
 }
 
 /// A compact text button for the range bar and panel tabs.
-fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> egui::Response {
+pub(crate) fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> egui::Response {
     let galley = ui
         .painter()
         .layout_no_wrap(text.to_string(), theme::medium(12.5), t.text);
