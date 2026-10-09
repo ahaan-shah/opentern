@@ -1,0 +1,5 @@
+//@version=5
+indicator(title="Elder Force Index", shorttitle="EFI", format=format.volume, timeframe="", timeframe_gaps=true)
+length = input.int(13, minval=1)
+efi = ta.ema(ta.change(close) * volume, length)
+plot(efi, color=#F44336, title="Elder Force Index")

@@ -1,0 +1,3 @@
+//@version=5
+indicator(title="OBV (ta.obv)", format=format.volume)
+plot(ta.obv)

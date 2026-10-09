@@ -74,7 +74,12 @@ fn lex_line(s: &str, line: usize) -> Result<Vec<Tok>, Error> {
             let v = match hex.len() {
                 6 => u32::from_str_radix(&hex, 16).map(|v| (v << 8) | 0xFF),
                 8 => u32::from_str_radix(&hex, 16),
-                _ => return Err(Error::at(line, format!("\"#{hex}\" isn't a colour (use #RRGGBB or #RRGGBBAA)."))),
+                _ => {
+                    return Err(Error::at(
+                        line,
+                        format!("\"#{hex}\" isn't a colour (use #RRGGBB or #RRGGBBAA)."),
+                    ));
+                }
             }
             .map_err(|_| Error::at(line, "Bad colour."))?;
             out.push(Tok::Color(v));
@@ -102,9 +107,15 @@ fn lex_line(s: &str, line: usize) -> Result<Vec<Tok>, Error> {
             }
             let text: String = c[i..j].iter().filter(|x| **x != '_').collect();
             if float {
-                out.push(Tok::Float(text.parse().map_err(|_| Error::at(line, format!("Bad number {text}.")))?));
+                out.push(Tok::Float(
+                    text.parse()
+                        .map_err(|_| Error::at(line, format!("Bad number {text}.")))?,
+                ));
             } else {
-                out.push(Tok::Int(text.parse().map_err(|_| Error::at(line, format!("Bad number {text}.")))?));
+                out.push(Tok::Int(
+                    text.parse()
+                        .map_err(|_| Error::at(line, format!("Bad number {text}.")))?,
+                ));
             }
             i = j;
             continue;
@@ -134,7 +145,23 @@ fn ends_open(toks: &[Tok]) -> bool {
     match toks.last() {
         Some(Tok::Op(op)) => matches!(
             *op,
-            "," | "(" | "[" | "+" | "-" | "*" | "/" | "%" | "?" | ":" | "=" | ":=" | "==" | "!=" | "<" | ">" | "<=" | ">="
+            "," | "("
+                | "["
+                | "+"
+                | "-"
+                | "*"
+                | "/"
+                | "%"
+                | "?"
+                | ":"
+                | "="
+                | ":="
+                | "=="
+                | "!="
+                | "<"
+                | ">"
+                | "<="
+                | ">="
         ),
         Some(Tok::Ident(w)) => w == "and" || w == "or" || w == "not",
         _ => false,
@@ -193,7 +220,16 @@ mod tests {
         assert_eq!(ls[1].toks.len(), 10, "joined wrapped call");
         assert_eq!(ls[2].toks[2], Tok::Color(0xFF000080));
         assert_eq!(ls[4].indent, 1);
-        assert_eq!(ls[5].toks, vec![Tok::Ident("x".into()), Tok::Op("="), Tok::Int(1), Tok::Op("+"), Tok::Int(2)]);
+        assert_eq!(
+            ls[5].toks,
+            vec![
+                Tok::Ident("x".into()),
+                Tok::Op("="),
+                Tok::Int(1),
+                Tok::Op("+"),
+                Tok::Int(2)
+            ]
+        );
         assert!(lines("s = \"open").is_err());
     }
 }

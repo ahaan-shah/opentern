@@ -1,0 +1,7 @@
+//@version=5
+indicator(title="Arnaud Legoux Moving Average", shorttitle="ALMA", overlay=true, timeframe="", timeframe_gaps=true)
+length = input(9, title="Window Size")
+offset = input(0.85, title="Offset")
+sigma = input(6, title="Sigma")
+src = input(close, title="Source")
+plot(ta.alma(src, length, offset, sigma), title="ALMA", color=#2962FF)

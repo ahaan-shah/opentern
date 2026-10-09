@@ -1,0 +1,11 @@
+//@version=5
+indicator(title = "Bollinger BandWidth", shorttitle = "BBW", format = format.price, precision = 2, timeframe = "", timeframe_gaps = true)
+length = input.int(20, "Length", minval = 1)
+src = input(close, "Source")
+mult = input.float(2.0, "StdDev", minval = 0.001, maxval = 50)
+basis = ta.sma(src, length)
+dev = mult * ta.stdev(src, length)
+upper = basis + dev
+lower = basis - dev
+bbw = ((upper - lower) / basis) * 100
+plot(bbw, "Bollinger BandWidth", color = #2962FF)

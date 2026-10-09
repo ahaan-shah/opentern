@@ -286,6 +286,57 @@ mod tests {
         assert_eq!(d.app.panics, 0);
     }
 
+    #[test]
+    fn pine_script_plots_reloads_and_reports_errors() {
+        let mut d = Driver::new("pine");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = "//@version=5\nindicator(\"Pine RSI\")\nlen = input.int(14, \"Length\")\nplot(ta.rsi(close, len), \"RSI\")\nhline(70)\n";
+        std::fs::write(dir.join("rsi.pine"), src).unwrap();
+        d.app.add_script("rsi.pine");
+        let id = "pine:rsi.pine";
+        d.wait(|a| a.chart.studies.iter().any(|s| s.meta().id == id));
+        let rsi = opentern_series::builtins::by_id("rsi").unwrap();
+        let mut native = opentern_series::Instance::new(rsi, &rsi.default_inputs());
+        let sess = opentern_series::study::sessions(&d.app.chart.bars, d.app.chart.tf, &d.app.chart.sym_tz);
+        native.recompute(&d.app.chart.bars, &sess, d.app.chart.tf);
+        let pine = d.app.chart.studies.iter().find(|s| s.meta().id == id).unwrap();
+        assert_eq!(pine.meta().placement, opentern_series::study::Placement::Pane);
+        let n = d.app.chart.bars.len();
+        for i in 0..n {
+            let (a, b) = (pine.inst.out.plots[0][i], native.out.plots[0][i]);
+            assert!(
+                (a.is_nan() && b.is_nan()) || (a - b).abs() < 1e-9,
+                "bar {i}: {a} vs {b}"
+            );
+        }
+        // Edited in another editor: the chart picks it up.
+        std::fs::write(dir.join("rsi.pine"), src.replace("input.int(14", "input.int(7")).unwrap();
+        d.wait(|a| {
+            a.chart
+                .studies
+                .iter()
+                .find(|s| s.meta().id == id)
+                .is_some_and(|s| s.inst.inputs.values.get("length") == Some(&opentern_series::study::Value::Int(14)))
+                && a.scripts.iter().any(|r| {
+                    r.pine
+                        .as_ref()
+                        .is_some_and(|p| matches!(p.meta().inputs[0].default, opentern_series::study::Value::Int(7)))
+                })
+        });
+        // A syntax error keeps the last good version and says where.
+        std::fs::write(
+            dir.join("rsi.pine"),
+            "//@version=5\nindicator(\"Pine RSI\")\nplot(ta.rsi(close, 14)\n",
+        )
+        .unwrap();
+        d.wait(|a| a.chart.study_errors.values().any(|e| e.starts_with("Line 3")));
+        assert!(d.app.chart.studies.iter().any(|s| s.meta().id == id));
+        // Saved with the layout.
+        assert!(d.app.chart.state().studies.iter().any(|s| s.id == id));
+        assert_eq!(d.app.panics, 0);
+    }
+
     /// Random clicks, drags, keys and scrolls for a while: the app must
     /// never panic (the crash shield counts any that happen).
     #[test]

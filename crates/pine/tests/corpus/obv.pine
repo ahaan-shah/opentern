@@ -1,0 +1,5 @@
+//@version=5
+indicator(title="On Balance Volume", shorttitle="OBV", format=format.volume, timeframe="", timeframe_gaps=true)
+src = close
+obv = ta.cum(math.sign(ta.change(src)) * volume)
+plot(obv, color=#2962FF, title="OnBalanceVolume")

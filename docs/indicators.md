@@ -15,6 +15,8 @@ What the automated tests already check for every built-in:
 
 ## Status
 
+**Pine check (§6a step 4):** each built-in below with a file in `crates/pine/tests/corpus/` (63 of them) matches the same indicator written in Pine, run by `opentern-pine`, bar for bar (`cargo test -p opentern-pine --test conformance`). The TradingView-export check is still to do.
+
 | Indicator | id | Category | Status |
 |---|---|---|---|
 | Accumulation/Distribution | `ad` | Volume | Ported; awaiting TradingView export |

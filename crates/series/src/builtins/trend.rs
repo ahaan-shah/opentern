@@ -202,8 +202,8 @@ impl Study for Vortex {
         let s = self.str_.update(self.tr.update(b.high, b.low, b.close));
         self.prev_high = b.high;
         self.prev_low = b.low;
-        o.values[0] = vmp / s;
-        o.values[1] = vmm / s;
+        o.values[0] = ta::div(vmp, s);
+        o.values[1] = ta::div(vmm, s);
     }
 }
 
@@ -221,7 +221,7 @@ impl Study for Chop {
         let b = c.bar;
         let s = self.sum.update(self.atr.update(b.high, b.low, b.close));
         let range = self.hh.update(b.high) - self.ll.update(b.low);
-        o.values[0] = 100.0 * (s / range).log10() / self.len.log10();
+        o.values[0] = 100.0 * ta::div(s, range).log10() / self.len.log10();
     }
 }
 
@@ -237,7 +237,7 @@ impl Study for Mass {
         let span = c.bar.high - c.bar.low;
         let a = self.e1.update(span);
         let b = self.e2.update(a);
-        o.values[0] = self.sum.update(a / b);
+        o.values[0] = self.sum.update(ta::div(a, b));
     }
 }
 

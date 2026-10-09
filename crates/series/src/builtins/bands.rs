@@ -28,9 +28,9 @@ impl Study for Bb {
                 o.values[2] = lower;
             }
             // %B
-            1 => o.values[0] = (x - lower) / (upper - lower),
+            1 => o.values[0] = ta::div(x - lower, upper - lower),
             // BandWidth, in percent
-            _ => o.values[0] = (upper - lower) / basis * 100.0,
+            _ => o.values[0] = ta::div(upper - lower, basis) * 100.0,
         }
     }
 }

@@ -1991,6 +1991,8 @@ dependencies = [
  "jiff",
  "opentern-core",
  "opentern-data",
+ "opentern-engine",
+ "opentern-pine",
  "opentern-script",
  "opentern-series",
  "rfd",
@@ -2037,6 +2039,18 @@ dependencies = [
  "opentern-core",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "opentern-pine"
+version = "0.0.1"
+dependencies = [
+ "jiff",
+ "opentern-core",
+ "opentern-engine",
+ "opentern-series",
+ "serde_json",
+ "smallvec",
 ]
 
 [[package]]

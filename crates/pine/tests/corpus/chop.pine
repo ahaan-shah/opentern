@@ -1,0 +1,6 @@
+//@version=5
+indicator(title="Choppiness Index", shorttitle="CHOP", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+length = input.int(14, minval=1)
+ci = 100 * math.log10(math.sum(ta.atr(1), length) / (ta.highest(length) - ta.lowest(length))) / math.log10(length)
+offset = input.int(0, "Offset", minval = -500, maxval = 500)
+plot(ci, "CHOP", color=#2962FF, offset = offset)

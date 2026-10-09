@@ -1,0 +1,6 @@
+//@version=5
+indicator("DMI (ta.dmi)")
+[diplus, diminus, adx] = ta.dmi(14, 14)
+plot(adx, "ADX")
+plot(diplus, "+DI")
+plot(diminus, "-DI")

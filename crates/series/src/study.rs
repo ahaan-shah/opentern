@@ -90,6 +90,8 @@ pub enum InputKind {
     Choice(&'static [&'static str]),
     /// Free text (script inputs).
     Text,
+    /// A colour, stored as "#RRGGBBAA" text.
+    Color,
 }
 
 #[derive(Clone, Debug)]
@@ -116,6 +118,13 @@ pub enum PlotStyle {
     Cross,
     /// A marker per bar (`plotshape` / `plotchar`); see [`ShapeSpec`].
     Shape,
+    /// `plotcandle`: this plot holds the opens; the next three (`Hidden`)
+    /// hold highs, lows and closes.
+    Candle,
+    /// `plotbar`: as `Candle`, drawn as OHLC bars.
+    OhlcBar,
+    /// A value that isn't drawn by itself (the parts of a candle plot).
+    Hidden,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -177,6 +186,9 @@ impl PlotStyle {
             PlotStyle::Circles => "Circles",
             PlotStyle::Cross => "Cross",
             PlotStyle::Shape => "Shapes",
+            PlotStyle::Candle => "Candles",
+            PlotStyle::OhlcBar => "Bars",
+            PlotStyle::Hidden => "Hidden",
         }
     }
 }
@@ -394,6 +406,7 @@ impl Inputs {
                 (InputKind::Source, Value::Text(s)) if Source::ALL.iter().any(|x| x.name() == s) => Some(v.clone()),
                 (InputKind::Choice(opts), Value::Text(s)) if opts.contains(&s.as_str()) => Some(v.clone()),
                 (InputKind::Text, Value::Text(_)) => Some(v.clone()),
+                (InputKind::Color, Value::Text(t)) if t.starts_with('#') => Some(v.clone()),
                 _ => None,
             };
             if let Some(v) = ok {
@@ -407,6 +420,7 @@ impl Inputs {
     pub fn summary(&self, meta: &Meta) -> String {
         meta.inputs
             .iter()
+            .filter(|i| !matches!(i.kind, InputKind::Color))
             .filter_map(|i| match self.values.get(i.id)? {
                 Value::Int(v) => Some(v.to_string()),
                 Value::Float(v) => Some(trim_float(*v)),
@@ -430,6 +444,10 @@ pub struct Ctx<'a> {
     /// The first bar of a new trading day (for session-anchored studies).
     pub new_session: bool,
     pub tf: Timeframe,
+    /// The last bar, still forming (stepped on a throwaway clone).
+    pub forming: bool,
+    /// Bars in the series (for `last_bar_index`).
+    pub count: usize,
 }
 
 impl Ctx<'_> {
@@ -530,8 +548,9 @@ impl Output {
     }
 
     fn write(&mut self, i: usize, o: &Out) {
+        // Pine has no infinities: a division by zero is na.
         for (p, v) in self.plots.iter_mut().zip(&o.values) {
-            p[i] = *v;
+            p[i] = if v.is_infinite() { f64::NAN } else { *v };
         }
         for (p, v) in self.colors.iter_mut().zip(&o.colors) {
             p[i] = *v;
@@ -572,6 +591,8 @@ pub struct Instance {
     /// Outputs come from outside; `update` only keeps their length.
     external: bool,
     committed: Box<dyn Study>,
+    /// The state after the forming bar (thrown away on the next update).
+    forming: Option<Box<dyn Study>>,
     /// Bars stepped into `committed`.
     done: usize,
     scratch: Out,
@@ -603,6 +624,7 @@ impl Instance {
             factory,
             external,
             committed,
+            forming: None,
             out: Output {
                 plots: vec![Vec::new(); meta.plots.len()],
                 colors: vec![Vec::new(); meta.plots.len()],
@@ -623,6 +645,20 @@ impl Instance {
     /// The committed study state (for strategies' trades).
     pub fn state(&self) -> Option<&dyn std::any::Any> {
         self.committed.as_any()
+    }
+
+    /// The state including the forming bar (a script's drawings and
+    /// errors as they stand now).
+    pub fn latest_state(&self) -> Option<&dyn std::any::Any> {
+        match &self.forming {
+            Some(f) => f.as_any(),
+            None => self.committed.as_any(),
+        }
+    }
+
+    /// The same study (built-in, factory or external) with new inputs.
+    pub fn with_inputs(&self, inputs: &Inputs) -> Instance {
+        Instance::make(self.meta, inputs, self.factory.clone(), self.external)
     }
 
     pub fn is_external(&self) -> bool {
@@ -659,6 +695,7 @@ impl Instance {
             return;
         }
         self.committed = self.build();
+        self.forming = None;
         self.done = 0;
         for v in &mut self.out.plots {
             v.clear();
@@ -698,6 +735,8 @@ impl Instance {
                 index: i,
                 new_session: session(i),
                 tf,
+                forming: false,
+                count: n,
             };
             self.committed.step(&c, &mut self.scratch);
             self.out.write(i, &self.scratch);
@@ -710,9 +749,12 @@ impl Instance {
             index: n - 1,
             new_session: session(n - 1),
             tf,
+            forming: true,
+            count: n,
         };
         forming.step(&c, &mut self.scratch);
         self.out.write(n - 1, &self.scratch);
+        self.forming = Some(forming);
     }
 }
 

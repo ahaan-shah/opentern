@@ -1,0 +1,4 @@
+//@version=6
+indicator("RSI (ta.rsi)", "RSI")
+len = input.int(14, "Length", minval = 1)
+plot(ta.rsi(close, len), "RSI", color.purple)

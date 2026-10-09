@@ -22,6 +22,8 @@ egui-phosphor = "0.14.0"
 jiff = "0.2.37"
 opentern-core = { version = "0.0.1", path = "../core" }
 opentern-data = { version = "0.0.1", path = "../data" }
+opentern-engine = { version = "0.0.1", path = "../engine" }
+opentern-pine = { version = "0.0.1", path = "../pine" }
 opentern-script = { version = "0.0.1", path = "../script" }
 opentern-series = { version = "0.0.1", path = "../series" }
 rfd = "0.17.2"

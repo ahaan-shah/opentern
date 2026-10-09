@@ -40,7 +40,7 @@ pub struct ScriptRun {
     /// The chart study, once the script has produced its first output.
     pub uid: Option<u64>,
     /// How it was saved (inputs, look, pane), to restore on first output.
-    restore: Option<SavedStudy>,
+    pub(crate) restore: Option<SavedStudy>,
     desc: Option<python::Meta>,
     signature: String,
     pub error: Option<String>,
@@ -53,6 +53,14 @@ pub struct ScriptRun {
     pub output: Option<python::Output>,
     pub kind: String,
     pub props: serde_json::Value,
+    /// Pine: the compiled script, the file's modification time and the
+    /// symbol it was compiled for (`syminfo.*` is baked in).
+    pub(crate) pine: Option<opentern_pine::Script>,
+    /// Pine: the last compile error (the last good version keeps running).
+    pub(crate) compile_error: Option<String>,
+    pub(crate) mtime: Option<std::time::SystemTime>,
+    pub(crate) env_key: String,
+    pub(crate) checked: Option<Instant>,
 }
 
 fn leak(s: impl Into<String>) -> &'static str {
@@ -279,6 +287,11 @@ impl App {
             output: None,
             kind: String::new(),
             props: serde_json::Value::Null,
+            pine: None,
+            compile_error: None,
+            mtime: None,
+            env_key: String::new(),
+            checked: None,
         });
         if lang == Lang::Pine {
             let i = self.scripts.len() - 1;

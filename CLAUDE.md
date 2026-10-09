@@ -6,9 +6,10 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (session paused mid-Phase 6, Oct 2026):** Phases 0–5 built; Phase 7's engine
-crate built and tested; Phase 6 (Pine) half-written. **Nothing is committed yet** (the
-maintainer hasn't asked). Read "Where things stand" → "Resume here" at the end first.
+**Status (Oct 2026):** Phases 0–6 built and committed (one commit per phase, as the
+maintainer asked). The maintainer asked for everything through Phase 13, with the backend
+solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
+an explicit go. Read "Where things stand" → "Resume here" at the end first.
 
 ## Decisions so far (from the maintainer, Oct 2026)
 
@@ -541,50 +542,23 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-The maintainer asked for phases 4–8, then had to stop mid-Phase 6. Order of work:
-1. **Finish Phase 6, the Pine engine** (`crates/pine`, not yet in the workspace `members`).
-   Done: `lexer.rs` (logical lines, wrapping, colours, strings), `ast.rs`, `parser.rs`
-   (decls incl. `var`/`varip`/typed/tuples, `:=`/`+=`, functions `f(x) =>` one-line and
-   block, `if`/`else if`/`else` as statements and values, `switch` with/without subject,
-   `for … to … by`, `while`, break/continue, ternary, named args, `x[n]`, dotted names,
-   `array.new<float>` generics skipped). Missing: `lib.rs` (with `pub struct Error { line,
-   message }` + `Error::at(line, msg)` that lexer/parser already use), a compiler and an
-   interpreter. Plan, as designed:
-   - **Compile** the AST to a resolved tree with slot indices per frame (root + one per
-     user function), one state slot per call site for `ta.*` (reuse
-     `opentern_series::ta` structs, Pine-exact), per user-function call site a child
-     frame (Pine: each call site has its own series history), hidden slots for
-     `expr[n]`, history capacity per slot = max static offset + 1 (500 if dynamic).
-   - **Run** per bar: reset non-`var` root slots to na; push the bar into a bar ring (for
-     `close[n]`); `broker.open_bar` (strategies); execute; `broker.close_bar`; push
-     histories (root every bar, function frames only when called that bar, as Pine).
-     State must be `Clone` (the runtime clones it for the forming bar).
-   - **Declarations** const-evaluated at compile time: `indicator`/`strategy` args,
-     `input.*` (→ `InputSpec`, ids from title slugs; `input.source` returns the series),
-     `plot` (palette = colour constants found in the colour argument; other colours go
-     to `Out::raw`), `plotshape`/`plotchar` (→ `PlotStyle::Shape` + `ShapeSpec`),
-     `hline`, `fill` (plots or hlines; dynamic colour → `fill_raw`), `bgcolor` (→
-     `Out::bg`), `barcolor` (→ `Out::bar`). All the renderer support for these is built.
-   - **Strategy** builtins map onto `opentern_engine::Broker` (`Order`, `OrderKind`,
-     `Props::from_json`); `strategy.position_size` etc. read the broker. Expose state
-     via `Study::as_any` so the app can read trades (`Instance::state()`).
-   - Leak a `Meta` per compiled script (`id = "pine:<file>"`) and build with
-     `Instance::with_factory`; replace the stub `crates/app/src/pine_host.rs`
-     (`compile_pine`/`poll_pine`) — `scripting.rs` already routes `.pine` files there,
-     saves them in layouts (`pending_scripts`), and the editor recompiles on save.
-   - Tests: a corpus of Pine sources of the built-ins (RSI, MACD, BB, Supertrend…) must
-     match the Rust built-ins bar for bar (the "triple check" of §6a).
-2. **Phase 7 UI**: Strategy Report tab (Overview with equity curve, Performance, Trades
-   analysis, Risk/performance, List of trades, Properties) from `opentern_engine::Report`;
-   trade markers on the chart from `Broker::fills`; Python strategies: replay
-   `ScriptRun::output.intents` (per-bar orders) through a `Broker` (see
-   `python/opentern/__init__.py` `_Strategy`); paper trading tab (a live `Broker` fed by
-   ticks, manual buy/sell, positions/orders, saved in the workspace). Write
-   `docs/metrics.md` checks against TradingView later.
-3. **Phase 8**: alerts (price/drawing/indicator/script `alert()`), evaluated on ticks,
-   delivered by desktop notification (`notify-rust`), sound, webhook, Telegram; Alerts
-   widget + Alerts log tab.
-4. Then the UI pass (`docs/ui-backlog.md`), only after features and data are dialed in.
+The maintainer asked for Phases 6–13, committing after each, then they test and we iterate
+on UI and bugs. Phase 14+ only on an explicit go. Order of work:
+1. **Phase 7**: Pine step 3 (`strategy.*` → `opentern_engine::Broker`; read it back with
+   `PineStudy::broker()` via `Instance::state()`), `docs/metrics.md` checks, the Strategy
+   Report tab (Overview with equity curve, Performance, Trades analysis, Risk/performance,
+   List of trades, Properties) from `opentern_engine::Report`, trade markers on the chart
+   from `Broker::fills`, Python strategies (replay `ScriptRun::output.intents` through a
+   `Broker`; see `python/opentern/__init__.py` `_Strategy`), and the Paper Trading tab (a
+   live `Broker` fed by ticks, manual buy/sell, positions/orders, saved in the workspace).
+2. **Phase 8**: alerts (price/drawing/indicator/script `alert()`/`alertcondition`; Pine
+   collects them in `PineStudy::alerts()`), evaluated on ticks, delivered by desktop
+   notification (`notify-rust`), sound, webhook, Telegram; Alerts widget + Alerts log tab.
+3. Phases 9–13 as in the roadmap (§9). Pine v2 (Phase 10) has its scaffolding in place:
+   `heap.rs` (arrays/maps/matrices/UDTs/drawings with GC), the parser already handles
+   `type`, `method`, `for … in`, generics, `p.x := …`; stubs in `natives/collections.rs`,
+   `draw.rs`, `security.rs`.
+4. Then the UI pass (`docs/ui-backlog.md`).
 
 ### Crates
 | Crate | What it owns |
@@ -594,8 +568,8 @@ The maintainer asked for phases 4–8, then had to stop mid-Phase 6. Order of wo
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
 | `opentern-script` | Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
-| `opentern-pine` | **in progress**, see "Resume here" |
-| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor tab), `pine_host.rs` (stub), `dialogs/`, `drive.rs` (headless test driver) |
+| `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `heap.rs` (objects, Phase 10), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
+| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor tab), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
@@ -624,6 +598,34 @@ The maintainer asked for phases 4–8, then had to stop mid-Phase 6. Order of wo
   inputs. `notify` crate not used: the worker polls the file's mtime every second.
 - Verified: the SDK's RSI (pure Python) equals the Rust built-in RSI bar for bar on the
   demo chart (`drive::tests::python_script_…`).
+
+### Phase 6 (done): Pine v1
+- Pine steps 1–2: v5/v6 syntax incl. `var`/`varip`, tuples, functions, `if`/`switch`
+  values, `for`/`while`/`break`/`continue`, `a = 1, b = 2`, history `[n]` on anything;
+  `indicator`/`strategy` declarations, every `input.*` (colour inputs got `InputKind::Color`
+  and a picker in the Inputs tab), `plot`/`plotshape`/`plotchar`/`plotarrow`/`plotcandle`/
+  `plotbar` (new `PlotStyle::Candle`/`OhlcBar`/`Hidden`), `hline`, `fill`, `bgcolor`,
+  `barcolor`, `alertcondition`, `alert`, `log.*`; `ta.*` (all common ones), `math.*`,
+  `str.*`, `color.*`, time functions, `timeframe.*`, `syminfo.*`, `barstate.*`.
+- Execution model: every variable is a frame slot; slots read with `[n]` keep a ring that
+  is pushed at the end of each bar in which the slot was set (so a function's locals only
+  get history on bars it ran, as in Pine); each user-function call site and each `ta.*`
+  call site has its own state; v6 `and`/`or` are lazy, v5 aren't; ternaries/`if` only run
+  the chosen branch. State is `Clone`: the forming bar runs on a copy (rollback).
+  `Instance::latest_state()` gives the forming-bar state (errors, later drawings).
+- **Conformance: 63 TradingView built-ins written in Pine (`tests/corpus/`) match the
+  Rust built-ins bar for bar** on 1h and 1D synthetic data with gaps, flat bars and zero
+  volume (`tests/conformance.rs`). This found two built-in bugs, now fixed: raw `/` where
+  Pine gives `na` (EOM on zero volume and others now use `ta::div`), and `±inf` reaching
+  plots (now `na` in `Output::write`).
+- App: `pine_host.rs` compiles on save, on outside edits (mtime checked once a second)
+  and on a symbol change (`syminfo` is baked into the compile). A compile error keeps
+  the last good version running and shows "Line N: …" in the legend; runtime errors
+  too. `Chart::set_inputs` now keeps a script's factory (`Instance::with_inputs`).
+- Not yet (later phases): `strategy.*` (7), arrays/maps/matrices/UDTs/methods/drawings/
+  `request.security`/libraries/enums (10). Hline prices and plot offsets that depend on
+  non-trivial expressions use the input defaults. Dynamic lengths rebuild `ta.*` state.
+  `varip` behaves like `var` (the forming bar is always recomputed from a copy).
 
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
@@ -677,17 +679,23 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 ```
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
-study:<id>|save-template` opens a dialog at launch for screenshots. `OPENTERN_PYTHON`
-picks the interpreter.
+study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a
+workspace script on the chart. `OPENTERN_PYTHON` picks the interpreter.
+```bash
+cargo test --release -p opentern-pine --test conformance -- --ignored --nocapture --test-threads=1  # Pine timing
+```
 
 ### Measured
 - 62 built-ins over 1,000,000 bars: 3.7 s total (~60 ms each), release build.
 - Live: Binance BTCUSDT 1m and 45m stream; Yahoo daily/15m; BTCUSDT/ETHUSDT 1m streams
   (~33.2); AAPL/SPY daily joins 8,482 bars; scroll-back loads 5,000 more Binance bars.
-- 84 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
+  profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
+  Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
+- 122 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phase 6 rest (above), Phase 7 UI and paper trading, Phase 8, then Phases 9–14. App
+Phase 7 (strategies, Strategy Report, paper trading), Phase 8, then Phases 9–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
 in the shell: alerts, replay, compare, multi-chart, snapshot, hotlists/calendar/news/
 notifications widgets, Screener / Strategy Report / Paper Trading / Alerts log tabs.

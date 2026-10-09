@@ -1,0 +1,5 @@
+//@version=5
+indicator(title="Price Volume Trend", shorttitle="PVT", format=format.volume, timeframe="", timeframe_gaps=true)
+src = close
+vt = ta.cum(ta.change(src)/src[1]*volume)
+plot(vt, color=#2962FF, title="PVT")

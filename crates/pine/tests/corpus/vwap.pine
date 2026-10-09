@@ -1,0 +1,3 @@
+//@version=5
+indicator(title="VWAP (ta.vwap)", overlay=true)
+plot(ta.vwap(hlc3), "VWAP", color=#2962FF)

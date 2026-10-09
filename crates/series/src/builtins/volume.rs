@@ -73,7 +73,7 @@ impl Study for Cmf {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let a = self.ad.update(clv_volume(c.bar));
         let v = self.vol.update(c.bar.volume);
-        o.values[0] = a / v;
+        o.values[0] = ta::div(a, v);
     }
 }
 
@@ -97,7 +97,7 @@ impl Study for Eom {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let b = c.bar;
         let ch = self.ch.update(Source::Hl2.of(b));
-        o.values[0] = self.sma.update(self.div * ch * (b.high - b.low) / b.volume);
+        o.values[0] = self.sma.update(ta::div(self.div * ch * (b.high - b.low), b.volume));
     }
 }
 
@@ -110,7 +110,7 @@ struct Pvt {
 impl Study for Pvt {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let x = c.bar.close;
-        let v = (x - self.prev) / self.prev * c.bar.volume;
+        let v = ta::div(x - self.prev, self.prev) * c.bar.volume;
         self.prev = x;
         o.values[0] = self.cum.update(v);
     }
@@ -126,7 +126,7 @@ impl Study for VolOsc {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let s = self.short.update(c.bar.volume);
         let l = self.long.update(c.bar.volume);
-        o.values[0] = 100.0 * (s - l) / l;
+        o.values[0] = 100.0 * ta::div(s - l, l);
     }
 }
 

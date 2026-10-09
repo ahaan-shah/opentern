@@ -192,6 +192,13 @@ impl StudySettings {
                 (InputKind::Text, Value::Text(v)) => {
                     changed |= ui.add(egui::TextEdit::singleline(v).desired_width(180.0)).changed();
                 }
+                (InputKind::Color, Value::Text(v)) => {
+                    let mut c = crate::scripting::parse_color(v);
+                    if color_button(ui, t, &mut c) {
+                        *v = format!("#{:08X}", c.0);
+                        changed = true;
+                    }
+                }
                 (InputKind::Choice(opts), Value::Text(v)) => {
                     egui::ComboBox::from_id_salt(spec.id)
                         .width(180.0)
@@ -212,26 +219,32 @@ impl StudySettings {
     fn style_tab(&mut self, ui: &mut Ui, t: &Theme, meta: &opentern_series::Meta) -> bool {
         let mut changed = false;
         for (i, spec) in meta.plots.iter().enumerate() {
+            if spec.style == PlotStyle::Hidden {
+                continue;
+            }
+            let fixed_style = matches!(spec.style, PlotStyle::Shape | PlotStyle::Candle | PlotStyle::OhlcBar);
             let look = &mut self.look.plots[i];
             ui.horizontal(|ui| {
                 changed |= ui.checkbox(&mut look.visible, spec.title).changed();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    egui::ComboBox::from_id_salt(("plot-style", i))
-                        .width(110.0)
-                        .selected_text(look.style.name())
-                        .show_ui(ui, |ui| {
-                            for s in PlotStyle::ALL {
-                                changed |= ui.selectable_value(&mut look.style, s, s.name()).changed();
-                            }
-                        });
-                    egui::ComboBox::from_id_salt(("plot-width", i))
-                        .width(50.0)
-                        .selected_text(format!("{}px", look.width))
-                        .show_ui(ui, |ui| {
-                            for w in 1..=4u8 {
-                                changed |= ui.selectable_value(&mut look.width, w, format!("{w}px")).changed();
-                            }
-                        });
+                    if !fixed_style {
+                        egui::ComboBox::from_id_salt(("plot-style", i))
+                            .width(110.0)
+                            .selected_text(look.style.name())
+                            .show_ui(ui, |ui| {
+                                for s in PlotStyle::ALL {
+                                    changed |= ui.selectable_value(&mut look.style, s, s.name()).changed();
+                                }
+                            });
+                        egui::ComboBox::from_id_salt(("plot-width", i))
+                            .width(50.0)
+                            .selected_text(format!("{}px", look.width))
+                            .show_ui(ui, |ui| {
+                                for w in 1..=4u8 {
+                                    changed |= ui.selectable_value(&mut look.width, w, format!("{w}px")).changed();
+                                }
+                            });
+                    }
                     for c in look.colors.iter_mut().rev() {
                         changed |= color_button(ui, t, c);
                     }

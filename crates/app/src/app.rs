@@ -155,11 +155,16 @@ impl App {
     }
 
     /// For screenshots: `OPENTERN_STILL=indicators|symbol|chart-settings|
-    /// study:<id>|save-template` opens that dialog at launch.
+    /// study:<id>|save-template` opens that dialog at launch;
+    /// `script:<file>` puts a workspace script on the chart.
     fn still(&mut self) {
         let Ok(what) = std::env::var("OPENTERN_STILL") else {
             return;
         };
+        if let Some(file) = what.strip_prefix("script:") {
+            self.add_script(file);
+            return;
+        }
         self.modal = match what.as_str() {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),

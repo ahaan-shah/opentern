@@ -1,0 +1,6 @@
+//@version=5
+indicator(title="Money Flow Index", shorttitle="MFI", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+length = input.int(title="Length", defval=14, minval=1, maxval=2000)
+src = hlc3
+mf = ta.mfi(src, length)
+plot(mf, "MF", color=#7E57C2)

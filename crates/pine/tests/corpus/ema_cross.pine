@@ -1,0 +1,9 @@
+//@version=5
+indicator(title="EMA Cross", overlay=true, timeframe="", timeframe_gaps=true)
+shortlen = input.int(9, "Short EMA Length", minval=1)
+longlen = input.int(26, "Long EMA Length", minval=1)
+short = ta.ema(close, shortlen)
+long = ta.ema(close, longlen)
+plot(short, color = #FF6D00, title="Short MA")
+plot(long, color = #43A047, title="Long MA")
+plot(ta.cross(short, long) ? short : na, color=#2962FF, style = plot.style_cross, linewidth = 4, title="Cross")

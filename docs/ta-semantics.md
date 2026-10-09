@@ -32,4 +32,7 @@ export confirmed it; until then each line is "as documented / as remembered".
 | `ta.supertrend(f, n)` | | | direction −1 = up; nz() on previous bands | no |
 | `ta.vwap` (session) | resets each session | | bands: stdev from Σv·p² | no |
 | `ta.cum(x)` | | `na` counts as 0 | | no |
-| Division | | x/0 → `na` | as in Pine | no |
+| Division | | x/0 → `na` | as in Pine; the built-ins use `ta::div`, and `±inf` never reaches a plot | no |
+| `ta.pivothigh/low(src, l, r)` | `l + r + 1` values | `na` neighbours don't block | left side must be strictly beaten, ties allowed on the right (**to verify**) | no |
+| `ta.valuewhen` / `ta.barssince` | | `na` until the condition first holds | | no |
+| `ta.change(bool)` | | | a bool: true when it differs from n bars ago | no |

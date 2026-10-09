@@ -124,7 +124,7 @@ impl Study for WillR {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let max = self.hh.update(c.bar.high);
         let min = self.ll.update(c.bar.low);
-        o.values[0] = 100.0 * (c.src(self.src) - max) / (max - min);
+        o.values[0] = 100.0 * ta::div(c.src(self.src) - max, max - min);
     }
 }
 
@@ -163,7 +163,7 @@ impl Study for Uo {
         let avg: Vec<f64> = self
             .sums
             .iter_mut()
-            .map(|(s_bp, s_tr)| s_bp.update(bp) / s_tr.update(tr))
+            .map(|(s_bp, s_tr)| ta::div(s_bp.update(bp), s_tr.update(tr)))
             .collect();
         o.values[0] = 100.0 * (4.0 * avg[0] + 2.0 * avg[1] + avg[2]) / 7.0;
     }
@@ -184,7 +184,7 @@ impl Study for Tsi {
         let pc = self.ch.update(c.bar.close);
         let a = self.pc_short.update(self.pc_long.update(pc));
         let b = self.abs_short.update(self.abs_long.update(pc.abs()));
-        let tsi = 100.0 * (a / b);
+        let tsi = 100.0 * ta::div(a, b);
         o.values[0] = tsi;
         o.values[1] = self.signal.update(tsi);
     }
@@ -205,7 +205,7 @@ impl Study for Cmo {
         let m2 = if m >= 0.0 { 0.0 } else { -m };
         let s1 = self.up.update(m1);
         let s2 = self.down.update(m2);
-        o.values[0] = 100.0 * (s1 - s2) / (s1 + s2);
+        o.values[0] = 100.0 * ta::div(s1 - s2, s1 + s2);
     }
 }
 
@@ -231,7 +231,7 @@ impl Study for Fisher {
                 v
             }
         };
-        let value = round(0.66 * ((x - low) / (high - low) - 0.5) + 0.67 * ta::nz(self.value, 0.0));
+        let value = round(0.66 * (ta::div(x - low, high - low) - 0.5) + 0.67 * ta::nz(self.value, 0.0));
         let prev_fish = self.fish;
         let fish = 0.5 * ((1.0 + value) / (1.0 - value)).ln() + 0.5 * ta::nz(prev_fish, 0.0);
         self.value = value;
@@ -255,7 +255,7 @@ impl Study for Ppo {
         let (ss, se) = (self.short.0.update(x), self.short.1.update(x));
         let (ls, le) = (self.long.0.update(x), self.long.1.update(x));
         let (s, l) = if self.exp { (se, le) } else { (ss, ls) };
-        o.values[0] = (s - l) / l * 100.0;
+        o.values[0] = ta::div(s - l, l) * 100.0;
     }
 }
 
@@ -322,7 +322,7 @@ struct Bop;
 impl Study for Bop {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let b = c.bar;
-        o.values[0] = (b.close - b.open) / (b.high - b.low);
+        o.values[0] = ta::div(b.close - b.open, b.high - b.low);
     }
 }
 
@@ -349,7 +349,7 @@ struct Hv {
 
 impl Study for Hv {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
-        let r = (c.bar.close / self.prev).ln();
+        let r = ta::div(c.bar.close, self.prev).ln();
         self.prev = c.bar.close;
         let per = if c.tf.is_intraday() || (c.tf.unit == opentern_core::Unit::Day && c.tf.count == 1) {
             1.0

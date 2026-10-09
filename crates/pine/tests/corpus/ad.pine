@@ -1,0 +1,4 @@
+//@version=5
+indicator(title="Accumulation/Distribution", shorttitle="Accum/Dist", format=format.volume, overlay=false, timeframe="", timeframe_gaps=true)
+ad = ta.cum(close==high and close==low or high==low ? 0 : ((2*close-low-high)/(high-low))*volume)
+plot(ad, title = "Accumulation/Distribution", color=#999915)

@@ -468,7 +468,9 @@ impl Chart {
     pub fn set_inputs(&mut self, uid: u64, inputs: &Inputs) {
         let (bars, sess, tf) = (&self.bars, &self.sessions, self.tf);
         if let Some(s) = self.studies.iter_mut().find(|s| s.uid == uid) {
-            s.inst = Instance::new(s.inst.meta, inputs);
+            // Keeps how the study is built (a script's factory, or outputs
+            // that come from a Python process).
+            s.inst = s.inst.with_inputs(inputs);
             s.inst.recompute(bars, sess, tf);
         }
         self.touch();

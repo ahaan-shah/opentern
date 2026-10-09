@@ -1170,6 +1170,66 @@ fn draw_study(
                     p.line_segment([c - vec2(0.0, r), c + vec2(0.0, r)], st);
                 }
             }
+            PlotStyle::Hidden => {}
+            PlotStyle::Candle | PlotStyle::OhlcBar => {
+                // Opens are this plot; highs, lows and closes the next three.
+                let part = |k: usize, i: usize| {
+                    s.inst
+                        .out
+                        .plots
+                        .get(pi + k)
+                        .and_then(|v| v.get(i))
+                        .copied()
+                        .unwrap_or(f64::NAN)
+                };
+                let candles = look.style == PlotStyle::Candle;
+                let bw = x.bar_w;
+                let body_w = if bw >= 3.0 {
+                    (bw * 0.7).round().max(1.0)
+                } else {
+                    1.0 / ppp
+                };
+                let mut mesh = Mesh::default();
+                for (j, o, ci) in pts {
+                    let (h, l, c) = (part(1, j), part(2, j), part(3, j));
+                    if !(h.is_finite() && l.is_finite() && c.is_finite()) {
+                        continue;
+                    }
+                    let col = color(ci);
+                    let cx = snap(x.x(j as f64), ppp);
+                    let line_w = (1.0 / ppp).max(1.0);
+                    rect_mesh(
+                        &mut mesh,
+                        Rect::from_min_max(pos2(cx - line_w / 2.0, y.y(h)), pos2(cx + line_w / 2.0, y.y(l))),
+                        col,
+                    );
+                    if candles {
+                        let (top, bottom) = (y.y(o.max(c)), y.y(o.min(c)));
+                        rect_mesh(
+                            &mut mesh,
+                            Rect::from_min_max(
+                                pos2(cx - body_w / 2.0, top),
+                                pos2(cx + body_w / 2.0, bottom.max(top + 1.0 / ppp)),
+                            ),
+                            col,
+                        );
+                    } else {
+                        let tick = (body_w / 2.0).max(2.0);
+                        let (yo, yc) = (y.y(o), y.y(c));
+                        rect_mesh(
+                            &mut mesh,
+                            Rect::from_min_max(pos2(cx - tick, yo - line_w / 2.0), pos2(cx, yo + line_w / 2.0)),
+                            col,
+                        );
+                        rect_mesh(
+                            &mut mesh,
+                            Rect::from_min_max(pos2(cx, yc - line_w / 2.0), pos2(cx + tick, yc + line_w / 2.0)),
+                            col,
+                        );
+                    }
+                }
+                p.add(mesh);
+            }
             PlotStyle::Shape => {
                 let Some(spec) = &meta.plots[pi].shape else { continue };
                 for (j, v, ci) in pts {

@@ -1,0 +1,6 @@
+//@version=5
+indicator(title="Ease of Movement", shorttitle="EOM", format=format.volume, timeframe="", timeframe_gaps=true)
+length = input.int(14, minval=1)
+div = input.int(10000, title="Divisor", minval=1)
+eom = ta.sma(div * ta.change(hl2) * (high - low) / volume, length)
+plot(eom, "EOM", color=#43A047)
