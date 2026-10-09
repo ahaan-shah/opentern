@@ -2503,7 +2503,6 @@ dependencies = [
  "egui",
  "egui-phosphor",
  "jiff",
- "keyring",
  "notify-rust",
  "opentern-core",
  "opentern-data",
@@ -2524,6 +2523,7 @@ version = "0.0.1"
 dependencies = [
  "directories",
  "jiff",
+ "keyring",
  "rusqlite",
  "serde",
  "serde_json",
@@ -2539,6 +2539,7 @@ name = "opentern-data"
 version = "0.0.1"
 dependencies = [
  "crossbeam-channel",
+ "flate2",
  "jiff",
  "opentern-core",
  "rusqlite",

@@ -10,6 +10,8 @@ homepage.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Secrets live in the OS keychain; pure-Rust D-Bus on Linux.
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "crypto-rust", "async-io"] }
 directories = "6.0.0"
 jiff = "0.2.37"
 rusqlite = { version = "0.40.2", features = ["bundled"] }

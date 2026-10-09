@@ -5,6 +5,7 @@ mod alert;
 mod chart_settings;
 pub mod color;
 mod indicators;
+pub mod providers;
 mod study;
 mod symbol;
 
@@ -30,6 +31,7 @@ pub enum Modal {
     /// "Change interval": opened by typing a number.
     Interval(String),
     Alert(Box<AlertForm>),
+    Providers(Box<providers::Providers>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,6 +101,7 @@ impl App {
                 Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
                 Modal::Interval(text) => interval(ui, self, &t, text),
                 Modal::Alert(f) => f.show(ui, self, &t),
+                Modal::Providers(p) => p.show(ui, self, &t),
             });
         let done = matches!(resp.inner, Done::Close);
         if done {

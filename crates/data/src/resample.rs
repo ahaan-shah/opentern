@@ -44,7 +44,7 @@ fn date_from_days(days: i64) -> Date {
 
 /// Bucket start for a daily-or-longer target, given a bar stamped at UTC
 /// midnight.
-fn calendar_bucket(t: i64, tf: Timeframe) -> i64 {
+pub(crate) fn calendar_bucket(t: i64, tf: Timeframe) -> i64 {
     let day = t.div_euclid(DAY);
     let n = tf.count.max(1) as i64;
     match tf.unit {

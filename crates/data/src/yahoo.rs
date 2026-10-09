@@ -126,7 +126,91 @@ pub(crate) fn parse_chart(v: &serde_json::Value, daily: bool) -> Result<(Vec<Bar
     Ok((bars, meta))
 }
 
+/// Dividends and splits, dated like daily bars (00:00 UTC of the
+/// exchange-local date).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Corporate {
+    /// (ex-date, amount per share).
+    pub dividends: Vec<(i64, f64)>,
+    /// (date, ratio new shares per old: 4 for a 4-for-1 split).
+    pub splits: Vec<(i64, f64)>,
+}
+
+pub(crate) fn parse_events(v: &serde_json::Value) -> Corporate {
+    let r = &v["chart"]["result"][0];
+    let tz = r["meta"]["exchangeTimezoneName"]
+        .as_str()
+        .and_then(|n| jiff::tz::TimeZone::get(n).ok())
+        .unwrap_or(jiff::tz::TimeZone::UTC);
+    let day = |e: &serde_json::Value| e["date"].as_i64().map(|t| to_utc_midnight(t * 1000, &tz));
+    let mut c = Corporate::default();
+    if let Some(m) = r["events"]["dividends"].as_object() {
+        c.dividends = m
+            .values()
+            .filter_map(|e| Some((day(e)?, e["amount"].as_f64()?)))
+            .collect();
+    }
+    if let Some(m) = r["events"]["splits"].as_object() {
+        c.splits = m
+            .values()
+            .filter_map(|e| {
+                let (n, d) = (e["numerator"].as_f64()?, e["denominator"].as_f64()?);
+                (d > 0.0).then_some((day(e)?, n / d))
+            })
+            .collect();
+    }
+    c.dividends.sort_by_key(|x| x.0);
+    c.splits.sort_by_key(|x| x.0);
+    c
+}
+
+/// Back-adjusts prices for dividends, as TradingView's ADJ: each bar
+/// before an ex-date is scaled by (1 − dividend / previous close). Yahoo's
+/// prices are already split-adjusted. `tz` dates intraday bars.
+pub fn dividend_adjust(bars: &[Bar], dividends: &[(i64, f64)], tz: &jiff::tz::TimeZone) -> Vec<Bar> {
+    let day = |t: i64| to_utc_midnight(t, tz);
+    let days: Vec<i64> = bars.iter().map(|b| day(b.time)).collect();
+    let mut factor = vec![1.0f64; bars.len()];
+    for &(ex, amount) in dividends {
+        // The last bar before the ex-date carries the reference close.
+        let Some(k) = days.iter().rposition(|d| *d < ex) else {
+            continue;
+        };
+        if k + 1 >= bars.len() {
+            continue;
+        }
+        let close = bars[k].close;
+        if close <= 0.0 || amount <= 0.0 || amount >= close {
+            continue;
+        }
+        let f = 1.0 - amount / close;
+        for x in factor.iter_mut().take(k + 1) {
+            *x *= f;
+        }
+    }
+    bars.iter()
+        .zip(factor)
+        .map(|(b, f)| Bar {
+            open: b.open * f,
+            high: b.high * f,
+            low: b.low * f,
+            close: b.close * f,
+            ..*b
+        })
+        .collect()
+}
+
 impl Yahoo {
+    /// The symbol's whole dividend and split history.
+    pub fn corporate(&self, sym: &Symbol) -> Result<Corporate> {
+        let url = format!(
+            "{CHART}/{}?interval=1d&period1=0&period2={}&events=div%7Csplit",
+            urlencode(&ticker(&sym.id)),
+            provider::now_ms() / 1000
+        );
+        Ok(parse_events(&provider::get_json(&self.agent, &url)?))
+    }
+
     fn chart(&self, sym: &Symbol, tf: Timeframe, range: &str) -> Result<(Vec<Bar>, serde_json::Value)> {
         let (iv, _) = interval(tf).ok_or_else(|| Error::Bad(format!("Yahoo has no {} bars", tf.label())))?;
         // `range=max` quietly switches to 3-month bars, so ask for the whole
@@ -268,6 +352,32 @@ fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dividends_splits_and_adjustment() {
+        let v = serde_json::json!({"chart":{"result":[{"meta":{"exchangeTimezoneName":"America/New_York"},
+            "events":{"dividends":{"1":{"amount":0.25,"date":1704292200}},
+                      "splits":{"2":{"date":1598880600,"numerator":4,"denominator":1,"splitRatio":"4:1"}}}}]}});
+        let c = parse_events(&v);
+        // 2024-01-03 14:30 UTC → dated 2024-01-03 00:00 UTC.
+        assert_eq!(c.dividends, vec![(1_704_240_000_000, 0.25)]);
+        assert_eq!(c.splits[0].1, 4.0);
+        let day = 86_400_000;
+        let bars: Vec<Bar> = (0..4)
+            .map(|i| Bar {
+                time: 1_704_067_200_000 + i * day,
+                open: 10.0,
+                high: 10.0,
+                low: 10.0,
+                close: 10.0,
+                volume: 1.0,
+            })
+            .collect();
+        // Ex-date 2024-01-03 (index 2): bars 0 and 1 scale by 1 − 0.25/10.
+        let adj = dividend_adjust(&bars, &c.dividends, &jiff::tz::TimeZone::UTC);
+        assert_eq!((adj[0].close, adj[1].close, adj[2].close), (9.75, 9.75, 10.0));
+        assert_eq!(adj[0].volume, 1.0);
+    }
 
     #[test]
     fn maps_ids_both_ways() {

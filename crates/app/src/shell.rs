@@ -245,7 +245,27 @@ impl App {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
                 ui.spacing_mut().item_spacing.x = 2.0;
-                w::bar_button(ui, t, Some(ph::LIST), "", "Main menu", false);
+                let menu = w::bar_button(ui, t, Some(ph::LIST), "", "Main menu", false);
+                egui::Popup::menu(&menu).show(|ui| {
+                    ui.set_min_width(220.0);
+                    if ui.button(format!("{}  Data providers…", ph::PLUGS_CONNECTED)).clicked() {
+                        self.open_providers();
+                        ui.close();
+                    }
+                    if ui.button(format!("{}  Chart settings…", ph::GEAR)).clicked() {
+                        self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
+                        ui.close();
+                    }
+                    let (glyph, label) = if t.dark {
+                        (ph::SUN, "Light theme")
+                    } else {
+                        (ph::MOON, "Dark theme")
+                    };
+                    if ui.button(format!("{glyph}  {label}")).clicked() {
+                        self.toggle_dark(ui.ctx());
+                        ui.close();
+                    }
+                });
                 w::vdivider(ui, t);
 
                 // Symbol search: TradingView opens it when you start typing.
@@ -710,6 +730,15 @@ impl App {
                     p.scale.auto = true;
                 }
                 self.chart.touch();
+            }
+            let has_divs = self.chart.corporate.as_ref().is_some_and(|c| !c.dividends.is_empty());
+            if has_divs
+                && small_button(ui, t, "ADJ", self.chart.adj)
+                    .on_hover_text("Adjust prices for dividends")
+                    .clicked()
+            {
+                let on = !self.chart.adj;
+                self.chart.set_adj(on);
             }
             if small_button(ui, t, "%", self.chart.percent)
                 .on_hover_text("Percent scale")

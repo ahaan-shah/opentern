@@ -3,7 +3,7 @@
 //! the message, and where it's sent.
 
 use super::{Done, form_row, frame, section};
-use crate::alerts::{KEYCHAIN_SERVICE, TELEGRAM_CHAT, TELEGRAM_TOKEN, line_condition, now_ms};
+use crate::alerts::{TELEGRAM_CHAT, TELEGRAM_TOKEN, line_condition, now_ms};
 use crate::app::App;
 use crate::theme::Theme;
 use egui::Ui;
@@ -93,9 +93,7 @@ impl App {
                 });
             }
         }
-        let has_token = keyring::Entry::new(KEYCHAIN_SERVICE, TELEGRAM_TOKEN)
-            .and_then(|e| e.get_password())
-            .is_ok_and(|t| !t.is_empty());
+        let has_token = opentern_core::secrets::get(TELEGRAM_TOKEN).is_some();
         let chat = self.store.value(TELEGRAM_CHAT).unwrap_or_default();
         let mut form = AlertForm {
             alert: Alert {
@@ -406,8 +404,7 @@ impl AlertForm {
     fn save_telegram(&mut self, app: &mut App) -> Result<(), String> {
         let token = self.token.trim();
         if !token.is_empty() {
-            keyring::Entry::new(KEYCHAIN_SERVICE, TELEGRAM_TOKEN)
-                .and_then(|e| e.set_password(token))
+            opentern_core::secrets::set(TELEGRAM_TOKEN, token)
                 .map_err(|e| format!("Couldn't save the token in your keychain: {e}"))?;
             self.has_token = true;
             self.token.clear();

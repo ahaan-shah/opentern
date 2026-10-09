@@ -143,3 +143,121 @@ fn formula_history_and_stream() {
     let s = opentern_data::expr::symbol("AAPL/SPY", &known).unwrap();
     open(s, "1D", false);
 }
+
+fn crypto(id: &str) -> Symbol {
+    Symbol {
+        id: id.into(),
+        description: String::new(),
+        kind: opentern_core::AssetKind::Crypto,
+        currency: "USD".into(),
+        tick_size: 0.01,
+        timezone: "UTC".into(),
+    }
+}
+
+/// History through the providers directly: recent bars, paging back, and
+/// bars since a time, all sorted with no duplicates.
+fn provider_checks(p: &dyn opentern_data::provider::Provider, s: &Symbol) {
+    let tf = Timeframe::parse("1h").unwrap();
+    let latest = p.latest(s, tf, 400).unwrap_or_else(|e| panic!("{}: {e}", s.id));
+    assert!(latest.len() >= 300, "{}: {} bars", s.id, latest.len());
+    assert!(latest.windows(2).all(|w| w[0].time < w[1].time), "{}: unsorted", s.id);
+    assert!(
+        latest.iter().all(|b| b.time % 3_600_000 == 0),
+        "{}: off the hour grid",
+        s.id
+    );
+    let first = latest[0].time;
+    let older = p.before(s, tf, first, 50).unwrap();
+    assert!(older.iter().all(|b| b.time < first), "{}: before() overlaps", s.id);
+    let since = p.since(s, tf, latest[latest.len() - 10].time).unwrap();
+    assert!((9..=12).contains(&since.len()), "{}: since gave {}", s.id, since.len());
+    let daily = p.latest(s, Timeframe::parse("1D").unwrap(), 30).unwrap();
+    assert!(
+        daily.iter().all(|b| b.time % 86_400_000 == 0),
+        "{}: days not at UTC midnight",
+        s.id
+    );
+    println!(
+        "{}: {} hourly, {} older, {} since, {} daily",
+        s.id,
+        latest.len(),
+        older.len(),
+        since.len(),
+        daily.len()
+    );
+}
+
+#[test]
+#[ignore]
+fn crypto_exchanges_history() {
+    use opentern_data::provider::Provider;
+    use opentern_data::{bybit::Bybit, coinbase::Coinbase, kraken::Kraken, okx::Okx};
+    provider_checks(&Bybit::default(), &crypto("BYBIT:BTCUSDT"));
+    provider_checks(&Okx::default(), &crypto("OKX:BTCUSDT"));
+    provider_checks(&Coinbase::default(), &crypto("COINBASE:BTCUSD"));
+    // Kraken keeps only its latest 720 bars; before() is empty by design.
+    let k = Kraken::default();
+    let s = crypto("KRAKEN:BTCUSD");
+    let tf = Timeframe::parse("1h").unwrap();
+    let latest = k.latest(&s, tf, 400).unwrap();
+    assert!(latest.len() >= 300 && latest.windows(2).all(|w| w[0].time < w[1].time));
+    println!("KRAKEN: {} hourly", latest.len());
+}
+
+#[test]
+#[ignore]
+fn crypto_exchanges_stream_through_the_hub() {
+    for id in ["BYBIT:BTCUSDT", "OKX:BTCUSDT", "COINBASE:BTCUSD", "KRAKEN:BTCUSD"] {
+        open(crypto(id), "1m", true);
+    }
+}
+
+#[test]
+#[ignore]
+fn crypto_symbol_lists() {
+    use opentern_data::{bybit::Bybit, coinbase::Coinbase, kraken::Kraken, okx::Okx};
+    for (name, list) in [
+        ("bybit", Bybit::default().symbols()),
+        ("okx", Okx::default().symbols()),
+        ("coinbase", Coinbase::default().symbols()),
+        ("kraken", Kraken::default().symbols()),
+    ] {
+        let list = list.unwrap_or_else(|e| panic!("{name}: {e}"));
+        println!("{name}: {} symbols", list.len());
+        assert!(list.len() > 50, "{name}");
+        assert!(list.iter().any(|s| s.ticker().starts_with("BTC")), "{name}: no BTC");
+    }
+}
+
+#[test]
+#[ignore]
+fn yahoo_dividends_and_splits_reach_the_chart() {
+    let aapl = opentern_core::starter_watchlist()
+        .into_iter()
+        .find(|s| s.id == "NASDAQ:AAPL")
+        .unwrap();
+    let c = opentern_data::yahoo::Yahoo::default().corporate(&aapl).unwrap();
+    println!("AAPL: {} dividends, splits {:?}", c.dividends.len(), c.splits);
+    assert!(c.dividends.len() > 40);
+    // 4-for-1 on 2020-08-31.
+    assert!(
+        c.splits.iter().any(|(d, r)| *d == 1_598_832_000_000 && *r == 4.0),
+        "{:?}",
+        c.splits
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let hub = Hub::start(dir.path().to_path_buf(), false, Arc::new(|| {}));
+    hub.send(Request::Open {
+        chart: 1,
+        symbol: aapl,
+        tf: Timeframe::parse("1D").unwrap(),
+    });
+    let deadline = Instant::now() + Duration::from_secs(40);
+    let mut got = false;
+    while Instant::now() < deadline && !got {
+        got = hub.poll().into_iter().any(|e| matches!(e, Event::Corporate { .. }));
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    assert!(got, "no corporate event");
+}

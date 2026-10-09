@@ -18,7 +18,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-pub const KEYCHAIN_SERVICE: &str = "opentern";
 pub const TELEGRAM_TOKEN: &str = "telegram-bot-token";
 pub const TELEGRAM_CHAT: &str = "telegram_chat_id";
 
@@ -104,7 +103,7 @@ fn deliver(d: &Delivery) {
         }
     }
     if let Some(chat) = &d.telegram_chat {
-        match keyring::Entry::new(KEYCHAIN_SERVICE, TELEGRAM_TOKEN).and_then(|e| e.get_password()) {
+        match opentern_core::secrets::get(TELEGRAM_TOKEN).ok_or(()) {
             Ok(token) => {
                 let url = format!("https://api.telegram.org/bot{token}/sendMessage");
                 let text = format!("{}\n{}", d.title, d.body);

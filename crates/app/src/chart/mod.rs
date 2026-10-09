@@ -133,6 +133,11 @@ pub struct Chart {
     pub marks: Option<std::sync::Arc<TradeMarks>>,
     /// The paper account's position and working orders on this symbol.
     pub paper: Vec<PaperLine>,
+    /// Dividends and splits (stocks), and whether prices are adjusted for
+    /// dividends (TradingView's ADJ). `raw` keeps the unadjusted bars.
+    pub corporate: Option<opentern_data::yahoo::Corporate>,
+    pub adj: bool,
+    raw: Vec<Bar>,
 }
 
 #[derive(Clone, Debug)]
@@ -192,6 +197,8 @@ pub struct ChartState {
     pub panes: Vec<Pane>,
     #[serde(default)]
     pub log: bool,
+    #[serde(default)]
+    pub adj: bool,
 }
 
 /// An indicator template: the studies and how the panes were split.
@@ -218,6 +225,9 @@ impl Chart {
             sym_tz,
             marks: None,
             paper: Vec::new(),
+            corporate: None,
+            adj: false,
+            raw: Vec::new(),
             symbol,
             tf,
             bars: Vec::new(),
@@ -254,6 +264,7 @@ impl Chart {
         let mut c = Chart::new(id, s.symbol, s.tf);
         c.style = s.style;
         c.log = s.log;
+        c.adj = s.adj;
         if !s.panes.is_empty() && s.panes[0].id == 0 {
             c.panes = s.panes;
         }
@@ -290,6 +301,7 @@ impl Chart {
             studies: self.saved_studies(),
             panes: self.panes.clone(),
             log: self.log,
+            adj: self.adj,
         }
     }
 
@@ -326,6 +338,8 @@ impl Chart {
         self.symbol = symbol;
         self.tf = tf;
         self.bars.clear();
+        self.raw.clear();
+        self.corporate = None;
         self.sessions.clear();
         self.status = Status::Loading;
         self.complete = false;
@@ -534,6 +548,14 @@ impl Chart {
             Event::Bars { bars, complete, .. } => self.replace_bars(bars, complete),
             Event::Tick { bar, .. } => self.tick(bar),
             Event::Status { status, .. } => self.status = status,
+            Event::Corporate { corporate, .. } => {
+                self.corporate = Some(corporate);
+                if self.adj {
+                    self.bars = self.adjusted();
+                    self.recompute_all();
+                    self.data_version += 1;
+                }
+            }
             _ => {}
         }
     }
@@ -546,7 +568,8 @@ impl Chart {
             _ => 0.0,
         };
         let following = self.following();
-        self.bars = bars;
+        self.raw = bars;
+        self.bars = self.adjusted();
         self.complete = complete;
         self.asked_more = false;
         self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
@@ -560,6 +583,12 @@ impl Chart {
 
     fn tick(&mut self, bar: Bar) {
         let following = self.following();
+        // The newest bars are never scaled (no dividend comes after them).
+        match self.raw.last_mut() {
+            Some(last) if last.time == bar.time => *last = bar,
+            Some(last) if last.time > bar.time => {}
+            _ => self.raw.push(bar),
+        }
         match self.bars.last_mut() {
             Some(last) if last.time == bar.time => *last = bar,
             Some(last) if last.time > bar.time => return,
@@ -585,6 +614,28 @@ impl Chart {
         for s in &mut self.studies {
             s.inst.update(&self.bars, &self.sessions, self.tf);
         }
+    }
+
+    /// The bars to show: raw, or adjusted for dividends.
+    fn adjusted(&self) -> Vec<Bar> {
+        match (&self.corporate, self.adj) {
+            (Some(c), true) if !c.dividends.is_empty() => {
+                opentern_data::yahoo::dividend_adjust(&self.raw, &c.dividends, &self.sym_tz)
+            }
+            _ => self.raw.clone(),
+        }
+    }
+
+    /// Turns dividend adjustment on or off.
+    pub fn set_adj(&mut self, on: bool) {
+        if self.adj == on {
+            return;
+        }
+        self.adj = on;
+        self.bars = self.adjusted();
+        self.recompute_all();
+        self.data_version += 1;
+        self.touch();
     }
 
     /// True once per approach to the start of loaded history.

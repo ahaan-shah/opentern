@@ -572,6 +572,9 @@ pub fn show(
         if let Some(m) = &chart.marks {
             draw_trades(&p, m, &chart.bars, &g.y, &x, first, last, g.rect);
         }
+        if let Some(c) = &chart.corporate {
+            draw_corporate(ui.ctx(), &p, c, chart, &x, first, last, g.rect);
+        }
         draw_paper(&p, &chart.paper, &g.y, g.rect);
     }
     // ---- sub panes
@@ -1321,6 +1324,104 @@ fn draw_trades(
     }
 }
 
+/// Dividends (D) and splits (S) along the bottom of the price pane, as on
+/// TradingView, with the details on hover.
+#[allow(clippy::too_many_arguments)]
+fn draw_corporate(
+    ctx: &egui::Context,
+    p: &Painter,
+    c: &opentern_data::yahoo::Corporate,
+    chart: &Chart,
+    x: &XMap,
+    first: usize,
+    last: usize,
+    rect: Rect,
+) {
+    if chart.bars.is_empty() {
+        return;
+    }
+    let tz = &chart.sym_tz;
+    let day = |i: usize| opentern_data::resample::to_utc_midnight(chart.bars[i].time, tz);
+    // The first bar on or after a date.
+    let bar_of = |date: i64| -> Option<usize> {
+        let i = chart
+            .bars
+            .partition_point(|b| opentern_data::resample::to_utc_midnight(b.time, tz) < date);
+        (i < chart.bars.len() && day(i) - date < 7 * 86_400_000).then_some(i)
+    };
+    let hover = ctx.pointer_hover_pos();
+    let mut tip: Option<String> = None;
+    let r = 7.0;
+    let y = rect.bottom() - r - 6.0;
+    let fmt_day = |d: i64| {
+        jiff::Timestamp::from_millisecond(d)
+            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%d %b %Y").to_string())
+            .unwrap_or_default()
+    };
+    let items = c
+        .dividends
+        .iter()
+        .map(|(d, a)| {
+            (
+                *d,
+                'D',
+                format!(
+                    "Dividend {} {}\nEx-date {}",
+                    trim_num(*a),
+                    chart.symbol.currency,
+                    fmt_day(*d)
+                ),
+            )
+        })
+        .chain(c.splits.iter().map(|(d, ratio)| {
+            let text = if *ratio >= 1.0 {
+                format!("Split {}:1", trim_num(*ratio))
+            } else {
+                format!("Reverse split 1:{}", trim_num(1.0 / ratio))
+            };
+            (*d, 'S', format!("{text}\n{}", fmt_day(*d)))
+        }));
+    for (date, kind, text) in items {
+        let Some(i) = bar_of(date) else { continue };
+        if i < first || i > last {
+            continue;
+        }
+        let center = pos2(x.x(i as f64), y);
+        let col = if kind == 'D' {
+            Color32::from_rgb(0x00, 0x89, 0x7B)
+        } else {
+            Color32::from_rgb(0xFF, 0x98, 0x00)
+        };
+        p.circle_filled(center, r, col);
+        p.text(
+            center,
+            Align2::CENTER_CENTER,
+            kind.to_string(),
+            egui::FontId::proportional(9.5),
+            Color32::WHITE,
+        );
+        if hover.is_some_and(|h| h.distance(center) <= r + 2.0) {
+            tip = Some(text);
+        }
+    }
+    if let Some(text) = tip {
+        egui::Tooltip::always_open(
+            ctx.clone(),
+            p.layer_id(),
+            egui::Id::new("corporate-tip"),
+            egui::PopupAnchor::Pointer,
+        )
+        .show(|ui| {
+            ui.label(text);
+        });
+    }
+}
+
+fn trim_num(v: f64) -> String {
+    let s = format!("{v:.4}");
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
 /// The paper account's position (solid) and orders (dashed), with a tag
 /// at the left edge.
 fn draw_paper(p: &Painter, lines: &[super::PaperLine], y: &YMap, rect: Rect) {
@@ -1483,6 +1584,28 @@ fn legend(
             );
             let r = painter.text(pos, Align2::LEFT_TOP, &title, bold.clone(), pal.text);
             let mut xx = r.right() + 10.0;
+            // Market open or closed (not for crypto, which never closes).
+            let market = opentern_core::calendar::Market::of(&chart.symbol);
+            if market != opentern_core::calendar::Market::Crypto {
+                let now = jiff::Timestamp::now().as_millisecond();
+                let state = opentern_core::calendar::state(market, now);
+                let (col, tip) = match &state {
+                    opentern_core::calendar::State::Open => (t.pos, "Market open".to_string()),
+                    opentern_core::calendar::State::Closed(next) => {
+                        let when = next
+                            .and_then(|n| jiff::Timestamp::from_millisecond(n).ok())
+                            .map(|ts| format!(" · opens {}", ts.to_zoned(chart.tz.clone()).strftime("%a %H:%M")))
+                            .unwrap_or_default();
+                        (t.text3, format!("Market closed{when}"))
+                    }
+                };
+                let c = pos2(xx + 3.0, pos.y + 9.0);
+                painter.circle_filled(c, 3.5, col);
+                let hit = Rect::from_center_size(c, vec2(14.0, 14.0));
+                ui.interact(hit, ui.id().with("market-state"), Sense::hover())
+                    .on_hover_text(tip);
+                xx += 16.0;
+            }
             if let (true, Some(i)) = (st.show_ohlc, idx) {
                 let b = chart.bars[i];
                 let up = bar_color(chart, i, &b);

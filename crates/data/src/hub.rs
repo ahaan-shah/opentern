@@ -5,6 +5,7 @@
 
 use crate::binance::{self, Binance};
 use crate::cache::Cache;
+pub use crate::creds::Credentials;
 use crate::demo::{self, Demo};
 use crate::provider::{Error, Live, Provider};
 use crate::resample;
@@ -14,7 +15,7 @@ use jiff::tz::TimeZone;
 use opentern_core::{Bar, Symbol, Timeframe};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
 /// Bars shown when a chart opens; more load as you scroll back.
@@ -47,6 +48,8 @@ pub enum Request {
         seq: u64,
         query: String,
     },
+    /// Keys for the providers that need an account (from the keychain).
+    Credentials(Credentials),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -84,6 +87,11 @@ pub enum Event {
         seq: u64,
         results: Vec<Symbol>,
     },
+    /// A stock's dividends and splits (for the chart's markers and ADJ).
+    Corporate {
+        chart: u64,
+        corporate: crate::yahoo::Corporate,
+    },
 }
 
 pub struct Hub {
@@ -107,6 +115,11 @@ impl Hub {
 
     pub fn send(&self, r: Request) {
         let _ = self.tx.send(r);
+    }
+
+    /// A handle for sending requests from another thread.
+    pub fn sender(&self) -> Sender<Request> {
+        self.tx.clone()
     }
 
     /// Everything that arrived since the last call.
@@ -136,6 +149,17 @@ enum Cmd {
 
 fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
     let mut sessions: HashMap<u64, Sender<Cmd>> = HashMap::new();
+    // What each chart shows, to restart it when keys change.
+    let mut opened: HashMap<u64, (Symbol, Timeframe)> = HashMap::new();
+    let spawn = |chart: u64, symbol: Symbol, tf: Timeframe| -> Option<Sender<Cmd>> {
+        let (tx, cmd_rx) = unbounded();
+        let (dir, out) = (dir.clone(), out.clone());
+        std::thread::Builder::new()
+            .name(format!("data-{}", symbol.ticker()))
+            .spawn(move || Session::run(chart, symbol, tf, dir, demo, cmd_rx, out))
+            .ok()
+            .map(|_| tx)
+    };
     let mut quotes: Option<Sender<Cmd>> = None;
     let (search_tx, search_rx) = unbounded::<(u64, String)>();
     {
@@ -151,12 +175,8 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 if let Some(old) = sessions.remove(&chart) {
                     let _ = old.send(Cmd::Stop);
                 }
-                let (tx, cmd_rx) = unbounded();
-                let (dir, out) = (dir.clone(), out.clone());
-                let spawned = std::thread::Builder::new()
-                    .name(format!("data-{}", symbol.ticker()))
-                    .spawn(move || Session::run(chart, symbol, tf, dir, demo, cmd_rx, out));
-                if spawned.is_ok() {
+                opened.insert(chart, (symbol.clone(), tf));
+                if let Some(tx) = spawn(chart, symbol, tf) {
                     sessions.insert(chart, tx);
                 }
             }
@@ -169,6 +189,7 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 if let Some(s) = sessions.remove(&chart) {
                     let _ = s.send(Cmd::Stop);
                 }
+                opened.remove(&chart);
             }
             Request::Quotes { symbols } => {
                 if let Some(q) = quotes.take() {
@@ -187,10 +208,60 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
             Request::Search { seq, query } => {
                 let _ = search_tx.send((seq, query));
             }
+            Request::Credentials(c) => {
+                let changed = *creds().read().unwrap_or_else(|e| e.into_inner()) != c;
+                *creds().write().unwrap_or_else(|e| e.into_inner()) = c;
+                // Charts may now come from another source: restart them.
+                if changed {
+                    for (chart, (symbol, tf)) in &opened {
+                        if let Some(old) = sessions.remove(chart) {
+                            let _ = old.send(Cmd::Stop);
+                        }
+                        if let Some(tx) = spawn(*chart, symbol.clone(), *tf) {
+                            sessions.insert(*chart, tx);
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+/// The keys the app handed over (one hub per process).
+fn creds() -> &'static RwLock<Credentials> {
+    static C: OnceLock<RwLock<Credentials>> = OnceLock::new();
+    C.get_or_init(|| RwLock::new(Credentials::default()))
+}
+
+/// A provider that can't be used yet, and says why.
+struct Missing(String);
+
+impl Provider for Missing {
+    fn natives(&self) -> Vec<Timeframe> {
+        ["1m", "1h", "1D"].iter().filter_map(|s| Timeframe::parse(s)).collect()
+    }
+    fn latest(&self, _: &Symbol, _: Timeframe, _: usize) -> crate::provider::Result<Vec<Bar>> {
+        Err(crate::provider::Error::Bad(self.0.clone()))
+    }
+    fn since(&self, _: &Symbol, _: Timeframe, _: i64) -> crate::provider::Result<Vec<Bar>> {
+        Err(crate::provider::Error::Bad(self.0.clone()))
+    }
+    fn before(&self, _: &Symbol, _: Timeframe, _: i64, _: usize) -> crate::provider::Result<Vec<Bar>> {
+        Err(crate::provider::Error::Bad(self.0.clone()))
+    }
+    fn stream(
+        &self,
+        _: &Symbol,
+        _: Timeframe,
+        _: &mut dyn FnMut(crate::provider::Live) -> bool,
+    ) -> crate::provider::Result<()> {
+        Err(crate::provider::Error::Bad(self.0.clone()))
+    }
+}
+
+/// Which source serves a symbol: by its exchange prefix, using an account
+/// provider (Alpaca for US stocks, Upstox for NSE/BSE) when its keys are
+/// set, else Yahoo.
 pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
     if crate::expr::is_expr(&sym.id)
         && let Some(p) = crate::expr::ExprProvider::new(sym, demo)
@@ -198,11 +269,70 @@ pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
         return Arc::new(p);
     }
     if demo {
-        Arc::new(Demo)
-    } else if sym.id.starts_with("BINANCE:") {
-        Arc::new(Binance::default())
+        return Arc::new(Demo);
+    }
+    let c = creds().read().unwrap_or_else(|e| e.into_inner()).clone();
+    match sym.exchange() {
+        "BINANCE" => Arc::new(Binance::default()),
+        "BYBIT" => Arc::new(crate::bybit::Bybit::default()),
+        "OKX" => Arc::new(crate::okx::Okx::default()),
+        "COINBASE" => Arc::new(crate::coinbase::Coinbase::default()),
+        "KRAKEN" => Arc::new(crate::kraken::Kraken::default()),
+        "OANDA" => match &c.oanda {
+            Some((token, account, live)) => Arc::new(crate::oanda::Oanda::new(token, account, *live)),
+            None => Arc::new(Missing(
+                "Add your OANDA API token in Settings → Data providers to see OANDA prices.".into(),
+            )),
+        },
+        "IBKR" => Arc::new(crate::ibkr::Ibkr::new(
+            c.ibkr.as_deref().unwrap_or("https://localhost:5000"),
+        )),
+        "NASDAQ" | "NYSE" | "AMEX" if c.alpaca.is_some() => {
+            let (k, s, sip) = c.alpaca.clone().unwrap_or_default();
+            Arc::new(crate::alpaca::Alpaca::new(&k, &s, sip))
+        }
+        "NSE" | "BSE" if c.upstox.is_some() => {
+            Arc::new(crate::upstox::Upstox::new(c.upstox.as_deref().unwrap_or_default()))
+        }
+        _ => Arc::new(Yahoo::default()),
+    }
+}
+
+/// Whether Yahoo serves a symbol (its quotes come from Yahoo's quote API).
+fn yahoo_routed(sym: &Symbol) -> bool {
+    let c = creds().read().unwrap_or_else(|e| e.into_inner());
+    match sym.exchange() {
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "OANDA" | "IBKR" => false,
+        "NASDAQ" | "NYSE" | "AMEX" => c.alpaca.is_none(),
+        "NSE" | "BSE" => c.upstox.is_none(),
+        _ => true,
+    }
+}
+
+/// Last price and previous close from the source's daily bars (for
+/// sources without a quote API).
+fn daily_quote(sym: &Symbol) -> Option<(f64, f64)> {
+    let p = provider_for(sym, false);
+    let bars = p.latest(sym, Timeframe::parse("1D")?, 2).ok()?;
+    let last = bars.last()?;
+    let prev = if bars.len() >= 2 {
+        bars[bars.len() - 2].close
     } else {
-        Arc::new(Yahoo::default())
+        last.open
+    };
+    Some((last.close, prev))
+}
+
+/// Exchanges in the order their symbols are offered when names tie.
+fn exchange_rank(ex: &str) -> u32 {
+    match ex {
+        "BINANCE" => 0,
+        "NASDAQ" | "NYSE" | "AMEX" | "NSE" => 1,
+        "COINBASE" => 2,
+        "BYBIT" => 3,
+        "OKX" => 4,
+        "KRAKEN" => 5,
+        _ => 9,
     }
 }
 
@@ -395,11 +525,39 @@ impl Session {
         true
     }
 
+    /// Dividends and splits, for stocks and funds (from Yahoo, whichever
+    /// source serves the prices).
+    fn corporate(&self, demo: bool) {
+        use opentern_core::AssetKind;
+        let stocky = matches!(self.symbol.kind, AssetKind::Stock | AssetKind::Fund)
+            && matches!(
+                self.symbol.exchange(),
+                "NASDAQ" | "NYSE" | "AMEX" | "NSE" | "BSE" | "YAHOO"
+            );
+        if demo || !stocky {
+            return;
+        }
+        if let Ok(c) = Yahoo::default().corporate(&self.symbol)
+            && (!c.dividends.is_empty() || !c.splits.is_empty())
+        {
+            self.out.send(Event::Corporate {
+                chart: self.chart,
+                corporate: c,
+            });
+        }
+    }
+
     fn main(&mut self) {
         let mut backoff = Duration::from_secs(1);
+        let mut asked_corporate = false;
         loop {
             match self.load() {
-                Ok(()) => {}
+                Ok(()) => {
+                    if !asked_corporate {
+                        asked_corporate = true;
+                        self.corporate(self.cache.is_none());
+                    }
+                }
                 Err(e) if self.bars.is_empty() => self.status(Status::Error(e.to_string())),
                 Err(e) => self.status(Status::Offline(e.to_string())),
             }
@@ -554,7 +712,12 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
             if last_poll.is_none_or(|t| t.elapsed() > Duration::from_secs(30)) {
                 *last_poll = Some(Instant::now());
                 for s in &others {
-                    if let Ok((last, prev)) = yahoo.quote(s) {
+                    let quote = if yahoo_routed(s) {
+                        yahoo.quote(s).ok()
+                    } else {
+                        daily_quote(s)
+                    };
+                    if let Some((last, prev)) = quote {
                         q.borrow_mut().send(s.id.clone(), last, prev);
                     }
                 }
@@ -645,12 +808,24 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                     .meta("binance_symbols_at")
                     .and_then(|t| t.parse::<i64>().ok())
                     .is_none_or(|t| crate::provider::now_ms() - t > 7 * 86_400_000);
-                if stale
-                    && !demo
-                    && let Ok(list) = binance.symbols()
-                {
-                    let _ = c.save_symbols("binance", &list);
-                    let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
+                if stale && !demo {
+                    let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
+                        ("binance", binance.symbols()),
+                        ("bybit", crate::bybit::Bybit::default().symbols()),
+                        ("okx", crate::okx::Okx::default().symbols()),
+                        ("coinbase", crate::coinbase::Coinbase::default().symbols()),
+                        ("kraken", crate::kraken::Kraken::default().symbols()),
+                    ];
+                    let mut any = false;
+                    for (source, list) in lists {
+                        if let Ok(list) = list {
+                            let _ = c.save_symbols(source, &list);
+                            any = true;
+                        }
+                    }
+                    if any {
+                        let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
+                    }
                 }
                 known.extend(c.symbols().unwrap_or_default());
             }
@@ -665,7 +840,11 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             continue;
         }
         let q = query.trim().to_uppercase();
-        let q = q.split_once(':').map(|(_, t)| t.to_string()).unwrap_or(q);
+        // "OKX:BTC" searches one exchange.
+        let (want_ex, q) = match q.split_once(':') {
+            Some((e, t)) => (Some(e.to_string()), t.to_string()),
+            None => (None, q),
+        };
         if q.is_empty() {
             out.send(Event::Search {
                 seq,
@@ -673,8 +852,46 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             });
             continue;
         }
-        let mut hits: Vec<(u32, Symbol)> = known.iter().filter_map(|s| Some((rank(s, &q)?, s.clone()))).collect();
-        if !demo && let Ok(found) = yahoo.search(&q) {
+        let mut hits: Vec<(u32, Symbol)> = known
+            .iter()
+            .filter(|s| want_ex.as_deref().is_none_or(|e| s.exchange() == e))
+            .filter_map(|s| Some((rank(s, &q)?, s.clone())))
+            .collect();
+        // Sources without a symbol list: take "OANDA:EURUSD" as typed.
+        if let Some(e) = want_ex.as_deref()
+            && matches!(e, "OANDA" | "IBKR")
+            && !q.is_empty()
+            && !hits.iter().any(|(_, h)| h.ticker() == q)
+        {
+            let forex = e == "OANDA";
+            hits.push((
+                0,
+                Symbol {
+                    id: format!("{e}:{q}"),
+                    description: if forex {
+                        "OANDA".into()
+                    } else {
+                        "Interactive Brokers".into()
+                    },
+                    kind: if forex {
+                        opentern_core::AssetKind::Forex
+                    } else {
+                        opentern_core::AssetKind::Stock
+                    },
+                    currency: if forex {
+                        q.get(3..).unwrap_or("USD").into()
+                    } else {
+                        "USD".into()
+                    },
+                    tick_size: if forex { 0.00001 } else { 0.01 },
+                    timezone: if forex { "UTC".into() } else { "America/New_York".into() },
+                },
+            ));
+        }
+        if !demo
+            && want_ex.is_none()
+            && let Ok(found) = yahoo.search(&q)
+        {
             for s in found {
                 if !hits.iter().any(|(_, h)| h.id == s.id)
                     && let Some(r) = rank(&s, &q).or(Some(80))
@@ -683,7 +900,11 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 }
             }
         }
-        hits.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.id.len().cmp(&b.1.id.len())));
+        hits.sort_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then(exchange_rank(a.1.exchange()).cmp(&exchange_rank(b.1.exchange())))
+                .then(a.1.id.len().cmp(&b.1.id.len()))
+        });
         out.send(Event::Search {
             seq,
             results: hits.into_iter().take(60).map(|(_, s)| s).collect(),

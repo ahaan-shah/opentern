@@ -159,6 +159,7 @@ impl App {
             }
         }
         app.load_drawings();
+        app.send_credentials();
         app.open_chart();
         app.subscribe_quotes();
         app.still();
@@ -193,6 +194,14 @@ impl App {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),
             "chart-settings" => Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self))),
+            "providers" => {
+                self.open_providers();
+                return;
+            }
+            "alert" => {
+                self.open_alert_dialog(None);
+                return;
+            }
             "save-template" => Some(Modal::SaveTemplate {
                 kind: TemplateKind::Indicators,
                 name: String::new(),
@@ -543,7 +552,10 @@ impl App {
                         s.results = results;
                     }
                 }
-                e @ (Event::Bars { chart, .. } | Event::Tick { chart, .. } | Event::Status { chart, .. }) => {
+                e @ (Event::Bars { chart, .. }
+                | Event::Tick { chart, .. }
+                | Event::Status { chart, .. }
+                | Event::Corporate { chart, .. }) => {
                     if chart == self.chart.id {
                         self.chart.apply(e);
                     }

@@ -11,6 +11,7 @@ rust-version.workspace = true
 
 [dependencies]
 crossbeam-channel = "0.5.15"
+flate2 = "1.1"
 jiff = "0.2.37"
 opentern-core = { version = "0.0.1", path = "../core" }
 rusqlite = { version = "0.40.2", features = ["bundled"] }

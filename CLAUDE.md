@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–8 built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–9 built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -546,7 +546,7 @@ The maintainer asked for Phases 6–13, committing after each, then they test an
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 1. Phase 7 is done (see "Phase 7 (done)").
 2. Phase 8 is done (see "Phase 8 (done)").
-3. Phases 9–13 as in the roadmap (§9). Pine v2 (Phase 10) has its scaffolding in place:
+3. Phase 9 is done (see "Phase 9 (done)"). Then Phases 9b–13 as in the roadmap (§9). Pine v2 (Phase 10) has its scaffolding in place:
    `heap.rs` (arrays/maps/matrices/UDTs/drawings with GC), the parser already handles
    `type`, `method`, `for … in`, generics, `p.x := …`; stubs in `natives/collections.rs`,
    `draw.rs`, `security.rs`.
@@ -665,6 +665,40 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 - Not yet: `opentern --daemon` (alerts while the app is closed), email, alerts on symbols'
   indicators off-chart, sound files.
 
+### Phase 9 (done): providers, calendars, dividends
+- New adapters in `opentern-data`, one file each, all on the `Provider` trait:
+  `bybit.rs`, `okx.rs`, `coinbase.rs`, `kraken.rs` (public data; **verified live**:
+  history, paging, UTC-midnight days, streaming through the hub, symbol lists),
+  `alpaca.rs` (US stocks, IEX/SIP trades → bars), `oanda.rs` (forex, HTTP pricing
+  stream, UTC day alignment), `upstox.rs` (NSE/BSE, v3 candles, instrument list
+  download for keys, quotes polled 1/s), `ibkr.rs` (Client Portal gateway, snapshots
+  polled 1/s). **The four keyed ones are written from their documented APIs and tested
+  on recorded replies only; nobody has run them against a real account yet.**
+- Shared: `builder.rs` (`BarBuilder`: trades/prices → bars on the resampler's grid),
+  `provider::{page_back, page_forward, ws_candles, get_json_with, split_pair, …}`,
+  `creds.rs` (`Credentials`, `Debug` redacts). Routing in `hub::provider_for` by
+  exchange prefix: `BYBIT:`, `OKX:`, `COINBASE:`, `KRAKEN:`, `OANDA:`, `IBKR:`; US
+  stocks → Alpaca and NSE/BSE → Upstox when their keys are set, else Yahoo. Changing
+  credentials restarts open chart sessions. Quotes for non-Yahoo, non-Binance symbols
+  come from two daily bars every 30 s. Search loads Bybit/OKX/Coinbase/Kraken lists
+  (weekly), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows;
+  `OANDA:X` / `IBKR:X` are offered as typed.
+- **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
+  machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
+- Secrets: `opentern_core::secrets` (keyring, service `opentern`); Settings → Data
+  providers (☰ menu) saves keys there and non-secret options (`alpaca_sip`,
+  `oanda_account`, `oanda_live`, `ibkr_url`) in settings; keys load on a background
+  thread at start.
+- `opentern_core::calendar`: NYSE holidays and early closes by rule, NSE 2025 holidays
+  as announced (**add 2026's when the NSE publishes them**), forex Sun 17:00–Fri 17:00 NY,
+  crypto always open. The legend shows a market open/closed dot with the next open.
+- Corporate actions: `yahoo::Corporate` (dividends, splits, from Yahoo for stocks and
+  funds whatever the price source) → `Event::Corporate` → D/S markers at the bottom of
+  the price pane (hover for details) and the ADJ toggle (dividend back-adjustment;
+  Yahoo's prices are already split-adjusted). `ChartState.adj` is saved.
+- Not yet: Dhan/Angel One/Zerodha, Upstox's protobuf websocket, IBKR TWS socket API,
+  extended-hours shading, earnings markers.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -710,7 +744,7 @@ cargo run --profile fast -- --demo --data-dir /tmp/opentern-test   # made-up pri
 cargo run --profile fast -- --data-dir /tmp/opentern-test          # live Binance + Yahoo
 cargo fmt --all && cargo clippy --all-targets -- -D warnings && cargo test --all
 scripts/check-leaks.sh
-cargo test -p opentern-data --test live -- --ignored --nocapture   # real services (incl. formulas)
+cargo test -p opentern-data --test live -- --ignored --nocapture --test-threads=1  # real services (incl. formulas, crypto exchanges, Yahoo dividends)
 cargo test --release -p opentern-series --test golden -- --ignored --nocapture  # 1M-bar timing
 OPENTERN_PRIVATE_CORPUS=<dir> cargo test -p opentern-series --test golden  # TradingView exports
 MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer random-input soak
@@ -730,10 +764,10 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 146 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- 161 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 9–14. App
+Phases 9b–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
 in the shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/
 notifications widgets, Screener tab.

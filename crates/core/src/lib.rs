@@ -1,8 +1,10 @@
 //! Opentern's engine: market data model, persistence, settings and updates.
 //! Nothing in here knows about the UI.
 
+pub mod calendar;
 pub mod db;
 pub mod model;
+pub mod secrets;
 pub mod store;
 pub mod update;
 
