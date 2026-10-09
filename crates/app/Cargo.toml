@@ -19,7 +19,11 @@ path = "src/main.rs"
 eframe = { version = "0.36.2", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "persistence"] }
 egui = "0.36.2"
 egui-phosphor = "0.14.0"
+crossbeam-channel = "0.5.15"
 jiff = "0.2.37"
+# Secrets (the Telegram bot token) live in the OS keychain; pure-Rust D-Bus on Linux.
+keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "crypto-rust", "async-io"] }
+notify-rust = "4"
 opentern-core = { version = "0.0.1", path = "../core" }
 opentern-data = { version = "0.0.1", path = "../data" }
 opentern-engine = { version = "0.0.1", path = "../engine" }
@@ -29,6 +33,7 @@ opentern-series = { version = "0.0.1", path = "../series" }
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+ureq = "3.4.2"
 
 # Windows: glow (OpenGL) first, with wgpu (Direct3D 12, including its software
 # rasterizer) as the fallback for machines without a usable OpenGL driver.

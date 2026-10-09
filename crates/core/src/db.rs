@@ -54,6 +54,20 @@ pub(crate) const MIGRATIONS: &[&str] = &[
         json TEXT NOT NULL
     );
     "#,
+    // v4: alerts and the log of alerts that fired.
+    r#"
+    CREATE TABLE alerts (
+        id   INTEGER PRIMARY KEY,
+        json TEXT NOT NULL
+    );
+    CREATE TABLE alert_log (
+        id       INTEGER PRIMARY KEY,
+        alert_id INTEGER NOT NULL,
+        time     INTEGER NOT NULL,
+        json     TEXT NOT NULL
+    );
+    CREATE INDEX alert_log_time ON alert_log (time);
+    "#,
 ];
 
 pub fn open(dir: &Path) -> Result<Connection> {

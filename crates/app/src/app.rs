@@ -40,6 +40,8 @@ pub struct App {
     pub strategies: crate::strategy::Strategies,
     /// The paper trading account and its ticket.
     pub paper: crate::paper::Paper,
+    /// Alerts, their log and toasts.
+    pub alerts: crate::alerts::Alerts,
     pub editor: crate::editor::Editor,
     pub egui_ctx: egui::Context,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
@@ -113,6 +115,7 @@ impl App {
         };
         let (watchlists, active_list) = App::load_watchlists(&store);
         let paper = crate::paper::Paper::load(&store);
+        let alerts = crate::alerts::Alerts::load(&store);
         let mut app = App {
             store,
             theme,
@@ -133,6 +136,7 @@ impl App {
             scripts: Vec::new(),
             strategies: Default::default(),
             paper,
+            alerts,
             editor: Default::default(),
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
@@ -572,8 +576,12 @@ impl App {
             return;
         }
         let events = ctx.input(|i| i.events.clone());
+        // Text typed with Alt/Ctrl/Cmd held belongs to a shortcut (Alt+A,
+        // Alt+T, …), not to symbol search.
+        let chord = ctx.input(|i| i.modifiers.alt || i.modifiers.command || i.modifiers.ctrl);
         for e in events {
             match e {
+                egui::Event::Text(_) if chord => {}
                 egui::Event::Text(s) if s == "/" => {
                     let has = !self.store.favorites("indicator").is_empty();
                     self.modal = Some(Modal::Indicators(crate::dialogs::Indicators::new(has)));
@@ -636,6 +644,14 @@ impl App {
                     self.chart.redo();
                 }
                 egui::Event::Key {
+                    key: egui::Key::A,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt => {
+                    self.open_alert_dialog(None);
+                }
+                egui::Event::Key {
                     key: key @ (egui::Key::T | egui::Key::H | egui::Key::V | egui::Key::F),
                     pressed: true,
                     modifiers,
@@ -673,10 +689,12 @@ impl App {
         self.poll_scripts();
         self.refresh_strategies();
         self.poll_paper();
+        self.poll_alerts();
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);
         self.modal(&ctx);
+        self.alert_toasts(&ctx);
         self.study_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);

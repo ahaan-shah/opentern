@@ -2,6 +2,7 @@
 //! TradingView's does, and the Strategy Report computed from its trades
 //! (see `docs/metrics.md` for every formula).
 
+pub mod alerts;
 pub mod broker;
 pub mod paper;
 pub mod report;

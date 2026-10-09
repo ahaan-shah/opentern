@@ -252,6 +252,68 @@ impl Store {
         Ok(())
     }
 
+    /// Saved alerts as (id, JSON), oldest first.
+    pub fn alerts(&self) -> Vec<(i64, String)> {
+        let Ok(mut st) = self.conn.prepare("SELECT id, json FROM alerts ORDER BY id") else {
+            return Vec::new();
+        };
+        st.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .map(|rows| rows.flatten().collect())
+            .unwrap_or_default()
+    }
+
+    /// Saves an alert; id 0 makes a new one. Returns its id.
+    pub fn save_alert(&mut self, id: i64, json: &str) -> Result<i64> {
+        if id == 0 {
+            self.conn
+                .execute("INSERT INTO alerts (json) VALUES (?1)", params![json])?;
+            Ok(self.conn.last_insert_rowid())
+        } else {
+            self.conn.execute(
+                "INSERT INTO alerts (id, json) VALUES (?1, ?2)
+                 ON CONFLICT(id) DO UPDATE SET json = excluded.json",
+                params![id, json],
+            )?;
+            Ok(id)
+        }
+    }
+
+    pub fn delete_alert(&mut self, id: i64) -> Result<()> {
+        self.conn.execute("DELETE FROM alerts WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    /// Records a fired alert; the log keeps the latest 2,000.
+    pub fn log_alert(&mut self, alert_id: i64, time: i64, json: &str) -> Result<()> {
+        self.conn.execute(
+            "INSERT INTO alert_log (alert_id, time, json) VALUES (?1, ?2, ?3)",
+            params![alert_id, time, json],
+        )?;
+        self.conn.execute(
+            "DELETE FROM alert_log WHERE id NOT IN (SELECT id FROM alert_log ORDER BY id DESC LIMIT 2000)",
+            [],
+        )?;
+        Ok(())
+    }
+
+    /// The alert log as (alert id, time, JSON), newest first.
+    pub fn alert_log(&self, limit: usize) -> Vec<(i64, i64, String)> {
+        let Ok(mut st) = self
+            .conn
+            .prepare("SELECT alert_id, time, json FROM alert_log ORDER BY id DESC LIMIT ?1")
+        else {
+            return Vec::new();
+        };
+        st.query_map(params![limit as i64], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .map(|rows| rows.flatten().collect())
+            .unwrap_or_default()
+    }
+
+    pub fn clear_alert_log(&mut self) -> Result<()> {
+        self.conn.execute("DELETE FROM alert_log", [])?;
+        Ok(())
+    }
+
     /// A free-form setting the app owns (current layout, active watchlist).
     pub fn value(&self, key: &str) -> Option<String> {
         self.conn
@@ -456,5 +518,33 @@ mod tests {
         s.set_settings(changed.clone()).unwrap();
         drop(s);
         assert_eq!(Store::open(dir.path()).unwrap().settings(), &changed);
+    }
+}
+
+#[cfg(test)]
+mod alert_tests {
+    use super::*;
+
+    #[test]
+    fn alerts_and_their_log_persist() {
+        let dir = std::env::temp_dir().join(format!("opentern-alerts-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        {
+            let mut s = Store::open(&dir).unwrap();
+            let id = s.save_alert(0, "{\"a\":1}").unwrap();
+            assert_eq!(s.save_alert(id, "{\"a\":2}").unwrap(), id);
+            let other = s.save_alert(0, "{}").unwrap();
+            s.delete_alert(other).unwrap();
+            s.log_alert(id, 5, "{\"m\":\"x\"}").unwrap();
+            s.log_alert(id, 6, "{\"m\":\"y\"}").unwrap();
+        }
+        let mut s = Store::open(&dir).unwrap();
+        assert_eq!(s.alerts(), vec![(1, "{\"a\":2}".to_string())]);
+        let log = s.alert_log(10);
+        assert_eq!(log.len(), 2);
+        assert_eq!(log[0].1, 6);
+        s.clear_alert_log().unwrap();
+        assert!(s.alert_log(10).is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

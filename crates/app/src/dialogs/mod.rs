@@ -1,6 +1,7 @@
 //! Modal dialogs: symbol search, Indicators, an indicator's settings
 //! (Inputs / Style / Visibility), Chart settings, and naming a template.
 
+mod alert;
 mod chart_settings;
 pub mod color;
 mod indicators;
@@ -11,6 +12,7 @@ use crate::app::App;
 use crate::theme::{self, Theme};
 use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, vec2};
 
+pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
 pub use indicators::Indicators;
 pub use study::StudySettings;
@@ -27,6 +29,7 @@ pub enum Modal {
     },
     /// "Change interval": opened by typing a number.
     Interval(String),
+    Alert(Box<AlertForm>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +98,7 @@ impl App {
                 Modal::ChartSettings(s) => s.show(ui, self, &t),
                 Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
                 Modal::Interval(text) => interval(ui, self, &t, text),
+                Modal::Alert(f) => f.show(ui, self, &t),
             });
         let done = matches!(resp.inner, Done::Close);
         if done {

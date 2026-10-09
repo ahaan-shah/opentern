@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–7 built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–8 built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -545,9 +545,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 The maintainer asked for Phases 6–13, committing after each, then they test and we iterate
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 1. Phase 7 is done (see "Phase 7 (done)").
-2. **Phase 8**: alerts (price/drawing/indicator/script `alert()`/`alertcondition`; Pine
-   collects them in `PineStudy::alerts()`), evaluated on ticks, delivered by desktop
-   notification (`notify-rust`), sound, webhook, Telegram; Alerts widget + Alerts log tab.
+2. Phase 8 is done (see "Phase 8 (done)").
 3. Phases 9–13 as in the roadmap (§9). Pine v2 (Phase 10) has its scaffolding in place:
    `heap.rs` (arrays/maps/matrices/UDTs/drawings with GC), the parser already handles
    `type`, `method`, `for … in`, generics, `p.x := …`; stubs in `natives/collections.rs`,
@@ -645,6 +643,28 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 - Not yet: Strategy Tester settings dialog (props come from the script), chart trading by
   dragging SL/TP lines, DOM, multiple paper accounts.
 
+### Phase 8 (done): alerts
+- `opentern_engine::alerts`: `Alert` (price / drawn line / study plot / script),
+  `Op` (crossing, up, down, greater, less), `Freq` (only once, once per bar, once per bar
+  close, every time ≤ 1/s), `Watch::feed` (pure, tested). DB v4: `alerts`, `alert_log`
+  (latest 2,000).
+- `app/src/alerts.rs`: evaluated every frame but only fed new (value, level, bar)
+  triples; price alerts work for any symbol with a price (chart or quotes), plot alerts
+  need the study on the chart; line alerts follow their drawing; script alerts
+  (`alert()`, `alertcondition`) fire only for alerts newer than when they were armed
+  (deduped by bar time and message). Fired → log, toast (top right, 8 s), and a
+  delivery thread: desktop notification + sound (`notify-rust`), webhook (JSON or text
+  body; logs only the host), Telegram (bot token in the OS keychain via `keyring`,
+  service `opentern`; chat id in settings `telegram_chat_id`). Nothing is sent when
+  `OPENTERN_HEADLESS` is set.
+- UI: Create/Edit alert dialog (Alt+A, top-bar Alert, the widget's +), Alerts widget
+  (state, pause/restart, edit, delete on hover), Alerts log tab (clear log).
+- **Gotcha:** egui's `Event::Text` carries no modifiers; type-to-search must check
+  `i.modifiers` or Alt+A/Alt+T also type into symbol search. Tests must send
+  `Event::ModifiersChanged` to model held keys.
+- Not yet: `opentern --daemon` (alerts while the app is closed), email, alerts on symbols'
+  indicators off-chart, sound files.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -710,10 +730,10 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 137 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- 146 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phase 8, then Phases 9–14. App
+Phases 9–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
-in the shell: alerts, replay, compare, multi-chart, snapshot, hotlists/calendar/news/
-notifications widgets, Screener / Alerts log tabs.
+in the shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/
+notifications widgets, Screener tab.

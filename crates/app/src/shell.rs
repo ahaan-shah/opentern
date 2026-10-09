@@ -294,7 +294,9 @@ impl App {
                 }
                 self.templates_menu(ui, t);
                 w::vdivider(ui, t);
-                w::bar_button(ui, t, Some(ph::ALARM), label("Alert"), "Alerts (coming soon)", false);
+                if w::bar_button(ui, t, Some(ph::ALARM), label("Alert"), "Create alert (Alt+A)", false).clicked() {
+                    self.open_alert_dialog(None);
+                }
                 w::bar_button(
                     ui,
                     t,
@@ -668,13 +670,14 @@ impl App {
             .inner_margin(Margin::symmetric(12, 10))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                if widget != Widget::Watchlist {
+                if !matches!(widget, Widget::Watchlist | Widget::Alerts) {
                     ui.label(egui::RichText::new(widget.title()).font(theme::semibold(14.0)));
                     ui.add_space(6.0);
                 }
                 match widget {
                     Widget::Watchlist => self.watchlist_widget(ui, t),
                     Widget::ObjectTree => self.objects_widget(ui, t),
+                    Widget::Alerts => self.alerts_widget(ui, t),
                     other => placeholder(ui, t, other.title()),
                 }
             });
@@ -814,6 +817,7 @@ impl App {
                     Tab::Editor => self.editor_tab(ui, t),
                     Tab::Report => self.report_tab(ui, t),
                     Tab::Paper => self.paper_tab(ui, t),
+                    Tab::AlertLog => self.alert_log_tab(ui, t),
                     other => placeholder(ui, t, other.title()),
                 }
             }

@@ -17,6 +17,7 @@ macro_rules! shortcut {
     };
 }
 
+mod alerts;
 mod app;
 mod chart;
 mod diag;

@@ -410,6 +410,113 @@ mod tests {
         assert_eq!(d.app.paper.account.orders.len(), 1);
     }
 
+    #[test]
+    fn price_alerts_fire_once_and_are_logged() {
+        use opentern_engine::alerts::{Alert, Condition, Freq, Op};
+        let mut d = Driver::new("alerts");
+        let sym = d.app.chart.symbol.id.clone();
+        let last = d.app.last_price(&sym).unwrap();
+        d.app.save_alert(Alert {
+            name: "Above".into(),
+            symbol: sym.clone(),
+            condition: Condition::Price {
+                op: Op::GreaterThan,
+                value: last * 0.5,
+            },
+            freq: Freq::Once,
+            ..Alert::default()
+        });
+        // Never fires: the price is far below.
+        d.app.save_alert(Alert {
+            name: "Far".into(),
+            symbol: sym.clone(),
+            condition: Condition::Price {
+                op: Op::LessThan,
+                value: last * 0.1,
+            },
+            freq: Freq::OncePerBar,
+            ..Alert::default()
+        });
+        for _ in 0..3 {
+            d.frame(vec![]);
+        }
+        assert_eq!(d.app.alerts.log.len(), 1);
+        assert_eq!(d.app.alerts.log[0].name, "Above");
+        assert!(!d.app.alerts.list[0].0.active, "only once: off after firing");
+        assert!(d.app.alerts.list[1].0.active);
+        assert_eq!(d.app.alerts.toasts.len(), 1);
+        assert_eq!(d.app.store.alert_log(10).len(), 1);
+        // Alt+A opens the dialog (real keyboards also send the letter as
+        // text, which must not start a symbol search).
+        let ev = |pressed| Event::Key {
+            key: Key::A,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: Modifiers::ALT,
+        };
+        d.frame(vec![
+            Event::ModifiersChanged(Modifiers::ALT),
+            ev(true),
+            Event::Text("a".into()),
+        ]);
+        d.frame(vec![ev(false), Event::ModifiersChanged(Modifiers::NONE)]);
+        assert!(matches!(d.app.modal, Some(crate::dialogs::Modal::Alert(_))));
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn script_alerts_fire_for_new_bars_only() {
+        use opentern_engine::alerts::{Alert, Condition, Freq};
+        let mut d = Driver::new("script-alerts");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("ping.pine"),
+            "//@version=5\nindicator(\"Ping\")\nalert(\"bar \" + str.tostring(bar_index))\nplot(close)\n",
+        )
+        .unwrap();
+        d.app.add_script("ping.pine");
+        d.wait(|a| a.chart.studies.iter().any(|s| s.meta().id == "pine:ping.pine"));
+        let uid = d
+            .app
+            .chart
+            .studies
+            .iter()
+            .find(|s| s.meta().id == "pine:ping.pine")
+            .unwrap()
+            .uid;
+        d.app.save_alert(Alert {
+            symbol: d.app.chart.symbol.id.clone(),
+            condition: Condition::Script {
+                uid,
+                study: "Ping".into(),
+                title: None,
+            },
+            freq: Freq::OncePerBar,
+            ..Alert::default()
+        });
+        for _ in 0..3 {
+            d.frame(vec![]);
+        }
+        let before = d.app.alerts.log.len();
+        assert_eq!(before, 0, "history doesn't fire");
+        // A new bar arrives.
+        let mut b = *d.app.chart.bars.last().unwrap();
+        b.time += d.app.chart.tf.millis().unwrap();
+        let id = d.app.chart.id;
+        d.app.chart.apply(opentern_data::Event::Tick { chart: id, bar: b });
+        for _ in 0..3 {
+            d.frame(vec![]);
+        }
+        assert!(
+            d.app.alerts.log.iter().any(|f| f.message.starts_with("bar ")),
+            "{:?}",
+            d.app.alerts.log
+        );
+        assert_eq!(d.app.panics, 0);
+    }
+
     /// Random clicks, drags, keys and scrolls for a while: the app must
     /// never panic (the crash shield counts any that happen).
     #[test]
