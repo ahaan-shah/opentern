@@ -1,0 +1,19 @@
+[package]
+name = "opentern-script"
+description = "Script hosts for Opentern: Python indicators and strategies in a worker process"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+crossbeam-channel = "0.5.15"
+opentern-core = { version = "0.0.1", path = "../core" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[dev-dependencies]
+tempfile = "3.27.0"

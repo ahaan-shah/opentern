@@ -1,0 +1,25 @@
+[package]
+name = "opentern-core"
+description = "Engine behind the Opentern trading terminal: market data model, storage, settings, updates"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+directories = "6.0.0"
+jiff = "0.2.37"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+thiserror = "2.0.21"
+ureq = "3.4.2"
+# Unpacks Windows update zips without `tar`.
+zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

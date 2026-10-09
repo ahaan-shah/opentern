@@ -1,0 +1,337 @@
+//! Drives the real app headlessly: frames run in an egui context fed with
+//! synthetic pointer and key events, against made-up (demo) data. Used to
+//! test interaction (drawings, dialogs) the way a person would use it, and
+//! for a random-input soak test.
+
+use crate::app::App;
+use crate::chart::draw::Tool;
+use egui::{Event, Key, Modifiers, PointerButton, Pos2, RawInput, Rect, pos2, vec2};
+use std::time::Duration;
+
+pub struct Driver {
+    pub ctx: egui::Context,
+    pub app: App,
+    time: f64,
+    pointer: Pos2,
+    pub dir: std::path::PathBuf,
+}
+
+impl Driver {
+    pub fn new(name: &str) -> Driver {
+        let dir = std::env::temp_dir().join(format!("opentern-drive-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        Driver::open(dir)
+    }
+
+    pub fn open(dir: std::path::PathBuf) -> Driver {
+        // SAFETY: tests in this binary share these values and never remove them.
+        unsafe {
+            std::env::set_var("OPENTERN_HEADLESS", "1");
+        }
+        let store = opentern_core::Store::open(&dir).expect("open store");
+        let ctx = egui::Context::default();
+        let app = App::with_context(&ctx, Default::default(), store, true);
+        let mut d = Driver {
+            ctx,
+            app,
+            time: 0.0,
+            pointer: pos2(10.0, 10.0),
+            dir,
+        };
+        d.wait(|a| !a.chart.bars.is_empty());
+        d
+    }
+
+    pub fn frame(&mut self, events: Vec<Event>) {
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            events,
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
+    }
+
+    /// Runs frames until `f` holds (data arrives on other threads).
+    pub fn wait(&mut self, f: impl Fn(&App) -> bool) {
+        for _ in 0..400 {
+            self.frame(vec![]);
+            if f(&self.app) {
+                // A couple more so layout settles.
+                self.frame(vec![]);
+                self.frame(vec![]);
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("timed out waiting");
+    }
+
+    pub fn move_to(&mut self, p: Pos2) {
+        self.pointer = p;
+        self.frame(vec![Event::PointerMoved(p)]);
+    }
+
+    fn button(p: Pos2, pressed: bool) -> Event {
+        Event::PointerButton {
+            pos: p,
+            button: PointerButton::Primary,
+            pressed,
+            modifiers: Modifiers::NONE,
+        }
+    }
+
+    pub fn click(&mut self, p: Pos2) {
+        self.move_to(p);
+        self.frame(vec![Self::button(p, true)]);
+        self.frame(vec![Self::button(p, false)]);
+        self.frame(vec![]);
+    }
+
+    pub fn drag(&mut self, from: Pos2, to: Pos2) {
+        self.move_to(from);
+        self.frame(vec![Self::button(from, true)]);
+        for k in 1..=8 {
+            let p = from + (to - from) * (k as f32 / 8.0);
+            self.frame(vec![Event::PointerMoved(p)]);
+        }
+        self.frame(vec![Self::button(to, false)]);
+        self.frame(vec![]);
+    }
+
+    pub fn key(&mut self, key: Key, modifiers: Modifiers) {
+        let ev = |pressed| Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers,
+        };
+        self.frame(vec![ev(true)]);
+        self.frame(vec![ev(false)]);
+    }
+
+    pub fn scroll(&mut self, at: Pos2, dy: f32) {
+        self.move_to(at);
+        for _ in 0..10 {
+            self.frame(vec![Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                delta: vec2(0.0, dy),
+                modifiers: Modifiers::NONE,
+                phase: egui::TouchPhase::Move,
+            }]);
+        }
+    }
+
+    /// A point in the main chart pane, as fractions of its size.
+    pub fn at(&self, fx: f32, fy: f32) -> Pos2 {
+        let r = self.app.chart_ui.main_rect;
+        pos2(r.left() + r.width() * fx, r.top() + r.height() * fy)
+    }
+
+    pub fn pick(&mut self, tool: Tool) {
+        self.app.pick_tool(tool);
+        self.frame(vec![]);
+    }
+}
+
+impl Drop for Driver {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn place_move_undo_delete_a_trend_line() {
+        let mut d = Driver::new("trend");
+        assert!(d.app.chart_ui.main_rect.width() > 100.0, "chart laid out");
+        d.pick(Tool::TrendLine);
+        d.click(d.at(0.3, 0.5));
+        d.click(d.at(0.6, 0.3));
+        assert_eq!(d.app.chart.drawings.len(), 1, "placed");
+        assert_eq!(d.app.layout.tool, Tool::Cross, "back to the cross");
+        let before = d.app.chart.drawings[0].clone();
+        assert_ne!(before.pts[0], before.pts[1]);
+        // Drag its middle: both points move.
+        let mid = d.at(0.45, 0.4);
+        d.drag(mid, mid + vec2(60.0, 40.0));
+        let moved = d.app.chart.drawings[0].clone();
+        assert_ne!(moved.pts[0], before.pts[0], "moved");
+        assert!(moved.pts[0].p < before.pts[0].p, "dragged down means lower price");
+        d.key(Key::Z, Modifiers::COMMAND);
+        assert_eq!(d.app.chart.drawings[0], before, "undo");
+        d.key(Key::Y, Modifiers::COMMAND);
+        assert_eq!(d.app.chart.drawings[0], moved, "redo");
+        // Select and delete.
+        d.click(d.at(0.45, 0.4) + vec2(60.0, 40.0));
+        assert!(d.app.chart_ui.draw.selected.is_some(), "selected");
+        d.key(Key::Delete, Modifiers::NONE);
+        assert!(d.app.chart.drawings.is_empty(), "deleted");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn one_click_tools_and_drawings_persist_per_symbol() {
+        let mut d = Driver::new("persist");
+        for tool in [Tool::HorizontalLine, Tool::LongPosition, Tool::Text, Tool::VerticalLine] {
+            d.pick(tool);
+            d.click(d.at(0.5, 0.5));
+        }
+        assert_eq!(d.app.chart.drawings.len(), 4);
+        let long = d
+            .app
+            .chart
+            .drawings
+            .iter()
+            .find(|x| x.tool == Tool::LongPosition)
+            .unwrap();
+        assert_eq!(long.pts.len(), 3);
+        let symbol = d.app.chart.symbol.id.clone();
+        // Another symbol has none; coming back brings them back.
+        let eth = opentern_core::starter_watchlist().remove(1);
+        d.app.open_symbol(eth);
+        d.wait(|a| !a.chart.bars.is_empty());
+        assert!(d.app.chart.drawings.is_empty());
+        let btc = opentern_core::starter_watchlist()
+            .into_iter()
+            .find(|s| s.id == symbol)
+            .unwrap();
+        d.app.open_symbol(btc);
+        d.wait(|a| !a.chart.bars.is_empty());
+        assert_eq!(d.app.chart.drawings.len(), 4);
+        // And they survive a restart.
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let mut again = Driver::open(dir);
+        again.wait(|a| !a.chart.drawings.is_empty());
+        assert_eq!(again.app.chart.drawings.len(), 4);
+    }
+
+    #[test]
+    fn scrolling_in_a_dialog_leaves_the_chart_alone() {
+        let mut d = Driver::new("modal-scroll");
+        let before = (d.app.chart.view.bar_w, d.app.chart.view.right);
+        d.app.modal = Some(crate::dialogs::Modal::Indicators(crate::dialogs::Indicators::new(
+            false,
+        )));
+        d.frame(vec![]);
+        d.scroll(d.at(0.5, 0.5), -40.0);
+        assert_eq!((d.app.chart.view.bar_w, d.app.chart.view.right), before);
+        // Without the dialog, the same scroll zooms.
+        d.app.modal = None;
+        d.scroll(d.at(0.5, 0.5), -40.0);
+        assert_ne!(d.app.chart.view.bar_w, before.0);
+    }
+
+    #[test]
+    fn zoom_tool_fits_the_dragged_range() {
+        let mut d = Driver::new("zoom");
+        let w0 = d.app.chart.view.bar_w;
+        d.pick(Tool::Zoom);
+        d.drag(d.at(0.4, 0.5), d.at(0.6, 0.5));
+        assert!(d.app.chart.view.bar_w > w0 * 3.0, "{} vs {w0}", d.app.chart.view.bar_w);
+        assert_eq!(d.app.layout.tool, Tool::Cross);
+    }
+
+    #[test]
+    fn python_script_plots_on_the_chart_and_matches_the_builtin() {
+        if opentern_script::python::interpreter().is_none() {
+            eprintln!("no Python; skipping");
+            return;
+        }
+        let mut d = Driver::new("python");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("rsi.py"),
+            "from opentern import *\nindicator('Py RSI')\nn = input.int(14, 'Length')\n\
+             def compute(bars):\n    plot(ta.rsi(bars.close, n), 'RSI', color='#7E57C2')\n    hline(70)\n",
+        )
+        .unwrap();
+        d.app.add_script("rsi.py");
+        d.wait(|a| {
+            a.chart
+                .studies
+                .iter()
+                .any(|s| s.meta().id == "py:rsi.py" && s.inst.out.plots[0].iter().any(|v| v.is_finite()))
+        });
+        // The SDK's RSI is written separately from the Rust one; they agree.
+        let rsi = opentern_series::builtins::by_id("rsi").unwrap();
+        let mut native = opentern_series::Instance::new(rsi, &rsi.default_inputs());
+        let sess = opentern_series::study::sessions(&d.app.chart.bars, d.app.chart.tf, &jiff::tz::TimeZone::UTC);
+        native.recompute(&d.app.chart.bars, &sess, d.app.chart.tf);
+        let py = d.app.chart.studies.iter().find(|s| s.meta().id == "py:rsi.py").unwrap();
+        // Compare the bars the script saw (it may lag a live tick).
+        let n = py.inst.out.plots[0].iter().rposition(|v| v.is_finite()).unwrap();
+        for i in 0..n {
+            let (a, b) = (py.inst.out.plots[0][i], native.out.plots[0][i]);
+            assert!(
+                (a.is_nan() && b.is_nan()) || (a - b).abs() < 1e-9,
+                "bar {i}: {a} vs {b}"
+            );
+        }
+        assert_eq!(py.meta().placement, opentern_series::study::Placement::Pane);
+        assert_eq!(py.meta().hlines.len(), 1);
+        // Saved in the layout and restored with it.
+        let state = d.app.chart.state();
+        assert!(state.studies.iter().any(|s| s.id == "py:rsi.py"));
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// Random clicks, drags, keys and scrolls for a while: the app must
+    /// never panic (the crash shield counts any that happen).
+    #[test]
+    fn monkey() {
+        let mut d = Driver::new("monkey");
+        let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut rnd = move || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        let frames: usize = std::env::var("MONKEY_FRAMES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(600);
+        let tools = [
+            Tool::TrendLine,
+            Tool::Rectangle,
+            Tool::FibRetracement,
+            Tool::ParallelChannel,
+            Tool::Brush,
+            Tool::Cross,
+        ];
+        for _ in 0..frames {
+            let p = pos2((rnd() % 1400) as f32, (rnd() % 900) as f32);
+            match rnd() % 10 {
+                0..=2 => d.click(p),
+                3 => d.drag(p, p + vec2((rnd() % 200) as f32 - 100.0, (rnd() % 200) as f32 - 100.0)),
+                4 => d.scroll(p, (rnd() % 80) as f32 - 40.0),
+                5 => d.pick(tools[(rnd() % tools.len() as u64) as usize]),
+                6 => {
+                    let keys = [
+                        Key::Escape,
+                        Key::Delete,
+                        Key::ArrowLeft,
+                        Key::ArrowRight,
+                        Key::Z,
+                        Key::Enter,
+                    ];
+                    d.key(keys[(rnd() % keys.len() as u64) as usize], Modifiers::NONE);
+                }
+                7 => d.frame(vec![Event::Text("b".into())]),
+                _ => d.move_to(p),
+            }
+        }
+        assert_eq!(d.app.panics, 0, "the app panicked during random input");
+    }
+}

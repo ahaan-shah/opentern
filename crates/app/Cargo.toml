@@ -1,0 +1,35 @@
+[package]
+name = "opentern"
+description = "Opentern — a fast, local-first trading terminal with charts, scripting and backtests"
+readme = "../../README.md"
+default-run = "opentern"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "opentern"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "persistence"] }
+egui = "0.36.2"
+egui-phosphor = "0.14.0"
+jiff = "0.2.37"
+opentern-core = { version = "0.0.1", path = "../core" }
+opentern-data = { version = "0.0.1", path = "../data" }
+opentern-script = { version = "0.0.1", path = "../script" }
+opentern-series = { version = "0.0.1", path = "../series" }
+rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+# Windows: glow (OpenGL) first, with wgpu (Direct3D 12, including its software
+# rasterizer) as the fallback for machines without a usable OpenGL driver.
+[target.'cfg(windows)'.dependencies]
+eframe = { version = "0.36.2", default-features = false, features = ["glow", "wgpu", "default_fonts", "persistence"] }
+windows-sys = { version = "0.61", features = ["Win32_System_Console"] }

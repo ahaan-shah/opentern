@@ -1,0 +1,7 @@
+/target
+*.db
+*.db-wal
+*.db-shm
+.env
+# Machine-specific notes for the maintainer's own computer.
+CLAUDE.local.md
