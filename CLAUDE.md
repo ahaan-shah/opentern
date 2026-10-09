@@ -544,8 +544,11 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ### Resume here (next session)
 The maintainer asked for Phases 6–13, committing after each, then they test and we iterate
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
-1. **Phase 7**: Pine step 3 (`strategy.*` → `opentern_engine::Broker`; read it back with
-   `PineStudy::broker()` via `Instance::state()`), `docs/metrics.md` checks, the Strategy
+1. **Phase 7 (part 1 committed)**: done: Pine step 3 (`natives/strategy.rs`: entry/order/
+   exit/close/cancel, risk.allow_entry_in, all `strategy.*` variables, closedtrades/
+   opentrades.*), broker trailing stops, OCA, exit qty from entered size, pyramiding fix
+   (tested; a Pine MA-cross equals a hand-driven broker trade for trade). Left: read it
+   back with `PineStudy::broker()` via `Instance::state()`, the Strategy
    Report tab (Overview with equity curve, Performance, Trades analysis, Risk/performance,
    List of trades, Properties) from `opentern_engine::Report`, trade markers on the chart
    from `Broker::fills`, Python strategies (replay `ScriptRun::output.intents` through a

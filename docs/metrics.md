@@ -10,8 +10,19 @@ currency; percentages of initial capital unless stated.
   same close with `process_orders_on_close` / `immediately`.
 - Stops and limits fill along the intrabar path: open → the nearer of high/low → the
   other → close. A gap through the level fills at the open.
-- Entries in the opposite direction reverse the position; `pyramiding` caps extra
-  same-direction entries; exits close FIFO; `strategy.order` nets against the position.
+- Entries in the opposite direction reverse the position; `pyramiding` is the most
+  same-direction entries (0 and 1 both mean one, as TradingView's manual says); exits
+  close FIFO; `strategy.order` nets against the position. An entry or order that triggers
+  but is turned away by pyramiding is used up.
+- `strategy.exit`: `qty_percent` is of the size entered (two 50% exits close the whole
+  position); an explicit `qty` wins. Targets, stops and trailing stops share the
+  intrabar path; when several trigger in one segment, the one nearest the segment start
+  fills first. A trailing stop activates `trail_points` ticks into profit (or at
+  `trail_price`) and then trails the best price by `trail_offset` ticks — verify.
+- OCA groups: `strategy.oca.cancel` cancels the group's other orders when one fills;
+  `reduce` lowers their quantity by the filled amount.
+- `strategy.risk.allow_entry_in`: an entry the other way closes the position instead.
+  The other `strategy.risk.*` rules are accepted but not enforced yet.
 - Slippage: ticks × mintick against market and stop fills. Commission per fill:
   percent of notional, cash per contract, or cash per order.
 - Qty: fixed, cash / price, or percent of equity / price (no lot rounding — verify for

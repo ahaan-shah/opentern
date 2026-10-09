@@ -326,3 +326,77 @@ fn comma_declarations_and_continuations() {
     let v = plot("a = 1, b = 2\nc = a +\n  b\nplot(c)", 1);
     assert_eq!(v[0], 3.0);
 }
+
+/// A Pine strategy and the same logic driven straight at the broker give the
+/// same trades.
+#[test]
+fn strategy_orders_go_to_the_broker() {
+    use opentern_engine::{Broker, Order, OrderKind, Props};
+    let src = "//@version=5\nstrategy(\"Cross\", overlay = true, initial_capital = 10000, default_qty_type = strategy.percent_of_equity, default_qty_value = 50, commission_type = strategy.commission.percent, commission_value = 0.1)\n\
+               f = ta.sma(close, 3)\ns = ta.sma(close, 8)\nif ta.crossover(f, s)\n    strategy.entry(\"L\", strategy.long)\n\
+               if ta.crossunder(f, s)\n    strategy.entry(\"S\", strategy.short)\nplot(strategy.position_size)";
+    let s = compile(src, "x.pine", Env::default()).unwrap();
+    assert_eq!(s.kind(), crate::Kind::Strategy);
+    let b = bars(300);
+    let mut st = s.study(&Inputs::default());
+    let out = st.run(&b, H1);
+    assert!(st.error().is_none(), "{:?}", st.error());
+    let pine = st.broker().unwrap().clone();
+    assert!(pine.trades.len() > 5, "{} trades", pine.trades.len());
+    // The same by hand.
+    let props = Props::from_json(s.strategy_props().unwrap(), 0.01);
+    assert_eq!(props.initial_capital, 10000.0);
+    assert_eq!(props.qty_type, opentern_engine::QtyType::PercentOfEquity);
+    let mut br = Broker::new(props);
+    let (mut f, mut sl) = (opentern_series::ta::Sma::new(3), opentern_series::ta::Sma::new(8));
+    let mut cross = opentern_series::ta::Cross::default();
+    for (i, x) in b.iter().enumerate() {
+        br.open_bar(i, x);
+        let (over, under) = cross.update(f.update(x.close), sl.update(x.close));
+        if over {
+            let mut o = Order::market("L", OrderKind::Entry, true);
+            o.comment = "L".into();
+            br.submit(o);
+        }
+        if under {
+            let mut o = Order::market("S", OrderKind::Entry, false);
+            o.comment = "S".into();
+            br.submit(o);
+        }
+        br.close_bar(x);
+    }
+    assert_eq!(pine.trades, br.trades);
+    assert_eq!(pine.equity, br.equity);
+    // strategy.position_size is read on each bar's close.
+    assert_eq!(out.plots[0], br.position);
+}
+
+#[test]
+fn strategy_exits_and_variables() {
+    let src = "//@version=5\nstrategy(\"Bracket\", process_orders_on_close = false)\n\
+               if bar_index == 2\n    strategy.entry(\"L\", strategy.long, qty = 2)\n\
+               strategy.exit(\"X\", \"L\", profit = 400, loss = 400)\n\
+               plot(strategy.closedtrades)\nplot(strategy.opentrades)\nplot(strategy.closedtrades > 0 ? strategy.closedtrades.exit_bar_index(0) : na)";
+    let s = compile(src, "b.pine", Env::default()).unwrap();
+    let b = bars(60);
+    let mut st = s.study(&Inputs::default());
+    let out = st.run(&b, H1);
+    assert!(st.error().is_none(), "{:?}", st.error());
+    let br = st.broker().unwrap();
+    assert_eq!(br.trades.len(), 1);
+    let t = &br.trades[0];
+    assert_eq!(t.entry_bar, 3);
+    assert_eq!(t.qty, 2.0);
+    // Exited at least 4 away from the entry price (400 ticks of 0.01;
+    // more when the bar gapped through the level and filled at its open).
+    let moved = (t.exit_price - t.entry_price).abs();
+    let at_open = t.exit_price == b[t.exit_bar].open;
+    assert!((moved - 4.0).abs() < 1e-9 || (at_open && moved > 4.0), "{t:?}");
+    assert!(t.exit_bar > 3);
+    assert_eq!(out.plots[1][3], 1.0);
+    assert_eq!(out.plots[0][t.exit_bar], 1.0);
+    assert_eq!(out.plots[2][t.exit_bar], t.exit_bar as f64);
+    // strategy.* in an indicator is an error, with the line.
+    let e = err("strategy.entry(\"L\", strategy.long)");
+    assert!(e.message.contains("strategy("), "{}", e.message);
+}

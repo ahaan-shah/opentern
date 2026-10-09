@@ -5,5 +5,5 @@
 pub mod broker;
 pub mod report;
 
-pub use broker::{Broker, Order, OrderKind, Props, QtyType, Trade};
+pub use broker::{Broker, Commission, Fill, Lot, OcaType, Order, OrderKind, Props, QtyType, Trade};
 pub use report::Report;
