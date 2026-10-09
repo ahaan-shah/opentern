@@ -1,0 +1,10 @@
+//@version=5
+indicator(title="Relative Volatility Index", shorttitle="RVI", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+length = input.int(10, minval=1)
+src = input(close, "Source")
+len = input.int(14, "Smoothing Length")
+stddev = ta.stdev(src, length)
+upper = ta.ema(ta.change(src) <= 0 ? 0 : stddev, len)
+lower = ta.ema(ta.change(src) > 0 ? 0 : stddev, len)
+rvi = upper / (upper + lower) * 100
+plot(rvi, title="RVI", color=#7E57C2)

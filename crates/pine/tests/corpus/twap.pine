@@ -1,0 +1,11 @@
+//@version=5
+indicator("Time Weighted Average Price", "TWAP", overlay = true)
+src = input.source(ohlc4, "Source")
+var float sum = 0.0
+var int n = 0
+if session.isfirstbar or barstate.isfirst
+    sum := 0.0
+    n := 0
+sum += src
+n += 1
+plot(sum / n, "TWAP", #2962FF)

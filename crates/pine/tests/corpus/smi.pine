@@ -1,0 +1,15 @@
+//@version=5
+indicator(title="Stochastic Momentum Index", shorttitle="SMI", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+a = input.int(10, "Percent K Length")
+b = input.int(3, "Percent D Length")
+c = input.int(10, "EMA Length")
+ll = ta.lowest (low, a)
+hh = ta.highest (high, a)
+diff = hh - ll
+rdiff = close - (hh+ll)/2
+avgrel = ta.ema(ta.ema(rdiff,b),b)
+avgdiff = ta.ema(ta.ema(diff,b),b)
+SMI = avgdiff != 0 ? (avgrel/(avgdiff/2)*100) : 0
+emasignal = ta.ema(SMI, c)
+plot(SMI, title = "SMI", color=#2962FF)
+plot(emasignal, title = "SMI-based EMA", color=#FF6D00)

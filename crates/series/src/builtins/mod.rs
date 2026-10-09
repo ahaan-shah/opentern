@@ -8,6 +8,7 @@ mod ma;
 mod osc;
 mod trend;
 mod volume;
+mod wave2;
 
 use crate::color::Rgba;
 use crate::study::*;
@@ -23,6 +24,7 @@ pub fn all() -> &'static [Meta] {
         v.extend(trend::metas());
         v.extend(osc::metas());
         v.extend(volume::metas());
+        v.extend(wave2::metas());
         v.sort_by_key(|a| a.name.to_lowercase());
         v
     })
@@ -263,7 +265,9 @@ mod tests {
         for m in all() {
             let mut full = Instance::new(m, &m.default_inputs());
             full.recompute(&b, &sess, tf);
-            let any = full.out.plots.iter().any(|p| p.iter().skip(300).any(|v| v.is_finite()));
+            // Plots, or a background (Trading Sessions has only that).
+            let any = full.out.plots.iter().any(|p| p.iter().skip(300).any(|v| v.is_finite()))
+                || full.out.bg.iter().any(|c| *c != 0);
             assert!(any, "{} produced nothing", m.id);
             // Bar by bar, with the last bar ticking three times first.
             let mut live = Instance::new(m, &m.default_inputs());

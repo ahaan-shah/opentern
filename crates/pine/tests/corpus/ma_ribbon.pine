@@ -1,0 +1,15 @@
+//@version=5
+indicator("Moving Average Ribbon", shorttitle="MA Ribbon", overlay=true, timeframe="", timeframe_gaps=true)
+ma(source, length, type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "SMMA (RMA)" => ta.rma(source, length)
+        "WMA" => ta.wma(source, length)
+        "VWMA" => ta.vwma(source, length)
+type = input.string("SMA", "MA Type", options = ["SMA", "EMA", "SMMA (RMA)", "WMA", "VWMA"])
+src = input(close, "Source")
+plot(ma(src, input.int(20, "MA #1 Length"), type), color = #f6c309, title="MA #1")
+plot(ma(src, input.int(50, "MA #2 Length"), type), color = #fb9800, title="MA #2")
+plot(ma(src, input.int(100, "MA #3 Length"), type), color = #fb6500, title="MA #3")
+plot(ma(src, input.int(200, "MA #4 Length"), type), color = #f60c0c, title="MA #4")

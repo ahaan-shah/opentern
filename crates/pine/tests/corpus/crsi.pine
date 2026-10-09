@@ -1,0 +1,17 @@
+//@version=5
+indicator(title="Connors RSI", shorttitle="CRSI", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+src = close
+lenrsi = input(3, "RSI Length")
+lenupdown = input(2, "UpDown Length")
+lenroc = input(100, "ROC Length")
+updown(s) =>
+    isEqual = s == s[1]
+    isGrowing = s > s[1]
+    ud = 0.0
+    ud := isEqual ? 0 : isGrowing ? (nz(ud[1]) <= 0 ? 1 : nz(ud[1])+1) : (nz(ud[1]) >= 0 ? -1 : nz(ud[1])-1)
+    ud
+rsi = ta.rsi(src, lenrsi)
+updownrsi = ta.rsi(updown(src), lenupdown)
+percentrank = ta.percentrank(ta.roc(src, 1), lenroc)
+crsi = math.avg(rsi, updownrsi, percentrank)
+plot(crsi, "CRSI", #2962FF)

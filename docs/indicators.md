@@ -81,17 +81,51 @@ What the automated tests already check for every built-in:
 | VWAP | `vwap` | Trend | Ported; awaiting TradingView export |
 | Williams %R | `willr` | Oscillators | Ported; awaiting TradingView export |
 | Williams Alligator | `alligator` | Trend | Ported; awaiting TradingView export |
+| 24-hour Volume | `volume_24h` | Volume | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Average Day Range | `adr` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Chaikin Oscillator | `chaikin_osc` | Volume | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Chande Kroll Stop | `ckstop` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Chop Zone | `chop_zone` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Connors RSI | `crsi` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Klinger Oscillator | `kvo` | Volume | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Moon Phases | `moon` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Moving Average Ribbon | `ma_ribbon` | Moving averages | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Net Volume | `net_volume` | Volume | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Pivot Points High Low | `pivots_hl` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Rank Correlation Index | `rci` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| RCI Ribbon | `rci_ribbon` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Relative Vigor Index | `rvgi` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Relative Volatility Index | `rvi` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| SMI Ergodic Indicator | `smi_ergodic` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| SMI Ergodic Oscillator | `smi_ergodic_osc` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Standard Error | `stderr` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Standard Error Bands | `stderr_bands` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Stochastic Momentum Index | `smi` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Time Weighted Average Price | `twap` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Trading Sessions | `sessions` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Trend Strength Index | `trend_strength` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Volatility Stop | `volatility_stop` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Williams Fractals | `fractals` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Woodies CCI | `woodies_cci` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
 
-Still to port from TradingView's list (Phase 9b): 24-hour Volume, Advance/Decline,
-Auto Fib, Average Day Range, Bollinger Bars, Chaikin Oscillator, Chande Kroll Stop,
-Chop Zone, Connors RSI, Correlation Coefficient, Cumulative Volume Delta/Index,
-Klinger Oscillator, Linear Regression Channel, MA Ribbon, Majority Rule, Median,
-Moon Phases, Net Volume, Open Interest, Pivot Points (Standard, High Low), Rank
-Correlation Index, Relative Vigor Index, Relative Volatility Index, RCI Ribbon,
-Seasonality, SMI Ergodic, Standard Error (+ Bands), Stochastic Momentum Index,
-Technical Ratings, TWAP, Trading Sessions, Trend Strength Index, Up/Down Volume,
-Visible Average Price, Volatility Stop, Volume Profile (all kinds), Anchored VWAP,
-Williams Fractals, Woodies CCI, Zig Zag.
+Notes on wave 2: Williams Fractals uses the strict rule (equal highs/lows on either side
+don't count; TradingView's script tolerates some ties). Standard Error is the standard
+error of the least-squares fit over the window; the bands are that fit ± multiplier ×
+error, smoothed. ADR on intraday charts uses completed days (as `request.security` with
+lookahead off does on history). Moon Phases follows Meeus (minutes accurate). Trading
+Sessions shades Tokyo, London and New York regular hours.
+
+Still to port:
+- Need drawing objects (with Phase 10): Zig Zag, Pivot Points Standard, Auto Fib
+  Extension/Retracement, Linear Regression Channel.
+- Chart features (Phase 11): Volume Profile (Fixed/Visible/Session/Anchored), Visible
+  Average Price, Seasonality, Anchored VWAP.
+- Need data Opentern doesn't fetch yet: Advance/Decline Line and Ratio (market
+  breadth), Cumulative Volume Index (breadth), Open Interest (futures), Correlation
+  Coefficient (a second symbol; Phase 10's `request.security` for other symbols),
+  Cumulative Volume Delta and Up/Down Volume (intrabar volume).
+- Not yet, to get exactly right: Technical Ratings, Majority Rule, Median, Bollinger
+  Bars.
 
 ## Defaults to double-check against TradingView
 

@@ -1,0 +1,6 @@
+//@version=5
+indicator(title="Net Volume", format=format.volume, timeframe="", timeframe_gaps=true)
+src = close
+ch = ta.change(src)
+nv = ch > 0 ? volume : ch < 0 ? -volume : 0 * volume
+plot(nv, color = #2962FF, title="Net Volume")

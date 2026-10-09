@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–9 built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–9b built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -546,7 +546,9 @@ The maintainer asked for Phases 6–13, committing after each, then they test an
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 1. Phase 7 is done (see "Phase 7 (done)").
 2. Phase 8 is done (see "Phase 8 (done)").
-3. Phase 9 is done (see "Phase 9 (done)"). Then Phases 9b–13 as in the roadmap (§9). Pine v2 (Phase 10) has its scaffolding in place:
+3. Phases 9 and 9b are done. Then Phases 10–13 as in the roadmap (§9); the
+   drawing-based built-ins (Zig Zag, Pivot Points Standard, Auto Fib, Linear Regression
+   Channel) come with Phase 10's drawing objects. Pine v2 (Phase 10) has its scaffolding in place:
    `heap.rs` (arrays/maps/matrices/UDTs/drawings with GC), the parser already handles
    `type`, `method`, `for … in`, generics, `p.x := …`; stubs in `natives/collections.rs`,
    `draw.rs`, `security.rs`.
@@ -699,6 +701,18 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 - Not yet: Dhan/Angel One/Zerodha, Upstox's protobuf websocket, IBKR TWS socket API,
   extended-hours shading, earnings markers.
 
+### Phase 9b (done, formula part): built-ins wave 2
+- `series/src/builtins/wave2.rs`: 26 more TradingView built-ins (Chaikin Osc, Chande
+  Kroll Stop, Chop Zone, Connors RSI, Klinger, MA Ribbon, Net Volume, Pivots HL, RCI,
+  RCI Ribbon, RVGI, Relative Volatility Index, SMI Ergodic ×2, Standard Error (+ Bands),
+  SMI, TWAP, Trend Strength Index, Volatility Stop, Williams Fractals, Woodies CCI, ADR,
+  24-hour Volume, Moon Phases, Trading Sessions). 88 built-ins in all.
+- 22 Pine twins added to the corpus: **85 corpus scripts match their Rust built-ins bar
+  for bar** (incl. colour indices where colour carries meaning).
+- Found and fixed: a plot coloured by a variable (`color = zoneColor`) didn't get the
+  palette of that variable's colours (`Cx::palettes`).
+- What's left of TradingView's list and why is at the end of `docs/indicators.md`.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -764,10 +778,10 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 161 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- 164 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 9b–14. App
+Phases 10–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
 in the shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/
 notifications widgets, Screener tab.

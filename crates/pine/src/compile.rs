@@ -363,6 +363,9 @@ struct Cx {
     known: HashMap<(usize, u16), E>,
     /// Declared types of slots, for method resolution, by (depth, slot).
     slot_types: HashMap<(usize, u16), String>,
+    /// Colour constants in a variable's defining expression, so a plot
+    /// coloured by that variable gets the palette (`color = zoneColor`).
+    palettes: HashMap<(usize, u16), Vec<u32>>,
     line: usize,
     // declarations
     kind: Option<Kind>,
@@ -399,6 +402,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         types: Vec::new(),
         known: HashMap::new(),
         slot_types: HashMap::new(),
+        palettes: HashMap::new(),
         line: 0,
         kind: None,
         title: String::new(),
@@ -936,6 +940,11 @@ impl Cx {
             }
             if let Some(t) = ty {
                 self.slot_types.insert((d, slot), t);
+            }
+            let mut pal = Vec::new();
+            self.palette(&e, &mut pal);
+            if !pal.is_empty() {
+                self.palettes.insert((d, slot), pal);
             }
             self.declare(&names[0], Bind::Slot { depth: d, slot });
             return Ok(match persist {
@@ -2053,6 +2062,11 @@ impl Cx {
                 let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
                 if let Some(k) = self.known.get(&(depth, *s)) {
                     self.palette(&k.clone(), out);
+                }
+                for c in self.palettes.get(&(depth, *s)).into_iter().flatten() {
+                    if !out.contains(c) {
+                        out.push(*c);
+                    }
                 }
             }
             _ => {}

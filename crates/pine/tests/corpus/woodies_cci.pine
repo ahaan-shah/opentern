@@ -1,0 +1,9 @@
+//@version=5
+indicator(title="Woodies CCI", format=format.price, precision=2, timeframe="", timeframe_gaps=true)
+cciTurboLength = input.int(6, "CCI Turbo Length", minval=3, maxval=14)
+cci14Length = input.int(14, "CCI 14 Length", minval=7, maxval=20)
+cciTurbo = ta.cci(hlc3, cciTurboLength)
+cci14 = ta.cci(hlc3, cci14Length)
+plot(cci14, "CCI Histogram", color = cci14 >= 0 ? #26A69A : #EF5350, style = plot.style_histogram)
+plot(cciTurbo, "CCI Turbo", #FF6D00)
+plot(cci14, "CCI", #2962FF)

@@ -1,0 +1,4 @@
+//@version=5
+indicator("Trend Strength Index", "TSI")
+length = input.int(14, "Length", minval = 2)
+plot(ta.correlation(close, bar_index, length), "Trend Strength Index", #2962FF)

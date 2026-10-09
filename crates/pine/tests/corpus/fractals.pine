@@ -1,0 +1,10 @@
+//@version=5
+indicator("Williams Fractals (strict)", "Fractals", overlay=true)
+n = input.int(2, "Periods", minval=2)
+upFractal = true
+downFractal = true
+for i = 1 to n
+    upFractal := upFractal and high[n] > high[n-i] and high[n] > high[n+i]
+    downFractal := downFractal and low[n] < low[n-i] and low[n] < low[n+i]
+plot(downFractal ? 1 : na, "Down", offset = -n)
+plot(upFractal ? 1 : na, "Up", offset = -n)

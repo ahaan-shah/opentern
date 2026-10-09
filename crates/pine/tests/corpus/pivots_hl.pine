@@ -1,0 +1,8 @@
+//@version=5
+indicator("Pivot Points High Low", "Pivots HL", overlay=true)
+lb = input.int(10, "Left Bars")
+rb = input.int(10, "Right Bars")
+ph = ta.pivothigh(lb, rb)
+pl = ta.pivotlow(lb, rb)
+plot(ph, "Pivot High", offset = -rb)
+plot(pl, "Pivot Low", offset = -rb)
