@@ -30,6 +30,8 @@ an explicit go. Read "Where things stand" → "Resume here" at the end first.
   already know it.
 - **TradingView-level personal customization:** candle styles and colours, chart and
   indicator templates, defaults, favorites (§4b).
+- **WASM plugins are skipped for now** (the maintainer, 10 Oct 2026). Phase 13 is
+  Luau, then JS/TS. Don't add wasmtime unless they ask again.
 - **Every standard TradingView built-in ships by default**, plus licence-checked
   open-source community scripts. They're ported from Pine to Rust with exact numerical
   parity (§6a).
@@ -102,7 +104,7 @@ crates/core      opentern-core    Bar/Tick/Symbol/Timeframe models, SQLite store
 crates/data      opentern-data    provider traits + adapters, tokio network thread, bar builder/resampler, cache
 crates/series    opentern-series  series runtime: bar-by-bar execution model, StudyOutput protocol, built-in indicators
 crates/pine      opentern-pine    native Pine v5/v6 engine: lexer → parser → type check → bytecode VM on opentern-series
-crates/script    opentern-script  language hosts: Python (subprocess), Luau (mlua), WASM (wasmtime), later JS
+crates/script    opentern-script  language hosts: Python (subprocess), Luau (mlua), JS/TS later (WASM skipped for now)
 crates/engine    opentern-engine  backtester, paper broker, optimizer, alert evaluator
 crates/app       opentern         egui app: chart engine, panels, editor, strategy tester
 python/opentern  pip SDK          the Python side of the script protocol (vectorized + on_bar APIs)
@@ -123,7 +125,7 @@ Key decisions:
   optional Parquet export. Only base timeframes are stored, and higher ones are resampled.
 - **Secrets** (API keys) go in the OS keychain via the `keyring` crate, never in SQLite.
 - **Crash shield:** each frame runs in `catch_unwind` with `panic = "unwind"`. Script
-  hosts are isolated too: Python runs in a separate process, and Luau and WASM run with
+  hosts are isolated too: Python runs in a separate process, and Luau and JS run with
   instruction and memory limits. A bad script must never take the app down.
 
 ## 3. What to reuse from Magpie (copy and adapt, then credit in comments)
@@ -315,7 +317,7 @@ tabs, as on TradingView).
 | **Pine Script v5/v6** | **A native Rust engine** (`opentern-pine`). A `logos` lexer handles Pine's indentation-sensitive tokens. Then a hand-written recursive-descent parser builds the AST, and a type checker resolves the qualifier lattice (const < input < simple < series) and the types, including UDTs and generics. The result compiles to register bytecode, which runs bar by bar on `opentern-series` with a ring-buffer history per series variable (max_bars_back), `var`/`varip` slots, and realtime rollback/commit snapshots. The built-ins (`ta.*`, `math.*`, `str.*`, `array`/`map`/`matrix`) are Rust functions shared with the native indicators | **Chosen over PineTS (the maintainer: "whatever's best").** There's no JS runtime, sidecar or per-tick serialization, and no AGPL. Startup is instant and it runs at native speed, which matters for screeners and optimizers that run thousands of times. One engine owns all semantics, so Pine, Python and Luau behave identically. **Rejected:** PineTS (AGPL, needs a JS runtime, an extra process and a translation layer) and PyneCore (Python, and compiling Pine needs a paid PyneSys key). Call it "Pine Script®-compatible" because it's a TradingView trademark |
 | **Python** | A separate worker process with the user's own interpreter, or an app-managed venv created with `uv`. Bars go over Arrow IPC and results come back the same way. Ships the `opentern` pip SDK: vectorized `compute(df) -> outputs` (pandas or polars) and event-driven `on_bar(ctx)` | Full ecosystem (numpy, pandas, TA-Lib, scikit, vectorbt). Process isolation means it can't crash the app, and no Python needs bundling |
 | **Luau** (via `mlua`) | Embedded and sandboxed, with an instruction budget | Instant startup and fast. A great quick-scripting language for small indicators and alerts |
-| **WASM plugins** (wasmtime) | A stable ABI, so Rust, C/C++, Zig, Go and AssemblyScript all compile to it | Near-native speed and safe sandboxing, and a way to share compiled indicators |
+| **WASM plugins** (wasmtime). **Skipped for now, the maintainer's call (Oct 2026)** | A stable ABI, so Rust, C/C++, Zig, Go and AssemblyScript all compile to it | Near-native speed and safe sandboxing, and a way to share compiled indicators |
 | **Rust built-ins** | ~100 indicators written natively against the same API | Fastest. Also the reference for parity tests |
 | Later: **JS/TS** (`rquickjs`, types stripped with swc), and transpilers for **EasyLanguage / ThinkScript / AFL / MQL** into the Pine VM's IR | | Migration paths for users of other platforms |
 
@@ -497,7 +499,7 @@ scripts, included **only when the script's licence allows it**.
 | 10. Pine v2 | Pine steps 4–6 (MTF, drawing objects, collections, UDTs, libraries) | The full corpus passes, and the maintainer's own TradingView scripts run unchanged |
 | 11. Power features | Multi-chart layouts, replay, compare, more chart types, volume profile, screener | |
 | 12. Quant tools | Optimizer, walk-forward, Monte Carlo, portfolio backtests | |
-| 13. More languages | Luau, WASM ABI, then JS/TS; transpilers maybe | |
+| 13. More languages | Luau, then JS/TS (WASM skipped for now); transpilers maybe | |
 | 14. Ship | Releases via Magpie's pipeline, a website, and What's new notes | Only on an explicit go |
 | Later | Live trading, `--daemon`, order-flow/footprint, DOM heatmap, LSP | |
 
@@ -505,7 +507,7 @@ scripts, included **only when the script's licence allows it**.
 eframe/egui 0.36 (glow), egui-phosphor, rusqlite (bundled), jiff, serde/serde_json,
 tokio, tokio-tungstenite (rustls), reqwest or ureq (same as Magpie), crossbeam-channel,
 arc-swap, rayon, keyring, notify, notify-rust, arrow (IPC), parquet/polars (optional),
-mlua (luau feature), wasmtime, tree-sitter, logos (Pine lexer), thiserror, sha2/zip (the
+mlua (luau feature), rquickjs, tree-sitter, logos (Pine lexer), thiserror, sha2/zip (the
 updater). TA crates **wickra** and **mantis-ta** are only consulted or benchmarked. Built-in
 indicators are hand-written so they share the series runtime.
 
@@ -555,8 +557,9 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 1. **Phase 12, quant tools.** Parameter optimizer (grid, random, then Bayesian;
    heatmap), walk-forward, Monte Carlo trade resampling, portfolio and multi-symbol
    backtests, CSV/JSON export.
-2. **Phase 13, more languages.** Luau (`mlua`, instruction budget), a WASM plugin ABI
-   (wasmtime), then JS/TS (`rquickjs`). All produce the same `Study`.
+2. **Phase 13, more languages.** Luau (`mlua`, instruction budget), then JS/TS
+   (`rquickjs`). All produce the same `Study`. **WASM is skipped** (the maintainer's
+   call); don't build it.
 3. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
 4. **Phase 14** (releases, website), only on an explicit go.
 
