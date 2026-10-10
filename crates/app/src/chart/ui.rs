@@ -1249,6 +1249,9 @@ fn draw_study(
             }
         }
     }
+    if let Some(d) = &s.inst.drawings {
+        super::scripted::paint(p, d, bars, x, y, rect);
+    }
 }
 
 /// A strategy's trades: dashed links from entry to exit, an arrow at each

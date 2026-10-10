@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–9b built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–10 built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -546,12 +546,10 @@ The maintainer asked for Phases 6–13, committing after each, then they test an
 on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 1. Phase 7 is done (see "Phase 7 (done)").
 2. Phase 8 is done (see "Phase 8 (done)").
-3. Phases 9 and 9b are done. Then Phases 10–13 as in the roadmap (§9); the
-   drawing-based built-ins (Zig Zag, Pivot Points Standard, Auto Fib, Linear Regression
-   Channel) come with Phase 10's drawing objects. Pine v2 (Phase 10) has its scaffolding in place:
-   `heap.rs` (arrays/maps/matrices/UDTs/drawings with GC), the parser already handles
-   `type`, `method`, `for … in`, generics, `p.x := …`; stubs in `natives/collections.rs`,
-   `draw.rs`, `security.rs`.
+3. Phases 9, 9b and 10 are done. Next: Phase 11 (multi-chart, replay, compare, more
+   chart types, volume profile/VPVR, Visible Average Price, Seasonality, screener),
+   then 12 (optimizer, walk-forward, Monte Carlo, portfolio) and 13 (Luau, WASM,
+   JS/TS), committing after each.
 4. Then the UI pass (`docs/ui-backlog.md`).
 
 ### Crates
@@ -562,7 +560,7 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
 | `opentern-script` | Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
-| `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `heap.rs` (objects, Phase 10), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
+| `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
 | `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor tab), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
@@ -713,6 +711,41 @@ on UI and bugs. Phase 14+ only on an explicit go. Order of work:
   palette of that variable's colours (`Cx::palettes`).
 - What's left of TradingView's list and why is at the end of `docs/indicators.md`.
 
+### Phase 10 (done): Pine v2
+- Collections and types: `array.*`, `map.*`, `matrix.*`, `type` (UDTs, `copy()`),
+  `method`, `for [i, x] in`, `enum` + `input.enum` (a member's value is its title, which
+  is what `str.tostring` and the input dropdown show). Method calls bind named arguments
+  at run time against whichever method the receiver picks (`order_args` in `run.rs`).
+- Drawing objects: `label`/`line`/`box`/`table`/`linefill`/`polyline` with their
+  setters/getters/`copy`/`delete`/`all`, `chart.point.*` and the point overloads of
+  `*.new`; `max_labels_count` etc. drop the oldest. Types live in
+  `opentern_series::drawings`; any `Study` can return them via `Study::drawings()` and
+  `Instance::drawings` holds the forming bar's set. The chart paints them above the
+  study's plots (`app/src/chart/scripted.rs`: bubbles and marker styles, extend, arrows,
+  dashed/dotted, tables at pane corners with merges, curved/closed polylines).
+- `request.security` on **this chart's symbol, same or higher timeframe**
+  (`natives/security.rs`): HTF bars are built from chart bars; each finished HTF bar runs
+  the expression once on the call site's frame (so `ta.*` and `x[1]` step per HTF bar);
+  `lookahead_off` shows the last finished HTF value (the closing chart bar shows its own
+  HTF bar), the forming bar repaints; `lookahead_on` = the HTF bar so far, which equals
+  TradingView for the `expr[1]` idiom; `gaps_on` = na except where a value arrives.
+  Variables used inside are recomputed on the HTF from their definition (`Cx::defs`,
+  inlined); ones changed with `:=`/`var` get a plain error. Not yet: other symbols, lower
+  timeframes, `security_lower_tf` (each gives a clear error). Known gap: on stocks, a
+  "D" bar from intraday finishes one chart bar late (periods are calendar days).
+- Libraries: `library("Name")` scripts in the scripts folder are found by title
+  (`opentern_pine::library_title`, passed in `Env::libraries`); `import user/Name/1 as
+  x` compiles their functions, methods, types and enums under `x.`; the env key hashes
+  the libraries so importers recompile when one is saved. Library-level variables aren't
+  imported.
+- Built-ins that draw (`series/src/builtins/drawn.rs`): Zig Zag, Auto Fib Retracement,
+  Pivot Points Standard (six types), Linear Regression Channel. 92 built-ins in all.
+- App: a Pine script that fails its very first compile gets a placeholder legend row
+  showing the error (it used to be invisible); fixing the file swaps in the real study.
+  `OPENTERN_STILL=add:<id>` adds a built-in at launch (for screenshots).
+- Found and fixed: `export type`/`export enum` didn't parse; named method arguments were
+  treated as positional.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -766,7 +799,7 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
 study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a
-workspace script on the chart. `OPENTERN_PYTHON` picks the interpreter.
+workspace script on the chart and `add:<id>` a built-in (comma-separate several). `OPENTERN_PYTHON` picks the interpreter.
 ```bash
 cargo test --release -p opentern-pine --test conformance -- --ignored --nocapture --test-threads=1  # Pine timing
 ```
@@ -778,10 +811,10 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 164 tests pass (5 live ones ignored by default); clippy `-D warnings` clean.
+- 179 tests pass (live and timing ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 10–14. App
+Phases 11–14. App
 icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
 in the shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/
 notifications widgets, Screener tab.

@@ -6,6 +6,7 @@ pub mod draw;
 pub mod drawing_ui;
 mod paint;
 pub mod scale;
+mod scripted;
 pub mod style;
 pub mod ui;
 

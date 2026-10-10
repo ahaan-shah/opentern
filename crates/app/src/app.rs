@@ -168,7 +168,8 @@ impl App {
 
     /// For screenshots: `OPENTERN_STILL=indicators|symbol|chart-settings|
     /// study:<id>|save-template` opens that dialog at launch;
-    /// `script:<file>` puts a workspace script on the chart.
+    /// `script:<file>` puts a workspace script on the chart, `add:<id>` a
+    /// built-in.
     fn still(&mut self) {
         let Ok(what) = std::env::var("OPENTERN_STILL") else {
             return;
@@ -178,6 +179,10 @@ impl App {
         for part in what.split(',') {
             if let Some(file) = part.strip_prefix("script:") {
                 self.add_script(file);
+            } else if let Some(id) = part.strip_prefix("add:") {
+                if let Some(m) = opentern_series::builtins::by_id(id) {
+                    self.add_study(m);
+                }
             } else if let Some(tab) = part.strip_prefix("tab:") {
                 self.layout.tab = crate::shell::Tab::ALL
                     .into_iter()

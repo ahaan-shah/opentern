@@ -107,6 +107,10 @@ What the automated tests already check for every built-in:
 | Volatility Stop | `volatility_stop` | Volatility | Ported (wave 2); Pine twin matches; awaiting TradingView export |
 | Williams Fractals | `fractals` | Trend | Ported (wave 2); Pine twin matches; awaiting TradingView export |
 | Woodies CCI | `woodies_cci` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
+| Zig Zag | `zigzag` | Trend | Ported (Phase 10, draws); pivot rule to verify against an export |
+| Auto Fib Retracement | `auto_fib` | Trend | Ported (Phase 10, draws); uses Zig Zag's last leg; to verify |
+| Pivot Points Standard | `pivots_std` | Trend | Ported (Phase 10, draws); all six types; to verify |
+| Linear Regression Channel | `linreg_channel` | Trend | Ported (Phase 10, draws) line by line from the published source; to verify |
 
 Notes on wave 2: Williams Fractals uses the strict rule (equal highs/lows on either side
 don't count; TradingView's script tolerates some ties). Standard Error is the standard
@@ -116,8 +120,7 @@ lookahead off does on history). Moon Phases follows Meeus (minutes accurate). Tr
 Sessions shades Tokyo, London and New York regular hours.
 
 Still to port:
-- Need drawing objects (with Phase 10): Zig Zag, Pivot Points Standard, Auto Fib
-  Extension/Retracement, Linear Regression Channel.
+- Auto Fib Extension (the three-point version; the retracement is done).
 - Chart features (Phase 11): Volume Profile (Fixed/Visible/Session/Anchored), Visible
   Average Price, Seasonality, Anchored VWAP.
 - Need data Opentern doesn't fetch yet: Advance/Decline Line and Ratio (market
@@ -137,6 +140,11 @@ remembered, not copied from them. When you make the exports, also check these
 - HMA: half length rounding (`length / 2` is floored here).
 - DPO: `barsback = length / 2 + 1` with integer division here.
 - MA Cross / EMA Cross colours; ADX colour; Bull Bear Power plot style.
+- Zig Zag: a pivot needs `depth / 2` bars on each side here (is "Pivot legs" the
+  per-side count instead?); the label layout (price, change, volume).
+- Auto Fib: which end is level 0, default extend right, which levels are on.
+- Pivot Points Standard: the Auto timeframe rule (≤15m → D, intraday → W, D → M, else
+  12M), one colour for every level, periods in UTC (stocks should use the session).
 
 ## Making a golden test (TradingView export)
 

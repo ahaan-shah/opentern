@@ -245,7 +245,8 @@ impl Parser {
             };
             return Ok(Stmt::Import { path, alias, line: ln });
         }
-        if matches!(c.peek(), Some(Tok::Ident(w)) if w == "type") && is_name(c.peek_at(1)) && c.toks.len() == 2 {
+        if matches!(c.peek(), Some(Tok::Ident(w)) if w == "type") && is_name(c.peek_at(1)) && c.toks.len() - c.pos == 2
+        {
             c.pos += 1;
             let name = c.ident("the type's name")?;
             let mut fields = Vec::new();
@@ -266,8 +267,43 @@ impl Parser {
             }
             return Ok(Stmt::Type { name, fields, line: ln });
         }
-        if matches!(c.peek(), Some(Tok::Ident(w)) if w == "enum") && is_name(c.peek_at(1)) && c.toks.len() == 2 {
-            return Err(c.err("Enums aren't supported yet."));
+        if matches!(c.peek(), Some(Tok::Ident(w)) if w == "enum") && is_name(c.peek_at(1)) && c.toks.len() - c.pos == 2
+        {
+            c.pos += 1;
+            let name = c.ident("the enum's name")?;
+            let mut members = Vec::new();
+            for f in self.sub_lines(indent) {
+                let mut fc = Cursor {
+                    toks: &f.toks,
+                    pos: 0,
+                    line: f.line,
+                };
+                let m = fc.ident("a member name")?;
+                let title = if fc.eat_op("=") {
+                    match fc.peek() {
+                        Some(Tok::Str(s)) => {
+                            let s = s.to_string();
+                            fc.pos += 1;
+                            s
+                        }
+                        _ => return Err(fc.err("An enum member's title must be a string.")),
+                    }
+                } else {
+                    m.clone()
+                };
+                if !fc.done() {
+                    return Err(fc.err("Expected one enum member per line: name or name = \"Title\"."));
+                }
+                members.push((m, title));
+            }
+            if members.is_empty() {
+                return Err(c.err("An enum needs at least one member."));
+            }
+            return Ok(Stmt::Enum {
+                name,
+                members,
+                line: ln,
+            });
         }
         let method = matches!(c.peek(), Some(Tok::Ident(w)) if w == "method") && is_name(c.peek_at(1));
         if method {

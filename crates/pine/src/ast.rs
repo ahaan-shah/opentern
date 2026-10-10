@@ -103,6 +103,13 @@ pub enum Stmt {
         fields: Vec<(String, Option<Expr>)>,
         line: usize,
     },
+    /// `enum Name` with members and their titles (the member's name when
+    /// no title is given).
+    Enum {
+        name: String,
+        members: Vec<(String, String)>,
+        line: usize,
+    },
     Import {
         path: String,
         alias: String,

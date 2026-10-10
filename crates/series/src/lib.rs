@@ -4,6 +4,7 @@
 
 pub mod builtins;
 pub mod color;
+pub mod drawings;
 pub mod study;
 pub mod ta;
 

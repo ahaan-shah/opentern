@@ -502,6 +502,11 @@ pub trait Study: StudyClone + Send {
     fn as_any(&self) -> Option<&dyn std::any::Any> {
         None
     }
+
+    /// Labels, lines, boxes and tables, as they stand after the last bar.
+    fn drawings(&self) -> Option<crate::drawings::Drawings> {
+        None
+    }
 }
 
 pub trait StudyClone {
@@ -587,6 +592,8 @@ pub struct Instance {
     pub meta: &'static Meta,
     pub inputs: Inputs,
     pub out: Output,
+    /// What the study has drawn (after the latest bar), if anything.
+    pub drawings: Option<std::sync::Arc<crate::drawings::Drawings>>,
     factory: Option<Factory>,
     /// Outputs come from outside; `update` only keeps their length.
     external: bool,
@@ -635,6 +642,7 @@ impl Instance {
                 bar: Vec::new(),
             },
             done: 0,
+            drawings: None,
             scratch: Out::new(meta.plots.len(), meta.fills.len()),
             meta,
             inputs,
@@ -754,6 +762,7 @@ impl Instance {
         };
         forming.step(&c, &mut self.scratch);
         self.out.write(n - 1, &self.scratch);
+        self.drawings = forming.drawings().filter(|d| !d.is_empty()).map(std::sync::Arc::new);
         self.forming = Some(forming);
     }
 }

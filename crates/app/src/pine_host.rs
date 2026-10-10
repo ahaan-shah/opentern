@@ -7,7 +7,7 @@ use crate::app::App;
 use crate::chart::StudyLook;
 use opentern_core::AssetKind;
 use opentern_pine::{Env, Kind, PineStudy};
-use opentern_series::study::Instance;
+use opentern_series::study::{Category, Format, Instance, Meta, Placement};
 use std::time::{Duration, Instant};
 
 fn kind_name(k: AssetKind) -> &'static str {
@@ -31,11 +31,38 @@ impl App {
             currency: s.currency.clone(),
             kind: kind_name(s.kind).into(),
             timezone: s.timezone.clone(),
+            libraries: self.pine_libraries(),
         }
     }
 
+    /// Library scripts in the scripts folder, by their `library()` title.
+    fn pine_libraries(&self) -> Vec<(String, String)> {
+        let Ok(dir) = std::fs::read_dir(self.scripts_dir()) else {
+            return Vec::new();
+        };
+        let mut out: Vec<(String, String)> = dir
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|x| x == "pine"))
+            .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+            .filter(|src| src.contains("library("))
+            .filter_map(|src| opentern_pine::library_title(&src).map(|t| (t, src)))
+            .collect();
+        out.sort();
+        out
+    }
+
     fn env_key(env: &Env) -> String {
-        format!("{}|{}|{}|{}", env.tickerid, env.mintick, env.currency, env.timezone)
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        env.libraries.hash(&mut h);
+        format!(
+            "{}|{}|{}|{}|{:x}",
+            env.tickerid,
+            env.mintick,
+            env.currency,
+            env.timezone,
+            h.finish()
+        )
     }
 
     /// Compiles script `i` and puts (or updates) its study on the chart.
@@ -60,6 +87,9 @@ impl App {
                 // Keep the last good version on the chart; show the error.
                 run.compile_error = Some(e.to_string());
                 run.error = run.compile_error.clone();
+                if run.uid.is_none() {
+                    self.placeholder(i);
+                }
                 return;
             }
         };
@@ -106,8 +136,11 @@ impl App {
                 } else {
                     // Overlay ↔ pane needs a new place.
                     self.chart.remove_study(uid);
-                    let look = StudyLook::defaults(meta);
-                    self.scripts[i].uid = Some(self.chart.add_instance(inst, look, None, true));
+                    let (look, pane, visible) = match &restore {
+                        Some(r) => (r.look.clone(), Some(r.pane), r.visible),
+                        None => (StudyLook::defaults(meta), None, true),
+                    };
+                    self.scripts[i].uid = Some(self.chart.add_instance(inst, look, pane, visible));
                 }
             }
             None => {
@@ -119,6 +152,34 @@ impl App {
             }
         }
         self.after_pine_run(i);
+    }
+
+    /// A script that has never compiled still gets a legend row (named
+    /// after its file) so its error shows on the chart; the real study
+    /// replaces it once it compiles.
+    fn placeholder(&mut self, i: usize) {
+        let run = &self.scripts[i];
+        let name = run.file.trim_end_matches(".pine").to_string();
+        let meta: &'static Meta = Box::leak(Box::new(Meta {
+            id: Box::leak(format!("pine:{}", run.file).into_boxed_str()),
+            name: Box::leak(name.clone().into_boxed_str()),
+            short: Box::leak(name.into_boxed_str()),
+            category: Category::Oscillators,
+            placement: Placement::Overlay,
+            format: Format::Price,
+            inputs: vec![],
+            plots: vec![],
+            hlines: vec![],
+            fills: vec![],
+            build: |_| Box::new(opentern_series::study::NullStudy),
+        }));
+        let (pane, visible) = match &run.restore {
+            Some(r) => (Some(r.pane), r.visible),
+            None => (None, true),
+        };
+        let inst = Instance::external(meta, &Default::default());
+        let uid = self.chart.add_instance(inst, StudyLook::defaults(meta), pane, visible);
+        self.scripts[i].uid = Some(uid);
     }
 
     /// Every frame: recompile on outside edits (checked once a second) or a

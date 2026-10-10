@@ -7,6 +7,10 @@
 
 use crate::compile::{Bin, Block, Conv, E, Field, Func, Layout, PlotHow, Program, S};
 use crate::heap::{Drawings, Heap, Obj};
+
+/// `chart.point` is a built-in object type with these fields.
+pub(crate) const CHART_POINT: u16 = u16::MAX - 1;
+pub(crate) const CHART_POINT_FIELDS: [&str; 3] = ["index", "time", "price"];
 use crate::natives::{self, NatDef, Ta};
 use crate::value::{self, V};
 use crate::{Env, Error};
@@ -46,6 +50,11 @@ impl<T: Clone> Ring<T> {
     pub fn get(&self, k: usize) -> Option<&T> {
         let n = self.buf.len();
         (k < n).then(|| &self.buf[n - 1 - k])
+    }
+
+    pub fn get_mut(&mut self, k: usize) -> Option<&mut T> {
+        let n = self.buf.len();
+        (k < n).then(|| &mut self.buf[n - 1 - k])
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
@@ -542,9 +551,9 @@ impl X<'_> {
                 let k = index_of(&self.eval(idx, f, root)?)?;
                 f.hist(*slot, k)
             }
-            E::Get(obj, fi) => {
+            E::Get(obj, name) => {
                 let o = self.eval(obj, f, root)?;
-                self.get_field(&o, *fi)?
+                self.get_field(&o, name)?
             }
             E::New(ty, vals) => {
                 let mut fields = Vec::with_capacity(vals.len());
@@ -553,7 +562,13 @@ impl X<'_> {
                 }
                 V::Ref(self.g.heap.alloc(Obj::Udt { ty: *ty, fields }))
             }
-            E::Method { name, recv, args, user } => self.eval_method(name, recv, args, user, f, root)?,
+            E::Method {
+                name,
+                recv,
+                args,
+                names,
+                user,
+            } => self.eval_method(name, recv, args, names, user, f, root)?,
             E::Security(sec) => natives::security(self, sec, f, root)?,
         })
     }
@@ -586,11 +601,13 @@ impl X<'_> {
     }
 
     #[inline(never)]
+    #[allow(clippy::too_many_arguments)]
     fn eval_method(
         &mut self,
         name: &str,
         recv: &E,
         args: &[E],
+        names: &[Option<Arc<str>>],
         user: &[(u16, u16, u16)],
         f: &mut Frame,
         root: Option<&Frame>,
@@ -601,9 +618,38 @@ impl X<'_> {
         for a in args {
             vals.push(self.eval(a, f, root)?);
         }
-        self.method(name, vals, user, f, root)
+        self.method(name, vals, names, user, f, root)
     }
+}
 
+/// A method's arguments in parameter order: the receiver, then positional
+/// ones, then named ones in their slots; `None` where nothing was passed.
+fn order_args(fname: &str, params: &[&str], vals: Args, names: &[Option<Arc<str>>]) -> R<Vec<Option<V>>> {
+    let mut out: Vec<Option<V>> = vec![None; params.len().max(1)];
+    let mut it = vals.into_iter();
+    out[0] = it.next();
+    let mut pos = 1;
+    for (v, n) in it.zip(names) {
+        match n {
+            None => {
+                if pos >= out.len() {
+                    out.push(Some(v));
+                } else {
+                    out[pos] = Some(v);
+                }
+                pos += 1;
+            }
+            Some(n) => match params.iter().position(|p| *p == n.as_ref()) {
+                Some(k) => out[k] = Some(v),
+                None if crate::compile::IGNORED_ARGS.contains(&n.as_ref()) => {}
+                None => return Err(Stop::Err(format!("{fname}() has no argument called \"{n}\"."))),
+            },
+        }
+    }
+    Ok(out)
+}
+
+impl X<'_> {
     fn bar_back(&self, fld: Field, k: usize) -> V {
         match self.g.bars.get(k) {
             Some(b) => field(b, fld, self.g.index as i64 - k as i64, self.g),
@@ -611,10 +657,30 @@ impl X<'_> {
         }
     }
 
-    pub fn get_field(&self, o: &V, fi: u16) -> R<V> {
+    /// The position of field `name` in an object of user type `ty`.
+    pub fn field_index(&self, ty: u16, name: &str) -> R<usize> {
+        let names: Vec<&str> = if ty == CHART_POINT {
+            CHART_POINT_FIELDS.to_vec()
+        } else {
+            self.p
+                .types
+                .get(ty as usize)
+                .map(|t| t.fields.iter().map(|s| s.as_str()).collect())
+                .unwrap_or_default()
+        };
+        names
+            .iter()
+            .position(|f| *f == name)
+            .ok_or_else(|| Stop::Err(format!("This object has no field called \"{name}\".")))
+    }
+
+    pub fn get_field(&self, o: &V, name: &str) -> R<V> {
         match o {
             V::Ref(r) => match self.g.heap.get(*r) {
-                Some(Obj::Udt { fields, .. }) => Ok(fields.get(fi as usize).cloned().unwrap_or_default()),
+                Some(Obj::Udt { ty, fields }) => {
+                    let k = self.field_index(*ty, name)?;
+                    Ok(fields.get(k).cloned().unwrap_or_default())
+                }
                 _ => Err(Stop::Err("This value has no fields.".into())),
             },
             V::Na => Err(Stop::Err("Can't read a field of an object that is na.".into())),
@@ -653,6 +719,7 @@ impl X<'_> {
         &mut self,
         name: &str,
         vals: Args,
+        names: &[Option<Arc<str>>],
         user: &[(u16, u16, u16)],
         f: &mut Frame,
         root: Option<&Frame>,
@@ -684,11 +751,21 @@ impl X<'_> {
             .or_else(|| user.iter().find(|(_, t, _)| *t == u16::MAX));
         if let Some((fid, _, site)) = pick {
             let func = &self.p.funcs[*fid as usize];
-            let mut vals = vals;
-            for k in vals.len()..func.params.len() {
-                vals.push(func.defaults.get(k).cloned().flatten().unwrap_or_default());
-            }
+            let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
+            let vals = order_args(name, &params, vals, names)?
+                .into_iter()
+                .enumerate()
+                .map(|(k, v)| {
+                    v.or_else(|| func.defaults.get(k).cloned().flatten())
+                        .unwrap_or_default()
+                })
+                .collect();
             return self.call_user(*fid, *site, vals, f, root);
+        }
+        // Every user-type object has copy().
+        if tid.is_some() && name == "copy" {
+            let V::Ref(r) = &vals[0] else { unreachable!() };
+            return Ok(self.g.heap.shallow_copy(*r).map(V::Ref).unwrap_or(V::Na));
         }
         if family.is_empty() {
             if matches!(vals[0], V::Na) {
@@ -699,10 +776,14 @@ impl X<'_> {
         let full = format!("{family}.{name}");
         match natives::lookup(&full) {
             Some(def) if !def.state => {
-                let mut vals = vals;
-                if def.params != ["*"] {
-                    vals.resize(def.params.len().max(vals.len()), V::Na);
-                }
+                let vals = if def.params == ["*"] {
+                    vals
+                } else {
+                    order_args(&full, def.params, vals, names)?
+                        .into_iter()
+                        .map(Option::unwrap_or_default)
+                        .collect()
+                };
                 let mut none = None;
                 Ok((def.f)(self.g, &vals, &mut none)?)
             }
@@ -787,15 +868,19 @@ impl X<'_> {
                 self.set(f, *slot, nv.clone());
                 Ok(nv)
             }
-            S::SetField(obj, fi, op, e) => {
+            S::SetField(obj, name, op, e) => {
                 let o = self.eval(obj, f, root)?;
                 let v = self.eval(e, f, root)?;
                 let V::Ref(r) = o else {
                     return Err(Stop::Err("Can't set a field of an object that is na.".into()));
                 };
+                let ty = match self.g.heap.get(r) {
+                    Some(Obj::Udt { ty, .. }) => *ty,
+                    _ => return Err(Stop::Err("This value has no fields.".into())),
+                };
+                let k = self.field_index(ty, name)?;
                 match self.g.heap.get_mut(r) {
                     Some(Obj::Udt { fields, .. }) => {
-                        let k = *fi as usize;
                         if k >= fields.len() {
                             fields.resize(k + 1, V::Na);
                         }
@@ -1240,5 +1325,9 @@ impl Study for PineStudy {
 
     fn as_any(&self) -> Option<&dyn std::any::Any> {
         Some(self)
+    }
+
+    fn drawings(&self) -> Option<Drawings> {
+        Some(self.g.heap.drawings())
     }
 }

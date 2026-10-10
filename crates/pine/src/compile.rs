@@ -141,8 +141,9 @@ pub(crate) enum E {
         val: Box<E>,
         idx: Box<E>,
     },
-    /// A user-defined type's field (`obj.x`).
-    Get(Box<E>, u16),
+    /// A field of a user-defined type (`obj.x`), found by name on the
+    /// object's type at run time.
+    Get(Box<E>, Arc<str>),
     /// `Type.new(...)`: field values in order.
     New(u16, Vec<E>),
     /// A method call resolved at run time on the receiver's type: the
@@ -151,6 +152,9 @@ pub(crate) enum E {
         name: Arc<str>,
         recv: Box<E>,
         args: Vec<E>,
+        /// Argument names (`None` when positional), bound at run time to
+        /// the parameters of whichever method the receiver picks.
+        names: Vec<Option<Arc<str>>>,
         /// Candidate user methods: (function, type of `this` or
         /// `u16::MAX` for any, call site).
         user: Vec<(u16, u16, u16)>,
@@ -182,8 +186,8 @@ pub(crate) enum S {
     Var(u16, E),
     LetTuple(Vec<Option<u16>>, E),
     Set(u16, Option<Bin>, E),
-    /// Assigning a field: `obj.x := v` (object expression, field index).
-    SetField(E, u16, Option<Bin>, E),
+    /// Assigning a field: `obj.x := v`.
+    SetField(E, Arc<str>, Option<Bin>, E),
     Expr(E),
     For {
         var: u16,
@@ -385,6 +389,20 @@ struct Cx {
     /// Bar history needed inside the `request.security` being compiled.
     sec_depth: usize,
     sec_bar_hist: usize,
+    /// Plain `x = expr` declarations (never reassigned), so a
+    /// `request.security` expression can recompute `x` on its timeframe.
+    defs: HashMap<(usize, u16), Expr>,
+    /// Frame depths of the `request.security` expressions being compiled.
+    sec_frames: Vec<usize>,
+    /// Definitions being inlined (to catch cycles).
+    inlining: Vec<(usize, u16)>,
+    /// Enums: members and their titles (a member's value is its title).
+    enums: HashMap<String, Vec<(String, String)>>,
+    /// While compiling an imported library: its alias, so its own names
+    /// resolve to `alias.name`.
+    lib_prefix: Option<String>,
+    /// Libraries being imported (to catch cycles).
+    importing: Vec<String>,
 }
 
 type R<T> = Result<T, Error>;
@@ -420,6 +438,12 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         limits: [50, 50, 50, 40, 50, 50],
         sec_depth: 0,
         sec_bar_hist: 1,
+        defs: HashMap::new(),
+        sec_frames: Vec::new(),
+        inlining: Vec::new(),
+        enums: HashMap::new(),
+        lib_prefix: None,
+        importing: Vec::new(),
     };
     let root = cx.block(prog)?;
     let Some(kind) = cx.kind else {
@@ -550,7 +574,7 @@ fn bind<'a>(fname: &str, params: &[&str], args: &'a [Arg], line: usize) -> R<Vec
     Ok(out)
 }
 
-const IGNORED_ARGS: &[&str] = &[
+pub(crate) const IGNORED_ARGS: &[&str] = &[
     "editable",
     "show_last",
     "tooltip",
@@ -796,6 +820,7 @@ impl Cx {
                             )));
                         }
                         self.known.remove(&(depth, slot));
+                        self.defs.remove(&(depth, slot));
                         Ok(Some(S::Set(slot, op, e)))
                     }
                     _ => Err(self.err(format!("\"{name}\" isn't declared yet. Declare it with \"=\" first."))),
@@ -906,11 +931,121 @@ impl Cx {
                 });
                 Ok(None)
             }
-            Stmt::Import { line, .. } => {
+            Stmt::Enum { name, members, line } => {
                 self.line = *line;
-                Err(self.err("Libraries (import) aren't supported yet."))
+                let mut seen = std::collections::HashSet::new();
+                for (_, t) in members {
+                    if !seen.insert(t) {
+                        return Err(self.err(format!("Two members of {name} have the title \"{t}\".")));
+                    }
+                }
+                self.enums.insert(name.clone(), members.clone());
+                Ok(None)
+            }
+            Stmt::Import { path, alias, line } => {
+                self.line = *line;
+                self.import(path, alias)?;
+                Ok(None)
             }
         }
+    }
+
+    /// `import user/Name/1 as alias`: the library's functions, methods,
+    /// types and enums, under `alias.`. Libraries are scripts in the user's
+    /// scripts folder, found by their `library("Name")` title.
+    fn import(&mut self, path: &str, alias: &str) -> R<()> {
+        let name = path.split('/').nth(1).unwrap_or(path).to_string();
+        let Some(src) = self
+            .env
+            .libraries
+            .iter()
+            .find(|(t, _)| *t == name)
+            .map(|(_, s)| s.clone())
+        else {
+            return Err(self.err(format!(
+                "There's no library called \"{name}\" in your scripts. Add a script that starts with library(\"{name}\")."
+            )));
+        };
+        if self.importing.contains(&name) {
+            return Err(self.err(format!("The library \"{name}\" imports itself.")));
+        }
+        let line = self.line;
+        let ast = crate::lexer::lines(&src)
+            .and_then(|l| crate::parser::Parser::new(l).program())
+            .map_err(|e| self.err(format!("In the library \"{name}\": {e}")))?;
+        self.importing.push(name.clone());
+        let saved = self.lib_prefix.replace(alias.to_string());
+        let r = (|| {
+            for s in &ast {
+                match s {
+                    Stmt::Func {
+                        name: f,
+                        params,
+                        body,
+                        line,
+                        method,
+                    } => {
+                        self.line = *line;
+                        let full = if *method { f.clone() } else { format!("{alias}.{f}") };
+                        self.func(&full, params, body, *method)?;
+                    }
+                    Stmt::Type { name: t, .. } | Stmt::Enum { name: t, .. } => {
+                        // Registered under the alias.
+                        let renamed = match s.clone() {
+                            Stmt::Type { fields, line, .. } => Stmt::Type {
+                                name: format!("{alias}.{t}"),
+                                fields,
+                                line,
+                            },
+                            Stmt::Enum { members, line, .. } => Stmt::Enum {
+                                name: format!("{alias}.{t}"),
+                                members,
+                                line,
+                            },
+                            _ => unreachable!(),
+                        };
+                        self.stmt(&renamed)?;
+                    }
+                    Stmt::Import { path, alias: a, line } => {
+                        self.line = *line;
+                        self.import(path, a)?;
+                    }
+                    // library(…), constants and the rest stay in the library.
+                    _ => {}
+                }
+            }
+            Ok(())
+        })();
+        self.lib_prefix = saved;
+        self.importing.pop();
+        self.line = line;
+        r.map_err(|e: Error| {
+            if e.message.starts_with("In the library") {
+                e
+            } else {
+                Error::at(
+                    line,
+                    format!("In the library \"{name}\" (line {}): {}", e.line, e.message),
+                )
+            }
+        })
+    }
+
+    /// `name` as the library being compiled knows it (`alias.name`), when
+    /// `exists` finds that; else `name`.
+    fn in_lib(&self, name: &str, exists: impl Fn(&Self, &str) -> bool) -> String {
+        if let Some(p) = &self.lib_prefix {
+            let full = format!("{p}.{name}");
+            if exists(self, &full) {
+                return full;
+            }
+        }
+        name.to_string()
+    }
+
+    fn type_id(&self, t: &str) -> Option<usize> {
+        let t = self.in_lib(t, |cx, n| cx.types.iter().any(|x| x.name == n));
+        self.types.iter().position(|x| x.name == t)
     }
 
     fn decl(&mut self, persist: Persist, names: &[String], declared: Option<&str>, value: &Expr) -> R<S> {
@@ -937,6 +1072,8 @@ impl Cx {
             let colour_input = matches!(&e, E::In(i) if self.inputs[*i as usize].conv == Conv::Color);
             if persist == Persist::No && (colour_input || self.eval_default(&e).is_some() || matches!(e, E::InSrc(_))) {
                 self.known.insert((d, slot), e.clone());
+            } else if persist == Persist::No {
+                self.defs.insert((d, slot), value.clone());
             }
             if let Some(t) = ty {
                 self.slot_types.insert((d, slot), t);
@@ -971,9 +1108,9 @@ impl Cx {
         match e {
             Expr::Call { callee, .. } => {
                 if let Some(t) = callee.strip_suffix(".new")
-                    && self.types.iter().any(|x| x.name == t)
+                    && let Some(i) = self.type_id(t)
                 {
-                    return Some(t.to_string());
+                    return Some(self.types[i].name.clone());
                 }
                 for fam in [
                     "array", "map", "matrix", "label", "line", "box", "table", "linefill", "polyline",
@@ -1021,14 +1158,20 @@ impl Cx {
             self.declare(p, Bind::Slot { depth: d, slot });
         }
         let saved_known = std::mem::take(&mut self.known);
+        let saved_defs = std::mem::take(&mut self.defs);
         let body = self.block(body);
         self.known = saved_known;
+        self.defs = saved_defs;
         self.scopes.pop();
         let layout = self.frames.pop().unwrap_or_default();
         let body = body?;
         let id = self.funcs.len() as u16;
         let method_of = if method {
-            Some(params.first().and_then(|p| p.2.clone()).unwrap_or_default())
+            let t = params.first().and_then(|p| p.2.clone()).unwrap_or_default();
+            Some(match self.type_id(&t) {
+                Some(i) => self.types[i].name.clone(),
+                None => t,
+            })
         } else {
             None
         };
@@ -1121,8 +1264,8 @@ impl Cx {
             Expr::Tuple(items) => E::Tuple(items.iter().map(|x| self.expr(x)).collect::<R<_>>()?),
             Expr::Dot(obj, field) => {
                 let o = self.expr(obj)?;
-                let fi = self.field_by_name(field)?;
-                E::Get(Box::new(o), fi)
+                self.check_field(field)?;
+                E::Get(Box::new(o), Arc::from(field.as_str()))
             }
             Expr::MethodCall { recv, name, args } => {
                 let r = self.expr(recv)?;
@@ -1131,9 +1274,39 @@ impl Cx {
         })
     }
 
+    /// A variable from outside the `request.security` expression being
+    /// compiled: constants and inputs are read as they are; series are
+    /// recomputed from their definition on the requested timeframe.
+    fn sec_outer(&mut self, n: &str, depth: usize, slot: u16) -> Option<R<E>> {
+        let sd = *self.sec_frames.last()?;
+        if depth >= sd {
+            return None;
+        }
+        if let Some(k) = self.known.get(&(depth, slot)) {
+            return Some(Ok(k.clone()));
+        }
+        let Some(def) = self.defs.get(&(depth, slot)).cloned() else {
+            return Some(Err(self.err(format!(
+                "request.security() can't recompute \"{n}\" on another timeframe because it changes with := or var. Put the calculation in a function and call that inside request.security()."
+            ))));
+        };
+        if self.inlining.contains(&(depth, slot)) {
+            return Some(Err(self.err(format!("\"{n}\" depends on itself."))));
+        }
+        self.inlining.push((depth, slot));
+        let e = self.expr(&def);
+        self.inlining.pop();
+        Some(e)
+    }
+
     fn name(&mut self, n: &str) -> R<E> {
         match self.lookup(n) {
-            Some(Bind::Slot { depth, slot }) => return self.slot_ref(depth, slot),
+            Some(Bind::Slot { depth, slot }) => {
+                if let Some(e) = self.sec_outer(n, depth, slot) {
+                    return e;
+                }
+                return self.slot_ref(depth, slot);
+            }
             Some(Bind::Plot(_) | Bind::HLine(_)) => {
                 return Err(self.err(format!("\"{n}\" is a plot; use it in fill().")));
             }
@@ -1158,6 +1331,15 @@ impl Cx {
         if let Some(v) = constant(n) {
             return Ok(E::K(v));
         }
+        if let Some((en, m)) = n.rsplit_once('.')
+            && let en = self.in_lib(en, |cx, e| cx.enums.contains_key(e))
+            && let Some(members) = self.enums.get(&en)
+        {
+            return match members.iter().find(|(name, _)| name == m) {
+                Some((_, t)) => Ok(E::K(V::str(t.clone()))),
+                None => Err(self.err(format!("{en} has no member called \"{m}\"."))),
+            };
+        }
         // obj.field
         if let Some((obj, field)) = n.rsplit_once('.')
             && self.lookup(obj.split('.').next().unwrap_or(obj)).is_some()
@@ -1171,61 +1353,21 @@ impl Cx {
         Err(self.err(format!("Unknown name \"{n}\".")))
     }
 
-    /// `a.b.c` → (expression for `a.b`, index of field `c`).
-    fn field_path(&mut self, obj: &str, field: &str) -> R<(E, u16)> {
+    /// `a.b.c` → (expression for `a.b`, field `c`), checking that some
+    /// type has such a field.
+    fn field_path(&mut self, obj: &str, field: &str) -> R<(E, Arc<str>)> {
         let oe = self.name(obj)?;
-        let ty = self.static_type(obj);
-        let idx = match ty.and_then(|t| self.types.iter().find(|x| x.name == t)) {
-            Some(t) => t.fields.iter().position(|f| f == field),
-            // Unknown type: look the field up across all types (unique
-            // names are the common case).
-            None => {
-                let hits: Vec<usize> = self
-                    .types
-                    .iter()
-                    .filter_map(|t| t.fields.iter().position(|f| f == field))
-                    .collect();
-                if hits.windows(2).all(|w| w[0] == w[1]) {
-                    hits.first().copied()
-                } else {
-                    return Err(self.err(format!(
-                        "Can't tell which type \"{obj}\" is; declare it with its type (e.g. \"MyType {obj} = …\")."
-                    )));
-                }
-            }
-        };
-        match idx {
-            Some(i) => Ok((oe, i as u16)),
-            None => Err(self.err(format!("No field called \"{field}\" on \"{obj}\"."))),
-        }
+        self.check_field(field)?;
+        Ok((oe, Arc::from(field)))
     }
 
-    /// The declared user type of a plain name, when known (field types
-    /// aren't tracked; nested paths fall back to the field-name search).
-    fn static_type(&self, path: &str) -> Option<String> {
-        if path.contains('.') {
-            return None;
-        }
-        match self.lookup(path)? {
-            Bind::Slot { depth, slot } => self.slot_types.get(&(depth, slot)).cloned(),
-            _ => None,
-        }
-    }
-
-    /// A field of any user type, by name (for `expr.field` on values whose
-    /// type isn't known at compile time).
-    fn field_by_name(&self, field: &str) -> R<u16> {
-        let hits: Vec<usize> = self
-            .types
-            .iter()
-            .filter_map(|t| t.fields.iter().position(|f| f == field))
-            .collect();
-        match hits.first() {
-            Some(&i) if hits.iter().all(|h| *h == i) => Ok(i as u16),
-            Some(_) => Err(self.err(format!(
-                "Several types have a field \"{field}\" at different places; give the variable its type."
-            ))),
-            None => Err(self.err(format!("No type has a field called \"{field}\"."))),
+    fn check_field(&self, field: &str) -> R<()> {
+        let known = crate::run::CHART_POINT_FIELDS.contains(&field)
+            || self.types.iter().any(|t| t.fields.iter().any(|f| f == field));
+        if known {
+            Ok(())
+        } else {
+            Err(self.err(format!("No type has a field called \"{field}\".")))
         }
     }
 
@@ -1253,8 +1395,11 @@ impl Cx {
             _ => DYN_HIST,
         };
         if let Expr::Name(name) = target {
+            let outer = |cx: &Self, depth: usize| cx.sec_frames.last().is_some_and(|sd| depth < *sd);
             match self.lookup(name) {
-                Some(Bind::Slot { depth, slot }) => {
+                Some(Bind::Slot { depth, slot })
+                    if !outer(self, depth) || matches!(self.known.get(&(depth, slot)), Some(E::InSrc(_))) =>
+                {
                     // An input.source variable reads bar history directly.
                     if let Some(E::InSrc(k)) = self.known.get(&(depth, slot)) {
                         let k = *k;
@@ -1307,11 +1452,12 @@ impl Cx {
             None => callee,
         };
         // User functions shadow built-ins.
-        if let Some(&f) = self.fnames.get(callee) {
+        let user = self.in_lib(callee, |cx, n| cx.fnames.contains_key(n));
+        if let Some(&f) = self.fnames.get(&user) {
             return self.user_call(f, args);
         }
         if let Some(t) = callee.strip_suffix(".new")
-            && let Some(ti) = self.types.iter().position(|x| x.name == t)
+            && let Some(ti) = self.type_id(t)
         {
             return self.new_udt(ti, args);
         }
@@ -1448,13 +1594,10 @@ impl Cx {
                     .collect()
             })
             .unwrap_or_default();
-        // Arguments are positional (named ones are matched for user
-        // methods below).
         let mut argv = Vec::new();
+        let mut names = Vec::new();
         for a in args {
-            if a.name.is_some() && user.is_empty() {
-                return Err(self.err(format!("Pass {m}()'s arguments in order, without names.")));
-            }
+            names.push(a.name.as_deref().map(Arc::from));
             argv.push(self.expr(&a.value)?);
         }
         // One call site (its own frame) per candidate user method.
@@ -1468,6 +1611,7 @@ impl Cx {
             name: Arc::from(m),
             recv: Box::new(recv),
             args: argv,
+            names,
             user: cands,
         })
     }
@@ -1528,12 +1672,14 @@ impl Cx {
         self.frames.push(Layout::default());
         self.scopes.push((self.depth(), HashMap::new()));
         self.sec_depth += 1;
+        self.sec_frames.push(self.depth());
         let saved_bar = self.sec_bar_hist;
         self.sec_bar_hist = 1;
         let e = self.expr(expr);
         let bar_hist = self.sec_bar_hist;
         self.sec_bar_hist = saved_bar;
         self.sec_depth -= 1;
+        self.sec_frames.pop();
         self.scopes.pop();
         let layout = self.frames.pop().unwrap_or_default();
         let e = e?;
@@ -1563,7 +1709,7 @@ impl Cx {
             "input.string" => &["defval", "title", "options", "group"],
             "input.bool" | "input.color" | "input.source" | "input.symbol" | "input.session" | "input.text_area"
             | "input.time" | "input.price" | "input.timeframe" => &["defval", "title", "options", "group"],
-            "input.enum" => return Err(self.err("input.enum() isn't supported yet.")),
+            "input.enum" => &["defval", "title", "options", "group"],
             _ => return Err(self.err(format!("Unknown input type \"{callee}\"."))),
         };
         let b = bind(callee, params, args, self.line)?;
@@ -1600,6 +1746,22 @@ impl Cx {
         };
         // input.source's default is a bar field, not a constant.
         let defval_expr = b[0].ok_or_else(|| self.err(format!("{callee}() needs a default value.")))?;
+        // input.enum offers the enum's titles (or the listed members).
+        let options = if callee == "input.enum" {
+            let en = match defval_expr {
+                Expr::Name(n) => n.rsplit_once('.').map(|(e, _)| e.to_string()),
+                _ => None,
+            }
+            .filter(|e| self.enums.contains_key(e))
+            .ok_or_else(|| self.err("input.enum() needs an enum member as its default, like Signal.buy."))?;
+            if options.is_empty() {
+                self.enums[&en].iter().map(|(_, t)| V::str(t.clone())).collect()
+            } else {
+                options
+            }
+        } else {
+            options
+        };
         let src_default = match defval_expr {
             Expr::Name(n) if Field::by_name(n).is_some() => Some(n.clone()),
             _ => None,

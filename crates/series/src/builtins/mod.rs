@@ -4,6 +4,7 @@
 //! has been checked against TradingView's own output.
 
 mod bands;
+mod drawn;
 mod ma;
 mod osc;
 mod trend;
@@ -25,6 +26,7 @@ pub fn all() -> &'static [Meta] {
         v.extend(osc::metas());
         v.extend(volume::metas());
         v.extend(wave2::metas());
+        v.extend(drawn::metas());
         v.sort_by_key(|a| a.name.to_lowercase());
         v
     })
@@ -265,9 +267,11 @@ mod tests {
         for m in all() {
             let mut full = Instance::new(m, &m.default_inputs());
             full.recompute(&b, &sess, tf);
-            // Plots, or a background (Trading Sessions has only that).
+            // Plots, a background (Trading Sessions has only that) or
+            // drawings (Zig Zag and friends).
             let any = full.out.plots.iter().any(|p| p.iter().skip(300).any(|v| v.is_finite()))
-                || full.out.bg.iter().any(|c| *c != 0);
+                || full.out.bg.iter().any(|c| *c != 0)
+                || full.drawings.is_some();
             assert!(any, "{} produced nothing", m.id);
             // Bar by bar, with the last bar ticking three times first.
             let mut live = Instance::new(m, &m.default_inputs());
@@ -292,6 +296,7 @@ mod tests {
                     );
                 }
             }
+            assert_eq!(full.drawings, live.drawings, "{} drawings", m.id);
         }
     }
 }

@@ -26,7 +26,7 @@ use opentern_series::study::{Factory, Inputs, Meta};
 use std::sync::Arc;
 
 pub use compile::Kind;
-pub use heap::{Drawings, Label, Line, Linefill, PineBox, Polyline, Table, TableCell};
+pub use opentern_series::drawings::{Drawings, Label, Line, Linefill, PineBox, Polyline, Table, TableCell, XLoc};
 pub use run::{Alert, PineStudy};
 pub use value::V;
 
@@ -68,6 +68,9 @@ pub struct Env {
     pub kind: String,
     /// The exchange's timezone (IANA name).
     pub timezone: String,
+    /// Libraries `import` can use: (title, source), from the user's
+    /// scripts folder.
+    pub libraries: Vec<(String, String)>,
 }
 
 impl Default for Env {
@@ -79,6 +82,7 @@ impl Default for Env {
             currency: "USD".into(),
             kind: "crypto".into(),
             timezone: "UTC".into(),
+            libraries: Vec::new(),
         }
     }
 }
@@ -142,6 +146,25 @@ pub fn compile(src: &str, file: &str, env: Env) -> Result<Script, Error> {
     Ok(Script {
         prog: Arc::new(prog),
         meta,
+    })
+}
+
+/// The title of a library script (`library("Title")`), if it is one.
+pub fn library_title(src: &str) -> Option<String> {
+    let lines = lexer::lines(src).ok()?;
+    let ast = parser::Parser::new(lines).program().ok()?;
+    ast.iter().find_map(|s| match s {
+        ast::Stmt::Expr(ast::Expr::Call { callee, args }, _) if callee == "library" => {
+            let a = args
+                .iter()
+                .find(|a| a.name.as_deref() == Some("title"))
+                .or(args.first())?;
+            match &a.value {
+                ast::Expr::Str(s) => Some(s.to_string()),
+                _ => None,
+            }
+        }
+        _ => None,
     })
 }
 
