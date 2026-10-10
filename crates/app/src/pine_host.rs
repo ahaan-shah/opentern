@@ -23,7 +23,11 @@ fn kind_name(k: AssetKind) -> &'static str {
 
 impl App {
     fn pine_env(&self) -> Env {
-        let s = &self.chart.symbol;
+        self.pine_env_for(&self.chart.symbol)
+    }
+
+    /// What `syminfo.*` says when the script runs on `s`.
+    pub(crate) fn pine_env_for(&self, s: &opentern_core::Symbol) -> Env {
         Env {
             tickerid: s.id.clone(),
             description: s.description.clone(),

@@ -14,6 +14,10 @@ use opentern_core::{AssetKind, Symbol};
 pub enum Pick {
     Chart,
     Watchlist,
+    /// Compare (percent) or overlay (own scale) on the active chart.
+    Compare {
+        overlay: bool,
+    },
 }
 
 pub struct SymbolSearch {
@@ -70,12 +74,21 @@ impl SymbolSearch {
         }
     }
 
+    /// Symbol search that compares a symbol on the active chart.
+    pub fn for_compare() -> SymbolSearch {
+        SymbolSearch {
+            purpose: Pick::Compare { overlay: false },
+            ..SymbolSearch::new("")
+        }
+    }
+
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
         let mut done = Done::Keep;
         let mut pick: Option<Symbol> = None;
         let title = match self.purpose {
             Pick::Chart => "Symbol search",
             Pick::Watchlist => "Add to watchlist",
+            Pick::Compare { .. } => "Compare symbol",
         };
         if frame(ui, t, title, 620.0, |ui| {
             // Keys first, so the text field doesn't eat them.
@@ -113,6 +126,22 @@ impl SymbolSearch {
                 self.selected = 0;
             }
             ui.add_space(6.0);
+            if let Pick::Compare { overlay } = &mut self.purpose {
+                ui.horizontal(|ui| {
+                    for (on, label, tip) in [
+                        (false, "Compare", "Percent change against the chart's symbol"),
+                        (true, "Overlay", "On its own scale, over the chart"),
+                    ] {
+                        if crate::shell::small_button(ui, t, label, *overlay == on)
+                            .on_hover_text(tip)
+                            .clicked()
+                        {
+                            *overlay = on;
+                        }
+                    }
+                });
+                ui.add_space(4.0);
+            }
             ui.horizontal(|ui| {
                 for (label, f) in FILTERS {
                     let on = self.filter == f;
@@ -185,8 +214,9 @@ impl SymbolSearch {
         }
         if let Some(s) = pick {
             match self.purpose {
-                Pick::Chart => app.open_symbol(s),
+                Pick::Chart => app.open_symbol_synced(s),
                 Pick::Watchlist => app.add_to_watchlist(s),
+                Pick::Compare { overlay } => app.add_compare(s, overlay),
             }
             done = Done::Close;
         }

@@ -111,6 +111,12 @@ What the automated tests already check for every built-in:
 | Auto Fib Retracement | `auto_fib` | Trend | Ported (Phase 10, draws); uses Zig Zag's last leg; to verify |
 | Pivot Points Standard | `pivots_std` | Trend | Ported (Phase 10, draws); all six types; to verify |
 | Linear Regression Channel | `linreg_channel` | Trend | Ported (Phase 10, draws) line by line from the published source; to verify |
+| Volume Profile Visible Range | `vpvr` | Volume | Phase 11, drawn by the chart (`app/src/chart/profile.rs`); to verify |
+| Session Volume Profile | `vpsv` | Volume | Phase 11, drawn by the chart; to verify |
+| Visible Average Price | `vap` | Trend | Phase 11, drawn by the chart (mean close of visible bars); to verify |
+| Seasonality | `seasonality` | Trend | Phase 11, its own pane, % from the prior year's last close; to verify |
+| Fixed Range / Anchored Volume Profile | drawing tools | Volume | Phase 11, drawing tools (Forecasting group); 24 rows, 70% value area |
+| Anchored VWAP | drawing tool | Volume | Phase 11, drawing tool, hlc3 VWAP from the anchor bar |
 
 Notes on wave 2: Williams Fractals uses the strict rule (equal highs/lows on either side
 don't count; TradingView's script tolerates some ties). Standard Error is the standard
@@ -121,8 +127,6 @@ Sessions shades Tokyo, London and New York regular hours.
 
 Still to port:
 - Auto Fib Extension (the three-point version; the retracement is done).
-- Chart features (Phase 11): Volume Profile (Fixed/Visible/Session/Anchored), Visible
-  Average Price, Seasonality, Anchored VWAP.
 - Need data Opentern doesn't fetch yet: Advance/Decline Line and Ratio (market
   breadth), Cumulative Volume Index (breadth), Open Interest (futures), Correlation
   Coefficient (a second symbol; Phase 10's `request.security` for other symbols),
@@ -143,6 +147,12 @@ remembered, not copied from them. When you make the exports, also check these
 - Zig Zag: a pivot needs `depth / 2` bars on each side here (is "Pivot legs" the
   per-side count instead?); the label layout (price, change, volume).
 - Auto Fib: which end is level 0, default extend right, which levels are on.
+- Volume profiles: without lower-timeframe data each bar's volume is spread evenly
+  over the rows its high–low covers (TradingView uses intrabar data); colours
+  (up #2962FF / down #FBC02D at 30%, value area 70%, POC red) and Session VP's
+  70% width are from memory.
+- Visible Average Price: mean of visible closes here (or is it hlc3 / volume-weighted?).
+- Seasonality: base is the prior year's last close; default 3 years.
 - Pivot Points Standard: the Auto timeframe rule (≤15m → D, intraday → W, D → M, else
   12M), one colour for every level, periods in UTC (stocks should use the session).
 

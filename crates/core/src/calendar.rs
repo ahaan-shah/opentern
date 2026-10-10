@@ -159,6 +159,25 @@ const NSE_HOLIDAYS: &[(i16, i8, i8, &str)] = &[
     (2025, 10, 22, "Diwali Balipratipada"),
     (2025, 11, 5, "Prakash Gurpurb Sri Guru Nanak Dev"),
     (2025, 12, 25, "Christmas"),
+    // 2026, from NSE's December 2025 list (as reported by brokers; the
+    // 15 January closure for the Maharashtra municipal elections came in a
+    // later circular).
+    (2026, 1, 15, "Municipal Corporation Elections (Maharashtra)"),
+    (2026, 1, 26, "Republic Day"),
+    (2026, 3, 3, "Holi"),
+    (2026, 3, 26, "Shri Ram Navami"),
+    (2026, 3, 31, "Shri Mahavir Jayanti"),
+    (2026, 4, 3, "Good Friday"),
+    (2026, 4, 14, "Dr. Baba Saheb Ambedkar Jayanti"),
+    (2026, 5, 1, "Maharashtra Day"),
+    (2026, 5, 28, "Bakri Id"),
+    (2026, 6, 26, "Muharram"),
+    (2026, 9, 14, "Ganesh Chaturthi"),
+    (2026, 10, 2, "Mahatma Gandhi Jayanti"),
+    (2026, 10, 20, "Dussehra"),
+    (2026, 11, 10, "Diwali Balipratipada"),
+    (2026, 11, 24, "Prakash Gurpurb Sri Guru Nanak Dev"),
+    (2026, 12, 25, "Christmas"),
 ];
 
 /// Why the market is closed on a local date, if it's a holiday.
@@ -171,6 +190,25 @@ pub fn holiday(m: Market, d: Date) -> Option<&'static str> {
             .map(|(_, _, _, n)| *n),
         _ => None,
     }
+}
+
+/// Holidays and early closes from `from` for `days` days, for the
+/// Calendar widget: (date, what).
+pub fn upcoming(m: Market, from: Date, days: i64) -> Vec<(Date, String)> {
+    let mut out = Vec::new();
+    let mut d = from;
+    for _ in 0..days.max(0) {
+        if let Some(name) = holiday(m, d) {
+            out.push((d, format!("{name} (closed)")));
+        } else if m == Market::Us && us_early_closes(d.year()).contains(&d) {
+            out.push((d, "Early close at 13:00".to_string()));
+        }
+        match d.tomorrow() {
+            Ok(n) => d = n,
+            Err(_) => break,
+        }
+    }
+    out
 }
 
 /// The market's state at time `t` (ms).

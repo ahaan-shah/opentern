@@ -336,6 +336,7 @@ impl App {
         self.alerts.log.insert(0, f.clone());
         self.alerts.log.truncate(500);
         self.alerts.toasts.push((f, Instant::now()));
+        self.notify(crate::icons::ph::ALARM, &name, &message, None, false);
         crate::diag::crumb(format!("alert {} fired", a.id));
         if let Some(tx) = &self.alerts.tx {
             let chat = a

@@ -50,6 +50,25 @@ pub enum Request {
     },
     /// Keys for the providers that need an account (from the keychain).
     Credentials(Credentials),
+    /// One-off history, no streaming (screener, portfolio backtests, other
+    /// symbols in `request.security`): the latest `count` bars.
+    Fetch {
+        seq: u64,
+        symbol: Symbol,
+        tf: Timeframe,
+        count: usize,
+    },
+    /// Top movers for the Hotlists widget.
+    Hotlist {
+        seq: u64,
+        market: crate::feeds::HotMarket,
+        kind: crate::feeds::HotKind,
+    },
+    /// Headlines for a symbol (the News widget).
+    News {
+        seq: u64,
+        symbol: Symbol,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,6 +110,21 @@ pub enum Event {
     Corporate {
         chart: u64,
         corporate: crate::yahoo::Corporate,
+    },
+    Hotlist {
+        seq: u64,
+        result: Result<Vec<crate::feeds::HotRow>, String>,
+    },
+    News {
+        seq: u64,
+        result: Result<Vec<crate::feeds::NewsItem>, String>,
+    },
+    /// The answer to a `Request::Fetch`.
+    Fetched {
+        seq: u64,
+        symbol: String,
+        tf: Timeframe,
+        result: Result<Vec<Bar>, String>,
     },
 }
 
@@ -169,8 +203,44 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
             .spawn(move || search_worker(dir, demo, search_rx, out))
             .expect("spawn search");
     }
+    // A few threads answer one-off fetches, so a screener over a hundred
+    // symbols doesn't start a hundred threads.
+    let (fetch_tx, fetch_rx) = unbounded::<(u64, Symbol, Timeframe, usize)>();
+    for k in 0..4 {
+        let (dir, out, rx) = (dir.clone(), out.clone(), fetch_rx.clone());
+        let _ = std::thread::Builder::new()
+            .name(format!("data-fetch-{k}"))
+            .spawn(move || {
+                for (seq, symbol, tf, count) in rx {
+                    let result = fetch_once(&dir, demo, &symbol, tf, count);
+                    out.send(Event::Fetched {
+                        seq,
+                        symbol: symbol.id.clone(),
+                        tf,
+                        result,
+                    });
+                }
+            });
+    }
     for req in rx {
         match req {
+            Request::Fetch { seq, symbol, tf, count } => {
+                let _ = fetch_tx.send((seq, symbol, tf, count));
+            }
+            Request::Hotlist { seq, market, kind } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new().name("data-hotlist".into()).spawn(move || {
+                    let result = crate::feeds::hotlist(market, kind, demo).map_err(|e| e.to_string());
+                    out.send(Event::Hotlist { seq, result });
+                });
+            }
+            Request::News { seq, symbol } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new().name("data-news".into()).spawn(move || {
+                    let result = crate::feeds::news(&symbol, demo).map_err(|e| e.to_string());
+                    out.send(Event::News { seq, result });
+                });
+            }
             Request::Open { chart, symbol, tf } => {
                 if let Some(old) = sessions.remove(&chart) {
                     let _ = old.send(Cmd::Stop);
@@ -225,6 +295,74 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
             }
         }
     }
+}
+
+/// The latest `count` bars of a symbol: from the cache, topped up from
+/// the network (and saved back), resampled to `tf`.
+pub(crate) fn fetch_once(
+    dir: &std::path::Path,
+    demo: bool,
+    symbol: &Symbol,
+    tf: Timeframe,
+    count: usize,
+) -> Result<Vec<Bar>, String> {
+    let provider = provider_for(symbol, demo);
+    let base = resample::choose_base(tf, &provider.natives())
+        .ok_or_else(|| format!("{} bars aren't available for {}.", tf.label(), symbol.ticker()))?;
+    let ratio = match (tf.millis(), base.millis()) {
+        (Some(t), Some(b)) if b > 0 => (t / b).max(1) as usize,
+        _ => 22,
+    };
+    let wanted = (count.max(1) * ratio + ratio).min(MAX_BASE);
+    let cache = if demo { None } else { Cache::open(dir).ok() };
+    let mut bars = cache
+        .as_ref()
+        .and_then(|c| c.last(&symbol.id, base, wanted).ok())
+        .unwrap_or_default();
+    let fresh = match bars.last() {
+        Some(last) if bars.len() >= wanted / 2 => {
+            let behind = (crate::provider::now_ms() - last.time) / base.millis().unwrap_or(86_400_000);
+            if behind as usize > wanted {
+                bars.clear();
+                provider.latest(symbol, base, wanted)
+            } else {
+                provider.since(symbol, base, last.time)
+            }
+        }
+        _ => {
+            bars.clear();
+            provider.latest(symbol, base, wanted)
+        }
+    };
+    let fresh = match fresh {
+        Ok(f) => f,
+        // Offline: what the cache has is better than nothing.
+        Err(_) if !bars.is_empty() => Vec::new(),
+        Err(e) => return Err(e.to_string()),
+    };
+    if let Some(c) = &cache {
+        let _ = c.save(&symbol.id, base, &fresh);
+    }
+    for b in fresh {
+        match bars.last() {
+            Some(l) if l.time == b.time => *bars.last_mut().expect("non-empty") = b,
+            Some(l) if l.time > b.time => {
+                if let Ok(i) = bars.binary_search_by_key(&b.time, |x| x.time) {
+                    bars[i] = b;
+                }
+            }
+            _ => bars.push(b),
+        }
+    }
+    let tz = TimeZone::get(&symbol.timezone).unwrap_or(TimeZone::UTC);
+    let mut series = if base == tf {
+        bars
+    } else {
+        resample::resample(&bars, tf, &tz)
+    };
+    let skip = series.len().saturating_sub(count);
+    series.drain(..skip);
+    Ok(series)
 }
 
 /// The keys the app handed over (one hub per process).

@@ -281,7 +281,7 @@ impl App {
             self.save_watchlists();
         }
         if let Some(s) = pick {
-            self.open_symbol(s);
+            self.open_symbol_synced(s);
         }
     }
 

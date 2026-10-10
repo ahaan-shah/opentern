@@ -195,7 +195,7 @@ impl App {
 
         egui::CentralPanel::no_frame()
             .frame(egui::Frame::new().fill(t.bg))
-            .show(ui, |ui| self.chart_area(ui, &t));
+            .show(ui, |ui| self.chart_grid(ui, &t));
 
         // Hairlines between regions, drawn last so they sit on top.
         let screen = ui.ctx().content_rect();
@@ -217,7 +217,27 @@ impl App {
         // take the space that's left and never runs underneath it.
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
-            w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (coming soon)", false);
+            let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (Alt+S)", false);
+            egui::Popup::menu(&snap).show(|ui| {
+                ui.set_min_width(200.0);
+                if ui.button(format!("{}  Download image", ph::DOWNLOAD_SIMPLE)).clicked() {
+                    self.take_snapshot(crate::snapshot::Snap::Save);
+                    ui.close();
+                }
+                if ui.button(format!("{}  Copy image", ph::COPY)).clicked() {
+                    self.take_snapshot(crate::snapshot::Snap::Copy);
+                    ui.close();
+                }
+                if ui
+                    .button(format!("{}  Open snapshots folder", ph::FOLDER_OPEN))
+                    .clicked()
+                {
+                    let dir = self.store.dir().join("snapshots");
+                    let _ = std::fs::create_dir_all(&dir);
+                    crate::app::open_path(&dir.join("."));
+                    ui.close();
+                }
+            });
             let full = ui.ctx().input(|i| i.viewport().fullscreen.unwrap_or(false));
             let glyph = if full { ph::CORNERS_IN } else { ph::CORNERS_OUT };
             if w::bar_button(ui, t, Some(glyph), "", "Fullscreen mode (Shift F)", full).clicked() {
@@ -239,7 +259,10 @@ impl App {
             egui::Popup::menu(&resp)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.layout_menu(ui, t));
-            w::bar_button(ui, t, Some(ph::LAYOUT), "", "Multiple charts (coming soon)", false);
+            let resp = w::bar_button(ui, t, Some(ph::LAYOUT), "", "Select layout", self.chart_count() > 1);
+            egui::Popup::menu(&resp)
+                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                .show(|ui| self.grid_menu(ui, t));
             w::vdivider(ui, t);
 
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -282,14 +305,16 @@ impl App {
                 {
                     self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::new("")));
                 }
-                w::bar_button(ui, t, Some(ph::PLUS_CIRCLE), "", "Compare symbols (coming soon)", false);
+                if w::bar_button(ui, t, Some(ph::PLUS_CIRCLE), "", "Compare or add symbol", false).clicked() {
+                    self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::for_compare()));
+                }
                 w::vdivider(ui, t);
 
                 // Favourite intervals inline, the rest in a menu.
                 for tf in self.intervals() {
                     let active = self.chart.tf == tf;
                     if w::bar_button(ui, t, None, &tf.label(), "", active).clicked() {
-                        self.set_interval(tf);
+                        self.set_interval_synced(tf);
                     }
                 }
                 if !self.intervals().contains(&self.chart.tf) {
@@ -317,14 +342,18 @@ impl App {
                 if w::bar_button(ui, t, Some(ph::ALARM), label("Alert"), "Create alert (Alt+A)", false).clicked() {
                     self.open_alert_dialog(None);
                 }
-                w::bar_button(
+                if w::bar_button(
                     ui,
                     t,
                     Some(ph::REWIND),
                     label("Replay"),
-                    "Bar replay (coming soon)",
-                    false,
-                );
+                    "Bar replay",
+                    self.chart.replay.is_some(),
+                )
+                .clicked()
+                {
+                    self.chart.toggle_replay();
+                }
                 w::vdivider(ui, t);
                 let undo = egui::Button::new(ph::ARROW_U_UP_LEFT).frame(false);
                 if ui
@@ -359,7 +388,7 @@ impl App {
                     let active = self.chart.tf == *tf;
                     let text = egui::RichText::new(tf.label()).color(if active { t.accent } else { t.text });
                     if ui.add(egui::Button::new(text).frame(false)).clicked() {
-                        self.set_interval(*tf);
+                        self.set_interval_synced(*tf);
                         ui.close();
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -385,7 +414,7 @@ impl App {
                 && ui.input(|i| i.key_pressed(egui::Key::Enter))
                 && let Some(tf) = Timeframe::parse(&text)
             {
-                self.set_interval(tf);
+                self.set_interval_synced(tf);
                 text.clear();
                 ui.close();
             }
@@ -394,12 +423,19 @@ impl App {
     }
 
     fn chart_type_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        let resp = w::bar_button(ui, t, Some(ph::CHART_BAR), "", "Bars style", false);
+        let resp = w::bar_button(ui, t, Some(self.chart.style.kind.icon()), "", "Bars style", false);
         egui::Popup::menu(&resp).show(|ui| {
-            ui.set_min_width(170.0);
+            ui.set_min_width(190.0);
             for k in SeriesKind::ALL {
+                if k == SeriesKind::HeikinAshi {
+                    ui.separator();
+                }
                 let on = self.chart.style.kind == k;
-                let text = egui::RichText::new(k.name()).color(if on { t.accent } else { t.text });
+                let text = egui::RichText::new(format!("{}   {}", k.icon(), k.name())).color(if on {
+                    t.accent
+                } else {
+                    t.text
+                });
                 if ui.add(egui::Button::new(text).frame(false)).clicked() {
                     let mut s = self.chart.style.clone();
                     s.kind = k;
@@ -625,7 +661,12 @@ impl App {
             ui.spacing_mut().item_spacing.y = 4.0;
             for wd in Widget::ALL {
                 let active = self.layout.widget == Some(wd);
-                if w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0).clicked() {
+                let resp = w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0);
+                if wd == Widget::Notifications && self.notes.unread > 0 {
+                    let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
+                    ui.painter().circle_filled(dot, 3.5, t.accent);
+                }
+                if resp.clicked() {
                     self.layout.widget = if active { None } else { Some(wd) };
                 }
             }
@@ -698,7 +739,10 @@ impl App {
                     Widget::Watchlist => self.watchlist_widget(ui, t),
                     Widget::ObjectTree => self.objects_widget(ui, t),
                     Widget::Alerts => self.alerts_widget(ui, t),
-                    other => placeholder(ui, t, other.title()),
+                    Widget::Notifications => self.notifications_widget(ui, t),
+                    Widget::Hotlists => self.hotlists_widget(ui, t),
+                    Widget::News => self.news_widget(ui, t),
+                    Widget::Calendar => self.calendar_widget(ui, t),
                 }
             });
     }
@@ -777,7 +821,7 @@ impl App {
                     if small_button(ui, t, label, false).clicked()
                         && let Some(tf) = Timeframe::parse(tf)
                     {
-                        self.set_interval(tf);
+                        self.set_interval_synced(tf);
                         self.chart.fit_days = Some(days);
                     }
                 }
@@ -843,11 +887,11 @@ impl App {
                 let ui = &mut child;
                 ui.set_opacity(k);
                 match self.last_tab {
+                    Tab::Screener => self.screener_tab(ui, t),
                     Tab::Editor => self.editor_tab(ui, t),
                     Tab::Report => self.report_tab(ui, t),
                     Tab::Paper => self.paper_tab(ui, t),
                     Tab::AlertLog => self.alert_log_tab(ui, t),
-                    other => placeholder(ui, t, other.title()),
                 }
             }
         }
@@ -855,7 +899,8 @@ impl App {
 
     // ------------------------------------------------------------- chart
 
-    fn chart_area(&mut self, ui: &mut Ui, t: &Theme) {
+    /// One chart in `ui`'s rect (the active one, or a slot swapped in).
+    pub(crate) fn chart_area_in(&mut self, ui: &mut Ui, t: &Theme) {
         let interactive = self.modal.is_none() && self.study_menu.is_none() && !egui::Popup::is_any_open(ui.ctx());
         let saved = self.draw_styles.clone();
         let styles = move |tool| {
@@ -905,10 +950,4 @@ pub(crate) fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> 
         p.galley_with_override_text_color(rect.center() - galley.size() / 2.0, galley, color);
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
-}
-
-/// What a panel shows until its feature is built.
-fn placeholder(ui: &mut Ui, t: &Theme, what: &str) {
-    ui.add_space(8.0);
-    ui.label(egui::RichText::new(format!("{what} is coming soon.")).color(t.text3));
 }

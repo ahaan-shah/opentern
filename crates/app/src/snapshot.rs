@@ -1,0 +1,88 @@
+//! Chart snapshots (TradingView's camera button): the charts' area of the
+//! window as a PNG, saved under `<workspace>/snapshots/` or copied.
+
+use crate::app::App;
+use crate::icons::ph;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Snap {
+    Save,
+    Copy,
+}
+
+impl App {
+    /// Asks the window for a screenshot; the chart area is cut from it
+    /// when it arrives (next frame or so).
+    pub fn take_snapshot(&mut self, kind: Snap) {
+        self.snap = Some(kind);
+        self.egui_ctx
+            .send_viewport_cmd(egui::ViewportCommand::Screenshot(egui::UserData::default()));
+        self.egui_ctx.request_repaint();
+    }
+
+    pub(crate) fn poll_snapshot(&mut self, ctx: &egui::Context) {
+        let Some(kind) = self.snap else { return };
+        let image = ctx.input(|i| {
+            i.events.iter().find_map(|e| match e {
+                egui::Event::Screenshot { image, .. } => Some(image.clone()),
+                _ => None,
+            })
+        });
+        let Some(image) = image else { return };
+        self.snap = None;
+        let ppp = ctx.pixels_per_point();
+        let r = self.grid_rect;
+        let [w, h] = image.size;
+        let x0 = ((r.left() * ppp).round().max(0.0) as usize).min(w);
+        let y0 = ((r.top() * ppp).round().max(0.0) as usize).min(h);
+        let x1 = ((r.right() * ppp).round() as usize).clamp(x0, w);
+        let y1 = ((r.bottom() * ppp).round() as usize).clamp(y0, h);
+        let (cw, ch) = (x1 - x0, y1 - y0);
+        if cw == 0 || ch == 0 {
+            return;
+        }
+        let mut pixels = Vec::with_capacity(cw * ch);
+        for y in y0..y1 {
+            pixels.extend_from_slice(&image.pixels[y * w + x0..y * w + x1]);
+        }
+        let crop = egui::ColorImage::new([cw, ch], pixels);
+        match kind {
+            Snap::Copy => {
+                ctx.copy_image(crop);
+                self.notify(ph::CAMERA, "Snapshot copied", "Paste it anywhere.", None, true);
+            }
+            Snap::Save => match self.save_png(&crop) {
+                Ok(path) => {
+                    let name = path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    self.notify(ph::CAMERA, "Snapshot saved", &name, Some(path), true);
+                }
+                Err(e) => self.notify(ph::CAMERA, "Couldn't save the snapshot", &e, None, true),
+            },
+        }
+    }
+
+    fn save_png(&self, img: &egui::ColorImage) -> Result<std::path::PathBuf, String> {
+        let dir = self.store.dir().join("snapshots");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let now = jiff::Zoned::now();
+        let name = format!(
+            "{}_{}_{}.png",
+            self.chart.symbol.ticker().replace(['/', ':', ' '], "-"),
+            self.chart.tf.label(),
+            now.strftime("%Y-%m-%d_%H-%M-%S")
+        );
+        let path = dir.join(name);
+        let file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
+        let [w, h] = img.size;
+        let mut enc = png::Encoder::new(std::io::BufWriter::new(file), w as u32, h as u32);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut writer = enc.write_header().map_err(|e| e.to_string())?;
+        let data: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
+        writer.write_image_data(&data).map_err(|e| e.to_string())?;
+        Ok(path)
+    }
+}

@@ -2,15 +2,16 @@
 //! panes) saved under a name, autosaved, and switchable from the top bar.
 
 use crate::app::App;
-use crate::chart::{Chart, ChartState, StudyLook};
+use crate::chart::{Chart, StudyLook};
 use crate::icons::ph;
+use crate::multi::{Grid, LayoutState};
 use crate::theme::Theme;
 use egui::Ui;
 use opentern_core::Timeframe;
 
 impl App {
     fn chart_json(&self) -> String {
-        serde_json::to_string(&self.chart.state()).unwrap_or_default()
+        serde_json::to_string(&self.layout_state()).unwrap_or_default()
     }
 
     /// Saves the current layout now.
@@ -20,14 +21,6 @@ impl App {
             crate::diag::crumb(format!("couldn't save layout: {e}"));
         }
         let _ = self.store.set_value("layout_id", &self.layout_id.to_string());
-    }
-
-    fn switch_chart(&mut self, chart: Chart) {
-        self.save_drawings_now();
-        self.chart = chart;
-        self.chart_ui = Default::default();
-        self.reload_drawings();
-        self.open_chart_data();
     }
 
     pub fn load_layout(&mut self, id: i64) {
@@ -43,14 +36,13 @@ impl App {
             .layout_json(id)
             .ok()
             .flatten()
-            .and_then(|j| serde_json::from_str::<ChartState>(&j).ok())
+            .and_then(|j| LayoutState::parse(&j))
         else {
             return;
         };
         self.layout_id = id;
         self.layout_name = info.name;
-        let chart = Chart::from_state(self.chart.id + 1, state);
-        self.switch_chart(chart);
+        self.install_layout(state);
         let _ = self.store.set_value("layout_id", &id.to_string());
     }
 
@@ -58,17 +50,24 @@ impl App {
     pub fn new_layout(&mut self) {
         self.save_layout_now();
         let btc = opentern_core::starter_watchlist().remove(0);
-        let mut c = Chart::new(self.chart.id + 1, btc, Timeframe::parse("1h").expect("valid"));
+        let mut c = Chart::new(0, btc, Timeframe::parse("1h").expect("valid"));
         if let Some(v) = opentern_series::builtins::by_id("volume") {
             c.add_study(v, &v.default_inputs(), StudyLook::defaults(v), None);
         }
         let n = self.store.layouts().len() + 1;
         self.layout_name = format!("Layout {n}");
-        let state = serde_json::to_string(&c.state()).unwrap_or_default();
-        if let Ok(id) = self.store.create_layout(&self.layout_name, &state) {
+        let state = LayoutState {
+            version: 2,
+            grid: Grid::One,
+            sync: Default::default(),
+            active: 0,
+            charts: vec![c.state()],
+        };
+        let json = serde_json::to_string(&state).unwrap_or_default();
+        if let Ok(id) = self.store.create_layout(&self.layout_name, &json) {
             self.layout_id = id;
         }
-        self.switch_chart(c);
+        self.install_layout(state);
         let _ = self.store.set_value("layout_id", &self.layout_id.to_string());
     }
 

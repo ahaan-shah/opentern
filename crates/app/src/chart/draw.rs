@@ -45,6 +45,9 @@ pub enum Tool {
     Text,
     ArrowUp,
     ArrowDown,
+    AnchoredVwap,
+    FixedRangeVolumeProfile,
+    AnchoredVolumeProfile,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -101,7 +104,16 @@ impl Group {
             ],
             Group::Fib => &[FibRetracement, FibExtension, Pitchfork],
             Group::Patterns => &[Path, Triangle],
-            Group::Forecast => &[LongPosition, ShortPosition, PriceRange, DateRange, DatePriceRange],
+            Group::Forecast => &[
+                LongPosition,
+                ShortPosition,
+                AnchoredVwap,
+                FixedRangeVolumeProfile,
+                AnchoredVolumeProfile,
+                PriceRange,
+                DateRange,
+                DatePriceRange,
+            ],
             Group::Shapes => &[Rectangle, Ellipse, Brush],
             Group::Text => &[Text],
             Group::Icons => &[ArrowUp, ArrowDown],
@@ -148,6 +160,9 @@ impl Tool {
             Text => "Text",
             ArrowUp => "Arrow mark up",
             ArrowDown => "Arrow mark down",
+            AnchoredVwap => "Anchored VWAP",
+            FixedRangeVolumeProfile => "Fixed range volume profile",
+            AnchoredVolumeProfile => "Anchored volume profile",
         }
     }
 
@@ -182,6 +197,9 @@ impl Tool {
             Text => ph::TEXT_T,
             ArrowUp => ph::ARROW_FAT_UP,
             ArrowDown => ph::ARROW_FAT_DOWN,
+            AnchoredVwap => ph::ANCHOR_SIMPLE,
+            FixedRangeVolumeProfile => ph::CHART_BAR_HORIZONTAL,
+            AnchoredVolumeProfile => ph::ALIGN_LEFT,
         }
     }
 
@@ -191,8 +209,17 @@ impl Tool {
         use Tool::*;
         match self {
             Cross | Eraser | Zoom => 0,
-            HorizontalLine | HorizontalRay | VerticalLine | CrossLine | Text | ArrowUp | ArrowDown | LongPosition
-            | ShortPosition => 1,
+            HorizontalLine
+            | HorizontalRay
+            | VerticalLine
+            | CrossLine
+            | Text
+            | ArrowUp
+            | ArrowDown
+            | LongPosition
+            | ShortPosition
+            | AnchoredVwap
+            | AnchoredVolumeProfile => 1,
             ParallelChannel | FibExtension | Pitchfork | Triangle => 3,
             Path => usize::MAX,
             Brush => 0,
@@ -280,6 +307,16 @@ impl DrawStyle {
             },
             ArrowDown => DrawStyle {
                 color: Rgba::hex(0xF23645),
+                ..d
+            },
+            AnchoredVwap => DrawStyle {
+                color: Rgba::hex(0x1E88E5),
+                width: 2,
+                ..d
+            },
+            FixedRangeVolumeProfile | AnchoredVolumeProfile => DrawStyle {
+                color: Rgba::hex(0x2962FF),
+                width: 1,
                 ..d
             },
             PriceRange | DateRange | DatePriceRange => DrawStyle {
@@ -722,6 +759,41 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 );
             }
         }
+        AnchoredVwap if !d.pts.is_empty() => {
+            let line = vwap_points(d, g);
+            if line.len() >= 2 {
+                p.add(Shape::Path(PathShape::line(
+                    line.clone(),
+                    PathStroke::new(s.width, s.color),
+                )));
+            }
+            if let (true, Some(end)) = (d.style.labels, line.last()) {
+                label(
+                    p,
+                    *end + vec2(6.0, 0.0),
+                    Align2::LEFT_CENTER,
+                    "VWAP",
+                    Color32::WHITE,
+                    s.color,
+                );
+            }
+            p.circle_filled(line.first().copied().unwrap_or(pts[0]), 3.0, s.color);
+        }
+        FixedRangeVolumeProfile | AnchoredVolumeProfile if !d.pts.is_empty() => {
+            if let Some((prof, x0, x1)) = range_profile(d, g) {
+                let look = super::profile::ProfileLook::default();
+                let width = ((x1 - x0) * 0.3).max(40.0);
+                super::profile::paint_profile(p, &prof, &look, &g.y, x0, width, false, (x0, x1));
+                let (top, bot) = (g.y.y(prof.lo + prof.step * prof.rows() as f64), g.y.y(prof.lo));
+                let frame = Rect::from_x_y_ranges(x0..=x1, top..=bot);
+                p.rect_stroke(
+                    frame,
+                    CornerRadius::ZERO,
+                    Stroke::new(1.0, s.color.gamma_multiply(0.5)),
+                    egui::StrokeKind::Middle,
+                );
+            }
+        }
         Text if !pts.is_empty() => {
             let text = if d.text.is_empty() { "Text" } else { d.text.as_str() };
             p.text(
@@ -778,6 +850,41 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
     }
 }
 
+/// The bars a volume-profile tool covers: between its two points, or
+/// from its point to the last bar.
+fn tool_range(d: &Drawing, g: &Geo) -> Option<(usize, usize)> {
+    let n = g.tm.bars.len();
+    if n == 0 {
+        return None;
+    }
+    let idx = |t: i64| g.tm.index(t).round().clamp(0.0, (n - 1) as f64) as usize;
+    let a = idx(d.pts.first()?.t);
+    let b = match (d.tool, d.pts.get(1)) {
+        (Tool::FixedRangeVolumeProfile, Some(q)) => idx(q.t),
+        _ => n - 1,
+    };
+    Some((a.min(b), a.max(b)))
+}
+
+fn range_profile(d: &Drawing, g: &Geo) -> Option<(opentern_series::profile::Profile, f32, f32)> {
+    let (a, b) = tool_range(d, g)?;
+    let prof = opentern_series::profile::volume_profile(&g.tm.bars[a..=b], 24, 0.7)?;
+    let half = g.tm.x.bar_w / 2.0;
+    Some((prof, g.tm.x.x(a as f64) - half, g.tm.x.x(b as f64) + half))
+}
+
+/// The anchored VWAP's line on screen.
+fn vwap_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
+    let Some((a, _)) = tool_range(d, g) else {
+        return Vec::new();
+    };
+    opentern_series::profile::anchored_vwap(g.tm.bars, a)
+        .into_iter()
+        .enumerate()
+        .map(|(k, v)| pos2(g.tm.x.x((a + k) as f64), g.y.y(v)))
+        .collect()
+}
+
 /// The measuring tools' labels: price change, bars, time.
 fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
     let (pa, pb) = (d.pts[0].p, d.pts[1].p);
@@ -822,6 +929,7 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
 /// Where a drawing's draggable handles are on screen.
 pub fn handle_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
     match d.tool {
+        Tool::AnchoredVwap => vwap_points(d, g).into_iter().take(1).collect(),
         Tool::Brush => d.pts.first().map(|a| vec![g.pos(*a)]).unwrap_or_default(),
         Tool::HorizontalLine => d
             .pts
@@ -929,6 +1037,11 @@ pub fn hit(d: &Drawing, g: &Geo, p: Pos2) -> Option<Part> {
             .contains(p)
         }
         ArrowUp | ArrowDown if !pts.is_empty() => pts[0].distance(p) <= 16.0,
+        AnchoredVwap => vwap_points(d, g).windows(2).any(|w| near_seg(w[0], w[1])),
+        FixedRangeVolumeProfile | AnchoredVolumeProfile => range_profile(d, g).is_some_and(|(prof, x0, x1)| {
+            let (top, bot) = (g.y.y(prof.lo + prof.step * prof.rows() as f64), g.y.y(prof.lo));
+            p.x >= x0 && p.x <= x1 && p.y >= top && p.y <= bot
+        }),
         _ => false,
     };
     body.then_some(Part::Body)

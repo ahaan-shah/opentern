@@ -213,7 +213,23 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
             });
     });
     match s.kind {
-        SeriesKind::Line | SeriesKind::Area => {
+        SeriesKind::Baseline => {
+            form_row(ui, t, "Colours", |ui| {
+                changed |= color_button(ui, t, &mut s.baseline_up);
+                changed |= color_button(ui, t, &mut s.baseline_down);
+            });
+            form_row(ui, t, "Base level", |ui| {
+                changed |= ui
+                    .add(egui::Slider::new(&mut s.baseline_level, 0..=100).suffix("%"))
+                    .changed();
+            });
+        }
+        SeriesKind::HighLow => {
+            form_row(ui, t, "Bars", |ui| {
+                changed |= color_button(ui, t, &mut s.line_color);
+            });
+        }
+        SeriesKind::Line | SeriesKind::LineMarkers | SeriesKind::StepLine | SeriesKind::Area => {
             form_row(ui, t, "Line", |ui| {
                 changed |= color_button(ui, t, &mut s.line_color);
                 egui::ComboBox::from_id_salt("line-width")
@@ -247,6 +263,54 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
             );
             changed |= up_down(ui, t, "Wick", &mut s.up_wick, &mut s.down_wick, Some(&mut s.show_wick));
         }
+    }
+    if matches!(s.kind, SeriesKind::Renko | SeriesKind::Kagi | SeriesKind::PointFigure) {
+        section(
+            ui,
+            t,
+            if s.kind == SeriesKind::Kagi {
+                "Reversal amount"
+            } else {
+                "Box size"
+            },
+        );
+        form_row(ui, t, "Method", |ui| {
+            let mut atr = s.box_size.is_none();
+            egui::ComboBox::from_id_salt("box-method")
+                .selected_text(if atr { "ATR" } else { "Traditional" })
+                .show_ui(ui, |ui| {
+                    changed |= ui.selectable_value(&mut atr, true, "ATR").changed();
+                    changed |= ui.selectable_value(&mut atr, false, "Traditional").changed();
+                });
+            if atr && s.box_size.is_some() {
+                s.box_size = None;
+            } else if !atr && s.box_size.is_none() {
+                s.box_size = Some(1.0);
+            }
+        });
+        match s.box_size.as_mut() {
+            None => form_row(ui, t, "ATR length", |ui| {
+                changed |= ui.add(egui::DragValue::new(&mut s.atr_length).range(1..=500)).changed();
+            }),
+            Some(v) => form_row(ui, t, "Size", |ui| {
+                changed |= ui
+                    .add(egui::DragValue::new(v).range(1e-8..=1e9).speed(0.1).max_decimals(8))
+                    .changed();
+            }),
+        }
+        if s.kind == SeriesKind::PointFigure {
+            form_row(ui, t, "Reversal", |ui| {
+                changed |= ui
+                    .add(egui::DragValue::new(&mut s.pnf_reversal).range(1..=20))
+                    .changed();
+            });
+        }
+    }
+    if s.kind == SeriesKind::LineBreak {
+        section(ui, t, "Line break");
+        form_row(ui, t, "Number of lines", |ui| {
+            changed |= ui.add(egui::DragValue::new(&mut s.line_break).range(1..=10)).changed();
+        });
     }
     section(ui, t, "Data modification");
     form_row(ui, t, "Precision", |ui| {

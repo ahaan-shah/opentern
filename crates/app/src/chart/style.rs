@@ -23,17 +23,49 @@ pub enum SeriesKind {
     Candles,
     HollowCandles,
     Bars,
+    HeikinAshi,
     Line,
+    LineMarkers,
+    StepLine,
     Area,
+    Baseline,
+    Columns,
+    HighLow,
+    Renko,
+    LineBreak,
+    Kagi,
+    PointFigure,
+}
+
+/// How a chart type changes the bars (see `transform.rs`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Transform {
+    None,
+    HeikinAshi,
+    /// Rebuilt from all bars on every change (bricks, lines, columns).
+    Renko(f64),
+    LineBreak(usize),
+    Kagi(f64),
+    PointFigure(f64, usize),
 }
 
 impl SeriesKind {
-    pub const ALL: [SeriesKind; 5] = [
+    pub const ALL: [SeriesKind; 15] = [
+        SeriesKind::Bars,
         SeriesKind::Candles,
         SeriesKind::HollowCandles,
-        SeriesKind::Bars,
+        SeriesKind::Columns,
         SeriesKind::Line,
+        SeriesKind::LineMarkers,
+        SeriesKind::StepLine,
         SeriesKind::Area,
+        SeriesKind::Baseline,
+        SeriesKind::HighLow,
+        SeriesKind::HeikinAshi,
+        SeriesKind::Renko,
+        SeriesKind::LineBreak,
+        SeriesKind::Kagi,
+        SeriesKind::PointFigure,
     ];
 
     pub fn name(self) -> &'static str {
@@ -41,9 +73,57 @@ impl SeriesKind {
             SeriesKind::Candles => "Candles",
             SeriesKind::HollowCandles => "Hollow candles",
             SeriesKind::Bars => "Bars",
+            SeriesKind::HeikinAshi => "Heikin Ashi",
             SeriesKind::Line => "Line",
+            SeriesKind::LineMarkers => "Line with markers",
+            SeriesKind::StepLine => "Step line",
             SeriesKind::Area => "Area",
+            SeriesKind::Baseline => "Baseline",
+            SeriesKind::Columns => "Columns",
+            SeriesKind::HighLow => "High-low",
+            SeriesKind::Renko => "Renko",
+            SeriesKind::LineBreak => "Line break",
+            SeriesKind::Kagi => "Kagi",
+            SeriesKind::PointFigure => "Point & figure",
         }
+    }
+
+    pub fn icon(self) -> &'static str {
+        use crate::icons::ph;
+        match self {
+            SeriesKind::Candles | SeriesKind::HeikinAshi => ph::CHART_BAR,
+            SeriesKind::HollowCandles => ph::CHART_BAR_HORIZONTAL,
+            SeriesKind::Bars => ph::CHART_BAR,
+            SeriesKind::Line | SeriesKind::LineMarkers => ph::CHART_LINE,
+            SeriesKind::StepLine => ph::STEPS,
+            SeriesKind::Area | SeriesKind::Baseline => ph::CHART_LINE_UP,
+            SeriesKind::Columns | SeriesKind::HighLow => ph::CHART_BAR,
+            SeriesKind::Renko | SeriesKind::LineBreak => ph::SQUARES_FOUR,
+            SeriesKind::Kagi => ph::WAVE_SQUARE,
+            SeriesKind::PointFigure => ph::X,
+        }
+    }
+
+    /// Drawn from closes only (autoscale fits closes).
+    pub fn is_line(self) -> bool {
+        matches!(
+            self,
+            SeriesKind::Line
+                | SeriesKind::LineMarkers
+                | SeriesKind::StepLine
+                | SeriesKind::Area
+                | SeriesKind::Baseline
+                | SeriesKind::Columns
+        )
+    }
+
+    /// The bars aren't the symbol's time bars (no countdown, no paging by
+    /// time).
+    pub fn time_free(self) -> bool {
+        matches!(
+            self,
+            SeriesKind::Renko | SeriesKind::LineBreak | SeriesKind::Kagi | SeriesKind::PointFigure
+        )
     }
 }
 
@@ -76,6 +156,16 @@ pub struct ChartStyle {
     pub line_width: u8,
     pub area_top: Rgba,
     pub area_bottom: Rgba,
+    /// Baseline: the level, as a percent of the pane height from the
+    /// bottom, and the colours above and below it.
+    pub baseline_level: u8,
+    pub baseline_up: Rgba,
+    pub baseline_down: Rgba,
+    /// Renko, Kagi and Point & figure: a fixed box size, or ATR when `None`.
+    pub box_size: Option<f64>,
+    pub atr_length: u16,
+    pub pnf_reversal: u8,
+    pub line_break: u8,
     pub precision: Option<u8>,
     pub timezone: TimeZoneChoice,
     // Status line
@@ -125,6 +215,13 @@ impl Default for ChartStyle {
             line_width: 2,
             area_top: Rgba::hex(0x2962FF).transp(72),
             area_bottom: Rgba::hex(0x2962FF).transp(100),
+            baseline_level: 50,
+            baseline_up: Rgba::hex(0x089981),
+            baseline_down: Rgba::hex(0xF23645),
+            box_size: None,
+            atr_length: 14,
+            pnf_reversal: 3,
+            line_break: 3,
             precision: None,
             timezone: TimeZoneChoice::Exchange,
             show_title: true,
@@ -167,6 +264,39 @@ pub struct Palette {
 }
 
 impl ChartStyle {
+    /// How this chart type changes the bars; box sizes from `raw` (ATR by
+    /// default, as TradingView).
+    pub fn transform(&self, raw: &[opentern_core::Bar]) -> Transform {
+        let boxed = || {
+            self.box_size
+                .filter(|v| *v > 0.0)
+                .unwrap_or_else(|| super::transform::atr(raw, self.atr_length as usize))
+        };
+        match self.kind {
+            SeriesKind::HeikinAshi => Transform::HeikinAshi,
+            SeriesKind::Renko => Transform::Renko(boxed()),
+            SeriesKind::LineBreak => Transform::LineBreak(self.line_break.max(1) as usize),
+            SeriesKind::Kagi => Transform::Kagi(boxed()),
+            SeriesKind::PointFigure => Transform::PointFigure(boxed(), self.pnf_reversal.max(1) as usize),
+            _ => Transform::None,
+        }
+    }
+
+    /// What decides the transform (a change means rebuilding the bars).
+    pub fn transform_key(&self) -> String {
+        match self.kind {
+            SeriesKind::HeikinAshi => "ha".into(),
+            SeriesKind::Renko | SeriesKind::Kagi => {
+                format!("{:?}{:?}{}", self.kind, self.box_size, self.atr_length)
+            }
+            SeriesKind::PointFigure => {
+                format!("pnf{:?}{}{}", self.box_size, self.atr_length, self.pnf_reversal)
+            }
+            SeriesKind::LineBreak => format!("lb{}", self.line_break),
+            _ => String::new(),
+        }
+    }
+
     pub fn palette(&self, t: &Theme) -> Palette {
         let grid = crate::motion::lerp_color(t.bg, t.border, if t.dark { 0.55 } else { 0.6 });
         Palette {

@@ -22,7 +22,7 @@ fn s(x: &str) -> Arc<str> {
     Arc::from(x)
 }
 
-fn colour(id: &'static str, title: &'static str, c: Rgba) -> InputSpec {
+pub(crate) fn colour(id: &'static str, title: &'static str, c: Rgba) -> InputSpec {
     InputSpec {
         id,
         title,
@@ -33,7 +33,7 @@ fn colour(id: &'static str, title: &'static str, c: Rgba) -> InputSpec {
 }
 
 /// A colour input's value (`#RRGGBB` or `#RRGGBBAA`).
-fn colour_of(ins: &Inputs, id: &str, d: Rgba) -> u32 {
+pub fn colour_of(ins: &Inputs, id: &str, d: Rgba) -> u32 {
     let t = ins.text(id).trim_start_matches('#');
     match t.len() {
         6 => u32::from_str_radix(t, 16).map(|v| (v << 8) | 0xFF).unwrap_or(d.0),

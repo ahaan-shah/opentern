@@ -28,6 +28,7 @@ pub enum Action {
     StudyMenu(u64, Pos2),
     MoreHistory,
     ChartSettings,
+    RemoveCompare(usize),
 }
 
 /// Interaction state that isn't worth saving.
@@ -40,6 +41,12 @@ pub struct ChartUi {
     /// Which pane a scale drag started on.
     scale_drag: Option<usize>,
     divider_drag: Option<usize>,
+    /// Another chart's crosshair time, to mirror (multi-chart sync).
+    pub sync_cross: Option<i64>,
+    /// The time under this chart's crosshair, if the pointer is on it.
+    pub hover_time: Option<i64>,
+    /// Seasonality's numbers, until the bars change.
+    pub season: super::profile::SeasonCache,
 }
 
 impl Default for ChartUi {
@@ -50,6 +57,9 @@ impl Default for ChartUi {
             hover_index: None,
             scale_drag: None,
             divider_drag: None,
+            sync_cross: None,
+            hover_time: None,
+            season: Default::default(),
         }
     }
 }
@@ -150,6 +160,7 @@ pub fn show(
     tools: &super::drawing_ui::Tools,
 ) -> Vec<Action> {
     let mut actions = Vec::new();
+    chart.replay_tick(ui.ctx());
     let full = ui.max_rect();
     let pal = chart.style.palette(t);
     let painter = ui.painter_at(full);
@@ -216,13 +227,15 @@ pub fn show(
             }
         };
         if main && n > 0 {
+            for (_, v) in compare_points(chart, first, last).into_iter().flat_map(|(_, pts)| pts) {
+                grow(v);
+            }
             for b in &chart.bars[first.min(n - 1)..=last] {
-                match chart.style.kind {
-                    SeriesKind::Line | SeriesKind::Area => grow(b.close),
-                    _ => {
-                        grow(b.high);
-                        grow(b.low);
-                    }
+                if chart.style.kind.is_line() {
+                    grow(b.close);
+                } else {
+                    grow(b.high);
+                    grow(b.low);
                 }
             }
         }
@@ -235,6 +248,13 @@ pub fn show(
             if !main && first_study {
                 format = s.meta().format;
                 first_study = false;
+            }
+            if s.meta().id == "seasonality" {
+                for yr in cui.season.get(chart, s.inst.inputs.len("years")) {
+                    for (_, v) in &yr.points {
+                        grow(*v);
+                    }
+                }
             }
             for (pi, look) in s.look.plots.iter().enumerate() {
                 if look.visible {
@@ -313,8 +333,10 @@ pub fn show(
         .interact_pointer_pos()
         .or(pointer)
         .is_some_and(|p| geos.first().is_some_and(|g| g.rect.contains(p)));
+    let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
     let drawing_used = interactive
         && n > 0
+        && !choosing
         && (on_main || tools.tool.is_drawing())
         && super::drawing_ui::handle(
             ui,
@@ -526,7 +548,7 @@ pub fn show(
             g.rect.center(),
             Align2::CENTER_CENTER,
             format!("{}, {}", chart.symbol.ticker(), chart.tf.label()),
-            theme::display(56.0),
+            theme::display((g.rect.width() / 12.0).clamp(18.0, 56.0)),
             motion::with_alpha(t.text, if t.dark { 0.05 } else { 0.06 }),
         );
     }
@@ -562,6 +584,8 @@ pub fn show(
             draw_bg(&p, s, &x, first, last, g.rect);
         }
         draw_series(&p, chart, &g.y, &x, first, last, ppp, g.rect);
+        draw_compares(&p, chart, &g.y, &x, first, last, g.rect);
+        super::profile::paint_overlays(&p, chart, &g.y, &x, first, last, g.rect);
         for s in chart
             .studies
             .iter()
@@ -585,6 +609,11 @@ pub fn show(
             draw_bg(&p, s, &x, first, last, g.rect);
         }
         for s in chart.studies.iter().filter(|s| s.pane == pane_id && s.shown(chart.tf)) {
+            if s.meta().id == "seasonality" {
+                let years = cui.season.get(chart, s.inst.inputs.len("years"));
+                super::profile::paint_seasonality(&p, years, &g.y, g.rect, pal.text2);
+                continue;
+            }
             draw_study(&p, &chart.bars, s, &g.y, &x, first, last, n, ppp, g.rect);
         }
         // Divider line above the pane.
@@ -670,10 +699,11 @@ pub fn show(
                     Some(base) if base > 0.0 => format::signed_pct((b.close / base - 1.0) * 100.0),
                     _ => format::price(b.close, prec),
                 };
-                let countdown = (chart.style.countdown && chart.status == Status::Live)
-                    .then(|| chart.tf.millis())
-                    .flatten()
-                    .map(|len| format::countdown(b.time + len - jiff::Timestamp::now().as_millisecond()));
+                let countdown =
+                    (chart.style.countdown && chart.status == Status::Live && !chart.style.kind.time_free())
+                        .then(|| chart.tf.millis())
+                        .flatten()
+                        .map(|len| format::countdown(b.time + len - jiff::Timestamp::now().as_millisecond()));
                 tags.push((yy, text, col, countdown));
             }
         }
@@ -799,6 +829,48 @@ pub fn show(
         }
     }
 
+    cui.hover_time = hover_idx.and_then(|hi| time_at_index(chart, hi));
+    if hover_idx.is_none()
+        && let Some(t0) = cui.sync_cross
+        && n > 0
+    {
+        // Another chart's crosshair, mirrored at the same time.
+        let step = chart.tf.millis().unwrap_or(86_400_000);
+        let i = crate::multi::index_at(&chart.bars, step, t0).round();
+        let xx = snap(x.x(i), ppp);
+        if xx >= plot_all.left() && xx <= plot_all.right() {
+            styled_vline(
+                &painter,
+                xx,
+                plot_all.top(),
+                plot_all.bottom(),
+                Stroke::new(1.0, pal.crosshair),
+                chart.style.crosshair_style,
+            );
+        }
+    }
+    // ---- bar replay: choosing where to start
+    if choosing
+        && let Some(hi) = hover_idx
+        && n > 0
+    {
+        let i = hi.clamp(0.0, (n - 1) as f64);
+        let xx = snap(x.x(i), ppp);
+        let shade = Rect::from_min_max(pos2(xx, plot_all.top()), plot_all.max);
+        painter.rect_filled(shade, CornerRadius::ZERO, motion::with_alpha(pal.bg, 0.6));
+        painter.vline(xx, plot_all.y_range(), Stroke::new(1.5, t.accent));
+        painter.text(
+            pos2(xx, plot_all.top() + 14.0),
+            Align2::CENTER_CENTER,
+            ph::SCISSORS,
+            theme::regular(16.0),
+            t.accent,
+        );
+        if plot_resp.clicked() {
+            chart.replay_from(i as usize);
+        }
+    }
+
     // ---- legend
     let legend_idx = hover_idx
         .filter(|i| *i >= 0.0 && (*i as usize) < n)
@@ -854,8 +926,98 @@ pub fn show(
             chart.view.right = chart.last_index() + super::RIGHT_MARGIN;
         }
     }
+    if chart.replay.is_some()
+        && let Some(g) = geos.first()
+    {
+        super::replay::controls(ui, chart, t, g.rect);
+    }
     let _ = scale_resp;
     actions
+}
+
+/// The time at (fractional) bar index `i`, extrapolated past the last bar.
+fn time_at_index(chart: &Chart, i: f64) -> Option<i64> {
+    let n = chart.bars.len();
+    if n == 0 || i < 0.0 {
+        return None;
+    }
+    let k = i as usize;
+    if k < n {
+        Some(chart.bars[k].time)
+    } else {
+        chart
+            .tf
+            .millis()
+            .map(|len| chart.bars[n - 1].time + (k - (n - 1)) as i64 * len)
+    }
+}
+
+/// Compared symbols' points on screen bars `first..=last`, in the main
+/// pane's units: percent comparisons scaled to start where the chart's
+/// first visible close is, plain ones as prices. Overlays (own scale) are
+/// left out.
+fn compare_points(chart: &Chart, first: usize, last: usize) -> Vec<(usize, Vec<(usize, f64)>)> {
+    let n = chart.bars.len();
+    if n == 0 || first >= n {
+        return Vec::new();
+    }
+    let base_t = chart.bars[first].time;
+    let base = chart.bars[first].close;
+    chart
+        .compares
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.visible && !c.overlay)
+        .map(|(k, c)| {
+            let cbase = c.close_at(base_t).or_else(|| c.bars.first().map(|b| b.close));
+            let pts = (first..=last.min(n - 1))
+                .filter_map(|j| {
+                    let v = c.close_at(chart.bars[j].time)?;
+                    match (chart.percent, cbase) {
+                        (true, Some(cb)) if cb != 0.0 => Some((j, base * v / cb)),
+                        (true, _) => None,
+                        (false, _) => Some((j, v)),
+                    }
+                })
+                .collect();
+            (k, pts)
+        })
+        .collect()
+}
+
+/// Compared and overlaid symbols as lines.
+fn draw_compares(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, last: usize, rect: Rect) {
+    for (k, pts) in compare_points(chart, first, last) {
+        let c = &chart.compares[k];
+        let line: Vec<Pos2> = pts.iter().map(|(j, v)| pos2(x.x(*j as f64), y.y(*v))).collect();
+        polyline(p, line, Stroke::new(2.0, c32(c.color)));
+    }
+    // Overlays: each on its own scale, fitted to the pane like the main one.
+    let n = chart.bars.len();
+    if n == 0 || first >= n {
+        return;
+    }
+    for c in chart.compares.iter().filter(|c| c.visible && c.overlay) {
+        let vals: Vec<(usize, f64)> = (first..=last.min(n - 1))
+            .filter_map(|j| c.close_at(chart.bars[j].time).map(|v| (j, v)))
+            .collect();
+        let (lo, hi) = vals.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), (_, v)| {
+            (l.min(*v), h.max(*v))
+        });
+        if !lo.is_finite() {
+            continue;
+        }
+        let span = (hi - lo).max(hi.abs() * 1e-6).max(1e-12);
+        let own = YMap {
+            top: rect.top(),
+            bottom: rect.bottom(),
+            lo: lo - span * 0.08,
+            hi: hi + span * 0.1,
+            log: false,
+        };
+        let line: Vec<Pos2> = vals.iter().map(|(j, v)| pos2(x.x(*j as f64), own.y(*v))).collect();
+        polyline(p, line, Stroke::new(2.0, c32(c.color)));
+    }
 }
 
 /// Nice ticks for a log scale: a linear step chosen per decade.
@@ -881,11 +1043,20 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
     }
     let st = &chart.style;
     let bw = chart.view.bar_w;
+    let px = 1.0 / ppp;
+    let up_of = |i: usize| bar_color(chart, i, &chart.bars[i]);
     match st.kind {
-        SeriesKind::Line | SeriesKind::Area => {
-            let pts: Vec<Pos2> = (first..=last)
-                .map(|i| pos2(x.x(i as f64), y.y(chart.bars[i].close)))
-                .collect();
+        SeriesKind::Line | SeriesKind::LineMarkers | SeriesKind::StepLine | SeriesKind::Area => {
+            let mut pts: Vec<Pos2> = Vec::with_capacity((last - first + 1) * 2);
+            for i in first..=last {
+                let q = pos2(x.x(i as f64), y.y(chart.bars[i].close));
+                if st.kind == SeriesKind::StepLine
+                    && let Some(prev) = pts.last().copied()
+                {
+                    pts.push(pos2(q.x, prev.y));
+                }
+                pts.push(q);
+            }
             if st.kind == SeriesKind::Area {
                 let mut mesh = Mesh::default();
                 paint::area_under(
@@ -898,9 +1069,240 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
                 );
                 p.add(mesh);
             }
-            polyline(p, pts, Stroke::new(st.line_width as f32, c32(st.line_color)));
+            let stroke = Stroke::new(st.line_width as f32, c32(st.line_color));
+            if st.kind == SeriesKind::LineMarkers && bw >= 3.0 {
+                let r = (st.line_width as f32 + 1.5).min(bw * 0.45);
+                for q in &pts {
+                    p.circle_filled(*q, r, stroke.color);
+                }
+            }
+            polyline(p, pts, stroke);
         }
-        SeriesKind::Candles | SeriesKind::HollowCandles | SeriesKind::Bars => {
+        SeriesKind::Baseline => {
+            // TradingView's baseline: a level at a share of the pane's
+            // height; the line and its fill are green above, red below.
+            let base_y = rect.bottom() - rect.height() * st.baseline_level.min(100) as f32 / 100.0;
+            let (up, down) = (c32(st.baseline_up), c32(st.baseline_down));
+            let (up_f, down_f) = (up.gamma_multiply(0.28), down.gamma_multiply(0.28));
+            let mut fill = Mesh::default();
+            let mut above: Vec<Pos2> = Vec::new();
+            let mut below: Vec<Pos2> = Vec::new();
+            let mut segs: Vec<(Vec<Pos2>, bool)> = Vec::new();
+            let mut cur: Vec<Pos2> = Vec::new();
+            let mut cur_up = true;
+            let mut prev: Option<Pos2> = None;
+            for i in first..=last {
+                let q = pos2(x.x(i as f64), y.y(chart.bars[i].close));
+                let q_up = q.y <= base_y;
+                if let Some(a) = prev {
+                    let a_up = a.y <= base_y;
+                    let mut pieces = vec![(a, q)];
+                    if a_up != q_up && (q.y - a.y).abs() > 1e-3 {
+                        let t = (base_y - a.y) / (q.y - a.y);
+                        let m = pos2(a.x + (q.x - a.x) * t, base_y);
+                        pieces = vec![(a, m), (m, q)];
+                    }
+                    for (u, v) in pieces {
+                        let seg_up = (u.y + v.y) / 2.0 <= base_y;
+                        band_quad(
+                            &mut fill,
+                            u.x,
+                            u.y,
+                            base_y,
+                            v.x,
+                            v.y,
+                            base_y,
+                            if seg_up { up_f } else { down_f },
+                        );
+                        if cur.is_empty() || seg_up != cur_up {
+                            if cur.len() >= 2 {
+                                segs.push((std::mem::take(&mut cur), cur_up));
+                            }
+                            cur = vec![u];
+                            cur_up = seg_up;
+                        }
+                        cur.push(v);
+                    }
+                }
+                if q_up {
+                    above.push(q);
+                } else {
+                    below.push(q);
+                }
+                prev = Some(q);
+            }
+            if cur.len() >= 2 {
+                segs.push((cur, cur_up));
+            }
+            p.add(fill);
+            for (pts, u) in segs {
+                polyline(p, pts, Stroke::new(st.line_width as f32, if u { up } else { down }));
+            }
+            paint::styled_hline(
+                p,
+                rect.left(),
+                rect.right(),
+                snap(base_y, ppp),
+                Stroke::new(1.0, Color32::from_gray(128).gamma_multiply(0.7)),
+                opentern_series::study::LineStyle::Dotted,
+            );
+        }
+        SeriesKind::Columns => {
+            let mut mesh = Mesh::default();
+            let w = if bw >= 3.0 {
+                (bw * 0.7).round().max(1.0)
+            } else {
+                bw.max(px)
+            };
+            for i in first..=last {
+                let up = if i > 0 {
+                    chart.bars[i].close >= chart.bars[i - 1].close
+                } else {
+                    up_of(i)
+                };
+                let cx = snap(x.x(i as f64), ppp);
+                let top = y.y(chart.bars[i].close);
+                let c = c32(if up { st.up_body } else { st.down_body }).gamma_multiply(0.85);
+                rect_mesh(
+                    &mut mesh,
+                    Rect::from_min_max(pos2(cx - w / 2.0, top), pos2(cx + w / 2.0, rect.bottom())),
+                    c,
+                );
+            }
+            p.add(mesh);
+        }
+        SeriesKind::HighLow => {
+            let mut mesh = Mesh::default();
+            let w = if bw >= 3.0 {
+                (bw * 0.7).round().max(1.0)
+            } else {
+                bw.max(px)
+            };
+            let c = c32(st.line_color);
+            for i in first..=last {
+                let b = &chart.bars[i];
+                let cx = snap(x.x(i as f64), ppp);
+                let (yh, yl) = (y.y(b.high), y.y(b.low));
+                rect_mesh(
+                    &mut mesh,
+                    Rect::from_min_max(pos2(cx - w / 2.0, yh), pos2(cx + w / 2.0, yl.max(yh + px))),
+                    c,
+                );
+            }
+            p.add(mesh);
+            // High and low values over and under the bars, when there's room.
+            if bw >= 38.0 {
+                let font = theme::regular(10.5);
+                for i in first..=last {
+                    let b = &chart.bars[i];
+                    let cx = x.x(i as f64);
+                    let d = chart.precision();
+                    p.text(
+                        pos2(cx, y.y(b.high) - 2.0),
+                        Align2::CENTER_BOTTOM,
+                        format::price(b.high, d),
+                        font.clone(),
+                        c,
+                    );
+                    p.text(
+                        pos2(cx, y.y(b.low) + 2.0),
+                        Align2::CENTER_TOP,
+                        format::price(b.low, d),
+                        font.clone(),
+                        c,
+                    );
+                }
+            }
+        }
+        SeriesKind::Kagi => {
+            // Thick (yang) once a stroke rises above the last shoulder,
+            // thin (yin) once it falls below the last waist.
+            let (up_c, down_c) = (c32(st.up_body), c32(st.down_body));
+            let mut yang = chart.bars.first().is_some_and(|b| b.close >= b.open);
+            let (mut shoulder, mut waist) = (f64::NAN, f64::NAN);
+            let thick = (st.line_width as f32 + 1.0).max(2.0);
+            for i in 0..=last {
+                let b = &chart.bars[i];
+                let up = b.close >= b.open;
+                // Where the stroke changes thickness, if it does.
+                let flip = if up && !yang && shoulder.is_finite() && b.close > shoulder {
+                    Some(shoulder)
+                } else if !up && yang && waist.is_finite() && b.close < waist {
+                    Some(waist)
+                } else {
+                    None
+                };
+                if i >= first {
+                    let cx = x.x(i as f64);
+                    let style = |yg: bool| Stroke::new(if yg { thick } else { 1.0 }, if yg { up_c } else { down_c });
+                    if i > 0 {
+                        let px0 = x.x(i as f64 - 1.0);
+                        p.line_segment([pos2(px0, y.y(b.open)), pos2(cx, y.y(b.open))], style(yang));
+                    }
+                    match flip {
+                        Some(lvl) => {
+                            p.line_segment([pos2(cx, y.y(b.open)), pos2(cx, y.y(lvl))], style(yang));
+                            p.line_segment([pos2(cx, y.y(lvl)), pos2(cx, y.y(b.close))], style(!yang));
+                        }
+                        None => {
+                            p.line_segment([pos2(cx, y.y(b.open)), pos2(cx, y.y(b.close))], style(yang));
+                        }
+                    }
+                }
+                if flip.is_some() {
+                    yang = !yang;
+                }
+                if up {
+                    shoulder = b.close;
+                } else {
+                    waist = b.close;
+                }
+            }
+        }
+        SeriesKind::PointFigure => {
+            let size = chart.brick;
+            if size.is_nan() || size <= 0.0 {
+                return;
+            }
+            let box_h = (y.y(0.0) - y.y(size)).abs();
+            let cell = (bw * 0.8).min(box_h.max(2.0) * 1.2).max(2.0);
+            let (up_c, down_c) = (c32(st.up_body), c32(st.down_body));
+            let sw = if cell > 8.0 { 1.5 } else { 1.0 };
+            for i in first..=last {
+                let b = &chart.bars[i];
+                let up = b.close >= b.open;
+                let cx = x.x(i as f64);
+                let (lo, hi) = ((b.low / size).round() as i64, (b.high / size).round() as i64);
+                let boxes = (hi - lo).clamp(0, 2000);
+                for k in 0..=boxes {
+                    let v = (lo + k) as f64 * size;
+                    let cy = y.y(v);
+                    if cy < rect.top() - cell || cy > rect.bottom() + cell {
+                        continue;
+                    }
+                    let h = (box_h * 0.42).min(cell * 0.45);
+                    let wv = cell * 0.4;
+                    if up {
+                        let s = Stroke::new(sw, up_c);
+                        p.line_segment([pos2(cx - wv, cy - h), pos2(cx + wv, cy + h)], s);
+                        p.line_segment([pos2(cx - wv, cy + h), pos2(cx + wv, cy - h)], s);
+                    } else {
+                        p.add(egui::Shape::ellipse_stroke(
+                            pos2(cx, cy),
+                            vec2(wv, h),
+                            Stroke::new(sw, down_c),
+                        ));
+                    }
+                }
+            }
+        }
+        SeriesKind::Candles
+        | SeriesKind::HollowCandles
+        | SeriesKind::Bars
+        | SeriesKind::HeikinAshi
+        | SeriesKind::Renko
+        | SeriesKind::LineBreak => {
+            let bricks = matches!(st.kind, SeriesKind::Renko | SeriesKind::LineBreak);
             let mut bodies = Mesh::default();
             let mut wicks = Mesh::default();
             let body_w = if bw >= 3.0 {
@@ -908,7 +1310,6 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
             } else {
                 bw.max(1.0 / ppp)
             };
-            let px = 1.0 / ppp;
             let wick_w = if bw >= 3.0 { px.max(1.0) } else { px };
             for i in first..=last {
                 let b = &chart.bars[i];
@@ -947,7 +1348,7 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
                     );
                     continue;
                 }
-                if st.show_wick {
+                if st.show_wick && !bricks {
                     rect_mesh(
                         &mut wicks,
                         Rect::from_min_max(pos2(cx - wick_w / 2.0, yh), pos2(cx + wick_w / 2.0, yl.max(yh + px))),
@@ -1662,6 +2063,67 @@ fn legend(
                     theme::regular(12.0),
                     t.warn,
                 );
+                pos.y += LEGEND_ROW;
+            }
+        }
+        if k == 0 {
+            for ci in 0..chart.compares.len() {
+                let c = &chart.compares[ci];
+                let col = c32(c.color);
+                let dim = if c.visible { 1.0 } else { 0.45 };
+                let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(g.rect.width() * 0.75, LEGEND_ROW));
+                let hovered = ui.rect_contains_pointer(row_rect);
+                let r = painter.text(
+                    pos,
+                    Align2::LEFT_TOP,
+                    c.symbol.ticker(),
+                    font.clone(),
+                    motion::with_alpha(col, dim),
+                );
+                let mut xx = r.right() + 8.0;
+                let value = idx
+                    .and_then(|i| chart.bars.get(i))
+                    .and_then(|b| c.close_at(b.time))
+                    .or_else(|| c.bars.last().map(|b| b.close));
+                let text = match (value, &c.status) {
+                    (Some(v), _) => format::price(v, c.symbol.precision()),
+                    (None, Status::Error(e)) | (None, Status::Offline(e)) => e.clone(),
+                    (None, _) => "Loading…".into(),
+                };
+                let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, font.clone(), col);
+                xx = r.right() + 8.0;
+                if hovered {
+                    let mut btn = |glyph: &str, tip: &str, id: &str| -> bool {
+                        let r = Rect::from_min_size(pos2(xx, pos.y - 2.0), vec2(20.0, 18.0));
+                        xx += 22.0;
+                        let resp = ui.interact(r, Id::new(("legend-cmp", chart.id, ci, id)), Sense::click());
+                        if resp.hovered() {
+                            painter.rect_filled(r, CornerRadius::same(4), t.hover_wash());
+                        }
+                        painter.text(
+                            r.center(),
+                            Align2::CENTER_CENTER,
+                            glyph,
+                            theme::regular(13.0),
+                            pal.text2,
+                        );
+                        resp.on_hover_text(tip).clicked()
+                    };
+                    let visible = c.visible;
+                    let eye = btn(
+                        if visible { ph::EYE } else { ph::EYE_SLASH },
+                        if visible { "Hide" } else { "Show" },
+                        "eye",
+                    );
+                    let remove = btn(ph::X, "Remove", "remove");
+                    if eye {
+                        chart.compares[ci].visible = !visible;
+                        chart.touch();
+                    }
+                    if remove {
+                        actions.push(Action::RemoveCompare(ci));
+                    }
+                }
                 pos.y += LEGEND_ROW;
             }
         }

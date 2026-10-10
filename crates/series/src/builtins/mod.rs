@@ -4,7 +4,9 @@
 //! has been checked against TradingView's own output.
 
 mod bands;
+pub mod charted;
 mod drawn;
+pub use drawn::colour_of;
 mod ma;
 mod osc;
 mod trend;
@@ -27,6 +29,7 @@ pub fn all() -> &'static [Meta] {
         v.extend(volume::metas());
         v.extend(wave2::metas());
         v.extend(drawn::metas());
+        v.extend(charted::metas());
         v.sort_by_key(|a| a.name.to_lowercase());
         v
     })
@@ -272,7 +275,8 @@ mod tests {
             let any = full.out.plots.iter().any(|p| p.iter().skip(300).any(|v| v.is_finite()))
                 || full.out.bg.iter().any(|c| *c != 0)
                 || full.drawings.is_some();
-            assert!(any, "{} produced nothing", m.id);
+            // The chart draws these itself (see `charted.rs`).
+            assert!(any || charted::CHART_DRAWN.contains(&m.id), "{} produced nothing", m.id);
             // Bar by bar, with the last bar ticking three times first.
             let mut live = Instance::new(m, &m.default_inputs());
             live.recompute(&b[..400], &sess[..400], tf);

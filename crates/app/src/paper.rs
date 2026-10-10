@@ -146,7 +146,11 @@ impl App {
             self.paper.subscribed = want;
             self.subscribe_quotes();
         }
-        // Lines for the chart's symbol.
+        self.paper_lines();
+    }
+
+    /// The paper position and orders on the chart's symbol, as lines.
+    pub(crate) fn paper_lines(&mut self) {
         let id = self.chart.symbol.id.clone();
         let mut lines = Vec::new();
         if let Some(p) = self.paper.account.position(&id) {

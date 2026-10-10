@@ -4,7 +4,7 @@
 use crate::chart::draw::{DrawStyle, Drawing, Tool};
 use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
-use crate::chart::{Chart, ChartState, StudyDefault, StudyLook, StudyTemplate};
+use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
@@ -43,10 +43,22 @@ pub struct App {
     /// Alerts, their log and toasts.
     pub alerts: crate::alerts::Alerts,
     pub editor: crate::editor::Editor,
+    pub screener: crate::screener::Screener,
+    pub notes: crate::notes::Notes,
+    pub side: crate::side::Side,
+    /// A snapshot waiting for the window's screenshot.
+    pub(crate) snap: Option<crate::snapshot::Snap>,
+    /// Where the charts were drawn last frame (snapshots cut this out).
+    pub(crate) grid_rect: egui::Rect,
     pub egui_ctx: egui::Context,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
-    drawings_saved: u64,
+    /// The other charts of a multi-chart layout (`None` at the active
+    /// chart's place; see `multi.rs`).
+    pub slots: Vec<Option<crate::multi::Slot>>,
+    pub active: usize,
+    pub multi: crate::multi::Multi,
+    pub(crate) drawings_saved: u64,
     last_style_edit: Option<(u64, Instant)>,
     search_seq: u64,
     saved: u64,
@@ -93,25 +105,23 @@ impl App {
             .unwrap_or((1, "Untitled".to_string()));
         let saved = current
             .and_then(|l| store.layout_json(l.id).ok().flatten())
-            .and_then(|j| serde_json::from_str::<ChartState>(&j).ok());
-        let chart = match saved {
-            Some(state) => Chart::from_state(1, state),
-            None => {
-                // A brand-new workspace: Bitcoin hourly with volume, in the
-                // default chart template if one was made.
-                let btc = opentern_core::starter_watchlist().remove(0);
-                let mut c = Chart::new(1, btc, Timeframe::parse("1h").expect("valid"));
-                if let Some(t) = store.default_template("chart")
-                    && let Ok(s) = serde_json::from_str::<ChartStyle>(&t.json)
-                {
-                    c.style = s;
-                    c.apply_timezone();
-                }
-                if let Some(v) = opentern_series::builtins::by_id("volume") {
-                    c.add_study(v, &v.default_inputs(), StudyLook::defaults(v), None);
-                }
-                c
+            .and_then(|j| crate::multi::LayoutState::parse(&j));
+        let fresh = saved.is_none();
+        let chart = {
+            // A brand-new workspace: Bitcoin hourly with volume, in the
+            // default chart template if one was made.
+            let btc = opentern_core::starter_watchlist().remove(0);
+            let mut c = Chart::new(1, btc, Timeframe::parse("1h").expect("valid"));
+            if let Some(t) = store.default_template("chart")
+                && let Ok(s) = serde_json::from_str::<ChartStyle>(&t.json)
+            {
+                c.style = s;
+                c.apply_timezone();
             }
+            if let Some(v) = opentern_series::builtins::by_id("volume") {
+                c.add_study(v, &v.default_inputs(), StudyLook::defaults(v), None);
+            }
+            c
         };
         let (watchlists, active_list) = App::load_watchlists(&store);
         let paper = crate::paper::Paper::load(&store);
@@ -126,7 +136,7 @@ impl App {
             active_list,
             quotes: HashMap::new(),
             hub,
-            saved: chart.changed,
+            saved: u64::MAX,
             chart,
             chart_ui: ChartUi::default(),
             modal: None,
@@ -138,8 +148,16 @@ impl App {
             paper,
             alerts,
             editor: Default::default(),
+            screener: Default::default(),
+            notes: Default::default(),
+            side: Default::default(),
+            snap: None,
+            grid_rect: egui::Rect::NOTHING,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
+            slots: vec![None],
+            active: 0,
+            multi: Default::default(),
             drawings_saved: 0,
             last_style_edit: None,
             search_seq: 0,
@@ -158,9 +176,17 @@ impl App {
                 app.draw_styles.insert(*tool, style);
             }
         }
-        app.load_drawings();
         app.send_credentials();
-        app.open_chart();
+        match saved {
+            Some(l) => app.install_layout(l),
+            None => {
+                app.load_drawings();
+                app.open_chart();
+            }
+        }
+        if fresh {
+            app.saved = app.layout_version();
+        }
         app.subscribe_quotes();
         app.still();
         app
@@ -182,6 +208,41 @@ impl App {
             } else if let Some(id) = part.strip_prefix("add:") {
                 if let Some(m) = opentern_series::builtins::by_id(id) {
                     self.add_study(m);
+                }
+            } else if let Some(g) = part.strip_prefix("grid:") {
+                if let Some(g) = crate::multi::Grid::ALL
+                    .into_iter()
+                    .find(|x| format!("{x:?}").eq_ignore_ascii_case(g))
+                {
+                    self.set_grid(g);
+                }
+            } else if let Some(sym) = part.strip_prefix("compare:") {
+                let found = opentern_core::starter_watchlist()
+                    .into_iter()
+                    .find(|s| s.ticker().eq_ignore_ascii_case(sym));
+                if let Some(s) = found {
+                    self.add_compare(s, false);
+                }
+            } else if let Some(tf) = part.strip_prefix("tf:").and_then(Timeframe::parse) {
+                self.set_interval(tf);
+            } else if let Some(w) = part.strip_prefix("widget:") {
+                self.layout.widget = crate::shell::Widget::ALL
+                    .into_iter()
+                    .find(|x| x.title().to_lowercase().starts_with(&w.to_lowercase()));
+            } else if part == "screen" {
+                self.layout.tab = Some(crate::shell::Tab::Screener);
+                self.run_screener();
+            } else if part == "replay" {
+                self.chart.toggle_replay();
+            } else if let Some(kind) = part.strip_prefix("kind:") {
+                let want = kind.to_lowercase().replace(['-', '_', ' '], "");
+                if let Some(k) = crate::chart::style::SeriesKind::ALL
+                    .into_iter()
+                    .find(|k| k.name().to_lowercase().replace(['-', ' ', '&'], "") == want)
+                {
+                    let mut s = self.chart.style.clone();
+                    s.kind = k;
+                    self.set_chart_style(s);
                 }
             } else if let Some(tab) = part.strip_prefix("tab:") {
                 self.layout.tab = crate::shell::Tab::ALL
@@ -226,12 +287,15 @@ impl App {
     /// late events from the previous symbol or interval are ignored.
     fn open_chart(&mut self) {
         self.hub.send(Request::Close { chart: self.chart.id });
-        self.chart.id += 1;
+        self.chart.id = crate::chart::new_session_id();
         self.hub.send(Request::Open {
             chart: self.chart.id,
             symbol: self.chart.symbol.clone(),
             tf: self.chart.tf,
         });
+        for i in 0..self.chart.compares.len() {
+            self.open_compare(i);
+        }
     }
 
     pub fn toggle_dark(&mut self, ctx: &egui::Context) {
@@ -301,6 +365,47 @@ impl App {
         self.open_chart();
     }
 
+    /// (Re)opens a compared symbol's data on the chart's interval.
+    pub(crate) fn open_compare(&mut self, i: usize) {
+        let tf = self.chart.tf;
+        let Some(c) = self.chart.compares.get_mut(i) else {
+            return;
+        };
+        if c.session != 0 {
+            self.hub.send(Request::Close { chart: c.session });
+        }
+        c.session = crate::chart::new_session_id();
+        c.bars.clear();
+        self.hub.send(Request::Open {
+            chart: c.session,
+            symbol: c.symbol.clone(),
+            tf,
+        });
+    }
+
+    pub fn add_compare(&mut self, symbol: Symbol, overlay: bool) {
+        if symbol.id == self.chart.symbol.id || self.chart.compares.iter().any(|c| c.symbol.id == symbol.id) {
+            return;
+        }
+        crate::diag::crumb(format!("compare {}", symbol.id));
+        let i = self.chart.add_compare(symbol, overlay);
+        self.open_compare(i);
+    }
+
+    pub fn remove_compare(&mut self, i: usize) {
+        if let Some(session) = self.chart.remove_compare(i) {
+            self.hub.send(Request::Close { chart: session });
+        }
+    }
+
+    /// Stops the chart's data (it's leaving the layout).
+    pub(crate) fn close_chart_data(&mut self) {
+        self.hub.send(Request::Close { chart: self.chart.id });
+        for c in &self.chart.compares {
+            self.hub.send(Request::Close { chart: c.session });
+        }
+    }
+
     fn load_drawings(&mut self) {
         let list: Vec<Drawing> = self
             .store
@@ -311,7 +416,7 @@ impl App {
         self.drawings_saved = self.chart.drawings_changed;
     }
 
-    fn save_drawings(&mut self, force: bool) {
+    pub(crate) fn save_drawings(&mut self, force: bool) {
         if self.chart.drawings_changed == self.drawings_saved {
             return;
         }
@@ -328,6 +433,14 @@ impl App {
             crate::diag::crumb(format!("couldn't save drawings: {e}"));
         }
         self.drawings_saved = self.chart.drawings_changed;
+        // Other charts on this symbol show the same drawings.
+        let (id, list) = (self.chart.symbol.id.clone(), self.chart.drawings.clone());
+        for s in self.slots.iter_mut().flatten() {
+            if s.chart.symbol.id == id && s.chart.drawings != list {
+                s.chart.set_drawings(list.clone());
+                s.drawings_saved = s.chart.drawings_changed;
+            }
+        }
     }
 
     /// Changes the selected drawing (from its floating toolbar). Edits in
@@ -440,6 +553,7 @@ impl App {
         if self.chart.style != style {
             self.chart.style = style;
             self.chart.apply_timezone();
+            self.chart.style_changed();
             self.chart.touch();
         }
     }
@@ -488,6 +602,7 @@ impl App {
                 Action::RemoveStudy(uid) => self.chart.remove_study(uid),
                 Action::StudyMenu(uid, pos) => self.study_menu = Some((uid, pos)),
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
+                Action::RemoveCompare(i) => self.remove_compare(i),
                 Action::ChartSettings => {
                     self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)))
                 }
@@ -550,6 +665,13 @@ impl App {
                 Event::Quote { id, last, prev } => {
                     self.quotes.insert(id, (last, prev));
                 }
+                Event::Fetched {
+                    seq,
+                    symbol,
+                    tf,
+                    result,
+                } => self.fetched(seq, &symbol, tf, result),
+                e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Search { seq, results } => {
                     if let Some(Modal::Symbol(s)) = &mut self.modal
                         && seq == self.search_seq
@@ -563,26 +685,47 @@ impl App {
                 | Event::Corporate { chart, .. }) => {
                     if chart == self.chart.id {
                         self.chart.apply(e);
+                    } else if self.chart.owns_compare(chart) {
+                        self.chart.apply_compare(e);
+                    } else if let Some(c) = self
+                        .slots
+                        .iter_mut()
+                        .flatten()
+                        .map(|s| &mut s.chart)
+                        .find(|c| c.id == chart || c.owns_compare(chart))
+                    {
+                        if c.id == chart {
+                            c.apply(e);
+                        } else {
+                            c.apply_compare(e);
+                        }
                     }
                 }
             }
         }
     }
 
+    /// One-off history arrived: for the screener, or a backtest over other
+    /// symbols.
+    fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
+        self.screener_fetched(seq, symbol, result);
+    }
+
     /// Saves the chart when it changed, at most every couple of seconds.
     fn autosave(&mut self, force: bool) {
-        if self.chart.changed == self.saved {
+        let version = self.layout_version();
+        if version == self.saved {
             return;
         }
         if !force && self.last_save.elapsed() < Duration::from_secs(2) {
             return;
         }
-        if let Ok(j) = serde_json::to_string(&self.chart.state())
+        if let Ok(j) = serde_json::to_string(&self.layout_state())
             && let Err(e) = self.store.save_layout(self.layout_id, &self.layout_name, &j)
         {
             crate::diag::crumb(format!("couldn't save layout: {e}"));
         }
-        self.saved = self.chart.changed;
+        self.saved = version;
         self.last_save = Instant::now();
     }
 
@@ -669,6 +812,12 @@ impl App {
                     self.open_alert_dialog(None);
                 }
                 egui::Event::Key {
+                    key: egui::Key::S,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt => self.take_snapshot(crate::snapshot::Snap::Save),
+                egui::Event::Key {
                     key: key @ (egui::Key::T | egui::Key::H | egui::Key::V | egui::Key::F),
                     pressed: true,
                     modifiers,
@@ -700,21 +849,58 @@ impl App {
     pub(crate) fn frame(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
-        self.updater.poll(&ctx);
+        let was_prompt = self.updater.prompt();
+        if let Some(note) = self.updater.poll(&ctx) {
+            let (title, body) = match note {
+                Ok(m) => ("Update installed", m),
+                Err(m) => ("Update failed", m),
+            };
+            self.notify(crate::icons::ph::ARROW_CIRCLE_UP, title, &body, None, false);
+        }
+        if !was_prompt && let crate::updater::Phase::Available(r) = &self.updater.phase {
+            let body = format!("Opentern {} is ready to install from the rail.", r.version);
+            self.notify(
+                crate::icons::ph::ARROW_CIRCLE_UP,
+                "Update available",
+                &body,
+                None,
+                false,
+            );
+        }
         self.updater.launch_check(&ctx, self.store.settings().check_updates);
         self.poll_data();
         self.poll_scripts();
         self.refresh_strategies();
         self.poll_paper();
+        self.poll_other_charts();
+        self.poll_screener();
         self.poll_alerts();
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);
         self.modal(&ctx);
         self.alert_toasts(&ctx);
+        self.note_toasts(&ctx);
+        self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
+    }
+
+    /// Scripts, strategy marks, paper lines and drawing saves for the charts
+    /// that aren't active.
+    fn poll_other_charts(&mut self) {
+        for i in 0..self.slots.len() {
+            if i == self.active {
+                continue;
+            }
+            self.with_slot(i, |a| {
+                a.poll_scripts();
+                a.refresh_strategies();
+                a.paper_lines();
+                a.save_drawings(false);
+            });
+        }
     }
 
     /// After a panic in a frame: note it, and put the arrangement back to a
@@ -736,7 +922,7 @@ impl App {
     /// What closing the window does, for tests (they can't build a Frame).
     pub(crate) fn on_exit_for_tests(&mut self) {
         self.autosave(true);
-        self.save_drawings(true);
+        self.each_chart(|a| a.save_drawings(true));
     }
 }
 
@@ -763,7 +949,7 @@ impl eframe::App for App {
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         self.autosave(true);
-        self.save_drawings(true);
+        self.each_chart(|a| a.save_drawings(true));
         self.updater.on_exit();
     }
 

@@ -5,9 +5,12 @@
 pub mod draw;
 pub mod drawing_ui;
 mod paint;
+pub mod profile;
+pub mod replay;
 pub mod scale;
 mod scripted;
 pub mod style;
+pub mod transform;
 pub mod ui;
 
 use jiff::tz::TimeZone;
@@ -19,6 +22,54 @@ pub use style::{ChartStyle, StudyLook};
 
 /// Bars of empty space kept right of the last bar by default.
 pub const RIGHT_MARGIN: f64 = 6.0;
+
+/// A fresh id for a data session (charts and compared symbols), unique
+/// for the life of the process, so late events from a closed one are
+/// never mistaken for another's.
+pub fn new_session_id() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(100);
+    NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// TradingView's colours for compared symbols, in order.
+pub const COMPARE_COLORS: [u32; 8] = [
+    0xFF9800, 0x9C27B0, 0x00BCD4, 0xE91E63, 0x4CAF50, 0x795548, 0x3F51B5, 0xFFEB3B,
+];
+
+/// Another symbol drawn on the chart: as a percent comparison (the price
+/// scale switches to percent, as on TradingView's "Compare"), or overlaid
+/// with its own scale.
+pub struct Compare {
+    pub symbol: Symbol,
+    pub session: u64,
+    pub bars: Vec<Bar>,
+    pub status: Status,
+    pub color: opentern_series::Rgba,
+    pub overlay: bool,
+    pub visible: bool,
+}
+
+impl Compare {
+    /// The close at or before `t` (an as-of join on time).
+    pub fn close_at(&self, t: i64) -> Option<f64> {
+        let i = match self.bars.binary_search_by_key(&t, |b| b.time) {
+            Ok(i) => i,
+            Err(0) => return None,
+            Err(i) => i - 1,
+        };
+        Some(self.bars[i].close)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SavedCompare {
+    pub symbol: Symbol,
+    pub color: opentern_series::Rgba,
+    #[serde(default)]
+    pub overlay: bool,
+    #[serde(default = "yes")]
+    pub visible: bool,
+}
 
 pub struct StudyView {
     pub uid: u64,
@@ -139,6 +190,14 @@ pub struct Chart {
     pub corporate: Option<opentern_data::yahoo::Corporate>,
     pub adj: bool,
     raw: Vec<Bar>,
+    /// The box size (Renko, Kagi, Point & figure) the bars were built with.
+    pub brick: f64,
+    /// The chart type's transform key the bars were built with.
+    built_for: String,
+    /// Other symbols compared or overlaid.
+    pub compares: Vec<Compare>,
+    /// Bar replay, while it's on (see `replay.rs`).
+    pub replay: Option<replay::Replay>,
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +259,10 @@ pub struct ChartState {
     pub log: bool,
     #[serde(default)]
     pub adj: bool,
+    #[serde(default)]
+    pub compares: Vec<SavedCompare>,
+    #[serde(default)]
+    pub percent: bool,
 }
 
 /// An indicator template: the studies and how the panes were split.
@@ -229,6 +292,10 @@ impl Chart {
             corporate: None,
             adj: false,
             raw: Vec::new(),
+            brick: 0.0,
+            built_for: String::new(),
+            compares: Vec::new(),
+            replay: None,
             symbol,
             tf,
             bars: Vec::new(),
@@ -266,6 +333,20 @@ impl Chart {
         c.style = s.style;
         c.log = s.log;
         c.adj = s.adj;
+        c.percent = s.percent;
+        c.compares = s
+            .compares
+            .into_iter()
+            .map(|x| Compare {
+                symbol: x.symbol,
+                session: 0,
+                bars: Vec::new(),
+                status: Status::Loading,
+                color: x.color,
+                overlay: x.overlay,
+                visible: x.visible,
+            })
+            .collect();
         if !s.panes.is_empty() && s.panes[0].id == 0 {
             c.panes = s.panes;
         }
@@ -303,7 +384,82 @@ impl Chart {
             panes: self.panes.clone(),
             log: self.log,
             adj: self.adj,
+            percent: self.percent,
+            compares: self
+                .compares
+                .iter()
+                .map(|c| SavedCompare {
+                    symbol: c.symbol.clone(),
+                    color: c.color,
+                    overlay: c.overlay,
+                    visible: c.visible,
+                })
+                .collect(),
         }
+    }
+
+    pub fn owns_compare(&self, session: u64) -> bool {
+        self.compares.iter().any(|c| c.session == session)
+    }
+
+    /// Data for a compared symbol.
+    pub fn apply_compare(&mut self, e: Event) {
+        let id = match &e {
+            Event::Bars { chart, .. } | Event::Tick { chart, .. } | Event::Status { chart, .. } => *chart,
+            _ => return,
+        };
+        let Some(c) = self.compares.iter_mut().find(|c| c.session == id) else {
+            return;
+        };
+        match e {
+            Event::Bars { bars, .. } => c.bars = bars,
+            Event::Tick { bar, .. } => match c.bars.last_mut() {
+                Some(last) if last.time == bar.time => *last = bar,
+                Some(last) if last.time > bar.time => {}
+                _ => c.bars.push(bar),
+            },
+            Event::Status { status, .. } => c.status = status,
+            _ => {}
+        }
+    }
+
+    /// Adds a symbol to compare (the app opens its data). Comparing puts
+    /// the price scale in percent, as TradingView does.
+    pub fn add_compare(&mut self, symbol: Symbol, overlay: bool) -> usize {
+        let used: Vec<_> = self.compares.iter().map(|c| c.color).collect();
+        let color = COMPARE_COLORS
+            .iter()
+            .map(|c| opentern_series::Rgba::hex(*c))
+            .find(|c| !used.contains(c))
+            .unwrap_or(opentern_series::Rgba::hex(COMPARE_COLORS[self.compares.len() % 8]));
+        self.compares.push(Compare {
+            symbol,
+            session: 0,
+            bars: Vec::new(),
+            status: Status::Loading,
+            color,
+            overlay,
+            visible: true,
+        });
+        if !overlay {
+            self.percent = true;
+            self.log = false;
+        }
+        self.touch();
+        self.compares.len() - 1
+    }
+
+    /// Removes a compared symbol; returns its data session to close.
+    pub fn remove_compare(&mut self, i: usize) -> Option<u64> {
+        if i >= self.compares.len() {
+            return None;
+        }
+        let c = self.compares.remove(i);
+        if !c.overlay && !self.compares.iter().any(|c| !c.overlay) {
+            self.percent = false;
+        }
+        self.touch();
+        Some(c.session)
     }
 
     pub fn saved_studies(&self) -> Vec<SavedStudy> {
@@ -345,6 +501,11 @@ impl Chart {
         self.status = Status::Loading;
         self.complete = false;
         self.asked_more = false;
+        self.replay = None;
+        for c in &mut self.compares {
+            c.bars.clear();
+            c.status = Status::Loading;
+        }
         self.view = View {
             bar_w: self.view.bar_w,
             right: RIGHT_MARGIN,
@@ -542,6 +703,9 @@ impl Chart {
 
     /// Applies a data event meant for this chart.
     pub fn apply(&mut self, e: Event) {
+        if self.replay_absorb(&e) {
+            return;
+        }
         if matches!(e, Event::Bars { .. } | Event::Tick { .. }) {
             self.data_version += 1;
         }
@@ -552,9 +716,7 @@ impl Chart {
             Event::Corporate { corporate, .. } => {
                 self.corporate = Some(corporate);
                 if self.adj {
-                    self.bars = self.adjusted();
-                    self.recompute_all();
-                    self.data_version += 1;
+                    self.rebuild();
                 }
             }
             _ => {}
@@ -570,7 +732,7 @@ impl Chart {
         };
         let following = self.following();
         self.raw = bars;
-        self.bars = self.adjusted();
+        self.bars = self.display();
         self.complete = complete;
         self.asked_more = false;
         self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
@@ -587,9 +749,28 @@ impl Chart {
         // The newest bars are never scaled (no dividend comes after them).
         match self.raw.last_mut() {
             Some(last) if last.time == bar.time => *last = bar,
-            Some(last) if last.time > bar.time => {}
+            Some(last) if last.time > bar.time => return,
             _ => self.raw.push(bar),
         }
+        let bar = match self.style.transform(&[]) {
+            style::Transform::None => bar,
+            style::Transform::HeikinAshi => {
+                let n = self.bars.len();
+                let prev = match self.bars.last() {
+                    Some(l) if l.time == bar.time => n.checked_sub(2).map(|i| self.bars[i]),
+                    l => l.copied(),
+                };
+                transform::ha_bar(prev.as_ref(), &bar)
+            }
+            // Bricks, lines and columns: built again from all the bars.
+            _ => {
+                self.rebuild();
+                if following {
+                    self.view.right = self.last_index() + RIGHT_MARGIN;
+                }
+                return;
+            }
+        };
         match self.bars.last_mut() {
             Some(last) if last.time == bar.time => *last = bar,
             Some(last) if last.time > bar.time => return,
@@ -617,6 +798,46 @@ impl Chart {
         }
     }
 
+    /// The bars to show: raw (or adjusted for dividends), then changed by
+    /// the chart type (Heikin Ashi, Renko, …).
+    fn display(&mut self) -> Vec<Bar> {
+        let base = self.adjusted();
+        self.built_for = self.style.transform_key();
+        let tr = self.style.transform(&base);
+        self.brick = match tr {
+            style::Transform::Renko(b) | style::Transform::Kagi(b) | style::Transform::PointFigure(b, _) => b,
+            _ => 0.0,
+        };
+        match tr {
+            style::Transform::None => base,
+            style::Transform::HeikinAshi => transform::heikin_ashi(&base),
+            style::Transform::Renko(b) => transform::renko(&base, b),
+            style::Transform::LineBreak(n) => transform::line_break(&base, n),
+            style::Transform::Kagi(b) => transform::kagi(&base, b),
+            style::Transform::PointFigure(b, r) => transform::point_figure(&base, b, r),
+        }
+    }
+
+    /// Builds the shown bars again from the raw ones (chart type or ADJ
+    /// changed) and recomputes the studies.
+    pub fn rebuild(&mut self) {
+        let following = self.following();
+        self.bars = self.display();
+        self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
+        self.recompute_all();
+        self.data_version += 1;
+        if following {
+            self.view.right = self.last_index() + RIGHT_MARGIN;
+        }
+    }
+
+    /// Rebuilds when the chart type's transform changed (after a style edit).
+    pub fn style_changed(&mut self) {
+        if self.style.transform_key() != self.built_for {
+            self.rebuild();
+        }
+    }
+
     /// The bars to show: raw, or adjusted for dividends.
     fn adjusted(&self) -> Vec<Bar> {
         match (&self.corporate, self.adj) {
@@ -633,15 +854,13 @@ impl Chart {
             return;
         }
         self.adj = on;
-        self.bars = self.adjusted();
-        self.recompute_all();
-        self.data_version += 1;
+        self.rebuild();
         self.touch();
     }
 
     /// True once per approach to the start of loaded history.
     pub fn wants_more(&mut self, first_visible: f64) -> bool {
-        if self.complete || self.asked_more || self.bars.is_empty() {
+        if self.complete || self.asked_more || self.bars.is_empty() || self.replaying() {
             return false;
         }
         if first_visible < 50.0 {

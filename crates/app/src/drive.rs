@@ -216,6 +216,90 @@ mod tests {
     }
 
     #[test]
+    fn multi_chart_layouts_sync_and_survive_a_restart() {
+        use crate::multi::Grid;
+        let mut d = Driver::new("multi");
+        d.app.set_grid(Grid::Four);
+        d.wait(|a| a.slots.iter().flatten().all(|s| !s.chart.bars.is_empty()));
+        assert_eq!(d.app.chart_count(), 4);
+        // Every cell paints: the main rects of all four charts are laid out.
+        d.frame(vec![]);
+        let rects: Vec<Rect> = (0..4)
+            .map(|i| d.app.with_slot(i, |a| a.chart_ui.main_rect).unwrap())
+            .collect();
+        assert!(rects.iter().all(|r| r.width() > 100.0), "{rects:?}");
+        // Pressing in the bottom-right chart makes it active.
+        let r = rects[3];
+        d.click(r.center());
+        assert_eq!(d.app.active, 3);
+        // Symbol not synced: only the active chart changes.
+        let eth = opentern_core::starter_watchlist().remove(1);
+        d.app.open_symbol_synced(eth.clone());
+        d.wait(|a| !a.chart.bars.is_empty());
+        let syms: Vec<String> = (0..4)
+            .map(|i| d.app.with_slot(i, |a| a.chart.symbol.id.clone()).unwrap())
+            .collect();
+        assert_eq!(syms.iter().filter(|s| **s == eth.id).count(), 1);
+        // Synced: all of them.
+        d.app.multi.sync.symbol = true;
+        d.app.open_symbol_synced(eth.clone());
+        d.frame(vec![]);
+        for i in 0..4 {
+            assert_eq!(d.app.with_slot(i, |a| a.chart.symbol.id.clone()).unwrap(), eth.id);
+        }
+        // A drawing on one chart shows on the others with the same symbol.
+        d.wait(|a| !a.chart.bars.is_empty());
+        d.pick(Tool::HorizontalLine);
+        d.click(d.at(0.5, 0.5));
+        d.app.save_drawings_now();
+        assert_eq!(d.app.with_slot(0, |a| a.chart.drawings.len()).unwrap(), 1);
+        // Restart: grid, active chart and symbols come back.
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let again = Driver::open(dir);
+        assert_eq!(again.app.multi.grid, Grid::Four);
+        assert_eq!(again.app.active, 3);
+        assert!(again.app.multi.sync.symbol);
+        assert_eq!(again.app.chart.symbol.id, eth.id);
+        assert_eq!(again.app.panics, 0);
+    }
+
+    #[test]
+    fn bar_replay_from_a_clicked_bar() {
+        let mut d = Driver::new("replay");
+        let n = d.app.chart.bars.len();
+        d.app.chart.toggle_replay();
+        d.frame(vec![]);
+        d.click(d.at(0.5, 0.5));
+        let cut = d.app.chart.bars.len();
+        assert!(cut < n && cut > 10, "cut at {cut} of {n}");
+        assert!(d.app.chart.replay.as_ref().is_some_and(|r| !r.selecting));
+        assert!(d.app.chart.replay_step());
+        assert_eq!(d.app.chart.bars.len(), cut + 1);
+        d.app.chart.exit_replay();
+        assert!(d.app.chart.bars.len() >= n);
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn compared_symbols_load_and_are_saved() {
+        let mut d = Driver::new("compare");
+        let eth = opentern_core::starter_watchlist().remove(1);
+        d.app.add_compare(eth.clone(), false);
+        d.wait(|a| a.chart.compares.first().is_some_and(|c| !c.bars.is_empty()));
+        assert!(d.app.chart.percent, "comparing switches to percent");
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let mut again = Driver::open(dir);
+        again.wait(|a| a.chart.compares.first().is_some_and(|c| !c.bars.is_empty()));
+        assert_eq!(again.app.chart.compares[0].symbol.id, eth.id);
+        again.app.remove_compare(0);
+        assert!(!again.app.chart.percent);
+    }
+
+    #[test]
     fn scrolling_in_a_dialog_leaves_the_chart_alone() {
         let mut d = Driver::new("modal-scroll");
         let before = (d.app.chart.view.bar_w, d.app.chart.view.right);

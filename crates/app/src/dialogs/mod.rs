@@ -187,7 +187,7 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
         if ui.input(|i| i.key_pressed(egui::Key::Enter))
             && let Some(tf) = parsed
         {
-            app.set_interval(tf);
+            app.set_interval_synced(tf);
             done = Done::Close;
         }
     }) {

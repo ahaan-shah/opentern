@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–10 built and committed (one commit per phase, as the
+**Status (Oct 2026):** Phases 0–11 built and committed (one commit per phase, as the
 maintainer asked). The maintainer asked for everything through Phase 13, with the backend
 solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
 an explicit go. Read "Where things stand" → "Resume here" at the end first.
@@ -542,34 +542,23 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Where we are (10 Oct 2026):** Phases 0–10 are built and committed, one commit per
-phase (latest: `Phase 10: Pine v2`). Nothing has been pushed or released. The
-maintainer is trying out Phase 10 in the app now; **wait for their feedback or a go
-before starting Phase 11**, and fold any bugs they report in first.
+**Where we are (10 Oct 2026):** Phases 0–11 are built and committed, one commit per
+phase (latest: `Phase 11: power features`). Nothing has been pushed or released. The
+maintainer asked to **pause after Phase 11**; wait for their go (and fold in any bugs
+they report) before starting Phase 12.
 
-The maintainer's standing request: build Phases 11–13, with the backend solid and
+The maintainer's standing request: build Phases 12–13, with the backend solid and
 the UI in Magpie's style, committing after each phase. Then they test everything and we
 iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 
 **What's left, in order:**
-1. **Phase 11, power features.**
-   - Multi-chart layouts (1–8 charts; synced symbol, interval, crosshair and time).
-   - Bar replay (step or play from a date; also drives backtest visualisation).
-   - Compare/overlay symbols.
-   - More chart types (hollow candles, Heikin Ashi, line with markers, step,
-     baseline, columns, high-low; later Renko, Kagi, P&F, Line Break, range).
-   - Volume profile (fixed range, visible range/VPVR, session, anchored), Visible
-     Average Price, Seasonality, Anchored VWAP.
-   - Screener tab (built-in filters plus a script run across N symbols on rayon).
-   - Snapshot button; hotlists, calendar, news and notifications widgets (now
-     placeholders).
-2. **Phase 12, quant tools.** Parameter optimizer (grid, random, then Bayesian;
+1. **Phase 12, quant tools.** Parameter optimizer (grid, random, then Bayesian;
    heatmap), walk-forward, Monte Carlo trade resampling, portfolio and multi-symbol
    backtests, CSV/JSON export.
-3. **Phase 13, more languages.** Luau (`mlua`, instruction budget), a WASM plugin ABI
+2. **Phase 13, more languages.** Luau (`mlua`, instruction budget), a WASM plugin ABI
    (wasmtime), then JS/TS (`rquickjs`). All produce the same `Study`.
-4. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
-5. **Phase 14** (releases, website), only on an explicit go.
+3. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
+4. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
 - `request.security` for other symbols and lower timeframes, and
@@ -581,7 +570,8 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 - Auto Fib Extension; Technical Ratings, Majority Rule, Median, Bollinger Bars; the
   breadth/OI/intrabar-volume built-ins (`docs/indicators.md`, "Still to port").
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
-  account. NSE 2026 holidays need adding once announced.
+  account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
+  against the circular); add 2027's when announced.
 - Strategy Tester settings dialog, chart trading by dragging SL/TP, DOM, multiple
   paper accounts, `--daemon`, email alerts.
 - App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
@@ -785,6 +775,53 @@ workspace.
 - Found and fixed: `export type`/`export enum` didn't parse; named method arguments were
   treated as positional.
 
+### Phase 11 (done): power features
+- **Chart types** (`chart/transform.rs`, `draw_series`): bars, candles, hollow,
+  columns, line, line with markers, step, area, baseline (level % of pane height),
+  high-low, Heikin Ashi, Renko, Line Break, Kagi, Point & figure. HA, Renko, Line
+  Break, Kagi and P&F **change the bars** (studies run on them, as on TradingView):
+  `Chart::display()` = raw → ADJ → transform; box size is ATR(14) by default or fixed
+  (Chart settings → Symbol). Bricks formed on one bar get times 1 ms apart so the
+  time↔index maps stay strictly increasing. HA ticks update incrementally; the
+  others rebuild everything on each tick. Not done: range bars (need ticks).
+- **Multi-chart** (`multi.rs`): 15 grids for 1–8 charts; sync symbol, interval,
+  crosshair (default on), time, date range. **The active chart lives in
+  `App::chart`; the others in `App::slots`, swapped into place by `with_slot`**
+  (panic-safe), so every "the chart" code path works per chart. Each slot has its own
+  `ChartUi`, scripts and strategy runs; inactive charts poll scripts, strategies and
+  paper lines each frame. Pressing a cell activates it. Layout JSON is now
+  `LayoutState { grid, sync, active, charts }` (old single-chart JSON still loads).
+  Session ids come from `chart::new_session_id()` (global). Drawings saved on one
+  chart reload on other charts with the same symbol. Alerts still evaluate against
+  the active chart's studies only.
+- **Compare/overlay** (`Chart::compares`): Compare puts the scale in percent and
+  scales each symbol from the first visible bar; Overlay draws on its own fitted
+  scale. As-of join on time. Legend rows with hide/remove. Saved in the layout.
+- **Bar replay** (`chart/replay.rs`): Replay → click a bar → play/pause, step,
+  speed (10 s … 0.03 s per bar), jump to real time. Live data goes to the hidden
+  bars meanwhile; studies and strategies only see replayed bars; no history paging
+  while replaying.
+- **Built-ins drawn by the chart** (`series/builtins/charted.rs` metas with no
+  plots, painted in `chart/profile.rs`; numbers in `series/profile.rs`): VPVR,
+  Session VP, Visible Average Price, Seasonality (own pane, month axis). Drawing
+  tools: Anchored VWAP, Fixed Range VP, Anchored VP. 96 built-ins in all.
+- **Screener tab** (`screener.rs`): universe = a watchlist or a preset (crypto
+  majors, US and India large caps); columns price, change, 1W/1M perf, volume, rel
+  volume, RSI, vs SMA 50/200, ATR %, plus an optional script column (any built-in
+  plot, or a Pine file compiled per symbol) computed on rayon. Filters above/below.
+  Uses the new hub **`Request::Fetch`** (one-off bars, cache first, 4 worker
+  threads; also meant for portfolio backtests and `request.security` on other
+  symbols). Settings saved under the `screener` key.
+- **Snapshot** (camera, Alt+S): download PNG to `<workspace>/snapshots/` or copy.
+- **Widgets** (`side.rs`, `notes.rs`): Hotlists (Binance 24h tickers; Yahoo
+  predefined screeners for US stocks), News (Yahoo search for stocks; CoinDesk's
+  public RSS for crypto, since Yahoo has no crypto headlines), Calendar (NYSE/NSE
+  holidays and early closes, the symbol's dividends and splits), Notifications
+  (alerts, snapshots, updates; dot on the rail when unread). Hub requests
+  `Hotlist` and `News` (`data/src/feeds.rs`).
+- Stills: `OPENTERN_STILL` also takes `kind:<chart type>`, `grid:<Grid>`,
+  `compare:<ticker>`, `tf:<interval>`, `replay`, `screen`, `widget:<name>`.
+
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →
 publish → network tail → publish → stream (Binance WS / Yahoo poll / demo / formula legs),
@@ -853,9 +890,8 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - Pine over 100,000 bars (release, this laptop throttled to ~1.1 GHz under its power
   profile, so ~4× slower than full clocks): Supertrend 72 ms, BB 105 ms, RSI/MACD/DMI/
   Ichimoku 155–175 ms. About 77 ns per bar fixed cost; ~40 ns per simple statement.
-- 179 tests pass (live and timing ones ignored by default); clippy `-D warnings` clean.
+- 200+ tests pass (live and timing ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 11–14 and the loose ends listed under "Resume here". Placeholders still in the
-shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/notifications
-widgets, Screener tab.
+Phases 12–14 and the loose ends listed under "Resume here". No placeholders left in
+the shell.
