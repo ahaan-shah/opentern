@@ -542,15 +542,54 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-The maintainer asked for Phases 6–13, committing after each, then they test and we iterate
-on UI and bugs. Phase 14+ only on an explicit go. Order of work:
-1. Phase 7 is done (see "Phase 7 (done)").
-2. Phase 8 is done (see "Phase 8 (done)").
-3. Phases 9, 9b and 10 are done. Next: Phase 11 (multi-chart, replay, compare, more
-   chart types, volume profile/VPVR, Visible Average Price, Seasonality, screener),
-   then 12 (optimizer, walk-forward, Monte Carlo, portfolio) and 13 (Luau, WASM,
-   JS/TS), committing after each.
-4. Then the UI pass (`docs/ui-backlog.md`).
+**Where we are (10 Oct 2026):** Phases 0–10 are built and committed, one commit per
+phase (latest: `Phase 10: Pine v2`). Nothing has been pushed or released. The
+maintainer is trying out Phase 10 in the app now; **wait for their feedback or a go
+before starting Phase 11**, and fold any bugs they report in first.
+
+The maintainer's standing request: build Phases 11–13, with the backend solid and
+the UI in Magpie's style, committing after each phase. Then they test everything and we
+iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
+
+**What's left, in order:**
+1. **Phase 11, power features.**
+   - Multi-chart layouts (1–8 charts; synced symbol, interval, crosshair and time).
+   - Bar replay (step or play from a date; also drives backtest visualisation).
+   - Compare/overlay symbols.
+   - More chart types (hollow candles, Heikin Ashi, line with markers, step,
+     baseline, columns, high-low; later Renko, Kagi, P&F, Line Break, range).
+   - Volume profile (fixed range, visible range/VPVR, session, anchored), Visible
+     Average Price, Seasonality, Anchored VWAP.
+   - Screener tab (built-in filters plus a script run across N symbols on rayon).
+   - Snapshot button; hotlists, calendar, news and notifications widgets (now
+     placeholders).
+2. **Phase 12, quant tools.** Parameter optimizer (grid, random, then Bayesian;
+   heatmap), walk-forward, Monte Carlo trade resampling, portfolio and multi-symbol
+   backtests, CSV/JSON export.
+3. **Phase 13, more languages.** Luau (`mlua`, instruction budget), a WASM plugin ABI
+   (wasmtime), then JS/TS (`rquickjs`). All produce the same `Study`.
+4. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
+5. **Phase 14** (releases, website), only on an explicit go.
+
+**Loose ends from earlier phases** (fit in where natural):
+- `request.security` for other symbols and lower timeframes, and
+  `request.security_lower_tf`. This needs the app to fetch extra series and pass them
+  to the study. It would also unlock the Correlation Coefficient built-in.
+- Daily `request.security` on stocks finishes one bar late, because periods are
+  calendar days, not sessions.
+- Auto-scale should leave room for script drawings (see the UI backlog).
+- Auto Fib Extension; Technical Ratings, Majority Rule, Median, Bollinger Bars; the
+  breadth/OI/intrabar-volume built-ins (`docs/indicators.md`, "Still to port").
+- Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
+  account. NSE 2026 holidays need adding once announced.
+- Strategy Tester settings dialog, chart trading by dragging SL/TP, DOM, multiple
+  paper accounts, `--daemon`, email alerts.
+- App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
+
+**Testing the app for the maintainer:** build with `cargo build --profile fast`.
+Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It
+helps to drop a few demo scripts in `<data-dir>/scripts/`. Never use their real
+workspace.
 
 ### Crates
 | Crate | What it owns |
@@ -784,6 +823,9 @@ every data change (scripts re-run on it).
 - Default inputs/colours under "Defaults to double-check" in `docs/indicators.md`.
 - Strategy Report formulas marked "to verify" in `docs/metrics.md` (Sharpe/Sortino
   period and stdev convention, buy & hold basis, account size required, margin).
+- Zig Zag, Auto Fib and Pivot Points Standard follow TradingView's behaviour as
+  remembered (their open questions are in `docs/indicators.md`); check them against
+  exports.
 
 ### Dev loop
 ```bash
@@ -814,7 +856,6 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - 179 tests pass (live and timing ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 11–14. App
-icon/logo, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow. Placeholders still
-in the shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/
-notifications widgets, Screener tab.
+Phases 11–14 and the loose ends listed under "Resume here". Placeholders still in the
+shell: replay, compare, multi-chart, snapshot, hotlists/calendar/news/notifications
+widgets, Screener tab.
