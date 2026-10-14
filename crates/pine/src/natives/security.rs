@@ -1,5 +1,12 @@
-//! `request.security` on this chart's symbol: the expression runs on bars of
-//! another (higher) timeframe, built from the chart's own bars.
+//! `request.security`: the expression runs on another series' bars.
+//!
+//! **This chart's symbol on a higher timeframe:** the higher bars are built
+//! from the chart's own bars (below). **Another symbol, or a lower
+//! timeframe** (and `request.security_lower_tf`): the bars come from a
+//! *feed* the app fetched into `Env::feeds`. A feed that isn't there yet
+//! gives `na` and goes on `G::wanted`; the app fetches it and reruns the
+//! script. A feed bar counts as finished once its period has ended by the
+//! chart bar's close, the same rule as for built higher bars.
 //!
 //! Each finished higher-timeframe bar runs the expression once on the
 //! call site's own frame, so `ta.*` state and `x[1]` inside it step once per
@@ -14,13 +21,14 @@
 //!   finished HTF bar (the future) there.
 //! - `gaps_on`: na except on the chart bar where a new value arrives.
 //!
-//! Known gap: an HTF bar finishes when a chart bar reaches its end time, or
-//! failing that (sessions shorter than the HTF period, e.g. stocks on "D")
-//! on the next HTF bar's first chart bar.
+//! Periods of daily and longer bars end at their market's last session
+//! close (`run::period_end`), so a stock's "D" bar finishes on the chart's
+//! last bar of the day, not on the next day's first.
 
 use crate::compile::Sec;
+use crate::feed_key;
 use crate::natives::{bucket, parse_tf};
-use crate::run::{Frame, Ring, Stop, X, tf_end};
+use crate::run::{Frame, Ring, Stop, X, market_of, period_end};
 use crate::value::V;
 use opentern_core::{Bar, Timeframe, Unit};
 
@@ -38,6 +46,9 @@ pub(crate) struct SecState {
     last: V,
     tf: String,
     htf: Timeframe,
+    /// Feeds: the feed's key, and how many of its bars have been run.
+    key: String,
+    k: usize,
 }
 
 impl SecState {
@@ -70,10 +81,19 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
     } else {
         parse_tf(&tf_s).ok_or_else(|| Stop::Err(format!("\"{tf_s}\" isn't a timeframe.")))?
     };
-    if sec.lower {
-        return Err(Stop::Err(
-            "request.security_lower_tf() needs intrabar data, which isn't available yet.".into(),
-        ));
+    let symbol = match &sec.symbol {
+        Some(e) => {
+            let v = x.eval(e, f, root)?;
+            let s = v.as_str().unwrap_or("").trim().to_string();
+            let env = &x.g.env;
+            (!(s.is_empty() || s == env.tickerid || s == env.ticker())).then_some(s)
+        }
+        None => None,
+    };
+    let lower_tf = approx_ms(htf) < approx_ms(chart_tf);
+    if sec.lower || symbol.is_some() || lower_tf {
+        let sym = symbol.unwrap_or_else(|| x.g.env.tickerid.clone());
+        return from_feed(x, sec, f, root, &sym, &tf_s, htf);
     }
     // The chart's own timeframe: just the expression, on the chart's bars.
     if htf == chart_tf {
@@ -83,11 +103,6 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
         fr.commit(&sec.layout, &x.p.funcs, x.g.bar_no);
         state(f, sec, &tf_s, htf).frame = fr;
         return v;
-    }
-    if approx_ms(htf) < approx_ms(chart_tf) {
-        return Err(Stop::Err(format!(
-            "request.security() can't ask for a lower timeframe ({tf_s}) than the chart's; that needs intrabar data, which isn't available yet."
-        )));
     }
     let lookahead = truthy(&x.eval(&sec.lookahead, f, root)?);
     let gaps = truthy(&x.eval(&sec.gaps, f, root)?);
@@ -117,7 +132,7 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
         }
         None => {
             st.bars.push(Bar { time: start, ..bar });
-            st.open = Some((start, tf_end(htf, start, &tz)));
+            st.open = Some((start, period_end(htf, start, &tz, x.g.market)));
             st.count += 1;
         }
     }
@@ -152,6 +167,8 @@ fn empty(sec: &Sec, tf: &str, htf: Timeframe) -> SecState {
         last: V::Na,
         tf: tf.to_string(),
         htf,
+        key: String::new(),
+        k: 0,
     }
 }
 
@@ -197,4 +214,100 @@ fn run_on(
     std::mem::swap(&mut g.bars, &mut st.bars);
     (g.index, g.bar_no, g.tf) = saved;
     v
+}
+
+/// `request.security` / `security_lower_tf` on a fetched feed.
+fn from_feed(
+    x: &mut X,
+    sec: &Sec,
+    f: &mut Frame,
+    root: Option<&Frame>,
+    symbol: &str,
+    tf_s: &str,
+    ftf: Timeframe,
+) -> Result<V, Stop> {
+    let key = feed_key(symbol, ftf);
+    let feed = x.g.env.feeds.read().ok().and_then(|m| m.get(&key).cloned());
+    let Some(feed) = feed else {
+        if !x.g.wanted.iter().any(|(s, t)| s == symbol && *t == ftf) {
+            x.g.wanted.push((symbol.to_string(), ftf));
+        }
+        return Ok(if sec.lower {
+            V::Ref(x.g.heap.alloc(crate::heap::Obj::Array(Vec::new())))
+        } else {
+            V::Na
+        });
+    };
+    let lookahead = !sec.lower && truthy(&x.eval(&sec.lookahead, f, root)?);
+    let gaps = !sec.lower && truthy(&x.eval(&sec.gaps, f, root)?);
+    let bar = x.g.bar();
+    let tz = x.g.tz.clone();
+    let chart_close = x.g.close_time(bar.time);
+    let market = {
+        let prefix = symbol.split_once(':').map(|(p, _)| p).unwrap_or("");
+        if symbol == x.g.env.tickerid {
+            x.g.market
+        } else {
+            market_of(prefix, "")
+        }
+    };
+    let end_of = |b: &Bar| period_end(ftf, b.time, &tz, market);
+    let st = state(f, sec, tf_s, ftf);
+    if st.key != key {
+        **st = empty(sec, tf_s, ftf);
+        st.key = key;
+    }
+    let mut st = std::mem::replace(st, Box::new(empty(sec, tf_s, ftf)));
+    let mut fresh = false;
+    let mut inside = Vec::new();
+    // Run every feed bar that has finished by this chart bar's close.
+    while let Some(b) = feed.get(st.k).copied() {
+        if end_of(&b) > chart_close {
+            break;
+        }
+        st.bars.push(b);
+        st.count += 1;
+        st.bar_no += 1;
+        let mut fr = std::mem::replace(&mut st.frame, Frame::new(&sec.layout));
+        let (no, tf) = (st.bar_no, st.htf);
+        let v = run_on(x, sec, &mut st, &mut fr, no, tf, root);
+        fr.commit(&sec.layout, &x.p.funcs, st.bar_no);
+        st.frame = fr;
+        let v = v?;
+        if b.time >= bar.time {
+            inside.push(v.clone());
+        }
+        st.last = v;
+        st.k += 1;
+        fresh = true;
+    }
+    // The next feed bar, if it has started: it's what the forming bar (and
+    // lookahead) sees, on a copy.
+    let next = feed.get(st.k).copied().filter(|b| b.time < chart_close);
+    let peek = |x: &mut X, st: &SecState, b: Bar| -> Result<V, Stop> {
+        let mut tmp = st.clone();
+        tmp.bars.push(b);
+        tmp.count += 1;
+        let mut fr = tmp.frame.clone();
+        let no = tmp.bar_no + 1;
+        run_on(x, sec, &mut tmp, &mut fr, no, ftf, root)
+    };
+    let out = if sec.lower {
+        if let Some(b) = next.filter(|_| x.g.forming) {
+            inside.push(peek(x, &st, b)?);
+        }
+        V::Ref(x.g.heap.alloc(crate::heap::Obj::Array(inside)))
+    } else {
+        match next {
+            Some(b) if x.g.forming || (lookahead && b.time <= bar.time) => {
+                if lookahead {
+                    fresh = true;
+                }
+                peek(x, &st, b)?
+            }
+            _ => st.last.clone(),
+        }
+    };
+    *state(f, sec, tf_s, ftf) = st;
+    Ok(if gaps && !fresh { V::Na } else { out })
 }

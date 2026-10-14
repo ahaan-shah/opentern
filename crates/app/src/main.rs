@@ -24,6 +24,7 @@ mod diag;
 mod dialogs;
 mod drawbar;
 mod editor;
+mod feeds;
 mod format;
 mod icons;
 mod lab;

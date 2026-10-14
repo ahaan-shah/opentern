@@ -71,6 +71,23 @@ pub struct Env {
     /// Libraries `import` can use: (title, source), from the user's
     /// scripts folder.
     pub libraries: Vec<(String, String)>,
+    /// Bars of other symbols and timeframes for `request.security`, filled
+    /// by the app on demand (see [`PineStudy::wanted`]).
+    pub feeds: Feeds,
+}
+
+/// Other series by [`feed_key`]: shared between the app (which fills it)
+/// and every script compiled with it.
+pub type Feeds = Arc<std::sync::RwLock<std::collections::HashMap<String, Arc<Vec<opentern_core::Bar>>>>>;
+
+/// The key of a feed: the symbol as the script wrote it, and the timeframe.
+pub fn feed_key(symbol: &str, tf: opentern_core::Timeframe) -> String {
+    format!("{symbol}|{}", tf.label())
+}
+
+/// A timeframe as Pine writes it ("60", "D", "1W", "15S").
+pub fn parse_timeframe(s: &str) -> Option<opentern_core::Timeframe> {
+    natives::parse_tf(s)
 }
 
 impl Default for Env {
@@ -83,6 +100,7 @@ impl Default for Env {
             kind: "crypto".into(),
             timezone: "UTC".into(),
             libraries: Vec::new(),
+            feeds: Feeds::default(),
         }
     }
 }

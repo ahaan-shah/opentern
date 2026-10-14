@@ -23,12 +23,17 @@ pub enum Market {
 
 impl Market {
     pub fn of(sym: &Symbol) -> Market {
-        match sym.exchange() {
+        Market::from_parts(sym.exchange(), sym.kind)
+    }
+
+    /// From an exchange prefix ("NASDAQ") and the asset kind.
+    pub fn from_parts(exchange: &str, kind: AssetKind) -> Market {
+        match exchange {
             "NASDAQ" | "NYSE" | "AMEX" => Market::Us,
             "NSE" | "BSE" => Market::India,
             "FX" | "OANDA" => Market::Forex,
             "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => Market::Crypto,
-            _ => match sym.kind {
+            _ => match kind {
                 AssetKind::Crypto => Market::Crypto,
                 AssetKind::Forex => Market::Forex,
                 _ => Market::Other,
@@ -238,6 +243,34 @@ fn session(m: Market, d: Date) -> Option<(i64, i64)> {
     Some((at(open)?, at(close)?))
 }
 
+/// When a daily-or-longer period really ends: the close of its last
+/// trading session, for markets with fixed hours (a stock's "D" bar ends
+/// at 16:00, not midnight). `start..end` is the calendar period; `None`
+/// when the market has no fixed hours or nothing trades in the period.
+pub fn last_close_in(m: Market, start: i64, end: i64) -> Option<i64> {
+    m.hours()?;
+    let tz = m.tz();
+    let day = |t: i64| {
+        jiff::Timestamp::from_millisecond(t)
+            .ok()
+            .map(|ts| ts.to_zoned(tz.clone()).date())
+    };
+    let (first, mut d) = (day(start)?, day(end - 1)?);
+    for _ in 0..400 {
+        if let Some((_, close)) = session(m, d)
+            && close > start
+            && close <= end
+        {
+            return Some(close);
+        }
+        if d <= first {
+            return None;
+        }
+        d = d.yesterday().ok()?;
+    }
+    None
+}
+
 pub fn state(m: Market, t: i64) -> State {
     let Ok(ts) = jiff::Timestamp::from_millisecond(t) else {
         return State::Open;
@@ -305,6 +338,32 @@ mod tests {
 
     fn ms(s: &str) -> i64 {
         s.parse::<jiff::Timestamp>().unwrap().as_millisecond()
+    }
+
+    #[test]
+    fn periods_end_at_the_last_session_close() {
+        let day = |d: &str| ms(&format!("{d}T04:00:00Z"));
+        // A Monday: 16:00 New York (20:00 UTC in October).
+        assert_eq!(
+            last_close_in(Market::Us, day("2026-10-12"), day("2026-10-13")),
+            Some(ms("2026-10-12T20:00:00Z"))
+        );
+        // The week of 12 Oct 2026 ends Friday's close.
+        assert_eq!(
+            last_close_in(Market::Us, day("2026-10-12"), day("2026-10-19")),
+            Some(ms("2026-10-16T20:00:00Z"))
+        );
+        // Day after Thanksgiving closes at 13:00.
+        assert_eq!(
+            last_close_in(Market::Us, day("2026-11-27"), day("2026-11-28")),
+            Some(ms("2026-11-27T18:00:00Z"))
+        );
+        // Weekends and crypto: nothing to say.
+        assert_eq!(last_close_in(Market::Us, day("2026-10-17"), day("2026-10-18")), None);
+        assert_eq!(
+            last_close_in(Market::Crypto, day("2026-10-12"), day("2026-10-13")),
+            None
+        );
     }
 
     #[test]

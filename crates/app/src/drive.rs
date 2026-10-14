@@ -510,6 +510,34 @@ mod tests {
     }
 
     #[test]
+    fn pine_fetches_other_symbols_and_lower_timeframes() {
+        let mut d = Driver::new("feeds");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("other.pine"),
+            "//@version=5\nindicator(\"Other\")\nplot(request.security(\"ETHUSDT\", timeframe.period, close), \"ETH\")\n\
+             plot(array.size(request.security_lower_tf(syminfo.tickerid, \"30\", close)), \"Halves\")\n",
+        )
+        .unwrap();
+        d.app.add_script("other.pine");
+        let id = "pine:other.pine";
+        // At first na; once the feeds arrive the script reruns with values.
+        d.wait(|a| {
+            a.chart.studies.iter().find(|s| s.meta().id == id).is_some_and(|s| {
+                let n = s.inst.out.plots[0].len();
+                n > 10 && !s.inst.out.plots[0][n - 2].is_nan() && s.inst.out.plots[1][n - 2] == 2.0
+            })
+        });
+        assert!(d.app.feeds.read().unwrap().keys().any(|k| k.starts_with("ETHUSDT|")));
+        let s = d.app.chart.studies.iter().find(|s| s.meta().id == id).unwrap();
+        let eth = s.inst.out.plots[0].iter().rev().nth(1).copied().unwrap();
+        let btc = d.app.chart.bars.iter().rev().nth(1).unwrap().close;
+        assert!(eth != btc, "a different series: {eth} vs {btc}");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
     fn strategy_report_and_trade_marks() {
         let mut d = Driver::new("strategy");
         let dir = d.app.scripts_dir();

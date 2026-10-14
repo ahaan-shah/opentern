@@ -332,6 +332,7 @@ impl App {
     /// inputs changed. Called every frame.
     pub(crate) fn poll_scripts(&mut self) {
         self.sync_scripts();
+        self.request_feeds();
         self.publish_script_errors();
         let n = self.chart.bars.len();
         for i in 0..self.scripts.len() {

@@ -590,19 +590,150 @@ fn security_on_a_higher_timeframe() {
 }
 
 #[test]
-fn security_explains_what_it_cant_do() {
-    assert!(
-        err("plot(request.security(syminfo.tickerid, \"30\", close))")
-            .message
-            .contains("lower timeframe")
-    );
+fn security_still_refuses_what_it_cant_recompute() {
     let e = err("var c = 0.0\nc += close\nplot(request.security(syminfo.tickerid, \"D\", c))");
     assert!(e.message.contains("function"), "{}", e.message);
-    assert!(
-        err("plot(request.security(\"NASDAQ:AAPL\", \"D\", close))")
-            .message
-            .contains("symbol")
+}
+
+/// Runs `body` with `feeds` loaded; returns the first plot and what the
+/// script asked for.
+fn run_fed(body: &str, b: &[Bar], env: Env) -> (Vec<f64>, Vec<(String, Timeframe)>) {
+    let src = format!("//@version=6\nindicator(\"T\")\n{body}");
+    let s = compile(&src, "t.pine", env).unwrap_or_else(|e| panic!("{e}\n{src}"));
+    let mut st = s.study(&Inputs::default());
+    let out = st.run(b, H1);
+    if let Some(e) = st.error() {
+        panic!("runtime: {e}");
+    }
+    (out.plots[0].clone(), st.wanted().to_vec())
+}
+
+#[test]
+fn security_on_other_symbols_and_lower_timeframes() {
+    let n = 48;
+    let b = bars(n);
+    let env = Env::default();
+    // Not loaded yet: na, and the script says what it needs.
+    let (p, wanted) = run_fed(
+        "plot(request.security(\"BINANCE:ETHUSDT\", \"60\", close))",
+        &b,
+        env.clone(),
     );
+    assert!(p.iter().all(|v| v.is_nan()));
+    assert_eq!(wanted, vec![("BINANCE:ETHUSDT".to_string(), H1)]);
+    // Another symbol on the same timeframe: its bar at the same time.
+    let other: Vec<Bar> = b
+        .iter()
+        .map(|x| Bar {
+            close: x.close * 2.0,
+            ..*x
+        })
+        .collect();
+    env.feeds.write().unwrap().insert(
+        crate::feed_key("BINANCE:ETHUSDT", H1),
+        std::sync::Arc::new(other.clone()),
+    );
+    let (p, wanted) = run_fed(
+        "plot(request.security(\"BINANCE:ETHUSDT\", \"60\", close))",
+        &b,
+        env.clone(),
+    );
+    assert!(wanted.is_empty());
+    for i in 0..n {
+        assert_eq!(p[i], other[i].close, "bar {i}");
+    }
+    // ta.* inside runs on the other series.
+    let (p, _) = run_fed(
+        "plot(request.security(\"BINANCE:ETHUSDT\", \"60\", ta.sma(close, 3)))",
+        &b,
+        env.clone(),
+    );
+    assert!((p[10] - (other[8].close + other[9].close + other[10].close) / 3.0).abs() < 1e-9);
+    // A lower timeframe of this chart's symbol: two 30-minute bars an hour.
+    let m30 = Timeframe::new(30, Unit::Minute);
+    let halves: Vec<Bar> = b
+        .iter()
+        .flat_map(|x| {
+            let mid = (x.open + x.close) / 2.0;
+            [
+                Bar {
+                    time: x.time,
+                    close: mid,
+                    ..*x
+                },
+                Bar {
+                    time: x.time + 1_800_000,
+                    open: mid,
+                    ..*x
+                },
+            ]
+        })
+        .collect();
+    env.feeds
+        .write()
+        .unwrap()
+        .insert(crate::feed_key(&env.tickerid, m30), std::sync::Arc::new(halves.clone()));
+    let (p, _) = run_fed(
+        "plot(request.security(syminfo.tickerid, \"30\", close))",
+        &b,
+        env.clone(),
+    );
+    for i in 0..n {
+        assert_eq!(p[i], b[i].close, "the last half hour's close, bar {i}");
+    }
+    let (p, _) = run_fed(
+        "v = request.security_lower_tf(syminfo.tickerid, \"30\", close)\nplot(array.size(v))\nplot(array.get(v, 0))",
+        &b,
+        env.clone(),
+    );
+    assert!(p.iter().all(|v| *v == 2.0));
+    let src = "//@version=6\nindicator(\"T\")\nv = request.security_lower_tf(syminfo.tickerid, \"30\", close)\nplot(array.get(v, 0))";
+    let s = compile(src, "t.pine", env.clone()).unwrap();
+    let out = s.study(&Inputs::default()).run(&b, H1);
+    assert_eq!(out.plots[0][5], halves[10].close);
+    // An input picks the symbol.
+    let (p, _) = run_fed(
+        "s = input.symbol(\"BINANCE:ETHUSDT\", \"Symbol\")\nplot(request.security(s, \"60\", close))",
+        &b,
+        env,
+    );
+    assert_eq!(p[3], other[3].close);
+}
+
+#[test]
+fn a_stocks_day_ends_at_the_close() {
+    // NASDAQ, 1h bars 09:30–15:30 New York (UTC−4 in October): 7 a day.
+    let env = Env {
+        tickerid: "NASDAQ:AAPL".into(),
+        kind: "stock".into(),
+        timezone: "America/New_York".into(),
+        ..Env::default()
+    };
+    let monday = "2026-10-12T13:30:00Z"
+        .parse::<jiff::Timestamp>()
+        .unwrap()
+        .as_millisecond();
+    let mut b = Vec::new();
+    for day in 0..3 {
+        for h in 0..7 {
+            let c = 100.0 + (day * 10 + h) as f64;
+            b.push(Bar {
+                time: monday + day * 86_400_000 + h * 3_600_000,
+                open: c,
+                high: c + 1.0,
+                low: c - 1.0,
+                close: c,
+                volume: 1.0,
+            });
+        }
+    }
+    let (p, _) = run_fed("plot(request.security(syminfo.tickerid, \"D\", close))", &b, env);
+    // The 15:30 bar closes the day: it shows the day's own close.
+    assert_eq!(p[6], b[6].close);
+    assert_eq!(p[13], b[13].close);
+    // Earlier bars show the day before.
+    assert_eq!(p[8], b[6].close);
+    assert!(p[0].is_nan());
 }
 
 #[test]

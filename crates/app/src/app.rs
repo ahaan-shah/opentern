@@ -45,6 +45,9 @@ pub struct App {
     pub editor: crate::editor::Editor,
     pub screener: crate::screener::Screener,
     pub lab: crate::lab::Lab,
+    /// Other series for Pine `request.security`, shared by every chart.
+    pub feeds: opentern_pine::Feeds,
+    pub feeds_state: crate::feeds::FeedState,
     pub notes: crate::notes::Notes,
     pub side: crate::side::Side,
     /// A snapshot waiting for the window's screenshot.
@@ -151,6 +154,8 @@ impl App {
             editor: Default::default(),
             screener: Default::default(),
             lab: Default::default(),
+            feeds: Default::default(),
+            feeds_state: Default::default(),
             notes: Default::default(),
             side: Default::default(),
             snap: None,
@@ -713,7 +718,9 @@ impl App {
     /// One-off history arrived: for the screener, or a backtest over other
     /// symbols.
     fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
-        if seq >= 1 << 41 {
+        if seq >= crate::feeds::SEQ_BASE {
+            self.feed_fetched(seq, result);
+        } else if seq >= 1 << 41 {
             self.lab_fetched(seq, symbol, result);
         } else {
             self.screener_fetched(seq, symbol, result);

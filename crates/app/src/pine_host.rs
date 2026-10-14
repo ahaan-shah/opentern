@@ -109,6 +109,7 @@ pub(crate) fn env_of(s: &opentern_core::Symbol) -> Env {
         kind: kind_name(s.kind).into(),
         timezone: s.timezone.clone(),
         libraries: Vec::new(),
+        feeds: Default::default(),
     }
 }
 
@@ -121,6 +122,7 @@ impl App {
     pub(crate) fn pine_env_for(&self, s: &opentern_core::Symbol) -> Env {
         Env {
             libraries: self.pine_libraries(),
+            feeds: self.feeds.clone(),
             ..env_of(s)
         }
     }

@@ -332,6 +332,9 @@ struct AutoFib {
     bg: bool,
     shown: Vec<bool>,
     last: i64,
+    /// Auto Fib Extension: levels project the leg before last (A→B) from
+    /// the last pivot (C), instead of retracing the last leg.
+    extension: bool,
 }
 
 impl Study for AutoFib {
@@ -342,17 +345,35 @@ impl Study for AutoFib {
 
     fn drawings(&self) -> Option<Drawings> {
         let p = &self.zz.pivots;
-        let (a, b) = match p.len() {
-            n if n >= 2 => (&p[n - 2], &p[n - 1]),
+        let (a, b, c) = match (p.len(), self.extension) {
+            (n, false) if n >= 2 => (&p[n - 2], &p[n - 1], None),
+            (n, true) if n >= 3 => (&p[n - 3], &p[n - 2], Some(&p[n - 1])),
             _ => return None,
         };
-        // 1 at the leg's start, 0 at its end (reversed: the other way).
-        let (start, end) = if self.reverse {
-            (b.price, a.price)
-        } else {
-            (a.price, b.price)
+        // Retracement: 1 at the leg's start, 0 at its end (reversed: the
+        // other way). Extension: 0 at C, 1 at C + (B − A).
+        let (end, height) = match c {
+            Some(c) => {
+                let leg = b.price - a.price;
+                if self.reverse {
+                    (c.price + leg, -leg)
+                } else {
+                    (c.price, leg)
+                }
+            }
+            None => {
+                let (start, end) = if self.reverse {
+                    (b.price, a.price)
+                } else {
+                    (a.price, b.price)
+                };
+                (end, start - end)
+            }
         };
-        let height = start - end;
+        let a = match c {
+            Some(c) => c,
+            None => a,
+        };
         let extend = match (self.extend_left, self.extend_right) {
             (true, true) => "both",
             (true, false) => "left",
@@ -421,10 +442,16 @@ impl Study for AutoFib {
                 d.labels.push(label(x, y, text, style, 0xFFFF_FF00, c));
             }
         }
-        // The leg itself, dashed.
-        let mut leg = line(a.x, a.price, b.x, b.price, tv::GRAY.0, 1.0, "none");
-        leg.style = s("dashed");
-        d.lines.push(leg);
+        // The leg(s) measured, dashed.
+        let pts: Vec<&Pivot> = match self.extension {
+            true => p[p.len() - 3..].iter().collect(),
+            false => p[p.len() - 2..].iter().collect(),
+        };
+        for w in pts.windows(2) {
+            let mut leg = line(w[0].x, w[0].price, w[1].x, w[1].price, tv::GRAY.0, 1.0, "none");
+            leg.style = s("dashed");
+            d.lines.push(leg);
+        }
         Some(d)
     }
 }
@@ -831,6 +858,7 @@ pub(super) fn metas() -> Vec<Meta> {
     for (k, (id, _, _, on)) in FIB_LEVELS.iter().enumerate() {
         fib_inputs.push(flag(id, fib_titles[k], *on).group("Levels"));
     }
+    let fib_inputs_ext = fib_inputs.clone();
     vec![
         meta(
             "zigzag",
@@ -879,6 +907,30 @@ pub(super) fn metas() -> Vec<Meta> {
                     bg: i.bool("background"),
                     shown: FIB_LEVELS.iter().map(|l| i.bool(l.0)).collect(),
                     last: 0,
+                    extension: false,
+                })
+            },
+        ),
+        meta(
+            "auto_fib_ext",
+            "Auto Fib Extension",
+            "Auto Fib Ext",
+            Category::Trend,
+            fib_inputs_ext,
+            |i| {
+                Box::new(AutoFib {
+                    zz: ZigZag::new(i.float("dev"), i.len("depth")),
+                    reverse: i.bool("reverse"),
+                    extend_left: i.bool("extend_left"),
+                    extend_right: i.bool("extend_right"),
+                    prices: i.bool("prices"),
+                    levels: i.bool("levels"),
+                    percent: i.text("levels_format") == "Percent",
+                    left: i.text("labels_pos") == "Left",
+                    bg: i.bool("background"),
+                    shown: FIB_LEVELS.iter().map(|l| i.bool(l.0)).collect(),
+                    last: 0,
+                    extension: true,
                 })
             },
         ),
@@ -1020,6 +1072,28 @@ mod tests {
             "{:?}",
             d.labels.iter().map(|l| &l.text).collect::<Vec<_>>()
         );
+    }
+
+    #[test]
+    fn auto_fib_extension_projects_the_leg_from_the_last_pivot() {
+        // Down to 100, up to 120, down to 108, up a bit: pivots A (low),
+        // B (high), C (low).
+        let mut p: Vec<f64> = (0..10).map(|i| 110.0 - i as f64).collect();
+        p.extend((0..=20).map(|i| 100.0 + i as f64));
+        p.extend((1..=12).map(|i| 120.0 - i as f64));
+        p.extend((1..=8).map(|i| 108.0 + i as f64 * 0.3));
+        let d = drawn("auto_fib_ext", &bars(&p), Timeframe::new(1, Unit::Hour));
+        let piv = |d: &Drawings| d.lines.iter().filter(|l| l.style.as_ref() == "dashed").count();
+        assert_eq!(piv(&d), 2, "two legs drawn");
+        let legs: Vec<(f64, f64)> = d
+            .lines
+            .iter()
+            .filter(|l| l.style.as_ref() == "dashed")
+            .map(|l| (l.y1, l.y2))
+            .collect();
+        let (a, b, c) = (legs[0].0, legs[0].1, legs[1].1);
+        let y = |lvl: f64| d.lines.iter().any(|l| (l.y1 - (c + (b - a) * lvl)).abs() < 1e-9);
+        assert!(y(0.0) && y(0.618) && y(1.0) && y(1.618), "{a} {b} {c}");
     }
 
     #[test]

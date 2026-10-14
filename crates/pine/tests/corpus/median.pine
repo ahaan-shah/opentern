@@ -1,0 +1,18 @@
+//@version=5
+indicator(title="Median", shorttitle="Median", overlay=true, timeframe="", timeframe_gaps=true)
+source = input.source(hl2, "Source")
+median_length = input.int(3, "Median Length", minval=1)
+atr_length = input.int(14, "ATR Length", minval=1)
+atr_mult = input.float(2, "ATR Multiplier", minval=0)
+median = ta.percentile_nearest_rank(source, median_length, 50)
+atr_ = atr_mult * ta.atr(atr_length)
+upper = median + atr_
+lower = median - atr_
+median_ema = ta.ema(median, median_length)
+up = median > median_ema
+col = up ? #089981 : #F23645
+p1 = plot(upper, "Upper", color=col)
+plot(median, "Median", color=col, linewidth=2)
+p2 = plot(lower, "Lower", color=col)
+plot(median_ema, "Median EMA", display=display.none)
+fill(p1, p2, color=up ? color.new(#089981, 90) : color.new(#F23645, 90))

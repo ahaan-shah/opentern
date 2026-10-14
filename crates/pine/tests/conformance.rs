@@ -75,6 +75,8 @@ type Case = (&'static str, &'static str, &'static [(usize, usize)], bool);
 
 const CASES: &[Case] = &[
     ("sma.pine", "sma", &[(0, 0)], false),
+    ("median.pine", "median", &[(0, 0), (1, 1), (2, 2), (3, 3)], true),
+    ("majority_rule.pine", "majority_rule", &[(0, 0)], false),
     ("ema.pine", "ema", &[(0, 0)], false),
     ("wma.pine", "wma", &[(0, 0)], false),
     ("vwma.pine", "vwma", &[(0, 0)], false),

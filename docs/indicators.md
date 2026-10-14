@@ -109,6 +109,9 @@ What the automated tests already check for every built-in:
 | Woodies CCI | `woodies_cci` | Oscillators | Ported (wave 2); Pine twin matches; awaiting TradingView export |
 | Zig Zag | `zigzag` | Trend | Ported (Phase 10, draws); pivot rule to verify against an export |
 | Auto Fib Retracement | `auto_fib` | Trend | Ported (Phase 10, draws); uses Zig Zag's last leg; to verify |
+| Auto Fib Extension | `auto_fib_ext` | Trend | Ported (Oct 2026, draws); the last three Zig Zag pivots: 0 at C, 1 at C + (B − A); to verify |
+| Median | `median` | Bands | Ported (Oct 2026); Pine twin matches (colours too); written from memory of TradingView's script, to verify |
+| Majority Rule | `majority_rule` | Oscillators | Ported (Oct 2026); Pine twin matches; % of the last 14 bars whose close rose, to verify |
 | Pivot Points Standard | `pivots_std` | Trend | Ported (Phase 10, draws); all six types; to verify |
 | Linear Regression Channel | `linreg_channel` | Trend | Ported (Phase 10, draws) line by line from the published source; to verify |
 | Volume Profile Visible Range | `vpvr` | Volume | Phase 11, drawn by the chart (`app/src/chart/profile.rs`); to verify |
@@ -126,13 +129,14 @@ lookahead off does on history). Moon Phases follows Meeus (minutes accurate). Tr
 Sessions shades Tokyo, London and New York regular hours.
 
 Still to port:
-- Auto Fib Extension (the three-point version; the retracement is done).
 - Need data Opentern doesn't fetch yet: Advance/Decline Line and Ratio (market
   breadth), Cumulative Volume Index (breadth), Open Interest (futures), Correlation
-  Coefficient (a second symbol; Phase 10's `request.security` for other symbols),
+  Coefficient (Pine scripts can now do it with `ta.correlation` and `request.security`
+  on another symbol, which fetches on demand; a Rust built-in needs the same feeds),
   Cumulative Volume Delta and Up/Down Volume (intrabar volume).
-- Not yet, to get exactly right: Technical Ratings, Majority Rule, Median, Bollinger
-  Bars.
+- Not yet, to get exactly right: Technical Ratings (26 sub-ratings whose exact
+  buy/sell rules need TradingView's source) and Bollinger Bars (how it colours and
+  draws its bars). Both wait for the script source or an export.
 
 ## Defaults to double-check against TradingView
 
@@ -147,6 +151,10 @@ remembered, not copied from them. When you make the exports, also check these
 - Zig Zag: a pivot needs `depth / 2` bars on each side here (is "Pivot legs" the
   per-side count instead?); the label layout (price, change, volume).
 - Auto Fib: which end is level 0, default extend right, which levels are on.
+  Extension: is level 0 at C, and does "Reverse" flip the projection?
+- Median: plots (upper/median/lower coloured by median vs its EMA, a fill), the
+  default source hl2, lengths 3 and 14, multiplier 2, and the colours.
+- Majority Rule: the default length (14 here) and whether a level is drawn at 50.
 - Volume profiles: without lower-timeframe data each bar's volume is spread evenly
   over the rows its high–low covers (TradingView uses intrabar data); colours
   (up #2962FF / down #FBC02D at 30%, value area 70%, POC red) and Session VP's

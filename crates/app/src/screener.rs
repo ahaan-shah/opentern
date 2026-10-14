@@ -894,6 +894,7 @@ mod tests {
             kind: "stock".into(),
             timezone: "UTC".into(),
             libraries: Vec::new(),
+            feeds: Default::default(),
         };
         let src = "//@version=5\nindicator(\"t\")\nplot(close - close[10])\n";
         let job = Job::Pine(src.into(), "t.pine".into(), env, 0);

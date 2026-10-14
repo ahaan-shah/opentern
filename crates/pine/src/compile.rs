@@ -167,6 +167,8 @@ pub(crate) enum E {
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct Sec {
+    /// The symbol: `None` for this chart's (`syminfo.tickerid`).
+    pub symbol: Option<E>,
     pub tf: E,
     pub expr: E,
     pub gaps: E,
@@ -1645,19 +1647,16 @@ impl Cx {
             return Err(self.err(format!("{callee}() needs a symbol, a timeframe and an expression.")));
         };
         let sym = self.expr(sym)?;
-        if let E::K(V::Str(s)) = &sym {
-            let me = self.env.tickerid.clone();
-            let same = s.as_ref() == me || s.as_ref() == self.env.ticker() || s.is_empty();
-            if !same {
-                return Err(self.err(format!(
-                    "Other symbols in {callee}() aren't supported yet (only this chart's symbol, \"{s}\" was asked)."
-                )));
+        // This chart's symbol is known now; anything else is looked up when
+        // the script runs (its bars are fetched on demand).
+        let symbol = match &sym {
+            E::K(V::Str(s)) => {
+                let same = s.as_ref() == self.env.tickerid || s.as_ref() == self.env.ticker() || s.is_empty();
+                (!same).then_some(sym)
             }
-        } else if !matches!(&sym, E::Nat { f, .. } if f.name == "syminfo.tickerid" || f.name == "syminfo.ticker") {
-            return Err(self.err(format!(
-                "{callee}() only supports this chart's symbol for now (syminfo.tickerid)."
-            )));
-        }
+            E::Nat { f, .. } if f.name == "syminfo.tickerid" || f.name == "syminfo.ticker" => None,
+            _ => Some(sym),
+        };
         let tf = self.expr(tf)?;
         let gaps = match b.get(3).copied().flatten().filter(|_| !lower) {
             Some(g) => self.expr(g)?,
@@ -1687,6 +1686,7 @@ impl Cx {
         frame.secs += 1;
         let site = (frame.secs - 1) as u16;
         Ok(E::Security(Box::new(Sec {
+            symbol,
             tf,
             expr: e,
             gaps,

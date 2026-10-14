@@ -559,14 +559,13 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 4. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
-- `request.security` for other symbols and lower timeframes, and
-  `request.security_lower_tf`. This needs the app to fetch extra series and pass them
-  to the study. It would also unlock the Correlation Coefficient built-in.
-- Daily `request.security` on stocks finishes one bar late, because periods are
-  calendar days, not sessions.
-- Auto-scale should leave room for script drawings (see the UI backlog).
-- Auto Fib Extension; Technical Ratings, Majority Rule, Median, Bollinger Bars; the
-  breadth/OI/intrabar-volume built-ins (`docs/indicators.md`, "Still to port").
+- Done Oct 2026: `request.security` on other symbols and lower timeframes plus
+  `request.security_lower_tf` (feeds, below); stock daily periods end at the
+  session close; auto-scale counts script drawings; Auto Fib Extension, Median,
+  Majority Rule.
+- Correlation Coefficient as a Rust built-in (needs feeds for built-ins; Pine can
+  do it now); Technical Ratings and Bollinger Bars (need TradingView's source or
+  an export); the breadth/OI/intrabar-volume built-ins (`docs/indicators.md`).
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
@@ -876,6 +875,21 @@ workspace.
   opentern-script --test timing -- --ignored --nocapture`.
 - Licences: mlua/Luau, rquickjs/QuickJS (MIT), swc (Apache-2.0): fine for the
   MIT app; list them in `THIRD-PARTY-LICENSES.txt` at Phase 14.
+
+### Feeds: other symbols and timeframes in Pine (Oct 2026)
+- `opentern_pine::Env::feeds` (`Feeds` = shared map `"SYMBOL|tf"` → bars). A
+  `request.security` on another symbol, or below the chart's timeframe, or
+  `security_lower_tf`, reads its feed; a missing feed gives `na` and is listed
+  in `PineStudy::wanted()`. `app/src/feeds.rs` fetches wanted feeds
+  (`Request::Fetch`, seq ≥ `1 << 42`; bars to cover the chart's span), stores
+  them in `App::feeds` (one store for all charts), reruns every chart's Pine
+  studies, and refreshes feeds in use every minute. Symbols resolve like
+  formulas (`expr::resolve`). Inputs can pick symbol and timeframe.
+- A feed bar counts as finished when its period has ended by the chart bar's
+  close; lookahead/gaps/forming-bar repaint follow the same rules as HTF bars.
+- `run::period_end` + `calendar::last_close_in`: daily-and-longer periods of
+  markets with set hours end at the last session close (fixes stocks' "D"
+  finishing a bar late). Chart symbol's market comes from `Env` prefix + kind.
 
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →

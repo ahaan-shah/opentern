@@ -215,6 +215,70 @@ impl Study for Ribbon {
     }
 }
 
+// ------------------------------------------------------------ Median
+
+/// Median of the last `n` values, ATR bands around it, and the median's
+/// EMA (which colours it).
+#[derive(Clone)]
+struct Median {
+    src: Source,
+    win: Hist,
+    n: usize,
+    atr: ta::Atr,
+    mult: f64,
+    ema: ta::Smooth,
+}
+
+/// `ta.percentile_nearest_rank(x, n, 50)` over a window (`na`s skipped).
+fn median_of(win: &Hist, n: usize) -> f64 {
+    let Some(w) = win.window(n) else { return f64::NAN };
+    let mut v: Vec<f64> = w.filter(|x| !x.is_nan()).collect();
+    if v.is_empty() {
+        return f64::NAN;
+    }
+    v.sort_by(|a, b| a.total_cmp(b));
+    let rank = (0.5 * v.len() as f64).ceil() as usize;
+    v[rank.saturating_sub(1).min(v.len() - 1)]
+}
+
+impl Study for Median {
+    fn step(&mut self, c: &Ctx, o: &mut Out) {
+        self.win.push(c.src(self.src));
+        let median = median_of(&self.win, self.n);
+        let atr = self.mult * self.atr.update(c.bar.high, c.bar.low, c.bar.close);
+        let ema = self.ema.update(median);
+        o.values[0] = median + atr;
+        o.values[1] = median;
+        o.values[2] = median - atr;
+        o.values[3] = ema;
+        let up = if median > ema { 0 } else { 1 };
+        o.colors[0] = up;
+        o.colors[1] = up;
+        o.colors[2] = up;
+        o.fills[0] = up;
+    }
+}
+
+// ------------------------------------------------------------ Majority Rule
+
+/// The share of the last `n` bars whose source rose, in percent.
+#[derive(Clone)]
+struct MajorityRule {
+    src: Source,
+    prev: f64,
+    sum: ta::Sum,
+    n: usize,
+}
+
+impl Study for MajorityRule {
+    fn step(&mut self, c: &Ctx, o: &mut Out) {
+        let x = c.src(self.src);
+        let up = if x > self.prev { 1.0 } else { 0.0 };
+        self.prev = x;
+        o.values[0] = 100.0 * self.sum.update(up) / self.n as f64;
+    }
+}
+
 // ------------------------------------------------------------ Net Volume
 
 #[derive(Clone)]
@@ -1420,6 +1484,56 @@ pub(super) fn metas() -> Vec<Meta> {
                 })
             },
         ),
+        {
+            let up_down = [("Up", Rgba::hex(0x089981)), ("Down", Rgba::hex(0xF23645))];
+            meta(
+                "median",
+                "Median",
+                "Median",
+                Category::Bands,
+                Overlay,
+                vec![
+                    source("hl2"),
+                    int("length", "Median Length", 3, 1, 5000),
+                    int("atr_length", "ATR Length", 14, 1, 5000),
+                    float("mult", "ATR Multiplier", 2.0, 0.0, 1000.0, 0.1),
+                ],
+                vec![
+                    line("Upper", tv::GREEN).colors(&up_down),
+                    line("Median", tv::GREEN).colors(&up_down).width(2),
+                    line("Lower", tv::GREEN).colors(&up_down),
+                    line("Median EMA", tv::BLUE).hidden(),
+                ],
+                |i| {
+                    let n = i.len("length");
+                    Box::new(Median {
+                        src: i.src("source"),
+                        win: Hist::new(n),
+                        n,
+                        atr: ta::Atr::new(i.len("atr_length")),
+                        mult: i.float("mult"),
+                        ema: ta::ema(n),
+                    })
+                },
+            )
+        },
+        meta(
+            "majority_rule",
+            "Majority Rule",
+            "MR",
+            Osc,
+            Pane,
+            vec![source("close"), length(14)],
+            vec![line("MR", tv::BLUE)],
+            |i| {
+                Box::new(MajorityRule {
+                    src: i.src("source"),
+                    prev: f64::NAN,
+                    sum: ta::Sum::new(i.len("length")),
+                    n: i.len("length"),
+                })
+            },
+        ),
     ];
     // Levels and fills.
     for m in &mut v {
@@ -1451,6 +1565,15 @@ pub(super) fn metas() -> Vec<Meta> {
             }
             "stderr_bands" => {
                 m.fills = vec![fill_p("Background", 1, 2, blue_band)];
+            }
+            "median" => {
+                m.fills = vec![fill_p("Background", 0, 2, Rgba::hex(0x089981).transp(90)).colors(&[
+                    ("Up", Rgba::hex(0x089981).transp(90)),
+                    ("Down", Rgba::hex(0xF23645).transp(90)),
+                ])];
+            }
+            "majority_rule" => {
+                m.hlines = vec![hline("Middle", 50.0, MID)];
             }
             _ => {}
         }

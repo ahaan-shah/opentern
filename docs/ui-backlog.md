@@ -25,5 +25,5 @@ Magpie. Behaviour bugs aren't parked here; they get fixed right away.
 - Checkboxes and combo boxes are egui defaults; restyle to Magpie's widgets.
 - Placeholder panels ("… is coming soon") need real empty states.
 - No app icon yet.
-- Auto-scale ignores script drawings: a Zig Zag label above the visible high can sit on
-  the legend rows. TradingView leaves top/bottom margin for labels; do the same.
+- ~~Auto-scale ignores script drawings~~ (fixed Oct 2026: visible labels, lines and
+  boxes count, and the margins grow by the tallest label).

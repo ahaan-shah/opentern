@@ -1,0 +1,7 @@
+//@version=5
+indicator(title="Majority Rule", shorttitle="MR", format=format.percent, precision=2, timeframe="", timeframe_gaps=true)
+src = input.source(close, "Source")
+length = input.int(14, "Length", minval=1)
+mr = 100 * math.sum(src > src[1] ? 1 : 0, length) / length
+plot(mr, "MR", color=#2962FF)
+hline(50, "Middle")

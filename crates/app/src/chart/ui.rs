@@ -241,7 +241,49 @@ pub fn show(
         }
         let mut format = Format::Price;
         let mut first_study = true;
+        // Script labels need head room beyond their price (TradingView
+        // leaves it), so the top and bottom margins grow when any show.
+        let mut label_lines = 0usize;
+        let tm = super::draw::TimeMap {
+            bars: &chart.bars,
+            step: match chart.bars.as_slice() {
+                [.., a, b] => (b.time - a.time).max(1),
+                _ => 60_000,
+            },
+            x: XMap { ..x },
+        };
+        let in_view = |xv: i64, loc: opentern_series::drawings::XLoc| {
+            let i = match loc {
+                opentern_series::drawings::XLoc::BarIndex => xv as f64,
+                opentern_series::drawings::XLoc::BarTime => tm.index(xv),
+            };
+            i >= first as f64 - 0.5 && i <= last as f64 + 0.5
+        };
         for s in chart.studies.iter().filter(|s| s.pane == pane.id && s.shown(chart.tf)) {
+            if let Some(d) = &s.inst.drawings {
+                for l in d.labels.iter().filter(|l| in_view(l.x, l.xloc)) {
+                    if l.yloc.as_ref() == "price" {
+                        grow(l.y);
+                    }
+                    label_lines = label_lines.max(l.text.lines().count().max(1));
+                }
+                for l in &d.lines {
+                    if in_view(l.x1, l.xloc) {
+                        grow(l.y1);
+                    }
+                    if in_view(l.x2, l.xloc) {
+                        grow(l.y2);
+                    }
+                }
+                for b in d
+                    .boxes
+                    .iter()
+                    .filter(|b| in_view(b.left, b.xloc) || in_view(b.right, b.xloc))
+                {
+                    grow(b.top);
+                    grow(b.bottom);
+                }
+            }
             if s.meta().placement == Placement::Bottom {
                 continue;
             }
@@ -282,8 +324,16 @@ pub fn show(
             alo -= d;
             ahi += d;
         }
-        // Margins: 10% top, 8% bottom, as TradingView.
-        let (top_m, bot_m) = (0.1, 0.08);
+        // Margins: 10% top, 8% bottom, as TradingView; more with labels
+        // (about a label's height at this pane size).
+        let (top_m, bot_m) = if label_lines > 0 {
+            // A bubble: its lines, padding and pointer.
+            let px = 16.0 * label_lines as f32 + 20.0;
+            let extra = (px / rect.height().max(60.0)).min(0.3) as f64;
+            (0.1 + extra, 0.08 + extra)
+        } else {
+            (0.1, 0.08)
+        };
         let (tlo, thi) = if log { (alo.ln(), ahi.ln()) } else { (alo, ahi) };
         let span = thi - tlo;
         let (mlo, mhi) = (tlo - span * bot_m, thi + span * top_m);

@@ -197,11 +197,16 @@ pub(crate) struct G {
     pub ntypes: usize,
     /// The first bar's time (for `strategy` date ranges, `timenow`).
     pub last_time: i64,
+    /// Series `request.security` asked for that aren't loaded yet.
+    pub wanted: Vec<(String, Timeframe)>,
+    /// The chart symbol's market (for when daily bars really close).
+    pub market: opentern_core::calendar::Market,
 }
 
 impl G {
     pub fn new(env: Arc<Env>, version: u8, bar_hist: usize) -> G {
         let tz = jiff::tz::TimeZone::get(&env.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+        let market = market_of(env.prefix(), &env.kind);
         G {
             env,
             tz,
@@ -222,6 +227,8 @@ impl G {
             alerts: Vec::new(),
             ntypes: 0,
             last_time: 0,
+            wanted: Vec::new(),
+            market,
         }
     }
 
@@ -252,6 +259,36 @@ impl G {
     pub fn close_time(&self, t: i64) -> i64 {
         tf_end(self.tf, t, &self.tz)
     }
+}
+
+/// The market from an exchange prefix and a `syminfo.type`-style kind.
+pub(crate) fn market_of(prefix: &str, kind: &str) -> opentern_core::calendar::Market {
+    use opentern_core::AssetKind;
+    let kind = match kind {
+        "crypto" => AssetKind::Crypto,
+        "forex" => AssetKind::Forex,
+        "fund" => AssetKind::Fund,
+        "index" => AssetKind::Index,
+        "futures" => AssetKind::Futures,
+        _ => AssetKind::Stock,
+    };
+    opentern_core::calendar::Market::from_parts(prefix, kind)
+}
+
+/// When the `tf` bar opening at `t` really closes: its calendar end, or
+/// for daily and longer bars of markets with set hours, the close of its
+/// last session (a stock's "D" bar ends at 16:00, not midnight).
+pub(crate) fn period_end(
+    tf: Timeframe,
+    t: i64,
+    tz: &jiff::tz::TimeZone,
+    market: opentern_core::calendar::Market,
+) -> i64 {
+    let end = tf_end(tf, t, tz);
+    if tf.is_intraday() {
+        return end;
+    }
+    opentern_core::calendar::last_close_in(market, t, end).unwrap_or(end)
 }
 
 /// The end of the `tf` bar that opens at `t`.
@@ -1189,6 +1226,13 @@ impl PineStudy {
 
     pub fn drawings(&self) -> Drawings {
         self.g.heap.drawings()
+    }
+
+    /// Other symbols' or timeframes' bars `request.security` asked for and
+    /// didn't find in `Env::feeds`: (symbol as written, timeframe). The app
+    /// fetches them and reruns the script.
+    pub fn wanted(&self) -> &[(String, Timeframe)] {
+        &self.g.wanted
     }
 
     /// `log.*` output, newest last.
