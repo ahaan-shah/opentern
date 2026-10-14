@@ -569,8 +569,9 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
-- Chart trading by dragging SL/TP, DOM, multiple
-  paper accounts, `--daemon`, email alerts.
+- Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
+  tag, × cancels / closes), several paper accounts, email alerts. Still open: a
+  DOM, `--daemon`, alerts on off-chart indicators.
 - App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
 
 **Testing the app for the maintainer:** build with `cargo build --profile fast`.
@@ -664,10 +665,14 @@ workspace.
   trailing, brackets as OCO, netting, commission), fed by the chart's last bar or quotes
   (paper symbols are added to the quote subscription), saved as JSON under the settings
   key `paper_account`. Tab: ticket, summary, Positions/Orders/History, Reset account.
+  **Since Oct 2026:** several accounts (settings key `paper_accounts` = every
+  account + which is in use; the old key migrates); every account's orders keep
+  working; the account menu switches, makes, renames, deletes. Chart trading:
+  `PaperLine::order` tags are drag handles (`Action::PaperMove` →
+  `Account::modify`), the × beside a tag cancels it or closes the position.
 - **Gotcha:** bottom-panel tab bodies render in `ui.new_child` with a clip rect; content
   taller than the panel used to grow it and push the tab strip under the range bar.
-- Not yet: Strategy Tester settings dialog (props come from the script), chart trading by
-  dragging SL/TP lines, DOM, multiple paper accounts.
+- Not yet: DOM.
 
 ### Phase 8 (done): alerts
 - `opentern_engine::alerts`: `Alert` (price / drawn line / study plot / script),
@@ -688,7 +693,11 @@ workspace.
 - **Gotcha:** egui's `Event::Text` carries no modifiers; type-to-search must check
   `i.modifiers` or Alt+A/Alt+T also type into symbol search. Tests must send
   `Event::ModifiersChanged` to model held keys.
-- Not yet: `opentern --daemon` (alerts while the app is closed), email, alerts on symbols'
+- Email (Oct 2026): `lettre` over SMTP with rustls (STARTTLS, or TLS on 465);
+  password in the keychain (`email-smtp-password`), server/port/login/recipient
+  in settings (`email_smtp_*`, `email_to`); "Send a test email" in the dialog.
+  Never tested against a real mail server.
+- Not yet: `opentern --daemon` (alerts while the app is closed), alerts on symbols'
   indicators off-chart, sound files.
 
 ### Phase 9 (done): providers, calendars, dividends

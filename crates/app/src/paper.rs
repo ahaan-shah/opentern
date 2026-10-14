@@ -12,7 +12,16 @@ use opentern_core::Symbol;
 use opentern_engine::paper::{Account, Kind, Ticket};
 use std::collections::HashMap;
 
-const KEY: &str = "paper_account";
+/// Before several accounts: one account under this key (migrated).
+const OLD_KEY: &str = "paper_account";
+const KEY: &str = "paper_accounts";
+
+/// What's saved: every account, and which one is in use.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Saved {
+    accounts: Vec<Account>,
+    active: usize,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum View {
@@ -53,7 +62,11 @@ impl OrderType {
 }
 
 pub struct Paper {
+    /// The account in use (the ticket, tables and chart lines show it).
     pub account: Account,
+    /// The other accounts; their orders keep working.
+    pub others: Vec<Account>,
+    rename: Option<String>,
     pub view: View,
     pub buy: bool,
     pub kind: OrderType,
@@ -72,12 +85,24 @@ pub struct Paper {
 
 impl Paper {
     pub fn load(store: &opentern_core::Store) -> Paper {
-        let account = store
-            .value(KEY)
-            .and_then(|s| serde_json::from_str::<Account>(&s).ok())
-            .unwrap_or_default();
+        let (account, others) = match store.value(KEY).and_then(|s| serde_json::from_str::<Saved>(&s).ok()) {
+            Some(mut s) if !s.accounts.is_empty() => {
+                let k = s.active.min(s.accounts.len() - 1);
+                let a = s.accounts.remove(k);
+                (a, s.accounts)
+            }
+            _ => (
+                store
+                    .value(OLD_KEY)
+                    .and_then(|s| serde_json::from_str::<Account>(&s).ok())
+                    .unwrap_or_default(),
+                Vec::new(),
+            ),
+        };
         Paper {
             account,
+            others,
+            rename: None,
             view: View::Positions,
             buy: true,
             kind: OrderType::Market,
@@ -101,7 +126,9 @@ fn now() -> i64 {
 
 impl App {
     fn save_paper(&mut self) {
-        match serde_json::to_string(&self.paper.account) {
+        let mut accounts = vec![self.paper.account.clone()];
+        accounts.extend(self.paper.others.iter().cloned());
+        match serde_json::to_string(&Saved { accounts, active: 0 }) {
             Ok(s) => {
                 if let Err(e) = self.store.set_value(KEY, &s) {
                     crate::diag::crumb(format!("couldn't save the paper account: {e}"));
@@ -122,7 +149,12 @@ impl App {
     /// Every frame: feeds new prices to the account, keeps quotes coming
     /// for its symbols, and puts its lines on the chart.
     pub(crate) fn poll_paper(&mut self) {
-        let symbols = self.paper.account.symbols();
+        let mut symbols = self.paper.account.symbols();
+        for a in &self.paper.others {
+            symbols.extend(a.symbols());
+        }
+        symbols.sort();
+        symbols.dedup();
         let mut changed = false;
         for s in &symbols {
             let Some(p) = self.last_price(s) else { continue };
@@ -130,18 +162,28 @@ impl App {
                 continue;
             }
             self.paper.fed.insert(s.clone(), p);
-            let fills = self.paper.account.on_price(s, p, now());
-            for f in &fills {
-                let side = if f.buy { "Bought" } else { "Sold" };
-                self.paper.status = format!("{side} {} {} at {}", qty_text(f.qty), short(&f.symbol), num(f.price));
-                crate::diag::crumb(format!("paper fill: order {}", f.order));
+            let paper = &mut self.paper;
+            let many = !paper.others.is_empty();
+            for acc in std::iter::once(&mut paper.account).chain(paper.others.iter_mut()) {
+                let fills = acc.on_price(s, p, now());
+                for f in &fills {
+                    let side = if f.buy { "Bought" } else { "Sold" };
+                    let whose = if many { format!("{}: ", acc.name) } else { String::new() };
+                    paper.status = format!(
+                        "{whose}{side} {} {} at {}",
+                        qty_text(f.qty),
+                        short(&f.symbol),
+                        num(f.price)
+                    );
+                    crate::diag::crumb(format!("paper fill: order {}", f.order));
+                }
+                changed |= !fills.is_empty();
             }
-            changed |= !fills.is_empty();
         }
         if changed {
             self.save_paper();
         }
-        let want: Vec<String> = self.paper.account.symbols();
+        let want: Vec<String> = symbols;
         if want != self.paper.subscribed {
             self.paper.subscribed = want;
             self.subscribe_quotes();
@@ -165,6 +207,7 @@ impl App {
                 ),
                 buy: p.qty > 0.0,
                 position: true,
+                order: None,
             });
         }
         for o in self.paper.account.orders.iter().filter(|o| o.symbol == id) {
@@ -179,15 +222,92 @@ impl App {
                     label: format!("{what} {} {}", if o.buy { "buy" } else { "sell" }, qty_text(o.qty)),
                     buy: o.buy,
                     position: false,
+                    order: Some(o.id),
                 });
             }
         }
         self.chart.paper = lines;
     }
 
-    /// Symbols the account holds or has orders in, as quote subscriptions.
+    /// Symbols the accounts hold or have orders in, as quote subscriptions.
     pub(crate) fn paper_symbols(&self) -> Vec<Symbol> {
-        self.paper.account.symbols().iter().map(|s| Symbol::bare(s)).collect()
+        self.paper.subscribed.iter().map(|s| Symbol::bare(s)).collect()
+    }
+
+    /// Chart trading: an order's line was dragged.
+    pub(crate) fn paper_move(&mut self, id: u64, price: f64) {
+        match self.paper.account.modify(id, price) {
+            Ok(()) => {
+                self.paper.status = format!("Order moved to {}.", num(price));
+                self.save_paper();
+            }
+            Err(e) => self.paper.status = e,
+        }
+    }
+
+    pub(crate) fn paper_cancel(&mut self, id: u64) {
+        if self.paper.account.cancel(id) {
+            self.paper.status = "Order cancelled.".into();
+            self.save_paper();
+        }
+    }
+
+    pub(crate) fn paper_close(&mut self, symbol: &str) {
+        match self.last_price(symbol) {
+            Some(l) => {
+                self.paper.account.close_position(symbol, l, now());
+                self.paper.status = format!("Closed {}.", short(symbol));
+                self.save_paper();
+            }
+            None => self.paper.status = "No price yet for this symbol.".into(),
+        }
+    }
+
+    /// Makes account `k` of the others the one in use.
+    fn switch_account(&mut self, k: usize) {
+        if k < self.paper.others.len() {
+            std::mem::swap(&mut self.paper.account, &mut self.paper.others[k]);
+            // Keep the others in their order: the previous one goes first.
+            let prev = self.paper.others.remove(k);
+            self.paper.others.insert(0, prev);
+            self.paper.status = format!("Using {}.", self.paper.account.name);
+            self.save_paper();
+        }
+    }
+
+    fn new_account(&mut self) {
+        let names: Vec<String> = std::iter::once(&self.paper.account)
+            .chain(&self.paper.others)
+            .map(|a| a.name.clone())
+            .collect();
+        let name = (2..)
+            .map(|k| format!("Paper account {k}"))
+            .find(|n| !names.contains(n))
+            .expect("a free name");
+        let fresh = Account::new(&name, 100_000.0);
+        let prev = std::mem::replace(&mut self.paper.account, fresh);
+        self.paper.others.insert(0, prev);
+        self.paper.status = format!("Made {name}.");
+        self.save_paper();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn new_account_for_test(&mut self) {
+        self.new_account();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn switch_account_for_test(&mut self, k: usize) {
+        self.switch_account(k);
+    }
+
+    fn delete_account(&mut self) {
+        if self.paper.others.is_empty() {
+            return;
+        }
+        let gone = std::mem::replace(&mut self.paper.account, self.paper.others.remove(0));
+        self.paper.status = format!("Deleted {}.", gone.name);
+        self.save_paper();
     }
 
     pub(crate) fn paper_tab(&mut self, ui: &mut Ui, t: &Theme) {
@@ -445,13 +565,15 @@ impl App {
                 }
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                self.account_menu(ui, t);
                 if self.paper.confirm_reset {
                     if small_button(ui, t, "Cancel", false).clicked() {
                         self.paper.confirm_reset = false;
                     }
                     if small_button(ui, t, "Yes, reset", true).clicked() {
                         let commission = self.paper.account.commission_pct;
-                        self.paper.account = Account::new("Paper account", self.paper.account.initial);
+                        let name = self.paper.account.name.clone();
+                        self.paper.account = Account::new(&name, self.paper.account.initial);
                         self.paper.account.commission_pct = commission;
                         self.paper.confirm_reset = false;
                         self.paper.status = "The account was reset.".into();
@@ -468,6 +590,61 @@ impl App {
             View::Positions => self.positions_table(ui, t, &prices),
             View::Orders => self.orders_table(ui, t),
             View::History => self.history_table(ui, t),
+        }
+    }
+
+    /// The account picker: switch, make, rename and delete accounts.
+    fn account_menu(&mut self, ui: &mut Ui, _t: &Theme) {
+        let current = self.paper.account.name.clone();
+        let mut pick = None;
+        let mut make = false;
+        let mut delete = false;
+        ui.menu_button(format!("{current}  {}", crate::icons::ph::CARET_DOWN), |ui| {
+            ui.set_min_width(220.0);
+            ui.label(egui::RichText::new(&current).strong());
+            for (k, a) in self.paper.others.iter().enumerate() {
+                if ui.button(&a.name).clicked() {
+                    pick = Some(k);
+                    ui.close();
+                }
+            }
+            ui.separator();
+            let mut name = self.paper.rename.clone().unwrap_or_else(|| current.clone());
+            ui.horizontal(|ui| {
+                ui.add(egui::TextEdit::singleline(&mut name).desired_width(130.0));
+                let ok = !name.trim().is_empty() && name.trim() != current;
+                if ui.add_enabled(ok, egui::Button::new("Rename")).clicked() {
+                    self.paper.account.name = name.trim().to_string();
+                    self.paper.rename = None;
+                    self.save_paper();
+                    ui.close();
+                }
+            });
+            self.paper.rename = Some(name);
+            if ui.button(format!("{}  New account", crate::icons::ph::PLUS)).clicked() {
+                make = true;
+                ui.close();
+            }
+            if ui
+                .add_enabled(
+                    !self.paper.others.is_empty(),
+                    egui::Button::new(format!("{}  Delete this account", crate::icons::ph::TRASH)),
+                )
+                .on_disabled_hover_text("Make another account first")
+                .clicked()
+            {
+                delete = true;
+                ui.close();
+            }
+        });
+        if let Some(k) = pick {
+            self.switch_account(k);
+        }
+        if make {
+            self.new_account();
+        }
+        if delete {
+            self.delete_account();
         }
     }
 

@@ -29,6 +29,11 @@ pub enum Action {
     MoreHistory,
     ChartSettings,
     RemoveCompare(usize),
+    /// Chart trading: a paper order's line was dragged to a new price.
+    PaperMove(u64, f64),
+    PaperCancel(u64),
+    /// The × on the position's line.
+    PaperClose,
 }
 
 /// Interaction state that isn't worth saving.
@@ -47,6 +52,8 @@ pub struct ChartUi {
     pub hover_time: Option<i64>,
     /// Seasonality's numbers, until the bars change.
     pub season: super::profile::SeasonCache,
+    /// A paper order being dragged: (order, price under the pointer).
+    pub paper_drag: Option<(u64, f64)>,
 }
 
 impl Default for ChartUi {
@@ -60,6 +67,7 @@ impl Default for ChartUi {
             sync_cross: None,
             hover_time: None,
             season: Default::default(),
+            paper_drag: None,
         }
     }
 }
@@ -383,8 +391,60 @@ pub fn show(
         .interact_pointer_pos()
         .or(pointer)
         .is_some_and(|p| geos.first().is_some_and(|g| g.rect.contains(p)));
+    // Chart trading: paper order tags drag their order; × cancels (or
+    // closes the position). They sit above the plot, so they win the press.
+    let mut paper_used = false;
+    if interactive && let Some(g) = geos.first() {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        for (k, l) in chart.paper.iter().enumerate() {
+            let price = match (cui.paper_drag, l.order) {
+                (Some((id, p)), Some(o)) if id == o => p,
+                _ => l.price,
+            };
+            let yy = g.y.y(price);
+            if yy < g.rect.top() || yy > g.rect.bottom() {
+                continue;
+            }
+            let (_, tag, close) = paper_geom(ui.painter(), l, yy, g.rect);
+            let x = ui.interact(close, Id::new(("paper-x", chart.id, k)), Sense::click());
+            if x.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                paper_used = true;
+            }
+            if x.clicked() {
+                actions.push(match l.order {
+                    Some(o) => Action::PaperCancel(o),
+                    None => Action::PaperClose,
+                });
+                paper_used = true;
+                continue;
+            }
+            let Some(order) = l.order else { continue };
+            let t = ui.interact(tag, Id::new(("paper-tag", chart.id, k)), Sense::drag());
+            if t.hovered() || t.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                paper_used = true;
+            }
+            if t.dragged()
+                && let Some(p) = t.interact_pointer_pos()
+            {
+                let v = (g.y.value(p.y) / tick).round() * tick;
+                cui.paper_drag = Some((order, v));
+            }
+            if t.drag_stopped()
+                && let Some((id, v)) = cui.paper_drag.take()
+            {
+                actions.push(Action::PaperMove(id, v));
+            }
+        }
+    }
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
-    let drawing_used = interactive
+    let drawing_used = !paper_used
+        && interactive
         && n > 0
         && !choosing
         && (on_main || tools.tool.is_drawing())
@@ -401,7 +461,7 @@ pub fn show(
     if tools.tool.is_drawing() && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
-    if plot_resp.dragged() && !drawing_used {
+    if plot_resp.dragged() && !drawing_used && !paper_used {
         let d = plot_resp.drag_delta();
         chart.view.right -= (d.x / chart.view.bar_w) as f64;
         // Dragging vertically pans the price too, which ends autoscale.
@@ -649,7 +709,7 @@ pub fn show(
         if let Some(c) = &chart.corporate {
             draw_corporate(ui.ctx(), &p, c, chart, &x, first, last, g.rect);
         }
-        draw_paper(&p, &chart.paper, &g.y, g.rect);
+        draw_paper(&p, &chart.paper, cui.paper_drag, &g.y, g.rect);
     }
     // ---- sub panes
     for (k, g) in geos.iter().enumerate().skip(1) {
@@ -1876,14 +1936,28 @@ fn trim_num(v: f64) -> String {
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
+/// A paper line's tag at the left edge, and the × beside it.
+fn paper_geom(p: &Painter, l: &super::PaperLine, yy: f32, rect: Rect) -> (std::sync::Arc<egui::Galley>, Rect, Rect) {
+    let g = p.layout_no_wrap(l.label.clone(), egui::FontId::proportional(11.0), Color32::WHITE);
+    let tag = Rect::from_min_size(
+        pos2(rect.left() + 8.0, yy - g.size().y / 2.0 - 2.0),
+        g.size() + vec2(10.0, 4.0),
+    );
+    let close = Rect::from_min_size(pos2(tag.right() + 2.0, tag.top()), vec2(tag.height(), tag.height()));
+    (g, tag, close)
+}
+
 /// The paper account's position (solid) and orders (dashed), with a tag
-/// at the left edge.
-fn draw_paper(p: &Painter, lines: &[super::PaperLine], y: &YMap, rect: Rect) {
+/// at the left edge (drag an order's tag to move it; × cancels).
+fn draw_paper(p: &Painter, lines: &[super::PaperLine], drag: Option<(u64, f64)>, y: &YMap, rect: Rect) {
     const BUY: Color32 = Color32::from_rgb(0x29, 0x62, 0xFF);
     const SELL: Color32 = Color32::from_rgb(0xF2, 0x36, 0x45);
-    let font = egui::FontId::proportional(11.0);
     for l in lines {
-        let yy = y.y(l.price);
+        let price = match (drag, l.order) {
+            (Some((id, v)), Some(o)) if id == o => v,
+            _ => l.price,
+        };
+        let yy = y.y(price);
         if yy < rect.top() || yy > rect.bottom() {
             continue;
         }
@@ -1898,13 +1972,25 @@ fn draw_paper(p: &Painter, lines: &[super::PaperLine], y: &YMap, rect: Rect) {
                 4.0,
             ));
         }
-        let g = p.layout_no_wrap(l.label.clone(), font.clone(), Color32::WHITE);
-        let r = Rect::from_min_size(
-            pos2(rect.left() + 8.0, yy - g.size().y / 2.0 - 2.0),
-            g.size() + vec2(10.0, 4.0),
-        );
+        let (g, r, close) = paper_geom(p, l, yy, rect);
         p.rect_filled(r, CornerRadius::same(3), c);
         p.galley(r.min + vec2(5.0, 2.0), g, Color32::WHITE);
+        p.rect_filled(close, CornerRadius::same(3), c);
+        let m = close.center();
+        let s = 3.0;
+        let st = Stroke::new(1.4, Color32::WHITE);
+        p.line_segment([m + vec2(-s, -s), m + vec2(s, s)], st);
+        p.line_segment([m + vec2(-s, s), m + vec2(s, -s)], st);
+        if drag.is_some_and(|(id, _)| Some(id) == l.order) {
+            // The price it will move to, at the right edge.
+            let txt = p.layout_no_wrap(format!("{price}"), egui::FontId::proportional(11.0), Color32::WHITE);
+            let pr = Rect::from_min_size(
+                pos2(rect.right() - txt.size().x - 14.0, yy - txt.size().y / 2.0 - 2.0),
+                txt.size() + vec2(10.0, 4.0),
+            );
+            p.rect_filled(pr, CornerRadius::same(3), c);
+            p.galley(pr.min + vec2(5.0, 2.0), txt, Color32::WHITE);
+        }
     }
 }
 

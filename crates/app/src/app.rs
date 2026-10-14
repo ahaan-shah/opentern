@@ -616,6 +616,12 @@ impl App {
                 Action::ChartSettings => {
                     self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)))
                 }
+                Action::PaperMove(id, price) => self.paper_move(id, price),
+                Action::PaperCancel(id) => self.paper_cancel(id),
+                Action::PaperClose => {
+                    let id = self.chart.symbol.id.clone();
+                    self.paper_close(&id);
+                }
             }
         }
     }

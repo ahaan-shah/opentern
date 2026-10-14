@@ -611,6 +611,83 @@ mod tests {
     }
 
     #[test]
+    fn chart_trading_and_several_paper_accounts() {
+        use opentern_engine::paper::{Kind, Ticket};
+        let mut d = Driver::new("chart-trading");
+        let sym = d.app.chart.symbol.id.clone();
+        let last = d.app.last_price(&sym).expect("a price");
+        let limit = last * 0.995;
+        let id = d
+            .app
+            .paper
+            .account
+            .place(
+                Ticket {
+                    symbol: sym.clone(),
+                    buy: true,
+                    qty: 1.0,
+                    kind: Kind::Limit(limit),
+                    take_profit: None,
+                    stop_loss: None,
+                },
+                Some(last),
+                0,
+            )
+            .unwrap();
+        for _ in 0..3 {
+            d.frame(vec![]);
+        }
+        // Drag the order's tag up the chart: the order moves with it.
+        let main = d.app.chart_ui.main_rect;
+        let sc = &d.app.chart.panes[0].scale;
+        let y_of = |v: f64| main.top() + ((sc.hi - v) / (sc.hi - sc.lo)) as f32 * main.height();
+        let from = egui::pos2(main.left() + 20.0, y_of(limit));
+        let to = egui::pos2(from.x, from.y - 40.0);
+        d.drag(from, to);
+        for _ in 0..3 {
+            d.frame(vec![]);
+        }
+        let moved = match d.app.paper.account.orders.iter().find(|o| o.id == id).unwrap().kind {
+            Kind::Limit(p) => p,
+            _ => unreachable!(),
+        };
+        assert!(moved > limit, "moved from {limit} to {moved}");
+        assert!(d.app.paper.status.starts_with("Order moved"), "{}", d.app.paper.status);
+        // The × cancels it.
+        d.app.chart_actions(vec![crate::chart::ui::Action::PaperCancel(id)]);
+        assert!(d.app.paper.account.orders.is_empty());
+        // A second account keeps its own orders; both are saved.
+        d.app
+            .paper
+            .account
+            .place(
+                Ticket {
+                    symbol: sym.clone(),
+                    buy: true,
+                    qty: 1.0,
+                    kind: Kind::Limit(last * 0.9),
+                    take_profit: None,
+                    stop_loss: None,
+                },
+                Some(last),
+                0,
+            )
+            .unwrap();
+        d.app.new_account_for_test();
+        assert_eq!(d.app.paper.account.name, "Paper account 2");
+        assert!(d.app.paper.account.orders.is_empty());
+        assert_eq!(d.app.paper.others[0].orders.len(), 1);
+        d.app.switch_account_for_test(0);
+        assert_eq!(d.app.paper.account.orders.len(), 1);
+        let path = d.dir.clone();
+        std::mem::forget(d);
+        let d = Driver::open(path);
+        assert_eq!(d.app.paper.account.orders.len(), 1);
+        assert_eq!(d.app.paper.others.len(), 1);
+        assert_eq!(d.app.paper.others[0].name, "Paper account 2");
+    }
+
+    #[test]
     fn price_alerts_fire_once_and_are_logged() {
         use opentern_engine::alerts::{Alert, Condition, Freq, Op};
         let mut d = Driver::new("alerts");

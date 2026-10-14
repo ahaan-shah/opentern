@@ -231,6 +231,32 @@ impl Account {
         self.orders.len() != n
     }
 
+    /// Moves a working order to a new price (dragging its line on the
+    /// chart). A stop-limit moves its stop until armed, then its limit.
+    pub fn modify(&mut self, id: u64, price: f64) -> Result<(), String> {
+        if !(price > 0.0 && price.is_finite()) {
+            return Err("That price isn't valid.".into());
+        }
+        let o = self
+            .orders
+            .iter_mut()
+            .find(|o| o.id == id)
+            .ok_or("That order isn't working any more.")?;
+        match &mut o.kind {
+            Kind::Limit(p) | Kind::Stop(p) => *p = price,
+            Kind::StopLimit { stop, limit, armed } => {
+                if *armed {
+                    *limit = price;
+                } else {
+                    *stop = price;
+                }
+            }
+            Kind::Trailing { .. } => return Err("A trailing stop follows the price; it can't be moved.".into()),
+            Kind::Market => return Err("A market order has no price to move.".into()),
+        }
+        Ok(())
+    }
+
     /// Closes a position at market (and cancels its bracket legs).
     pub fn close_position(&mut self, symbol: &str, last: f64, now: i64) {
         let Some(p) = self.position(symbol).cloned() else {
@@ -406,6 +432,31 @@ mod tests {
             take_profit: None,
             stop_loss: None,
         }
+    }
+
+    #[test]
+    fn orders_move_to_a_new_price() {
+        let mut a = Account::new("t", 10_000.0);
+        let id = a.place(ticket(true, 1.0, Kind::Limit(90.0)), Some(100.0), 0).unwrap();
+        a.modify(id, 95.0).unwrap();
+        assert!(a.on_price("X", 96.0, 1).is_empty());
+        assert_eq!(a.on_price("X", 95.0, 2).len(), 1);
+        let t = a
+            .place(
+                ticket(
+                    false,
+                    1.0,
+                    Kind::Trailing {
+                        offset: 5.0,
+                        best: 95.0,
+                    },
+                ),
+                Some(95.0),
+                3,
+            )
+            .unwrap();
+        assert!(a.modify(t, 80.0).is_err());
+        assert!(a.modify(999, 80.0).is_err());
     }
 
     #[test]

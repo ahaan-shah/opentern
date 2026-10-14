@@ -1,9 +1,9 @@
 //! Alerts in the app: evaluated as prices arrive (whether or not the
 //! symbol is on the chart, for price alerts), fired into the Alerts log, a
 //! toast, and the channels the alert asks for. Desktop notifications,
-//! webhooks and Telegram are sent from a background thread, so a slow
-//! network never stalls a frame. The Telegram bot token lives in the OS
-//! keychain.
+//! webhooks, Telegram and email are sent from a background thread, so a
+//! slow network never stalls a frame. The Telegram bot token and the email
+//! password live in the OS keychain; the rest in settings.
 
 use crate::app::App;
 use crate::chart::draw::Tool;
@@ -20,6 +20,55 @@ use std::time::Instant;
 
 pub const TELEGRAM_TOKEN: &str = "telegram-bot-token";
 pub const TELEGRAM_CHAT: &str = "telegram_chat_id";
+/// Email: the SMTP password in the keychain; server, port, login and
+/// recipient in settings.
+pub const EMAIL_PASSWORD: &str = "email-smtp-password";
+pub const EMAIL_HOST: &str = "email_smtp_host";
+pub const EMAIL_PORT: &str = "email_smtp_port";
+pub const EMAIL_USER: &str = "email_smtp_user";
+pub const EMAIL_TO: &str = "email_to";
+
+/// Where an alert's email goes.
+#[derive(Clone, Debug)]
+pub struct EmailTo {
+    pub host: String,
+    pub port: u16,
+    pub user: String,
+    pub to: String,
+}
+
+/// Sends one email over SMTP (STARTTLS on 587 and others, TLS on 465).
+pub fn send_email(e: &EmailTo, password: &str, subject: &str, body: &str) -> Result<(), String> {
+    use lettre::message::header::ContentType;
+    use lettre::transport::smtp::authentication::Credentials;
+    use lettre::{Message, SmtpTransport, Transport};
+    let from = e
+        .user
+        .parse()
+        .map_err(|_| format!("\"{}\" isn't an email address.", e.user))?;
+    let to =
+        e.to.parse()
+            .map_err(|_| format!("\"{}\" isn't an email address.", e.to))?;
+    let msg = Message::builder()
+        .from(from)
+        .to(to)
+        .subject(subject)
+        .header(ContentType::TEXT_PLAIN)
+        .body(body.to_string())
+        .map_err(|err| err.to_string())?;
+    let builder = if e.port == 465 {
+        SmtpTransport::relay(&e.host)
+    } else {
+        SmtpTransport::starttls_relay(&e.host)
+    }
+    .map_err(|err| format!("Couldn't reach {}: {err}", e.host))?;
+    let mailer = builder
+        .port(e.port)
+        .credentials(Credentials::new(e.user.clone(), password.to_string()))
+        .timeout(Some(std::time::Duration::from_secs(20)))
+        .build();
+    mailer.send(&msg).map(|_| ()).map_err(|err| err.to_string())
+}
 
 /// One fired alert, as kept in the log.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -39,6 +88,7 @@ pub struct Delivery {
     pub sound: bool,
     pub webhook: String,
     pub telegram_chat: Option<String>,
+    pub email: Option<EmailTo>,
 }
 
 pub struct Alerts {
@@ -114,6 +164,16 @@ fn deliver(d: &Delivery) {
                 }
             }
             Err(_) => crate::diag::crumb("telegram: no bot token in the keychain"),
+        }
+    }
+    if let Some(e) = &d.email {
+        match opentern_core::secrets::get(EMAIL_PASSWORD) {
+            Some(pw) => {
+                if let Err(err) = send_email(e, &pw, &d.title, &d.body) {
+                    crate::diag::crumb(format!("email to {} failed: {}", e.host, err.replace(&pw, "…")));
+                }
+            }
+            None => crate::diag::crumb("email: no password in the keychain"),
         }
     }
 }
@@ -357,6 +417,7 @@ impl App {
                 .then(|| self.store.value(TELEGRAM_CHAT))
                 .flatten()
                 .filter(|c| !c.trim().is_empty());
+            let email = a.email.then(|| self.email_to()).flatten();
             let _ = tx.send(Delivery {
                 title: format!("Opentern: {name}"),
                 body: message,
@@ -364,10 +425,22 @@ impl App {
                 sound: a.sound,
                 webhook: a.webhook.clone(),
                 telegram_chat: chat,
+                email,
             });
         }
         self.save_alert(a);
         self.egui_ctx.request_repaint();
+    }
+
+    /// The email settings, if they're filled in.
+    pub(crate) fn email_to(&self) -> Option<EmailTo> {
+        let get = |k: &str| self.store.value(k).filter(|v| !v.trim().is_empty());
+        Some(EmailTo {
+            host: get(EMAIL_HOST)?,
+            port: get(EMAIL_PORT).and_then(|p| p.trim().parse().ok()).unwrap_or(587),
+            user: get(EMAIL_USER)?,
+            to: get(EMAIL_TO)?,
+        })
     }
 
     /// Toasts for fired alerts, top right over the chart.
@@ -637,6 +710,19 @@ pub fn line_condition(d: &crate::chart::draw::Drawing, op: opentern_engine::aler
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn email_errors_are_plain() {
+        let to = EmailTo {
+            host: "smtp.example.invalid".into(),
+            port: 587,
+            user: "not an address".into(),
+            to: "you@example.com".into(),
+        };
+        let e = send_email(&to, "pw", "s", "b").unwrap_err();
+        assert!(e.contains("isn't an email address"), "{e}");
+    }
+
     use super::*;
 
     #[test]

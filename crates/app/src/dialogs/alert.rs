@@ -31,6 +31,12 @@ pub struct AlertForm {
     token: String,
     chat: String,
     has_token: bool,
+    /// Email: server, port, login, password (to the keychain), recipient.
+    email: [String; 4],
+    email_password: String,
+    has_password: bool,
+    /// The test email's outcome, filled in by its thread.
+    email_status: std::sync::Arc<std::sync::Mutex<String>>,
     error: String,
 }
 
@@ -105,6 +111,17 @@ impl App {
         }
         let has_token = opentern_core::secrets::get(TELEGRAM_TOKEN).is_some();
         let chat = self.store.value(TELEGRAM_CHAT).unwrap_or_default();
+        let has_password = opentern_core::secrets::get(crate::alerts::EMAIL_PASSWORD).is_some();
+        let v = |k: &str| self.store.value(k).unwrap_or_default();
+        let email = [
+            v(crate::alerts::EMAIL_HOST),
+            match v(crate::alerts::EMAIL_PORT) {
+                p if p.is_empty() => "587".into(),
+                p => p,
+            },
+            v(crate::alerts::EMAIL_USER),
+            v(crate::alerts::EMAIL_TO),
+        ];
         let mut form = AlertForm {
             alert: Alert {
                 symbol: self.chart.symbol.id.clone(),
@@ -121,6 +138,10 @@ impl App {
             token: String::new(),
             chat,
             has_token,
+            email,
+            email_password: String::new(),
+            has_password,
+            email_status: Default::default(),
             error: String::new(),
         };
         if let Some(a) = edit {
@@ -315,6 +336,82 @@ impl AlertForm {
                     );
                 });
             }
+            form_row(ui, t, "Email", |ui| {
+                ui.checkbox(&mut self.alert.email, "");
+            });
+            if self.alert.email {
+                let hints = [
+                    ("SMTP server", "smtp.gmail.com"),
+                    ("Port", "587"),
+                    ("Your address", "you@example.com"),
+                    ("Send to", "you@example.com"),
+                ];
+                for (k, (label, hint)) in hints.iter().enumerate() {
+                    form_row(ui, t, label, |ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut self.email[k])
+                                .hint_text(*hint)
+                                .desired_width(if k == 1 { 70.0 } else { 250.0 }),
+                        );
+                    });
+                }
+                form_row(ui, t, "Password", |ui| {
+                    let hint = if self.has_password {
+                        "Saved in your keychain (paste to replace)"
+                    } else {
+                        "An app password, not your login"
+                    };
+                    ui.add(
+                        egui::TextEdit::singleline(&mut self.email_password)
+                            .password(true)
+                            .hint_text(hint)
+                            .desired_width(250.0),
+                    );
+                });
+                form_row(ui, t, "", |ui| {
+                    if ui.button("Send a test email").clicked() {
+                        let status = self.email_status.clone();
+                        let set = move |s: String| {
+                            if let Ok(mut m) = status.lock() {
+                                *m = s;
+                            }
+                        };
+                        match self.save_email(app) {
+                            Ok(()) => match (
+                                app.email_to(),
+                                opentern_core::secrets::get(crate::alerts::EMAIL_PASSWORD),
+                            ) {
+                                (Some(to), Some(pw)) => {
+                                    set("Sending…".into());
+                                    let ctx = ui.ctx().clone();
+                                    let _ = std::thread::Builder::new().name("test-email".into()).spawn(move || {
+                                        let r =
+                                            crate::alerts::send_email(&to, &pw, "Opentern test", "Email alerts work.");
+                                        set(match r {
+                                            Ok(()) => "Sent. Check your inbox.".into(),
+                                            Err(e) => e.replace(&pw, "…"),
+                                        });
+                                        ctx.request_repaint();
+                                    });
+                                }
+                                _ => set("Fill in every field first.".into()),
+                            },
+                            Err(e) => set(e),
+                        }
+                    }
+                    let status = self.email_status.lock().map(|s| s.clone()).unwrap_or_default();
+                    if !status.is_empty() {
+                        ui.label(egui::RichText::new(status).color(t.text3).size(11.5));
+                    }
+                });
+                ui.label(
+                    egui::RichText::new(
+                        "Gmail, Outlook and most providers need an app password: make one in your account's security settings.",
+                    )
+                    .color(t.text3)
+                    .size(11.5),
+                );
+            }
         }
     }
 
@@ -339,6 +436,12 @@ impl AlertForm {
                             Ok(a) => {
                                 if self.alert.telegram
                                     && let Err(e) = self.save_telegram(app)
+                                {
+                                    self.error = e;
+                                    return;
+                                }
+                                if self.alert.email
+                                    && let Err(e) = self.save_email(app)
                                 {
                                     self.error = e;
                                     return;
@@ -408,6 +511,37 @@ impl AlertForm {
         }
         a.active = true;
         Ok(a)
+    }
+
+    /// Keeps the SMTP password in the OS keychain, the rest in settings.
+    fn save_email(&mut self, app: &mut App) -> Result<(), String> {
+        let [host, port, user, to] = self.email.clone().map(|s| s.trim().to_string());
+        if host.is_empty() || user.is_empty() || to.is_empty() {
+            return Err("Fill in the SMTP server, your address and where to send, or turn email off.".into());
+        }
+        if port.parse::<u16>().is_err() {
+            return Err("The port should be a number, usually 587 or 465.".into());
+        }
+        let pw = self.email_password.trim();
+        if !pw.is_empty() {
+            opentern_core::secrets::set(crate::alerts::EMAIL_PASSWORD, pw)
+                .map_err(|e| format!("Couldn't save the password in your keychain: {e}"))?;
+            self.has_password = true;
+            self.email_password.clear();
+        } else if !self.has_password {
+            return Err("Paste the email password (an app password), or turn email off.".into());
+        }
+        for (k, v) in [
+            (crate::alerts::EMAIL_HOST, host),
+            (crate::alerts::EMAIL_PORT, port),
+            (crate::alerts::EMAIL_USER, user),
+            (crate::alerts::EMAIL_TO, to),
+        ] {
+            app.store
+                .set_value(k, &v)
+                .map_err(|e| format!("Couldn't save the email settings: {e}"))?;
+        }
+        Ok(())
     }
 
     /// Keeps the bot token in the OS keychain and the chat id in settings.

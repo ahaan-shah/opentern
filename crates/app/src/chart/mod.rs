@@ -207,6 +207,8 @@ pub struct PaperLine {
     pub buy: bool,
     /// The position (solid) rather than an order (dashed).
     pub position: bool,
+    /// The working order this line is (drag it to move the order).
+    pub order: Option<u64>,
 }
 
 /// What a strategy shows on the chart, as on TradingView.
