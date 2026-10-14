@@ -134,7 +134,7 @@ fn side(trades: &[&Trade], position: &[f64], filter: impl Fn(f64) -> bool) -> Si
 
 /// Drawdowns (peak to trough) or run-ups (trough to peak) of a curve:
 /// (largest, average, average length in bars).
-fn excursions(curve: &[f64], down: bool) -> (f64, f64, f64) {
+pub(crate) fn excursions(curve: &[f64], down: bool) -> (f64, f64, f64) {
     let mut best = 0.0f64;
     let mut sizes = Vec::new();
     let mut lens = Vec::new();
@@ -173,6 +173,11 @@ fn excursions(curve: &[f64], down: bool) -> (f64, f64, f64) {
 
 /// Monthly returns of the equity curve (month ends in UTC).
 fn monthly_returns(bars: &[Bar], equity: &[f64]) -> Vec<f64> {
+    monthly_returns_at(bars.iter().map(|b| b.time), equity)
+}
+
+/// Monthly returns of an equity curve sampled at `times` (ms, UTC).
+pub(crate) fn monthly_returns_at(times: impl Iterator<Item = i64>, equity: &[f64]) -> Vec<f64> {
     let month = |t: i64| {
         jiff::Timestamp::from_millisecond(t)
             .map(|x| {
@@ -183,8 +188,8 @@ fn monthly_returns(bars: &[Bar], equity: &[f64]) -> Vec<f64> {
     };
     let mut ends: Vec<f64> = Vec::new();
     let mut last_month = None;
-    for (b, e) in bars.iter().zip(equity) {
-        let m = month(b.time);
+    for (time, e) in times.zip(equity) {
+        let m = month(time);
         if Some(m) != last_month {
             ends.push(*e);
             last_month = Some(m);
@@ -195,6 +200,21 @@ fn monthly_returns(bars: &[Bar], equity: &[f64]) -> Vec<f64> {
     ends.windows(2)
         .map(|w| if w[0] != 0.0 { w[1] / w[0] - 1.0 } else { 0.0 })
         .collect()
+}
+
+/// Sharpe and Sortino on monthly returns, risk-free rate 2% a year.
+pub(crate) fn sharpe_sortino(rets: &[f64]) -> (f64, f64) {
+    let rf = 0.02 / 12.0;
+    if rets.len() < 2 {
+        return (f64::NAN, f64::NAN);
+    }
+    let m = rets.iter().sum::<f64>() / rets.len() as f64;
+    let sd = (rets.iter().map(|x| (x - m).powi(2)).sum::<f64>() / rets.len() as f64).sqrt();
+    let down = (rets.iter().map(|x| (x - rf).min(0.0).powi(2)).sum::<f64>() / rets.len() as f64).sqrt();
+    (
+        if sd > 0.0 { (m - rf) / sd } else { f64::NAN },
+        if down > 0.0 { (m - rf) / down } else { f64::NAN },
+    )
 }
 
 impl Report {
@@ -227,17 +247,7 @@ impl Report {
         r.outperformance = r.all.net_profit - r.buy_hold_pnl;
         // Sharpe and Sortino on monthly returns, risk-free rate 2% a year.
         let rets = monthly_returns(&bars[..n], &b.equity[..n]);
-        let rf = 0.02 / 12.0;
-        if rets.len() >= 2 {
-            let m = rets.iter().sum::<f64>() / rets.len() as f64;
-            let sd = (rets.iter().map(|x| (x - m).powi(2)).sum::<f64>() / rets.len() as f64).sqrt();
-            let down = (rets.iter().map(|x| (x - rf).min(0.0).powi(2)).sum::<f64>() / rets.len() as f64).sqrt();
-            r.sharpe = if sd > 0.0 { (m - rf) / sd } else { f64::NAN };
-            r.sortino = if down > 0.0 { (m - rf) / down } else { f64::NAN };
-        } else {
-            r.sharpe = f64::NAN;
-            r.sortino = f64::NAN;
-        }
+        (r.sharpe, r.sortino) = sharpe_sortino(&rets);
         let final_eq = b.equity[n - 1];
         let days = (bars[n - 1].time - bars[0].time) as f64 / 86_400_000.0;
         r.cagr = if days > 0.0 && final_eq > 0.0 && cap > 0.0 {

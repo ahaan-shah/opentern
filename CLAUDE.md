@@ -544,19 +544,16 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Where we are (10 Oct 2026):** Phases 0–11 are built and committed, one commit per
-phase (latest: `Phase 11: power features`). Nothing has been pushed or released. The
-maintainer asked to **pause after Phase 11**; wait for their go (and fold in any bugs
-they report) before starting Phase 12.
+**Where we are (14 Oct 2026):** Phases 0–12 are built and committed, one commit per
+phase. Nothing has been pushed or released. The maintainer said go for Phases 12–13
+plus the loose ends, then hand them the app to test.
 
 The maintainer's standing request: build Phases 12–13, with the backend solid and
 the UI in Magpie's style, committing after each phase. Then they test everything and we
 iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 
 **What's left, in order:**
-1. **Phase 12, quant tools.** Parameter optimizer (grid, random, then Bayesian;
-   heatmap), walk-forward, Monte Carlo trade resampling, portfolio and multi-symbol
-   backtests, CSV/JSON export.
+1. ~~Phase 12, quant tools~~ (done, see below).
 2. **Phase 13, more languages.** Luau (`mlua`, instruction budget), then JS/TS
    (`rquickjs`). All produce the same `Study`. **WASM is skipped** (the maintainer's
    call); don't build it.
@@ -575,7 +572,7 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
-- Strategy Tester settings dialog, chart trading by dragging SL/TP, DOM, multiple
+- Chart trading by dragging SL/TP, DOM, multiple
   paper accounts, `--daemon`, email alerts.
 - App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
 
@@ -591,7 +588,7 @@ workspace.
 | `opentern-data` | `Hub`, providers `binance.rs`, `yahoo.rs`, `demo.rs`, **`expr.rs` (symbol maths: `BTCUSDT/ETHUSDT`, `(A + B)/2`; legs joined on time; quotes derived from legs)**, `cache.rs`, `resample.rs` |
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
 | `opentern-script` | Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
-| `opentern-engine` | `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
+| `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
 | `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor tab), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
@@ -824,6 +821,34 @@ workspace.
   `Hotlist` and `News` (`data/src/feeds.rs`).
 - Stills: `OPENTERN_STILL` also takes `kind:<chart type>`, `grid:<Grid>`,
   `compare:<ticker>`, `tf:<interval>`, `replay`, `screen`, `widget:<name>`.
+
+### Phase 12 (done): quant tools
+- **Strategy Lab** bottom tab (`app/src/lab.rs`) on the strategy picked in the
+  Strategy Report: **Optimize** (tick inputs, from/to/by; maximize net profit, PF,
+  Sharpe, Sortino, % profitable, smallest DD, profit÷DD or CAGR; every combination
+  up to 50,000, Random, or Bayesian; a fewest-trades floor; list or heatmap; double-
+  click a row or click a cell to put those inputs on the chart), **Walk-forward**
+  (rolling or anchored in-sample/out-of-sample windows, stitched OOS equity,
+  efficiency = OOS profit per bar ÷ IS profit per bar), **Monte Carlo** (shuffle or
+  bootstrap the closed trades; percentiles, chance of loss/ruin, fan chart),
+  **Portfolio** (the strategy on a watchlist or preset, capital split equally,
+  combined equity on the union of bar times, per-symbol table; correlation matrix in
+  the JSON). CSV and JSON export to `<workspace>/exports/`. Runs go to a `lab`
+  thread that fans out on rayon, with progress and Stop.
+- Reruns use the chart study's own factory (`Instance::with_factory` +
+  `strategy::broker_of`), so Python strategies (out of process) can't be rerun:
+  the tab says so. Portfolio recompiles per symbol (`syminfo.*`) via `lab::Build`.
+  Walk-forward OOS runs start at the IS window's first bar (warm-up); a position
+  carried over counts on OOS bars. Settings saved under the `lab` key.
+- **Strategy settings** dialog (Report header → "Strategy settings"): capital,
+  order size and type, pyramiding, commission, slippage, margin, fill on close.
+  Saved per script file as overrides (`strategy_props:<file>`), applied with
+  `opentern_pine::Script::with_props` (Pine) or merged into a Python strategy's
+  props; Reset returns to the script's values. `Props::to_json`/`diff_json`.
+- Stills: `OPENTERN_STILL=script:x.pine,lab:optimize|heatmap|walk|monte|portfolio`
+  ticks the first two inputs and runs once bars arrive.
+- Measured (demo, 1h, ~1,000 bars): 165-run grid of an MA cross in 0.1 s; 45
+  walk-forward windows × 165 runs in 0.6 s.
 
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →

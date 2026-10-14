@@ -2576,6 +2576,7 @@ version = "0.0.1"
 dependencies = [
  "jiff",
  "opentern-core",
+ "rayon",
  "serde",
  "serde_json",
 ]

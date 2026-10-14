@@ -6,6 +6,7 @@ mod chart_settings;
 pub mod color;
 mod indicators;
 pub mod providers;
+pub mod strategy_props;
 mod study;
 mod symbol;
 
@@ -32,6 +33,7 @@ pub enum Modal {
     Interval(String),
     Alert(Box<AlertForm>),
     Providers(Box<providers::Providers>),
+    StrategyProps(Box<strategy_props::StrategyProps>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,6 +104,7 @@ impl App {
                 Modal::Interval(text) => interval(ui, self, &t, text),
                 Modal::Alert(f) => f.show(ui, self, &t),
                 Modal::Providers(p) => p.show(ui, self, &t),
+                Modal::StrategyProps(p) => p.show(ui, self, &t),
             });
         let done = matches!(resp.inner, Done::Close);
         if done {

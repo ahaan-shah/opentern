@@ -69,6 +69,17 @@ impl Default for Props {
     }
 }
 
+/// `base` with `over`'s keys replaced (both JSON objects).
+pub fn merge_json(base: &serde_json::Value, over: &serde_json::Value) -> serde_json::Value {
+    let mut out = base.as_object().cloned().unwrap_or_default();
+    if let Some(o) = over.as_object() {
+        for (k, v) in o {
+            out.insert(k.clone(), v.clone());
+        }
+    }
+    serde_json::Value::Object(out)
+}
+
 impl Props {
     /// From Pine/Python `strategy(...)` arguments as JSON.
     pub fn from_json(v: &serde_json::Value, mintick: f64) -> Props {
@@ -100,6 +111,45 @@ impl Props {
             margin_short: f("margin_short", 100.0),
             allow_entry_in: None,
         }
+    }
+
+    /// The `strategy(...)` arguments these properties come from (the
+    /// inverse of [`Props::from_json`], minus `mintick`).
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "initial_capital": self.initial_capital,
+            "default_qty_type": match self.qty_type {
+                QtyType::Fixed => "fixed",
+                QtyType::Cash => "cash",
+                QtyType::PercentOfEquity => "percent_of_equity",
+            },
+            "default_qty_value": self.qty_value,
+            "pyramiding": self.pyramiding,
+            "commission_type": match self.commission {
+                Commission::Percent => "percent",
+                Commission::CashPerContract => "cash_per_contract",
+                Commission::CashPerOrder => "cash_per_order",
+            },
+            "commission_value": self.commission_value,
+            "slippage": self.slippage,
+            "process_orders_on_close": self.process_orders_on_close,
+            "margin_long": self.margin_long,
+            "margin_short": self.margin_short,
+        })
+    }
+
+    /// The keys of `self.to_json()` that differ from `base`'s.
+    pub fn diff_json(&self, base: &Props) -> serde_json::Value {
+        let (a, b) = (self.to_json(), base.to_json());
+        let mut out = serde_json::Map::new();
+        if let (Some(a), Some(b)) = (a.as_object(), b.as_object()) {
+            for (k, v) in a {
+                if b.get(k) != Some(v) {
+                    out.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        serde_json::Value::Object(out)
     }
 }
 
@@ -798,6 +848,36 @@ impl Broker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn props_round_trip_through_json() {
+        let p = Props {
+            initial_capital: 5000.0,
+            qty_type: QtyType::PercentOfEquity,
+            qty_value: 10.0,
+            pyramiding: 2,
+            commission: Commission::CashPerOrder,
+            commission_value: 1.5,
+            slippage: 3,
+            process_orders_on_close: true,
+            mintick: 0.5,
+            margin_long: 50.0,
+            margin_short: 25.0,
+            allow_entry_in: None,
+        };
+        assert_eq!(Props::from_json(&p.to_json(), 0.5), p);
+        let base = Props::default();
+        let d = p.diff_json(&base);
+        assert_eq!(d.as_object().map(|o| o.len()), Some(10));
+        let mut q = base.clone();
+        q.slippage = 2;
+        assert_eq!(q.diff_json(&base), serde_json::json!({"slippage": 2}));
+        let merged = merge_json(
+            &serde_json::json!({"initial_capital": 100.0, "slippage": 1}),
+            &q.diff_json(&base),
+        );
+        assert_eq!(merged, serde_json::json!({"initial_capital": 100.0, "slippage": 2}));
+    }
 
     fn bar(t: i64, o: f64, h: f64, l: f64, c: f64) -> Bar {
         Bar {

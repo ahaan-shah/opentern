@@ -44,6 +44,7 @@ pub struct App {
     pub alerts: crate::alerts::Alerts,
     pub editor: crate::editor::Editor,
     pub screener: crate::screener::Screener,
+    pub lab: crate::lab::Lab,
     pub notes: crate::notes::Notes,
     pub side: crate::side::Side,
     /// A snapshot waiting for the window's screenshot.
@@ -149,6 +150,7 @@ impl App {
             alerts,
             editor: Default::default(),
             screener: Default::default(),
+            lab: Default::default(),
             notes: Default::default(),
             side: Default::default(),
             snap: None,
@@ -232,6 +234,9 @@ impl App {
             } else if part == "screen" {
                 self.layout.tab = Some(crate::shell::Tab::Screener);
                 self.run_screener();
+            } else if let Some(m) = part.strip_prefix("lab:") {
+                self.layout.tab = Some(crate::shell::Tab::Lab);
+                self.lab_autorun(m);
             } else if part == "replay" {
                 self.chart.toggle_replay();
             } else if let Some(kind) = part.strip_prefix("kind:") {
@@ -708,7 +713,11 @@ impl App {
     /// One-off history arrived: for the screener, or a backtest over other
     /// symbols.
     fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
-        self.screener_fetched(seq, symbol, result);
+        if seq >= 1 << 41 {
+            self.lab_fetched(seq, symbol, result);
+        } else {
+            self.screener_fetched(seq, symbol, result);
+        }
     }
 
     /// Saves the chart when it changed, at most every couple of seconds.
@@ -874,6 +883,7 @@ impl App {
         self.poll_paper();
         self.poll_other_charts();
         self.poll_screener();
+        self.poll_lab();
         self.poll_alerts();
         self.shortcuts(&ctx);
         self.shell(ui);

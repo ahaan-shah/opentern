@@ -26,6 +26,7 @@ mod drawbar;
 mod editor;
 mod format;
 mod icons;
+mod lab;
 mod layouts;
 mod motion;
 mod multi;

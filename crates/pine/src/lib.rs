@@ -119,6 +119,28 @@ impl Script {
         (self.prog.kind == Kind::Strategy).then_some(&self.prog.props)
     }
 
+    /// The same script with some `strategy(...)` properties replaced (the
+    /// Strategy Tester's Properties): `overrides` is a JSON object with
+    /// the same keys as the declaration (`initial_capital`,
+    /// `default_qty_type`, `commission_value`, …).
+    pub fn with_props(&self, overrides: &serde_json::Value) -> Script {
+        let Some(over) = overrides.as_object().filter(|o| !o.is_empty()) else {
+            return self.clone();
+        };
+        let mut prog = (*self.prog).clone();
+        if let serde_json::Value::Object(m) = &mut prog.props {
+            for (k, v) in over {
+                m.insert(k.clone(), v.clone());
+            }
+        } else {
+            prog.props = overrides.clone();
+        }
+        Script {
+            prog: Arc::new(prog),
+            meta: self.meta,
+        }
+    }
+
     /// Builds a fresh study for given inputs.
     pub fn factory(&self) -> Factory {
         let prog = self.prog.clone();

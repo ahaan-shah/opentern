@@ -68,7 +68,7 @@ impl ReportTab {
 #[derive(Default)]
 pub struct Strategies {
     pub runs: Vec<StrategyRun>,
-    key: (u64, u64, u64),
+    pub(crate) key: (u64, u64, u64),
     pub selected: Option<u64>,
     pub tab: ReportTab,
     pub status: String,
@@ -81,6 +81,11 @@ impl Strategies {
             .find(|r| Some(r.uid) == self.selected)
             .or_else(|| self.runs.first())
     }
+}
+
+/// The broker of a strategy study's state, whatever language it's in.
+pub(crate) fn broker_of(state: &dyn std::any::Any) -> Option<&Broker> {
+    state.downcast_ref::<PineStudy>().and_then(|p| p.broker())
 }
 
 /// A Python strategy's per-bar orders, filled bar by bar by the broker.
@@ -176,11 +181,7 @@ impl App {
         self.strategies.key = key;
         let mut runs = Vec::new();
         for s in &self.chart.studies {
-            let pine = s
-                .inst
-                .latest_state()
-                .and_then(|a| a.downcast_ref::<PineStudy>())
-                .and_then(|p| p.broker().cloned());
+            let pine = s.inst.latest_state().and_then(broker_of).cloned();
             let broker = match pine {
                 Some(b) => b,
                 None => {
@@ -192,7 +193,11 @@ impl App {
                         continue;
                     };
                     let Some(out) = &run.output else { continue };
-                    let props = Props::from_json(&run.props, self.chart.symbol.tick_size);
+                    let over = self.strategy_overrides(&run.file);
+                    let props = Props::from_json(
+                        &opentern_engine::merge_json(&run.props, &over),
+                        self.chart.symbol.tick_size,
+                    );
                     replay(props, &out.intents, &self.chart.bars)
                 }
             };
@@ -256,8 +261,15 @@ impl App {
                     self.strategies.tab = tab;
                 }
             }
-            if self.strategies.tab == ReportTab::List {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if small_button(ui, t, if narrow { "Settings" } else { "Strategy settings" }, false)
+                    .on_hover_text("Capital, order size, commission, slippage and margin")
+                    .clicked()
+                    && let Some(uid) = self.strategies.current().map(|r| r.uid)
+                {
+                    self.open_strategy_props(uid);
+                }
+                if self.strategies.tab == ReportTab::List {
                     if small_button(ui, t, "Export", false)
                         .on_hover_text("Save the list of trades as a CSV file")
                         .clicked()
@@ -270,8 +282,8 @@ impl App {
                                 .truncate(),
                         );
                     }
-                });
-            }
+                }
+            });
         });
         ui.add_space(8.0);
         let cur = self.strategies.current().map(|r| r.uid);
@@ -366,19 +378,19 @@ fn pct_of_entry(t: &Trade) -> f64 {
     if base == 0.0 { 0.0 } else { t.pnl / base * 100.0 }
 }
 
-fn time_text(ms: i64, tz: &jiff::tz::TimeZone) -> String {
+pub(crate) fn time_text(ms: i64, tz: &jiff::tz::TimeZone) -> String {
     jiff::Timestamp::from_millisecond(ms)
         .map(|ts| ts.to_zoned(tz.clone()).strftime("%Y-%m-%d %H:%M").to_string())
         .unwrap_or_default()
 }
 
-struct Fmt {
-    ccy: String,
-    tz: jiff::tz::TimeZone,
+pub(crate) struct Fmt {
+    pub ccy: String,
+    pub tz: jiff::tz::TimeZone,
 }
 
 impl Fmt {
-    fn money(&self, v: f64) -> String {
+    pub fn money(&self, v: f64) -> String {
         if !v.is_finite() {
             return "—".into();
         }
@@ -387,7 +399,7 @@ impl Fmt {
 }
 
 /// 1234567.891 → "1,234,567.89"; negatives with a real minus sign.
-fn grouped(v: f64, dec: usize) -> String {
+pub(crate) fn grouped(v: f64, dec: usize) -> String {
     let s = format!("{:.*}", dec, v.abs());
     let (int, frac) = s.split_once('.').unwrap_or((&s, ""));
     let mut g = String::new();
@@ -409,7 +421,7 @@ fn grouped(v: f64, dec: usize) -> String {
     }
 }
 
-fn pct(v: f64) -> String {
+pub(crate) fn pct(v: f64) -> String {
     if v.is_finite() {
         format!("{}%", grouped(v, 2))
     } else {
@@ -417,11 +429,11 @@ fn pct(v: f64) -> String {
     }
 }
 
-fn num(v: f64, dec: usize) -> String {
+pub(crate) fn num(v: f64, dec: usize) -> String {
     if v.is_finite() { grouped(v, dec) } else { "—".into() }
 }
 
-fn tone(t: &Theme, v: f64) -> Color32 {
+pub(crate) fn tone(t: &Theme, v: f64) -> Color32 {
     if v > 0.0 {
         t.pos
     } else if v < 0.0 {
@@ -487,7 +499,7 @@ fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
 
 /// A headline number in a card of width `w` (one line when `compact`).
 #[allow(clippy::too_many_arguments)]
-fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, value: &str, sub: &str, color: Color32) {
+pub(crate) fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, value: &str, sub: &str, color: Color32) {
     let (r, resp) = ui.allocate_exact_size(vec2(w, if compact { 34.0 } else { 54.0 }), Sense::hover());
     let p = ui.painter_at(r);
     p.rect(
@@ -687,7 +699,7 @@ fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover:
 // ------------------------------------------------------------- tables
 
 /// A metrics table: a label column and value columns (All / Long / Short).
-fn table(ui: &mut Ui, t: &Theme, id: &str, headers: &[&str], rows: &[(&str, Vec<(String, Color32)>)]) {
+pub(crate) fn table(ui: &mut Ui, t: &Theme, id: &str, headers: &[&str], rows: &[(&str, Vec<(String, Color32)>)]) {
     egui::ScrollArea::vertical()
         .id_salt(id)
         .auto_shrink([false; 2])

@@ -455,6 +455,19 @@ impl App {
     }
 }
 
+/// Builds a non-Pine in-process strategy for another symbol (portfolio
+/// runs). Python runs out of process, so it has none.
+pub(crate) fn other_builder(
+    lang: Lang,
+    _src: String,
+    _file: String,
+    _over: serde_json::Value,
+) -> Option<crate::lab::Build> {
+    match lang {
+        Lang::Python | Lang::Pine => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

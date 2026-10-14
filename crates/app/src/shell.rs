@@ -76,18 +76,27 @@ pub enum Tab {
     Screener,
     Editor,
     Report,
+    Lab,
     Paper,
     AlertLog,
 }
 
 impl Tab {
-    pub const ALL: [Tab; 5] = [Tab::Screener, Tab::Editor, Tab::Report, Tab::Paper, Tab::AlertLog];
+    pub const ALL: [Tab; 6] = [
+        Tab::Screener,
+        Tab::Editor,
+        Tab::Report,
+        Tab::Lab,
+        Tab::Paper,
+        Tab::AlertLog,
+    ];
 
     pub fn title(self) -> &'static str {
         match self {
             Tab::Screener => "Screener",
             Tab::Editor => "Script Editor",
             Tab::Report => "Strategy Report",
+            Tab::Lab => "Strategy Lab",
             Tab::Paper => "Paper Trading",
             Tab::AlertLog => "Alerts log",
         }
@@ -890,6 +899,7 @@ impl App {
                     Tab::Screener => self.screener_tab(ui, t),
                     Tab::Editor => self.editor_tab(ui, t),
                     Tab::Report => self.report_tab(ui, t),
+                    Tab::Lab => self.lab_tab(ui, t),
                     Tab::Paper => self.paper_tab(ui, t),
                     Tab::AlertLog => self.alert_log_tab(ui, t),
                 }

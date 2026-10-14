@@ -21,6 +21,19 @@ fn kind_name(k: AssetKind) -> &'static str {
     }
 }
 
+/// `syminfo.*` for `s`, without libraries.
+pub(crate) fn env_of(s: &opentern_core::Symbol) -> Env {
+    Env {
+        tickerid: s.id.clone(),
+        description: s.description.clone(),
+        mintick: if s.tick_size > 0.0 { s.tick_size } else { 0.01 },
+        currency: s.currency.clone(),
+        kind: kind_name(s.kind).into(),
+        timezone: s.timezone.clone(),
+        libraries: Vec::new(),
+    }
+}
+
 impl App {
     fn pine_env(&self) -> Env {
         self.pine_env_for(&self.chart.symbol)
@@ -29,13 +42,8 @@ impl App {
     /// What `syminfo.*` says when the script runs on `s`.
     pub(crate) fn pine_env_for(&self, s: &opentern_core::Symbol) -> Env {
         Env {
-            tickerid: s.id.clone(),
-            description: s.description.clone(),
-            mintick: if s.tick_size > 0.0 { s.tick_size } else { 0.01 },
-            currency: s.currency.clone(),
-            kind: kind_name(s.kind).into(),
-            timezone: s.timezone.clone(),
             libraries: self.pine_libraries(),
+            ..env_of(s)
         }
     }
 
@@ -106,6 +114,13 @@ impl App {
         }
         .into();
         run.props = script.strategy_props().cloned().unwrap_or_default();
+        let script = if script.kind() == Kind::Strategy {
+            let file = run.file.clone();
+            script.with_props(&self.strategy_overrides(&file))
+        } else {
+            script
+        };
+        let run = &mut self.scripts[i];
         if script.kind() == Kind::Library {
             run.compile_error = Some("This is a library: import it from another script.".into());
             run.error = run.compile_error.clone();
