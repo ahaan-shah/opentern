@@ -6,10 +6,10 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–11 built and committed (one commit per phase, as the
-maintainer asked). The maintainer asked for everything through Phase 13, with the backend
-solid and the UI in Magpie's style, before they test and iterate; Phase 14 (ship) waits for
-an explicit go. Read "Where things stand" → "Resume here" at the end first.
+**Status (Oct 2026):** Phases 0–13 built and committed (one commit per phase, as the
+maintainer asked), plus most loose ends. The maintainer is testing; we iterate on UI and
+bugs next. Phase 14 (ship) waits for an explicit go. Read "Where things stand" → "Resume
+here" at the end first.
 
 ## Decisions so far (from the maintainer, Oct 2026)
 
@@ -544,19 +544,15 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Where we are (14 Oct 2026):** Phases 0–13 are built and committed, one commit per
-phase. Nothing has been pushed or released. The maintainer said go for Phases 12–13
-plus the loose ends, then hand them the app to test.
-
-The maintainer's standing request: build Phases 12–13, with the backend solid and
-the UI in Magpie's style, committing after each phase. Then they test everything and we
-iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
+**Where we are (14 Oct 2026):** Phases 0–13 and most loose ends are built and
+committed (latest: the DOM widget). Nothing has been pushed or released. The app
+was handed to the maintainer to test (a throwaway data dir, `/tmp/opentern-test`,
+with example scripts in every language); **next is their UI/UX feedback**, folded
+in iteratively. Phase 14 (ship) only on an explicit go.
 
 **What's left, in order:**
-1. ~~Phase 12, quant tools~~ (done, see below).
-2. ~~Phase 13, more languages~~ (done: Luau, JS, TS; WASM skipped).
-3. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
-4. **Phase 14** (releases, website), only on an explicit go.
+1. **The maintainer's UI/UX feedback**, plus the UI pass (`docs/ui-backlog.md`).
+2. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -976,5 +972,5 @@ cargo test --release -p opentern-pine --test conformance -- --ignored --nocaptur
 - 200+ tests pass (live and timing ones ignored by default); clippy `-D warnings` clean.
 
 ### Not done yet
-Phases 12–14 and the loose ends listed under "Resume here". No placeholders left in
+Phase 14 and the loose ends listed under "Resume here". No placeholders left in
 the shell.
