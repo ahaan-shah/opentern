@@ -5,6 +5,7 @@
 
 use crate::app::App;
 use crate::chart::StudyLook;
+use crate::scripting::Lang;
 use opentern_core::AssetKind;
 use opentern_pine::{Env, Kind, PineStudy};
 use opentern_series::study::{Category, Format, Instance, Meta, Placement};
@@ -18,6 +19,83 @@ fn kind_name(k: AssetKind) -> &'static str {
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
+    }
+}
+
+/// A compiled script in one of the in-process languages.
+enum Compiled {
+    Pine(opentern_pine::Script),
+    Other(Box<opentern_script::Compiled>),
+}
+
+impl Compiled {
+    fn meta(&self) -> &'static Meta {
+        match self {
+            Compiled::Pine(s) => s.meta(),
+            Compiled::Other(s) => s.meta(),
+        }
+    }
+
+    fn kind(&self) -> Kind {
+        match self {
+            Compiled::Pine(s) => s.kind(),
+            Compiled::Other(s) if s.is_strategy() => Kind::Strategy,
+            Compiled::Other(_) => Kind::Indicator,
+        }
+    }
+
+    fn strategy_props(&self) -> Option<&serde_json::Value> {
+        match self {
+            Compiled::Pine(s) => s.strategy_props(),
+            Compiled::Other(s) => s.strategy_props(),
+        }
+    }
+
+    fn with_props(&self, over: &serde_json::Value) -> Compiled {
+        match self {
+            Compiled::Pine(s) => Compiled::Pine(s.with_props(over)),
+            Compiled::Other(s) => Compiled::Other(Box::new(s.with_props(over))),
+        }
+    }
+
+    fn factory(&self) -> opentern_series::study::Factory {
+        match self {
+            Compiled::Pine(s) => s.factory(),
+            Compiled::Other(s) => s.factory(),
+        }
+    }
+}
+
+/// The study id prefix for a script language.
+pub(crate) fn lang_key(l: Lang) -> &'static str {
+    match l {
+        Lang::Pine => "pine",
+        Lang::Python => "py",
+        Lang::Luau => "luau",
+        Lang::Js => "js",
+        Lang::Ts => "ts",
+    }
+}
+
+/// The host for an in-process language other than Pine.
+pub(crate) fn inproc_lang(l: Lang) -> std::sync::Arc<dyn opentern_script::inproc::Lang> {
+    match l {
+        Lang::Js => std::sync::Arc::new(opentern_script::js::Js { ts: false }),
+        Lang::Ts => std::sync::Arc::new(opentern_script::js::Js { ts: true }),
+        _ => std::sync::Arc::new(opentern_script::luau::Luau),
+    }
+}
+
+/// `syminfo` for Luau and JavaScript scripts.
+pub(crate) fn syminfo_of(s: &opentern_core::Symbol) -> opentern_script::SymInfo {
+    opentern_script::SymInfo {
+        tickerid: s.id.clone(),
+        ticker: s.ticker().to_string(),
+        description: s.description.clone(),
+        mintick: if s.tick_size > 0.0 { s.tick_size } else { 0.01 },
+        currency: s.currency.clone(),
+        kind: kind_name(s.kind).into(),
+        timezone: s.timezone.clone(),
     }
 }
 
@@ -93,11 +171,21 @@ impl App {
                 return;
             }
         };
-        let script = match opentern_pine::compile(&src, &run.file, env) {
+        let lang = run.lang;
+        let compiled = match lang {
+            Lang::Pine => opentern_pine::compile(&src, &run.file, env)
+                .map(Compiled::Pine)
+                .map_err(|e| e.to_string()),
+            _ => opentern_script::inproc::compile(inproc_lang(lang), &src, &run.file, syminfo_of(&self.chart.symbol))
+                .map(|c| Compiled::Other(Box::new(c)))
+                .map_err(|e| e.to_string()),
+        };
+        let run = &mut self.scripts[i];
+        let script = match compiled {
             Ok(s) => s,
             Err(e) => {
                 // Keep the last good version on the chart; show the error.
-                run.compile_error = Some(e.to_string());
+                run.compile_error = Some(e);
                 run.error = run.compile_error.clone();
                 if run.uid.is_none() {
                     self.placeholder(i);
@@ -141,7 +229,10 @@ impl App {
         };
         let inst = Instance::with_factory(meta, &inputs, script.factory());
         let run = &mut self.scripts[i];
-        run.pine = Some(script);
+        run.pine = match script {
+            Compiled::Pine(p) => Some(p),
+            Compiled::Other(_) => None,
+        };
         match run.uid {
             Some(uid) => {
                 let placement = self
@@ -178,9 +269,13 @@ impl App {
     /// replaces it once it compiles.
     fn placeholder(&mut self, i: usize) {
         let run = &self.scripts[i];
-        let name = run.file.trim_end_matches(".pine").to_string();
+        let name = run
+            .file
+            .rsplit_once('.')
+            .map(|(n, _)| n.to_string())
+            .unwrap_or_else(|| run.file.clone());
         let meta: &'static Meta = Box::leak(Box::new(Meta {
-            id: Box::leak(format!("pine:{}", run.file).into_boxed_str()),
+            id: Box::leak(format!("{}:{}", lang_key(run.lang), run.file).into_boxed_str()),
             name: Box::leak(name.clone().into_boxed_str()),
             short: Box::leak(name.into_boxed_str()),
             category: Category::Oscillators,
@@ -230,12 +325,16 @@ impl App {
             .iter()
             .find(|s| s.uid == uid)
             .and_then(|s| s.inst.latest_state())
-            .and_then(|a| a.downcast_ref::<PineStudy>())
         else {
             return;
         };
-        let error = st.error().map(|e| e.to_string());
-        let logs = st.logs().join("\n");
+        let (error, logs) = if let Some(p) = st.downcast_ref::<PineStudy>() {
+            (p.error().map(|e| e.to_string()), p.logs().join("\n"))
+        } else if let Some(p) = st.downcast_ref::<opentern_script::ScriptStudy>() {
+            (p.error().map(|e| e.to_string()), p.logs().join("\n"))
+        } else {
+            return;
+        };
         let run = &mut self.scripts[i];
         // A compile error wins (the last good version is what's running).
         run.error = run.compile_error.clone().or(error);

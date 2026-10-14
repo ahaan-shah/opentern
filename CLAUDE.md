@@ -544,7 +544,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Where we are (14 Oct 2026):** Phases 0–12 are built and committed, one commit per
+**Where we are (14 Oct 2026):** Phases 0–13 are built and committed, one commit per
 phase. Nothing has been pushed or released. The maintainer said go for Phases 12–13
 plus the loose ends, then hand them the app to test.
 
@@ -554,9 +554,7 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
 
 **What's left, in order:**
 1. ~~Phase 12, quant tools~~ (done, see below).
-2. **Phase 13, more languages.** Luau (`mlua`, instruction budget), then JS/TS
-   (`rquickjs`). All produce the same `Study`. **WASM is skipped** (the maintainer's
-   call); don't build it.
+2. ~~Phase 13, more languages~~ (done: Luau, JS, TS; WASM skipped).
 3. **The UI pass** (`docs/ui-backlog.md`), once the maintainer has tested.
 4. **Phase 14** (releases, website), only on an explicit go.
 
@@ -587,7 +585,7 @@ workspace.
 | `opentern-core` | `Bar`, `Timeframe`, `Symbol`, `starter_watchlist()`, SQLite workspace (`db.rs` migrations: v1 settings, v2 layouts/templates/indicator_defaults/favorites, v3 drawings/watchlists), `Store` (named layouts, templates, drawings per symbol, watchlists, `value`/`set_value` for app keys like `layout_id`), self-updater |
 | `opentern-data` | `Hub`, providers `binance.rs`, `yahoo.rs`, `demo.rs`, **`expr.rs` (symbol maths: `BTCUSDT/ETHUSDT`, `(A + B)/2`; legs joined on time; quotes derived from legs)**, `cache.rs`, `resample.rs` |
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
-| `opentern-script` | Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
+| `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
 | `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor tab), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
@@ -849,6 +847,35 @@ workspace.
   ticks the first two inputs and runs once bars arrive.
 - Measured (demo, 1h, ~1,000 bars): 165-run grid of an MA cross in 0.1 s; 45
   walk-forward windows × 165 runs in 0.6 s.
+
+### Phase 13 (done): Luau, JavaScript, TypeScript
+- `.luau`/`.lua`, `.js`, `.ts` in the scripts folder; the user API is in
+  `docs/scripting.md`. One host (`opentern_script::host`) owns the meaning; a
+  language only converts values and calls host functions by name, so all three
+  agree bar for bar (tested: MACD in Luau = JS = TS; RSI = the Rust built-in).
+- Execution model: top level once (declarations), then `on_bar(bar)` / `onBar(bar)`
+  per bar; `ta.*` and `plot` keyed by call order (as Pine call sites); persistent
+  values in a `state` table that the host snapshots after each closed bar (so the
+  forming bar rolls back); plots found by a dry run on made-up bars at compile.
+- Sandbox: Luau has no I/O by design; QuickJS gets no modules; both have a
+  256 MB cap and a 1 s budget per bar (interrupt → plain error with the line).
+  One VM per study (optimizer runs stay parallel); the forming bar's copy shares
+  its study's VM and restores `state` by version number.
+- App: `Lang::{Luau, Js, Ts}` go through the Pine host path (`pine_host.rs`
+  `Compiled` enum, study ids `luau:`/`js:`/`ts:`), so recompile on save,
+  errors in the legend, Strategy settings overrides, the Strategy Lab (incl.
+  portfolio via `scripting::other_builder`), `alert()` alerts and the editor
+  (templates, highlighting, New script menu) all work. No drawing objects or
+  `request.security` in these languages yet.
+- **Perf gotcha:** mlua with `send` locks on every API call, so per-field table
+  sets are slow (~0.3 µs each). The bar goes in as 14 arguments to a Luau-side
+  wrapper that fills one reused table and reports whether `state` is empty;
+  `ta.*`/`plot` have typed fast paths (`HostState::ta_fast`, `plot_fast`).
+  Measured on this throttled laptop: 100k bars with RSI + MACD + 2 plots ≈ 0.55 s
+  Luau, 0.7 s JS (empty `on_bar` ≈ 2.5 µs/bar). `cargo test --release -p
+  opentern-script --test timing -- --ignored --nocapture`.
+- Licences: mlua/Luau, rquickjs/QuickJS (MIT), swc (Apache-2.0): fine for the
+  MIT app; list them in `THIRD-PARTY-LICENSES.txt` at Phase 14.
 
 ### How data flows
 `App` sends `Request::Open { chart, symbol, tf }` → the hub starts a session thread: cache →

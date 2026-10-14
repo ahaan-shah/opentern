@@ -83,6 +83,16 @@ impl App {
                         title: None,
                     },
                 });
+            } else if run.is_some_and(|r| r.lang.in_process()) {
+                // Luau and JavaScript have alert() but no alertcondition.
+                sources.push(Source {
+                    label: format!("{}: any alert() call", m.short),
+                    cond: Condition::Script {
+                        uid: s.uid,
+                        study: m.short.to_string(),
+                        title: None,
+                    },
+                });
             }
         }
         for d in &self.chart.drawings {

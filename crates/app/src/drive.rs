@@ -422,6 +422,94 @@ mod tests {
     }
 
     #[test]
+    fn luau_javascript_and_typescript_scripts_on_the_chart() {
+        let mut d = Driver::new("langs");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let files = [
+            (
+                "rsi.luau",
+                "indicator(\"Luau RSI\")\nlocal len = input.int(\"Length\", 14)\nfunction on_bar(bar)\n  plot(ta.rsi(bar.close, len), \"RSI\")\nend\n",
+            ),
+            (
+                "rsi.js",
+                "indicator(\"JS RSI\");\nconst len = input.int(\"Length\", 14);\nfunction onBar(bar) {\n  plot(ta.rsi(bar.close, len), \"RSI\");\n}\n",
+            ),
+            (
+                "rsi.ts",
+                "indicator(\"TS RSI\");\nconst len: number = input.int(\"Length\", 14);\nfunction onBar(bar: { close: number }) {\n  plot(ta.rsi(bar.close, len), \"RSI\");\n}\n",
+            ),
+        ];
+        for (f, src) in files {
+            std::fs::write(dir.join(f), src).unwrap();
+            d.app.add_script(f);
+        }
+        let ids = ["luau:rsi.luau", "js:rsi.js", "ts:rsi.ts"];
+        d.wait(|a| ids.iter().all(|id| a.chart.studies.iter().any(|s| s.meta().id == *id)));
+        let rsi = opentern_series::builtins::by_id("rsi").unwrap();
+        let mut native = opentern_series::Instance::new(rsi, &rsi.default_inputs());
+        let sess = opentern_series::study::sessions(&d.app.chart.bars, d.app.chart.tf, &d.app.chart.sym_tz);
+        native.recompute(&d.app.chart.bars, &sess, d.app.chart.tf);
+        for id in ids {
+            let s = d.app.chart.studies.iter().find(|s| s.meta().id == id).unwrap();
+            for i in 0..d.app.chart.bars.len() {
+                let (a, b) = (s.inst.out.plots[0][i], native.out.plots[0][i]);
+                assert!(
+                    (a.is_nan() && b.is_nan()) || (a - b).abs() < 1e-9,
+                    "{id} bar {i}: {a} vs {b}"
+                );
+            }
+        }
+        // A runtime error shows in the legend with its line; fixing it recovers.
+        std::fs::write(
+            dir.join("rsi.luau"),
+            "indicator(\"Luau RSI\")\nfunction on_bar(bar)\n  plot(ta.sma(bar.close, 0), \"RSI\")\nend\n",
+        )
+        .unwrap();
+        d.wait(|a| {
+            a.chart
+                .study_errors
+                .values()
+                .any(|e| e.starts_with("Line 3") && e.contains("length"))
+        });
+        std::fs::write(dir.join("rsi.luau"), files[0].1).unwrap();
+        d.wait(|a| !a.chart.study_errors.values().any(|e| e.contains("length")));
+        assert!(d.app.chart.state().studies.iter().any(|s| s.id == "ts:rsi.ts"));
+        // A Luau strategy gets a report, and the lab can optimize it.
+        std::fs::write(
+            dir.join("cross.luau"),
+            "strategy(\"Luau cross\", { initial_capital = 1000 })\nlocal fast = input.int(\"Fast\", 5)\nlocal slow = input.int(\"Slow\", 20)\n\
+             function on_bar(bar)\n  local f = ta.sma(bar.close, fast)\n  local s = ta.sma(bar.close, slow)\n\
+               local up = ta.crossover(f, s)\n  local dn = ta.crossunder(f, s)\n\
+               if up then strategy.entry(\"L\", \"long\") end\n  if dn then strategy.close(\"L\") end\nend\n",
+        )
+        .unwrap();
+        d.app.add_script("cross.luau");
+        d.wait(|a| {
+            a.strategies
+                .runs
+                .iter()
+                .any(|r| r.name == "Luau cross" && !r.broker.trades.is_empty())
+        });
+        let uid = d
+            .app
+            .strategies
+            .runs
+            .iter()
+            .find(|r| r.name == "Luau cross")
+            .unwrap()
+            .uid;
+        d.app.strategies.selected = Some(uid);
+        d.app.layout.tab = Some(crate::shell::Tab::Lab);
+        d.app.lab_autorun("optimize");
+        d.wait(|a| !a.lab.status.is_empty() && a.lab.status.contains("runs in"));
+        d.app.lab.setup.mode = crate::lab::Mode::Portfolio;
+        d.app.lab_run();
+        d.wait(|a| a.lab.status.contains("symbols in"));
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
     fn strategy_report_and_trade_marks() {
         let mut d = Driver::new("strategy");
         let dir = d.app.scripts_dir();

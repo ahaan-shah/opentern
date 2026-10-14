@@ -1,6 +1,6 @@
 [package]
 name = "opentern-script"
-description = "Script hosts for Opentern: Python indicators and strategies in a worker process"
+description = "Script hosts for Opentern: Python in a worker process, Luau and JavaScript/TypeScript in process"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,7 +11,14 @@ rust-version.workspace = true
 
 [dependencies]
 crossbeam-channel = "0.5.15"
+jiff = "0.2.37"
+rquickjs = { version = "0.14.0", features = ["parallel"] }
+swc_common = "26.0.0"
+swc_ts_fast_strip = "59.0.0"
+mlua = { version = "0.12.2", features = ["luau", "vendored", "send"] }
 opentern-core = { version = "0.0.1", path = "../core" }
+opentern-engine = { version = "0.0.1", path = "../engine" }
+opentern-series = { version = "0.0.1", path = "../series" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 

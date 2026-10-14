@@ -248,25 +248,38 @@ impl App {
                     .iter()
                     .find(|s| s.uid == *uid)
                     .and_then(|s| s.inst.latest_state())
-                    .and_then(|x| x.downcast_ref::<PineStudy>())
                 else {
+                    continue;
+                };
+                // (time, message, alertcondition title) from any language.
+                let fired: Vec<(i64, String, String)> = if let Some(p) = st.downcast_ref::<PineStudy>() {
+                    p.alerts()
+                        .iter()
+                        .map(|a| (a.time, a.message.clone(), a.title.clone()))
+                        .collect()
+                } else if let Some(p) = st.downcast_ref::<opentern_script::ScriptStudy>() {
+                    p.alerts()
+                        .iter()
+                        .map(|a| (a.time, a.message.clone(), String::new()))
+                        .collect()
+                } else {
                     continue;
                 };
                 let forming = self.chart.bars.last().map(|b| b.time).unwrap_or(i64::MAX);
                 let first = !self.alerts.seen.contains_key(&id);
                 let seen = self.alerts.seen.entry(id).or_default();
-                for al in st.alerts() {
+                for (time, message, al_title) in fired {
                     let wanted = match &title {
-                        Some(t) => &al.title == t,
-                        None => al.title.is_empty(),
+                        Some(t) => &al_title == t,
+                        None => al_title.is_empty(),
                     };
-                    if !wanted || (close_only && al.time >= forming) {
+                    if !wanted || (close_only && time >= forming) {
                         continue;
                     }
                     // Alerts from history don't fire when the alert is made
                     // or the app starts; only new ones do.
-                    if seen.insert((al.time, al.message.clone())) && !first {
-                        fire.push((i, al.message.clone()));
+                    if seen.insert((time, message.clone())) && !first {
+                        fire.push((i, message));
                     }
                 }
                 continue;

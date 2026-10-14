@@ -41,7 +41,7 @@ impl App {
         let file = file.to_string();
         self.each_chart(|a| {
             for i in 0..a.scripts.len() {
-                if a.scripts[i].file == file && a.scripts[i].lang == crate::scripting::Lang::Pine {
+                if a.scripts[i].file == file && a.scripts[i].lang.in_process() {
                     a.compile_pine(i);
                 }
             }

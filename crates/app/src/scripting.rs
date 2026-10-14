@@ -18,6 +18,9 @@ use std::time::{Duration, Instant};
 pub enum Lang {
     Python,
     Pine,
+    Luau,
+    Js,
+    Ts,
 }
 
 impl Lang {
@@ -26,9 +29,20 @@ impl Lang {
             Some(Lang::Python)
         } else if file.ends_with(".pine") {
             Some(Lang::Pine)
+        } else if file.ends_with(".luau") || file.ends_with(".lua") {
+            Some(Lang::Luau)
+        } else if file.ends_with(".js") {
+            Some(Lang::Js)
+        } else if file.ends_with(".ts") {
+            Some(Lang::Ts)
         } else {
             None
         }
+    }
+
+    /// Compiled and run in process (everything but Python).
+    pub fn in_process(self) -> bool {
+        self != Lang::Python
     }
 }
 
@@ -270,7 +284,7 @@ impl App {
                     std::sync::Arc::new(move || ctx.request_repaint()),
                 ))
             }
-            Lang::Pine => None,
+            _ => None,
         };
         self.scripts.push(ScriptRun {
             lang,
@@ -296,7 +310,7 @@ impl App {
             checked: None,
             out_seq: 0,
         });
-        if lang == Lang::Pine {
+        if lang.in_process() {
             let i = self.scripts.len() - 1;
             self.compile_pine(i);
         }
@@ -321,7 +335,7 @@ impl App {
         self.publish_script_errors();
         let n = self.chart.bars.len();
         for i in 0..self.scripts.len() {
-            if self.scripts[i].lang == Lang::Pine {
+            if self.scripts[i].lang.in_process() {
                 self.poll_pine(i);
                 continue;
             }
@@ -459,12 +473,24 @@ impl App {
 /// runs). Python runs out of process, so it has none.
 pub(crate) fn other_builder(
     lang: Lang,
-    _src: String,
-    _file: String,
-    _over: serde_json::Value,
+    src: String,
+    file: String,
+    over: serde_json::Value,
 ) -> Option<crate::lab::Build> {
     match lang {
         Lang::Python | Lang::Pine => None,
+        _ => {
+            let host = crate::pine_host::inproc_lang(lang);
+            Some(std::sync::Arc::new(
+                move |s: &opentern_core::Symbol, extra: &serde_json::Value| {
+                    let c =
+                        opentern_script::inproc::compile(host.clone(), &src, &file, crate::pine_host::syminfo_of(s))
+                            .map_err(|e| e.to_string())?;
+                    let c = c.with_props(&opentern_engine::merge_json(&over, extra));
+                    Ok((c.meta(), c.factory()))
+                },
+            ))
+        }
     }
 }
 

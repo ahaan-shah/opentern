@@ -38,6 +38,79 @@ basis = ta.sma(src, length)
 plot(basis, "Basis", color=color.blue, linewidth=2)
 "##;
 
+pub const LUAU_TEMPLATE: &str = r##"indicator("My script", { overlay = true })
+local length = input.int("Length", 20, { min = 1 })
+local src = input.source("Source", "close")
+
+-- Runs on every bar. Keep values that carry over to the next bar in `state`.
+function on_bar(bar)
+  local basis = ta.sma(bar[src], length)
+  plot(basis, "Basis", { color = "#2962FF", linewidth = 2 })
+end
+"##;
+
+pub const JS_TEMPLATE: &str = r##"indicator("My script", { overlay: true });
+const length = input.int("Length", 20, { min: 1 });
+const src = input.source("Source", "close");
+
+// Runs on every bar. Keep values that carry over to the next bar in `state`.
+function onBar(bar) {
+  const basis = ta.sma(bar[src], length);
+  plot(basis, "Basis", { color: "#2962FF", linewidth: 2 });
+}
+"##;
+
+pub const TS_TEMPLATE: &str = r##"indicator("My script", { overlay: true });
+const length: number = input.int("Length", 20, { min: 1 });
+const src: string = input.source("Source", "close");
+
+// Runs on every bar. Keep values that carry over to the next bar in `state`.
+function onBar(bar: Record<string, number>): void {
+  const basis: number = ta.sma(bar[src], length);
+  plot(basis, "Basis", { color: "#2962FF", linewidth: 2 });
+}
+"##;
+
+const LUAU_KEYWORDS: &[&str] = &[
+    "local", "function", "end", "if", "then", "else", "elseif", "for", "in", "do", "while", "repeat", "until",
+    "return", "and", "or", "not", "true", "false", "nil", "break", "continue", "type", "export",
+];
+const JS_KEYWORDS: &[&str] = &[
+    "const",
+    "let",
+    "var",
+    "function",
+    "return",
+    "if",
+    "else",
+    "for",
+    "of",
+    "in",
+    "while",
+    "do",
+    "break",
+    "continue",
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "new",
+    "typeof",
+    "class",
+    "switch",
+    "case",
+    "default",
+    "interface",
+    "type",
+    "as",
+    "number",
+    "string",
+    "boolean",
+    "void",
+    "export",
+    "import",
+];
+
 const PY_KEYWORDS: &[&str] = &[
     "def", "return", "if", "elif", "else", "for", "while", "in", "not", "and", "or", "import", "from", "as", "True",
     "False", "None", "lambda", "class", "try", "except", "with", "pass", "break", "continue",
@@ -76,6 +149,8 @@ pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
     let (line_comment, keywords) = match lang {
         Lang::Python => ("#", PY_KEYWORDS),
         Lang::Pine => ("//", PINE_KEYWORDS),
+        Lang::Luau => ("--", LUAU_KEYWORDS),
+        Lang::Js | Lang::Ts => ("//", JS_KEYWORDS),
     };
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
@@ -160,6 +235,9 @@ impl App {
         let ext = match lang {
             Lang::Python => "py",
             Lang::Pine => "pine",
+            Lang::Luau => "luau",
+            Lang::Js => "js",
+            Lang::Ts => "ts",
         };
         let name = (1..)
             .map(|k| format!("Untitled {k}.{ext}"))
@@ -168,6 +246,9 @@ impl App {
         let body = match lang {
             Lang::Python => PYTHON_TEMPLATE,
             Lang::Pine => PINE_TEMPLATE,
+            Lang::Luau => LUAU_TEMPLATE,
+            Lang::Js => JS_TEMPLATE,
+            Lang::Ts => TS_TEMPLATE,
         };
         if std::fs::write(dir.join(&name), body).is_ok() {
             self.open_in_editor(&name);
@@ -184,7 +265,7 @@ impl App {
                 self.editor.status = "Saved.".into();
                 // Pine recompiles on save; Python reloads by itself.
                 for i in 0..self.scripts.len() {
-                    if self.scripts[i].file == file && self.scripts[i].lang == Lang::Pine {
+                    if self.scripts[i].file == file && self.scripts[i].lang.in_process() {
                         self.compile_pine(i);
                     }
                 }
@@ -202,7 +283,7 @@ impl App {
             self.open_in_editor(&file);
             self.editor.status = "Reloaded: the file changed on disk.".into();
             for i in 0..self.scripts.len() {
-                if self.scripts[i].file == file && self.scripts[i].lang == Lang::Pine {
+                if self.scripts[i].file == file && self.scripts[i].lang.in_process() {
                     self.compile_pine(i);
                 }
             }
@@ -223,20 +304,18 @@ impl App {
             // Files.
             ui.allocate_ui_with_layout(vec2(list_w, full.height()), Layout::top_down(Align::Min), |ui| {
                 ui.set_min_size(vec2(list_w, full.height()));
-                ui.horizontal(|ui| {
-                    if ui
-                        .button(format!("{} Python", ph::PLUS))
-                        .on_hover_text("New Python script")
-                        .clicked()
-                    {
-                        self.new_script(Lang::Python);
-                    }
-                    if ui
-                        .button(format!("{} Pine", ph::PLUS))
-                        .on_hover_text("New Pine script")
-                        .clicked()
-                    {
-                        self.new_script(Lang::Pine);
+                ui.menu_button(format!("{}  New script", ph::PLUS), |ui| {
+                    for (lang, name) in [
+                        (Lang::Pine, "Pine Script"),
+                        (Lang::Python, "Python"),
+                        (Lang::Luau, "Luau"),
+                        (Lang::Js, "JavaScript"),
+                        (Lang::Ts, "TypeScript"),
+                    ] {
+                        if ui.button(name).clicked() {
+                            self.new_script(lang);
+                            ui.close();
+                        }
                     }
                 });
                 ui.add_space(4.0);
@@ -355,7 +434,13 @@ mod tests {
     #[test]
     fn highlighting_keeps_every_character() {
         let t = crate::theme::Theme::by_name("Opentern Dark");
-        for (src, lang) in [(PYTHON_TEMPLATE, Lang::Python), (PINE_TEMPLATE, Lang::Pine)] {
+        for (src, lang) in [
+            (PYTHON_TEMPLATE, Lang::Python),
+            (PINE_TEMPLATE, Lang::Pine),
+            (LUAU_TEMPLATE, Lang::Luau),
+            (JS_TEMPLATE, Lang::Js),
+            (TS_TEMPLATE, Lang::Ts),
+        ] {
             let job = highlight(src, lang, &t, FontId::monospace(13.0));
             assert_eq!(job.text, src);
             assert!(job.sections.len() > 10);

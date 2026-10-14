@@ -85,7 +85,12 @@ impl Strategies {
 
 /// The broker of a strategy study's state, whatever language it's in.
 pub(crate) fn broker_of(state: &dyn std::any::Any) -> Option<&Broker> {
-    state.downcast_ref::<PineStudy>().and_then(|p| p.broker())
+    match state.downcast_ref::<PineStudy>() {
+        Some(p) => p.broker(),
+        None => state
+            .downcast_ref::<opentern_script::ScriptStudy>()
+            .and_then(|s| s.broker()),
+    }
 }
 
 /// A Python strategy's per-bar orders, filled bar by bar by the broker.
