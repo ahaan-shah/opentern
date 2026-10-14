@@ -107,7 +107,7 @@ fn secret_field(ui: &mut Ui, value: &mut String, saved: bool, hint: &str) {
         hint
     };
     ui.add(
-        egui::TextEdit::singleline(value)
+        crate::widgets::field(value)
             .password(true)
             .hint_text(hint)
             .desired_width(260.0),
@@ -143,7 +143,7 @@ impl Providers {
                     secret_field(ui, &mut self.alpaca_secret, self.have[1], "")
                 });
                 form_row(ui, t, "Feed", |ui| {
-                    ui.checkbox(&mut self.alpaca_sip, "My plan includes SIP (all US exchanges)");
+                    crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP (all US exchanges)");
                 });
                 section(ui, t, "OANDA · forex and CFDs");
                 note(
@@ -156,14 +156,14 @@ impl Providers {
                 });
                 form_row(ui, t, "Account ID", |ui| {
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.oanda_account)
+                        crate::widgets::field(&mut self.oanda_account)
                             .hint_text("101-…")
                             .desired_width(260.0),
                     );
                 });
                 form_row(ui, t, "Account", |ui| {
-                    ui.radio_value(&mut self.oanda_live, false, "Practice");
-                    ui.radio_value(&mut self.oanda_live, true, "Live");
+                    crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
+                    crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
                 });
                 section(ui, t, "Upstox · NSE and BSE");
                 note(
@@ -183,11 +183,11 @@ impl Providers {
                      market-data subscriptions.",
                 );
                 form_row(ui, t, "Use the gateway", |ui| {
-                    ui.checkbox(&mut self.ibkr_on, "");
+                    crate::widgets::checkbox(ui, &mut self.ibkr_on, "");
                 });
                 if self.ibkr_on {
                     form_row(ui, t, "Gateway URL", |ui| {
-                        ui.add(egui::TextEdit::singleline(&mut self.ibkr_url).desired_width(260.0));
+                        ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(260.0));
                     });
                 }
             });
@@ -198,13 +198,13 @@ impl Providers {
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.button("  Save  ").clicked() {
+                    if crate::widgets::primary(ui, "Save").clicked() {
                         match self.save(app) {
                             Ok(()) => done = Done::Close,
                             Err(e) => self.error = e,
                         }
                     }
-                    if ui.button("Cancel").clicked() {
+                    if crate::widgets::secondary(ui, "Cancel").clicked() {
                         done = Done::Close;
                     }
                 });

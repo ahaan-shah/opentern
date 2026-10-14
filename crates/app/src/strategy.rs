@@ -225,13 +225,13 @@ impl App {
 
     pub(crate) fn report_tab(&mut self, ui: &mut Ui, t: &Theme) {
         if self.strategies.runs.is_empty() {
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new(
-                    "Add a strategy to the chart to see its report. A strategy is a script that starts \
-                     with strategy(…); make one in the Script Editor.",
-                )
-                .color(t.text3),
+            crate::widgets::empty_state(
+                ui,
+                t,
+                crate::icons::ph::CHART_LINE_UP,
+                "No strategy on the chart",
+                "Add a strategy to see its report. A strategy is a script that starts with strategy(…); \
+                 make one in the Script Editor.",
             );
             return;
         }
@@ -240,12 +240,11 @@ impl App {
             ui.spacing_mut().item_spacing.x = 2.0;
             if self.strategies.runs.len() > 1 {
                 let current = self.strategies.current().map(|r| (r.uid, r.name.clone()));
-                egui::ComboBox::from_id_salt("report-strategy")
+                crate::widgets::combo("report-strategy")
                     .selected_text(current.as_ref().map(|c| c.1.as_str()).unwrap_or(""))
                     .show_ui(ui, |ui| {
                         for r in &self.strategies.runs {
-                            if ui
-                                .selectable_label(current.as_ref().map(|c| c.0) == Some(r.uid), &r.name)
+                            if crate::widgets::option(ui, current.as_ref().map(|c| c.0) == Some(r.uid), &r.name)
                                 .clicked()
                             {
                                 self.strategies.selected = Some(r.uid);

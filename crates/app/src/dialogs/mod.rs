@@ -127,32 +127,71 @@ impl App {
 }
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
-    let title = match kind {
-        TemplateKind::Chart => "Save chart template",
-        TemplateKind::Indicators => "Save indicator template",
+    let (title, what) = match kind {
+        TemplateKind::Chart => (
+            "Save chart template",
+            "Keeps this chart's colours, chart type and scale settings under a name.".to_string(),
+        ),
+        TemplateKind::Indicators => {
+            let n = app.chart.studies.len();
+            let what = match n {
+                0 => "There are no indicators on this chart yet, so the template will be empty.".to_string(),
+                1 => "Keeps the indicator on this chart, with its inputs and style.".to_string(),
+                n => format!("Keeps the {n} indicators on this chart, with their inputs, styles and panes."),
+            };
+            ("Save indicator template", what)
+        }
     };
     let mut done = Done::Keep;
-    if frame(ui, t, title, 360.0, |ui| {
-        ui.label(egui::RichText::new("Template name").color(t.text2));
-        let r = ui.add(egui::TextEdit::singleline(name).desired_width(f32::INFINITY));
+    if frame(ui, t, title, 380.0, |ui| {
+        ui.label(egui::RichText::new(what).color(t.text2));
+        if kind == TemplateKind::Indicators && !app.chart.studies.is_empty() {
+            ui.add_space(4.0);
+            ui.horizontal_wrapped(|ui| {
+                ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
+                for s in &app.chart.studies {
+                    let name = s.meta().short;
+                    egui::Frame::new()
+                        .fill(t.hover)
+                        .corner_radius(CornerRadius::same(6))
+                        .inner_margin(Margin::symmetric(8, 3))
+                        .show(ui, |ui| {
+                            ui.label(egui::RichText::new(name).font(theme::medium(12.0)).color(t.text2));
+                        });
+                }
+            });
+        }
+        ui.add_space(10.0);
+        ui.label(egui::RichText::new("Name").font(theme::medium(12.0)).color(t.text2));
+        let r = ui.add(
+            crate::widgets::field(name)
+                .hint_text("e.g. Swing setup")
+                .desired_width(f32::INFINITY),
+        );
         if !r.has_focus() && name.is_empty() {
             r.request_focus();
         }
         let exists = app.store.templates(kind.key()).iter().any(|x| x.name == name.trim());
         if exists {
-            ui.label(egui::RichText::new("A template with this name exists; saving replaces it.").color(t.text3));
+            ui.label(
+                egui::RichText::new(format!(
+                    "{}  Saving replaces the template with this name.",
+                    crate::icons::ph::INFO
+                ))
+                .font(theme::regular(12.0))
+                .color(t.warn),
+            );
         }
-        ui.add_space(10.0);
+        ui.add_space(14.0);
         // A row, not a right-to-left layout: that one takes all the height a
         // modal offers and stretched this dialog down the screen.
         ui.horizontal(|ui| {
             let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            ui.add_space(ui.available_width() - 150.0);
-            if ui.button("Cancel").clicked() {
+            ui.add_space((ui.available_width() - 168.0).max(0.0));
+            if crate::widgets::secondary(ui, "Cancel").clicked() {
                 done = Done::Close;
             }
-            let ok = ui
-                .add_enabled(!name.trim().is_empty(), egui::Button::new("Save"))
+            let ok = crate::widgets::button(ui, crate::widgets::Kind::Primary, !name.trim().is_empty(), None, "Save")
                 .clicked();
             if (ok || enter) && !name.trim().is_empty() {
                 app.save_template(kind, name.trim());
@@ -169,7 +208,7 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
     let mut done = Done::Keep;
     if frame(ui, t, "Change interval", 300.0, |ui| {
         let r = ui.add(
-            egui::TextEdit::singleline(text)
+            crate::widgets::field(text)
                 .font(theme::regular(15.0))
                 .desired_width(f32::INFINITY),
         );

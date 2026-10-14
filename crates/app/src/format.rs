@@ -91,6 +91,27 @@ pub fn countdown(ms: i64) -> String {
     }
 }
 
+/// `text` cut to fit `max_w` points in `font`, ending in "…" when cut.
+pub fn elide_to(p: &egui::Painter, text: &str, font: &egui::FontId, max_w: f32) -> String {
+    let fits = |s: &str| {
+        p.layout_no_wrap(s.to_string(), font.clone(), egui::Color32::WHITE)
+            .size()
+            .x
+            <= max_w
+    };
+    if fits(text) {
+        return text.to_string();
+    }
+    let chars: Vec<char> = text.chars().collect();
+    for n in (1..chars.len()).rev() {
+        let cut: String = chars[..n].iter().collect::<String>() + "…";
+        if fits(&cut) {
+            return cut;
+        }
+    }
+    String::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

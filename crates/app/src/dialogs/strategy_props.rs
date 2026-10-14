@@ -97,7 +97,7 @@ impl StrategyProps {
             form_row(ui, t, "Order size", |ui| {
                 let step = if p.qty_type == QtyType::Fixed { 0.1 } else { 1.0 };
                 number(ui, &mut p.qty_value, step, 0.0, 1e12, "");
-                egui::ComboBox::from_id_salt("props-qty")
+                crate::widgets::combo("props-qty")
                     .selected_text(match p.qty_type {
                         QtyType::Fixed => "Contracts",
                         QtyType::Cash => "Cash",
@@ -105,9 +105,9 @@ impl StrategyProps {
                     })
                     .width(110.0)
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut p.qty_type, QtyType::Fixed, "Contracts");
-                        ui.selectable_value(&mut p.qty_type, QtyType::Cash, "Cash");
-                        ui.selectable_value(&mut p.qty_type, QtyType::PercentOfEquity, "% of equity");
+                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Fixed, "Contracts");
+                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Cash, "Cash");
+                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::PercentOfEquity, "% of equity");
                     });
             });
             form_row(ui, t, "Pyramiding", |ui| {
@@ -118,7 +118,7 @@ impl StrategyProps {
             section(ui, t, "Costs");
             form_row(ui, t, "Commission", |ui| {
                 number(ui, &mut p.commission_value, 0.01, 0.0, 1e9, "");
-                egui::ComboBox::from_id_salt("props-comm")
+                crate::widgets::combo("props-comm")
                     .selected_text(match p.commission {
                         Commission::Percent => "%",
                         Commission::CashPerContract => "Per contract",
@@ -126,9 +126,14 @@ impl StrategyProps {
                     })
                     .width(110.0)
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut p.commission, Commission::Percent, "%");
-                        ui.selectable_value(&mut p.commission, Commission::CashPerContract, "Per contract");
-                        ui.selectable_value(&mut p.commission, Commission::CashPerOrder, "Per order");
+                        crate::widgets::option_value(ui, &mut p.commission, Commission::Percent, "%");
+                        crate::widgets::option_value(
+                            ui,
+                            &mut p.commission,
+                            Commission::CashPerContract,
+                            "Per contract",
+                        );
+                        crate::widgets::option_value(ui, &mut p.commission, Commission::CashPerOrder, "Per order");
                     });
             });
             form_row(ui, t, "Slippage", |ui| {
@@ -145,7 +150,7 @@ impl StrategyProps {
             });
             section(ui, t, "Fills");
             form_row(ui, t, "Fill orders on bar close", |ui| {
-                ui.checkbox(&mut p.process_orders_on_close, "");
+                crate::widgets::checkbox(ui, &mut p.process_orders_on_close, "");
             });
             ui.add_space(4.0);
             let changed = p.diff_json(&self.base).as_object().is_some_and(|o| !o.is_empty());
@@ -157,14 +162,14 @@ impl StrategyProps {
             ui.label(egui::RichText::new(note).color(t.text3).size(11.5));
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if ui.add_enabled(changed, egui::Button::new("Reset")).clicked() {
+                if crate::widgets::button(ui, crate::widgets::Kind::Secondary, changed, None, "Reset").clicked() {
                     self.p = self.base.clone();
                 }
                 ui.add_space(ui.available_width() - 120.0);
-                if ui.button("Cancel").clicked() {
+                if crate::widgets::secondary(ui, "Cancel").clicked() {
                     done = Done::Close;
                 }
-                if ui.button("OK").clicked() {
+                if crate::widgets::primary(ui, "Ok").clicked() {
                     let over = self.p.diff_json(&self.base);
                     app.set_strategy_overrides(&self.file, over);
                     done = Done::Close;

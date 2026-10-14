@@ -2122,6 +2122,7 @@ fn legend(
                 chart.tf.label(),
                 chart.symbol.exchange()
             );
+            let slot = painter.add(egui::Shape::Noop);
             let r = painter.text(pos, Align2::LEFT_TOP, &title, bold.clone(), pal.text);
             let mut xx = r.right() + 10.0;
             // Market open or closed (not for crypto, which never closes).
@@ -2176,15 +2177,17 @@ fn legend(
                     xx = r.right() + 8.0;
                 }
                 if st.show_volume {
-                    painter.text(
+                    let r = painter.text(
                         pos2(xx, pos.y + 1.0),
                         Align2::LEFT_TOP,
                         format!("Vol {}", format::compact(b.volume)),
                         font.clone(),
                         pal.text2,
                     );
+                    xx = r.right() + 8.0;
                 }
             }
+            legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW + 2.0, pal, t, false);
             pos.y += LEGEND_ROW + 2.0;
             let note = match &chart.status {
                 Status::Offline(m) => Some(m.clone()),
@@ -2209,6 +2212,7 @@ fn legend(
                 let dim = if c.visible { 1.0 } else { 0.45 };
                 let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(g.rect.width() * 0.75, LEGEND_ROW));
                 let hovered = ui.rect_contains_pointer(row_rect);
+                let slot = painter.add(egui::Shape::Noop);
                 let r = painter.text(
                     pos,
                     Align2::LEFT_TOP,
@@ -2260,6 +2264,7 @@ fn legend(
                         actions.push(Action::RemoveCompare(ci));
                     }
                 }
+                legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
                 pos.y += LEGEND_ROW;
             }
         }
@@ -2277,6 +2282,7 @@ fn legend(
             let dim = if s.visible { 1.0 } else { 0.45 };
             let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(g.rect.width() * 0.75, LEGEND_ROW));
             let hovered = ui.rect_contains_pointer(row_rect);
+            let slot = painter.add(egui::Shape::Noop);
             let tr = if st.show_study_titles {
                 painter.text(
                     pos,
@@ -2356,14 +2362,16 @@ fn legend(
             }
             if let Some(err) = chart.study_errors.get(&uid) {
                 let first = err.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or(err);
-                painter.text(
+                let r = painter.text(
                     pos2(xx, pos.y),
                     Align2::LEFT_TOP,
                     format!("{}  {}", ph::WARNING_CIRCLE, first.trim()),
                     font.clone(),
                     t.neg,
                 );
+                xx = r.right() + 8.0;
             }
+            legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
             // Double-click the title for settings, as on TradingView.
             let title_resp = ui.interact(tr, Id::new(("legend-title", chart.id, uid)), Sense::click());
             if title_resp.double_clicked() {
@@ -2376,4 +2384,35 @@ fn legend(
         }
     }
     let _ = FontId::default();
+}
+
+/// A soft backing behind one legend row, so the text reads over candles
+/// without a box around every line: the chart's background, mostly opaque,
+/// a little stronger and edged while the row is hovered. Drawn into `slot`
+/// (reserved before the row's text) so it sits underneath.
+#[allow(clippy::too_many_arguments)]
+fn legend_backing(
+    painter: &egui::Painter,
+    slot: egui::layers::ShapeIdx,
+    pos: Pos2,
+    right: f32,
+    height: f32,
+    pal: &Palette,
+    t: &Theme,
+    hovered: bool,
+) {
+    if right <= pos.x {
+        return;
+    }
+    let r = Rect::from_min_max(pos2(pos.x - 6.0, pos.y - 3.0), pos2(right + 6.0, pos.y + height - 3.0));
+    let fill = motion::with_alpha(pal.bg, if hovered { 0.94 } else { 0.72 });
+    let stroke = if hovered {
+        Stroke::new(1.0, t.border)
+    } else {
+        Stroke::NONE
+    };
+    painter.set(
+        slot,
+        egui::epaint::RectShape::new(r, CornerRadius::same(5), fill, stroke, egui::StrokeKind::Inside),
+    );
 }

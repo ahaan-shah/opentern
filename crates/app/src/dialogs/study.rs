@@ -66,22 +66,16 @@ impl StudySettings {
         let mut inputs_changed = false;
         let mut look_changed = false;
         let closed = frame(ui, t, meta.name, 480.0, |ui| {
-            ui.horizontal(|ui| {
-                for (tab, label) in [
-                    (Tab::Inputs, "Inputs"),
-                    (Tab::Style, "Style"),
-                    (Tab::Visibility, "Visibility"),
-                ] {
-                    if tab == Tab::Inputs && meta.inputs.is_empty() {
-                        continue;
-                    }
-                    let on = self.tab == tab;
-                    let text = egui::RichText::new(label).color(if on { t.accent } else { t.text2 });
-                    if ui.add(egui::Button::new(text).selected(on)).clicked() {
-                        self.tab = tab;
-                    }
-                }
-            });
+            let mut tabs = vec![
+                (Tab::Inputs, "Inputs"),
+                (Tab::Style, "Style"),
+                (Tab::Visibility, "Visibility"),
+            ];
+            if meta.inputs.is_empty() {
+                tabs.remove(0);
+            }
+            crate::widgets::segmented(ui, t, &mut self.tab, &tabs);
+            ui.add_space(4.0);
             ui.separator();
             egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                 ui.set_width(480.0 - 12.0);
@@ -91,28 +85,36 @@ impl StudySettings {
                     Tab::Visibility => {
                         section(ui, t, "Show on intervals");
                         for (i, name) in UNIT_NAMES.iter().enumerate() {
-                            look_changed |= ui.checkbox(&mut self.look.intervals[i], *name).changed();
+                            look_changed |= crate::widgets::checkbox(ui, &mut self.look.intervals[i], *name).changed();
                         }
                     }
                 }
             });
             ui.separator();
             ui.horizontal(|ui| {
-                let resp = ui.button(format!("Defaults  {}", ph::CARET_DOWN));
+                let resp = crate::widgets::button(
+                    ui,
+                    crate::widgets::Kind::Secondary,
+                    true,
+                    None,
+                    &format!("Defaults  {}", ph::CARET_DOWN),
+                );
                 egui::Popup::menu(&resp).show(|ui| {
+                    ui.set_min_width(230.0);
                     let saved = app.store.indicator_default(meta.id).is_some();
-                    if ui.button("Reset settings").clicked() {
+                    if crate::widgets::menu_item(ui, t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Reset settings", "", false)
+                        .clicked()
+                    {
                         (self.inputs, self.look) = app.study_defaults(meta);
                         inputs_changed = true;
                         look_changed = true;
                         ui.close();
                     }
-                    if ui.button("Save as default").clicked() {
+                    if crate::widgets::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as default", "", false).clicked() {
                         app.save_study_default(meta, &self.inputs, &self.look);
                         ui.close();
                     }
-                    if ui
-                        .add_enabled(saved, egui::Button::new("Restore factory defaults"))
+                    if crate::widgets::menu_row(ui, t, Some(ph::FACTORY), "Restore factory defaults", "", false, saved)
                         .clicked()
                     {
                         app.clear_study_default(meta);
@@ -124,10 +126,10 @@ impl StudySettings {
                     }
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("  Ok  ").clicked() {
+                    if crate::widgets::primary(ui, "Ok").clicked() {
                         done = Done::Close;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if crate::widgets::secondary(ui, "Cancel").clicked() {
                         self.cancel(app);
                         done = Done::Close;
                     }
@@ -178,19 +180,20 @@ impl StudySettings {
                         .changed();
                 }
                 (InputKind::Bool, Value::Bool(v)) => {
-                    changed |= ui.checkbox(v, "").changed();
+                    changed |= crate::widgets::checkbox(ui, v, "").changed();
                 }
                 (InputKind::Source, Value::Text(v)) => {
-                    egui::ComboBox::from_id_salt(spec.id)
+                    crate::widgets::combo(spec.id)
                         .selected_text(v.as_str())
                         .show_ui(ui, |ui| {
                             for s in Source::ALL {
-                                changed |= ui.selectable_value(v, s.name().to_string(), s.name()).changed();
+                                changed |=
+                                    crate::widgets::option_value(ui, v, s.name().to_string(), s.name()).changed();
                             }
                         });
                 }
                 (InputKind::Text, Value::Text(v)) => {
-                    changed |= ui.add(egui::TextEdit::singleline(v).desired_width(180.0)).changed();
+                    changed |= ui.add(crate::widgets::field(v).desired_width(180.0)).changed();
                 }
                 (InputKind::Color, Value::Text(v)) => {
                     let mut c = crate::scripting::parse_color(v);
@@ -200,12 +203,12 @@ impl StudySettings {
                     }
                 }
                 (InputKind::Choice(opts), Value::Text(v)) => {
-                    egui::ComboBox::from_id_salt(spec.id)
+                    crate::widgets::combo(spec.id)
                         .width(180.0)
                         .selected_text(v.as_str())
                         .show_ui(ui, |ui| {
                             for o in opts.iter() {
-                                changed |= ui.selectable_value(v, o.to_string(), *o).changed();
+                                changed |= crate::widgets::option_value(ui, v, o.to_string(), *o).changed();
                             }
                         });
                 }
@@ -225,23 +228,24 @@ impl StudySettings {
             let fixed_style = matches!(spec.style, PlotStyle::Shape | PlotStyle::Candle | PlotStyle::OhlcBar);
             let look = &mut self.look.plots[i];
             ui.horizontal(|ui| {
-                changed |= ui.checkbox(&mut look.visible, spec.title).changed();
+                changed |= crate::widgets::checkbox(ui, &mut look.visible, spec.title).changed();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if !fixed_style {
-                        egui::ComboBox::from_id_salt(("plot-style", i))
+                        crate::widgets::combo(("plot-style", i))
                             .width(110.0)
                             .selected_text(look.style.name())
                             .show_ui(ui, |ui| {
                                 for s in PlotStyle::ALL {
-                                    changed |= ui.selectable_value(&mut look.style, s, s.name()).changed();
+                                    changed |= crate::widgets::option_value(ui, &mut look.style, s, s.name()).changed();
                                 }
                             });
-                        egui::ComboBox::from_id_salt(("plot-width", i))
+                        crate::widgets::combo(("plot-width", i))
                             .width(50.0)
                             .selected_text(format!("{}px", look.width))
                             .show_ui(ui, |ui| {
                                 for w in 1..=4u8 {
-                                    changed |= ui.selectable_value(&mut look.width, w, format!("{w}px")).changed();
+                                    changed |= crate::widgets::option_value(ui, &mut look.width, w, format!("{w}px"))
+                                        .changed();
                                 }
                             });
                     }
@@ -257,14 +261,15 @@ impl StudySettings {
         for (i, spec) in meta.hlines.iter().enumerate() {
             let h = &mut self.look.hlines[i];
             ui.horizontal(|ui| {
-                changed |= ui.checkbox(&mut h.visible, spec.title).changed();
+                changed |= crate::widgets::checkbox(ui, &mut h.visible, spec.title).changed();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    egui::ComboBox::from_id_salt(("hline-style", i))
+                    crate::widgets::combo(("hline-style", i))
                         .width(80.0)
                         .selected_text(line_style_name(h.style))
                         .show_ui(ui, |ui| {
                             for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
-                                changed |= ui.selectable_value(&mut h.style, s, line_style_name(s)).changed();
+                                changed |=
+                                    crate::widgets::option_value(ui, &mut h.style, s, line_style_name(s)).changed();
                             }
                         });
                     changed |= ui
@@ -280,7 +285,7 @@ impl StudySettings {
         for (i, spec) in meta.fills.iter().enumerate() {
             let f = &mut self.look.fills[i];
             ui.horizontal(|ui| {
-                changed |= ui.checkbox(&mut f.visible, spec.title).changed();
+                changed |= crate::widgets::checkbox(ui, &mut f.visible, spec.title).changed();
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     for c in f.colors.iter_mut().rev() {
                         changed |= color_button(ui, t, c);
@@ -289,18 +294,15 @@ impl StudySettings {
             });
         }
         section(ui, t, "Outputs");
-        changed |= ui
-            .checkbox(&mut self.look.labels_on_scale, "Labels on price scale")
-            .changed();
+        changed |= crate::widgets::checkbox(ui, &mut self.look.labels_on_scale, "Labels on price scale").changed();
         form_row(ui, t, "Precision", |ui| {
             let label = self.look.precision.map(|p| p.to_string()).unwrap_or("Default".into());
-            egui::ComboBox::from_id_salt("precision")
+            crate::widgets::combo("precision")
                 .selected_text(label)
                 .show_ui(ui, |ui| {
-                    changed |= ui.selectable_value(&mut self.look.precision, None, "Default").changed();
+                    changed |= crate::widgets::option_value(ui, &mut self.look.precision, None, "Default").changed();
                     for p in 0..=8u8 {
-                        changed |= ui
-                            .selectable_value(&mut self.look.precision, Some(p), p.to_string())
+                        changed |= crate::widgets::option_value(ui, &mut self.look.precision, Some(p), p.to_string())
                             .changed();
                     }
                 });

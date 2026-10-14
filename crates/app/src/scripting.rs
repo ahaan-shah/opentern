@@ -40,6 +40,17 @@ impl Lang {
         }
     }
 
+    /// The file extension, shown in the New script menu.
+    pub fn ext(self) -> &'static str {
+        match self {
+            Lang::Python => ".py",
+            Lang::Pine => ".pine",
+            Lang::Luau => ".luau",
+            Lang::Js => ".js",
+            Lang::Ts => ".ts",
+        }
+    }
+
     /// Compiled and run in process (everything but Python).
     pub fn in_process(self) -> bool {
         self != Lang::Python

@@ -100,7 +100,7 @@ impl SymbolSearch {
                 )
             });
             let r = ui.add(
-                egui::TextEdit::singleline(&mut self.query)
+                crate::widgets::field(&mut self.query)
                     .hint_text("Symbol, e.g. BTCUSDT, AAPL, RELIANCE")
                     .font(theme::regular(15.0))
                     .desired_width(f32::INFINITY)
@@ -128,30 +128,20 @@ impl SymbolSearch {
             ui.add_space(6.0);
             if let Pick::Compare { overlay } = &mut self.purpose {
                 ui.horizontal(|ui| {
-                    for (on, label, tip) in [
-                        (false, "Compare", "Percent change against the chart's symbol"),
-                        (true, "Overlay", "On its own scale, over the chart"),
-                    ] {
-                        if crate::shell::small_button(ui, t, label, *overlay == on)
-                            .on_hover_text(tip)
-                            .clicked()
-                        {
-                            *overlay = on;
-                        }
-                    }
+                    crate::widgets::segmented(ui, t, overlay, &[(false, "Compare"), (true, "Overlay")]);
+                    let tip = if *overlay {
+                        "On its own scale, over the chart"
+                    } else {
+                        "Percent change against the chart's symbol"
+                    };
+                    ui.label(egui::RichText::new(tip).font(theme::regular(12.0)).color(t.text3));
                 });
                 ui.add_space(4.0);
             }
-            ui.horizontal(|ui| {
-                for (label, f) in FILTERS {
-                    let on = self.filter == f;
-                    let text = egui::RichText::new(label).color(if on { t.accent } else { t.text2 });
-                    if ui.add(egui::Button::new(text).selected(on)).clicked() {
-                        self.filter = f;
-                        self.selected = 0;
-                    }
-                }
-            });
+            let opts: Vec<(Option<AssetKind>, &str)> = FILTERS.iter().map(|(l, f)| (*f, *l)).collect();
+            if crate::widgets::segmented(ui, t, &mut self.filter, &opts) {
+                self.selected = 0;
+            }
             ui.add_space(6.0);
             let shown: Vec<&Symbol> = self
                 .results

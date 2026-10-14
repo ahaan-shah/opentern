@@ -382,12 +382,12 @@ impl App {
         };
         let mut kind = self.paper.kind;
         row(ui, "Type", &mut |ui| {
-            egui::ComboBox::from_id_salt("paper-type")
+            crate::widgets::combo("paper-type")
                 .width(150.0)
                 .selected_text(kind.name())
                 .show_ui(ui, |ui| {
                     for k in OrderType::ALL {
-                        ui.selectable_value(&mut kind, k, k.name());
+                        crate::widgets::option_value(ui, &mut kind, k, k.name());
                     }
                 });
         });
@@ -448,7 +448,7 @@ impl App {
             let slot = if tp { &mut self.paper.tp } else { &mut self.paper.sl };
             let mut on = slot.is_some();
             ui.horizontal(|ui| {
-                if ui.checkbox(&mut on, label).changed() {
+                if crate::widgets::checkbox(ui, &mut on, label).changed() {
                     *slot = if on {
                         reference.map(|r| round_to(r * (1.0 + dir * if tp { 0.02 } else { -0.01 }), step))
                     } else {
@@ -529,47 +529,11 @@ impl App {
         let equity = acc.equity(price);
         let realized = acc.balance - acc.initial;
         let balance = acc.balance;
-        // Four even columns that never wrap.
-        let items = [
-            ("Balance", num(balance), t.text),
-            ("Equity", num(equity), t.text),
-            ("Unrealized", signed(unreal), tone(t, unreal)),
-            ("Realized", signed(realized), tone(t, realized)),
-        ];
-        let w = ui.available_width();
-        let (r, _) = ui.allocate_exact_size(vec2(w, 38.0), Sense::hover());
-        let cw = w / items.len() as f32;
-        for (k, (label, value, c)) in items.iter().enumerate() {
-            let cell = egui::Rect::from_min_size(pos2(r.left() + cw * k as f32, r.top()), vec2(cw - 8.0, 38.0));
-            let p = ui.painter_at(cell);
-            p.text(cell.left_top(), Align2::LEFT_TOP, *label, theme::regular(11.5), t.text3);
-            p.text(
-                cell.left_top() + vec2(0.0, 17.0),
-                Align2::LEFT_TOP,
-                value,
-                theme::semibold(14.0),
-                *c,
-            );
-        }
-        ui.add_space(8.0);
+        // The account, and resetting it, on top.
         ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 2.0;
-            let counts = (
-                self.paper.account.positions.len(),
-                self.paper.account.orders.len(),
-                self.paper.account.fills.len(),
-            );
-            for (v, label) in [
-                (View::Positions, format!("Positions {}", counts.0)),
-                (View::Orders, format!("Orders {}", counts.1)),
-                (View::History, format!("History {}", counts.2)),
-            ] {
-                if small_button(ui, t, &label, self.paper.view == v).clicked() {
-                    self.paper.view = v;
-                }
-            }
+            ui.spacing_mut().item_spacing.x = 6.0;
+            self.account_menu(ui, t);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                self.account_menu(ui, t);
                 if self.paper.confirm_reset {
                     if small_button(ui, t, "Cancel", false).clicked() {
                         self.paper.confirm_reset = false;
@@ -583,12 +547,65 @@ impl App {
                         self.paper.status = "The account was reset.".into();
                         self.save_paper();
                     }
-                    ui.label(egui::RichText::new("Clear positions, orders and history?").color(t.text2));
+                    ui.label(egui::RichText::new("Clear everything?").color(t.text2));
                 } else if small_button(ui, t, "Reset account", false).clicked() {
                     self.paper.confirm_reset = true;
                 }
             });
         });
+        ui.add_space(8.0);
+        // Four even columns, or two by two when the panel is narrow; values
+        // never get cut off.
+        let items = [
+            ("Balance", num(balance), t.text),
+            ("Equity", num(equity), t.text),
+            ("Unrealized", signed(unreal), tone(t, unreal)),
+            ("Realized", signed(realized), tone(t, realized)),
+        ];
+        let w = ui.available_width();
+        let per_row = if w / 4.0 >= 120.0 { 4 } else { 2 };
+        let rows = items.len() / per_row;
+        let (r, _) = ui.allocate_exact_size(vec2(w, 40.0 * rows as f32), Sense::hover());
+        let cw = w / per_row as f32;
+        for (k, (label, value, c)) in items.iter().enumerate() {
+            let (col, row) = (k % per_row, k / per_row);
+            let cell = egui::Rect::from_min_size(
+                pos2(r.left() + cw * col as f32, r.top() + 40.0 * row as f32),
+                vec2(cw - 8.0, 38.0),
+            );
+            let p = ui.painter_at(cell);
+            p.text(cell.left_top(), Align2::LEFT_TOP, *label, theme::regular(11.5), t.text3);
+            p.text(
+                cell.left_top() + vec2(0.0, 17.0),
+                Align2::LEFT_TOP,
+                value,
+                theme::semibold(14.0),
+                *c,
+            );
+        }
+        ui.add_space(8.0);
+        let counts = (
+            self.paper.account.positions.len(),
+            self.paper.account.orders.len(),
+            self.paper.account.fills.len(),
+        );
+        let labels = [
+            format!("Positions {}", counts.0),
+            format!("Orders {}", counts.1),
+            format!("History {}", counts.2),
+        ];
+        let mut view = self.paper.view;
+        crate::widgets::segmented(
+            ui,
+            t,
+            &mut view,
+            &[
+                (View::Positions, labels[0].as_str()),
+                (View::Orders, labels[1].as_str()),
+                (View::History, labels[2].as_str()),
+            ],
+        );
+        self.paper.view = view;
         ui.add_space(4.0);
         match self.paper.view {
             View::Positions => self.positions_table(ui, t, &prices),
@@ -598,49 +615,71 @@ impl App {
     }
 
     /// The account picker: switch, make, rename and delete accounts.
-    fn account_menu(&mut self, ui: &mut Ui, _t: &Theme) {
+    fn account_menu(&mut self, ui: &mut Ui, t: &Theme) {
         let current = self.paper.account.name.clone();
         let mut pick = None;
         let mut make = false;
         let mut delete = false;
-        ui.menu_button(format!("{current}  {}", crate::icons::ph::CARET_DOWN), |ui| {
-            ui.set_min_width(220.0);
-            ui.label(egui::RichText::new(&current).strong());
-            for (k, a) in self.paper.others.iter().enumerate() {
-                if ui.button(&a.name).clicked() {
-                    pick = Some(k);
+        let resp = crate::widgets::button(
+            ui,
+            crate::widgets::Kind::Secondary,
+            true,
+            Some(crate::icons::ph::WALLET),
+            &format!("{current}  {}", crate::icons::ph::CARET_DOWN),
+        );
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                use crate::widgets as w;
+                ui.set_width(260.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
+                w::menu_heading(ui, t, "ACCOUNTS");
+                w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &current, "in use", true);
+                for (k, a) in self.paper.others.iter().enumerate() {
+                    if w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &a.name, "", false).clicked() {
+                        pick = Some(k);
+                        ui.close();
+                    }
+                }
+                w::menu_rule(ui, t);
+                let mut name = self.paper.rename.clone().unwrap_or_else(|| current.clone());
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    ui.add(crate::widgets::field(&mut name).desired_width(ui.available_width() - 100.0));
+                    let ok = !name.trim().is_empty() && name.trim() != current;
+                    if crate::widgets::button(ui, crate::widgets::Kind::Secondary, ok, None, "Rename").clicked() {
+                        self.paper.account.name = name.trim().to_string();
+                        self.paper.rename = None;
+                        self.save_paper();
+                        ui.close();
+                    }
+                });
+                self.paper.rename = Some(name);
+                ui.add_space(4.0);
+                if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), "New account", "", false).clicked() {
+                    make = true;
                     ui.close();
                 }
-            }
-            ui.separator();
-            let mut name = self.paper.rename.clone().unwrap_or_else(|| current.clone());
-            ui.horizontal(|ui| {
-                ui.add(egui::TextEdit::singleline(&mut name).desired_width(130.0));
-                let ok = !name.trim().is_empty() && name.trim() != current;
-                if ui.add_enabled(ok, egui::Button::new("Rename")).clicked() {
-                    self.paper.account.name = name.trim().to_string();
-                    self.paper.rename = None;
-                    self.save_paper();
+                let can = !self.paper.others.is_empty();
+                let r = if can {
+                    w::menu_danger(ui, t, Some(crate::icons::ph::TRASH), "Delete this account")
+                } else {
+                    w::menu_row(
+                        ui,
+                        t,
+                        Some(crate::icons::ph::TRASH),
+                        "Delete this account",
+                        "",
+                        false,
+                        false,
+                    )
+                    .on_hover_text("Make another account first")
+                };
+                if can && r.clicked() {
+                    delete = true;
                     ui.close();
                 }
             });
-            self.paper.rename = Some(name);
-            if ui.button(format!("{}  New account", crate::icons::ph::PLUS)).clicked() {
-                make = true;
-                ui.close();
-            }
-            if ui
-                .add_enabled(
-                    !self.paper.others.is_empty(),
-                    egui::Button::new(format!("{}  Delete this account", crate::icons::ph::TRASH)),
-                )
-                .on_disabled_hover_text("Make another account first")
-                .clicked()
-            {
-                delete = true;
-                ui.close();
-            }
-        });
         if let Some(k) = pick {
             self.switch_account(k);
         }
@@ -794,8 +833,21 @@ impl App {
 }
 
 fn empty(ui: &mut Ui, t: &Theme, what: &str) {
-    ui.add_space(8.0);
-    ui.label(egui::RichText::new(what).color(t.text3));
+    let (icon, body) = match what {
+        "No open positions." => (
+            crate::icons::ph::STACK,
+            "Place an order from the ticket, or click the DOM.",
+        ),
+        "No working orders." => (
+            crate::icons::ph::LIST_CHECKS,
+            "Limit and stop orders wait here until they fill.",
+        ),
+        _ => (
+            crate::icons::ph::RECEIPT,
+            "Filled orders and closed trades show up here.",
+        ),
+    };
+    crate::widgets::empty_state(ui, t, icon, what.trim_end_matches('.'), body);
 }
 
 fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {

@@ -213,24 +213,24 @@ impl AlertForm {
             section(ui, t, "Condition");
             let labels: Vec<String> = self.sources.iter().map(|s| s.label.clone()).collect();
             form_row(ui, t, "Watch", |ui| {
-                egui::ComboBox::from_id_salt("alert-source")
+                crate::widgets::combo("alert-source")
                     .width(250.0)
                     .selected_text(labels.get(self.sel).cloned().unwrap_or_default())
                     .show_ui(ui, |ui| {
                         for (k, l) in labels.iter().enumerate() {
-                            ui.selectable_value(&mut self.sel, k, l);
+                            crate::widgets::option_value(ui, &mut self.sel, k, l);
                         }
                     });
             });
             let src = self.sources[self.sel].cond.clone();
             if !matches!(src, Condition::Script { .. }) {
                 form_row(ui, t, "When it's", |ui| {
-                    egui::ComboBox::from_id_salt("alert-op")
+                    crate::widgets::combo("alert-op")
                         .width(250.0)
                         .selected_text(self.op.name())
                         .show_ui(ui, |ui| {
                             for o in Op::ALL {
-                                ui.selectable_value(&mut self.op, o, o.name());
+                                crate::widgets::option_value(ui, &mut self.op, o, o.name());
                             }
                         });
                 });
@@ -243,8 +243,8 @@ impl AlertForm {
                 }
                 Condition::Plot { .. } => {
                     form_row(ui, t, "Compared with", |ui| {
-                        ui.radio_value(&mut self.vs_price, true, "Price");
-                        ui.radio_value(&mut self.vs_price, false, "Value");
+                        crate::widgets::radio(ui, &mut self.vs_price, true, "Price");
+                        crate::widgets::radio(ui, &mut self.vs_price, false, "Value");
                         if !self.vs_price {
                             ui.add(egui::DragValue::new(&mut self.value).speed(0.01).max_decimals(8));
                         }
@@ -262,17 +262,17 @@ impl AlertForm {
                 }
             }
             form_row(ui, t, "Trigger", |ui| {
-                egui::ComboBox::from_id_salt("alert-freq")
+                crate::widgets::combo("alert-freq")
                     .width(250.0)
                     .selected_text(self.alert.freq.name())
                     .show_ui(ui, |ui| {
                         for f in Freq::ALL {
-                            ui.selectable_value(&mut self.alert.freq, f, f.name());
+                            crate::widgets::option_value(ui, &mut self.alert.freq, f, f.name());
                         }
                     });
             });
             form_row(ui, t, "Expires", |ui| {
-                ui.checkbox(&mut self.expire, "");
+                crate::widgets::checkbox(ui, &mut self.expire, "");
                 if self.expire {
                     ui.add(
                         egui::DragValue::new(&mut self.expire_days)
@@ -286,7 +286,7 @@ impl AlertForm {
             section(ui, t, "Message");
             form_row(ui, t, "Name", |ui| {
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.alert.name)
+                    crate::widgets::field(&mut self.alert.name)
                         .hint_text(app.chart.symbol.ticker())
                         .desired_width(250.0),
                 );
@@ -301,18 +301,18 @@ impl AlertForm {
             });
             section(ui, t, "Notify me");
             form_row(ui, t, "Desktop", |ui| {
-                ui.checkbox(&mut self.alert.notify, "Notification");
-                ui.checkbox(&mut self.alert.sound, "Sound");
+                crate::widgets::checkbox(ui, &mut self.alert.notify, "Notification");
+                crate::widgets::checkbox(ui, &mut self.alert.sound, "Sound");
             });
             form_row(ui, t, "Webhook URL", |ui| {
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.alert.webhook)
+                    crate::widgets::field(&mut self.alert.webhook)
                         .hint_text("https://…")
                         .desired_width(250.0),
                 );
             });
             form_row(ui, t, "Telegram", |ui| {
-                ui.checkbox(&mut self.alert.telegram, "");
+                crate::widgets::checkbox(ui, &mut self.alert.telegram, "");
             });
             if self.alert.telegram {
                 form_row(ui, t, "Bot token", |ui| {
@@ -322,7 +322,7 @@ impl AlertForm {
                         "From @BotFather"
                     };
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.token)
+                        crate::widgets::field(&mut self.token)
                             .password(true)
                             .hint_text(hint)
                             .desired_width(250.0),
@@ -330,14 +330,14 @@ impl AlertForm {
                 });
                 form_row(ui, t, "Chat id", |ui| {
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.chat)
+                        crate::widgets::field(&mut self.chat)
                             .hint_text("Your chat id (e.g. from @userinfobot)")
                             .desired_width(250.0),
                     );
                 });
             }
             form_row(ui, t, "Email", |ui| {
-                ui.checkbox(&mut self.alert.email, "");
+                crate::widgets::checkbox(ui, &mut self.alert.email, "");
             });
             if self.alert.email {
                 let hints = [
@@ -349,7 +349,7 @@ impl AlertForm {
                 for (k, (label, hint)) in hints.iter().enumerate() {
                     form_row(ui, t, label, |ui| {
                         ui.add(
-                            egui::TextEdit::singleline(&mut self.email[k])
+                            crate::widgets::field(&mut self.email[k])
                                 .hint_text(*hint)
                                 .desired_width(if k == 1 { 70.0 } else { 250.0 }),
                         );
@@ -362,7 +362,7 @@ impl AlertForm {
                         "An app password, not your login"
                     };
                     ui.add(
-                        egui::TextEdit::singleline(&mut self.email_password)
+                        crate::widgets::field(&mut self.email_password)
                             .password(true)
                             .hint_text(hint)
                             .desired_width(250.0),
@@ -425,13 +425,13 @@ impl AlertForm {
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if editing && ui.button("Delete").clicked() {
+                if editing && crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, "Delete").clicked() {
                     app.delete_alert(self.alert.id);
                     *done = Done::Close;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let label = if editing { "  Save  " } else { "  Create  " };
-                    if ui.button(label).clicked() {
+                    if crate::widgets::primary(ui, label).clicked() {
                         match self.build(&src) {
                             Ok(a) => {
                                 if self.alert.telegram
@@ -452,7 +452,7 @@ impl AlertForm {
                             Err(e) => self.error = e,
                         }
                     }
-                    if ui.button("Cancel").clicked() {
+                    if crate::widgets::secondary(ui, "Cancel").clicked() {
                         *done = Done::Close;
                     }
                 });

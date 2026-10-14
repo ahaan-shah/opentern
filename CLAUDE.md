@@ -551,7 +551,13 @@ with example scripts in every language); **next is their UI/UX feedback**, folde
 in iteratively. Phase 14 (ship) only on an explicit go.
 
 **What's left, in order:**
-1. **The maintainer's UI/UX feedback**, plus the UI pass (`docs/ui-backlog.md`).
+1. **The maintainer's UI/UX feedback.** The first UI pass is done (14 Oct 2026,
+   `docs/ui-backlog.md`): Magpie-style widgets in `widgets.rs` (use them, not
+   egui's checkbox/ComboBox/selectable_value/Button), cards with gaps for the
+   chart/widget/bottom panels, drawn chart-type icons, empty states, the app
+   icon (`scripts/make-icons.py`). `OPENTERN_STILL=menu:<interval|type|layout|
+   templates|main>` opens a top-bar menu and `light` the light theme, for
+   screenshots.
 2. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
@@ -568,7 +574,8 @@ in iteratively. Phase 14 (ship) only on an explicit go.
 - Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
   tag, × cancels / closes), several paper accounts, email alerts. Still open: a
   `--daemon`, alerts on off-chart indicators.
-- App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
+- `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow, `.icns` (Phase 14).
+  The icon itself is done (`packaging/linux/`, `opentern.desktop`).
 
 **Testing the app for the maintainer:** build with `cargo build --profile fast`.
 Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It

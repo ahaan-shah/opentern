@@ -753,10 +753,8 @@ impl App {
                     );
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
                 } else {
-                    let run =
-                        egui::Button::new(egui::RichText::new(format!("{}  Run", ph::PLAY)).color(Color32::WHITE))
-                            .fill(t.accent);
-                    if ui.add(run).clicked() {
+                    if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), "Run").clicked()
+                    {
                         self.lab_run();
                     }
                     let has = match self.lab.setup.mode {
@@ -787,11 +785,12 @@ impl App {
         let target = self.lab_target();
         let meta = target.as_ref().ok().map(|t| t.meta);
         if self.strategies.runs.is_empty() {
-            ui.label(
-                egui::RichText::new(
-                    "Add a strategy to the chart to optimize it, walk it forward, stress it with Monte Carlo or run it on a whole list.",
-                )
-                .color(t.text3),
+            crate::widgets::empty_state(
+                ui,
+                t,
+                ph::FLASK,
+                "No strategy on the chart",
+                "Add a strategy to optimize it, walk it forward, stress it with Monte Carlo or run it on a whole list.",
             );
             return;
         }
@@ -858,17 +857,17 @@ impl App {
                 ui.add_space(8.0);
                 let s = &mut self.lab.setup;
                 row(ui, t, "Maximize", |ui| {
-                    egui::ComboBox::from_id_salt("lab-objective")
+                    crate::widgets::combo("lab-objective")
                         .selected_text(s.objective.name())
                         .width(150.0)
                         .show_ui(ui, |ui| {
                             for o in Objective::ALL {
-                                ui.selectable_value(&mut s.objective, o, o.name());
+                                crate::widgets::option_value(ui, &mut s.objective, o, o.name());
                             }
                         });
                 });
                 row(ui, t, "Search", |ui| {
-                    egui::ComboBox::from_id_salt("lab-method")
+                    crate::widgets::combo("lab-method")
                         .selected_text(match s.method {
                             MethodKind::Grid => "Every combination",
                             MethodKind::Random => "Random",
@@ -876,9 +875,9 @@ impl App {
                         })
                         .width(150.0)
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut s.method, MethodKind::Grid, "Every combination");
-                            ui.selectable_value(&mut s.method, MethodKind::Random, "Random");
-                            ui.selectable_value(&mut s.method, MethodKind::Bayesian, "Bayesian");
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Grid, "Every combination");
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Random, "Random");
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Bayesian, "Bayesian");
                         });
                 });
                 if s.method != MethodKind::Grid {
@@ -897,7 +896,7 @@ impl App {
                         ui.add(egui::DragValue::new(&mut s.out_sample).range(5..=1_000_000).speed(2));
                     });
                     row(ui, t, "Anchored", |ui| {
-                        ui.checkbox(&mut s.anchored, "")
+                        crate::widgets::checkbox(ui, &mut s.anchored, "")
                             .on_hover_text("Every in-sample window starts at the first bar");
                     });
                 }
@@ -935,15 +934,20 @@ impl App {
                     ui.add(egui::DragValue::new(&mut s.runs).range(100..=100_000).speed(10));
                 });
                 row(ui, t, "Method", |ui| {
-                    egui::ComboBox::from_id_salt("lab-mc")
+                    crate::widgets::combo("lab-mc")
                         .selected_text(match s.method {
                             Resample::Shuffle => "Shuffle the order",
                             Resample::Bootstrap => "Draw with replacement",
                         })
                         .width(150.0)
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut s.method, Resample::Shuffle, "Shuffle the order");
-                            ui.selectable_value(&mut s.method, Resample::Bootstrap, "Draw with replacement");
+                            crate::widgets::option_value(ui, &mut s.method, Resample::Shuffle, "Shuffle the order");
+                            crate::widgets::option_value(
+                                ui,
+                                &mut s.method,
+                                Resample::Bootstrap,
+                                "Draw with replacement",
+                            );
                         });
                 });
                 row(ui, t, "Ruin at drawdown", |ui| {
@@ -978,22 +982,25 @@ impl App {
                 let lists = self.watchlists.clone();
                 let s = &mut self.lab.setup;
                 row(ui, t, "Symbols", |ui| {
-                    egui::ComboBox::from_id_salt("lab-universe")
+                    crate::widgets::combo("lab-universe")
                         .selected_text(current)
                         .width(150.0)
                         .show_ui(ui, |ui| {
                             for (name, _) in crate::screener::presets() {
                                 let u = crate::screener::Universe::Preset(name.into());
-                                if ui.selectable_label(s.universe == u, name).clicked() {
+                                if crate::widgets::option(ui, s.universe == u, name).clicked() {
                                     s.universe = u;
                                 }
                             }
                             ui.separator();
                             for wl in &lists {
                                 let u = crate::screener::Universe::Watchlist(wl.id);
-                                if ui
-                                    .selectable_label(s.universe == u, format!("{}  {}", ph::LIST_BULLETS, wl.name))
-                                    .clicked()
+                                if crate::widgets::option(
+                                    ui,
+                                    s.universe == u,
+                                    format!("{}  {}", ph::LIST_BULLETS, wl.name),
+                                )
+                                .clicked()
                                 {
                                     s.universe = u;
                                 }
@@ -1036,7 +1043,7 @@ impl App {
         }
         for r in rows.iter_mut() {
             let title = egui::RichText::new(&r.title).color(if r.on { t.text } else { t.text2 });
-            ui.checkbox(&mut r.on, title);
+            crate::widgets::checkbox(ui, &mut r.on, title);
             if !r.on {
                 continue;
             }
@@ -1260,19 +1267,19 @@ impl App {
         py = py.min(n - 1);
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new("Across").color(t.text3));
-            egui::ComboBox::from_id_salt("heat-x")
+            crate::widgets::combo("heat-x")
                 .selected_text(&setup.params[px].title)
                 .show_ui(ui, |ui| {
                     for (k, p) in setup.params.iter().enumerate() {
-                        ui.selectable_value(&mut px, k, &p.title);
+                        crate::widgets::option_value(ui, &mut px, k, &p.title);
                     }
                 });
             ui.label(egui::RichText::new("down").color(t.text3));
-            egui::ComboBox::from_id_salt("heat-y")
+            crate::widgets::combo("heat-y")
                 .selected_text(&setup.params[py].title)
                 .show_ui(ui, |ui| {
                     for (k, p) in setup.params.iter().enumerate() {
-                        ui.selectable_value(&mut py, k, &p.title);
+                        crate::widgets::option_value(ui, &mut py, k, &p.title);
                     }
                 });
             if n > 2 {

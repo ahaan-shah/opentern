@@ -106,8 +106,11 @@ fn main() -> eframe::Result<()> {
     // attempt may already have taken the store; reopen it from disk then.
     let slot = std::rc::Rc::new(std::cell::RefCell::new(Some(store)));
 
+    // The window icon (made by scripts/make-icons.py).
+    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/icon-512.png")).unwrap_or_default();
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
+            .with_icon(icon)
             .with_title("Opentern")
             .with_app_id("opentern")
             .with_inner_size([1440.0, 900.0])

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Opentern
+GenericName=Trading Terminal
+Comment=Charts, scripts, backtests, alerts and paper trading
+Exec=opentern
+Icon=opentern
+Terminal=false
+Categories=Office;Finance;
+Keywords=trading;charts;stocks;crypto;backtest;pine;
+StartupWMClass=opentern
+StartupNotify=true

@@ -55,6 +55,8 @@ pub struct App {
     pub(crate) snap: Option<crate::snapshot::Snap>,
     /// Where the charts were drawn last frame (snapshots cut this out).
     pub(crate) grid_rect: egui::Rect,
+    /// For screenshots: a menu to open at launch (`OPENTERN_STILL=menu:<name>`).
+    pub(crate) still_menu: Option<String>,
     pub egui_ctx: egui::Context,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
@@ -162,6 +164,7 @@ impl App {
             side: Default::default(),
             snap: None,
             grid_rect: egui::Rect::NOTHING,
+            still_menu: None,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
             slots: vec![None],
@@ -198,6 +201,9 @@ impl App {
         }
         app.subscribe_quotes();
         app.still();
+        if std::env::var("OPENTERN_STILL").is_ok_and(|v| v.split(',').any(|p| p == "light")) {
+            app.theme = crate::theme::ThemeState::new(ctx, "Opentern Light");
+        }
         app
     }
 
@@ -244,6 +250,10 @@ impl App {
             } else if let Some(m) = part.strip_prefix("lab:") {
                 self.layout.tab = Some(crate::shell::Tab::Lab);
                 self.lab_autorun(m);
+            } else if let Some(m) = part.strip_prefix("menu:") {
+                self.still_menu = Some(m.to_string());
+            } else if part == "light" {
+                // Handled in `new` (needs the egui context).
             } else if part == "replay" {
                 self.chart.toggle_replay();
             } else if let Some(kind) = part.strip_prefix("kind:") {
@@ -289,6 +299,15 @@ impl App {
                 crate::dialogs::StudySettings::new(self, uid).map(Modal::Study)
             }),
         };
+    }
+
+    /// Opens the menu under `resp` once, if it's the one a screenshot asked
+    /// for.
+    pub(crate) fn still_open(&mut self, ui: &egui::Ui, resp: &egui::Response, name: &str) {
+        if self.still_menu.as_deref() == Some(name) {
+            self.still_menu = None;
+            egui::Popup::open_id(ui.ctx(), egui::Popup::default_response_id(resp));
+        }
     }
 
     pub fn t(&self) -> Theme {
@@ -642,19 +661,22 @@ impl App {
             .fixed_pos(pos)
             .show(ctx, |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_min_width(190.0);
-                    if ui.button("Settings…").clicked() {
+                    ui.set_width(210.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), "Settings…", "", false).clicked() {
                         self.chart_actions(vec![Action::StudySettings(uid)]);
                         close = true;
                     }
-                    if ui.button("Save as default").clicked() {
+                    if w::menu_item(ui, &t, Some(ph::FLOPPY_DISK), "Save as default", "", false).clicked() {
                         if let Some(s) = self.chart.studies.iter().find(|s| s.uid == uid) {
                             let (i, l) = (s.inst.inputs.clone(), s.look.clone());
                             self.save_study_default(meta, &i, &l);
                         }
                         close = true;
                     }
-                    if ui.button("Reset settings").clicked() {
+                    if w::menu_item(ui, &t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Reset settings", "", false).clicked() {
                         let (i, l) = self.study_defaults(meta);
                         self.chart.set_inputs(uid, &i);
                         if let Some(s) = self.chart.study_mut(uid) {
@@ -662,8 +684,8 @@ impl App {
                         }
                         close = true;
                     }
-                    ui.separator();
-                    if ui.button(egui::RichText::new("Remove").color(t.neg)).clicked() {
+                    w::menu_rule(ui, &t);
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
                         self.chart.remove_study(uid);
                         close = true;
                     }

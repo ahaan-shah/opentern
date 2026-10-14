@@ -503,8 +503,12 @@ impl App {
         });
         ui.add_space(6.0);
         if self.alerts.list.is_empty() {
-            ui.label(
-                egui::RichText::new("No alerts yet. Press Alt+A to make one for the chart's symbol.").color(t.text3),
+            crate::widgets::empty_state(
+                ui,
+                t,
+                crate::icons::ph::ALARM,
+                "No alerts yet",
+                "Press Alt+A to make one for the chart's symbol.",
             );
             return;
         }
@@ -628,7 +632,13 @@ impl App {
         });
         ui.add_space(6.0);
         if self.alerts.log.is_empty() {
-            ui.label(egui::RichText::new("Alerts that fire show up here.").color(t.text3));
+            crate::widgets::empty_state(
+                ui,
+                t,
+                crate::icons::ph::CLOCK_COUNTER_CLOCKWISE,
+                "Nothing has fired yet",
+                "Alerts that fire show up here, newest first.",
+            );
             return;
         }
         let cols = [("Time", 150.0), ("Alert", 160.0), ("Symbol", 120.0), ("Message", 480.0)];

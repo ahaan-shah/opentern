@@ -22,6 +22,15 @@ impl App {
                 egui::RichText::new(format!("{} · {}", self.chart.symbol.ticker(), self.chart.tf.label()))
                     .font(theme::medium(13.0)),
             );
+            if self.chart.studies.is_empty() && self.chart.drawings.is_empty() {
+                crate::widgets::empty_state(
+                    ui,
+                    t,
+                    ph::STACK,
+                    "Nothing on the chart yet",
+                    "Indicators and drawings you add show up here.",
+                );
+            }
             let mut remove_study = None;
             let mut settings = None;
             let ids: Vec<u64> = self.chart.studies.iter().map(|s| s.uid).collect();

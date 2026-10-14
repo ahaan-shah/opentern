@@ -106,9 +106,12 @@ impl App {
     pub(crate) fn notifications_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.notes.unread = 0;
         if self.notes.list.is_empty() {
-            ui.label(
-                egui::RichText::new("Nothing yet. Alerts that fire, snapshots and finished runs show up here.")
-                    .color(t.text3),
+            crate::widgets::empty_state(
+                ui,
+                t,
+                crate::icons::ph::BELL_SIMPLE,
+                "All caught up",
+                "Alerts that fire, snapshots and finished runs show up here.",
             );
             return;
         }

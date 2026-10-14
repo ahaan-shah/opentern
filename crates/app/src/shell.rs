@@ -13,7 +13,7 @@ use crate::motion;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
 use egui::{Align, Align2, CornerRadius, Id, Layout, Margin, Rect, Sense, Stroke, Ui, pos2, vec2};
-use opentern_core::Timeframe;
+use opentern_core::{Timeframe, Unit};
 use serde::{Deserialize, Serialize};
 
 pub const TOP_H: f32 = 44.0;
@@ -21,6 +21,9 @@ pub const TOOLBAR_W: f32 = 48.0;
 pub const RAIL_W: f32 = 46.0;
 pub const RANGE_H: f32 = 32.0;
 pub const TABS_H: f32 = 32.0;
+/// The gap between cards, and their corner radius.
+pub const GAP: f32 = 5.0;
+const CARD_R: f32 = 9.0;
 
 /// Widgets the right rail opens in the widget panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -162,6 +165,10 @@ impl App {
 
         // The widget panel slides in and out; its width is dragged by its
         // left edge.
+        // The chart, the widget panel and the open bottom panel are cards
+        // on the darker frame, with a small gap between them: the regions
+        // read apart at a glance (CLAUDE.md §4a).
+        let mut cards: Vec<Rect> = Vec::new();
         let open = self.layout.widget.is_some();
         let k = motion::toggle(ui.ctx(), Id::new("widget-open"), open, motion::STANDARD);
         if k > 0.001 {
@@ -170,8 +177,14 @@ impl App {
                 .exact_size(width)
                 .resizable(false)
                 .show_separator_line(false)
-                .frame(egui::Frame::new().fill(t.bg))
+                .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin {
+                    left: GAP as i8,
+                    right: 0,
+                    top: GAP as i8,
+                    bottom: GAP as i8,
+                }))
                 .show(ui, |ui| {
+                    cards.push(ui.max_rect());
                     ui.set_opacity(k);
                     self.widget_panel(ui, &t)
                 });
@@ -189,14 +202,18 @@ impl App {
             .exact_size(TABS_H + self.layout.panel_h * k)
             .resizable(false)
             .show_separator_line(false)
-            .frame(egui::Frame::new().fill(t.bg))
-            .show(ui, |ui| self.bottom_panel(ui, &t, k));
+            .frame(egui::Frame::new().fill(t.sidebar))
+            .show(ui, |ui| {
+                if let Some(r) = self.bottom_panel(ui, &t, k) {
+                    cards.push(r);
+                }
+            });
 
         egui::Panel::bottom("range-bar")
             .exact_size(RANGE_H)
             .resizable(false)
             .show_separator_line(false)
-            .frame(egui::Frame::new().fill(t.bg).inner_margin(Margin::symmetric(8, 0)))
+            .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(8, 0)))
             .show(ui, |ui| self.range_bar(ui, &t));
 
         egui::Panel::left("drawing-toolbar")
@@ -207,17 +224,33 @@ impl App {
             .show(ui, |ui| self.drawing_toolbar(ui, &t));
 
         egui::CentralPanel::no_frame()
-            .frame(egui::Frame::new().fill(t.bg))
-            .show(ui, |ui| self.chart_grid(ui, &t));
+            .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin {
+                left: 0,
+                right: if self.layout.widget.is_some() { 0 } else { GAP as i8 },
+                top: GAP as i8,
+                bottom: 0,
+            }))
+            .show(ui, |ui| {
+                cards.push(ui.max_rect());
+                self.chart_grid(ui, &t)
+            });
 
-        // Hairlines between regions, drawn last so they sit on top.
-        let screen = ui.ctx().content_rect();
+        // Round the cards' corners and edge them, drawn last so they sit
+        // over what the panels painted (and under popups and dialogs).
         let p = ui
             .ctx()
-            .layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("hairlines")));
-        let s = Stroke::new(1.0, t.border);
-        p.hline(screen.x_range(), screen.top() + TOP_H, s);
-        p.vline(screen.right() - RAIL_W, (screen.top() + TOP_H)..=screen.bottom(), s);
+            .layer_painter(egui::LayerId::new(egui::Order::Middle, Id::new("cards")));
+        for r in cards {
+            if r.width() > 2.0 * CARD_R && r.height() > 2.0 * CARD_R {
+                round_corners(&p, r, CARD_R, t.sidebar);
+                p.rect_stroke(
+                    r,
+                    CornerRadius::same(CARD_R as u8),
+                    Stroke::new(1.0, motion::with_alpha(t.border, 0.9)),
+                    egui::StrokeKind::Inside,
+                );
+            }
+        }
     }
 
     // ------------------------------------------------------------ top bar
@@ -232,19 +265,17 @@ impl App {
             ui.spacing_mut().item_spacing.x = 2.0;
             let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (Alt+S)", false);
             egui::Popup::menu(&snap).show(|ui| {
-                ui.set_min_width(200.0);
-                if ui.button(format!("{}  Download image", ph::DOWNLOAD_SIMPLE)).clicked() {
+                ui.set_width(220.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
+                if w::menu_item(ui, t, Some(ph::DOWNLOAD_SIMPLE), "Download image", "", false).clicked() {
                     self.take_snapshot(crate::snapshot::Snap::Save);
                     ui.close();
                 }
-                if ui.button(format!("{}  Copy image", ph::COPY)).clicked() {
+                if w::menu_item(ui, t, Some(ph::COPY), "Copy image", "", false).clicked() {
                     self.take_snapshot(crate::snapshot::Snap::Copy);
                     ui.close();
                 }
-                if ui
-                    .button(format!("{}  Open snapshots folder", ph::FOLDER_OPEN))
-                    .clicked()
-                {
+                if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open snapshots folder", "", false).clicked() {
                     let dir = self.store.dir().join("snapshots");
                     let _ = std::fs::create_dir_all(&dir);
                     crate::app::open_path(&dir.join("."));
@@ -260,15 +291,15 @@ impl App {
                 self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
             }
             w::vdivider(ui, t);
-            let name = self.layout_name.clone();
-            let resp = w::bar_button(
-                ui,
-                t,
-                Some(ph::CARET_DOWN),
-                label_owned(compact, &name),
-                "Layouts",
-                false,
-            );
+            // The layout's name with a caret, as on TradingView; a folder
+            // icon when the bar is short of room.
+            let name = elide(&self.layout_name, 18);
+            let resp = if compact {
+                w::bar_button(ui, t, Some(ph::FOLDER_SIMPLE), "", "Layouts", false)
+            } else {
+                w::bar_button(ui, t, None, &format!("{name}  {}", ph::CARET_DOWN), "Layouts", false)
+            };
+            self.still_open(ui, &resp, "layout");
             egui::Popup::menu(&resp)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.layout_menu(ui, t));
@@ -282,13 +313,15 @@ impl App {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
                 ui.spacing_mut().item_spacing.x = 2.0;
                 let menu = w::bar_button(ui, t, Some(ph::LIST), "", "Main menu", false);
+                self.still_open(ui, &menu, "main");
                 egui::Popup::menu(&menu).show(|ui| {
-                    ui.set_min_width(220.0);
-                    if ui.button(format!("{}  Data providers…", ph::PLUGS_CONNECTED)).clicked() {
+                    ui.set_width(230.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if w::menu_item(ui, t, Some(ph::PLUGS_CONNECTED), "Data providers…", "", false).clicked() {
                         self.open_providers();
                         ui.close();
                     }
-                    if ui.button(format!("{}  Chart settings…", ph::GEAR)).clicked() {
+                    if w::menu_item(ui, t, Some(ph::GEAR), "Chart settings…", "", false).clicked() {
                         self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
                         ui.close();
                     }
@@ -297,7 +330,7 @@ impl App {
                     } else {
                         (ph::MOON, "Dark theme")
                     };
-                    if ui.button(format!("{glyph}  {label}")).clicked() {
+                    if w::menu_item(ui, t, Some(glyph), label, "", false).clicked() {
                         self.toggle_dark(ui.ctx());
                         ui.close();
                     }
@@ -388,68 +421,78 @@ impl App {
         });
     }
 
-    /// The "more intervals" menu: every standard interval with a star to
-    /// pin it to the top bar, and a field for a custom one ("7m", "3h").
+    /// The "more intervals" menu: every standard interval by unit, a star
+    /// beside each to pin it to the top bar, and a field for a custom one
+    /// ("7m", "3h").
     fn interval_menu(&mut self, ui: &mut Ui, t: &Theme) {
         let resp = w::bar_button(ui, t, Some(ph::CARET_DOWN), "", "More intervals", false);
-        egui::Popup::menu(&resp).show(|ui| {
-            ui.set_min_width(170.0);
-            let favs = self.intervals();
-            for tf in Timeframe::STANDARD {
-                let fav = favs.contains(tf);
-                ui.horizontal(|ui| {
-                    let active = self.chart.tf == *tf;
-                    let text = egui::RichText::new(tf.label()).color(if active { t.accent } else { t.text });
-                    if ui.add(egui::Button::new(text).frame(false)).clicked() {
+        self.still_open(ui, &resp, "interval");
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                ui.set_width(196.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
+                let favs = self.intervals();
+                let mut last = None;
+                for tf in Timeframe::STANDARD {
+                    let unit = match tf.unit {
+                        Unit::Second | Unit::Minute => "MINUTES",
+                        Unit::Hour => "HOURS",
+                        _ => "DAYS",
+                    };
+                    if last != Some(unit) {
+                        if last.is_some() {
+                            w::menu_rule(ui, t);
+                        }
+                        w::menu_heading(ui, t, unit);
+                        last = Some(unit);
+                    }
+                    let fav = favs.contains(tf);
+                    let (pick, star) = interval_row(ui, t, *tf, self.chart.tf == *tf, fav);
+                    if star {
+                        self.toggle_interval_favorite(*tf);
+                    } else if pick {
                         self.set_interval_synced(*tf);
                         ui.close();
                     }
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        let star = if fav { t.warn } else { t.text3 };
-                        let r = ui
-                            .add(egui::Button::new(egui::RichText::new(ph::STAR).color(star)).frame(false))
-                            .on_hover_text(if fav {
-                                "Remove from favourites"
-                            } else {
-                                "Add to favourites"
-                            });
-                        if r.clicked() {
-                            self.toggle_interval_favorite(*tf);
-                        }
-                    });
-                });
-            }
-            ui.separator();
-            let id = Id::new("custom-interval");
-            let mut text: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
-            let r = ui.add(egui::TextEdit::singleline(&mut text).hint_text("Custom, e.g. 7m, 3h, 2D"));
-            if r.lost_focus()
-                && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                && let Some(tf) = Timeframe::parse(&text)
-            {
-                self.set_interval_synced(tf);
-                text.clear();
-                ui.close();
-            }
-            ui.data_mut(|d| d.insert_temp(id, text));
-        });
+                }
+                w::menu_rule(ui, t);
+                let id = Id::new("custom-interval");
+                let mut text: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
+                let r = ui.add(
+                    w::field(&mut text)
+                        .hint_text("Custom: 7m, 3h, 2D")
+                        .desired_width(f32::INFINITY),
+                );
+                if r.lost_focus()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                    && let Some(tf) = Timeframe::parse(&text)
+                {
+                    self.set_interval_synced(tf);
+                    text.clear();
+                    ui.close();
+                }
+                ui.data_mut(|d| d.insert_temp(id, text));
+            });
     }
 
     fn chart_type_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        let resp = w::bar_button(ui, t, Some(self.chart.style.kind.icon()), "", "Bars style", false);
+        let kind = self.chart.style.kind;
+        let resp = w::bar_icon_button(ui, t, "Bars style", |p, r, c| {
+            crate::chart::style::paint_kind_icon(p, r, kind, c)
+        });
+        self.still_open(ui, &resp, "type");
         egui::Popup::menu(&resp).show(|ui| {
-            ui.set_min_width(190.0);
+            ui.set_width(210.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
             for k in SeriesKind::ALL {
                 if k == SeriesKind::HeikinAshi {
-                    ui.separator();
+                    w::menu_rule(ui, t);
                 }
                 let on = self.chart.style.kind == k;
-                let text = egui::RichText::new(format!("{}   {}", k.icon(), k.name())).color(if on {
-                    t.accent
-                } else {
-                    t.text
-                });
-                if ui.add(egui::Button::new(text).frame(false)).clicked() {
+                let paint =
+                    |p: &egui::Painter, r: Rect, c: egui::Color32| crate::chart::style::paint_kind_icon(p, r, k, c);
+                if w::menu_item_painted(ui, t, paint, k.name(), on).clicked() {
                     let mut s = self.chart.style.clone();
                     s.kind = k;
                     self.set_chart_style(s);
@@ -462,12 +505,11 @@ impl App {
     /// Indicator templates: save the current set, apply or delete saved ones.
     fn templates_menu(&mut self, ui: &mut Ui, t: &Theme) {
         let resp = w::bar_button(ui, t, Some(ph::SQUARES_FOUR), "", "Indicator templates", false);
+        self.still_open(ui, &resp, "templates");
         egui::Popup::menu(&resp).show(|ui| {
-            ui.set_min_width(230.0);
-            if ui
-                .button(format!("{}  Save indicator template…", ph::FLOPPY_DISK))
-                .clicked()
-            {
+            ui.set_width(250.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save indicator template…", "", false).clicked() {
                 self.modal = Some(Modal::SaveTemplate {
                     kind: TemplateKind::Indicators,
                     name: String::new(),
@@ -475,23 +517,40 @@ impl App {
                 ui.close();
             }
             let list = self.store.templates("indicators").to_vec();
+            w::menu_rule(ui, t);
             if list.is_empty() {
-                ui.label(egui::RichText::new("Saved templates show up here.").color(t.text3));
+                ui.horizontal(|ui| {
+                    ui.add_space(10.0);
+                    ui.label(
+                        egui::RichText::new("Your saved templates show up here.")
+                            .font(theme::regular(12.5))
+                            .color(t.text3),
+                    );
+                });
+                ui.add_space(4.0);
             } else {
-                ui.separator();
+                w::menu_heading(ui, t, "APPLY");
             }
             for tpl in list {
-                ui.horizontal(|ui| {
-                    if ui.button(&tpl.name).clicked() {
-                        self.apply_indicator_template(&tpl.name);
-                        ui.close();
-                    }
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.small_button(ph::TRASH).on_hover_text("Delete template").clicked() {
-                            self.delete_template(TemplateKind::Indicators, &tpl.name);
-                        }
-                    });
-                });
+                let n = tpl.name.clone();
+                let resp = w::menu_item(ui, t, Some(ph::SQUARES_FOUR), &n, "", false);
+                let bin = Rect::from_center_size(resp.rect.right_center() - vec2(16.0, 0.0), vec2(24.0, 24.0));
+                let b = ui.interact(bin, resp.id.with("del"), Sense::click());
+                if resp.hovered() || b.hovered() {
+                    ui.painter().text(
+                        bin.center(),
+                        Align2::CENTER_CENTER,
+                        ph::TRASH,
+                        theme::regular(14.0),
+                        if b.hovered() { t.neg } else { t.text3 },
+                    );
+                }
+                if b.on_hover_text("Delete template").clicked() {
+                    self.delete_template(TemplateKind::Indicators, &n);
+                } else if resp.clicked() {
+                    self.apply_indicator_template(&n);
+                    ui.close();
+                }
             }
         });
     }
@@ -559,28 +618,19 @@ impl App {
             w::hdivider(ui, t, TOOLBAR_W);
             let resp = w::tool_button(ui, t, ph::TRASH, "Remove drawings or indicators", false, 36.0);
             egui::Popup::menu(&resp).show(|ui| {
-                ui.set_min_width(200.0);
+                ui.set_width(220.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
                 let n = self.chart.drawings.len();
-                if ui
-                    .add_enabled(
-                        n > 0,
-                        egui::Button::new(format!("Remove {n} drawing{}", if n == 1 { "" } else { "s" })),
-                    )
-                    .clicked()
-                {
+                let label = format!("Remove {n} drawing{}", if n == 1 { "" } else { "s" });
+                if w::menu_row(ui, t, Some(ph::PENCIL_SIMPLE_SLASH), &label, "", false, n > 0).clicked() {
                     self.chart.push_undo();
                     self.chart.drawings.clear();
                     self.chart.drawings_changed += 1;
                     ui.close();
                 }
                 let k = self.chart.studies.len();
-                if ui
-                    .add_enabled(
-                        k > 0,
-                        egui::Button::new(format!("Remove {k} indicator{}", if k == 1 { "" } else { "s" })),
-                    )
-                    .clicked()
-                {
+                let label = format!("Remove {k} indicator{}", if k == 1 { "" } else { "s" });
+                if w::menu_row(ui, t, Some(ph::FUNCTION), &label, "", false, k > 0).clicked() {
                     let ids: Vec<u64> = self.chart.studies.iter().map(|s| s.uid).collect();
                     for id in ids {
                         self.chart.remove_study(id);
@@ -651,16 +701,12 @@ impl App {
             .align(egui::RectAlign::RIGHT_START)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
             .show(|ui| {
-                ui.set_min_width(220.0);
-                ui.label(egui::RichText::new(g.name()).font(theme::semibold(11.5)).color(t.text3));
+                ui.set_width(230.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
+                w::menu_heading(ui, t, &g.name().to_uppercase());
                 for tool in g.tools() {
                     let on = self.layout.tool == *tool;
-                    let text = egui::RichText::new(format!("{}   {}", tool.icon(), tool.name())).color(if on {
-                        t.accent
-                    } else {
-                        t.text
-                    });
-                    if ui.add(egui::Button::new(text).frame(false)).clicked() {
+                    if w::menu_item(ui, t, Some(tool.icon()), tool.name(), "", on).clicked() {
                         self.pick_tool(*tool);
                     }
                 }
@@ -724,12 +770,14 @@ impl App {
 
     fn widget_panel(&mut self, ui: &mut Ui, t: &Theme) {
         let full = ui.max_rect();
+        ui.painter().rect_filled(full, CornerRadius::ZERO, t.bg);
+        // The gap to the chart's left is the drag handle.
         let d = w::drag_handle(
             ui,
             t,
             Rect::from_min_max(
-                pos2(full.left() - 3.0, full.top()),
-                pos2(full.left() + 3.0, full.bottom()),
+                pos2(full.left() - GAP, full.top()),
+                pos2(full.left() + 1.0, full.bottom()),
             ),
             "widget-resize",
             true,
@@ -737,8 +785,6 @@ impl App {
         if d != 0.0 {
             self.layout.widget_w = (self.layout.widget_w - d).clamp(220.0, 560.0);
         }
-        ui.painter()
-            .vline(full.left(), full.y_range(), Stroke::new(1.0, t.border));
         let Some(widget) = self.layout.widget else { return };
         egui::Frame::new()
             .inner_margin(Margin::symmetric(12, 10))
@@ -764,9 +810,6 @@ impl App {
     // --------------------------------------------------------- range bar
 
     fn range_bar(&mut self, ui: &mut Ui, t: &Theme) {
-        let full = ui.max_rect();
-        ui.painter()
-            .hline(full.x_range().expand(8.0), full.top(), Stroke::new(1.0, t.border));
         let roomy = ui.available_width() > 760.0;
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
@@ -845,10 +888,11 @@ impl App {
 
     // ------------------------------------------------------ bottom panel
 
-    fn bottom_panel(&mut self, ui: &mut Ui, t: &Theme, k: f32) {
+    /// The tab strip and, when a tab is open, its body. Returns the body's
+    /// card rect.
+    fn bottom_panel(&mut self, ui: &mut Ui, t: &Theme, k: f32) -> Option<Rect> {
         let full = ui.max_rect();
-        ui.painter()
-            .hline(full.x_range(), full.top(), Stroke::new(1.0, t.border));
+        let mut card = None;
         if k > 0.0 {
             let d = w::drag_handle(
                 ui,
@@ -888,9 +932,15 @@ impl App {
             self.last_tab = tab;
         }
         if k > 0.01 {
-            let body = Rect::from_min_max(pos2(full.left(), strip.bottom()), full.max);
-            ui.painter()
-                .hline(body.x_range(), body.top(), Stroke::new(1.0, t.border));
+            let body = Rect::from_min_max(
+                pos2(full.left() + GAP, strip.bottom()),
+                pos2(
+                    full.right() - if self.layout.widget.is_some() { 0.0 } else { GAP },
+                    full.bottom() - GAP,
+                ),
+            );
+            ui.painter().rect_filled(body, CornerRadius::ZERO, t.bg);
+            card = Some(body);
             // A child that can't grow the panel: content taller than the
             // panel is clipped (and scrolls where it's long), never pushes
             // the tab strip under the range bar.
@@ -910,6 +960,7 @@ impl App {
                 }
             }
         }
+        card
     }
 
     // ------------------------------------------------------------- chart
@@ -940,8 +991,13 @@ impl App {
     }
 }
 
-fn label_owned(compact: bool, s: &str) -> &str {
-    if compact { "" } else { s }
+/// Shortens `s` to `max` characters with an ellipsis.
+fn elide(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        s.to_string()
+    } else {
+        format!("{}…", s.chars().take(max - 1).collect::<String>())
+    }
 }
 
 /// A compact text button for the range bar and panel tabs.
@@ -965,4 +1021,95 @@ pub(crate) fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> 
         p.galley_with_override_text_color(rect.center() - galley.size() / 2.0, galley, color);
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// "1 minute", "3 hours", "1 week": TradingView's long interval names.
+fn interval_name(tf: Timeframe) -> String {
+    let unit = match tf.unit {
+        Unit::Second => "second",
+        Unit::Minute => "minute",
+        Unit::Hour => "hour",
+        Unit::Day => "day",
+        Unit::Week => "week",
+        Unit::Month => "month",
+    };
+    format!("{} {unit}{}", tf.count, if tf.count == 1 { "" } else { "s" })
+}
+
+/// One row of the interval menu. The star sits just right of the name
+/// column and shows on hover (always, once starred). Returns (picked,
+/// star clicked).
+fn interval_row(ui: &mut Ui, t: &Theme, tf: Timeframe, current: bool, fav: bool) -> (bool, bool) {
+    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 28.0), Sense::click());
+    let star_rect = Rect::from_center_size(pos2(rect.right() - 16.0, rect.center().y), vec2(24.0, 24.0));
+    let star = ui.interact(star_rect, resp.id.with("star"), Sense::click());
+    let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered() || star.hovered(), motion::MICRO);
+    let p = ui.painter();
+    if current {
+        p.rect_filled(rect, CornerRadius::same(7), t.accent_soft());
+    }
+    p.rect_filled(rect, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hover));
+    p.text(
+        pos2(rect.left() + 10.0, rect.center().y),
+        Align2::LEFT_CENTER,
+        interval_name(tf),
+        theme::regular(13.5),
+        if current { t.accent } else { t.text },
+    );
+    let star_alpha = if fav { 1.0 } else { hover };
+    if star_alpha > 0.0 {
+        let c = if fav {
+            t.warn
+        } else if star.hovered() {
+            t.text
+        } else {
+            t.text3
+        };
+        if fav {
+            w::filled_star(p, star_rect.center(), 6.5, c);
+        } else {
+            p.text(
+                star_rect.center(),
+                Align2::CENTER_CENTER,
+                ph::STAR,
+                theme::regular(14.0),
+                motion::with_alpha(c, star_alpha),
+            );
+        }
+    }
+    let star = star
+        .on_hover_text(if fav {
+            "Remove from the top bar"
+        } else {
+            "Show in the top bar"
+        })
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    (resp.clicked(), star.clicked())
+}
+
+/// Fills the four corners of `r` outside a rounded rect of radius `rad`
+/// with `fill`, so a panel painted square looks rounded.
+fn round_corners(p: &egui::Painter, r: Rect, rad: f32, fill: egui::Color32) {
+    use std::f32::consts::FRAC_PI_2;
+    let corners = [
+        (r.left_top(), pos2(r.left() + rad, r.top() + rad), 2.0),
+        (r.right_top(), pos2(r.right() - rad, r.top() + rad), 3.0),
+        (r.right_bottom(), pos2(r.right() - rad, r.bottom() - rad), 0.0),
+        (r.left_bottom(), pos2(r.left() + rad, r.bottom() - rad), 1.0),
+    ];
+    let steps = 10;
+    let mut mesh = egui::Mesh::default();
+    for (corner, centre, q) in corners {
+        let base = mesh.vertices.len() as u32;
+        mesh.colored_vertex(corner, fill);
+        for k in 0..=steps {
+            let a = (q + k as f32 / steps as f32) * FRAC_PI_2;
+            mesh.colored_vertex(centre + vec2(a.cos(), a.sin()) * rad, fill);
+        }
+        for k in 0..steps as u32 {
+            mesh.add_triangle(base, base + 1 + k, base + 2 + k);
+        }
+    }
+    p.add(mesh);
 }

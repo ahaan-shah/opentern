@@ -62,12 +62,12 @@ impl App {
                             if fills {
                                 color_button(ui, &t, &mut edit.style.fill);
                             }
-                            egui::ComboBox::from_id_salt("draw-width")
+                            crate::widgets::combo("draw-width")
                                 .width(50.0)
                                 .selected_text(format!("{}px", edit.style.width))
                                 .show_ui(ui, |ui| {
                                     for w in 1..=4u8 {
-                                        ui.selectable_value(&mut edit.style.width, w, format!("{w}px"));
+                                        crate::widgets::option_value(ui, &mut edit.style.width, w, format!("{w}px"));
                                     }
                                 });
                             let name = |s: LineStyle| match s {
@@ -75,17 +75,17 @@ impl App {
                                 LineStyle::Dashed => "Dashed",
                                 LineStyle::Dotted => "Dotted",
                             };
-                            egui::ComboBox::from_id_salt("draw-line")
+                            crate::widgets::combo("draw-line")
                                 .width(70.0)
                                 .selected_text(name(edit.style.line))
                                 .show_ui(ui, |ui| {
                                     for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
-                                        ui.selectable_value(&mut edit.style.line, s, name(s));
+                                        crate::widgets::option_value(ui, &mut edit.style.line, s, name(s));
                                     }
                                 });
                             if matches!(d.tool, Tool::Text | Tool::ArrowUp | Tool::ArrowDown) {
                                 ui.add(
-                                    egui::TextEdit::singleline(&mut edit.text)
+                                    crate::widgets::field(&mut edit.text)
                                         .hint_text("Text")
                                         .desired_width(140.0),
                                 );

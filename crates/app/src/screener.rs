@@ -8,7 +8,7 @@
 use crate::app::App;
 use crate::icons::ph;
 use crate::theme::{self, Theme};
-use egui::{Align, Color32, Layout, Sense, Ui, vec2};
+use egui::{Align, Layout, Sense, Ui, vec2};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
 use opentern_data::Request;
 use opentern_series::Instance;
@@ -539,45 +539,46 @@ impl App {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             let current = self.universe_name();
-            egui::ComboBox::from_id_salt("screen-universe")
+            crate::widgets::combo("screen-universe")
                 .selected_text(current)
                 .width(170.0)
                 .show_ui(ui, |ui| {
                     for (name, _) in presets() {
                         let u = Universe::Preset(name.into());
-                        if ui.selectable_label(self.screener.setup.universe == u, name).clicked() {
+                        if crate::widgets::option(ui, self.screener.setup.universe == u, name).clicked() {
                             self.screener.setup.universe = u;
                         }
                     }
                     ui.separator();
                     for wl in self.watchlists.clone() {
                         let u = Universe::Watchlist(wl.id);
-                        if ui
-                            .selectable_label(
-                                self.screener.setup.universe == u,
-                                format!("{}  {}", ph::LIST_BULLETS, wl.name),
-                            )
-                            .clicked()
+                        if crate::widgets::option(
+                            ui,
+                            self.screener.setup.universe == u,
+                            format!("{}  {}", ph::LIST_BULLETS, wl.name),
+                        )
+                        .clicked()
                         {
                             self.screener.setup.universe = u;
                         }
                     }
                 });
-            egui::ComboBox::from_id_salt("screen-tf")
+            crate::widgets::combo("screen-tf")
                 .selected_text(self.screener.setup.tf.clone())
                 .width(60.0)
                 .show_ui(ui, |ui| {
                     for tf in ["15m", "1h", "4h", "1D", "1W"] {
                         let on = self.screener.setup.tf == tf;
-                        if ui.selectable_label(on, tf).clicked() {
+                        if crate::widgets::option(ui, on, tf).clicked() {
                             self.screener.setup.tf = tf.into();
                         }
                     }
                 });
             self.script_picker(ui, t);
-            let run = egui::Button::new(egui::RichText::new(format!("{}  Run", ph::PLAY)).color(Color32::WHITE))
-                .fill(t.accent);
-            if ui.add(run).on_hover_text("Fetch and measure every symbol").clicked() {
+            if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), "Run")
+                .on_hover_text("Fetch and measure every symbol")
+                .clicked()
+            {
                 self.run_screener();
             }
             ui.label(egui::RichText::new(&self.screener.status).color(t.text3));
@@ -594,20 +595,20 @@ impl App {
                     .inner_margin(egui::Margin::symmetric(6, 2))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            egui::ComboBox::from_id_salt(("flt-field", k))
+                            crate::widgets::combo(("flt-field", k))
                                 .selected_text(f.field.name())
                                 .width(110.0)
                                 .show_ui(ui, |ui| {
                                     for fld in Field::ALL {
-                                        ui.selectable_value(&mut f.field, fld, fld.name());
+                                        crate::widgets::option_value(ui, &mut f.field, fld, fld.name());
                                     }
                                 });
-                            egui::ComboBox::from_id_salt(("flt-op", k))
+                            crate::widgets::combo(("flt-op", k))
                                 .selected_text(if f.op == Op::Above { "above" } else { "below" })
                                 .width(64.0)
                                 .show_ui(ui, |ui| {
-                                    ui.selectable_value(&mut f.op, Op::Above, "above");
-                                    ui.selectable_value(&mut f.op, Op::Below, "below");
+                                    crate::widgets::option_value(ui, &mut f.op, Op::Above, "above");
+                                    crate::widgets::option_value(ui, &mut f.op, Op::Below, "below");
                                 });
                             ui.add(egui::DragValue::new(&mut f.value).speed(0.1).max_decimals(4));
                             if ui.small_button(ph::X).on_hover_text("Remove filter").clicked() {
@@ -619,7 +620,15 @@ impl App {
             if let Some(k) = remove {
                 self.screener.setup.filters.remove(k);
             }
-            if ui.button(format!("{}  Add filter", ph::FUNNEL)).clicked() {
+            if crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Secondary,
+                true,
+                Some(ph::FUNNEL),
+                "Add filter",
+            )
+            .clicked()
+            {
                 self.screener.setup.filters.push(Filter {
                     field: Field::Change,
                     op: Op::Above,
@@ -783,15 +792,12 @@ impl App {
                 .unwrap_or_else(|| id.clone()),
             ScreenScript::Pine(f, _) => f.clone(),
         };
-        egui::ComboBox::from_id_salt("screen-script")
+        crate::widgets::combo("screen-script")
             .selected_text(format!("{}  {current}", ph::FUNCTION))
             .width(180.0)
             .height(360.0)
             .show_ui(ui, |ui| {
-                if ui
-                    .selectable_label(self.screener.setup.script == ScreenScript::None, "No script")
-                    .clicked()
-                {
+                if crate::widgets::option(ui, self.screener.setup.script == ScreenScript::None, "No script").clicked() {
                     self.screener.setup.script = ScreenScript::None;
                 }
                 let pine: Vec<String> = self
@@ -804,12 +810,12 @@ impl App {
                 }
                 for f in pine {
                     let s = ScreenScript::Pine(f.clone(), 0);
-                    if ui
-                        .selectable_label(
-                            matches!(&self.screener.setup.script, ScreenScript::Pine(x, _) if *x == f),
-                            &f,
-                        )
-                        .clicked()
+                    if crate::widgets::option(
+                        ui,
+                        matches!(&self.screener.setup.script, ScreenScript::Pine(x, _) if *x == f),
+                        &f,
+                    )
+                    .clicked()
                     {
                         self.screener.setup.script = s;
                     }
@@ -817,7 +823,7 @@ impl App {
                 ui.separator();
                 for m in opentern_series::builtins::all().iter().filter(|m| !m.plots.is_empty()) {
                     let on = matches!(&self.screener.setup.script, ScreenScript::Builtin(x, _) if x == m.id);
-                    if ui.selectable_label(on, m.name).clicked() {
+                    if crate::widgets::option(ui, on, m.name).clicked() {
                         self.screener.setup.script = ScreenScript::Builtin(m.id.into(), 0);
                     }
                 }
@@ -827,12 +833,12 @@ impl App {
             && let Some(m) = opentern_series::builtins::by_id(id)
             && m.plots.len() > 1
         {
-            egui::ComboBox::from_id_salt("screen-plot")
+            crate::widgets::combo("screen-plot")
                 .selected_text(m.plots.get(*plot).map(|p| p.title).unwrap_or("Plot"))
                 .width(110.0)
                 .show_ui(ui, |ui| {
                     for (k, p) in m.plots.iter().enumerate() {
-                        ui.selectable_value(plot, k, p.title);
+                        crate::widgets::option_value(ui, plot, k, p.title);
                     }
                 });
         }

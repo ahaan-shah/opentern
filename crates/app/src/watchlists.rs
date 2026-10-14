@@ -153,9 +153,46 @@ impl App {
             });
         });
         ui.add_space(4.0);
+        // Prices first, so the columns can be sized to what they hold: the
+        // change column fits its widest value, the price column sits left
+        // of it, and the symbol gets the rest (elided, never overlapping).
+        let rows: Vec<(opentern_core::Symbol, String, String, egui::Color32)> = self
+            .watchlist()
+            .iter()
+            .map(|s| {
+                let (last, chg, col) = match self.quotes.get(&s.id) {
+                    Some((last, prev)) if *prev != 0.0 => {
+                        let pct = (last / prev - 1.0) * 100.0;
+                        let col = if pct >= 0.0 { t.pos } else { t.neg };
+                        (
+                            crate::format::price(*last, s.precision()),
+                            crate::format::signed_pct(pct),
+                            col,
+                        )
+                    }
+                    _ => ("—".into(), "—".into(), t.text3),
+                };
+                (s.clone(), last, chg, col)
+            })
+            .collect();
+        let width_of = |text: &str, ui: &Ui| {
+            ui.painter()
+                .layout_no_wrap(text.to_string(), theme::regular(13.0), t.text)
+                .size()
+                .x
+        };
+        let chg_w = rows
+            .iter()
+            .map(|r| width_of(&r.2, ui))
+            .fold(width_of("Chg%", ui), f32::max);
+        let last_w = rows
+            .iter()
+            .map(|r| width_of(&r.1, ui))
+            .fold(width_of("Last", ui), f32::max);
         let w = ui.available_width();
         let (cols, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-        let col_last = cols.right() - w * 0.30;
+        let col_last = cols.right() - 4.0 - chg_w - 14.0;
+        let name_right = col_last - last_w - 12.0;
         let header = |ui: &mut Ui, x: f32, align: Align2, text: &str, id: &str| -> bool {
             let r = egui::Rect::from_center_size(pos2(x, cols.center().y), vec2(70.0, 22.0));
             let r = match align {
@@ -185,7 +222,7 @@ impl App {
         let mut remove = None;
         let mut to_top = None;
         egui::ScrollArea::vertical().id_salt("watchlist-rows").show(ui, |ui| {
-            for s in self.watchlist().to_vec() {
+            for (s, last, chg, col) in rows {
                 let active = self.chart.symbol.id == s.id;
                 let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
                 let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
@@ -195,26 +232,13 @@ impl App {
                     p.rect_filled(rect, CornerRadius::same(6), t.accent_soft());
                 }
                 let y = rect.center().y;
-                let (last, chg, col) = match self.quotes.get(&s.id) {
-                    Some((last, prev)) if *prev != 0.0 => {
-                        let pct = (last / prev - 1.0) * 100.0;
-                        let col = if pct >= 0.0 { t.pos } else { t.neg };
-                        (
-                            crate::format::price(*last, s.precision()),
-                            crate::format::signed_pct(pct),
-                            col,
-                        )
-                    }
-                    _ => ("—".into(), "—".into(), t.text3),
-                };
                 let name_font = theme::medium(13.0);
-                // The name gets what's left of the row, clipped so it never
-                // runs into the prices.
-                let name_clip = egui::Rect::from_min_max(rect.min, pos2(col_last - 80.0, rect.max.y));
-                p.with_clip_rect(name_clip).text(
+                let room = name_right - rect.left() - 6.0;
+                let name = crate::format::elide_to(p, s.ticker(), &name_font, room);
+                p.text(
                     pos2(rect.left() + 6.0, y),
                     Align2::LEFT_CENTER,
-                    s.ticker(),
+                    name,
                     name_font,
                     if active { t.accent } else { t.text },
                 );
@@ -251,18 +275,17 @@ impl App {
                     pick = Some(s.clone());
                 }
                 resp.context_menu(|ui| {
-                    if ui.button("Open chart").clicked() {
+                    ui.set_width(220.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if crate::widgets::menu_item(ui, t, Some(ph::CHART_LINE), "Open chart", "", false).clicked() {
                         pick = Some(s.clone());
                         ui.close();
                     }
-                    if ui.button("Move to top").clicked() {
+                    if crate::widgets::menu_item(ui, t, Some(ph::ARROW_LINE_UP), "Move to top", "", false).clicked() {
                         to_top = Some(s.id.clone());
                         ui.close();
                     }
-                    if ui
-                        .button(egui::RichText::new("Remove from watchlist").color(t.neg))
-                        .clicked()
-                    {
+                    if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), "Remove from watchlist").clicked() {
                         remove = Some(s.id.clone());
                         ui.close();
                     }
@@ -309,13 +332,18 @@ impl App {
             ui.data(|d| d.get_temp(ui.id().with("list-edit"))).unwrap_or_default();
         ui.horizontal(|ui| {
             ui.add(
-                egui::TextEdit::singleline(&mut edit.new_name)
+                crate::widgets::field(&mut edit.new_name)
                     .hint_text("New list name")
                     .desired_width(150.0),
             );
-            if ui
-                .add_enabled(!edit.new_name.trim().is_empty(), egui::Button::new("Create"))
-                .clicked()
+            if crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Primary,
+                !edit.new_name.trim().is_empty(),
+                None,
+                "Create",
+            )
+            .clicked()
             {
                 let id = self.watchlists.iter().map(|w| w.id).max().unwrap_or(0) + 1;
                 self.watchlists.push(Watchlist {
@@ -330,13 +358,18 @@ impl App {
         });
         ui.horizontal(|ui| {
             ui.add(
-                egui::TextEdit::singleline(&mut edit.rename)
+                crate::widgets::field(&mut edit.rename)
                     .hint_text("Rename this list")
                     .desired_width(150.0),
             );
-            if ui
-                .add_enabled(!edit.rename.trim().is_empty(), egui::Button::new("Rename"))
-                .clicked()
+            if crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Primary,
+                !edit.rename.trim().is_empty(),
+                None,
+                "Rename",
+            )
+            .clicked()
             {
                 self.watchlists[self.active_list].name = edit.rename.trim().to_string();
                 edit.rename.clear();

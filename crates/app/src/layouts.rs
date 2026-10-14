@@ -88,56 +88,68 @@ impl App {
 
     /// The layout menu in the top bar.
     pub(crate) fn layout_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        ui.set_min_width(260.0);
-        if ui.button(format!("{}  Save layout", ph::FLOPPY_DISK)).clicked() {
-            self.save_layout_now();
-            ui.close();
-        }
+        use crate::widgets as w;
+        ui.set_width(270.0);
+        ui.spacing_mut().item_spacing.y = 1.0;
+        w::menu_heading(ui, t, "THIS LAYOUT");
         let id = ui.id().with("rename");
         let mut name: String = ui.data(|d| d.get_temp(id)).unwrap_or_else(|| self.layout_name.clone());
+        ui.add_space(3.0);
         ui.horizontal(|ui| {
-            ui.add(egui::TextEdit::singleline(&mut name).desired_width(170.0));
-            if ui
-                .add_enabled(
-                    !name.trim().is_empty() && name.trim() != self.layout_name,
-                    egui::Button::new("Rename"),
-                )
-                .clicked()
-            {
+            ui.spacing_mut().item_spacing.x = 6.0;
+            let can = !name.trim().is_empty() && name.trim() != self.layout_name;
+            let r = ui.add(w::field(&mut name).desired_width(ui.available_width() - 100.0));
+            let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+            if (w::button(ui, w::Kind::Secondary, can, None, "Rename").clicked() || enter) && can {
                 self.rename_layout(name.trim());
             }
         });
+        ui.add_space(4.0);
         ui.data_mut(|d| d.insert_temp(id, name));
-        if ui.button(format!("{}  Make a copy", ph::COPY)).clicked() {
+        if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save layout", "", false).clicked() {
+            self.save_layout_now();
+            ui.close();
+        }
+        if w::menu_item(ui, t, Some(ph::COPY), "Make a copy", "", false).clicked() {
             self.copy_layout();
             ui.close();
         }
-        if ui.button(format!("{}  New layout", ph::FILE_PLUS)).clicked() {
+        if w::menu_item(ui, t, Some(ph::FILE_PLUS), "New layout", "", false).clicked() {
             self.new_layout();
             ui.close();
         }
         let others: Vec<_> = self.store.layouts().to_vec();
-        if others.len() > 1 {
-            ui.separator();
-            ui.label(egui::RichText::new("Open layout").color(t.text3));
-        }
         let mut open = None;
         let mut delete = None;
-        for l in others.iter() {
-            ui.horizontal(|ui| {
+        if others.len() > 1 {
+            w::menu_rule(ui, t);
+            w::menu_heading(ui, t, "OPEN LAYOUT");
+            for l in others.iter() {
                 let on = l.id == self.layout_id;
-                let text = egui::RichText::new(&l.name).color(if on { t.accent } else { t.text });
-                if ui.add(egui::Button::new(text).frame(false)).clicked() {
-                    open = Some(l.id);
-                }
+                let resp = w::menu_item(ui, t, Some(ph::LAYOUT), &l.name, "", on);
                 if !on {
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.small_button(ph::TRASH).on_hover_text("Delete layout").clicked() {
-                            delete = Some(l.id);
-                        }
-                    });
+                    // A delete button that shows on hover, at the row's end.
+                    let bin = egui::Rect::from_center_size(
+                        resp.rect.right_center() - egui::vec2(16.0, 0.0),
+                        egui::vec2(24.0, 24.0),
+                    );
+                    let b = ui.interact(bin, resp.id.with("del"), egui::Sense::click());
+                    if resp.hovered() || b.hovered() {
+                        ui.painter().text(
+                            bin.center(),
+                            egui::Align2::CENTER_CENTER,
+                            ph::TRASH,
+                            crate::theme::regular(14.0),
+                            if b.hovered() { t.neg } else { t.text3 },
+                        );
+                    }
+                    if b.on_hover_text("Delete layout").clicked() {
+                        delete = Some(l.id);
+                    } else if resp.clicked() {
+                        open = Some(l.id);
+                    }
                 }
-            });
+            }
         }
         if let Some(id) = open {
             self.load_layout(id);

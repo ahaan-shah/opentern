@@ -38,23 +38,20 @@ impl Indicators {
         let mut add: Option<&'static Meta> = None;
         let mut star: Option<&'static str> = None;
         if frame(ui, t, "Indicators", 720.0, |ui| {
-            let r = ui.add(
-                egui::TextEdit::singleline(&mut self.query)
-                    .hint_text(format!("{}  Search", ph::MAGNIFYING_GLASS))
-                    .desired_width(f32::INFINITY)
-                    .margin(vec2(10.0, 7.0)),
-            );
+            let r = crate::widgets::search_field(ui, t, &mut self.query, "Search", ui.available_width());
             if !self.focused {
                 r.request_focus();
                 self.focused = true;
             }
             ui.add_space(8.0);
-            let height = 420.0;
+            // Fits the window: the dialog's title, search and margins take
+            // about 200 px.
+            let height = (ui.ctx().content_rect().height() - 210.0).clamp(220.0, 460.0);
             ui.horizontal_top(|ui| {
                 // Left column: where to look.
                 ui.allocate_ui_with_layout(vec2(170.0, height), egui::Layout::top_down(egui::Align::Min), |ui| {
                     ui.set_min_size(vec2(170.0, height));
-                    let mut item = |ui: &mut Ui, tab: Tab, label: &str| {
+                    let mut item = |ui: &mut Ui, tab: Tab, icon: &str, label: &str| {
                         let on = self.tab == tab && self.query.is_empty();
                         let (rect, resp) = ui.allocate_exact_size(vec2(170.0, 30.0), Sense::click());
                         let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
@@ -65,7 +62,14 @@ impl Indicators {
                         };
                         ui.painter().rect_filled(rect, CornerRadius::same(7), bg);
                         ui.painter().text(
-                            pos2(rect.left() + 10.0, rect.center().y),
+                            pos2(rect.left() + 20.0, rect.center().y),
+                            Align2::CENTER_CENTER,
+                            icon,
+                            theme::regular(15.0),
+                            if on { t.accent } else { t.text2 },
+                        );
+                        ui.painter().text(
+                            pos2(rect.left() + 36.0, rect.center().y),
                             Align2::LEFT_CENTER,
                             label,
                             theme::medium(13.0),
@@ -76,11 +80,17 @@ impl Indicators {
                             self.query.clear();
                         }
                     };
-                    item(ui, Tab::Favorites, &format!("{}  Favorites", ph::STAR));
-                    item(ui, Tab::All, &format!("{}  Built-ins", ph::FUNCTION));
-                    ui.add_space(4.0);
+                    item(ui, Tab::Favorites, ph::STAR, "Favorites");
+                    item(ui, Tab::All, ph::FUNCTION, "Built-ins");
+                    ui.add_space(6.0);
+                    ui.label(
+                        egui::RichText::new("CATEGORIES")
+                            .font(theme::semibold(10.5))
+                            .color(t.text3),
+                    );
+                    ui.add_space(2.0);
                     for c in Category::ALL {
-                        item(ui, Tab::Cat(c), &format!("      {}", c.name()));
+                        item(ui, Tab::Cat(c), category_icon(c), c.name());
                     }
                 });
                 let (line, _) = ui.allocate_exact_size(vec2(17.0, height), Sense::hover());
@@ -107,15 +117,26 @@ impl Indicators {
                         .id_salt("indicator-list")
                         .max_height(height)
                         .show(ui, |ui| {
-                            ui.set_width(w - 12.0);
+                            // Rows stop short of the floating scrollbar.
+                            ui.set_width(w - 16.0);
                             if list.is_empty() {
-                                ui.add_space(10.0);
-                                let msg = if self.tab == Tab::Favorites && q.is_empty() {
-                                    "Star an indicator to keep it here."
+                                if self.tab == Tab::Favorites && q.is_empty() {
+                                    crate::widgets::empty_state(
+                                        ui,
+                                        t,
+                                        ph::STAR,
+                                        "No favorites yet",
+                                        "Star an indicator to keep it here.",
+                                    );
                                 } else {
-                                    "Nothing matches."
-                                };
-                                ui.label(egui::RichText::new(msg).color(t.text3));
+                                    crate::widgets::empty_state(
+                                        ui,
+                                        t,
+                                        ph::MAGNIFYING_GLASS,
+                                        "Nothing matches",
+                                        "Try a shorter name, like \"RSI\" or \"moving\".",
+                                    );
+                                }
                             }
                             for m in list {
                                 let (rect, resp) =
@@ -155,7 +176,7 @@ impl Indicators {
                                     t.text,
                                 );
                                 ui.painter().text(
-                                    pos2(rect.right() - 10.0, rect.center().y),
+                                    pos2(rect.right() - 12.0, rect.center().y),
                                     Align2::RIGHT_CENTER,
                                     m.category.name(),
                                     theme::regular(12.0),
@@ -187,5 +208,16 @@ impl Indicators {
             app.add_study(m);
         }
         done
+    }
+}
+
+fn category_icon(c: Category) -> &'static str {
+    match c {
+        Category::MovingAverages => ph::WAVE_SINE,
+        Category::Bands => ph::ARROWS_OUT_LINE_VERTICAL,
+        Category::Trend => ph::TREND_UP,
+        Category::Oscillators => ph::PULSE,
+        Category::Volatility => ph::LIGHTNING,
+        Category::Volume => ph::CHART_BAR,
     }
 }

@@ -304,7 +304,11 @@ impl App {
             // Files.
             ui.allocate_ui_with_layout(vec2(list_w, full.height()), Layout::top_down(Align::Min), |ui| {
                 ui.set_min_size(vec2(list_w, full.height()));
-                ui.menu_button(format!("{}  New script", ph::PLUS), |ui| {
+                let resp =
+                    crate::widgets::button(ui, crate::widgets::Kind::Secondary, true, Some(ph::PLUS), "New script");
+                egui::Popup::menu(&resp).show(|ui| {
+                    ui.set_width(200.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
                     for (lang, name) in [
                         (Lang::Pine, "Pine Script"),
                         (Lang::Python, "Python"),
@@ -312,7 +316,7 @@ impl App {
                         (Lang::Js, "JavaScript"),
                         (Lang::Ts, "TypeScript"),
                     ] {
-                        if ui.button(name).clicked() {
+                        if crate::widgets::menu_item(ui, t, Some(ph::FILE_CODE), name, lang.ext(), false).clicked() {
                             self.new_script(lang);
                             ui.close();
                         }
@@ -321,7 +325,13 @@ impl App {
                 ui.add_space(4.0);
                 egui::ScrollArea::vertical().id_salt("script-files").show(ui, |ui| {
                     if files.is_empty() {
-                        ui.label(egui::RichText::new("No scripts yet.").color(t.text3));
+                        crate::widgets::empty_state(
+                            ui,
+                            t,
+                            ph::FILE_CODE,
+                            "No scripts yet",
+                            "Start one with New script.",
+                        );
                     }
                     for f in &files {
                         let on = self.editor.file.as_deref() == Some(f.as_str());
@@ -349,29 +359,62 @@ impl App {
                 ui.horizontal(|ui| {
                     let name = if dirty { format!("{file} •") } else { file.clone() };
                     ui.label(egui::RichText::new(name).font(theme::semibold(13.0)));
+                    // Short of room, the two "open" buttons become icons.
+                    let roomy = ui.available_width() > 760.0;
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui
-                            .button(format!("{}  Open folder", ph::FOLDER_OPEN))
-                            .on_hover_text("Scripts live here; any editor works")
+                        use crate::widgets as w;
+                        let folder = if roomy {
+                            w::button(ui, w::Kind::Secondary, true, Some(ph::FOLDER_OPEN), "Open folder")
+                        } else {
+                            w::tool_button(ui, t, ph::FOLDER_OPEN, "", false, 32.0)
+                        };
+                        if folder
+                            .on_hover_text("Open the scripts folder; any editor works")
                             .clicked()
                         {
                             crate::app::open_path(&self.scripts_dir());
                         }
-                        if ui
-                            .button(format!("{}  Open in editor", ph::ARROW_SQUARE_OUT))
+                        let ext = if roomy {
+                            w::button(
+                                ui,
+                                w::Kind::Secondary,
+                                true,
+                                Some(ph::ARROW_SQUARE_OUT),
+                                "Open in editor",
+                            )
+                        } else {
+                            w::tool_button(ui, t, ph::ARROW_SQUARE_OUT, "", false, 32.0)
+                        };
+                        if ext
                             .on_hover_text("Edit in your own editor; the chart reloads when you save there")
                             .clicked()
                         {
                             crate::app::open_path(&self.scripts_dir().join(&file));
                         }
-                        if ui.button(format!("{}  Add to chart", ph::CHART_LINE_UP)).clicked() {
+                        if crate::widgets::button(
+                            ui,
+                            crate::widgets::Kind::Primary,
+                            true,
+                            Some(ph::CHART_LINE_UP),
+                            "Add to chart",
+                        )
+                        .clicked()
+                        {
                             if dirty {
                                 self.save_script();
                             }
                             self.add_script(&file);
                         }
                         if ui
-                            .add_enabled(dirty, egui::Button::new(format!("{}  Save", ph::FLOPPY_DISK)))
+                            .add(|ui: &mut Ui| {
+                                crate::widgets::button(
+                                    ui,
+                                    crate::widgets::Kind::Secondary,
+                                    dirty,
+                                    Some(ph::FLOPPY_DISK),
+                                    "Save",
+                                )
+                            })
                             .on_hover_text(concat!("Save (", shortcut!("S"), ")"))
                             .clicked()
                         {

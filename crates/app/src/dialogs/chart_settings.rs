@@ -97,10 +97,18 @@ impl ChartSettings {
             });
             ui.separator();
             ui.horizontal(|ui| {
-                let resp = ui.button(format!("Template  {}", ph::CARET_DOWN));
+                let resp = crate::widgets::button(
+                    ui,
+                    crate::widgets::Kind::Secondary,
+                    true,
+                    None,
+                    &format!("Template  {}", ph::CARET_DOWN),
+                );
                 egui::Popup::menu(&resp).show(|ui| {
-                    ui.set_min_width(220.0);
-                    if ui.button("Save as…").clicked() {
+                    use crate::widgets as w;
+                    ui.set_width(250.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as…", "", false).clicked() {
                         app.set_chart_style(self.style.clone());
                         app.modal = Some(super::Modal::SaveTemplate {
                             kind: TemplateKind::Chart,
@@ -108,14 +116,15 @@ impl ChartSettings {
                         });
                         ui.close();
                     }
-                    if ui.button("Apply defaults").clicked() {
+                    if w::menu_item(ui, t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Apply defaults", "", false).clicked() {
                         self.style = ChartStyle::default();
                         changed = true;
                         ui.close();
                     }
                     let templates = app.store.templates("chart").to_vec();
                     if !templates.is_empty() {
-                        ui.separator();
+                        w::menu_rule(ui, t);
+                        w::menu_heading(ui, t, "SAVED");
                     }
                     for tpl in templates {
                         ui.horizontal(|ui| {
@@ -152,10 +161,10 @@ impl ChartSettings {
                     }
                 });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if ui.button("  Ok  ").clicked() {
+                    if crate::widgets::primary(ui, "Ok").clicked() {
                         done = Done::Close;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if crate::widgets::secondary(ui, "Cancel").clicked() {
                         self.cancel(app);
                         done = Done::Close;
                     }
@@ -191,7 +200,7 @@ fn up_down(ui: &mut Ui, t: &Theme, label: &str, up: &mut Rgba, down: &mut Rgba, 
     let mut changed = false;
     form_row(ui, t, label, |ui| {
         if let Some(s) = show {
-            changed |= ui.checkbox(s, "").changed();
+            changed |= crate::widgets::checkbox(ui, s, "").changed();
         }
         changed |= color_button(ui, t, up);
         changed |= color_button(ui, t, down);
@@ -203,12 +212,12 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
     let mut changed = false;
     section(ui, t, "Chart type");
     form_row(ui, t, "Type", |ui| {
-        egui::ComboBox::from_id_salt("series-kind")
+        crate::widgets::combo("series-kind")
             .width(160.0)
             .selected_text(s.kind.name())
             .show_ui(ui, |ui| {
                 for k in SeriesKind::ALL {
-                    changed |= ui.selectable_value(&mut s.kind, k, k.name()).changed();
+                    changed |= crate::widgets::option_value(ui, &mut s.kind, k, k.name()).changed();
                 }
             });
     });
@@ -232,12 +241,13 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         SeriesKind::Line | SeriesKind::LineMarkers | SeriesKind::StepLine | SeriesKind::Area => {
             form_row(ui, t, "Line", |ui| {
                 changed |= color_button(ui, t, &mut s.line_color);
-                egui::ComboBox::from_id_salt("line-width")
+                crate::widgets::combo("line-width")
                     .width(60.0)
                     .selected_text(format!("{}px", s.line_width))
                     .show_ui(ui, |ui| {
                         for w in 1..=4u8 {
-                            changed |= ui.selectable_value(&mut s.line_width, w, format!("{w}px")).changed();
+                            changed |=
+                                crate::widgets::option_value(ui, &mut s.line_width, w, format!("{w}px")).changed();
                         }
                     });
             });
@@ -249,8 +259,7 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
             }
         }
         _ => {
-            changed |= ui
-                .checkbox(&mut s.color_on_prev_close, "Color bars based on previous close")
+            changed |= crate::widgets::checkbox(ui, &mut s.color_on_prev_close, "Color bars based on previous close")
                 .changed();
             changed |= up_down(ui, t, "Body", &mut s.up_body, &mut s.down_body, Some(&mut s.show_body));
             changed |= up_down(
@@ -276,11 +285,11 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         );
         form_row(ui, t, "Method", |ui| {
             let mut atr = s.box_size.is_none();
-            egui::ComboBox::from_id_salt("box-method")
+            crate::widgets::combo("box-method")
                 .selected_text(if atr { "ATR" } else { "Traditional" })
                 .show_ui(ui, |ui| {
-                    changed |= ui.selectable_value(&mut atr, true, "ATR").changed();
-                    changed |= ui.selectable_value(&mut atr, false, "Traditional").changed();
+                    changed |= crate::widgets::option_value(ui, &mut atr, true, "ATR").changed();
+                    changed |= crate::widgets::option_value(ui, &mut atr, false, "Traditional").changed();
                 });
             if atr && s.box_size.is_some() {
                 s.box_size = None;
@@ -315,12 +324,12 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
     section(ui, t, "Data modification");
     form_row(ui, t, "Precision", |ui| {
         let label = s.precision.map(|p| p.to_string()).unwrap_or("Default".into());
-        egui::ComboBox::from_id_salt("chart-precision")
+        crate::widgets::combo("chart-precision")
             .selected_text(label)
             .show_ui(ui, |ui| {
-                changed |= ui.selectable_value(&mut s.precision, None, "Default").changed();
+                changed |= crate::widgets::option_value(ui, &mut s.precision, None, "Default").changed();
                 for p in 0..=8u8 {
-                    changed |= ui.selectable_value(&mut s.precision, Some(p), p.to_string()).changed();
+                    changed |= crate::widgets::option_value(ui, &mut s.precision, Some(p), p.to_string()).changed();
                 }
             });
     });
@@ -330,11 +339,11 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
             TimeZoneChoice::Utc => "UTC",
             TimeZoneChoice::Local => "Local",
         };
-        egui::ComboBox::from_id_salt("chart-tz")
+        crate::widgets::combo("chart-tz")
             .selected_text(name(s.timezone))
             .show_ui(ui, |ui| {
                 for z in [TimeZoneChoice::Exchange, TimeZoneChoice::Utc, TimeZoneChoice::Local] {
-                    changed |= ui.selectable_value(&mut s.timezone, z, name(z)).changed();
+                    changed |= crate::widgets::option_value(ui, &mut s.timezone, z, name(z)).changed();
                 }
             });
     });
@@ -352,7 +361,7 @@ fn status_tab(ui: &mut Ui, s: &mut ChartStyle) -> bool {
         (&mut s.show_study_inputs, "Indicator inputs"),
         (&mut s.show_study_values, "Indicator values"),
     ] {
-        changed |= ui.checkbox(v, label).changed();
+        changed |= crate::widgets::checkbox(ui, v, label).changed();
     }
     changed
 }
@@ -366,17 +375,17 @@ fn scales_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         (&mut s.countdown, "Countdown to bar close"),
         (&mut s.study_labels, "Indicator value labels"),
     ] {
-        changed |= ui.checkbox(v, label).changed();
+        changed |= crate::widgets::checkbox(ui, v, label).changed();
     }
     section(ui, t, "Text");
     form_row(ui, t, "Scales text", |ui| {
         changed |= theme_color(ui, t, &mut s.scale_text, t.text2);
-        egui::ComboBox::from_id_salt("scale-font")
+        crate::widgets::combo("scale-font")
             .width(60.0)
             .selected_text(s.scale_font.to_string())
             .show_ui(ui, |ui| {
                 for f in [10u8, 11, 12, 13, 14, 16] {
-                    changed |= ui.selectable_value(&mut s.scale_font, f, f.to_string()).changed();
+                    changed |= crate::widgets::option_value(ui, &mut s.scale_font, f, f.to_string()).changed();
                 }
             });
     });
@@ -391,27 +400,26 @@ fn canvas_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         changed |= theme_color(ui, t, &mut s.background, pal.bg);
     });
     form_row(ui, t, "Vert grid lines", |ui| {
-        changed |= ui.checkbox(&mut s.show_grid_vert, "").changed();
+        changed |= crate::widgets::checkbox(ui, &mut s.show_grid_vert, "").changed();
         changed |= theme_color(ui, t, &mut s.grid_vert, pal.grid_v);
     });
     form_row(ui, t, "Horz grid lines", |ui| {
-        changed |= ui.checkbox(&mut s.show_grid_horz, "").changed();
+        changed |= crate::widgets::checkbox(ui, &mut s.show_grid_horz, "").changed();
         changed |= theme_color(ui, t, &mut s.grid_horz, pal.grid_h);
     });
     form_row(ui, t, "Crosshair", |ui| {
         changed |= theme_color(ui, t, &mut s.crosshair, pal.crosshair);
-        egui::ComboBox::from_id_salt("crosshair-style")
+        crate::widgets::combo("crosshair-style")
             .width(80.0)
             .selected_text(line_style_name(s.crosshair_style))
             .show_ui(ui, |ui| {
                 for st in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
-                    changed |= ui
-                        .selectable_value(&mut s.crosshair_style, st, line_style_name(st))
-                        .changed();
+                    changed |=
+                        crate::widgets::option_value(ui, &mut s.crosshair_style, st, line_style_name(st)).changed();
                 }
             });
     });
-    changed |= ui.checkbox(&mut s.watermark, "Symbol watermark").changed();
+    changed |= crate::widgets::checkbox(ui, &mut s.watermark, "Symbol watermark").changed();
     let _ = c32;
     changed
 }
