@@ -95,7 +95,7 @@ pub(crate) fn parse_ws(v: &serde_json::Value) -> Vec<Bar> {
 
 impl Okx {
     /// GET `path` from whichever OKX host answers.
-    fn get(&self, path: &str) -> Result<serde_json::Value> {
+    pub(crate) fn get(&self, path: &str) -> Result<serde_json::Value> {
         use std::sync::atomic::Ordering;
         let start = HOST.load(Ordering::Relaxed);
         let mut last = Error::Offline;

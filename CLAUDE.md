@@ -571,7 +571,7 @@ iterate on UI and bugs together. Phase 14 (ship) only on an explicit go.
   against the circular); add 2027's when announced.
 - Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
   tag, × cancels / closes), several paper accounts, email alerts. Still open: a
-  DOM, `--daemon`, alerts on off-chart indicators.
+  `--daemon`, alerts on off-chart indicators.
 - App icon, `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow (Phase 14).
 
 **Testing the app for the maintainer:** build with `cargo build --profile fast`.
@@ -672,7 +672,12 @@ workspace.
   `Account::modify`), the × beside a tag cancels it or closes the position.
 - **Gotcha:** bottom-panel tab bodies render in `ui.new_child` with a clip rect; content
   taller than the panel used to grow it and push the tab strip under the range bar.
-- Not yet: DOM.
+- **DOM widget** (Oct 2026, `app/src/dom.rs`, rail icon "Depth of market"):
+  `Request::Depth` → `opentern_data::depth::book` (Binance, Bybit, OKX, Coinbase,
+  Kraken public REST; verified live; demo book made up), polled 1/s while open.
+  Ladder Buy | Bid | Price | Ask | Sell; a click places a paper limit (near side)
+  or stop (far side); working orders show on their rows. Stocks/forex: plain
+  "no free order book" message.
 
 ### Phase 8 (done): alerts
 - `opentern_engine::alerts`: `Alert` (price / drawn line / study plot / script),

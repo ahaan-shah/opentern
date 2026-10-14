@@ -10,6 +10,7 @@ pub mod cache;
 pub mod coinbase;
 pub mod creds;
 pub mod demo;
+pub mod depth;
 pub mod expr;
 pub mod feeds;
 pub mod hub;

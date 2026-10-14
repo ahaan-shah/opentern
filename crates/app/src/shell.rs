@@ -29,17 +29,19 @@ pub enum Widget {
     Alerts,
     ObjectTree,
     Hotlists,
+    Dom,
     Calendar,
     News,
     Notifications,
 }
 
 impl Widget {
-    pub const ALL: [Widget; 7] = [
+    pub const ALL: [Widget; 8] = [
         Widget::Watchlist,
         Widget::Alerts,
         Widget::ObjectTree,
         Widget::Hotlists,
+        Widget::Dom,
         Widget::Calendar,
         Widget::News,
         Widget::Notifications,
@@ -51,6 +53,7 @@ impl Widget {
             Widget::Alerts => ph::ALARM,
             Widget::ObjectTree => ph::STACK,
             Widget::Hotlists => ph::FIRE,
+            Widget::Dom => ph::ROWS,
             Widget::Calendar => ph::CALENDAR_DOTS,
             Widget::News => ph::NEWSPAPER,
             Widget::Notifications => ph::BELL_SIMPLE,
@@ -63,6 +66,7 @@ impl Widget {
             Widget::Alerts => "Alerts",
             Widget::ObjectTree => "Object tree and data window",
             Widget::Hotlists => "Hotlists",
+            Widget::Dom => "Depth of market",
             Widget::Calendar => "Calendar",
             Widget::News => "News",
             Widget::Notifications => "Notifications",
@@ -750,6 +754,7 @@ impl App {
                     Widget::Alerts => self.alerts_widget(ui, t),
                     Widget::Notifications => self.notifications_widget(ui, t),
                     Widget::Hotlists => self.hotlists_widget(ui, t),
+                    Widget::Dom => self.dom_widget(ui, t),
                     Widget::News => self.news_widget(ui, t),
                     Widget::Calendar => self.calendar_widget(ui, t),
                 }

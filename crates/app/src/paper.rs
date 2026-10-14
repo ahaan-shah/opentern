@@ -125,6 +125,10 @@ fn now() -> i64 {
 }
 
 impl App {
+    pub(crate) fn save_paper_now(&mut self) {
+        self.save_paper();
+    }
+
     fn save_paper(&mut self) {
         let mut accounts = vec![self.paper.account.clone()];
         accounts.extend(self.paper.others.iter().cloned());

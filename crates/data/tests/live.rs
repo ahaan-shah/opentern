@@ -261,3 +261,30 @@ fn yahoo_dividends_and_splits_reach_the_chart() {
     }
     assert!(got, "no corporate event");
 }
+
+#[test]
+#[ignore]
+fn order_books_from_crypto_exchanges() {
+    for id in [
+        "BINANCE:BTCUSDT",
+        "BYBIT:BTCUSDT",
+        "OKX:BTCUSDT",
+        "COINBASE:BTCUSD",
+        "KRAKEN:BTCUSD",
+    ] {
+        let sym = opentern_core::Symbol::bare(id);
+        match opentern_data::depth::book(&sym, 0.0, false) {
+            Ok(b) => {
+                assert!(!b.bids.is_empty() && !b.asks.is_empty(), "{id}: empty book");
+                assert!(b.bids[0].0 < b.asks[0].0, "{id}: crossed book");
+                println!(
+                    "{id}: {} bids, {} asks, spread {}",
+                    b.bids.len(),
+                    b.asks.len(),
+                    b.asks[0].0 - b.bids[0].0
+                );
+            }
+            Err(e) => println!("{id}: {e}"),
+        }
+    }
+}

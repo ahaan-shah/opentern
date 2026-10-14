@@ -45,6 +45,7 @@ pub struct App {
     pub editor: crate::editor::Editor,
     pub screener: crate::screener::Screener,
     pub lab: crate::lab::Lab,
+    pub dom: crate::dom::Dom,
     /// Other series for Pine `request.security`, shared by every chart.
     pub feeds: opentern_pine::Feeds,
     pub feeds_state: crate::feeds::FeedState,
@@ -154,6 +155,7 @@ impl App {
             editor: Default::default(),
             screener: Default::default(),
             lab: Default::default(),
+            dom: Default::default(),
             feeds: Default::default(),
             feeds_state: Default::default(),
             notes: Default::default(),
@@ -688,6 +690,7 @@ impl App {
                     result,
                 } => self.fetched(seq, &symbol, tf, result),
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
+                Event::Depth { seq, result } => self.dom_event(seq, result),
                 Event::Search { seq, results } => {
                     if let Some(Modal::Symbol(s)) = &mut self.modal
                         && seq == self.search_seq

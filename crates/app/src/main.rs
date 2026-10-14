@@ -22,6 +22,7 @@ mod app;
 mod chart;
 mod diag;
 mod dialogs;
+mod dom;
 mod drawbar;
 mod editor;
 mod feeds;

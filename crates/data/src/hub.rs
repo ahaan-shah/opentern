@@ -58,6 +58,12 @@ pub enum Request {
         tf: Timeframe,
         count: usize,
     },
+    /// The order book for the DOM widget (`last` seeds the demo book).
+    Depth {
+        seq: u64,
+        symbol: Symbol,
+        last: f64,
+    },
     /// Top movers for the Hotlists widget.
     Hotlist {
         seq: u64,
@@ -118,6 +124,11 @@ pub enum Event {
     News {
         seq: u64,
         result: Result<Vec<crate::feeds::NewsItem>, String>,
+    },
+    /// The answer to a `Request::Depth`.
+    Depth {
+        seq: u64,
+        result: Result<crate::depth::Book, String>,
     },
     /// The answer to a `Request::Fetch`.
     Fetched {
@@ -232,6 +243,13 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 let _ = std::thread::Builder::new().name("data-hotlist".into()).spawn(move || {
                     let result = crate::feeds::hotlist(market, kind, demo).map_err(|e| e.to_string());
                     out.send(Event::Hotlist { seq, result });
+                });
+            }
+            Request::Depth { seq, symbol, last } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new().name("data-depth".into()).spawn(move || {
+                    let result = crate::depth::book(&symbol, last, demo).map_err(|e| e.to_string());
+                    out.send(Event::Depth { seq, result });
                 });
             }
             Request::News { seq, symbol } => {
