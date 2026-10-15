@@ -125,6 +125,8 @@ pub struct Arrangement {
     pub stay_drawing: bool,
     pub lock_drawings: bool,
     pub hide_drawings: bool,
+    /// The bottom panel takes nearly all the height (the chart keeps a sliver).
+    pub panel_max: bool,
 }
 
 impl Default for Arrangement {
@@ -140,6 +142,7 @@ impl Default for Arrangement {
             stay_drawing: false,
             lock_drawings: false,
             hide_drawings: false,
+            panel_max: false,
         }
     }
 }
@@ -198,8 +201,13 @@ impl App {
             self.layout.tab.is_some(),
             motion::STANDARD,
         );
+        let panel_h = if self.layout.panel_max {
+            (ui.ctx().content_rect().height() - TOP_H - RANGE_H - TABS_H - 110.0).max(self.layout.panel_h)
+        } else {
+            self.layout.panel_h
+        };
         egui::Panel::bottom("bottom-panel")
-            .exact_size(TABS_H + self.layout.panel_h * k)
+            .exact_size(TABS_H + panel_h * k)
             .resizable(false)
             .show_separator_line(false)
             .frame(egui::Frame::new().fill(t.sidebar))
@@ -232,7 +240,11 @@ impl App {
             }))
             .show(ui, |ui| {
                 cards.push(ui.max_rect());
-                self.chart_grid(ui, &t)
+                if self.settings.is_some() {
+                    self.settings_page(ui, &t);
+                } else {
+                    self.chart_grid(ui, &t)
+                }
             });
 
         // Round the cards' corners and edge them, drawn last so they sit
@@ -287,8 +299,12 @@ impl App {
             if w::bar_button(ui, t, Some(glyph), "", "Fullscreen mode (Shift F)", full).clicked() {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
             }
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Chart settings", false).clicked() {
-                self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
+            let on = self
+                .settings
+                .as_ref()
+                .is_some_and(|s| s.cat == crate::settings::Cat::Chart);
+            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Chart settings", on).clicked() {
+                self.open_settings(crate::settings::Cat::Chart);
             }
             w::vdivider(ui, t);
             // The layout's name with a caret, as on TradingView; a folder
@@ -312,38 +328,15 @@ impl App {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
                 ui.spacing_mut().item_spacing.x = 2.0;
-                let menu = w::bar_button(ui, t, Some(ph::LIST), "", "Main menu", false);
-                self.still_open(ui, &menu, "main");
-                egui::Popup::menu(&menu).show(|ui| {
-                    ui.set_width(230.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
-                    if w::menu_item(ui, t, Some(ph::PLUGS_CONNECTED), "Data providers…", "", false).clicked() {
-                        self.open_providers();
-                        ui.close();
-                    }
-                    if w::menu_item(ui, t, Some(ph::GEAR), "Chart settings…", "", false).clicked() {
-                        self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
-                        ui.close();
-                    }
-                    let (glyph, label) = if t.dark {
-                        (ph::SUN, "Light theme")
+                let open = self.settings.is_some();
+                let menu = w::bar_button(ui, t, Some(ph::LIST), "", "Settings", open);
+                if menu.clicked() {
+                    if open {
+                        self.settings = None;
                     } else {
-                        (ph::MOON, "Dark theme")
-                    };
-                    if w::menu_item(ui, t, Some(glyph), label, "", false).clicked() {
-                        self.toggle_dark(ui.ctx());
-                        ui.close();
+                        self.open_settings(crate::settings::Cat::Appearance);
                     }
-                    let on = self.logos.enabled;
-                    if w::menu_item(ui, t, Some(ph::IMAGE), "Symbol logos", "", on)
-                        .on_hover_text("Fetched once from public logo sites and kept on this computer")
-                        .clicked()
-                    {
-                        self.logos.enabled = !on;
-                        let _ = self.store.set_value("symbol_logos", if on { "off" } else { "on" });
-                        ui.close();
-                    }
-                });
+                }
                 w::vdivider(ui, t);
 
                 // Symbol search: TradingView opens it when you start typing.
@@ -933,7 +926,12 @@ impl App {
                 false,
             );
             if d != 0.0 {
-                self.layout.panel_h = (self.layout.panel_h - d).clamp(140.0, 700.0);
+                if self.layout.panel_max {
+                    // Dragging a maximized panel starts from its full height.
+                    self.layout.panel_max = false;
+                    self.layout.panel_h = full.height() - TABS_H;
+                }
+                self.layout.panel_h = (self.layout.panel_h - d).clamp(140.0, 900.0);
             }
         }
         let strip = Rect::from_min_size(full.min, vec2(full.width(), TABS_H));
@@ -952,6 +950,18 @@ impl App {
                     let tip = if open { "Collapse panel" } else { "Open panel" };
                     if w::tool_button(ui, t, glyph, tip, false, 26.0).clicked() {
                         self.layout.tab = if open { None } else { Some(self.last_tab) };
+                    }
+                    let max = self.layout.panel_max;
+                    let (g, tip) = if max {
+                        (ph::ARROWS_IN_SIMPLE, "Restore panel")
+                    } else {
+                        (ph::ARROWS_OUT_SIMPLE, "Maximize panel")
+                    };
+                    if w::tool_button(ui, t, g, tip, max, 26.0).clicked() {
+                        self.layout.panel_max = !max;
+                        if !max && self.layout.tab.is_none() {
+                            self.layout.tab = Some(self.last_tab);
+                        }
                     }
                 });
             });
@@ -972,7 +982,12 @@ impl App {
             // A child that can't grow the panel: content taller than the
             // panel is clipped (and scrolls where it's long), never pushes
             // the tab strip under the range bar.
-            let inner = body.shrink(12.0);
+            // The editor runs edge to edge, like an IDE; the rest get a margin.
+            let inner = if self.last_tab == Tab::Editor {
+                body
+            } else {
+                body.shrink(12.0)
+            };
             let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
             child.set_clip_rect(body.intersect(ui.clip_rect()));
             {

@@ -72,6 +72,9 @@ pub struct Compare {
     pub pane: u64,
     /// Its own scale's range (`CompareMode::Scale`).
     pub scale: PaneScale,
+    /// Its own scale is logarithmic / labelled in percent.
+    pub log: bool,
+    pub pct: bool,
     pub visible: bool,
 }
 
@@ -108,6 +111,10 @@ pub struct SavedCompare {
     pub mode: Option<CompareMode>,
     #[serde(default)]
     pub pane: u64,
+    #[serde(default)]
+    pub log: bool,
+    #[serde(default)]
+    pub pct: bool,
     #[serde(default = "yes")]
     pub visible: bool,
 }
@@ -395,6 +402,8 @@ impl Chart {
                     mode,
                     pane: if mode == CompareMode::Pane { x.pane } else { 0 },
                     scale: PaneScale::default(),
+                    log: x.log,
+                    pct: x.pct,
                     visible: x.visible,
                 }
             })
@@ -460,6 +469,8 @@ impl Chart {
                     overlay: c.mode != CompareMode::Percent,
                     mode: Some(c.mode),
                     pane: c.pane,
+                    log: c.log,
+                    pct: c.pct,
                     visible: c.visible,
                 })
                 .collect(),
@@ -509,6 +520,8 @@ impl Chart {
             mode: CompareMode::Percent,
             pane: 0,
             scale: PaneScale::default(),
+            log: false,
+            pct: false,
             visible: true,
         });
         let i = self.compares.len() - 1;

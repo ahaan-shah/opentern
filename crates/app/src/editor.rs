@@ -48,6 +48,19 @@ pub struct Editor {
     explorer_w: f32,
     /// Where the cursor is, for the status bar: (line, column), 1-based.
     caret: (usize, usize),
+    /// The explorer is showing (Ctrl+B).
+    sidebar: bool,
+    /// The explorer's filter field is open.
+    filtering: bool,
+    scripts_open: bool,
+    outline_open: bool,
+    /// Problems / Output under the code: open, and which (0, 1).
+    panel_open: bool,
+    panel_tab: u8,
+    /// Scroll the code here next frame (a minimap click).
+    minimap_to: Option<f32>,
+    /// The last error shown, so a new one opens Problems once.
+    seen_error: Option<String>,
     /// Tried opening the first script once (an empty editor stays empty
     /// after the last tab is closed).
     started: bool,
@@ -63,8 +76,16 @@ impl Default for Editor {
             show_builtins: false,
             renaming: None,
             deleting: None,
-            explorer_w: 230.0,
+            explorer_w: 250.0,
             caret: (1, 1),
+            sidebar: true,
+            filtering: false,
+            scripts_open: true,
+            outline_open: true,
+            panel_open: false,
+            panel_tab: 0,
+            minimap_to: None,
+            seen_error: None,
             started: false,
         }
     }
@@ -178,30 +199,98 @@ const PINE_KEYWORDS: &[&str] = &[
     "continue", "break",
 ];
 
-/// Colours code: comments, strings, numbers, keywords, namespaces.
-pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
-    let mut job = LayoutJob::default();
-    let fmt = |c: Color32| TextFormat {
-        font_id: font.clone(),
-        color: c,
-        ..Default::default()
+/// The editor's colours, after Catppuccin: Mocha on dark themes, Latte on
+/// light ones. The backgrounds come from the app's theme so the editor sits
+/// in it.
+#[derive(Clone, Copy)]
+pub struct CodeColors {
+    pub bg: Color32,
+    pub side: Color32,
+    pub line: Color32,
+    pub current: Color32,
+    pub guide: Color32,
+    pub text: Color32,
+    pub text2: Color32,
+    pub dim: Color32,
+    pub keyword: Color32,
+    pub func: Color32,
+    pub ns: Color32,
+    pub string: Color32,
+    pub number: Color32,
+    pub comment: Color32,
+    pub op: Color32,
+    pub punct: Color32,
+}
+
+pub fn code_colors(t: &Theme) -> CodeColors {
+    let rgb = |v: u32| Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8);
+    let base = CodeColors {
+        bg: t.bg,
+        side: t.sidebar,
+        line: t.border.gamma_multiply(0.7),
+        current: t.text.gamma_multiply(0.045),
+        guide: t.text.gamma_multiply(0.08),
+        text: t.text,
+        text2: t.text2,
+        dim: t.text3,
+        keyword: rgb(0),
+        func: rgb(0),
+        ns: rgb(0),
+        string: rgb(0),
+        number: rgb(0),
+        comment: rgb(0),
+        op: rgb(0),
+        punct: rgb(0),
     };
-    let (comment, keyword, string, number, ns) = if t.dark {
-        (
-            Color32::from_rgb(0x6A, 0x73, 0x7D),
-            Color32::from_rgb(0xC6, 0x78, 0xDD),
-            Color32::from_rgb(0x98, 0xC3, 0x79),
-            Color32::from_rgb(0xD1, 0x9A, 0x66),
-            Color32::from_rgb(0x61, 0xAF, 0xEF),
-        )
+    if t.dark {
+        CodeColors {
+            text: rgb(0xCDD6F4),
+            keyword: rgb(0xCBA6F7),
+            func: rgb(0x89B4FA),
+            ns: rgb(0x94E2D5),
+            string: rgb(0xA6E3A1),
+            number: rgb(0xFAB387),
+            comment: rgb(0x6C7086),
+            op: rgb(0x89DCEB),
+            punct: rgb(0x9399B2),
+            ..base
+        }
     } else {
-        (
-            Color32::from_rgb(0x8A, 0x91, 0x99),
-            Color32::from_rgb(0xA6, 0x26, 0xA4),
-            Color32::from_rgb(0x50, 0xA1, 0x4F),
-            Color32::from_rgb(0x98, 0x68, 0x01),
-            Color32::from_rgb(0x40, 0x78, 0xF2),
-        )
+        CodeColors {
+            text: rgb(0x4C4F69),
+            keyword: rgb(0x8839EF),
+            func: rgb(0x1E66F5),
+            ns: rgb(0x179299),
+            string: rgb(0x40A02B),
+            number: rgb(0xFE640B),
+            comment: rgb(0x9CA0B0),
+            op: rgb(0x04A5E5),
+            punct: rgb(0x7C7F93),
+            ..base
+        }
+    }
+}
+
+/// Constants each language spells out.
+fn constants(lang: Lang) -> &'static [&'static str] {
+    match lang {
+        Lang::Python => &["True", "False", "None"],
+        Lang::Pine => &["true", "false", "na"],
+        Lang::Luau => &["true", "false", "nil"],
+        Lang::Js | Lang::Ts => &["true", "false", "null", "undefined", "NaN", "Infinity"],
+    }
+}
+
+/// Colours code: comments (italic), strings, numbers, keywords, constants,
+/// namespaces, function calls, operators and punctuation.
+pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
+    let c = code_colors(t);
+    let mut job = LayoutJob::default();
+    let fmt = |col: Color32, italics: bool| TextFormat {
+        font_id: font.clone(),
+        color: col,
+        italics,
+        ..Default::default()
     };
     let (line_comment, keywords) = match lang {
         Lang::Python => ("#", PY_KEYWORDS),
@@ -209,16 +298,19 @@ pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
         Lang::Luau => ("--", LUAU_KEYWORDS),
         Lang::Js | Lang::Ts => ("//", JS_KEYWORDS),
     };
+    let consts = constants(lang);
     let chars: Vec<char> = text.chars().collect();
     let mut i = 0;
     let mut plain = String::new();
     let flush = |job: &mut LayoutJob, plain: &mut String| {
         if !plain.is_empty() {
-            job.append(plain, 0.0, fmt(t.text));
+            job.append(plain, 0.0, fmt(c.text, false));
             plain.clear();
         }
     };
+    let take = |a: usize, b: usize| chars[a..b].iter().collect::<String>();
     while i < chars.len() {
+        let ch = chars[i];
         let rest: String = chars[i..chars.len().min(i + 2)].iter().collect();
         if rest.starts_with(line_comment) {
             flush(&mut job, &mut plain);
@@ -227,48 +319,72 @@ pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
                 .position(|c| *c == '\n')
                 .map(|p| i + p)
                 .unwrap_or(chars.len());
-            job.append(&chars[i..end].iter().collect::<String>(), 0.0, fmt(comment));
+            job.append(&take(i, end), 0.0, fmt(c.comment, true));
             i = end;
-        } else if chars[i] == '"' || chars[i] == '\'' {
+        } else if ch == '"' || ch == '\'' || (ch == '`' && matches!(lang, Lang::Js | Lang::Ts)) {
             flush(&mut job, &mut plain);
-            let q = chars[i];
             let mut j = i + 1;
-            while j < chars.len() && chars[j] != q && chars[j] != '\n' {
+            while j < chars.len() && chars[j] != ch && (chars[j] != '\n' || ch == '`') {
                 if chars[j] == '\\' {
                     j += 1;
                 }
                 j += 1;
             }
             let end = (j + 1).min(chars.len());
-            job.append(&chars[i..end].iter().collect::<String>(), 0.0, fmt(string));
+            job.append(&take(i, end), 0.0, fmt(c.string, false));
             i = end;
-        } else if chars[i].is_ascii_digit() && (i == 0 || !chars[i - 1].is_alphanumeric()) {
+        } else if ch.is_ascii_digit() && (i == 0 || !(chars[i - 1].is_alphanumeric() || chars[i - 1] == '_')) {
             flush(&mut job, &mut plain);
             let mut j = i;
-            while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '.') {
+            while j < chars.len() && (chars[j].is_ascii_alphanumeric() || chars[j] == '.' || chars[j] == '_') {
                 j += 1;
             }
-            job.append(&chars[i..j].iter().collect::<String>(), 0.0, fmt(number));
+            job.append(&take(i, j), 0.0, fmt(c.number, false));
             i = j;
-        } else if chars[i].is_alphabetic() || chars[i] == '_' {
+        } else if ch.is_alphabetic() || ch == '_' {
             let mut j = i;
             while j < chars.len() && (chars[j].is_alphanumeric() || chars[j] == '_') {
                 j += 1;
             }
-            let word: String = chars[i..j].iter().collect();
-            let dotted = j < chars.len() && chars[j] == '.';
-            if keywords.contains(&word.as_str()) {
-                flush(&mut job, &mut plain);
-                job.append(&word, 0.0, fmt(keyword));
-            } else if dotted || chars.get(j) == Some(&'(') {
-                flush(&mut job, &mut plain);
-                job.append(&word, 0.0, fmt(ns));
+            let word = take(i, j);
+            let next = chars[j..].iter().find(|c| **c != ' ').copied();
+            let col = if keywords.contains(&word.as_str()) {
+                Some((c.keyword, false))
+            } else if consts.contains(&word.as_str()) {
+                Some((c.number, false))
+            } else if chars.get(j) == Some(&'.') {
+                Some((c.ns, false))
+            } else if next == Some('(') {
+                Some((c.func, false))
             } else {
-                plain.push_str(&word);
+                None
+            };
+            match col {
+                Some((col, it)) => {
+                    flush(&mut job, &mut plain);
+                    job.append(&word, 0.0, fmt(col, it));
+                }
+                None => plain.push_str(&word),
             }
             i = j;
+        } else if "+-*/%=<>!&|^~?:".contains(ch) {
+            flush(&mut job, &mut plain);
+            let mut j = i;
+            while j < chars.len()
+                && "+-*/%=<>!&|^~?:".contains(chars[j])
+                && !take(j, (j + 2).min(chars.len())).starts_with(line_comment)
+            {
+                j += 1;
+            }
+            let j = j.max(i + 1);
+            job.append(&take(i, j), 0.0, fmt(c.op, false));
+            i = j;
+        } else if "()[]{},;.".contains(ch) {
+            flush(&mut job, &mut plain);
+            job.append(&ch.to_string(), 0.0, fmt(c.punct, false));
+            i += 1;
         } else {
-            plain.push(chars[i]);
+            plain.push(ch);
             i += 1;
         }
     }
@@ -276,14 +392,14 @@ pub fn highlight(text: &str, lang: Lang, t: &Theme, font: FontId) -> LayoutJob {
     job
 }
 
-/// A short tag and colour per language, for the explorer and the tabs.
-fn badge(lang: Lang) -> (&'static str, Color32) {
+/// Each language's icon and colour, for the explorer, tabs and menus.
+fn file_icon(lang: Lang) -> (&'static str, Color32) {
     match lang {
-        Lang::Pine => ("PINE", Color32::from_rgb(0x4C, 0x8D, 0xFF)),
-        Lang::Python => ("PY", Color32::from_rgb(0xE0, 0xB0, 0x3A)),
-        Lang::Luau => ("LUAU", Color32::from_rgb(0x2E, 0xBF, 0xB0)),
-        Lang::Js => ("JS", Color32::from_rgb(0xE8, 0x9F, 0x3A)),
-        Lang::Ts => ("TS", Color32::from_rgb(0x3C, 0x8C, 0xE7)),
+        Lang::Pine => (ph::TREE_EVERGREEN, Color32::from_rgb(0x4C, 0xB8, 0x7A)),
+        Lang::Python => (ph::FILE_PY, Color32::from_rgb(0x5A, 0x9F, 0xE0)),
+        Lang::Luau => (ph::MOON, Color32::from_rgb(0x7A, 0xA2, 0xF7)),
+        Lang::Js => (ph::FILE_JS, Color32::from_rgb(0xE5, 0xC0, 0x4B)),
+        Lang::Ts => (ph::FILE_TS, Color32::from_rgb(0x3C, 0x8C, 0xE7)),
     }
 }
 
@@ -647,11 +763,12 @@ impl App {
             }
         }
         // Shortcuts that work anywhere in the tab.
-        let (run, save, close) = ui.input_mut(|i| {
+        let (run, save, close, side) = ui.input_mut(|i| {
             (
                 i.consume_key(Modifiers::COMMAND, Key::Enter),
                 i.consume_key(Modifiers::COMMAND, Key::S),
                 i.consume_key(Modifiers::COMMAND, Key::W),
+                i.consume_key(Modifiers::COMMAND, Key::B),
             )
         });
         if run {
@@ -665,171 +782,314 @@ impl App {
                 self.close_doc(a);
             }
         }
+        if side {
+            self.editor.sidebar = !self.editor.sidebar;
+        }
 
         let full = ui.max_rect();
-        let ew = self.editor.explorer_w.clamp(170.0, (full.width() * 0.4).max(170.0));
-        let explorer = Rect::from_min_size(full.min, vec2(ew, full.height()));
-        let main = Rect::from_min_max(pos2(explorer.right() + 12.0, full.top()), full.max);
-        let d = crate::widgets::drag_handle(
-            ui,
-            t,
-            Rect::from_min_max(
-                pos2(explorer.right() + 2.0, full.top()),
-                pos2(main.left() - 2.0, full.bottom()),
-            ),
-            "explorer-resize",
-            true,
-        );
-        if d != 0.0 {
-            self.editor.explorer_w = (ew + d).clamp(170.0, 420.0);
+        let c = code_colors(t);
+        ui.painter().rect_filled(full, CornerRadius::ZERO, c.bg);
+        let status = Rect::from_min_max(pos2(full.left(), full.bottom() - STATUS_H), full.max);
+        let work = Rect::from_min_max(full.min, pos2(full.right(), status.top()));
+        let ew = if self.editor.sidebar {
+            self.editor.explorer_w.clamp(170.0, (work.width() * 0.45).max(170.0))
+        } else {
+            0.0
+        };
+        let main = Rect::from_min_max(pos2(work.left() + ew, work.top()), work.max);
+        if self.editor.sidebar {
+            let side = Rect::from_min_size(work.min, vec2(ew, work.height()));
+            ui.painter().rect_filled(side, CornerRadius::ZERO, c.side);
+            ui.painter()
+                .vline(side.right() - 0.5, side.y_range(), Stroke::new(1.0, c.line));
+            let d = crate::widgets::drag_handle(
+                ui,
+                t,
+                Rect::from_min_max(
+                    pos2(side.right() - 3.0, side.top()),
+                    pos2(side.right() + 3.0, side.bottom()),
+                ),
+                "explorer-resize",
+                true,
+            );
+            if d != 0.0 {
+                self.editor.explorer_w = (ew + d).clamp(170.0, 460.0);
+            }
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(side));
+            child.set_clip_rect(side.intersect(ui.clip_rect()));
+            self.explorer(&mut child, t, &files);
         }
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(explorer));
-        child.set_clip_rect(explorer.intersect(ui.clip_rect()));
-        self.explorer(&mut child, t, &files);
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(main));
         child.set_clip_rect(main.intersect(ui.clip_rect()));
         self.editor_main(&mut child, t);
+        self.status_bar(ui, t, status);
     }
 
     fn explorer(&mut self, ui: &mut Ui, t: &Theme, files: &[String]) {
         use crate::widgets as w;
-        ui.horizontal(|ui| {
-            ui.label(
-                egui::RichText::new("EXPLORER")
-                    .font(theme::semibold(11.0))
-                    .color(t.text3),
-            );
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = 2.0;
-                if w::tool_button(ui, t, ph::FOLDER_OPEN, "Open the scripts folder", false, 26.0).clicked() {
-                    let dir = self.scripts_dir();
-                    let _ = std::fs::create_dir_all(&dir);
-                    crate::app::open_path(&dir);
-                }
-                let resp = w::tool_button(ui, t, ph::PLUS, "New script", false, 26.0);
-                egui::Popup::menu(&resp).show(|ui| {
-                    ui.set_width(200.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
-                    for lang in [Lang::Pine, Lang::Python, Lang::Luau, Lang::Js, Lang::Ts] {
-                        if w::menu_item(ui, t, Some(ph::FILE_CODE), lang_name(lang), lang.ext(), false).clicked() {
-                            self.new_script(lang);
-                            ui.close();
-                        }
-                    }
-                });
-            });
+        let c = code_colors(t);
+        let full = ui.max_rect();
+        // Header: EXPLORER and its actions.
+        let head = Rect::from_min_size(full.min, vec2(full.width(), 36.0));
+        ui.painter().text(
+            pos2(head.left() + 16.0, head.center().y),
+            Align2::LEFT_CENTER,
+            "EXPLORER",
+            theme::medium(11.0),
+            c.dim,
+        );
+        let mut bar = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(head.shrink2(vec2(8.0, 5.0)))
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+        );
+        bar.spacing_mut().item_spacing.x = 0.0;
+        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "More", false, 24.0);
+        egui::Popup::menu(&more).show(|ui| {
+            ui.set_width(220.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+                let dir = self.scripts_dir();
+                let _ = std::fs::create_dir_all(&dir);
+                crate::app::open_path(&dir);
+                ui.close();
+            }
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::SIDEBAR_SIMPLE),
+                "Hide the sidebar",
+                shortcut!("B"),
+                false,
+            )
+            .clicked()
+            {
+                self.editor.sidebar = false;
+                ui.close();
+            }
         });
-        ui.add_space(2.0);
-        w::search_field(ui, t, &mut self.editor.filter, "Filter", ui.available_width());
-        ui.add_space(6.0);
+        let find = self.editor.filtering;
+        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "Filter files", find, 24.0).clicked() {
+            self.editor.filtering = !find;
+            self.editor.filter.clear();
+        }
+        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, "New script", false, 24.0);
+        egui::Popup::menu(&add).show(|ui| {
+            ui.set_width(210.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            for lang in [Lang::Pine, Lang::Python, Lang::Luau, Lang::Js, Lang::Ts] {
+                let (icon, _) = file_icon(lang);
+                if w::menu_item(ui, t, Some(icon), lang_name(lang), lang.ext(), false).clicked() {
+                    self.new_script(lang);
+                    ui.close();
+                }
+            }
+        });
+
+        let mut y = head.bottom();
+        if self.editor.filtering {
+            let r = Rect::from_min_size(pos2(full.left() + 10.0, y), vec2(full.width() - 20.0, 34.0));
+            let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
+            let resp = w::search_field(&mut f, t, &mut self.editor.filter, "Filter", r.width());
+            if !resp.has_focus() && self.editor.filter.is_empty() && f.input(|i| i.key_pressed(Key::Escape)) {
+                self.editor.filtering = false;
+            }
+            y += 38.0;
+        }
+
+        // The outline sits at the bottom, the files above it.
+        let outline_items = self.editor.doc().map(|d| outline(&d.text, d.lang)).unwrap_or_default();
+        let outline_h = if self.editor.outline_open {
+            (24.0 + 22.0 * outline_items.len().max(1) as f32).min(full.height() * 0.4)
+        } else {
+            24.0
+        };
+        let files_rect = Rect::from_min_max(pos2(full.left(), y), pos2(full.right(), full.bottom() - outline_h));
+        let outline_rect = Rect::from_min_max(pos2(full.left(), files_rect.bottom()), full.max);
+
         let q = self.editor.filter.trim().to_lowercase();
         let active_key = self.editor.doc().map(|d| d.key.clone());
         let mut open = None;
         let mut action: Option<(u8, String)> = None;
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(files_rect));
+        child.set_clip_rect(files_rect.intersect(ui.clip_rect()));
         egui::ScrollArea::vertical()
             .id_salt("explorer")
             .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 1.0;
+            .show(&mut child, |ui| {
+                ui.spacing_mut().item_spacing.y = 0.0;
                 let shown: Vec<&String> = files
                     .iter()
                     .filter(|f| q.is_empty() || f.to_lowercase().contains(&q))
                     .collect();
-                section(ui, t, "SCRIPTS", Some(shown.len()));
-                if files.is_empty() {
-                    ui.add_space(4.0);
-                    ui.label(
-                        egui::RichText::new("No scripts yet. Press + to start one.")
-                            .font(theme::regular(12.0))
-                            .color(t.text3),
-                    );
+                if folder_row(ui, t, "SCRIPTS", self.editor.scripts_open || !q.is_empty(), shown.len()).clicked() {
+                    self.editor.scripts_open = !self.editor.scripts_open;
                 }
-                for f in shown {
-                    let lang = Lang::of(f).unwrap_or(Lang::Pine);
-                    let on_chart = self.scripts.iter().any(|r| &r.file == f);
-                    let selected = active_key.as_deref() == Some(f.as_str());
-                    if let Some((from, to)) = &mut self.editor.renaming
-                        && from == f
-                    {
-                        let r = ui.add(
-                            w::field(to)
-                                .desired_width(ui.available_width())
-                                .font(theme::regular(12.5))
-                                .margin(vec2(8.0, 4.0)),
-                        );
-                        if !r.has_focus() && !r.lost_focus() {
-                            r.request_focus();
-                        }
-                        let (enter, esc) = ui.input(|i| (i.key_pressed(Key::Enter), i.key_pressed(Key::Escape)));
-                        if r.lost_focus() || enter || esc {
-                            if !esc {
-                                action = Some((3, to.clone()));
-                            }
-                            if action.is_none() {
-                                action = Some((9, String::new()));
-                            }
-                        }
-                        continue;
+                if self.editor.scripts_open || !q.is_empty() {
+                    if files.is_empty() {
+                        ui.horizontal(|ui| {
+                            ui.add_space(30.0);
+                            ui.label(
+                                egui::RichText::new("No scripts yet. Press + to start one.")
+                                    .font(theme::regular(12.0))
+                                    .color(c.dim),
+                            );
+                        });
                     }
-                    let resp = file_row(ui, t, lang, f, selected, on_chart, false);
-                    if resp.clicked() {
-                        open = Some(f.clone());
-                    }
-                    if resp.double_clicked() {
-                        self.editor.renaming = Some((f.clone(), f.clone()));
-                    }
-                    resp.context_menu(|ui| {
-                        ui.set_width(200.0);
-                        ui.spacing_mut().item_spacing.y = 1.0;
-                        let mut item = |ui: &mut Ui, icon, label: &str, what: u8| {
-                            if w::menu_item(ui, t, Some(icon), label, "", false).clicked() {
-                                action = Some((what, f.clone()));
-                                ui.close();
+                    for f in shown {
+                        let lang = Lang::of(f).unwrap_or(Lang::Pine);
+                        let on_chart = self.scripts.iter().any(|r| &r.file == f);
+                        let selected = active_key.as_deref() == Some(f.as_str());
+                        if let Some((from, to)) = &mut self.editor.renaming
+                            && from == f
+                        {
+                            let r = ui.add(
+                                w::field(to)
+                                    .desired_width(ui.available_width() - 12.0)
+                                    .font(theme::regular(12.5))
+                                    .margin(vec2(8.0, 3.0)),
+                            );
+                            if !r.has_focus() && !r.lost_focus() {
+                                r.request_focus();
                             }
-                        };
-                        item(
-                            ui,
-                            ph::CHART_LINE_UP,
-                            if on_chart { "Update on chart" } else { "Add to chart" },
-                            1,
-                        );
-                        item(ui, ph::COPY, "Duplicate", 2);
-                        if !on_chart {
-                            item(ui, ph::PENCIL_SIMPLE, "Rename", 4);
-                        }
-                        item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
-                        if !on_chart {
-                            w::menu_rule(ui, t);
-                            if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
-                                action = Some((6, f.clone()));
-                                ui.close();
+                            let (enter, esc) = ui.input(|i| (i.key_pressed(Key::Enter), i.key_pressed(Key::Escape)));
+                            if r.lost_focus() || enter || esc {
+                                action = Some(if esc { (9, String::new()) } else { (3, to.clone()) });
                             }
+                            continue;
                         }
-                    });
+                        let dirty = self.editor.docs.iter().any(|d| &d.key == f && d.dirty());
+                        let resp = file_row(ui, t, lang, f, selected, on_chart, dirty, 1);
+                        if resp.clicked() {
+                            open = Some(f.clone());
+                        }
+                        if resp.double_clicked() {
+                            self.editor.renaming = Some((f.clone(), f.clone()));
+                        }
+                        resp.context_menu(|ui| {
+                            ui.set_width(210.0);
+                            ui.spacing_mut().item_spacing.y = 1.0;
+                            let mut item = |ui: &mut Ui, icon, label: &str, what: u8| {
+                                if w::menu_item(ui, t, Some(icon), label, "", false).clicked() {
+                                    action = Some((what, f.clone()));
+                                    ui.close();
+                                }
+                            };
+                            item(
+                                ui,
+                                ph::PLAY,
+                                if on_chart { "Update on chart" } else { "Add to chart" },
+                                1,
+                            );
+                            item(ui, ph::COPY, "Duplicate", 2);
+                            if !on_chart {
+                                item(ui, ph::PENCIL_SIMPLE, "Rename", 4);
+                            }
+                            item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
+                            if !on_chart {
+                                w::menu_rule(ui, t);
+                                if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
+                                    action = Some((6, f.clone()));
+                                    ui.close();
+                                }
+                            }
+                        });
+                    }
                 }
                 // Built-ins' Pine source, read-only.
-                ui.add_space(10.0);
                 let list: Vec<(&str, &str)> = crate::sources::SOURCES
                     .iter()
                     .filter_map(|(id, _)| opentern_series::builtins::by_id(id).map(|m| (*id, m.name)))
                     .filter(|(_, n)| q.is_empty() || n.to_lowercase().contains(&q))
                     .collect();
                 let open_list = self.editor.show_builtins || !q.is_empty();
-                let caret = if open_list { ph::CARET_DOWN } else { ph::CARET_RIGHT };
-                let head = section(ui, t, &format!("BUILT-INS  {caret}"), Some(list.len()));
-                if head.clicked() {
+                if folder_row(ui, t, "BUILT-IN INDICATORS", open_list, list.len()).clicked() {
                     self.editor.show_builtins = !self.editor.show_builtins;
                 }
                 if open_list {
                     for (id, name) in list {
                         let key = format!("builtin:{id}");
                         let selected = active_key.as_deref() == Some(key.as_str());
-                        if file_row(ui, t, Lang::Pine, name, selected, false, true).clicked() {
+                        if file_row(ui, t, Lang::Pine, name, selected, false, false, 1).clicked() {
                             open = Some(key);
                         }
                     }
                 }
+                ui.add_space(8.0);
             });
+
+        // Outline: what's defined in the open file; a click goes there.
+        ui.painter().hline(
+            outline_rect.x_range(),
+            outline_rect.top() + 0.5,
+            Stroke::new(1.0, c.line),
+        );
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(outline_rect));
+        child.set_clip_rect(outline_rect.intersect(ui.clip_rect()));
+        child.spacing_mut().item_spacing.y = 0.0;
+        if folder_row(&mut child, t, "OUTLINE", self.editor.outline_open, outline_items.len()).clicked() {
+            self.editor.outline_open = !self.editor.outline_open;
+        }
+        let mut jump = None;
+        if self.editor.outline_open {
+            egui::ScrollArea::vertical()
+                .id_salt("outline")
+                .auto_shrink([false; 2])
+                .show(&mut child, |ui| {
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    if outline_items.is_empty() {
+                        ui.horizontal(|ui| {
+                            ui.add_space(30.0);
+                            ui.label(
+                                egui::RichText::new("Nothing defined yet.")
+                                    .font(theme::regular(12.0))
+                                    .color(c.dim),
+                            );
+                        });
+                    }
+                    for (line, name, kind) in &outline_items {
+                        let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+                        if ui.rect_contains_pointer(r) {
+                            ui.painter().rect_filled(r, CornerRadius::ZERO, t.hover_wash());
+                        }
+                        let (icon, col) = match kind {
+                            Outline::Function => (ph::CUBE, c.keyword),
+                            Outline::Input => (ph::SLIDERS_HORIZONTAL, c.ns),
+                            Outline::Type => (ph::BRACKETS_CURLY, c.number),
+                            Outline::Variable => (ph::CUBE_TRANSPARENT, c.func),
+                        };
+                        let p = ui.painter();
+                        p.text(
+                            pos2(r.left() + 30.0, r.center().y),
+                            Align2::CENTER_CENTER,
+                            icon,
+                            theme::regular(12.5),
+                            col,
+                        );
+                        p.text(
+                            pos2(r.left() + 44.0, r.center().y),
+                            Align2::LEFT_CENTER,
+                            name,
+                            theme::regular(12.5),
+                            c.text,
+                        );
+                        p.text(
+                            pos2(r.right() - 12.0, r.center().y),
+                            Align2::RIGHT_CENTER,
+                            (line + 1).to_string(),
+                            FontId::monospace(11.0),
+                            c.dim,
+                        );
+                        if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                            jump = Some(*line);
+                        }
+                    }
+                });
+        }
+        if let (Some(line), Some(d)) = (jump, self.editor.docs.get_mut(self.editor.active)) {
+            d.jump = Some(line);
+        }
+
         if let Some(k) = open {
             match k.strip_prefix("builtin:") {
                 Some(id) => self.open_builtin_source(id),
@@ -865,117 +1125,169 @@ impl App {
     }
 
     fn editor_main(&mut self, ui: &mut Ui, t: &Theme) {
+        let c = code_colors(t);
         let full = ui.max_rect();
-        // Tabs and the toolbar.
-        let bar = Rect::from_min_size(full.min, vec2(full.width(), 32.0));
-        let tools_w = 300.0_f32.min(full.width() * 0.5);
+        // Tabs, with the run and more buttons at the end.
+        let bar = Rect::from_min_size(full.min, vec2(full.width(), TAB_H));
+        ui.painter().rect_filled(bar, CornerRadius::ZERO, c.side);
+        let tools_w = 96.0;
         let tabs_rect = Rect::from_min_max(bar.min, pos2(bar.right() - tools_w, bar.bottom()));
-        self.doc_tabs(ui, t, tabs_rect);
+        if !self.editor.sidebar {
+            // A way back to the files.
+            let r = Rect::from_min_size(bar.min + vec2(4.0, 4.0), vec2(28.0, 28.0));
+            let mut b = ui.new_child(egui::UiBuilder::new().max_rect(r));
+            if crate::widgets::tool_button(
+                &mut b,
+                t,
+                ph::SIDEBAR_SIMPLE,
+                concat!("Show files (", shortcut!("B"), ")"),
+                false,
+                28.0,
+            )
+            .clicked()
+            {
+                self.editor.sidebar = true;
+            }
+            self.doc_tabs(
+                ui,
+                t,
+                Rect::from_min_max(pos2(tabs_rect.left() + 36.0, bar.top()), tabs_rect.max),
+            );
+        } else {
+            self.doc_tabs(ui, t, tabs_rect);
+        }
         let mut tools = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(Rect::from_min_max(pos2(tabs_rect.right(), bar.top()), bar.max))
+                .max_rect(Rect::from_min_max(
+                    pos2(tabs_rect.right(), bar.top()),
+                    bar.max - vec2(6.0, 0.0),
+                ))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         self.editor_tools(&mut tools, t);
-        ui.painter().hline(
-            full.x_range(),
-            bar.bottom() + 0.5,
-            Stroke::new(1.0, t.border.gamma_multiply(0.7)),
-        );
+        ui.painter()
+            .hline(bar.x_range(), bar.bottom() - 0.5, Stroke::new(1.0, c.line));
 
-        // Console and status bar at the bottom.
-        let console = self.console_text(t);
-        let console_lines = console.as_ref().map(|c| c.0.lines().count().min(5)).unwrap_or(1);
-        let console_h = 26.0 + 16.0 * console_lines.saturating_sub(1) as f32;
-        let status_h = 22.0;
-        let code = Rect::from_min_max(
-            pos2(full.left(), bar.bottom() + 8.0),
-            pos2(full.right(), full.bottom() - console_h - status_h - 8.0),
-        );
         if self.editor.docs.is_empty() {
-            let mut c = ui.new_child(egui::UiBuilder::new().max_rect(code));
+            let rest = Rect::from_min_max(pos2(full.left(), bar.bottom()), full.max);
+            let mut e = ui.new_child(egui::UiBuilder::new().max_rect(rest.shrink(20.0)));
             crate::widgets::empty_state(
-                &mut c,
+                &mut e,
                 t,
                 ph::CODE,
                 "No file open",
-                "Pick a script in the explorer, or start one with +.",
+                "Pick a script in the explorer, or start one with the + there.",
             );
-        } else if code.height() > 30.0 {
+            return;
+        }
+
+        // Breadcrumbs: folder › file › the definition the cursor is in.
+        let crumbs = Rect::from_min_size(pos2(full.left(), bar.bottom()), vec2(full.width(), CRUMB_H));
+        self.breadcrumbs(ui, t, crumbs);
+
+        // Problems / Output under the code.
+        let panel_h = if self.editor.panel_open { PANEL_H } else { 28.0 };
+        let panel = Rect::from_min_max(pos2(full.left(), full.bottom() - panel_h), full.max);
+        let code = Rect::from_min_max(pos2(full.left(), crumbs.bottom()), pos2(full.right(), panel.top()));
+        if code.height() > 30.0 {
             self.code_view(ui, t, code);
         }
-        let crect = Rect::from_min_max(
-            pos2(full.left(), code.bottom() + 6.0),
-            pos2(full.right(), code.bottom() + 6.0 + console_h),
-        );
-        let mut c = ui.new_child(egui::UiBuilder::new().max_rect(crect));
-        c.set_clip_rect(crect.intersect(ui.clip_rect()));
-        self.console(&mut c, t, console);
-        let srect = Rect::from_min_max(pos2(full.left(), full.bottom() - status_h), full.max);
-        self.status_bar(ui, t, srect);
+        self.problems(ui, t, panel);
+    }
+
+    fn breadcrumbs(&self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let c = code_colors(t);
+        let Some(d) = self.editor.doc() else { return };
+        let p = ui.painter();
+        let font = theme::regular(12.0);
+        let y = r.center().y;
+        let mut x = r.left() + 16.0;
+        let mut put = |p: &egui::Painter, text: &str, col: Color32, font: &FontId| {
+            let g = p.text(pos2(x, y), Align2::LEFT_CENTER, text, font.clone(), col);
+            x = g.right() + 6.0;
+        };
+        put(p, if d.readonly { "built-in" } else { "scripts" }, c.dim, &font);
+        put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
+        let (icon, col) = file_icon(d.lang);
+        put(p, icon, col, &theme::regular(13.0));
+        put(p, &d.title, c.text2, &font);
+        let line = self.editor.caret.0.saturating_sub(1);
+        if let Some((_, name, _)) = outline(&d.text, d.lang).into_iter().rev().find(|(l, _, _)| *l <= line) {
+            put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
+            put(p, ph::CUBE, c.keyword, &theme::regular(12.0));
+            put(p, &name, c.text2, &font);
+        }
     }
 
     fn doc_tabs(&mut self, ui: &mut Ui, t: &Theme, rect: Rect) {
+        let c = code_colors(t);
+        let font = theme::regular(12.5);
+        let n = self.editor.docs.len();
+        if n == 0 {
+            return;
+        }
+        // Each tab: [pad][icon][gap][name][gap][close][pad]; names shrink
+        // (with "…") when the tabs don't fit.
+        let fixed = 12.0 + 16.0 + 7.0 + 10.0 + 20.0 + 6.0;
+        let room = ((rect.width() / n as f32) - fixed).clamp(36.0, 170.0);
         let mut x = rect.left();
         let mut pick = None;
         let mut close = None;
-        let font = theme::medium(12.5);
         for (i, d) in self.editor.docs.iter().enumerate() {
-            let (tag, col) = badge(d.lang);
-            let name = ui.painter().layout_no_wrap(d.title.clone(), font.clone(), t.text);
-            let tag_g = ui
-                .painter()
-                .layout_no_wrap(tag.to_string(), FontId::monospace(9.5), col);
-            let w = (tag_g.size().x + name.size().x + 52.0).min(220.0);
-            if x + w > rect.right() {
+            let p = ui.painter();
+            let label = if d.readonly {
+                format!("{}  {}", d.title, ph::LOCK_SIMPLE)
+            } else {
+                d.title.clone()
+            };
+            let name = crate::format::elide_to(p, &label, &font, room);
+            let name_w = p.layout_no_wrap(name.clone(), font.clone(), c.text).size().x;
+            let w = fixed + name_w;
+            if x + w > rect.right() + 0.5 {
                 break;
             }
             let r = Rect::from_min_size(pos2(x, rect.top()), vec2(w, rect.height()));
-            x += w + 2.0;
+            x += w;
             let resp = ui.interact(r, Id::new(("doc-tab", &d.key)), Sense::click());
             let on = i == self.editor.active;
             let inside = ui.rect_contains_pointer(r);
             let p = ui.painter().with_clip_rect(r);
             if on {
-                p.rect_filled(r.shrink2(vec2(0.0, 2.0)), CornerRadius::same(6), t.hover_wash());
-                p.hline(
-                    r.shrink2(vec2(8.0, 0.0)).x_range(),
-                    r.bottom() - 1.0,
-                    Stroke::new(2.0, t.accent),
-                );
+                p.rect_filled(r, CornerRadius::ZERO, c.bg);
+                p.hline(r.x_range(), r.top() + 1.0, Stroke::new(2.0, t.accent));
             } else if inside {
-                p.rect_filled(r.shrink2(vec2(0.0, 2.0)), CornerRadius::same(6), t.hover_wash());
+                p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6));
             }
+            p.vline(r.right() - 0.5, r.y_range(), Stroke::new(1.0, c.line));
             let cy = r.center().y;
-            p.galley(pos2(r.left() + 10.0, cy - tag_g.size().y / 2.0), tag_g.clone(), col);
-            let nx = r.left() + 16.0 + tag_g.size().x;
-            p.galley_with_override_text_color(
-                pos2(nx, cy - name.size().y / 2.0),
-                name,
-                if on { t.text } else { t.text2 },
+            let (icon, col) = file_icon(d.lang);
+            p.text(
+                pos2(r.left() + 20.0, cy),
+                Align2::CENTER_CENTER,
+                icon,
+                theme::regular(14.0),
+                col,
             );
-            if d.readonly {
-                p.text(
-                    pos2(r.right() - 32.0, cy),
-                    Align2::CENTER_CENTER,
-                    ph::LOCK_SIMPLE,
-                    theme::regular(11.0),
-                    t.text3,
-                );
-            }
-            let xr = Rect::from_center_size(pos2(r.right() - 14.0, cy), vec2(18.0, 18.0));
+            p.text(
+                pos2(r.left() + 12.0 + 16.0 + 7.0, cy),
+                Align2::LEFT_CENTER,
+                name,
+                font.clone(),
+                if on { c.text } else { c.text2 },
+            );
+            let xr = Rect::from_center_size(pos2(r.right() - 16.0, cy), vec2(20.0, 20.0));
             let xresp = ui.interact(xr, Id::new(("doc-x", &d.key)), Sense::click());
             if d.dirty() && !inside {
-                p.circle_filled(xr.center(), 3.5, t.text2);
+                p.circle_filled(xr.center(), 3.5, c.text2);
             } else if inside || on {
                 if xresp.hovered() {
                     p.rect_filled(xr, CornerRadius::same(4), t.hover_wash());
                 }
-                p.text(xr.center(), Align2::CENTER_CENTER, ph::X, theme::regular(11.0), t.text2);
+                p.text(xr.center(), Align2::CENTER_CENTER, ph::X, theme::regular(12.0), c.text2);
             }
-            if xresp.on_hover_text("Close (Ctrl+W)").clicked() || resp.middle_clicked() {
+            if xresp.on_hover_text(concat!("Close (", shortcut!("W"), ")")).clicked() || resp.middle_clicked() {
                 close = Some(i);
-            } else if resp.clicked() {
+            } else if resp.on_hover_text(&d.title).clicked() {
                 pick = Some(i);
             }
         }
@@ -985,10 +1297,7 @@ impl App {
         if let Some(i) = close {
             let d = &self.editor.docs[i];
             if d.dirty() && self.editor.deleting.as_deref() != Some(d.key.as_str()) {
-                self.editor.status = format!(
-                    "{} has unsaved changes: close again to discard them, or save first.",
-                    d.title
-                );
+                self.editor.status = format!("{} has unsaved changes: close again to discard them.", d.title);
                 self.editor.deleting = Some(d.key.clone());
             } else {
                 self.editor.deleting = None;
@@ -1000,57 +1309,67 @@ impl App {
     fn editor_tools(&mut self, ui: &mut Ui, t: &Theme) {
         use crate::widgets as w;
         let Some(d) = self.editor.doc() else { return };
-        ui.spacing_mut().item_spacing.x = 4.0;
-        if d.readonly {
-            if w::button(ui, w::Kind::Primary, true, Some(ph::COPY), "Make a copy")
-                .on_hover_text("Copy this source into your scripts, to change it")
+        ui.spacing_mut().item_spacing.x = 0.0;
+        let (file, readonly) = (d.key.clone(), d.readonly);
+        let on_chart = self.scripts.iter().any(|r| r.file == file);
+        let more = w::tool_button(ui, t, ph::DOTS_THREE, "More", false, 28.0);
+        egui::Popup::menu(&more).show(|ui| {
+            ui.set_width(230.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            if readonly {
+                if w::menu_item(ui, t, Some(ph::COPY), "Make a copy to edit", "", false).clicked() {
+                    self.copy_builtin();
+                    ui.close();
+                }
+                return;
+            }
+            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save", shortcut!("S"), false).clicked() {
+                self.save_script();
+                ui.close();
+            }
+            if w::menu_item(ui, t, Some(ph::ARROW_SQUARE_OUT), "Open in your editor", "", false)
+                .on_hover_text("The chart reloads when you save there")
                 .clicked()
             {
+                crate::app::open_path(&self.scripts_dir().join(&file));
+                ui.close();
+            }
+            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+                crate::app::open_path(&self.scripts_dir());
+                ui.close();
+            }
+        });
+        if readonly {
+            if w::tool_button(ui, t, ph::COPY, "Make a copy to edit", false, 28.0).clicked() {
                 self.copy_builtin();
             }
             return;
         }
-        let (file, dirty) = (d.key.clone(), d.dirty());
-        let on_chart = self.scripts.iter().any(|r| r.file == file);
-        let label = if on_chart { "Update chart" } else { "Add to chart" };
-        if w::button(ui, w::Kind::Primary, true, Some(ph::PLAY), label)
-            .on_hover_text(concat!("Save and run on the chart (", shortcut!("Enter"), ")"))
+        let tip = if on_chart {
+            concat!("Save and update the chart (", shortcut!("Enter"), ")")
+        } else {
+            concat!("Save and add to the chart (", shortcut!("Enter"), ")")
+        };
+        // The run button, green like an IDE's.
+        let (r, resp) = ui.allocate_exact_size(vec2(28.0, 28.0), Sense::click());
+        let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+        ui.painter()
+            .rect_filled(r, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hov));
+        ui.painter()
+            .text(r.center(), Align2::CENTER_CENTER, ph::PLAY, theme::regular(16.0), t.pos);
+        if resp
+            .on_hover_text(tip)
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
             .clicked()
         {
             self.run_script();
-        }
-        if w::tool_button(
-            ui,
-            t,
-            ph::ARROW_SQUARE_OUT,
-            "Edit in your own editor; the chart reloads when you save there",
-            false,
-            30.0,
-        )
-        .clicked()
-        {
-            crate::app::open_path(&self.scripts_dir().join(&file));
-        }
-        let save = w::tool_button(
-            ui,
-            t,
-            ph::FLOPPY_DISK,
-            concat!("Save (", shortcut!("S"), ")"),
-            false,
-            30.0,
-        );
-        if dirty {
-            ui.painter()
-                .circle_filled(save.rect.right_top() + vec2(-6.0, 6.0), 3.0, t.accent);
-        }
-        if save.clicked() {
-            self.save_script();
         }
     }
 
     fn code_view(&mut self, ui: &mut Ui, t: &Theme, rect: Rect) {
         let a = self.editor.active;
         let Some(doc) = self.editor.docs.get(a) else { return };
+        let c = code_colors(t);
         let key = doc.key.clone();
         let lang = doc.lang;
         let readonly = doc.readonly;
@@ -1060,32 +1379,15 @@ impl App {
             .find(|r| r.file == key)
             .and_then(|r| r.error.as_deref())
             .and_then(|e| error_line(e, &key));
-        let p = ui.painter();
-        p.rect(
-            rect,
-            CornerRadius::same(8),
-            t.bg,
-            Stroke::new(1.0, t.border.gamma_multiply(0.8)),
-            egui::StrokeKind::Inside,
-        );
         let id = Id::new(("code", &key));
-        let font = FontId::monospace(13.0);
+        let font = FontId::monospace(CODE_SIZE);
         let row_h = ui.fonts_mut(|f| f.row_height(&font));
+        let char_w = ui.fonts_mut(|f| f.glyph_width(&font, 'm'));
         let lines = doc.text.split('\n').count();
-        let digits = lines.to_string().len().max(2) as f32;
-        let gutter_w = digits * 8.0 + 26.0;
-        // Gutter background.
-        let gutter = Rect::from_min_size(rect.min, vec2(gutter_w, rect.height()));
-        p.rect_filled(
-            gutter.shrink(1.0),
-            CornerRadius {
-                nw: 7,
-                sw: 7,
-                ne: 0,
-                se: 0,
-            },
-            t.hover_wash().gamma_multiply(0.6),
-        );
+        let digits = lines.to_string().len().max(3) as f32;
+        let gutter_w = digits * char_w + 34.0;
+        let mini_w = if rect.width() > 520.0 { MINIMAP_W } else { 0.0 };
+        let text_rect = Rect::from_min_max(rect.min, pos2(rect.right() - mini_w, rect.bottom()));
 
         // Editing keys, before the text field sees them.
         let focused = ui.memory(|m| m.has_focus(id));
@@ -1112,112 +1414,413 @@ impl App {
             ui.data_mut(|d| d.insert_temp(id.with("scroll-to"), line));
         }
 
-        let inner = rect.shrink(1.0);
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(inner));
-        child.set_clip_rect(inner.intersect(ui.clip_rect()));
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(text_rect));
+        child.set_clip_rect(text_rect.intersect(ui.clip_rect()));
         let tt = *t;
         let mut layouter = |ui: &Ui, text: &dyn egui::TextBuffer, _wrap: f32| {
-            let mut job = highlight(text.as_str(), lang, &tt, FontId::monospace(13.0));
+            let mut job = highlight(text.as_str(), lang, &tt, FontId::monospace(CODE_SIZE));
             job.wrap.max_width = f32::INFINITY;
             ui.ctx().fonts_mut(|f| f.layout_job(job))
         };
+        let unit = indent_unit(lang).len();
         let mut caret = None;
-        egui::ScrollArea::both()
+        let mut scroll = egui::ScrollArea::both()
             .id_salt(("code-scroll", &key))
+            .auto_shrink([false; 2]);
+        if let Some(y) = self.editor.minimap_to.take() {
+            scroll = scroll.vertical_scroll_offset(y);
+        }
+        let out = scroll.show(&mut child, |ui| {
+            let view = ui.clip_rect();
+            let bg = ui.painter().add(egui::Shape::Noop);
+            let fg = ui.painter().add(egui::Shape::Noop);
+            ui.horizontal_top(|ui| {
+                ui.add_space(gutter_w);
+                let width = (view.width() - gutter_w - 8.0).max(100.0);
+                let rows = ((view.height() - 12.0) / row_h).max(1.0) as usize;
+                fn edit(text: &mut dyn egui::TextBuffer, id: Id, width: f32, rows: usize) -> egui::TextEdit<'_> {
+                    egui::TextEdit::multiline(text)
+                        .id(id)
+                        .frame(egui::Frame::NONE)
+                        .code_editor()
+                        .lock_focus(true)
+                        .desired_width(width)
+                        .desired_rows(rows)
+                        .margin(vec2(4.0, 8.0))
+                }
+                let out = if readonly {
+                    let mut ro: &str = doc.text.as_str();
+                    edit(&mut ro, id, width, rows).layouter(&mut layouter).show(ui)
+                } else {
+                    edit(&mut doc.text, id, width, rows).layouter(&mut layouter).show(ui)
+                };
+                let g = &out.galley;
+                let origin = out.galley_pos;
+                let full_x = view.x_range();
+                let mut under = Vec::new();
+                let mut over = Vec::new();
+                let cursor_line = out.cursor_range.map(|cr| {
+                    let ci = cr.primary.index.0;
+                    let before: String = doc.text.chars().take(ci).collect();
+                    let line = before.matches('\n').count();
+                    let col = before.rsplit('\n').next().map(|l| l.chars().count()).unwrap_or(0);
+                    caret = Some((line + 1, col + 1));
+                    line
+                });
+                let focused = out.response.response.has_focus();
+                let text_lines: Vec<&str> = doc.text.split('\n').collect();
+                let mut last_indent = 0usize;
+                for (line, row) in g.rows.iter().enumerate() {
+                    let y = origin.y + row.pos.y;
+                    if y + row_h < view.top() || y > view.bottom() {
+                        continue;
+                    }
+                    let band = Rect::from_x_y_ranges(full_x, y..=y + row_h);
+                    let cur = cursor_line == Some(line);
+                    if cur && focused {
+                        under.push(egui::Shape::rect_filled(band, 0.0, c.current));
+                    }
+                    let is_err = err_line == Some(line + 1);
+                    if is_err {
+                        under.push(egui::Shape::rect_filled(band, 0.0, t.neg.gamma_multiply(0.10)));
+                        // A squiggle under the line's text.
+                        let x0 = origin.x;
+                        let x1 = origin.x + row.rect().width().max(char_w * 4.0);
+                        let yb = y + row_h - 1.5;
+                        let mut pts = Vec::new();
+                        let mut x = x0;
+                        let mut up = true;
+                        while x <= x1 {
+                            pts.push(pos2(x, if up { yb - 1.5 } else { yb + 1.0 }));
+                            x += 2.5;
+                            up = !up;
+                        }
+                        over.push(egui::Shape::line(pts, Stroke::new(1.0, t.neg)));
+                    }
+                    // Indent guides, carried across blank lines.
+                    let text = text_lines.get(line).copied().unwrap_or("");
+                    let lead = text.chars().take_while(|c| *c == ' ').count()
+                        + 4 * text.chars().take_while(|c| *c == '\t').count();
+                    let indent = if text.trim().is_empty() { last_indent } else { lead };
+                    last_indent = indent;
+                    for k in 1..=(indent / unit.max(1)) {
+                        let gx = origin.x + ((k - 1) * unit) as f32 * char_w + 0.5;
+                        if gx > view.left() + gutter_w - 4.0 {
+                            under.push(egui::Shape::vline(gx, y..=y + row_h, Stroke::new(1.0, c.guide)));
+                        }
+                    }
+                    let col = if is_err {
+                        t.neg
+                    } else if cur {
+                        c.text
+                    } else {
+                        c.dim
+                    };
+                    let num =
+                        ui.painter()
+                            .layout_no_wrap((line + 1).to_string(), FontId::monospace(CODE_SIZE - 0.5), col);
+                    let at = pos2(
+                        view.left() + gutter_w - 18.0 - num.size().x,
+                        y + (row_h - num.size().y) / 2.0,
+                    );
+                    over.push(egui::Shape::galley(at, num, col));
+                }
+                // The gutter stays put while the code scrolls sideways.
+                let gutter = Rect::from_min_size(view.min, vec2(gutter_w - 6.0, view.height()));
+                over.insert(0, egui::Shape::rect_filled(gutter, 0.0, c.bg));
+                ui.painter().set(bg, egui::Shape::Vec(under));
+                ui.painter().set(fg, egui::Shape::Vec(over));
+                if let Some(line) = ui.data_mut(|d| d.remove_temp::<usize>(id.with("scroll-to")))
+                    && let Some(row) = g.rows.get(line)
+                {
+                    let y = origin.y + row.pos.y;
+                    ui.scroll_to_rect(Rect::from_x_y_ranges(full_x, y..=y + row_h), Some(egui::Align::Center));
+                }
+            });
+        });
+        if let Some(cr) = caret {
+            self.editor.caret = cr;
+        }
+        if mini_w > 0.0 {
+            let mini = Rect::from_min_max(pos2(rect.right() - mini_w, rect.top()), rect.max);
+            let offset = out.state.offset.y;
+            let view_h = out.inner_rect.height();
+            self.minimap(ui, t, mini, row_h, offset, view_h);
+        }
+    }
+
+    /// The minimap: every line as thin coloured bars, the visible part
+    /// shaded; click or drag to scroll there.
+    fn minimap(&mut self, ui: &mut Ui, t: &Theme, r: Rect, row_h: f32, offset: f32, view_h: f32) {
+        let c = code_colors(t);
+        let Some(d) = self.editor.doc() else { return };
+        let job = highlight(&d.text, d.lang, t, FontId::monospace(CODE_SIZE));
+        let n = d.text.split('\n').count().max(1);
+        let lh = (r.height() / n as f32).min(2.6);
+        let cw = 1.1;
+        let p = ui.painter().with_clip_rect(r);
+        p.vline(
+            r.left() + 0.5,
+            r.y_range(),
+            Stroke::new(1.0, c.line.gamma_multiply(0.6)),
+        );
+        let mut shapes = Vec::new();
+        let (mut line, mut col) = (0usize, 0usize);
+        for s in &job.sections {
+            let piece = &job.text[s.byte_range.start.0..s.byte_range.end.0];
+            let colr = s.format.color.gamma_multiply(0.75);
+            let mut run: Option<usize> = None;
+            for ch in piece.chars().chain(std::iter::once('\0')) {
+                let end_run = ch == '\n' || ch == '\0' || ch.is_whitespace();
+                if let (true, Some(st)) = (end_run, run) {
+                    let y = r.top() + 4.0 + line as f32 * lh;
+                    let x0 = r.left() + 8.0 + st as f32 * cw;
+                    let x1 = (r.left() + 8.0 + col as f32 * cw).min(r.right() - 4.0);
+                    if x1 > x0 {
+                        shapes.push(egui::Shape::rect_filled(
+                            Rect::from_min_max(pos2(x0, y), pos2(x1, y + (lh * 0.7).max(1.0))),
+                            0.0,
+                            colr,
+                        ));
+                    }
+                    run = None;
+                }
+                match ch {
+                    '\0' => {}
+                    '\n' => {
+                        line += 1;
+                        col = 0;
+                    }
+                    c if c.is_whitespace() => col += 1,
+                    _ => {
+                        run.get_or_insert(col);
+                        col += 1;
+                    }
+                }
+            }
+        }
+        p.extend(shapes);
+        // The visible part.
+        let first = offset / row_h.max(1.0);
+        let shown = view_h / row_h.max(1.0);
+        let slider = Rect::from_min_max(
+            pos2(r.left() + 1.0, r.top() + 4.0 + first * lh),
+            pos2(r.right(), r.top() + 4.0 + (first + shown) * lh),
+        );
+        let resp = ui.interact(r, Id::new("minimap"), Sense::click_and_drag());
+        let hov = resp.hovered() || resp.dragged();
+        p.rect_filled(
+            slider,
+            CornerRadius::ZERO,
+            t.text.gamma_multiply(if hov { 0.10 } else { 0.05 }),
+        );
+        if (resp.clicked() || resp.dragged())
+            && let Some(pt) = resp.interact_pointer_pos()
+        {
+            let line = ((pt.y - r.top() - 4.0) / lh).max(0.0);
+            self.editor.minimap_to = Some(((line - shown / 2.0) * row_h).max(0.0));
+        }
+    }
+
+    /// Problems and Output, under the code (VS Code's bottom panel).
+    fn problems(&mut self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let c = code_colors(t);
+        let Some(d) = self.editor.doc() else { return };
+        let (key, readonly, title) = (d.key.clone(), d.readonly, d.title.clone());
+        let run = self.scripts.iter().find(|x| x.file == key);
+        let on_chart = run.is_some();
+        let errors: Vec<String> = run
+            .and_then(|x| x.error.clone())
+            .map(|e| vec![e.trim().to_string()])
+            .unwrap_or_default();
+        let log = run.map(|x| x.log.trim().to_string()).unwrap_or_default();
+        // A new error opens Problems (once; folding it again sticks).
+        let first_err = errors.first().cloned();
+        if first_err != self.editor.seen_error {
+            if first_err.is_some() {
+                self.editor.panel_open = true;
+                self.editor.panel_tab = 0;
+            }
+            self.editor.seen_error = first_err;
+        }
+        ui.painter().hline(r.x_range(), r.top() + 0.5, Stroke::new(1.0, c.line));
+        // Header: the two tabs and a caret to fold.
+        let head = Rect::from_min_size(r.min, vec2(r.width(), 28.0));
+        let mut x = head.left() + 14.0;
+        for (k, label, count) in [(0u8, "PROBLEMS", errors.len()), (1u8, "OUTPUT", 0)] {
+            let on = self.editor.panel_tab == k && self.editor.panel_open;
+            let g = ui
+                .painter()
+                .layout_no_wrap(label.to_string(), theme::medium(11.0), c.text);
+            let w = g.size().x + if count > 0 { 26.0 } else { 0.0 };
+            let tr = Rect::from_min_size(pos2(x, head.top()), vec2(w + 8.0, head.height()));
+            let resp = ui.interact(tr, Id::new(("panel-tab", k)), Sense::click());
+            let col = if on || resp.hovered() { c.text } else { c.dim };
+            ui.painter()
+                .galley_with_override_text_color(pos2(x + 4.0, head.center().y - g.size().y / 2.0), g, col);
+            if count > 0 {
+                let b = Rect::from_center_size(pos2(x + w - 6.0, head.center().y), vec2(18.0, 16.0));
+                ui.painter()
+                    .rect_filled(b, CornerRadius::same(8), t.neg.gamma_multiply(0.85));
+                ui.painter().text(
+                    b.center(),
+                    Align2::CENTER_CENTER,
+                    count.to_string(),
+                    theme::semibold(10.5),
+                    Color32::WHITE,
+                );
+            }
+            if on {
+                ui.painter().hline(
+                    tr.shrink2(vec2(4.0, 0.0)).x_range(),
+                    head.bottom() - 1.0,
+                    Stroke::new(1.5, t.accent),
+                );
+            }
+            if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                if self.editor.panel_open && self.editor.panel_tab == k {
+                    self.editor.panel_open = false;
+                } else {
+                    self.editor.panel_open = true;
+                    self.editor.panel_tab = k;
+                }
+            }
+            x = tr.right() + 14.0;
+        }
+        let fold = Rect::from_center_size(pos2(head.right() - 18.0, head.center().y), vec2(24.0, 24.0));
+        let mut b = ui.new_child(egui::UiBuilder::new().max_rect(fold));
+        let glyph = if self.editor.panel_open {
+            ph::CARET_DOWN
+        } else {
+            ph::CARET_UP
+        };
+        if crate::widgets::tool_button(&mut b, t, glyph, "", false, 24.0).clicked() {
+            self.editor.panel_open = !self.editor.panel_open;
+        }
+        if !self.editor.panel_open {
+            return;
+        }
+        let body = Rect::from_min_max(pos2(r.left(), head.bottom()), r.max);
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(body.shrink2(vec2(14.0, 4.0))));
+        child.set_clip_rect(body.intersect(ui.clip_rect()));
+        let mut jump = None;
+        egui::ScrollArea::both()
+            .id_salt(("panel", self.editor.panel_tab))
             .auto_shrink([false; 2])
             .show(&mut child, |ui| {
-                let view = ui.clip_rect();
-                let bg = ui.painter().add(egui::Shape::Noop);
-                let fg = ui.painter().add(egui::Shape::Noop);
-                ui.horizontal_top(|ui| {
-                    ui.add_space(gutter_w - 1.0);
-                    let width = (view.width() - gutter_w - 4.0).max(100.0);
-                    let rows = ((view.height() - 12.0) / row_h).max(1.0) as usize;
-                    let out = if readonly {
-                        let mut ro: &str = doc.text.as_str();
-                        egui::TextEdit::multiline(&mut ro)
-                            .id(id)
-                            .frame(egui::Frame::NONE)
-                            .code_editor()
-                            .desired_width(width)
-                            .desired_rows(rows)
-                            .margin(vec2(8.0, 6.0))
-                            .layouter(&mut layouter)
-                            .show(ui)
-                    } else {
-                        egui::TextEdit::multiline(&mut doc.text)
-                            .id(id)
-                            .frame(egui::Frame::NONE)
-                            .code_editor()
-                            .lock_focus(true)
-                            .desired_width(width)
-                            .desired_rows(rows)
-                            .margin(vec2(8.0, 6.0))
-                            .layouter(&mut layouter)
-                            .show(ui)
-                    };
-                    let g = &out.galley;
-                    let origin = out.galley_pos;
-                    let full_x = view.x_range();
-                    let mut shapes = Vec::new();
-                    let mut marks = Vec::new();
-                    // The current line, and the line an error points at.
-                    let cursor_row = out.cursor_range.map(|c| {
-                        let r = g.pos_from_cursor(c.primary);
-                        let ci = c.primary.index.0;
-                        let before: String = doc.text.chars().take(ci).collect();
-                        let line = before.matches('\n').count();
-                        let col = before.rsplit('\n').next().map(|l| l.chars().count()).unwrap_or(0);
-                        caret = Some((line + 1, col + 1));
-                        (r.translate(origin.to_vec2()), line)
-                    });
-                    if let Some((r, _)) = cursor_row
-                        && out.response.response.has_focus()
-                    {
-                        let band = Rect::from_x_y_ranges(full_x, r.y_range());
-                        shapes.push(egui::Shape::rect_filled(band, 0.0, tt.hover_wash().gamma_multiply(0.7)));
-                    }
-                    for (line, row) in g.rows.iter().enumerate() {
-                        let y = origin.y + row.pos.y;
-                        if y + row_h < view.top() || y > view.bottom() {
-                            continue;
-                        }
-                        let is_err = err_line == Some(line + 1);
-                        if is_err {
-                            let band = Rect::from_x_y_ranges(full_x, y..=y + row_h);
-                            shapes.push(egui::Shape::rect_filled(band, 0.0, tt.neg.gamma_multiply(0.12)));
-                        }
-                        let cur = cursor_row.is_some_and(|(_, l)| l == line);
-                        let col = if is_err {
-                            tt.neg
-                        } else if cur {
-                            tt.text
-                        } else {
-                            tt.text3
-                        };
-                        let num = ui
-                            .painter()
-                            .layout_no_wrap((line + 1).to_string(), FontId::monospace(11.5), col);
-                        let at = pos2(
-                            view.left() + gutter_w - 12.0 - num.size().x,
-                            y + (row_h - num.size().y) / 2.0,
+                ui.spacing_mut().item_spacing.y = 2.0;
+                let mono = FontId::monospace(CODE_SIZE - 1.0);
+                if self.editor.panel_tab == 0 {
+                    if readonly {
+                        ui.label(
+                            egui::RichText::new("Built-in source, read-only. Make a copy to change and run it.")
+                                .font(theme::regular(12.5))
+                                .color(c.dim),
                         );
-                        marks.push(egui::Shape::galley(at, num, col));
+                    } else if errors.is_empty() {
+                        let msg = if on_chart {
+                            "No problems. Running on the chart."
+                        } else {
+                            concat!(
+                                "No problems found. ",
+                                shortcut!("Enter"),
+                                " saves the script and puts it on the chart."
+                            )
+                        };
+                        ui.label(egui::RichText::new(msg).font(theme::regular(12.5)).color(c.dim));
                     }
-                    ui.painter().set(bg, egui::Shape::Vec(shapes));
-                    // Numbers stay put while the code scrolls sideways.
-                    ui.painter().set(fg, egui::Shape::Vec(marks));
-                    if let Some(line) = ui.data_mut(|d| d.remove_temp::<usize>(id.with("scroll-to")))
-                        && let Some(row) = g.rows.get(line)
-                    {
-                        let y = origin.y + row.pos.y;
-                        ui.scroll_to_rect(Rect::from_x_y_ranges(full_x, y..=y + row_h), Some(egui::Align::Center));
+                    for e in &errors {
+                        let line = error_line(e, &key);
+                        let first = e.lines().find(|l| !l.trim().is_empty()).unwrap_or(e);
+                        let (rr, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+                        if ui.rect_contains_pointer(rr) {
+                            ui.painter().rect_filled(rr, CornerRadius::same(4), t.hover_wash());
+                        }
+                        let p = ui.painter();
+                        p.text(
+                            pos2(rr.left() + 10.0, rr.center().y),
+                            Align2::CENTER_CENTER,
+                            ph::X_CIRCLE,
+                            theme::regular(13.0),
+                            t.neg,
+                        );
+                        let g = p.text(
+                            pos2(rr.left() + 24.0, rr.center().y),
+                            Align2::LEFT_CENTER,
+                            first,
+                            mono.clone(),
+                            c.text,
+                        );
+                        p.text(
+                            pos2(g.right() + 10.0, rr.center().y),
+                            Align2::LEFT_CENTER,
+                            format!("{}  {}", title, line.map(|l| format!("[Ln {l}]")).unwrap_or_default()),
+                            theme::regular(11.5),
+                            c.dim,
+                        );
+                        if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                            jump = line;
+                        }
+                        // The rest of a long error (a Python traceback).
+                        let more: Vec<&str> = e.lines().skip_while(|l| *l != first).skip(1).collect();
+                        if !more.is_empty() {
+                            ui.add(
+                                egui::Label::new(egui::RichText::new(more.join("\n")).font(mono.clone()).color(c.dim))
+                                    .extend(),
+                            );
+                        }
                     }
-                });
+                } else if log.is_empty() {
+                    ui.label(
+                        egui::RichText::new("Prints and log.* calls from this script show up here.")
+                            .font(theme::regular(12.5))
+                            .color(c.dim),
+                    );
+                } else {
+                    ui.add(egui::Label::new(egui::RichText::new(&log).font(mono).color(c.text)).extend());
+                }
             });
-        if let Some(c) = caret {
-            self.editor.caret = c;
+        if let (Some(n), Some(d)) = (jump, self.editor.docs.get_mut(self.editor.active)) {
+            d.jump = Some(n.saturating_sub(1));
         }
+    }
+
+    fn status_bar(&mut self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let c = code_colors(t);
+        let p = ui.painter();
+        p.rect_filled(r, CornerRadius::ZERO, c.side);
+        p.hline(r.x_range(), r.top() + 0.5, Stroke::new(1.0, c.line));
+        let y = r.center().y;
+        let font = theme::regular(11.5);
+        let mut x = r.left() + 12.0;
+        let mut put = |text: &str, col: Color32| {
+            let g = p.text(pos2(x, y), Align2::LEFT_CENTER, text, font.clone(), col);
+            x = g.right() + 14.0;
+        };
+        let key = self.editor.doc().map(|d| d.key.clone()).unwrap_or_default();
+        let run = self.scripts.iter().find(|x| x.file == key);
+        let errs = run.is_some_and(|x| x.error.is_some()) as usize;
+        put(
+            &format!("{}  {errs}", ph::X_CIRCLE),
+            if errs > 0 { t.neg } else { c.dim },
+        );
+        if self.editor.doc().is_some_and(|d| !d.readonly) {
+            match run {
+                Some(_) => put(&format!("{}  On the chart", ph::CHART_LINE_UP), t.pos),
+                None => put(&format!("{}  Not on the chart", ph::CHART_LINE_UP), c.dim),
+            }
+        }
+        if !self.editor.status.is_empty() {
+            put(&self.editor.status, c.text2);
+        }
+        let Some(d) = self.editor.doc() else { return };
+        let (line, col) = self.editor.caret;
+        let right = format!(
+            "Ln {line}, Col {col}      Spaces: {}      UTF-8      {}",
+            indent_unit(d.lang).len(),
+            lang_name(d.lang)
+        );
+        p.text(pos2(r.right() - 12.0, y), Align2::RIGHT_CENTER, right, font, c.dim);
     }
 
     /// Tab / Shift+Tab indent, Enter keeps (and opens) indentation, Ctrl+/
@@ -1310,132 +1913,52 @@ impl App {
         state.cursor.set_char_range(Some(range));
         state.store(ui.ctx(), id);
     }
-
-    /// The console's text and colour for the open file.
-    fn console_text(&self, t: &Theme) -> Option<(String, Color32, bool)> {
-        let d = self.editor.doc()?;
-        if d.readonly {
-            return Some((
-                "Built-in source, read-only. Make a copy to change it and run it.".into(),
-                t.text3,
-                false,
-            ));
-        }
-        let run = self.scripts.iter().find(|r| r.file == d.key);
-        Some(match run {
-            Some(r) => match &r.error {
-                Some(e) => (e.trim().to_string(), t.neg, true),
-                None if !r.log.trim().is_empty() => (r.log.trim().to_string(), t.text2, false),
-                None => ("Running on the chart. No errors.".into(), t.pos, false),
-            },
-            None => (
-                format!("Not on the chart. {} saves it and puts it there.", shortcut!("Enter")),
-                t.text3,
-                false,
-            ),
-        })
-    }
-
-    fn console(&mut self, ui: &mut Ui, t: &Theme, console: Option<(String, Color32, bool)>) {
-        let r = ui.max_rect();
-        ui.painter()
-            .rect_filled(r, CornerRadius::same(6), t.hover_wash().gamma_multiply(0.5));
-        let Some((text, col, is_err)) = console else { return };
-        let icon = if is_err {
-            ph::WARNING_CIRCLE
-        } else if col == t.pos {
-            ph::CHECK_CIRCLE
-        } else {
-            ph::TERMINAL_WINDOW
-        };
-        let key = self.editor.doc().map(|d| d.key.clone()).unwrap_or_default();
-        let line = is_err.then(|| error_line(&text, &key)).flatten();
-        let mut jump = false;
-        egui::ScrollArea::both()
-            .id_salt("script-console")
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-                ui.horizontal_top(|ui| {
-                    ui.add_space(8.0);
-                    ui.vertical(|ui| {
-                        ui.add_space(5.0);
-                        ui.label(egui::RichText::new(icon).font(theme::regular(13.0)).color(col));
-                    });
-                    ui.vertical(|ui| {
-                        ui.add_space(5.0);
-                        let resp = ui.add(
-                            egui::Label::new(egui::RichText::new(&text).font(FontId::monospace(12.0)).color(col))
-                                .extend()
-                                .sense(if line.is_some() { Sense::click() } else { Sense::hover() }),
-                        );
-                        if let Some(n) = line {
-                            jump = resp
-                                .on_hover_text(format!("Go to line {n}"))
-                                .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                .clicked();
-                        }
-                    });
-                });
-            });
-        if jump
-            && let Some(n) = line
-            && let Some(d) = self.editor.docs.get_mut(self.editor.active)
-        {
-            d.jump = Some(n.saturating_sub(1));
-        }
-    }
-
-    fn status_bar(&mut self, ui: &mut Ui, t: &Theme, r: Rect) {
-        let p = ui.painter();
-        let y = r.center().y;
-        let font = theme::regular(11.5);
-        p.text(
-            pos2(r.left() + 4.0, y),
-            Align2::LEFT_CENTER,
-            &self.editor.status,
-            font.clone(),
-            t.text3,
-        );
-        let Some(d) = self.editor.doc() else { return };
-        let (line, col) = self.editor.caret;
-        let right = format!(
-            "Ln {line}, Col {col}    {}    {}",
-            if indent_unit(d.lang).len() == 4 {
-                "Spaces: 4"
-            } else {
-                "Spaces: 2"
-            },
-            lang_name(d.lang)
-        );
-        p.text(pos2(r.right() - 4.0, y), Align2::RIGHT_CENTER, right, font, t.text3);
-    }
 }
 
-/// A small caps heading in the explorer; clickable (for folding).
-fn section(ui: &mut Ui, t: &Theme, title: &str, count: Option<usize>) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+const TAB_H: f32 = 36.0;
+const CRUMB_H: f32 = 26.0;
+const STATUS_H: f32 = 24.0;
+const PANEL_H: f32 = 118.0;
+const MINIMAP_W: f32 = 84.0;
+const CODE_SIZE: f32 = 13.5;
+
+/// A folder line in the explorer: caret, NAME, count. Clicking folds it.
+fn folder_row(ui: &mut Ui, t: &Theme, title: &str, open: bool, count: usize) -> egui::Response {
+    let c = code_colors(t);
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
+    if ui.rect_contains_pointer(r) {
+        ui.painter()
+            .rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6));
+    }
     let p = ui.painter();
+    let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
     p.text(
-        pos2(r.left() + 4.0, r.center().y),
+        pos2(r.left() + 14.0, r.center().y),
+        Align2::CENTER_CENTER,
+        caret,
+        theme::regular(11.0),
+        c.text2,
+    );
+    p.text(
+        pos2(r.left() + 26.0, r.center().y),
         Align2::LEFT_CENTER,
         title,
-        theme::semibold(10.5),
-        t.text3,
+        theme::semibold(11.0),
+        c.text2,
     );
-    if let Some(n) = count {
-        p.text(
-            pos2(r.right() - 6.0, r.center().y),
-            Align2::RIGHT_CENTER,
-            n.to_string(),
-            theme::regular(10.5),
-            t.text3,
-        );
-    }
-    resp
+    p.text(
+        pos2(r.right() - 12.0, r.center().y),
+        Align2::RIGHT_CENTER,
+        count.to_string(),
+        theme::regular(10.5),
+        c.dim,
+    );
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// One file in the explorer: language tag, name, and a dot when it's on
-/// the chart.
+/// One file in the explorer: its language's icon and name, a dot when
+/// it's on the chart, a filled circle when unsaved.
+#[allow(clippy::too_many_arguments)]
 fn file_row(
     ui: &mut Ui,
     t: &Theme,
@@ -1443,41 +1966,41 @@ fn file_row(
     name: &str,
     selected: bool,
     on_chart: bool,
-    locked: bool,
+    dirty: bool,
+    depth: usize,
 ) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 26.0), Sense::click());
-    let hov = motion::toggle(ui.ctx(), resp.id, ui.rect_contains_pointer(r), motion::MICRO);
+    let c = code_colors(t);
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
     let p = ui.painter();
-    p.rect_filled(r, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hov));
     if selected {
-        p.rect_filled(r, CornerRadius::same(6), t.accent_soft());
+        p.rect_filled(r, CornerRadius::ZERO, t.accent_soft());
+    } else if ui.rect_contains_pointer(r) {
+        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7));
     }
-    let (tag, col) = badge(lang);
     let y = r.center().y;
-    let tag_r = Rect::from_min_size(pos2(r.left() + 6.0, y - 8.0), vec2(34.0, 16.0));
-    p.rect_filled(tag_r, CornerRadius::same(4), col.gamma_multiply(0.14));
-    p.text(tag_r.center(), Align2::CENTER_CENTER, tag, FontId::monospace(9.5), col);
-    let right_pad = if on_chart || locked { 22.0 } else { 6.0 };
-    let font = theme::regular(12.5);
-    let room = r.right() - right_pad - (tag_r.right() + 8.0);
-    let shown = crate::format::elide_to(p, name, &font, room);
+    let x0 = r.left() + 14.0 + depth as f32 * 14.0;
+    let (icon, col) = file_icon(lang);
     p.text(
-        pos2(tag_r.right() + 8.0, y),
+        pos2(x0 + 6.0, y),
+        Align2::CENTER_CENTER,
+        icon,
+        theme::regular(14.0),
+        col,
+    );
+    let font = theme::regular(13.0);
+    let right_pad = if on_chart || dirty { 26.0 } else { 8.0 };
+    let shown = crate::format::elide_to(p, name, &font, r.right() - right_pad - (x0 + 20.0));
+    p.text(
+        pos2(x0 + 20.0, y),
         Align2::LEFT_CENTER,
         shown,
         font,
-        if selected { t.accent } else { t.text },
+        if selected { c.text } else { c.text2 },
     );
-    if on_chart {
-        p.circle_filled(pos2(r.right() - 11.0, y), 3.0, t.pos);
-    } else if locked {
-        p.text(
-            pos2(r.right() - 11.0, y),
-            Align2::CENTER_CENTER,
-            ph::LOCK_SIMPLE,
-            theme::regular(11.0),
-            t.text3,
-        );
+    if dirty {
+        p.circle_filled(pos2(r.right() - 14.0, y), 3.5, c.text2);
+    } else if on_chart {
+        p.circle_filled(pos2(r.right() - 14.0, y), 3.0, t.pos);
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     if on_chart {
@@ -1485,6 +2008,92 @@ fn file_row(
     } else {
         resp
     }
+}
+
+/// What the outline lists.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Outline {
+    Function,
+    Input,
+    Type,
+    Variable,
+}
+
+/// The things a script defines at its top level, with their (0-based)
+/// lines: functions, types, inputs. A light scan, no parser.
+pub fn outline(text: &str, lang: Lang) -> Vec<(usize, String, Outline)> {
+    let ident = |s: &str| -> String { s.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect() };
+    let mut out = Vec::new();
+    for (i, raw) in text.split('\n').enumerate() {
+        let top = !raw.starts_with([' ', '\t']);
+        let l = raw.trim();
+        let after = |p: &str| l.strip_prefix(p).map(|r| ident(r.trim_start()));
+        let item = match lang {
+            Lang::Pine if top => {
+                if let Some(n) = after("type ")
+                    .or_else(|| after("export type "))
+                    .or_else(|| after("enum "))
+                {
+                    Some((n, Outline::Type))
+                } else if let Some(n) = after("method ").or_else(|| after("export method ")) {
+                    Some((n, Outline::Function))
+                } else {
+                    let l2 = l.strip_prefix("export ").unwrap_or(l);
+                    let n = ident(l2);
+                    let rest = l2[n.len()..].trim_start();
+                    if !n.is_empty() && rest.starts_with('(') && l2.contains("=>") {
+                        Some((n, Outline::Function))
+                    } else {
+                        let l3 = l2.strip_prefix("var ").unwrap_or(l2);
+                        let n = ident(l3);
+                        let rest = l3[n.len()..].trim_start();
+                        (rest.starts_with('=') && !rest.starts_with("==") && rest.contains("input"))
+                            .then_some((n, Outline::Input))
+                    }
+                }
+            }
+            Lang::Python => {
+                if let Some(n) = after("def ") {
+                    Some((n, Outline::Function))
+                } else if let Some(n) = after("class ") {
+                    Some((n, Outline::Type))
+                } else if top && l.contains("= input.") {
+                    Some((ident(l), Outline::Input))
+                } else {
+                    None
+                }
+            }
+            Lang::Luau => {
+                if let Some(n) = after("local function ").or_else(|| after("function ")) {
+                    Some((n, Outline::Function))
+                } else if top && l.contains("input.") {
+                    after("local ").map(|n| (n, Outline::Input))
+                } else {
+                    None
+                }
+            }
+            Lang::Js | Lang::Ts => {
+                if let Some(n) = after("function ").or_else(|| after("export function ")) {
+                    Some((n, Outline::Function))
+                } else if top && l.contains("input.") {
+                    after("const ").or_else(|| after("let ")).map(|n| (n, Outline::Input))
+                } else if top && (l.starts_with("const ") || l.starts_with("let ")) {
+                    after("const ")
+                        .or_else(|| after("let "))
+                        .map(|n| (n, Outline::Variable))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+        if let Some((n, k)) = item
+            && !n.is_empty()
+        {
+            out.push((i, n, k));
+        }
+    }
+    out
 }
 
 #[cfg(test)]

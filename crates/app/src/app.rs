@@ -36,6 +36,8 @@ pub struct App {
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
+    /// The Settings page, when open (it takes the chart area).
+    pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
     /// Strategy runs and the Strategy Report's state.
     pub strategies: crate::strategy::Strategies,
@@ -159,6 +161,7 @@ impl App {
             layout_name,
             study_menu: None,
             compare_menu: None,
+            settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
             paper,
@@ -281,6 +284,15 @@ impl App {
                     None,
                     false,
                 );
+            } else if let Some(cat) = part.strip_prefix("settings") {
+                use crate::settings::Cat;
+                let cat = Cat::ALL
+                    .into_iter()
+                    .find(|c| format!("{c:?}").eq_ignore_ascii_case(cat.trim_start_matches(':')))
+                    .unwrap_or(Cat::Appearance);
+                self.open_settings(cat);
+            } else if part == "max" {
+                self.layout.panel_max = true;
             } else if part == "measure" {
                 self.still_measure = true;
             } else if part == "replay" {
@@ -364,6 +376,11 @@ impl App {
         } else {
             "Opentern Dark"
         };
+        self.set_theme(ctx, name);
+    }
+
+    /// Switches theme (with the crossfade) and remembers it.
+    pub fn set_theme(&mut self, ctx: &egui::Context, name: &str) {
         self.theme.switch(ctx, name);
         let s = Settings {
             theme: name.into(),
@@ -874,6 +891,13 @@ impl App {
     /// indicators, Alt+R to reset the chart.
     fn shortcuts(&mut self, ctx: &egui::Context) {
         if self.modal.is_some() || ctx.egui_wants_keyboard_input() {
+            return;
+        }
+        // Settings has the chart's place: Esc closes it, nothing else applies.
+        if self.settings.is_some() {
+            if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+                self.settings = None;
+            }
             return;
         }
         let events = ctx.input(|i| i.events.clone());

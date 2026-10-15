@@ -28,6 +28,8 @@ pub struct Providers {
     /// Which secrets are already saved (fields stay empty: paste to replace).
     have: [bool; 4],
     error: String,
+    /// Saved from the Settings page (shows "Saved.").
+    saved: bool,
 }
 
 /// The credentials in the keychain and settings (call off the UI thread:
@@ -73,6 +75,11 @@ impl App {
     }
 
     pub(crate) fn open_providers(&mut self) {
+        self.modal = Some(super::Modal::Providers(Box::new(self.providers_form())));
+    }
+
+    /// The providers form, filled from the keychain and settings.
+    pub(crate) fn providers_form(&self) -> Providers {
         let v = |k: &str| self.store.value(k).unwrap_or_default();
         let have = [
             secrets::get(keys::ALPACA_KEY).is_some(),
@@ -80,7 +87,7 @@ impl App {
             secrets::get(keys::OANDA_TOKEN).is_some(),
             secrets::get(keys::UPSTOX_TOKEN).is_some(),
         ];
-        self.modal = Some(super::Modal::Providers(Box::new(Providers {
+        Providers {
             alpaca_key: String::new(),
             alpaca_secret: String::new(),
             alpaca_sip: v(ALPACA_SIP) == "1",
@@ -96,7 +103,8 @@ impl App {
             },
             have,
             error: String::new(),
-        })));
+            saved: false,
+        }
     }
 }
 
@@ -129,68 +137,9 @@ impl Providers {
                 "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
                  that needs an account. Keys stay in your system keychain.",
             );
-            egui::ScrollArea::vertical().max_height(max_h).show(ui, |ui| {
-                section(ui, t, "Alpaca · US stocks");
-                note(
-                    ui,
-                    t,
-                    "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys.",
-                );
-                form_row(ui, t, "Key ID", |ui| {
-                    secret_field(ui, &mut self.alpaca_key, self.have[0], "PK…")
-                });
-                form_row(ui, t, "Secret key", |ui| {
-                    secret_field(ui, &mut self.alpaca_secret, self.have[1], "")
-                });
-                form_row(ui, t, "Feed", |ui| {
-                    crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP (all US exchanges)");
-                });
-                section(ui, t, "OANDA · forex and CFDs");
-                note(
-                    ui,
-                    t,
-                    "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD.",
-                );
-                form_row(ui, t, "API token", |ui| {
-                    secret_field(ui, &mut self.oanda_token, self.have[2], "")
-                });
-                form_row(ui, t, "Account ID", |ui| {
-                    ui.add(
-                        crate::widgets::field(&mut self.oanda_account)
-                            .hint_text("101-…")
-                            .desired_width(260.0),
-                    );
-                });
-                form_row(ui, t, "Account", |ui| {
-                    crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
-                    crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
-                });
-                section(ui, t, "Upstox · NSE and BSE");
-                note(
-                    ui,
-                    t,
-                    "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste \
-                     its access token (it lasts until the next morning).",
-                );
-                form_row(ui, t, "Access token", |ui| {
-                    secret_field(ui, &mut self.upstox_token, self.have[3], "")
-                });
-                section(ui, t, "Interactive Brokers");
-                note(
-                    ui,
-                    t,
-                    "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR \
-                     market-data subscriptions.",
-                );
-                form_row(ui, t, "Use the gateway", |ui| {
-                    crate::widgets::checkbox(ui, &mut self.ibkr_on, "");
-                });
-                if self.ibkr_on {
-                    form_row(ui, t, "Gateway URL", |ui| {
-                        ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(260.0));
-                    });
-                }
-            });
+            egui::ScrollArea::vertical()
+                .max_height(max_h)
+                .show(ui, |ui| self.fields(ui, t));
             if !self.error.is_empty() {
                 ui.add_space(4.0);
                 ui.label(egui::RichText::new(&self.error).color(t.neg));
@@ -214,6 +163,114 @@ impl Providers {
             done = Done::Close;
         }
         done
+    }
+
+    /// The form's sections (shared by the dialog and the Settings page).
+    fn fields(&mut self, ui: &mut Ui, t: &Theme) {
+        section(ui, t, "Alpaca · US stocks");
+        note(
+            ui,
+            t,
+            "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys.",
+        );
+        form_row(ui, t, "Key ID", |ui| {
+            secret_field(ui, &mut self.alpaca_key, self.have[0], "PK…")
+        });
+        form_row(ui, t, "Secret key", |ui| {
+            secret_field(ui, &mut self.alpaca_secret, self.have[1], "")
+        });
+        form_row(ui, t, "Feed", |ui| {
+            crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP (all US exchanges)");
+        });
+        section(ui, t, "OANDA · forex and CFDs");
+        note(
+            ui,
+            t,
+            "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD.",
+        );
+        form_row(ui, t, "API token", |ui| {
+            secret_field(ui, &mut self.oanda_token, self.have[2], "")
+        });
+        form_row(ui, t, "Account ID", |ui| {
+            ui.add(
+                crate::widgets::field(&mut self.oanda_account)
+                    .hint_text("101-…")
+                    .desired_width(260.0),
+            );
+        });
+        form_row(ui, t, "Account", |ui| {
+            crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
+            crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
+        });
+        section(ui, t, "Upstox · NSE and BSE");
+        note(
+            ui,
+            t,
+            "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste \
+                 its access token (it lasts until the next morning).",
+        );
+        form_row(ui, t, "Access token", |ui| {
+            secret_field(ui, &mut self.upstox_token, self.have[3], "")
+        });
+        section(ui, t, "Interactive Brokers");
+        note(
+            ui,
+            t,
+            "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR \
+                 market-data subscriptions.",
+        );
+        form_row(ui, t, "Use the gateway", |ui| {
+            crate::widgets::checkbox(ui, &mut self.ibkr_on, "");
+        });
+        if self.ibkr_on {
+            form_row(ui, t, "Gateway URL", |ui| {
+                ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(260.0));
+            });
+        }
+    }
+
+    /// The Settings page's version: no frame, Save in line.
+    pub fn page(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        note(
+            ui,
+            t,
+            "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
+             that needs an account. Keys stay in your system keychain.",
+        );
+        let before = (
+            self.alpaca_key.clone(),
+            self.alpaca_secret.clone(),
+            self.oanda_token.clone(),
+            self.upstox_token.clone(),
+        );
+        self.fields(ui, t);
+        if before
+            != (
+                self.alpaca_key.clone(),
+                self.alpaca_secret.clone(),
+                self.oanda_token.clone(),
+                self.upstox_token.clone(),
+            )
+        {
+            self.saved = false;
+        }
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            if crate::widgets::primary(ui, "Save").clicked() {
+                match self.save(app) {
+                    Ok(()) => {
+                        self.saved = true;
+                        self.error.clear();
+                    }
+                    Err(e) => self.error = e,
+                }
+            }
+            if !self.error.is_empty() {
+                ui.label(egui::RichText::new(&self.error).color(t.neg));
+            } else if self.saved {
+                ui.label(egui::RichText::new("Saved.").color(t.text3));
+            }
+        });
     }
 
     fn save(&mut self, app: &mut App) -> Result<(), String> {

@@ -42,6 +42,112 @@ impl ChartSettings {
         app.set_chart_style(self.orig.clone());
     }
 
+    /// The Template button and its menu (save, defaults, saved ones).
+    /// Returns true when it changed the style.
+    fn template_menu(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> bool {
+        let mut changed = false;
+        let resp = crate::widgets::button(
+            ui,
+            crate::widgets::Kind::Secondary,
+            true,
+            None,
+            &format!("Template  {}", ph::CARET_DOWN),
+        );
+        egui::Popup::menu(&resp).show(|ui| {
+            use crate::widgets as w;
+            ui.set_width(250.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as…", "", false).clicked() {
+                app.set_chart_style(self.style.clone());
+                app.modal = Some(super::Modal::SaveTemplate {
+                    kind: TemplateKind::Chart,
+                    name: String::new(),
+                });
+                ui.close();
+            }
+            if w::menu_item(ui, t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Apply defaults", "", false).clicked() {
+                self.style = ChartStyle::default();
+                changed = true;
+                ui.close();
+            }
+            let templates = app.store.templates("chart").to_vec();
+            if !templates.is_empty() {
+                w::menu_rule(ui, t);
+                w::menu_heading(ui, t, "SAVED");
+            }
+            for tpl in templates {
+                ui.horizontal(|ui| {
+                    let label = if tpl.is_default {
+                        format!("{}  (default)", tpl.name)
+                    } else {
+                        tpl.name.clone()
+                    };
+                    if ui.button(label).clicked()
+                        && let Ok(s) = serde_json::from_str::<ChartStyle>(&tpl.json)
+                    {
+                        self.style = s;
+                        changed = true;
+                        ui.close();
+                    }
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if ui.small_button(ph::TRASH).on_hover_text("Delete").clicked() {
+                            app.delete_template(TemplateKind::Chart, &tpl.name);
+                        }
+                        let tip = if tpl.is_default {
+                            "Stop using as default"
+                        } else {
+                            "Use for new charts"
+                        };
+                        let star = if tpl.is_default { "★" } else { "☆" };
+                        if ui.small_button(star).on_hover_text(tip).clicked() {
+                            app.set_default_template(
+                                TemplateKind::Chart,
+                                (!tpl.is_default).then_some(tpl.name.as_str()),
+                            );
+                        }
+                    });
+                });
+            }
+        });
+        changed
+    }
+
+    /// The Settings page's version: tabs as a segmented control, changes
+    /// applied as they're made.
+    pub fn page(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        if app.chart.style != self.style && !ui.ctx().egui_is_using_pointer() {
+            // Changed elsewhere (a template, the right-click menu): follow it.
+            self.style = app.chart.style.clone();
+        }
+        crate::widgets::segmented(
+            ui,
+            t,
+            &mut self.tab,
+            &[
+                (Tab::Symbol, "Symbol"),
+                (Tab::Status, "Status line"),
+                (Tab::Scales, "Scales and lines"),
+                (Tab::Canvas, "Canvas"),
+            ],
+        );
+        ui.add_space(10.0);
+        let mut changed = match self.tab {
+            Tab::Symbol => symbol_tab(ui, t, &mut self.style),
+            Tab::Status => status_tab(ui, &mut self.style),
+            Tab::Scales => scales_tab(ui, t, &mut self.style),
+            Tab::Canvas => canvas_tab(ui, t, &mut self.style),
+        };
+        ui.add_space(14.0);
+        ui.horizontal(|ui| {
+            if self.template_menu(ui, app, t) {
+                changed = true;
+            }
+        });
+        if changed {
+            app.set_chart_style(self.style.clone());
+        }
+    }
+
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
         let mut done = Done::Keep;
         let mut changed = false;
@@ -97,69 +203,9 @@ impl ChartSettings {
             });
             ui.separator();
             ui.horizontal(|ui| {
-                let resp = crate::widgets::button(
-                    ui,
-                    crate::widgets::Kind::Secondary,
-                    true,
-                    None,
-                    &format!("Template  {}", ph::CARET_DOWN),
-                );
-                egui::Popup::menu(&resp).show(|ui| {
-                    use crate::widgets as w;
-                    ui.set_width(250.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
-                    if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as…", "", false).clicked() {
-                        app.set_chart_style(self.style.clone());
-                        app.modal = Some(super::Modal::SaveTemplate {
-                            kind: TemplateKind::Chart,
-                            name: String::new(),
-                        });
-                        ui.close();
-                    }
-                    if w::menu_item(ui, t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Apply defaults", "", false).clicked() {
-                        self.style = ChartStyle::default();
-                        changed = true;
-                        ui.close();
-                    }
-                    let templates = app.store.templates("chart").to_vec();
-                    if !templates.is_empty() {
-                        w::menu_rule(ui, t);
-                        w::menu_heading(ui, t, "SAVED");
-                    }
-                    for tpl in templates {
-                        ui.horizontal(|ui| {
-                            let label = if tpl.is_default {
-                                format!("{}  (default)", tpl.name)
-                            } else {
-                                tpl.name.clone()
-                            };
-                            if ui.button(label).clicked()
-                                && let Ok(s) = serde_json::from_str::<ChartStyle>(&tpl.json)
-                            {
-                                self.style = s;
-                                changed = true;
-                                ui.close();
-                            }
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if ui.small_button(ph::TRASH).on_hover_text("Delete").clicked() {
-                                    app.delete_template(TemplateKind::Chart, &tpl.name);
-                                }
-                                let tip = if tpl.is_default {
-                                    "Stop using as default"
-                                } else {
-                                    "Use for new charts"
-                                };
-                                let star = if tpl.is_default { "★" } else { "☆" };
-                                if ui.small_button(star).on_hover_text(tip).clicked() {
-                                    app.set_default_template(
-                                        TemplateKind::Chart,
-                                        (!tpl.is_default).then_some(tpl.name.as_str()),
-                                    );
-                                }
-                            });
-                        });
-                    }
-                });
+                if self.template_menu(ui, app, t) {
+                    changed = true;
+                }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if crate::widgets::primary(ui, "Ok").clicked() {
                         done = Done::Close;

@@ -610,10 +610,19 @@ pub fn show(
         let sc = &mut chart.compares[*ci].scale;
         if resp.dragged() {
             let f = (resp.drag_delta().y as f64 * 0.006).exp();
-            let mid = (sc.lo + sc.hi) / 2.0;
-            let half = (sc.hi - sc.lo) / 2.0 * f;
+            let (tl, th) = if y.log {
+                (sc.lo.ln(), sc.hi.ln())
+            } else {
+                (sc.lo, sc.hi)
+            };
+            let mid = (tl + th) / 2.0;
+            let half = (th - tl) / 2.0 * f;
             sc.auto = false;
-            (sc.lo, sc.hi) = (mid - half, mid + half);
+            (sc.lo, sc.hi) = if y.log {
+                ((mid - half).exp(), (mid + half).exp())
+            } else {
+                (mid - half, mid + half)
+            };
             (y.lo, y.hi) = (sc.lo, sc.hi);
         }
         if resp.double_clicked() {
@@ -627,6 +636,70 @@ pub fn show(
         let _ = resp
             .on_hover_cursor(egui::CursorIcon::ResizeVertical)
             .on_hover_text_at_pointer("Drag to scale · double-click to fit · right-click for options");
+    }
+    // A / L / % under each price scale (the main one, then each own scale).
+    {
+        let row = |col: Rect| Rect::from_min_max(pos2(col.left(), plot_all.bottom()), pos2(col.right(), full.bottom()));
+        let main_on = [
+            chart.panes.first().is_some_and(|p| p.scale.auto),
+            chart.log,
+            chart.percent,
+        ];
+        match axis_toggles(
+            ui,
+            &painter,
+            t,
+            &pal,
+            row(scale_col),
+            Id::new(("axis-main", chart.id)),
+            main_on,
+            interactive,
+        ) {
+            Some(0) => {
+                if let Some(p) = chart.panes.first_mut() {
+                    p.scale.auto = !p.scale.auto;
+                }
+            }
+            Some(1) => {
+                chart.log = !chart.log;
+                chart.percent = false;
+                if let Some(p) = chart.panes.first_mut() {
+                    p.scale.auto = true;
+                }
+                chart.touch();
+            }
+            Some(_) => {
+                chart.percent = !chart.percent;
+                chart.log = false;
+                chart.touch();
+            }
+            None => {}
+        }
+        for (ci, col, _) in &owns {
+            let c = &chart.compares[*ci];
+            let on = [c.scale.auto, c.log, c.pct];
+            if let Some(k) = axis_toggles(
+                ui,
+                &painter,
+                t,
+                &pal,
+                row(*col),
+                Id::new(("axis-own", chart.id, *ci)),
+                on,
+                interactive,
+            ) {
+                let c = &mut chart.compares[*ci];
+                match k {
+                    0 => c.scale.auto = !c.scale.auto,
+                    1 => {
+                        c.log = !c.log;
+                        c.scale.auto = true;
+                    }
+                    _ => c.pct = !c.pct,
+                }
+                chart.touch();
+            }
+        }
     }
     // Time axis: drag to zoom, keeping the right edge.
     let time_resp = ui.interact(
@@ -863,15 +936,20 @@ pub fn show(
         for (ci, col, y) in &owns {
             let c = &chart.compares[*ci];
             painter.vline(snap(col.left(), ppp), col.y_range(), Stroke::new(1.0, pal.border));
-            let (vals, step) = scale::price_ticks(y.lo, y.hi, g.rect.height(), 48.0);
+            let (vals, step) = if y.log {
+                log_ticks(y.lo, y.hi, g.rect.height())
+            } else {
+                scale::price_ticks(y.lo, y.hi, g.rect.height(), 48.0)
+            };
             let d = format::decimals_for(step, 0);
+            let base = own_base(chart, c, first);
             for v in vals {
                 let yy = y.y(v);
                 if yy > g.rect.top() + 6.0 && yy < g.rect.bottom() - 6.0 {
                     painter.text(
                         pos2(col.left() + 8.0, yy),
                         Align2::LEFT_CENTER,
-                        format::price(v, d.max(c.symbol.precision().min(d))),
+                        own_label(c, base, v, d.max(c.symbol.precision().min(d))),
                         scale_font.clone(),
                         pal.scale_text,
                     );
@@ -1016,7 +1094,7 @@ pub fn show(
                 painter.text(
                     pos2(r.left() + 7.0, yy),
                     Align2::LEFT_CENTER,
-                    format::price(b.close, c.symbol.precision()),
+                    own_label(c, own_base(chart, c, first), b.close, c.symbol.precision()),
                     theme::medium(chart.style.scale_font as f32 - 0.5),
                     paint::text_on(bg),
                 );
@@ -1111,7 +1189,7 @@ pub fn show(
                         pos2(col.left() + 1.0, p.y - tag_h / 2.0),
                         vec2(col.width() - 2.0, tag_h),
                     );
-                    let text = format::price(y.value(p.y), c.symbol.precision());
+                    let text = own_label(c, own_base(chart, c, first), y.value(p.y), c.symbol.precision());
                     paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
                 }
             }
@@ -1333,15 +1411,20 @@ fn draw_compares(
 /// view (TradingView's margins), or where it was dragged to.
 fn own_ymap(chart: &Chart, c: &super::Compare, first: usize, last: usize, rect: Rect) -> YMap {
     let n = chart.bars.len();
+    let log = c.log;
     let (lo, hi) = if c.scale.auto && n > 0 && first < n {
         let (lo, hi) = (first..=last.min(n - 1))
             .filter_map(|j| c.close_at(chart.bars[j].time))
+            .filter(|v| !log || *v > 0.0)
             .fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), v| (l.min(v), h.max(v)));
         if lo.is_finite() {
-            let span = (hi - lo).max(hi.abs() * 1e-6).max(1e-12);
-            (lo - span * 0.08, hi + span * 0.1)
+            // Margins as the main scale's, in log space when log.
+            let (tl, th) = if log { (lo.ln(), hi.ln()) } else { (lo, hi) };
+            let span = (th - tl).max(th.abs() * 1e-6).max(1e-12);
+            let (ml, mh) = (tl - span * 0.08, th + span * 0.1);
+            if log { (ml.exp(), mh.exp()) } else { (ml, mh) }
         } else {
-            (0.0, 1.0)
+            (if log { 1.0 } else { 0.0 }, if log { 10.0 } else { 1.0 })
         }
     } else {
         (c.scale.lo, c.scale.hi)
@@ -1351,8 +1434,70 @@ fn own_ymap(chart: &Chart, c: &super::Compare, first: usize, last: usize, rect: 
         bottom: rect.bottom(),
         lo,
         hi,
-        log: false,
+        log,
     }
+}
+
+/// The close a compared symbol's percent labels count from: its close at
+/// the first bar on screen.
+fn own_base(chart: &Chart, c: &super::Compare, first: usize) -> Option<f64> {
+    if !c.pct {
+        return None;
+    }
+    chart
+        .bars
+        .get(first)
+        .and_then(|b| c.close_at(b.time))
+        .filter(|v| *v != 0.0)
+}
+
+fn own_label(c: &super::Compare, base: Option<f64>, v: f64, d: usize) -> String {
+    match base {
+        Some(b) => format::signed_pct((v / b - 1.0) * 100.0),
+        None => format::price(v, d.max(c.symbol.precision().min(d))),
+    }
+}
+
+/// Auto, log and percent toggles under a price scale. Returns which was
+/// pressed (0, 1, 2).
+#[allow(clippy::too_many_arguments)]
+fn axis_toggles(
+    ui: &mut Ui,
+    painter: &Painter,
+    t: &Theme,
+    pal: &Palette,
+    rect: Rect,
+    id: Id,
+    on: [bool; 3],
+    live: bool,
+) -> Option<usize> {
+    let labels = ["A", "L", "%"];
+    let tips = ["Auto (fits data to screen)", "Log scale", "Percent scale"];
+    let w = ((rect.width() - 8.0) / 3.0).min(22.0);
+    let x0 = rect.center().x - w * 1.5;
+    let mut hit = None;
+    for k in 0..3 {
+        let r = Rect::from_center_size(pos2(x0 + w * (k as f32 + 0.5), rect.center().y), vec2(w - 3.0, 18.0));
+        let resp = ui.interact(r, id.with(k), if live { Sense::click() } else { Sense::hover() });
+        let hov = live && resp.hovered();
+        if on[k] {
+            painter.rect_filled(r, CornerRadius::same(4), t.accent_soft());
+        } else if hov {
+            painter.rect_filled(r, CornerRadius::same(4), t.hover_wash());
+        }
+        let col = if on[k] {
+            t.accent
+        } else if hov {
+            pal.text
+        } else {
+            pal.scale_text
+        };
+        painter.text(r.center(), Align2::CENTER_CENTER, labels[k], theme::medium(11.0), col);
+        if resp.on_hover_text(tips[k]).clicked() {
+            hit = Some(k);
+        }
+    }
+    hit
 }
 
 /// A compared symbol in its own pane, as candles in the chart's colours.
@@ -2507,6 +2652,16 @@ fn legend(
                     (None, _) => "Loading…".into(),
                 };
                 let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, font.clone(), col);
+                // The name and value take a right-click; registered before the
+                // buttons so they stay on top.
+                let title = ui.interact(
+                    Rect::from_min_max(pos - vec2(4.0, 2.0), pos2(r.right(), pos.y + LEGEND_ROW - 2.0)),
+                    Id::new(("legend-cmp-row", chart.id, ci)),
+                    Sense::click(),
+                );
+                if title.secondary_clicked() {
+                    actions.push(Action::CompareMenu(ci, pos2(pos.x, pos.y + LEGEND_ROW)));
+                }
                 xx = r.right() + 8.0;
                 if hovered {
                     let mut btn = |glyph: &str, tip: &str, id: &str| -> bool {
@@ -2545,10 +2700,6 @@ fn legend(
                     }
                 }
                 legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
-                let title = ui.interact(row_rect, Id::new(("legend-cmp-row", chart.id, ci)), Sense::click());
-                if title.secondary_clicked() {
-                    actions.push(Action::CompareMenu(ci, pos2(pos.x, pos.y + LEGEND_ROW)));
-                }
                 pos.y += LEGEND_ROW;
             }
         }

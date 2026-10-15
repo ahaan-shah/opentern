@@ -39,6 +39,7 @@ mod paper;
 mod pine_host;
 mod screener;
 mod scripting;
+mod settings;
 mod shell;
 mod side;
 mod snapshot;

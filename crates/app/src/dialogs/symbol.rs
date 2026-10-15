@@ -30,6 +30,10 @@ pub struct SymbolSearch {
     sent: Option<String>,
     /// Enter was pressed before this query's results came back.
     enter_pending: bool,
+    /// Move the text cursor to the end next frame (after a completion).
+    cursor_to_end: bool,
+    /// The arrow keys moved the highlight since the query changed.
+    moved: bool,
     filter: Option<AssetKind>,
     selected: usize,
     focused: bool,
@@ -44,6 +48,29 @@ const FILTERS: [(&str, Option<AssetKind>); 7] = [
     ("Forex", Some(AssetKind::Forex)),
     ("Futures", Some(AssetKind::Futures)),
 ];
+
+/// A formula being typed, with its last term unfinished: "BTCUSDT/ETH" gives
+/// ("BTCUSDT/", "ETH"). None when the query isn't heading for a formula.
+pub fn last_term(q: &str) -> Option<(&str, &str)> {
+    let cut = q
+        .char_indices()
+        .rev()
+        .find(|(_, c)| matches!(c, '+' | '*' | '/' | '(' | ')' | ' '))
+        .map(|(i, c)| i + c.len_utf8())?;
+    let (prefix, term) = q.split_at(cut);
+    let head = prefix.trim_end();
+    // Completing after an operator or an opening bracket ("A - " too).
+    let open = head.ends_with(['+', '*', '/', '(', '-']);
+    (open && !head.trim_start().is_empty()).then_some((prefix, term))
+}
+
+/// One row of results.
+enum Row<'a> {
+    /// The formula as typed, resolved: opens it.
+    Formula(Symbol),
+    /// A symbol; `complete` means picking it finishes the formula's last term.
+    Sym(&'a Symbol, bool),
+}
 
 fn kind_name(k: AssetKind) -> &'static str {
     match k {
@@ -66,6 +93,8 @@ impl SymbolSearch {
             got: 0,
             sent: None,
             enter_pending: false,
+            cursor_to_end: false,
+            moved: false,
             filter: None,
             selected: 0,
             focused: false,
@@ -109,7 +138,7 @@ impl SymbolSearch {
             });
             let r = ui.add(
                 crate::widgets::field(&mut self.query)
-                    .hint_text("Symbol, e.g. BTCUSDT, AAPL, RELIANCE")
+                    .hint_text("Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT")
                     .font(theme::regular(15.0))
                     .desired_width(f32::INFINITY)
                     .margin(vec2(10.0, 8.0)),
@@ -117,6 +146,13 @@ impl SymbolSearch {
             // Tickers read in capitals, as on TradingView.
             if r.changed() && self.query.is_ascii() {
                 self.query.make_ascii_uppercase();
+            }
+            if std::mem::take(&mut self.cursor_to_end)
+                && let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id)
+            {
+                let end = egui::text::CCursor::new(self.query.chars().count());
+                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
+                state.store(ui.ctx(), r.id);
             }
             // Typing always goes to the search field.
             if !r.has_focus() {
@@ -131,14 +167,23 @@ impl SymbolSearch {
                     self.focused = true;
                 }
             }
+            let completing = last_term(&self.query).map(|(p, t)| (p.to_string(), t.to_string()));
             if self.sent.as_deref() != Some(self.query.as_str()) {
                 self.seq += 1;
                 self.sent = Some(self.query.clone());
-                app.search(self.seq, &self.query);
-                self.selected = 0;
-                // A formula needs no lookup: offer it at once (the search
-                // thread answers again with its legs resolved).
-                if opentern_data::expr::is_expr(&self.query)
+                // Mid-formula, search for the term being typed.
+                let what = completing.as_ref().map(|c| c.1.as_str()).unwrap_or(&self.query);
+                app.search(self.seq, what);
+                // Mid-formula with a term started, Enter takes the first match;
+                // otherwise the formula itself.
+                self.selected = usize::from(
+                    completing
+                        .as_ref()
+                        .is_some_and(|c| !c.1.is_empty() && !c.1.contains(':')),
+                );
+                self.moved = false;
+                if completing.is_none()
+                    && opentern_data::expr::is_expr(&self.query)
                     && let Some(f) = opentern_data::expr::symbol(&self.query, &opentern_core::starter_watchlist())
                 {
                     self.results = vec![f];
@@ -173,25 +218,50 @@ impl SymbolSearch {
                 self.selected = 0;
             }
             ui.add_space(6.0);
-            let shown: Vec<&Symbol> = self
-                .results
-                .iter()
-                .filter(|s| self.filter.is_none_or(|f| s.kind == f))
-                .collect();
+            // Mid-formula: the formula so far (if it reads), then symbols to
+            // finish its last term with.
+            let formula = completing
+                .as_ref()
+                .and_then(|_| opentern_data::expr::symbol(&self.query, &opentern_core::starter_watchlist()));
+            let mut shown: Vec<Row> = Vec::new();
+            if let Some(f) = formula {
+                shown.push(Row::Formula(f));
+            }
+            for s in self.results.iter().filter(|s| self.filter.is_none_or(|f| s.kind == f)) {
+                if completing.is_some() && opentern_data::expr::is_expr(&s.id) {
+                    continue;
+                }
+                shown.push(Row::Sym(s, completing.is_some()));
+            }
+            // The last term already names a symbol: Enter opens the formula.
+            if let Some((_, term)) = &completing
+                && !self.moved
+                && self.got == self.seq
+                && matches!(shown.first(), Some(Row::Formula(_)))
+                && self.results.iter().any(|s| s.ticker() == term.as_str())
+            {
+                self.selected = 0;
+            }
+            if self.selected >= shown.len() {
+                self.selected = shown.len().saturating_sub(1);
+            }
             if up {
                 self.selected = self.selected.saturating_sub(1);
+                self.moved = true;
             }
             if down && self.selected + 1 < shown.len() {
                 self.selected += 1;
+                self.moved = true;
             }
+            let mut chosen: Option<usize> = None;
             // Enter picks from this query's results, so a quick Enter
-            // never opens a symbol left over from the last query.
-            if enter && !self.query.trim().is_empty() && self.got != self.seq {
+            // never opens a symbol left over from the last query (the
+            // formula row is worked out here, so it never waits).
+            let local = matches!(shown.get(self.selected), Some(Row::Formula(_)));
+            if enter && !self.query.trim().is_empty() && self.got != self.seq && !local {
                 self.enter_pending = true;
-            } else if (enter || self.enter_pending)
-                && let Some(s) = shown.get(self.selected)
-            {
-                pick = Some((*s).clone());
+            } else if (enter || self.enter_pending) && self.selected < shown.len() {
+                chosen = Some(self.selected);
             }
             if self.got == self.seq {
                 self.enter_pending = false;
@@ -207,7 +277,7 @@ impl SymbolSearch {
                         ui.add_space(12.0);
                         ui.label(egui::RichText::new("No symbols match.").color(t.text3));
                     }
-                    for (i, s) in shown.iter().enumerate() {
+                    for (i, row) in shown.iter().enumerate() {
                         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
                         let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
                         let lit = if i == self.selected { 1.0 } else { hov };
@@ -215,36 +285,65 @@ impl SymbolSearch {
                             .rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), lit));
                         let p = ui.painter();
                         let y = rect.center().y;
-                        app.logos.paint(p, t, s, pos2(rect.left() + 21.0, y), 10.0);
-                        p.text(
-                            pos2(rect.left() + 40.0, y),
-                            Align2::LEFT_CENTER,
-                            s.ticker(),
-                            theme::semibold(13.5),
-                            t.text,
-                        );
-                        p.text(
-                            pos2(rect.left() + 180.0, y),
-                            Align2::LEFT_CENTER,
-                            &s.description,
-                            theme::regular(13.0),
-                            t.text2,
-                        );
-                        p.text(
+                        let (sym, ticker, desc, right) = match row {
+                            Row::Formula(f) => (
+                                f,
+                                f.description.clone(),
+                                "Open this formula".to_string(),
+                                "formula".to_string(),
+                            ),
+                            Row::Sym(s, complete) => (
+                                *s,
+                                s.ticker().to_string(),
+                                s.description.clone(),
+                                if *complete && i == self.selected {
+                                    format!("{}  insert", crate::icons::ph::ARROW_ELBOW_DOWN_LEFT)
+                                } else {
+                                    format!("{}  ·  {}", kind_name(s.kind), s.exchange())
+                                },
+                            ),
+                        };
+                        app.logos.paint(p, t, sym, pos2(rect.left() + 21.0, y), 10.0);
+                        let right = p.text(
                             pos2(rect.right() - 10.0, y),
                             Align2::RIGHT_CENTER,
-                            format!("{}  ·  {}", kind_name(s.kind), s.exchange()),
+                            right,
                             theme::regular(12.0),
                             t.text3,
                         );
+                        // Each column elided to its own room, so nothing overlaps.
+                        let (tf, df) = (theme::semibold(13.5), theme::regular(13.0));
+                        let formula_row = matches!(row, Row::Formula(_));
+                        let desc_x = if formula_row {
+                            let w = p.layout_no_wrap(ticker.clone(), tf.clone(), t.text).size().x;
+                            (rect.left() + 40.0 + w + 16.0).min(right.left() - 60.0)
+                        } else {
+                            rect.left() + 180.0
+                        };
+                        let tick = crate::format::elide_to(p, &ticker, &tf, desc_x - rect.left() - 48.0);
+                        p.text(pos2(rect.left() + 40.0, y), Align2::LEFT_CENTER, tick, tf, t.text);
+                        let desc = crate::format::elide_to(p, &desc, &df, right.left() - desc_x - 12.0);
+                        p.text(pos2(desc_x, y), Align2::LEFT_CENTER, desc, df, t.text2);
                         if i == self.selected {
                             resp.scroll_to_me(None);
                         }
                         if resp.clicked() {
-                            pick = Some((*s).clone());
+                            chosen = Some(i);
                         }
                     }
                 });
+            match chosen.and_then(|i| shown.get(i)) {
+                Some(Row::Formula(f)) => pick = Some(f.clone()),
+                Some(Row::Sym(s, true)) => {
+                    // Finish the formula's last term with this symbol.
+                    if let Some((prefix, _)) = &completing {
+                        self.query = format!("{prefix}{}", s.id);
+                        self.cursor_to_end = true;
+                    }
+                }
+                Some(Row::Sym(s, false)) => pick = Some((*s).clone()),
+                None => {}
+            }
         }) {
             done = Done::Close;
         }
@@ -257,5 +356,21 @@ impl SymbolSearch {
             done = Done::Close;
         }
         done
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::last_term;
+
+    #[test]
+    fn formula_terms() {
+        assert_eq!(last_term("BTCUSDT/ETH"), Some(("BTCUSDT/", "ETH")));
+        assert_eq!(last_term("BTCUSDT/"), Some(("BTCUSDT/", "")));
+        assert_eq!(last_term("(AAPL + MS"), Some(("(AAPL + ", "MS")));
+        assert_eq!(last_term("AAPL - MS"), Some(("AAPL - ", "MS")));
+        assert_eq!(last_term("BRK-B"), None);
+        assert_eq!(last_term("BTCUSDT"), None);
+        assert_eq!(last_term("(A + B)"), None);
     }
 }

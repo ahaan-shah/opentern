@@ -69,6 +69,27 @@ Noticed along the way, also done:
     thread no longer downloads five symbol lists before answering.
 11. Symbol logos (watchlist, search, legend), with an off switch in the ☰ menu.
 
+## Third pass (15 Oct 2026)
+1. Compare rows' eye / × / … work (a right-click area registered after them
+   ate their clicks). Every price scale has A / L / % toggles underneath; a
+   compare on its own scale has its own log and percent.
+2. Symbol search columns elide instead of overlapping; formulas show their
+   short form. Editor tabs leave room for the lock and ×.
+3. Formulas autocomplete: after an operator the list shows matches for the
+   term being typed; Enter or a click inserts `EXCHANGE:TICKER`; Enter on the
+   formula row (or when the last term already names a symbol) opens it.
+4. Script Editor like VSCodium: explorer (folders, file icons, filter,
+   outline), tabs with icons, breadcrumbs, JetBrains Mono, Catppuccin colours
+   (italic comments), indent guides, current line, error squiggle, minimap
+   (wide enough panels), Problems / Output, status bar, Ctrl+B for the files.
+   The bottom panel can be maximized.
+5. Settings is a page in the chart area (☰, or the gear for Chart): Appearance
+   (theme cards), Chart, Data providers, Symbol logos (a checkbox). Logos are
+   TradingView-style discs: theSVG marks in white on the brand colour, coins
+   from cryptocurrency-icons. Licences for resvg, @thesvg/icons (MIT; marks
+   are trademarks) and cryptocurrency-icons (CC0) go in
+   `THIRD-PARTY-LICENSES.txt` at Phase 14.
+
 ## Open
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons
   (fine, but could be segmented too).

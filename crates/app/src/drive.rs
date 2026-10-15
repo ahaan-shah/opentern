@@ -860,6 +860,20 @@ mod formula_tests {
         d.wait(|a| a.chart.symbol.id == "BINANCE:BTCUSDT/BINANCE:ETHUSDT" && !a.chart.bars.is_empty());
     }
 
+    /// Mid-formula, Enter finishes the last term from the matches; Enter
+    /// again opens the formula.
+    #[test]
+    fn formula_terms_complete_from_the_list() {
+        let mut d = Driver::new("formula-complete");
+        for ch in "btcusdt/eth".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.key(Key::Enter, Modifiers::NONE);
+        d.wait(|a| matches!(&a.modal, Some(crate::dialogs::Modal::Symbol(s)) if s.query == "BTCUSDT/BINANCE:ETHUSDT"));
+        d.key(Key::Enter, Modifiers::NONE);
+        d.wait(|a| a.chart.symbol.id == "BINANCE:BTCUSDT/BINANCE:ETHUSDT" && !a.chart.bars.is_empty());
+    }
+
     #[test]
     fn compare_modes_move_between_scale_and_pane() {
         use crate::chart::CompareMode as M;

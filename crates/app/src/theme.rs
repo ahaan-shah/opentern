@@ -537,6 +537,12 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
         fonts.families.insert(preview_family(pf.name), family(&key));
     }
 
+    // Code (the Script Editor, consoles) is in JetBrains Mono, with the
+    // default monospace font behind it for anything it lacks.
+    add(&mut fonts, "code", font_by_name("JetBrains Mono").regular);
+    if let Some(v) = fonts.families.get_mut(&FontFamily::Monospace) {
+        v.insert(0, "code".into());
+    }
     // Phosphor icons as a fallback in every family so icons mix into text.
     let phosphor = egui_phosphor::Variant::Regular.font_bytes();
     add(&mut fonts, "phosphor", phosphor);

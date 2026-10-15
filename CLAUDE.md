@@ -78,9 +78,10 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   no hardcoded paths. Settings → Your data offers backup and restore of the whole
   workspace as one file, so a user can move machines.
 - **No telemetry.** The only outbound traffic is the update check (GitHub releases, can be
-  turned off), the data providers the user has turned on, and symbol logos (jsDelivr's
-  CC0 `cryptocurrency-icons`, Financial Modeling Prep's public logo images; fetched
-  once per symbol into `<workspace>/logos/`, never in demo mode, off in the ☰ menu).
+  turned off), the data providers the user has turned on, and symbol logos (the CC0
+  `cryptocurrency-icons` coins and theSVG's `@thesvg/icons` brand marks, from jsDelivr
+  or unpkg; fetched once per symbol into `<workspace>/logos/`, never in demo mode, off
+  in Settings → Symbol logos).
 - **Logs stay local** and are redacted: no API keys, tokens or account IDs, even in panic
   reports.
 - **Private test material stays out of the repo.** The maintainer's own Pine scripts and
@@ -559,8 +560,9 @@ in iteratively. Phase 14 (ship) only on an explicit go.
    chart/widget/bottom panels, drawn chart-type icons, empty states, the app
    icon (`scripts/make-icons.py`). `OPENTERN_STILL=menu:<interval|type|layout|
    templates|main>` opens a top-bar menu and `light` the light theme, for
-   screenshots. Second pass done 15 Oct 2026 (compare modes, quick measure,
-   IDE-style editor, logos, flicker, formulas; list in `docs/ui-backlog.md`).
+   screenshots. Second and third passes done 15 Oct 2026 (compare modes and
+   per-axis A/L/% toggles, quick measure, VSCodium-style editor, Settings page,
+   TradingView-style logos, formula autocomplete; list in `docs/ui-backlog.md`).
 2. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
@@ -594,7 +596,7 @@ workspace.
 | `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
-| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
+| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
@@ -968,7 +970,8 @@ OPENTERN_PRIVATE_CORPUS=<dir> cargo test -p opentern-series --test golden  # Tra
 MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer random-input soak
 ```
 Stills also take `compare:<ticker>:scale|pane`, `measure` (a quick measure once
-bars are in), `note` (a sample notification) and `tab:<name>`.
+bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
+maximized) and `settings:<appearance|chart|providers|logos>`.
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
 study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a
