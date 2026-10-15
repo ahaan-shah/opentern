@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Regenerates the Opentern icon.
 
-A tern gliding up and to the right over a faint rising price line, on a
-sea-blue tile. The tile is the same true superellipse (n = 5) as Magpie's,
-so the two apps look like siblings. The tern has the bird's two giveaways:
-a dark cap and an orange beak.
+A terminal prompt and a chart: a ">" chevron (teal to blue) and three rising
+candlesticks on a dark ink tile, the last one bright and glowing like a
+blinking cursor. Faint grid lines, as on a chart. The tile is the same true
+superellipse (n = 5) as Magpie's, so the two apps look like siblings.
 
 packaging/linux/opentern.svg is the icon everywhere on Linux.
-opentern-24.svg and opentern-16.svg are simpler variants for tiny sizes (no
-price line, no shadow, a bigger bird). Two rasters are made with resvg (or
-rsvg-convert): icon-1024.png for the macOS .icns, and the window icon
-embedded in the binary. The Windows opentern.ico holds every size rendered
-separately (needs ImageMagick).
+opentern-24.svg and opentern-16.svg are simpler variants for tiny sizes (the
+chevron and the bright candle only, bigger; no grid, glow or shadow). Two
+rasters are made with resvg (or rsvg-convert): icon-1024.png for the macOS
+.icns, and the window icon embedded in the binary. The Windows opentern.ico
+holds every size rendered separately (needs ImageMagick).
 
 Like Magpie's: plain SVG only (paths, gradients, opacity, transforms). No
 filters, clip paths or <use>, which some icon loaders ignore; soft shadows
@@ -31,19 +31,12 @@ OUT = ROOT / "packaging" / "linux"
 
 C, N = 512.0, 5.0  # centre, superellipse exponent
 
-# The tern, on the 1024 grid: body and wing in one white shape, the beak
-# and the cap on top of it.
-BODY = (
-    "M742 432C738 402 716 380 690 380C668 380 650 390 638 404"
-    "C590 362 500 282 316 204C402 290 472 380 502 452"
-    "C470 478 432 506 394 530L186 500C254 538 296 558 328 574"
-    "L224 666C300 632 362 612 422 598C522 580 612 540 670 500"
-    "C706 476 732 456 742 432Z"
-)
-BEAK = "M732 410L842 402L736 440Z"
-CAP = "M742 426C738 398 716 380 690 380C668 380 650 390 638 404C664 404 696 412 718 422C730 428 738 432 742 426Z"
-# The price line the tern rides above.
-LINE = "M206 790L330 722L428 762L560 652L660 690L826 566"
+# On the 1024 grid. The prompt chevron, and the candles as
+# (x, wick top, body top, body bottom, wick bottom).
+CHEVRON = "M232 398L346 512L232 626"
+CANDLES = [(486, 548, 584, 690, 724), (616, 430, 468, 618, 654), (752, 272, 316, 540, 580)]
+CANDLE_W = 78
+DIM = ["#56698E", "#8094BC"]  # the two earlier candles
 
 
 def squircle(R, samples=96):
@@ -66,11 +59,19 @@ def squircle(R, samples=96):
     return "".join(d) + "Z"
 
 
-def tern(extra=""):
+def rounded(x, y, w, h, r):
     return (
-        f'    <path d="{BODY}" fill="#FFFFFF"{extra}/>\n'
-        f'    <path d="{BEAK}" fill="#FFA34D"/>\n'
-        f'    <path d="{CAP}" fill="#16233F"/>'
+        f"M{x + r} {y}H{x + w - r}Q{x + w} {y} {x + w} {y + r}V{y + h - r}"
+        f"Q{x + w} {y + h} {x + w - r} {y + h}H{x + r}Q{x} {y + h} {x} {y + h - r}V{y + r}Q{x} {y} {x + r} {y}Z"
+    )
+
+
+def candle(c, body, wick, wick_w=14):
+    x, wt, bt, bb, wb = c
+    w = CANDLE_W
+    return (
+        f'    <path d="M{x} {wt}V{wb}" stroke="{wick}" stroke-width="{wick_w}" stroke-linecap="round"/>\n'
+        f'    <path d="{rounded(x - w / 2, bt, w, bb - bt, 10)}" fill="{body}"/>'
     )
 
 
@@ -82,55 +83,70 @@ def svg(small=0):
     if small == 0:
         # Drop shadow: 14 faint, progressively larger and lower copies.
         for k in range(14, 0, -1):
-            grow = k * 2.0
             out.append(
-                f'  <path transform="translate(0 {6 + k * 0.9:.1f})" d="{squircle(r + grow, 48)}" '
-                f'fill="#06163A" fill-opacity="0.024"/>'
+                f'  <path transform="translate(0 {6 + k * 0.9:.1f})" d="{squircle(r + k * 2.0, 48)}" '
+                f'fill="#020611" fill-opacity="0.03"/>'
             )
     out.append(f'  <path d="{tile}" fill="url(#fill)"/>')
     out.append(f'  <path d="{tile}" fill="url(#glow)"/>')
+    if small == 0:
+        for y in (330, 512, 694):
+            out.append(f'  <path d="M190 {y}H834" stroke="#8FB6FF" stroke-opacity="0.07" stroke-width="4"/>')
+        out.append("  <g>")
+        out.append(
+            f'    <path d="{CHEVRON}" fill="none" stroke="url(#chev)" stroke-width="60" '
+            'stroke-linecap="round" stroke-linejoin="round"/>'
+        )
+        for c, col in zip(CANDLES[:2], DIM):
+            out.append(candle(c, col, col))
+        last = CANDLES[2]
+        out.append(f'    <ellipse cx="{last[0]}" cy="{(last[2] + last[3]) / 2}" rx="150" ry="210" fill="url(#halo)"/>')
+        out.append(candle(last, "url(#cur)", "#7FF5DD"))
+    else:
+        # Tiny sizes: the chevron and the bright candle, bigger and bolder.
+        zoom = [1.0, 1.22, 1.3][small]
+        tx = 512 - 492 * zoom
+        ty = 512 - 448 * zoom
+        out.append(f'  <g transform="translate({tx:.1f} {ty:.1f}) scale({zoom})">')
+        out.append(
+            f'    <path d="M232 340L372 480L232 620" fill="none" stroke="url(#chev)" stroke-width="{[0, 84, 100][small]}" '
+            'stroke-linecap="round" stroke-linejoin="round"/>'
+        )
+        out.append(candle((640, 250, 290, 600, 640), "url(#cur)", "#7FF5DD", [0, 22, 26][small]))
+    out.append("  </g>")
     # Rim light: a stroke on an inset outline, so it sits fully inside the tile.
     out.append(f'  <path d="{squircle(r - 4)}" fill="none" stroke="url(#edge)" stroke-width="8"/>')
-    if small == 0:
-        out.append(
-            f'  <path d="{LINE}" fill="none" stroke="#FFFFFF" stroke-opacity="0.26" '
-            'stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>'
-        )
-        out.append('  <g transform="translate(0 40)">')
-        # The bird's soft shadow on the tile.
-        for k in range(1, 9):
-            out.append(
-                f'    <path transform="translate(0 {k * 1.6:.1f})" d="{BODY}" fill="#0A2556" fill-opacity="0.05"/>'
-            )
-        out.append(tern())
-    else:
-        # Tiny sizes: the bird alone, bigger and centred, edged so it holds.
-        zoom = [1.0, 1.18, 1.26][small]
-        cx, cy = 514.0, 435.0
-        tx, ty = 512 - cx * zoom, 512 - cy * zoom
-        out.append(f'  <g transform="translate({tx:.1f} {ty:.1f}) scale({zoom})">')
-        weight = ["", ' stroke="#FFFFFF" stroke-width="10" stroke-linejoin="round"',
-                  ' stroke="#FFFFFF" stroke-width="18" stroke-linejoin="round"'][small]
-        out.append(tern(weight))
-    out.append("  </g>")
     body = "\n".join(out)
     return f"""<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="1024" height="1024" viewBox="0 0 1024 1024">
   <title>Opentern</title>
   <defs>
     <linearGradient id="fill" x1="164" y1="100" x2="860" y2="924" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#78B4FA"/>
-      <stop offset="0.55" stop-color="#3D7FDF"/>
-      <stop offset="1" stop-color="#1F4FA6"/>
+      <stop offset="0" stop-color="#1A2540"/>
+      <stop offset="0.6" stop-color="#0E1528"/>
+      <stop offset="1" stop-color="#080C18"/>
     </linearGradient>
-    <radialGradient id="glow" cx="350" cy="180" r="700" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.30"/>
-      <stop offset="0.65" stop-color="#FFFFFF" stop-opacity="0"/>
+    <radialGradient id="glow" cx="300" cy="170" r="720" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4C7DFF" stop-opacity="0.22"/>
+      <stop offset="0.7" stop-color="#4C7DFF" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="chev" x1="0" y1="340" x2="0" y2="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#3B82F6"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2EE6C5" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#2EE6C5" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#2EE6C5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cur" x1="0" y1="290" x2="0" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5CF2D6"/>
+      <stop offset="1" stop-color="#1FB89A"/>
+    </linearGradient>
     <linearGradient id="edge" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.45"/>
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
       <stop offset="0.3" stop-color="#FFFFFF" stop-opacity="0"/>
-      <stop offset="0.75" stop-color="#0A2556" stop-opacity="0"/>
-      <stop offset="1" stop-color="#0A2556" stop-opacity="0.30"/>
+      <stop offset="0.8" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.35"/>
     </linearGradient>
   </defs>
 {body}

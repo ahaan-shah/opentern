@@ -35,7 +35,9 @@ Noticed along the way, also done:
   The default egui ones are no longer used in the app.
 - Empty states (`widgets::empty_state`) for alerts, alerts log, notifications,
   object tree, scripts, strategy report, Strategy Lab and paper tables.
-- App icon: a tern gliding over a rising price line on a sea-blue squircle
+- App icon (redone 15 Oct 2026, the maintainer: "no bird, terminal trading
+  vibe"): a teal-to-blue prompt chevron and three rising candles on a dark ink
+  squircle, the last candle glowing like a cursor; 16/24 px show `>▌` only
   (`scripts/make-icons.py` → `packaging/linux/opentern*.svg`, `icon-1024.png`,
   `crates/app/assets/icon-512.png` (window icon), `opentern.ico`).
 
