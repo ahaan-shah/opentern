@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerates the Opentern icon.
 
-Two candlesticks in white line-art, one hollow and one filled, on an indigo
+Two candlesticks in white line-art, one hollow and one filled, on an emerald
 tile: as simple as Magpie's bird, and its sibling. The tile is the same
 true superellipse (n = 5) with the same light (a soft glow at the top left,
 a rim light, a faint drop shadow) and the mark casts the same soft shadow.
@@ -30,7 +30,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "packaging" / "linux"
 
 C, N = 512.0, 5.0  # centre, superellipse exponent
-INK = "#0A1240"  # the tile's shadow colour
+INK = "#02200F"  # the tile's shadow colour
 
 
 def squircle(R, samples=96):
@@ -103,9 +103,9 @@ def svg(small=0):
   <title>Opentern</title>
   <defs>
     <linearGradient id="fill" x1="164" y1="100" x2="860" y2="924" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7C8CFF"/>
-      <stop offset="0.55" stop-color="#4F5BE0"/>
-      <stop offset="1" stop-color="#3236A8"/>
+      <stop offset="0" stop-color="#22B56C"/>
+      <stop offset="0.55" stop-color="#07834A"/>
+      <stop offset="1" stop-color="#034D2B"/>
     </linearGradient>
     <radialGradient id="glow" cx="350" cy="180" r="700" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.30"/>

@@ -265,7 +265,10 @@ pub(crate) struct Layout {
 pub(crate) struct Func {
     pub name: String,
     pub params: Vec<String>,
-    pub defaults: Vec<Option<V>>,
+    /// Default values: constants, or built-in series such as `close`.
+    pub defaults: Vec<Option<E>>,
+    /// Declared parameter types (qualifiers dropped), for overloads.
+    pub ptypes: Vec<Option<String>>,
     pub body: Block,
     pub layout: Layout,
 }
@@ -361,6 +364,8 @@ struct Cx {
     local: usize,
     funcs: Vec<Func>,
     fnames: HashMap<String, u16>,
+    /// Every function declared under a name, in order (overloads).
+    overloads: HashMap<String, Vec<u16>>,
     /// Methods by name: (function, type of `this`).
     methods: HashMap<String, Vec<(u16, Option<String>)>>,
     types: Vec<TypeDef>,
@@ -418,6 +423,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         local: 0,
         funcs: Vec::new(),
         fnames: HashMap::new(),
+        overloads: HashMap::new(),
         methods: HashMap::new(),
         types: Vec::new(),
         known: HashMap::new(),
@@ -954,16 +960,23 @@ impl Cx {
 
     /// `import user/Name/1 as alias`: the library's functions, methods,
     /// types and enums, under `alias.`. Libraries are scripts in the user's
-    /// scripts folder, found by their `library("Name")` title.
+    /// scripts folder, found by their `library("Name")` title, or ones that
+    /// ship with the app (`TradingView/ta/9`), matched by the whole path.
     fn import(&mut self, path: &str, alias: &str) -> R<()> {
         let name = path.split('/').nth(1).unwrap_or(path).to_string();
-        let Some(src) = self
-            .env
-            .libraries
-            .iter()
-            .find(|(t, _)| *t == name)
-            .map(|(_, s)| s.clone())
-        else {
+        let Some(src) = crate::libs::bundled(path).map(str::to_string).or_else(|| {
+            self.env
+                .libraries
+                .iter()
+                .find(|(t, _)| *t == name)
+                .map(|(_, s)| s.clone())
+        }) else {
+            let publisher_name = path.rsplit_once('/').map_or(path, |(pn, _)| pn);
+            if let Some(have) = crate::libs::bundled_versions(publisher_name).first() {
+                return Err(self.err(format!(
+                    "Opentern includes {have}, not {path}. Change the import to {have}."
+                )));
+            }
             return Err(self.err(format!(
                 "There's no library called \"{name}\" in your scripts. Add a script that starts with library(\"{name}\")."
             )));
@@ -1142,7 +1155,16 @@ impl Cx {
             defaults.push(match d {
                 Some(e) => {
                     let e = self.expr(e)?;
-                    Some(const_of(&e).ok_or_else(|| self.err("A parameter's default value must be a constant."))?)
+                    // Pine allows built-in series (`source = close`) too.
+                    let ok = match &e {
+                        E::K(_) | E::Bar(_) => true,
+                        E::Nat { args, .. } => args.is_empty(),
+                        _ => false,
+                    };
+                    if !ok {
+                        return Err(self.err("A parameter's default value must be a constant."));
+                    }
+                    Some(e)
                 }
                 None => None,
             });
@@ -1181,6 +1203,7 @@ impl Cx {
             name: name.to_string(),
             params: params.iter().map(|p| p.0.clone()).collect(),
             defaults,
+            ptypes: params.iter().map(|p| p.2.clone()).collect(),
             body,
             layout,
         });
@@ -1189,6 +1212,7 @@ impl Cx {
             self.methods.entry(name.to_string()).or_default().push((id, ty));
         } else {
             self.fnames.insert(name.to_string(), id);
+            self.overloads.entry(name.to_string()).or_default().push(id);
         }
         Ok(())
     }
@@ -1455,7 +1479,8 @@ impl Cx {
         };
         // User functions shadow built-ins.
         let user = self.in_lib(callee, |cx, n| cx.fnames.contains_key(n));
-        if let Some(&f) = self.fnames.get(&user) {
+        if self.fnames.contains_key(&user) {
+            let f = self.overload(&user, args)?;
             return self.user_call(f, args);
         }
         if let Some(t) = callee.strip_suffix(".new")
@@ -1523,6 +1548,13 @@ impl Cx {
             }
             return Ok(self.nat(def, argv));
         }
+        // A method called as a function: `f(x, …)` is `x.f(…)`.
+        if self.methods.contains_key(callee)
+            && let Some(first) = args.first().filter(|a| a.name.is_none())
+        {
+            let recv = self.expr(&first.value)?;
+            return self.method(recv, callee, &args[1..]);
+        }
         if self.methods.contains_key(callee) {
             return Err(self.err(format!("{callee} is a method; call it on a value: x.{callee}(…).")));
         }
@@ -1543,6 +1575,54 @@ impl Cx {
             .collect()
     }
 
+    /// Which of the functions declared as `name` takes `args`: the first
+    /// whose parameters bind them and whose declared types don't clash
+    /// with the arguments' evident types.
+    fn overload(&self, name: &str, args: &[Arg]) -> R<u16> {
+        let all = &self.overloads[name];
+        if all.len() < 2 {
+            return Ok(self.fnames[name]);
+        }
+        let fits = |f: u16| {
+            let func = &self.funcs[f as usize];
+            let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
+            let Ok(bound) = bind(name, &params, args, self.line) else {
+                return false;
+            };
+            bound.iter().enumerate().all(|(k, a)| match a {
+                None => func.defaults[k].is_some(),
+                Some(e) => match (self.evident_type(e), func.ptypes[k].as_deref()) {
+                    (Some(have), Some(want)) => have == want || (have == "int" && want == "float") || (have == "na"),
+                    _ => true,
+                },
+            })
+        };
+        all.iter()
+            .copied()
+            .find(|&f| fits(f))
+            .ok_or_else(|| self.err(format!("No version of {name}() takes these arguments.")))
+    }
+
+    /// The primitive type of an argument, when it's plain from the syntax
+    /// or from a typed declaration.
+    fn evident_type(&self, e: &Expr) -> Option<&str> {
+        Some(match e {
+            Expr::Int(_) => "int",
+            Expr::Float(_) => "float",
+            Expr::Str(_) => "string",
+            Expr::Bool(_) => "bool",
+            Expr::Color(_) => "color",
+            Expr::Na => "na",
+            Expr::Unary("not", _) => "bool",
+            Expr::Binary(op, ..) if matches!(*op, "==" | "!=" | "<" | ">" | "<=" | ">=" | "and" | "or") => "bool",
+            Expr::Name(n) => match self.lookup(n)? {
+                Bind::Slot { depth, slot } => self.slot_types.get(&(depth, slot))?.as_str(),
+                _ => return None,
+            },
+            _ => return None,
+        })
+    }
+
     fn user_call(&mut self, f: u16, args: &[Arg]) -> R<E> {
         let func = self.funcs[f as usize].clone();
         let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
@@ -1552,7 +1632,7 @@ impl Cx {
             argv.push(match a {
                 Some(e) => self.expr(e)?,
                 None => match &func.defaults[k] {
-                    Some(v) => E::K(v.clone()),
+                    Some(v) => v.clone(),
                     None => {
                         return Err(self.err(format!("{}() needs a value for \"{}\".", func.name, func.params[k])));
                     }

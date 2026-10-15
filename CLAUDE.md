@@ -796,6 +796,18 @@ workspace.
   x` compiles their functions, methods, types and enums under `x.`; the env key hashes
   the libraries so importers recompile when one is saved. Library-level variables aren't
   imported.
+- **Bundled libraries** (Oct 2026, `crates/pine/libs/`, `src/libs.rs`): TradingView's
+  `ta/9` and the `RelativeValue/3` it imports (MPL-2.0, logged in `docs/indicators.md`;
+  list them in `THIRD-PARTY-LICENSES.txt` at Phase 14). An import matching the whole
+  path wins over the scripts folder; other versions get "Opentern includes …".
+  `import TradingView/ta/9 as ta` merges with the built-in `ta.*` (user functions
+  shadow natives). Tests: every export runs, and 17 match built-ins exactly (the
+  "alternate" `*2` versions and `vStop` seed differently, equal once warmed up).
+  Engine gaps the libraries found, now fixed: strings wrapped onto indented lines,
+  user-function overloads (picked by binding plus evident argument types), methods
+  called as functions `f(x, …)`, built-in series as parameter defaults (`= hl2`),
+  `security_lower_tf` with a tuple expression (a tuple of arrays), and
+  `timeframe.change` is false on the first bar (as TradingView's).
 - Built-ins that draw (`series/src/builtins/drawn.rs`): Zig Zag, Auto Fib Retracement,
   Pivot Points Standard (six types), Linear Regression Channel. 92 built-ins in all.
 - App: a Pine script that fails its very first compile gets a placeholder legend row

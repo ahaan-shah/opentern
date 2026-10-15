@@ -178,12 +178,41 @@ fn depth(toks: &[Tok]) -> i32 {
         .sum()
 }
 
+/// Whether `s` ends inside a string literal (outside comments).
+fn ends_in_string(s: &str) -> bool {
+    let mut quote = None;
+    let mut it = s.chars().peekable();
+    while let Some(c) = it.next() {
+        match quote {
+            Some(_) if c == '\\' => {
+                it.next();
+            }
+            Some(q) if c == q => quote = None,
+            Some(_) => {}
+            None if c == '"' || c == '\'' => quote = Some(c),
+            None if c == '/' && it.peek() == Some(&'/') => return false,
+            None => {}
+        }
+    }
+    quote.is_some()
+}
+
 /// Splits source into logical lines.
 pub fn lines(src: &str) -> Result<Vec<Line>, Error> {
     let mut out: Vec<Line> = Vec::new();
     let mut open = false;
-    for (n, raw) in src.lines().enumerate() {
+    let mut phys = src.lines().enumerate();
+    while let Some((n, raw)) = phys.next() {
         let line_no = n + 1;
+        // A string wrapped onto indented lines (v6): the line break and the
+        // next line's indentation aren't part of it.
+        let mut raw = std::borrow::Cow::Borrowed(raw);
+        while ends_in_string(&raw) {
+            match phys.next() {
+                Some((_, next)) if next.starts_with([' ', '\t']) => raw.to_mut().push_str(next.trim_start()),
+                _ => return Err(Error::at(line_no, "This string isn't closed.")),
+            }
+        }
         let expanded = raw.replace('\t', "    ");
         let spaces = expanded.len() - expanded.trim_start().len();
         let toks = lex_line(&expanded, line_no)?;
@@ -231,5 +260,9 @@ mod tests {
             ]
         );
         assert!(lines("s = \"open").is_err());
+        assert!(lines("s = \"open\nx = 1").is_err());
+        let ls = lines("s = \"a long\n  text\" // c\nx = 1").unwrap();
+        assert_eq!(ls[0].toks[2], Tok::Str("a longtext".into()));
+        assert_eq!(ls[1].line, 3);
     }
 }

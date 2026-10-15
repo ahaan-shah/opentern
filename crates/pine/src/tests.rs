@@ -784,3 +784,201 @@ fn libraries() {
     .unwrap();
     assert!(e.message.contains("no library called \"Nope\""), "{e}");
 }
+
+#[test]
+fn tradingview_ta_library() {
+    // Every export of the bundled TradingView/ta/9 (which imports
+    // TradingView/RelativeValue/3), aliased as `ta` beside the built-ins.
+    let src = r#"//@version=6
+indicator("TA lib")
+import TradingView/ta/9 as ta
+[up, dn, osc] = ta.aroon(14)
+[st, dir] = ta.supertrend(3, 10)
+[st2, dir2] = ta.supertrend2(3, 10)
+[k, d] = ta.stochFull(14, 3, 3)
+[sk, sd] = ta.stochRsi(14, 14, 3, 3)
+[dU, dL, dM] = ta.donchian(20)
+[conv, base, lead1, lead2] = ta.ichimoku()
+[kvo, kvoSig] = ta.kvo(34, 55, 13)
+[vip, vim] = ta.vi(14)
+[tr, trSig, trHist] = ta.trix(close, 18, 9)
+[vs, vsUp] = ta.vStop(close, 20, 2)
+[vs2, vs2Up] = ta.vStop2(close, 20, 2)
+[fUp, fDn] = ta.williamsFractal(2)
+[cv, pv, rv] = ta.relativeVolume(5, "D", true, false)
+[rwiH, rwiL] = ta.rwi(14)
+[upV, dnV, dV] = ta.requestUpAndDownVolume("15")
+[oV, hV, lV, cV] = ta.requestVolumeDelta("15", "D")
+plot(ta.ao())
+plot(ta.atr2(14))
+plot(ta.cagr(time[50], close[50], time, close))
+plot(ta.changePercent(close, close[1]))
+plot(ta.coppock(close, 14, 11, 10))
+plot(ta.dema(close, 9))
+plot(ta.dema2(close, 9))
+plot(ta.ema2(close, 9))
+plot(ta.dm(14))
+plot(ta.eom(14))
+plot(ta.frama(close, 16))
+plot(ta.ft(close, 9))
+plot(ta.highestSince(ta.change(close) > 0))
+plot(ta.lowestSince(ta.change(close) < 0))
+plot(ta.ht(close))
+plot(ta.ift(ta.rsi(close, 14) / 50 - 1))
+plot(ta.pzo(14))
+plot(ta.rma2(close, 14))
+plot(ta.rms(close, 14))
+plot(ta.stc(close, 23, 50, 10, 3, 3))
+plot(ta.t3(close, 5))
+plot(ta.t3Alt(close, 5))
+plot(ta.tema(close, 9))
+plot(ta.tema2(close, 9))
+plot(ta.trima(close, 9))
+plot(ta.szo(close, 14))
+plot(ta.uo(7, 14, 28))
+plot(ta.vhf(close, 28))
+plot(ta.vzo(14))
+plot(ta.wpo(14))
+plot(up)
+plot(st)
+plot(st2)
+plot(k)
+plot(sk)
+plot(dU)
+plot(conv)
+plot(kvo)
+plot(vip)
+plot(tr)
+plot(vs)
+plot(vs2)
+plot(fUp ? 1 : 0)
+plot(rv)
+plot(rwiH)
+plot(ta.dema(close, 9) - (2 * ta.ema(close, 9) - ta.ema(ta.ema(close, 9), 9)))
+"#;
+    let s = compile(src, "t.pine", Env::default()).unwrap_or_else(|e| panic!("{e}"));
+    let mut st = s.study(&Inputs::default());
+    // Wide bars, so wpo's asin(close[1] / high) stays defined.
+    let wide: Vec<Bar> = bars(400)
+        .into_iter()
+        .map(|b| Bar {
+            high: b.high + 5.0,
+            low: b.low - 5.0,
+            ..b
+        })
+        .collect();
+    let out = st.run(&wide, H1);
+    assert!(st.error().is_none(), "{:?}", st.error());
+    let plots = &out.plots;
+    // Every plot gets values once warmed up.
+    for (i, p) in plots.iter().enumerate() {
+        assert!(p.iter().any(|v| v.is_finite()), "plot {i} is all na");
+    }
+    // The library's DEMA is the textbook formula, next to the built-in `ta.ema`.
+    let dema_diff = &plots[plots.len() - 1];
+    assert!(dema_diff.iter().filter(|v| v.is_finite()).all(|v| v.abs() < 1e-9));
+
+    // Only the bundled version resolves; other versions say which one ships.
+    let e = compile(
+        "//@version=6\nindicator(\"T\")\nimport TradingView/ta/7 as t\nplot(t.dema(close, 9))",
+        "t.pine",
+        Env::default(),
+    )
+    .err()
+    .unwrap();
+    assert!(e.message.contains("TradingView/ta/9"), "{e}");
+}
+
+const VSTOP: &str = "volStop(src, atrlen, atrfactor) =>
+    if not na(src)
+        var max     = src
+        var min     = src
+        var uptrend = true
+        var float stop    = na
+        atrM        = nz(ta.atr(atrlen) * atrfactor, ta.tr)
+        max         := math.max(max, src)
+        min         := math.min(min, src)
+        stop        := nz(uptrend ? math.max(stop, max - atrM) : math.min(stop, min + atrM), src)
+        uptrend     := src - stop >= 0.0
+        if uptrend != nz(uptrend[1], true)
+            max    := src
+            min    := src
+            stop   := uptrend ? max - atrM : min + atrM
+        [stop, uptrend]
+[c, up] = volStop(close, 20, 2.0)";
+
+#[test]
+fn tradingview_ta_matches_builtins() {
+    // (library call, the same thing from built-ins, exact from the start).
+    // The library's "alternate" versions (series lengths) and vStop seed
+    // differently, so they only have to agree once warmed up.
+    let pairs: &[(&str, &str, bool)] = &[
+        ("[a, b] = t.supertrend(3, 10)", "[c, d] = ta.supertrend(3, 10)", true),
+        ("[a, b] = t.supertrend2(3, 10)", "[c, d] = ta.supertrend(3, 10)", false),
+        ("a = t.ao()", "c = ta.sma(hl2, 5) - ta.sma(hl2, 34)", true),
+        ("a = t.atr2(14)", "c = ta.atr(14)", false),
+        ("a = t.rma2(close, 14)", "c = ta.rma(close, 14)", false),
+        ("a = t.ema2(close, 14)", "c = ta.ema(close, 14)", false),
+        (
+            "a = t.tema(close, 9)",
+            "e1 = ta.ema(close, 9)\ne2 = ta.ema(e1, 9)\nc = 3 * (e1 - e2) + ta.ema(e2, 9)",
+            true,
+        ),
+        ("a = t.trima(close, 10)", "c = ta.sma(ta.sma(close, 5), 6)", true),
+        (
+            "[a, b] = t.vi(14)",
+            "vp = math.sum(math.abs(high - low[1]), 14)\nst = math.sum(ta.atr(1), 14)\nc = vp / st",
+            true,
+        ),
+        (
+            "[a, b] = t.stochRsi(14, 14, 3, 3)",
+            "r = ta.rsi(close, 14)\nc = ta.sma(ta.stoch(r, r, r, 14), 3)",
+            true,
+        ),
+        (
+            "[a, b, x] = t.aroon(14)",
+            "c = 100 * (ta.highestbars(high, 15) + 14) / 14",
+            true,
+        ),
+        (
+            "a = t.coppock(close, 14, 11, 10)",
+            "c = ta.wma(ta.roc(close, 14) + ta.roc(close, 11), 10)",
+            true,
+        ),
+        ("[a, b] = t.vStop(close, 20, 2)", VSTOP, false),
+        (
+            "a = t.uo(7, 14, 28)",
+            "h_ = math.max(high, close[1])\nl_ = math.min(low, close[1])\nbp = close - l_\ntr_ = h_ - l_\nav(n) => math.sum(bp, n) / math.sum(tr_, n)\nc = 100 * (4 * av(7) + 2 * av(14) + av(28)) / 7",
+            true,
+        ),
+        (
+            "[a, b, x] = t.trix(close, 18, 9)",
+            "c = ta.roc(ta.ema(ta.ema(ta.ema(close, 18), 18), 18), 1)",
+            true,
+        ),
+        ("[a, b, x] = t.donchian(20)", "c = ta.highest(20)", true),
+        (
+            "[a, b, x, y, z] = t.ichimoku()",
+            "c = math.avg(ta.highest(9), ta.lowest(9))",
+            true,
+        ),
+    ];
+    for (lib, built, exact) in pairs {
+        let src =
+            format!("//@version=6\nindicator(\"T\")\nimport TradingView/ta/9 as t\n{lib}\n{built}\nplot(a)\nplot(c)");
+        let s = compile(&src, "t.pine", Env::default()).unwrap_or_else(|e| panic!("{lib}: {e}"));
+        let out = s.study(&Inputs::default()).run(&bars(400), H1);
+        let from = if *exact { 0 } else { 300 };
+        for (i, (x, y)) in out.plots[0].iter().zip(&out.plots[1]).enumerate().skip(from) {
+            if x.is_finite() && y.is_finite() {
+                assert!((x - y).abs() <= 1e-9 * y.abs().max(1.0), "{lib}: bar {i}: {x} vs {y}");
+            }
+        }
+        let both = out.plots[0]
+            .iter()
+            .zip(&out.plots[1])
+            .filter(|(x, y)| x.is_finite() && y.is_finite())
+            .count();
+        assert!(both > 300, "{lib}: only {both} bars to compare");
+    }
+}

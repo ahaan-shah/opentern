@@ -216,6 +216,42 @@ fn run_on(
     v
 }
 
+/// What `security_lower_tf`'s expression returns, to shape an empty result:
+/// it runs once on a throwaway copy of the state, on this chart bar.
+fn probe(x: &mut X, sec: &Sec, st: &SecState, ftf: Timeframe, root: Option<&Frame>) -> Result<V, Stop> {
+    let mut tmp = st.clone();
+    tmp.bars.push(x.g.bar());
+    tmp.count += 1;
+    let mut fr = tmp.frame.clone();
+    let no = tmp.bar_no + 1;
+    run_on(x, sec, &mut tmp, &mut fr, no, ftf, root)
+}
+
+/// `security_lower_tf`'s result: an array of the values, or for a tuple
+/// expression a tuple of arrays, one per element (`shape` is any value
+/// the expression returned).
+fn lower_arrays(x: &mut X, vals: Vec<V>, shape: &V) -> V {
+    let arr = |x: &mut X, v: Vec<V>| V::Ref(x.g.heap.alloc(crate::heap::Obj::Array(v)));
+    match shape {
+        V::Tuple(t) => {
+            let cols: Vec<V> = (0..t.len())
+                .map(|i| {
+                    let col = vals
+                        .iter()
+                        .map(|v| match v {
+                            V::Tuple(t) => t.get(i).cloned().unwrap_or(V::Na),
+                            _ => V::Na,
+                        })
+                        .collect();
+                    arr(x, col)
+                })
+                .collect();
+            V::Tuple(cols.into())
+        }
+        _ => arr(x, vals),
+    }
+}
+
 /// `request.security` / `security_lower_tf` on a fetched feed.
 fn from_feed(
     x: &mut X,
@@ -233,7 +269,8 @@ fn from_feed(
             x.g.wanted.push((symbol.to_string(), ftf));
         }
         return Ok(if sec.lower {
-            V::Ref(x.g.heap.alloc(crate::heap::Obj::Array(Vec::new())))
+            let shape = probe(x, sec, &empty(sec, tf_s, ftf), ftf, root)?;
+            lower_arrays(x, Vec::new(), &shape)
         } else {
             V::Na
         });
@@ -296,7 +333,11 @@ fn from_feed(
         if let Some(b) = next.filter(|_| x.g.forming) {
             inside.push(peek(x, &st, b)?);
         }
-        V::Ref(x.g.heap.alloc(crate::heap::Obj::Array(inside)))
+        let shape = match inside.first() {
+            Some(v) => v.clone(),
+            None => probe(x, sec, &st, ftf, root)?,
+        };
+        lower_arrays(x, inside, &shape)
     } else {
         match next {
             Some(b) if x.g.forming || (lookahead && b.time <= bar.time) => {

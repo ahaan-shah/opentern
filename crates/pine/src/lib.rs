@@ -17,6 +17,7 @@ mod compile;
 #[allow(dead_code)]
 mod heap;
 mod lexer;
+mod libs;
 mod natives;
 mod parser;
 mod run;

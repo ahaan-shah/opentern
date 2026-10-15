@@ -671,7 +671,9 @@ fn core_defs() -> Vec<NatDef> {
                 _ => i64::MIN,
             };
             *st = Some(Ta::Int(b));
-            Ok(V::Bool(prev != b))
+            // False on the first bar, as `ta.change(time(tf)) != 0` is
+            // (TradingView's RelativeValue library relies on it).
+            Ok(V::Bool(prev != i64::MIN && prev != b))
         })
         .state(),
     ]

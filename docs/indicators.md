@@ -189,6 +189,14 @@ number of warm-up rows to ignore.
 
 ## Community scripts (licence-checked)
 
-None yet. Only MPL-2.0 (or more permissive) open-source TradingView scripts may
+Bundled Pine libraries (`crates/pine/libs/`, used through `import`, unchanged
+apart from line endings):
+
+| Library | Author | URL | Licence | Version |
+|---|---|---|---|---|
+| `TradingView/ta/9` | TradingView | https://www.tradingview.com/script/BICzyhq0-ta/ | MPL-2.0 | 9 (2024-11-26) |
+| `TradingView/RelativeValue/3` (imported by ta) | TradingView | https://www.tradingview.com/script/cZnSLls2-RelativeValue/ | MPL-2.0 | 3 (2024-11-26) |
+
+No indicator ports yet. Only MPL-2.0 (or more permissive) open-source TradingView scripts may
 be ported; record author, URL, licence and version here, and keep the port's
 file under MPL-2.0 with the credit in its header. See CLAUDE.md §6a.

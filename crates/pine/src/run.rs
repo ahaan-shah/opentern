@@ -789,14 +789,16 @@ impl X<'_> {
         if let Some((fid, _, site)) = pick {
             let func = &self.p.funcs[*fid as usize];
             let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
-            let vals = order_args(name, &params, vals, names)?
-                .into_iter()
-                .enumerate()
-                .map(|(k, v)| {
-                    v.or_else(|| func.defaults.get(k).cloned().flatten())
-                        .unwrap_or_default()
-                })
-                .collect();
+            let defaults = func.defaults.clone();
+            let mut out = Vec::new();
+            for (k, v) in order_args(name, &params, vals, names)?.into_iter().enumerate() {
+                out.push(match (v, defaults.get(k).and_then(|d| d.as_ref())) {
+                    (Some(v), _) => v,
+                    (None, Some(d)) => self.eval(d, f, root)?,
+                    (None, None) => V::default(),
+                });
+            }
+            let vals = out.into_iter().collect();
             return self.call_user(*fid, *site, vals, f, root);
         }
         // Every user-type object has copy().
