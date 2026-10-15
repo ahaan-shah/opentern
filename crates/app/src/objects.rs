@@ -18,9 +18,12 @@ impl App {
                     .font(theme::semibold(11.0))
                     .color(t.text3),
             );
-            ui.label(
-                egui::RichText::new(format!("{} · {}", self.chart.symbol.ticker(), self.chart.tf.label()))
-                    .font(theme::medium(13.0)),
+            ui.add(
+                egui::Label::new(
+                    egui::RichText::new(format!("{} · {}", self.chart.symbol.ticker(), self.chart.tf.label()))
+                        .font(theme::medium(13.0)),
+                )
+                .truncate(),
             );
             if self.chart.studies.is_empty() && self.chart.drawings.is_empty() {
                 crate::widgets::empty_state(
@@ -38,8 +41,8 @@ impl App {
                 let Some(s) = self.chart.studies.iter_mut().find(|s| s.uid == uid) else {
                     continue;
                 };
+                // Buttons first (right to left), then the name in what's left.
                 ui.horizontal(|ui| {
-                    ui.label(format!("{}  {}", ph::FUNCTION, s.title(true)));
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
                             remove_study = Some(uid);
@@ -51,7 +54,12 @@ impl App {
                         if ui.small_button(eye).clicked() {
                             s.visible = !s.visible;
                         }
-                    });
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            let title = s.title(true);
+                            ui.add(egui::Label::new(format!("{}  {title}", ph::FUNCTION)).truncate())
+                                .on_hover_text(title);
+                        });
+                    })
                 });
             }
             if let Some(uid) = remove_study {
@@ -65,34 +73,35 @@ impl App {
             let mut changed = false;
             for d in &mut self.chart.drawings {
                 ui.horizontal(|ui| {
-                    let on = self.chart_ui.draw.selected == Some(d.id);
-                    let text = egui::RichText::new(format!("{}  {}", d.tool.icon(), d.tool.name())).color(if on {
-                        t.accent
-                    } else {
-                        t.text
-                    });
-                    if ui.add(egui::Button::new(text).frame(false)).clicked() {
-                        select = Some(d.id);
-                    }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
-                            remove = Some(d.id);
+                        {
+                            if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
+                                remove = Some(d.id);
+                            }
+                            let lock = if d.locked {
+                                ph::LOCK_SIMPLE
+                            } else {
+                                ph::LOCK_SIMPLE_OPEN
+                            };
+                            if ui.small_button(lock).clicked() {
+                                d.locked = !d.locked;
+                                changed = true;
+                            }
+                            let eye = if d.hidden { ph::EYE_SLASH } else { ph::EYE };
+                            if ui.small_button(eye).clicked() {
+                                d.hidden = !d.hidden;
+                                changed = true;
+                            }
                         }
-                        let lock = if d.locked {
-                            ph::LOCK_SIMPLE
-                        } else {
-                            ph::LOCK_SIMPLE_OPEN
-                        };
-                        if ui.small_button(lock).clicked() {
-                            d.locked = !d.locked;
-                            changed = true;
-                        }
-                        let eye = if d.hidden { ph::EYE_SLASH } else { ph::EYE };
-                        if ui.small_button(eye).clicked() {
-                            d.hidden = !d.hidden;
-                            changed = true;
-                        }
-                    });
+                        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            let on = self.chart_ui.draw.selected == Some(d.id);
+                            let text = egui::RichText::new(format!("{}  {}", d.tool.icon(), d.tool.name()))
+                                .color(if on { t.accent } else { t.text });
+                            if ui.add(egui::Button::new(text).frame(false).truncate()).clicked() {
+                                select = Some(d.id);
+                            }
+                        });
+                    })
                 });
             }
             if changed {
@@ -124,10 +133,16 @@ impl App {
         };
         let b = c.bars[i];
         let prec = c.precision();
+        // The value first (right), then the name truncated into the rest.
         let row = |ui: &mut Ui, k: &str, v: String| {
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new(k).color(t.text2));
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| ui.label(v));
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.label(v);
+                    ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        ui.add(egui::Label::new(egui::RichText::new(k).color(t.text2)).truncate())
+                            .on_hover_text(k);
+                    });
+                });
             });
         };
         row(ui, "Date", format::crosshair_time(b.time, c.tf, &c.tz));
@@ -150,7 +165,9 @@ impl App {
         row(ui, "Volume", format::compact(b.volume));
         for s in &c.studies {
             ui.add_space(4.0);
-            ui.label(egui::RichText::new(s.title(true)).font(theme::medium(12.5)));
+            let title = s.title(true);
+            ui.add(egui::Label::new(egui::RichText::new(&title).font(theme::medium(12.5))).truncate())
+                .on_hover_text(&title);
             for (pi, spec) in s.meta().plots.iter().enumerate() {
                 let off = s.meta().offset(pi, &s.inst.inputs);
                 let src = i as i64 - off;

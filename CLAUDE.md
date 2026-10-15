@@ -82,7 +82,9 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
   web3icons coins and theSVG brand marks, both MIT); others are fetched once per
   symbol from jsDelivr or unpkg into `<workspace>/logos/`, never in demo mode, off in
-  Settings → Symbol logos. Indices and commodities get drawn badges.
+  Settings → Symbol logos. Indices and commodities get drawn badges. The Claude
+  panel (§ "Claude panel" below) only talks through the user's own Claude Code CLI,
+  and only after they send a message: nothing starts at launch.
 - **Logs stay local** and are redacted: no API keys, tokens or account IDs, even in panic
   reports.
 - **Private test material stays out of the repo.** The maintainer's own Pine scripts and
@@ -564,7 +566,9 @@ in iteratively. Phase 14 (ship) only on an explicit go.
    screenshots. Second and third passes done 15 Oct 2026 (compare modes and
    per-axis A/L/% toggles, quick measure, VSCodium-style editor, Settings page,
    TradingView-style logos, formula autocomplete; list in `docs/ui-backlog.md`).
-2. **Phase 14** (releases, website), only on an explicit go.
+2. **The Claude panel** (15 Oct 2026, first cut, being tested by the maintainer;
+   see "Claude panel" below). Iterate on their feedback.
+3. **Phase 14** (releases, website), only on an explicit go.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -597,7 +601,7 @@ workspace.
 | `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
-| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
+| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `claude/` (the Claude panel: `process.rs` Claude Code CLI client, `tools.rs` the app's MCP tools, `mod.rs` chats and UI), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
@@ -919,6 +923,90 @@ workspace.
   opentern-script --test timing -- --ignored --nocapture`.
 - Licences: mlua/Luau, rquickjs/QuickJS (MIT), swc (Apache-2.0): fine for the
   MIT app; list them in `THIRD-PARTY-LICENSES.txt` at Phase 14.
+
+### Claude panel (Oct 2026)
+- Rail button under Notifications (`Widget::Claude`). Chats with **Claude Code**, the
+  CLI the user installed and signed in to (their subscription; no API key in the app).
+  Found via `OPENTERN_CLAUDE`, the PATH, `~/.local/bin`, `~/.claude/local`. No CLI →
+  an empty state saying how to install it.
+- **Protocol** (checked against CLI 2.1.300; the same one Claude Code's SDKs use):
+  `claude -p --input-format stream-json --output-format stream-json --verbose
+  --include-partial-messages --permission-prompt-tool stdio --permission-mode
+  manual|auto --mcp-config '{"mcpServers":{"opentern":{"type":"sdk",…}}}'
+  --allowedTools mcp__opentern --append-system-prompt … [--model] [--resume <id>]`,
+  cwd = the scripts folder. In: user messages (a hidden `<opentern_context>` text
+  block first: chart, scripts and errors, editor file), `control_response`s, and
+  `control_request`s `interrupt` (Stop) and `set_permission_mode` (the toggle, live).
+  Out: `stream_event` text deltas, `assistant` tool uses + per-request usage,
+  `result` (tokens, cost), `rate_limit_event` (the account's 5-hour/weekly
+  utilization and reset times: the usage card), `control_request` `can_use_tool`
+  (approval cards: Allow / Allow for this chat = `updatedPermissions` from the
+  request's suggestions / Deny) and `mcp_message` (the app's tools, answered on the
+  UI thread in `tools.rs`; symbol searches answer when the hub replies, seqs from
+  `tools::SEARCH_BASE`). Subagent traffic (`parent_tool_use_id`) isn't shown.
+- **Tools** (`mcp__opentern__*`): get_chart, get_bars, search_symbols, open_symbol,
+  set_timeframe, list_scripts, check_script (compiles like the chart does),
+  add_script_to_chart, remove_from_chart, list_indicators, add_indicator,
+  strategy_report (the Report as JSON + latest trades), open_in_editor,
+  scripting_guide (`docs/scripting.md`, embedded). Claude edits files with its own
+  tools; scripts on the chart hot-reload.
+- One process per chat, started on the first send (`--resume` for older chats); a
+  background chat's process is dropped once its turn ends. Processes die with the
+  app: `on_exit` clears them, and on Linux `PR_SET_PDEATHSIG` covers crashes and
+  kills (without it a process waiting on a prompt lingered ~10 s). Env vars
+  `CLAUDECODE`/`CLAUDE_CODE_*` are removed so a launch from inside Claude Code works.
+- Chats (items, Claude Code session id, mode, model, tokens, cost) saved in
+  `<workspace>/claude/chats.json`; every entry point loads it first so a send can't
+  overwrite unread chats. Headless runs never start Claude Code unless
+  `OPENTERN_CLAUDE` is set.
+- Tests: `claude::tests::a_turn_with_a_fake_cli` drives the real app against
+  `claude/fake_claude.py` (a stand-in CLI: tools, a permission prompt, open_symbol,
+  usage), offline, Unix only. Stills: `OPENTERN_STILL=claude-model:haiku,claude:<message>`
+  sends a message at launch (no commas in it); `widget:claude` just opens the panel.
+  Screenshots: only `grim` the window after checking `hyprctl activewindow` is ours
+  (an unchecked grab once caught the maintainer's terminal).
+- **Look** (Claude app / opencode style): the Claude mark (`claude/mark.rs`, Simple
+  Icons' CC0 glyph in `assets/claude.svg`, tinted; brand colour #D97757, used for the
+  mark, the send button and the approval card's border only) on the rail, in the
+  header, at the start of each reply and as the spinner. Header: mark, chat title,
+  Chats (swaps the pane to the chats list: search, Today / Previous 7 days / Older,
+  delete on hover) and New chat (reuses an empty open chat). Composer at the bottom:
+  text, then mode pill (Ask first / Auto), model pill, usage ring (5-hour window;
+  click for the plan and this chat's tokens) and the round send/stop button. Tool
+  rows have per-tool icons on a thin rule (click for the result); approval cards have
+  numbered choices (keys 1-3; the type-a-number interval shortcut stands down while
+  one waits), edits as red/green diffs; code blocks show the language and a copy
+  button. Script tools accept `file`, `path` or `file_path` (models vary).
+  Second pass: tool calls and answered prompts group into one rounded "N steps"
+  box (folded once a turn of 3+ finishes; open while live); user bubbles are drawn
+  by hand (left-aligned text); replies use 1.55 line height; inline code is a soft
+  terracotta (no background: egui paints it at full line height); script names in
+  replies are links to the Script Editor (`inline` lays out its own galley only
+  when a line has one, so other text stays selectable); menus open upward and fit
+  the pane; scrollbars are floating and hidden until used. Models are exact ids
+  shown by name (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5; `model_name`; old
+  aliases like "haiku" are mapped by `model_id` on load). Third pass: chats rename
+  (pencil on hover in the list, or double-click the header title; Enter or click
+  away keeps it, Esc cancels); composer menus and the usage card anchor to the
+  composer's edge (`above`, from last frame's rect) so they never cover it, the
+  model menu and usage card grow leftwards to stay in the pane; code blocks float
+  their copy button (no header row unless there's a language). Still:
+  `claude-menu:<mode|model|usage>` opens one of them.
+- **Same Claude as the terminal:** "Default" passes no `--model` (Claude Code's own
+  default, the user's settings), no effort flag, and `--append-system-prompt` only
+  adds facts (scripts folder, tools, strategies → strategy_report, paper only), never
+  reply-style rules (an early "keep answers short" made replies terse; removed).
+  Claude Code snapshots a chat's system prompt on its first request, so prompt
+  changes reach new chats only. Replies render Markdown tables (`md_table`: sized
+  to content, squeezed and wrapped in a narrow pane), quotes and rules. The
+  composer footer degrades in a narrow pane (mode → icon, model → first word →
+  icon); `narrow_pane_fits` checks nothing overlaps at 220-420 px.
+  `live_strategy` (ignored; uses the account, Haiku) builds a strategy end to end:
+  `cargo test -p opentern --bin opentern live_strategy -- --ignored --nocapture`.
+  Stills: `claude-chats`, `claude-new`.
+- Also fixed with it: widgets render in a clipped child of the panel's exact size
+  (long Object tree names used to widen the panel under the chart); Object tree and
+  Data window rows lay out buttons/values first and truncate names.
 
 ### Feeds: other symbols and timeframes in Pine (Oct 2026)
 - `opentern_pine::Env::feeds` (`Feeds` = shared map `"SYMBOL|tf"` → bars). A

@@ -36,10 +36,11 @@ pub enum Widget {
     Calendar,
     News,
     Notifications,
+    Claude,
 }
 
 impl Widget {
-    pub const ALL: [Widget; 8] = [
+    pub const ALL: [Widget; 9] = [
         Widget::Watchlist,
         Widget::Alerts,
         Widget::ObjectTree,
@@ -48,6 +49,7 @@ impl Widget {
         Widget::Calendar,
         Widget::News,
         Widget::Notifications,
+        Widget::Claude,
     ];
 
     fn icon(self) -> &'static str {
@@ -60,6 +62,7 @@ impl Widget {
             Widget::Calendar => ph::CALENDAR_DOTS,
             Widget::News => ph::NEWSPAPER,
             Widget::Notifications => ph::BELL_SIMPLE,
+            Widget::Claude => ph::ROBOT,
         }
     }
 
@@ -73,6 +76,7 @@ impl Widget {
             Widget::Calendar => "Calendar",
             Widget::News => "News",
             Widget::Notifications => "Notifications",
+            Widget::Claude => "Claude",
         }
     }
 }
@@ -729,7 +733,11 @@ impl App {
             ui.spacing_mut().item_spacing.y = 4.0;
             for wd in Widget::ALL {
                 let active = self.layout.widget == Some(wd);
-                let resp = w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0);
+                let resp = if wd == Widget::Claude {
+                    crate::claude::mark::rail_button(ui, t, wd.title(), active, 34.0)
+                } else {
+                    w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0)
+                };
                 if wd == Widget::Notifications && self.notes.unread > 0 {
                     let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
                     ui.painter().circle_filled(dot, 3.5, t.accent);
@@ -795,11 +803,17 @@ impl App {
             self.layout.widget_w = (self.layout.widget_w - d).clamp(220.0, 560.0);
         }
         let Some(widget) = self.layout.widget else { return };
+        // A child of exactly the panel's size, clipped: content that's too
+        // wide (a long indicator name) must never widen the panel, or it
+        // slides under the chart card.
+        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(full));
+        child.set_clip_rect(full.intersect(ui.clip_rect()));
+        let ui = &mut child;
         egui::Frame::new()
             .inner_margin(Margin::symmetric(12, 10))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
-                if !matches!(widget, Widget::Watchlist | Widget::Alerts) {
+                if !matches!(widget, Widget::Watchlist | Widget::Alerts | Widget::Claude) {
                     ui.horizontal(|ui| {
                         ui.set_height(26.0);
                         ui.label(egui::RichText::new(widget.title()).font(theme::semibold(14.0)));
@@ -818,6 +832,7 @@ impl App {
                     Widget::ObjectTree => self.objects_widget(ui, t),
                     Widget::Alerts => self.alerts_widget(ui, t),
                     Widget::Notifications => self.notifications_widget(ui, t),
+                    Widget::Claude => self.claude_widget(ui, t),
                     Widget::Hotlists => self.hotlists_widget(ui, t),
                     Widget::Dom => self.dom_widget(ui, t),
                     Widget::News => self.news_widget(ui, t),

@@ -54,6 +54,8 @@ pub struct App {
     pub feeds_state: crate::feeds::FeedState,
     pub notes: crate::notes::Notes,
     pub side: crate::side::Side,
+    /// The Claude panel's chats and running Claude Code sessions.
+    pub claude: crate::claude::Claude,
     /// A snapshot waiting for the window's screenshot.
     pub(crate) snap: Option<crate::snapshot::Snap>,
     /// Where the charts were drawn last frame (snapshots cut this out).
@@ -64,6 +66,8 @@ pub struct App {
     still_measure: bool,
     /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
     still_replay: bool,
+    /// `OPENTERN_STILL=claude:<message>`: send it once bars are in.
+    still_claude: Option<String>,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
@@ -176,11 +180,13 @@ impl App {
             feeds_state: Default::default(),
             notes: Default::default(),
             side: Default::default(),
+            claude: Default::default(),
             snap: None,
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
             still_measure: false,
             still_replay: false,
+            still_claude: None,
             logos,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
@@ -264,6 +270,23 @@ impl App {
                 }
             } else if let Some(tf) = part.strip_prefix("tf:").and_then(Timeframe::parse) {
                 self.set_interval(tf);
+            } else if part == "claude-chats" || part == "claude-new" {
+                self.claude_load();
+                self.layout.widget = Some(crate::shell::Widget::Claude);
+                if part == "claude-new" {
+                    self.claude_new_chat();
+                } else {
+                    self.claude.view = crate::claude::View::Chats;
+                }
+            } else if let Some(m) = part.strip_prefix("claude-menu:") {
+                self.layout.widget = Some(crate::shell::Widget::Claude);
+                self.claude.still_menu = Some(m.to_string());
+            } else if let Some(m) = part.strip_prefix("claude-model:") {
+                self.claude_load();
+                self.claude.model = crate::claude::model_id(m);
+            } else if let Some(m) = part.strip_prefix("claude:") {
+                self.layout.widget = Some(crate::shell::Widget::Claude);
+                self.still_claude = Some(m.to_string());
             } else if let Some(w) = part.strip_prefix("widget:") {
                 self.layout.widget = crate::shell::Widget::ALL
                     .into_iter()
@@ -835,6 +858,9 @@ impl App {
                 } => self.fetched(seq, &symbol, tf, result),
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Depth { seq, result } => self.dom_event(seq, result),
+                Event::Search { seq, results } if seq >= crate::claude::tools::SEARCH_BASE => {
+                    self.claude_search_done(seq, results)
+                }
                 Event::Search { seq, results } => {
                     if let Some(Modal::Symbol(s)) = &mut self.modal
                         && seq == self.search_seq
@@ -916,9 +942,12 @@ impl App {
         // Text typed with Alt/Ctrl/Cmd held belongs to a shortcut (Alt+A,
         // Alt+T, …), not to symbol search.
         let chord = ctx.input(|i| i.modifiers.alt || i.modifiers.command || i.modifiers.ctrl);
+        // While Claude waits for an answer, 1-3 answer it (claude/mod.rs).
+        let asking = self.layout.widget == Some(crate::shell::Widget::Claude) && self.claude.waiting();
         for e in events {
             match e {
                 egui::Event::Text(_) if chord => {}
+                egui::Event::Text(s) if asking && matches!(s.as_str(), "1" | "2" | "3") => {}
                 egui::Event::Text(s) if s == "/" => {
                     let has = !self.store.favorites("indicator").is_empty();
                     self.modal = Some(Modal::Indicators(crate::dialogs::Indicators::new(has)));
@@ -1027,6 +1056,13 @@ impl App {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
         self.logos.poll(&ctx);
+        if self.chart.bars.len() > 100
+            && let Some(m) = self.still_claude.take()
+        {
+            self.claude_load();
+            self.claude.input = m;
+            self.claude_send();
+        }
         if self.still_replay && self.chart.bars.len() > 1200 {
             self.still_replay = false;
             let n = self.chart.bars.len();
@@ -1069,6 +1105,7 @@ impl App {
         self.poll_screener();
         self.poll_lab();
         self.poll_alerts();
+        self.poll_claude();
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);
@@ -1144,6 +1181,8 @@ impl eframe::App for App {
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Stops any Claude Code sessions.
+        self.claude.clients.clear();
         self.autosave(true);
         self.each_chart(|a| a.save_drawings(true));
         self.updater.on_exit();

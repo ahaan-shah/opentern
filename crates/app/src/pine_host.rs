@@ -115,7 +115,7 @@ pub(crate) fn env_of(s: &opentern_core::Symbol) -> Env {
 }
 
 impl App {
-    fn pine_env(&self) -> Env {
+    pub(crate) fn pine_env(&self) -> Env {
         self.pine_env_for(&self.chart.symbol)
     }
 

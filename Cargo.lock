@@ -3042,6 +3042,7 @@ dependencies = [
  "egui-phosphor",
  "jiff",
  "lettre",
+ "libc",
  "notify-rust",
  "opentern-core",
  "opentern-data",

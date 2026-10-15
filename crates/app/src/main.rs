@@ -20,6 +20,7 @@ macro_rules! shortcut {
 mod alerts;
 mod app;
 mod chart;
+mod claude;
 mod diag;
 mod dialogs;
 mod dom;
