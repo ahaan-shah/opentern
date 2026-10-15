@@ -118,6 +118,9 @@ pub enum AssetKind {
     Index,
     Forex,
     Futures,
+    /// Gold, oil, wheat…: front-month futures, named like TradingView's
+    /// continuous contracts (`COMEX:GC1!`).
+    Commodity,
 }
 
 /// A tradable symbol. `id` is `EXCHANGE:TICKER` (e.g. `BINANCE:BTCUSDT`,
@@ -205,6 +208,41 @@ pub fn starter_watchlist() -> Vec<Symbol> {
         s("NSE:NIFTY", "Nifty 50 Index", AssetKind::Index, "INR", 0.05),
         s("NSE:RELIANCE", "Reliance Industries", AssetKind::Stock, "INR", 0.05),
         s("FX:EURUSD", "Euro / U.S. Dollar", AssetKind::Forex, "USD", 0.00001),
+        s("COMEX:GC1!", "Gold", AssetKind::Commodity, "USD", 0.1),
+        s("NYMEX:CL1!", "Crude Oil WTI", AssetKind::Commodity, "USD", 0.01),
+    ]
+}
+
+/// Commodities, as TradingView's continuous front-month futures (`GC1!`).
+/// Prices come from Yahoo's front-month futures (`GC=F`).
+pub fn commodities() -> Vec<Symbol> {
+    let s = |id: &str, description: &str, currency: &str, tick_size| Symbol {
+        id: id.into(),
+        description: description.into(),
+        kind: AssetKind::Commodity,
+        currency: currency.into(),
+        tick_size,
+        timezone: "America/New_York".into(),
+    };
+    vec![
+        s("COMEX:GC1!", "Gold", "USD", 0.1),
+        s("COMEX:SI1!", "Silver", "USD", 0.005),
+        s("NYMEX:PL1!", "Platinum", "USD", 0.1),
+        s("NYMEX:PA1!", "Palladium", "USD", 0.5),
+        s("COMEX:HG1!", "Copper", "USD", 0.0005),
+        s("NYMEX:CL1!", "Crude Oil WTI", "USD", 0.01),
+        s("ICEEUR:BRN1!", "Brent Crude Oil", "USD", 0.01),
+        s("NYMEX:NG1!", "Natural Gas", "USD", 0.001),
+        s("NYMEX:RB1!", "Gasoline RBOB", "USD", 0.0001),
+        s("NYMEX:HO1!", "Heating Oil", "USD", 0.0001),
+        s("CBOT:ZW1!", "Wheat", "USX", 0.25),
+        s("CBOT:ZC1!", "Corn", "USX", 0.25),
+        s("CBOT:ZS1!", "Soybeans", "USX", 0.25),
+        s("ICEUS:KC1!", "Coffee", "USX", 0.05),
+        s("ICEUS:SB1!", "Sugar", "USX", 0.01),
+        s("ICEUS:CC1!", "Cocoa", "USD", 1.0),
+        s("ICEUS:CT1!", "Cotton", "USX", 0.01),
+        s("CME:LE1!", "Live Cattle", "USX", 0.025),
     ]
 }
 

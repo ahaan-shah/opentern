@@ -34,6 +34,11 @@ pub fn ticker(id: &str) -> String {
         ("NSE", t) => format!("{t}.NS"),
         ("BSE", t) => format!("{t}.BO"),
         ("FX", t) => format!("{t}=X"),
+        // Commodities: TradingView's continuous contract → Yahoo's front month.
+        ("COMEX" | "NYMEX" | "CBOT" | "CME" | "ICEUS" | "ICEEUR", t) if t.ends_with("1!") => match &t[..t.len() - 2] {
+            "BRN" => "BZ=F".into(),
+            root => format!("{root}=F"),
+        },
         (_, t) => t.into(),
     }
 }
@@ -51,6 +56,14 @@ fn id_for(exchange: &str, symbol: &str) -> String {
         "BSE" if symbol == "^BSESN" => "BSE:SENSEX".into(),
         "BSE" => format!("BSE:{}", base(symbol, ".BO")),
         "CCY" => format!("FX:{}", base(symbol, "=X")),
+        // A front-month future we list as a commodity (GC=F → COMEX:GC1!).
+        _ if symbol.ends_with("=F")
+            && let Some(c) = opentern_core::commodities()
+                .into_iter()
+                .find(|c| ticker(&c.id) == symbol) =>
+        {
+            c.id
+        }
         _ => format!("YAHOO:{symbol}"),
     }
 }
@@ -384,6 +397,9 @@ mod tests {
         assert_eq!(ticker("NASDAQ:AAPL"), "AAPL");
         assert_eq!(ticker("NSE:RELIANCE"), "RELIANCE.NS");
         assert_eq!(ticker("NSE:NIFTY"), "^NSEI");
+        assert_eq!(ticker("COMEX:GC1!"), "GC=F");
+        assert_eq!(ticker("ICEEUR:BRN1!"), "BZ=F");
+        assert_eq!(id_for("CMX", "GC=F"), "COMEX:GC1!");
         assert_eq!(ticker("FX:EURUSD"), "EURUSD=X");
         assert_eq!(id_for("NSI", "RELIANCE.NS"), "NSE:RELIANCE");
         assert_eq!(id_for("NSI", "^NSEI"), "NSE:NIFTY");

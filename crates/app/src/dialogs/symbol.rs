@@ -30,8 +30,10 @@ pub struct SymbolSearch {
     sent: Option<String>,
     /// Enter was pressed before this query's results came back.
     enter_pending: bool,
-    /// Move the text cursor to the end next frame (after a completion).
-    cursor_to_end: bool,
+    /// Move the text cursor here next frame (after a completion).
+    cursor_to: Option<usize>,
+    /// Where the text cursor is (a char index).
+    cursor: usize,
     /// The arrow keys moved the highlight since the query changed.
     moved: bool,
     filter: Option<AssetKind>,
@@ -39,7 +41,7 @@ pub struct SymbolSearch {
     focused: bool,
 }
 
-const FILTERS: [(&str, Option<AssetKind>); 7] = [
+const FILTERS: [(&str, Option<AssetKind>); 8] = [
     ("All", None),
     ("Crypto", Some(AssetKind::Crypto)),
     ("Stocks", Some(AssetKind::Stock)),
@@ -47,21 +49,29 @@ const FILTERS: [(&str, Option<AssetKind>); 7] = [
     ("Indices", Some(AssetKind::Index)),
     ("Forex", Some(AssetKind::Forex)),
     ("Futures", Some(AssetKind::Futures)),
+    ("Commodities", Some(AssetKind::Commodity)),
 ];
 
-/// A formula being typed, with its last term unfinished: "BTCUSDT/ETH" gives
-/// ("BTCUSDT/", "ETH"). None when the query isn't heading for a formula.
-pub fn last_term(q: &str) -> Option<(&str, &str)> {
-    let cut = q
-        .char_indices()
-        .rev()
-        .find(|(_, c)| matches!(c, '+' | '*' | '/' | '(' | ')' | ' '))
-        .map(|(i, c)| i + c.len_utf8())?;
-    let (prefix, term) = q.split_at(cut);
-    let head = prefix.trim_end();
-    // Completing after an operator or an opening bracket ("A - " too).
-    let open = head.ends_with(['+', '*', '/', '(', '-']);
-    (open && !head.trim_start().is_empty()).then_some((prefix, term))
+/// In a formula, the term the cursor (a char index) is in, with what's
+/// before and after it: "BTC|USDT/ETHUSDT" gives ("", "BTCUSDT", "/ETHUSDT").
+/// None when the query isn't a formula (a plain search).
+pub fn term_at(q: &str, cursor: usize) -> Option<(String, String, String)> {
+    let sep = |c: char| matches!(c, '+' | '*' | '/' | '(' | ')' | ' ');
+    let chars: Vec<char> = q.chars().collect();
+    let cur = cursor.min(chars.len());
+    let start = chars[..cur].iter().rposition(|c| sep(*c)).map(|i| i + 1).unwrap_or(0);
+    let end = chars[cur..]
+        .iter()
+        .position(|c| sep(*c))
+        .map(|i| cur + i)
+        .unwrap_or(chars.len());
+    let prefix: String = chars[..start].iter().collect();
+    let term: String = chars[start..end].iter().collect();
+    let suffix: String = chars[end..].iter().collect();
+    // A formula: an operator or bracket outside this term ("A - B" too).
+    let outside = format!("{prefix} {suffix}");
+    let formula = outside.contains(['+', '*', '/', '(', ')']) || outside.contains(" - ");
+    formula.then_some((prefix, term, suffix))
 }
 
 /// One row of results.
@@ -80,6 +90,7 @@ fn kind_name(k: AssetKind) -> &'static str {
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
+        AssetKind::Commodity => "commodity",
     }
 }
 
@@ -93,7 +104,8 @@ impl SymbolSearch {
             got: 0,
             sent: None,
             enter_pending: false,
-            cursor_to_end: false,
+            cursor_to: None,
+            cursor: query.chars().count(),
             moved: false,
             filter: None,
             selected: 0,
@@ -147,12 +159,15 @@ impl SymbolSearch {
             if r.changed() && self.query.is_ascii() {
                 self.query.make_ascii_uppercase();
             }
-            if std::mem::take(&mut self.cursor_to_end)
+            if let Some(at) = self.cursor_to.take()
                 && let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id)
             {
-                let end = egui::text::CCursor::new(self.query.chars().count());
-                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
+                let c = egui::text::CCursor::new(at);
+                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(c)));
                 state.store(ui.ctx(), r.id);
+                self.cursor = at;
+            } else if let Some(c) = egui::TextEdit::load_state(ui.ctx(), r.id).and_then(|s| s.cursor.char_range()) {
+                self.cursor = c.primary.index.0;
             }
             // Typing always goes to the search field.
             if !r.has_focus() {
@@ -167,10 +182,17 @@ impl SymbolSearch {
                     self.focused = true;
                 }
             }
-            let completing = last_term(&self.query).map(|(p, t)| (p.to_string(), t.to_string()));
-            if self.sent.as_deref() != Some(self.query.as_str()) {
+            let completing = term_at(&self.query, self.cursor);
+            // A new search when the text changes, or the cursor moves to
+            // another term of a formula.
+            let ask = format!(
+                "{}\u{0}{}",
+                self.query,
+                completing.as_ref().map(|c| c.1.as_str()).unwrap_or("")
+            );
+            if self.sent.as_deref() != Some(ask.as_str()) {
                 self.seq += 1;
-                self.sent = Some(self.query.clone());
+                self.sent = Some(ask);
                 // Mid-formula, search for the term being typed.
                 let what = completing.as_ref().map(|c| c.1.as_str()).unwrap_or(&self.query);
                 app.search(self.seq, what);
@@ -234,7 +256,7 @@ impl SymbolSearch {
                 shown.push(Row::Sym(s, completing.is_some()));
             }
             // The last term already names a symbol: Enter opens the formula.
-            if let Some((_, term)) = &completing
+            if let Some((_, term, _)) = &completing
                 && !self.moved
                 && self.got == self.seq
                 && matches!(shown.first(), Some(Row::Formula(_)))
@@ -336,9 +358,9 @@ impl SymbolSearch {
                 Some(Row::Formula(f)) => pick = Some(f.clone()),
                 Some(Row::Sym(s, true)) => {
                     // Finish the formula's last term with this symbol.
-                    if let Some((prefix, _)) = &completing {
-                        self.query = format!("{prefix}{}", s.id);
-                        self.cursor_to_end = true;
+                    if let Some((prefix, _, suffix)) = &completing {
+                        self.query = format!("{prefix}{}{suffix}", s.id);
+                        self.cursor_to = Some(prefix.chars().count() + s.id.chars().count());
                     }
                 }
                 Some(Row::Sym(s, false)) => pick = Some((*s).clone()),
@@ -361,16 +383,22 @@ impl SymbolSearch {
 
 #[cfg(test)]
 mod tests {
-    use super::last_term;
+    use super::term_at;
+
+    fn t(q: &str, at: usize) -> Option<(String, String, String)> {
+        term_at(q, at)
+    }
 
     #[test]
     fn formula_terms() {
-        assert_eq!(last_term("BTCUSDT/ETH"), Some(("BTCUSDT/", "ETH")));
-        assert_eq!(last_term("BTCUSDT/"), Some(("BTCUSDT/", "")));
-        assert_eq!(last_term("(AAPL + MS"), Some(("(AAPL + ", "MS")));
-        assert_eq!(last_term("AAPL - MS"), Some(("AAPL - ", "MS")));
-        assert_eq!(last_term("BRK-B"), None);
-        assert_eq!(last_term("BTCUSDT"), None);
-        assert_eq!(last_term("(A + B)"), None);
+        let s = |a: &str, b: &str, c: &str| Some((a.to_string(), b.to_string(), c.to_string()));
+        assert_eq!(t("BTCUSDT/ETH", 11), s("BTCUSDT/", "ETH", ""));
+        assert_eq!(t("BTCUSDT/", 8), s("BTCUSDT/", "", ""));
+        assert_eq!(t("BTCUSDT/BINANCE:ETHUSDT", 3), s("", "BTCUSDT", "/BINANCE:ETHUSDT"));
+        assert_eq!(t("(AAPL + MS", 10), s("(AAPL + ", "MS", ""));
+        assert_eq!(t("AAPL - MS", 9), s("AAPL - ", "MS", ""));
+        assert_eq!(t("BRK-B", 5), None);
+        assert_eq!(t("BTCUSDT", 7), None);
+        assert_eq!(t("(A + B)", 7), s("(A + B)", "", ""));
     }
 }

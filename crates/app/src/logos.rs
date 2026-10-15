@@ -1,7 +1,12 @@
 //! Symbol logos, round like TradingView's: a brand-coloured disc with the
 //! mark in white.
 //!
-//! - Coins: the flat colour discs of the `cryptocurrency-icons` set (CC0).
+//! - About 200 ship inside the app (`assets/logos/`, made by
+//!   `scripts/fetch-logos.py`), so the common ones show at once.
+//! - Coins: web3icons' token icons (MIT): the brand colour or gradient with
+//!   the mark in white, cropped round; else the `cryptocurrency-icons` discs.
+//! - Indices and commodities: badges drawn here ("50" for the Nifty 50,
+//!   "Au" for gold, a drop for oil).
 //! - Companies and funds: theSVG's brand marks (`@thesvg/icons`, MIT; the
 //!   marks stay their owners' trademarks), found by the symbol's name. The
 //!   one-colour "mono" mark is drawn white on the brand colour (or on a dark
@@ -13,6 +18,7 @@
 //! `<workspace>/logos/` (a miss as an empty file), and renders the disc with
 //! resvg. Off in Settings → Symbol logos, or in demo mode: no requests.
 
+use crate::icons::ph;
 use crate::theme::Theme;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use egui::{Color32, Pos2, TextureHandle, pos2};
@@ -26,6 +32,7 @@ use std::path::{Path, PathBuf};
 const SIZE: u32 = 96;
 const THESVG: &str = "@thesvg/icons@3.3.14";
 const COINS: &str = "cryptocurrency-icons@0.18.1";
+const W3: &str = "@web3icons/core@4.0.58";
 
 /// A rendered disc: width, height, premultiplied RGBA.
 type Image = (usize, usize, Vec<u8>);
@@ -249,6 +256,10 @@ fn find(
 ) -> Option<String> {
     if s.kind == AssetKind::Crypto {
         let c = coin(&s.ticker().to_uppercase())?;
+        let w3 = format!("{W3}/dist/svgs/tokens/background/{}.svg.js", c.to_uppercase());
+        if let Some(svg) = fetch(agent, m, &w3).and_then(|js| js_string(&js)) {
+            return Some(format!("square\n{svg}"));
+        }
         if let Some(svg) = fetch(agent, m, &format!("{COINS}/svg/color/{c}.svg")) {
             return Some(format!("coin\n{svg}"));
         }
@@ -284,6 +295,27 @@ fn find(
         }
         if let Some(svg) = literal("export const svg = `") {
             return Some(format!("mark\n{hex}\ndefault\n{svg}"));
+        }
+    }
+    None
+}
+
+/// The SVG in a web3icons module: `var X = '<svg …>'`, unescaped.
+fn js_string(js: &str) -> Option<String> {
+    let start = js.find('=')? + 1;
+    let rest = js[start..].trim_start();
+    let q = rest.chars().next().filter(|c| matches!(c, '\'' | '"' | '`'))?;
+    let mut out = String::new();
+    let mut chars = rest[1..].chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => match chars.next()? {
+                'n' => out.push('\n'),
+                't' => out.push('\t'),
+                o => out.push(o),
+            },
+            c if c == q => return out.contains("<svg").then_some(out),
+            c => out.push(c),
         }
     }
     None
@@ -367,6 +399,22 @@ fn render(kept: &str) -> Option<Image> {
             let tree = usvg::Tree::from_str(rest, &opt).ok()?;
             resvg::render(&tree, place(&tree, size), &mut pm.as_mut());
         }
+        "square" => {
+            // A square icon (colour to the edges), cropped to a circle.
+            let tree = usvg::Tree::from_str(rest, &opt).ok()?;
+            resvg::render(&tree, place(&tree, size), &mut pm.as_mut());
+            let c = size / 2.0;
+            for (i, px) in pm.data_mut().chunks_mut(4).enumerate() {
+                let (x, y) = ((i as u32 % SIZE) as f32 + 0.5, (i as u32 / SIZE) as f32 + 0.5);
+                let d = ((x - c).powi(2) + (y - c).powi(2)).sqrt();
+                let k = (c - d + 0.5).clamp(0.0, 1.0);
+                if k < 1.0 {
+                    for v in px.iter_mut() {
+                        *v = (*v as f32 * k) as u8;
+                    }
+                }
+            }
+        }
         "mark" => {
             let mut parts = rest.splitn(3, '\n');
             let brand = parse_hex(parts.next()?);
@@ -430,8 +478,14 @@ impl Logos {
                 let mut slugs = None;
                 let mut mirrors = Mirrors([false; 2]);
                 while let Ok((key, sym)) = rx.recv() {
-                    let path = dir.join(format!("{key}.logo"));
-                    let kept = match std::fs::read_to_string(&path) {
+                    // v2: web3icons coins, TradingView-style marks (older files are ignored).
+                    let path = dir.join(format!("{key}.v2.logo"));
+                    let bundled = crate::logos_bundled::BUNDLED.iter().find(|(k, _)| *k == key);
+                    let kept = match bundled
+                        .map(|(_, v)| v.to_string())
+                        .ok_or(())
+                        .or_else(|_| std::fs::read_to_string(&path))
+                    {
                         Ok(k) => k,
                         Err(_) => match find(&sym, &agent, &mut mirrors, &mut slugs, &dir) {
                             // Offline: nothing kept, so it's tried again.
@@ -488,6 +542,20 @@ impl Logos {
 
     /// Paints a symbol's logo as a disc of radius `r` at `c`.
     pub fn paint(&self, p: &egui::Painter, t: &Theme, s: &Symbol, c: Pos2, r: f32) {
+        if self.enabled
+            && let Some((bg, mark)) = badge(s)
+        {
+            p.circle_filled(c, r, bg);
+            let size = if mark.chars().count() >= 3 { r * 0.78 } else { r * 1.0 };
+            p.text(
+                c,
+                egui::Align2::CENTER_CENTER,
+                mark,
+                crate::theme::semibold(size),
+                Color32::WHITE,
+            );
+            return;
+        }
         match self.texture(p.ctx(), s) {
             Some(tex) => {
                 let rect = egui::Rect::from_center_size(c, egui::vec2(r * 2.0, r * 2.0));
@@ -500,6 +568,55 @@ impl Logos {
             }
             None => letter_disc(p, t, s, c, r),
         }
+    }
+}
+
+/// Badges for symbols with no logo of their own, as TradingView draws
+/// them: indices by their count ("50"), commodities by their element or a
+/// picture. (background, mark)
+fn badge(s: &Symbol) -> Option<(Color32, &'static str)> {
+    let rgb = |v: u32| Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8);
+    let t = s.ticker().to_uppercase();
+    match s.kind {
+        AssetKind::Index => Some(match t.trim_start_matches('^') {
+            "NIFTY" | "NSEI" | "NIFTY50" => (rgb(0x2B3990), "50"),
+            "BANKNIFTY" | "NSEBANK" => (rgb(0x2B3990), ph::BANK),
+            "SENSEX" | "BSESN" => (rgb(0x8B1E3F), "30"),
+            "SPX" | "GSPC" | "SP500" => (rgb(0xC8102E), "500"),
+            "NDX" | "NDX100" | "NASDAQ100" => (rgb(0x0091C8), "100"),
+            "IXIC" => (rgb(0x0091C8), "C"),
+            "DJI" | "DJIA" => (rgb(0x0B3D91), "30"),
+            "RUT" => (rgb(0x6D2077), "2K"),
+            "VIX" => (rgb(0x4B2E83), "VIX"),
+            "DAX" | "GDAXI" => (rgb(0x1E1E1E), "40"),
+            "FTSE" => (rgb(0x00205B), "100"),
+            "N225" | "NI225" => (rgb(0xBC002D), "225"),
+            _ => return None,
+        }),
+        AssetKind::Commodity => {
+            let root = t.trim_end_matches('!').trim_end_matches('1');
+            Some(match root {
+                "GC" => (rgb(0xC9A227), "Au"),
+                "SI" => (rgb(0x8E959C), "Ag"),
+                "PL" => (rgb(0x6F7F8F), "Pt"),
+                "PA" => (rgb(0x8C7B6B), "Pd"),
+                "HG" => (rgb(0xB06A3B), "Cu"),
+                "CL" => (rgb(0x3D434C), ph::DROP),
+                "BRN" | "BZ" => (rgb(0x1F3B5C), ph::DROP),
+                "NG" => (rgb(0x2E6FD8), ph::FLAME),
+                "RB" => (rgb(0xD9480F), ph::GAS_PUMP),
+                "HO" => (rgb(0x7A4E1D), ph::DROP_HALF),
+                "ZW" | "ZC" => (rgb(0xC08A2B), ph::GRAINS),
+                "ZS" => (rgb(0x5B8C2A), ph::PLANT),
+                "KC" => (rgb(0x6B4226), ph::COFFEE),
+                "SB" => (rgb(0x5E9BD6), ph::CUBE),
+                "CC" => (rgb(0x5A3A22), ph::LEAF),
+                "CT" => (rgb(0x7A8FA6), ph::FLOWER),
+                "LE" => (rgb(0x7C5A3A), ph::COW),
+                _ => (rgb(0x5B6472), ph::BARN),
+            })
+        }
+        _ => None,
     }
 }
 
@@ -547,6 +664,24 @@ mod tests {
         assert_eq!(candidates(&sym("AAPL"), &slugs), ["apple"]);
         assert_eq!(candidates(&sym("NVDA"), &slugs), ["nvidia"]);
         assert_eq!(candidates(&sym("RELIANCE"), &slugs)[0], "reliance-industries-limited");
+    }
+
+    #[test]
+    fn bundled_coins_render_round() {
+        let (_, sol) = crate::logos_bundled::BUNDLED
+            .iter()
+            .find(|(k, _)| *k == "coin-sol")
+            .unwrap();
+        let (w, _, px) = render(sol).unwrap();
+        // A corner is cut away; the middle has colour.
+        assert_eq!(px[3], 0);
+        let mid = (48 * w + 48) * 4;
+        assert!(px[mid + 3] > 200);
+        assert_eq!(
+            js_string("var X =\n  '<svg a=\\'1\\'>\\n</svg>';").as_deref(),
+            Some("<svg a='1'>\n</svg>")
+        );
+        assert!(badge(&opentern_core::commodities()[0]).is_some());
     }
 
     #[test]

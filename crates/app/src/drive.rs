@@ -874,6 +874,23 @@ mod formula_tests {
         d.wait(|a| a.chart.symbol.id == "BINANCE:BTCUSDT/BINANCE:ETHUSDT" && !a.chart.bars.is_empty());
     }
 
+    /// The first term completes too: with the cursor back in it, Enter
+    /// replaces it with the match and keeps the rest.
+    #[test]
+    fn the_first_formula_term_completes_too() {
+        let mut d = Driver::new("formula-first");
+        for ch in "eth/btcusdt".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.key(Key::Home, Modifiers::NONE);
+        for _ in 0..20 {
+            d.frame(vec![]);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        d.key(Key::Enter, Modifiers::NONE);
+        d.wait(|a| matches!(&a.modal, Some(crate::dialogs::Modal::Symbol(s)) if s.query == "BINANCE:ETHUSDT/BTCUSDT"));
+    }
+
     #[test]
     fn compare_modes_move_between_scale_and_pane() {
         use crate::chart::CompareMode as M;

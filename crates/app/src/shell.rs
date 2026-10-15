@@ -127,6 +127,8 @@ pub struct Arrangement {
     pub hide_drawings: bool,
     /// The bottom panel takes nearly all the height (the chart keeps a sliver).
     pub panel_max: bool,
+    /// The drawing toolbar on the left is showing.
+    pub toolbar: bool,
 }
 
 impl Default for Arrangement {
@@ -143,6 +145,7 @@ impl Default for Arrangement {
             lock_drawings: false,
             hide_drawings: false,
             panel_max: false,
+            toolbar: true,
         }
     }
 }
@@ -224,16 +227,18 @@ impl App {
             .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(8, 0)))
             .show(ui, |ui| self.range_bar(ui, &t));
 
-        egui::Panel::left("drawing-toolbar")
-            .exact_size(TOOLBAR_W)
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(0, 6)))
-            .show(ui, |ui| self.drawing_toolbar(ui, &t));
+        if self.layout.toolbar {
+            egui::Panel::left("drawing-toolbar")
+                .exact_size(TOOLBAR_W)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(0, 6)))
+                .show(ui, |ui| self.drawing_toolbar(ui, &t));
+        }
 
         egui::CentralPanel::no_frame()
             .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin {
-                left: 0,
+                left: if self.layout.toolbar { 0 } else { GAP as i8 },
                 right: if self.layout.widget.is_some() { 0 } else { GAP as i8 },
                 top: GAP as i8,
                 bottom: 0,
@@ -883,6 +888,20 @@ impl App {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
                 ui.spacing_mut().item_spacing.x = 0.0;
+                // Under the toolbar's column: hide or show the drawing toolbar.
+                // The ranges then start where the chart does.
+                let shown = self.layout.toolbar;
+                let (glyph, tip) = if shown {
+                    (ph::CARET_DOUBLE_LEFT, "Hide the drawing toolbar")
+                } else {
+                    (ph::CARET_DOUBLE_RIGHT, "Show the drawing toolbar")
+                };
+                let col = TOOLBAR_W - 8.0;
+                ui.add_space(((col - 26.0) / 2.0).max(0.0));
+                if w::tool_button(ui, t, glyph, tip, false, 26.0).clicked() {
+                    self.layout.toolbar = !shown;
+                }
+                ui.add_space(((col - 26.0) / 2.0).max(0.0) + if shown { 0.0 } else { 4.0 });
                 // TradingView's date ranges: each picks an interval and
                 // fits that much history on screen.
                 for (label, tf, days) in [

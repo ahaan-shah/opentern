@@ -90,6 +90,18 @@ Noticed along the way, also done:
    are trademarks) and cryptocurrency-icons (CC0) go in
    `THIRD-PARTY-LICENSES.txt` at Phase 14.
 
+## Fourth pass (15 Oct 2026)
+1. List of trades: wider columns, grouped prices, every cell elided to its
+   column. Strategy Report KPI cards keep text inside (the value shrinks, the
+   second figure moves or goes to the tooltip); compact cards cut the label.
+   Equity chart labels no longer collide. Narrow report headers use icons.
+2. Logos: ~200 bundled (web3icons coins, cropped round; theSVG companies);
+   indices and commodities get drawn badges ("50", "Au", a drop for oil).
+3. Formula autocomplete works on the term under the cursor, not just the last.
+4. Range bar: a button under the toolbar column hides/shows the drawing
+   toolbar; the ranges start where the chart does.
+5. Commodities in search (their own filter) and in the starter watchlist.
+
 ## Open
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons
   (fine, but could be segmented too).

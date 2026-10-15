@@ -266,16 +266,28 @@ impl App {
                 }
             }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if small_button(ui, t, if narrow { "Settings" } else { "Strategy settings" }, false)
-                    .on_hover_text("Capital, order size, commission, slippage and margin")
+                // Short of room, the two buttons here become icons.
+                let settings = if narrow {
+                    crate::widgets::tool_button(ui, t, crate::icons::ph::GEAR_SIX, "", false, 26.0)
+                } else {
+                    small_button(ui, t, "Strategy settings", false)
+                };
+                if settings
+                    .on_hover_text("Strategy settings: capital, order size, commission, slippage and margin")
                     .clicked()
                     && let Some(uid) = self.strategies.current().map(|r| r.uid)
                 {
                     self.open_strategy_props(uid);
                 }
                 if self.strategies.tab == ReportTab::List {
-                    if small_button(ui, t, "Export", false)
-                        .on_hover_text("Save the list of trades as a CSV file")
+                    let export = if narrow {
+                        crate::widgets::tool_button(ui, t, crate::icons::ph::DOWNLOAD_SIMPLE, "", false, 26.0)
+                    } else {
+                        small_button(ui, t, "Export", false)
+                    };
+                    ui.add_space(4.0);
+                    if export
+                        .on_hover_text("Export: save the list of trades as a CSV file")
                         .clicked()
                     {
                         self.export_trades();
@@ -514,43 +526,59 @@ pub(crate) fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, va
         egui::StrokeKind::Inside,
     );
     if compact {
+        // The value keeps its room (smaller if need be); the label is cut
+        // short before it.
+        let room = r.width() - 20.0;
+        let mut g = p.layout_no_wrap(value.to_string(), theme::semibold(13.0), color);
+        for size in [12.0, 11.0] {
+            if g.size().x <= room * 0.7 {
+                break;
+            }
+            g = p.layout_no_wrap(value.to_string(), theme::semibold(size), color);
+        }
+        let vw = g.size().x;
+        p.galley(pos2(r.right() - 10.0 - vw, r.center().y - g.size().y / 2.0), g, color);
+        let font = theme::regular(11.5);
+        let shown = crate::format::elide_to(&p, label, &font, (room - vw - 10.0).max(0.0));
         p.text(
             r.left_center() + vec2(10.0, 0.0),
             Align2::LEFT_CENTER,
-            label,
-            theme::regular(11.5),
+            shown,
+            font,
             t.text3,
-        );
-        p.text(
-            r.right_center() - vec2(10.0, 0.0),
-            Align2::RIGHT_CENTER,
-            value,
-            theme::semibold(13.0),
-            color,
         );
         if !sub.is_empty() {
             resp.on_hover_text(sub);
         }
         return;
     }
-    p.text(
-        r.left_top() + vec2(12.0, 9.0),
-        Align2::LEFT_TOP,
-        label,
-        theme::regular(11.5),
-        t.text3,
-    );
-    let g = p.layout_no_wrap(value.to_string(), theme::semibold(15.0), color);
+    // Everything stays inside the card: the value steps down in size until
+    // it fits; the second figure goes beside it, else on the label's line,
+    // else into the tooltip.
+    let room = r.width() - 24.0;
+    let label_g = p.layout_no_wrap(label.to_string(), theme::regular(11.5), t.text3);
+    let label_w = label_g.size().x;
+    p.galley(r.left_top() + vec2(12.0, 9.0), label_g, t.text3);
+    let mut g = p.layout_no_wrap(value.to_string(), theme::semibold(15.0), color);
+    for size in [14.0, 13.0, 12.0, 11.0] {
+        if g.size().x <= room {
+            break;
+        }
+        g = p.layout_no_wrap(value.to_string(), theme::semibold(size), color);
+    }
     let vw = g.size().x;
-    p.galley(r.left_top() + vec2(12.0, 27.0), g, color);
+    let vy = 27.0 + (15.0 - g.size().y.min(15.0)) / 2.0;
+    p.galley(r.left_top() + vec2(12.0, vy), g, color);
     if !sub.is_empty() {
-        p.text(
-            r.left_top() + vec2(12.0 + vw + 8.0, 30.0),
-            Align2::LEFT_TOP,
-            sub,
-            theme::regular(11.5),
-            t.text2,
-        );
+        let sub_g = p.layout_no_wrap(sub.to_string(), theme::regular(11.5), t.text2);
+        let sw = sub_g.size().x;
+        if vw + 8.0 + sw <= room {
+            p.galley(r.left_top() + vec2(12.0 + vw + 8.0, 30.0), sub_g, t.text2);
+        } else if label_w + 10.0 + sw <= room {
+            p.galley(pos2(r.right() - 12.0 - sw, r.top() + 9.0), sub_g, t.text2);
+        } else {
+            resp.on_hover_text(sub);
+        }
     }
 }
 
@@ -602,6 +630,10 @@ fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover:
         let v = lo + (hi - lo) * k as f64 / 4.0;
         let y = ys(v);
         p.hline(eq_rect.x_range(), y, Stroke::new(1.0, t.border.gamma_multiply(0.6)));
+        // The lowest label would sit on the drawdown strip's.
+        if k == 0 {
+            continue;
+        }
         p.text(
             pos2(plot.right() + 8.0, y),
             Align2::LEFT_CENTER,
@@ -645,7 +677,7 @@ fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover:
         }
         p.add(mesh);
         p.text(
-            pos2(plot.right() + 8.0, dd_rect.top() + 6.0),
+            pos2(plot.right() + 8.0, dd_rect.bottom() - 6.0),
             Align2::LEFT_CENTER,
             format!("−{}", grouped(max_dd, 0)),
             font.clone(),
@@ -891,14 +923,14 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
     let cols: [(&str, f32, bool); 10] = [
         ("Trade #", 64.0, false),
         ("Type", 92.0, false),
-        ("Signal", 150.0, false),
-        ("Date/Time", 130.0, false),
-        ("Price", 100.0, true),
-        ("Contracts", 80.0, true),
-        ("Profit", 140.0, true),
-        ("Cum. profit", 140.0, true),
-        ("Run-up", 120.0, true),
-        ("Drawdown", 120.0, true),
+        ("Signal", 190.0, false),
+        ("Date/Time", 136.0, false),
+        ("Price", 120.0, true),
+        ("Contracts", 110.0, true),
+        ("Profit", 190.0, true),
+        ("Cum. profit", 150.0, true),
+        ("Run-up", 130.0, true),
+        ("Drawdown", 130.0, true),
     ];
     let total: f32 = cols.iter().map(|c| c.1).sum();
     let row_h = 22.0;
@@ -952,7 +984,7 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                                 t.text2,
                             ),
                             (time_text(tr.exit_time, &f.tz), t.text2),
-                            (num(tr.exit_price, 2), t.text),
+                            (grouped(tr.exit_price, 2), t.text),
                             (qty_text(tr.qty), t.text),
                             (format!("{}  {}", f.money(tr.pnl), pct(pct_of_entry(tr))), pnl_c),
                             (f.money(cum[idx]), tone(t, cum[idx])),
@@ -971,7 +1003,7 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                                 t.text2,
                             ),
                             (time_text(tr.entry_time, &f.tz), t.text2),
-                            (num(tr.entry_price, 2), t.text),
+                            (grouped(tr.entry_price, 2), t.text),
                             (String::new(), t.text),
                             (String::new(), t.text),
                             (String::new(), t.text),
@@ -988,7 +1020,10 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                             } else {
                                 (pos2(x + 8.0, cy), Align2::LEFT_CENTER)
                             };
-                            p.text(pos, al, text, theme::regular(12.5), *c);
+                            // Elided to the column, so nothing runs into the next.
+                            let font = theme::regular(12.5);
+                            let shown = crate::format::elide_to(p, text, &font, w - 14.0);
+                            p.text(pos, al, shown, font, *c);
                             x += w;
                         }
                     }

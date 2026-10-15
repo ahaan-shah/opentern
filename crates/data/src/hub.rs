@@ -983,6 +983,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
     }
     let load = |cache: &Option<Cache>| {
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
+        known.extend(opentern_core::commodities());
         if let Some(c) = cache {
             known.extend(c.symbols().unwrap_or_default());
         }

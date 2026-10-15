@@ -32,6 +32,9 @@ impl Market {
             "NASDAQ" | "NYSE" | "AMEX" => Market::Us,
             "NSE" | "BSE" => Market::India,
             "FX" | "OANDA" => Market::Forex,
+            // Commodity futures trade nearly round the clock, Sunday evening
+            // to Friday evening New York, like forex.
+            "COMEX" | "NYMEX" | "CBOT" | "CME" | "ICEUS" | "ICEEUR" => Market::Forex,
             "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => Market::Crypto,
             _ => match kind {
                 AssetKind::Crypto => Market::Crypto,

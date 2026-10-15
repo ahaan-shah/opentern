@@ -31,6 +31,7 @@ mod icons;
 mod lab;
 mod layouts;
 mod logos;
+mod logos_bundled;
 mod motion;
 mod multi;
 mod notes;

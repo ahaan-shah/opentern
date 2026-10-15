@@ -18,7 +18,8 @@ fn kind_name(k: AssetKind) -> &'static str {
         AssetKind::Fund => "fund",
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
-        AssetKind::Futures => "futures",
+        // TradingView's syminfo.type for commodity futures.
+        AssetKind::Futures | AssetKind::Commodity => "futures",
     }
 }
 

@@ -78,10 +78,11 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   no hardcoded paths. Settings → Your data offers backup and restore of the whole
   workspace as one file, so a user can move machines.
 - **No telemetry.** The only outbound traffic is the update check (GitHub releases, can be
-  turned off), the data providers the user has turned on, and symbol logos (the CC0
-  `cryptocurrency-icons` coins and theSVG's `@thesvg/icons` brand marks, from jsDelivr
-  or unpkg; fetched once per symbol into `<workspace>/logos/`, never in demo mode, off
-  in Settings → Symbol logos).
+  turned off), the data providers the user has turned on, and symbol logos. About 200
+  logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
+  web3icons coins and theSVG brand marks, both MIT); others are fetched once per
+  symbol from jsDelivr or unpkg into `<workspace>/logos/`, never in demo mode, off in
+  Settings → Symbol logos. Indices and commodities get drawn badges.
 - **Logs stay local** and are redacted: no API keys, tokens or account IDs, even in panic
   reports.
 - **Private test material stays out of the repo.** The maintainer's own Pine scripts and
@@ -747,6 +748,12 @@ workspace.
   funds whatever the price source) → `Event::Corporate` → D/S markers at the bottom of
   the price pane (hover for details) and the ADJ toggle (dividend back-adjustment;
   Yahoo's prices are already split-adjusted). `ChartState.adj` is saved.
+- Commodities (Oct 2026): `AssetKind::Commodity`, `opentern_core::commodities()`
+  (gold, silver, platinum, palladium, copper, WTI, Brent, natural gas, RBOB,
+  heating oil, wheat, corn, soybeans, coffee, sugar, cocoa, cotton, cattle) named
+  like TradingView's continuous contracts (`COMEX:GC1!`), served by Yahoo's front
+  month (`GC=F`; `ICEEUR:BRN1!` → `BZ=F`). Hours treated as forex's (Sun–Fri,
+  New York), which ignores the daily break and the grains' shorter sessions.
 - Not yet: Dhan/Angel One/Zerodha, Upstox's protobuf websocket, IBKR TWS socket API,
   extended-hours shading, earnings markers.
 
@@ -971,7 +978,8 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 ```
 Stills also take `compare:<ticker>:scale|pane`, `measure` (a quick measure once
 bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
-maximized) and `settings:<appearance|chart|providers|logos>`.
+maximized), `trades` (Strategy Report → List of trades) and
+`settings:<appearance|chart|providers|logos>`.
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
 study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a

@@ -47,6 +47,7 @@ fn kind_str(k: AssetKind) -> &'static str {
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
+        AssetKind::Commodity => "commodity",
     }
 }
 
@@ -57,6 +58,7 @@ fn kind_from(s: &str) -> AssetKind {
         "index" => AssetKind::Index,
         "forex" => AssetKind::Forex,
         "futures" => AssetKind::Futures,
+        "commodity" => AssetKind::Commodity,
         _ => AssetKind::Stock,
     }
 }
