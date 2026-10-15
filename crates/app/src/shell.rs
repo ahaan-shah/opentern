@@ -304,13 +304,6 @@ impl App {
             if w::bar_button(ui, t, Some(glyph), "", "Fullscreen mode (Shift F)", full).clicked() {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
             }
-            let on = self
-                .settings
-                .as_ref()
-                .is_some_and(|s| s.cat == crate::settings::Cat::Chart);
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Chart settings", on).clicked() {
-                self.open_settings(crate::settings::Cat::Chart);
-            }
             w::vdivider(ui, t);
             // The layout's name with a caret, as on TradingView; a folder
             // icon when the bar is short of room.

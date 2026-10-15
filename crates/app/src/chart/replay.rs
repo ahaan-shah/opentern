@@ -174,7 +174,32 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
     let speed = r.speed;
     let has_full = !r.full.is_empty();
     let left = r.left();
-    let w = if selecting && !has_full { 330.0 } else { 372.0 };
+    // Wide enough for what's in it: the buttons, the bars-left count and ×.
+    let speed_label = SPEEDS[speed.min(SPEEDS.len() - 1)].1;
+    let measure = |text: String, font: egui::FontId| ui.painter().layout_no_wrap(text, font, t.text).size().x;
+    let btn = |glyph: &str, label: &str| {
+        let text = if label.is_empty() {
+            glyph.to_string()
+        } else {
+            format!("{glyph}  {label}")
+        };
+        measure(text, theme::medium(12.5)) + 18.0
+    };
+    let w = if selecting && !has_full {
+        8.0 + btn(ph::SCISSORS, "Select bar")
+            + 8.0
+            + measure("Click a bar to start from it".into(), theme::regular(12.5))
+            + 44.0
+    } else {
+        8.0 + btn(ph::SCISSORS, "Select bar")
+            + btn(ph::PAUSE, "")
+            + btn(ph::SKIP_FORWARD, "")
+            + btn(ph::GAUGE, speed_label)
+            + btn(ph::FAST_FORWARD, "Real time")
+            + 6.0
+            + measure(format!("{left} left"), theme::regular(11.5))
+            + 44.0
+    };
     let bar = Rect::from_center_size(pos2(pane.center().x, pane.bottom() - 30.0), vec2(w, 36.0));
     let p = ui.painter();
     p.rect_filled(
@@ -269,7 +294,6 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         }
         chart.replay_step();
     }
-    let speed_label = SPEEDS[speed.min(SPEEDS.len() - 1)].1;
     if button(
         ui,
         ph::GAUGE,

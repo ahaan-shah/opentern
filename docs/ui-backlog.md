@@ -35,9 +35,10 @@ Noticed along the way, also done:
   The default egui ones are no longer used in the app.
 - Empty states (`widgets::empty_state`) for alerts, alerts log, notifications,
   object tree, scripts, strategy report, Strategy Lab and paper tables.
-- App icon (redone twice 15 Oct 2026): a "T" whose bar is a rising price
-  line (teal to violet) and whose stem is a green candlestick, on a dark ink
-  squircle with a faint dot grid; 16/24 px show a bolder plain T
+- App icon (final, 15 Oct 2026): two white line-art candlesticks, one
+  hollow and one filled, on an indigo squircle, styled exactly like Magpie's
+  bird (same tile, glow, rim light and soft mark shadow); 16/24 px are a
+  bigger, bolder mark
   (`scripts/make-icons.py` → `packaging/linux/opentern*.svg`, `icon-1024.png`,
   `crates/app/assets/icon-512.png` (window icon), `opentern.ico`).
 
@@ -111,8 +112,14 @@ Noticed along the way, also done:
    script onto a folder to move it. Libraries are found in subfolders too.
 2. Gradient canvas background (Settings → Chart → Canvas: Solid / Gradient,
    top and bottom colours).
-3. New icon: a "T" whose bar is a rising price line and stem a candlestick.
+3. New icon (since replaced: see the icon note above).
 4. Fixed: Luau / JS / TS scripts on a chart weren't restored after a restart.
+
+## Sixth pass (15 Oct 2026)
+1. Replay controls size to their contents (the bars-left count ran under ×).
+2. The top bar's gear is gone: ☰ opens Settings (Chart is a category there,
+   and right-clicking the chart still opens Chart settings).
+3. Icon redone in Magpie's style (above).
 
 ## Open
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons
