@@ -55,9 +55,12 @@ impl Driver {
         out.textures_delta.clear();
     }
 
-    /// Runs frames until `f` holds (data arrives on other threads).
+    /// Runs frames until `f` holds (data arrives on other threads). A time
+    /// limit, not a frame count: shared CI runners are several times slower
+    /// than a desktop.
     pub fn wait(&mut self, f: impl Fn(&App) -> bool) {
-        for _ in 0..400 {
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        while std::time::Instant::now() < deadline {
             self.frame(vec![]);
             if f(&self.app) {
                 // A couple more so layout settles.
