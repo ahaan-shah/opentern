@@ -63,6 +63,7 @@ USAGE:
 OPTIONS:
     --data-dir <PATH>   Use a different workspace folder
     --demo              Made-up prices, no network: for trying things out
+                        (in its own workspace unless --data-dir is given)
     -V, --version       Print version
     -h, --help          Print this help
 ";
@@ -96,6 +97,15 @@ fn main() -> eframe::Result<()> {
 
     // A custom workspace keeps its window and UI state with it, so a test
     // instance never touches the real app's saved state.
+    // Demo mode gets a workspace of its own, so made-up prices never mix
+    // with the real one's cache.
+    if demo && data_dir.is_none() {
+        let real = opentern_core::data_dir();
+        data_dir = Some(real.with_file_name(format!(
+            "{}-demo",
+            real.file_name().and_then(|n| n.to_str()).unwrap_or("opentern")
+        )));
+    }
     let separate = data_dir.is_some();
     let dir = data_dir.unwrap_or_else(opentern_core::data_dir);
     diag::init(&dir);
