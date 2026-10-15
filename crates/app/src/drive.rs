@@ -877,6 +877,34 @@ mod formula_tests {
         d.wait(|a| a.chart.symbol.id == "BINANCE:BTCUSDT/BINANCE:ETHUSDT" && !a.chart.bars.is_empty());
     }
 
+    /// Enter pressed before the last term's matches are back waits for
+    /// them, instead of opening the formula as typed (a slow network or a
+    /// fast typist).
+    #[test]
+    fn an_early_enter_waits_for_the_terms_matches() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("formula-early-enter");
+        for ch in "btcusdt/eth".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.got == s.seq && !s.results.is_empty()));
+        // Hold the matches back, as if they hadn't arrived yet.
+        let Some(Modal::Symbol(s)) = &mut d.app.modal else {
+            unreachable!()
+        };
+        let results = std::mem::take(&mut s.results);
+        s.got = s.seq - 1;
+        d.key(Key::Enter, Modifiers::NONE);
+        let Some(Modal::Symbol(s)) = &mut d.app.modal else {
+            panic!("Enter opened something before the matches came back");
+        };
+        assert_eq!(s.query, "BTCUSDT/ETH");
+        // They arrive: the waiting Enter completes the term with the first.
+        s.results = results;
+        s.got = s.seq;
+        d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.query == "BTCUSDT/BINANCE:ETHUSDT"));
+    }
+
     /// The first term completes too: with the cursor back in it, Enter
     /// replaces it with the match and keeps the rest.
     #[test]

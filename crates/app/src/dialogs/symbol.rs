@@ -264,7 +264,15 @@ impl SymbolSearch {
             {
                 self.selected = 0;
             }
-            if self.selected >= shown.len() {
+            // Mid-formula with a term typed and its matches not back yet:
+            // Enter waits for the first match rather than taking the formula
+            // row, which is all there is to show until then.
+            let awaiting_match = self.got != self.seq
+                && !self.moved
+                && completing
+                    .as_ref()
+                    .is_some_and(|c| !c.1.is_empty() && !c.1.contains(':'));
+            if !awaiting_match && self.selected >= shown.len() {
                 self.selected = shown.len().saturating_sub(1);
             }
             if up {
@@ -279,7 +287,7 @@ impl SymbolSearch {
             // Enter picks from this query's results, so a quick Enter
             // never opens a symbol left over from the last query (the
             // formula row is worked out here, so it never waits).
-            let local = matches!(shown.get(self.selected), Some(Row::Formula(_)));
+            let local = !awaiting_match && matches!(shown.get(self.selected), Some(Row::Formula(_)));
             if enter && !self.query.trim().is_empty() && self.got != self.seq && !local {
                 self.enter_pending = true;
             } else if (enter || self.enter_pending) && self.selected < shown.len() {
