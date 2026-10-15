@@ -168,6 +168,10 @@ pub struct ChartStyle {
     pub high_low_labels: bool,
     // Canvas
     pub background: Option<Rgba>,
+    /// A vertical gradient: `background` at the top to `background2` at
+    /// the bottom, as TradingView's "Gradient" background.
+    pub gradient: bool,
+    pub background2: Option<Rgba>,
     pub grid_vert: Option<Rgba>,
     pub grid_horz: Option<Rgba>,
     pub show_grid_vert: bool,
@@ -221,6 +225,8 @@ impl Default for ChartStyle {
             study_labels: true,
             high_low_labels: false,
             background: None,
+            gradient: false,
+            background2: None,
             grid_vert: None,
             grid_horz: None,
             show_grid_vert: true,
@@ -234,9 +240,19 @@ impl Default for ChartStyle {
     }
 }
 
+/// A gradient's bottom colour until one is picked: a deeper shade of the
+/// theme's background with a touch of its accent.
+pub fn default_bottom(t: &Theme) -> Color32 {
+    let deep = if t.dark { Color32::BLACK } else { Color32::WHITE };
+    let base = crate::motion::lerp_color(t.bg, deep, if t.dark { 0.35 } else { 0.4 });
+    crate::motion::lerp_color(base, t.accent, if t.dark { 0.30 } else { 0.18 })
+}
+
 /// The colours actually used this frame, with theme fallbacks resolved.
 pub struct Palette {
     pub bg: Color32,
+    /// The gradient's bottom colour, when the background is a gradient.
+    pub bg2: Option<Color32>,
     pub grid_v: Color32,
     pub grid_h: Color32,
     pub crosshair: Color32,
@@ -285,6 +301,9 @@ impl ChartStyle {
         let grid = crate::motion::lerp_color(t.bg, t.border, if t.dark { 0.55 } else { 0.6 });
         Palette {
             bg: self.background.map(c32).unwrap_or(t.bg),
+            bg2: self
+                .gradient
+                .then(|| self.background2.map(c32).unwrap_or_else(|| default_bottom(t))),
             grid_v: self.grid_vert.map(c32).unwrap_or(grid),
             grid_h: self.grid_horz.map(c32).unwrap_or(grid),
             crosshair: self.crosshair.map(c32).unwrap_or(t.text3),

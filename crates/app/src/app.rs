@@ -291,6 +291,10 @@ impl App {
                     .find(|c| format!("{c:?}").eq_ignore_ascii_case(cat.trim_start_matches(':')))
                     .unwrap_or(Cat::Appearance);
                 self.open_settings(cat);
+            } else if part == "gradient" {
+                let mut st = self.chart.style.clone();
+                st.gradient = true;
+                self.set_chart_style(st);
             } else if part == "trades" {
                 self.layout.tab = Some(crate::shell::Tab::Report);
                 self.strategies.tab = crate::strategy::ReportTab::List;

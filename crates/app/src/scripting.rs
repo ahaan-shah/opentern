@@ -255,6 +255,45 @@ fn inputs_json(i: &Inputs) -> serde_json::Value {
     serde_json::Value::Object(m)
 }
 
+/// Walks the scripts folder: (script files, folders), relative paths with
+/// `/`, sorted case-blind. Hidden folders and Python's caches are skipped;
+/// depth is capped so a link loop can't run away.
+pub fn scan_scripts(root: &std::path::Path) -> (Vec<String>, Vec<String>) {
+    fn walk(root: &std::path::Path, rel: &str, depth: usize, files: &mut Vec<String>, dirs: &mut Vec<String>) {
+        if depth > 8 {
+            return;
+        }
+        let Ok(rd) = std::fs::read_dir(root.join(rel)) else {
+            return;
+        };
+        for e in rd.flatten() {
+            let Ok(name) = e.file_name().into_string() else {
+                continue;
+            };
+            if name.starts_with('.') || name == "__pycache__" {
+                continue;
+            }
+            let path = if rel.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel}/{name}")
+            };
+            let Ok(ft) = e.file_type() else { continue };
+            if ft.is_dir() {
+                dirs.push(path.clone());
+                walk(root, &path, depth + 1, files, dirs);
+            } else if Lang::of(&name).is_some() {
+                files.push(path);
+            }
+        }
+    }
+    let (mut files, mut dirs) = (Vec::new(), Vec::new());
+    walk(root, "", 0, &mut files, &mut dirs);
+    files.sort_by_key(|n| n.to_lowercase());
+    dirs.sort_by_key(|n| n.to_lowercase());
+    (files, dirs)
+}
+
 impl App {
     pub fn scripts_dir(&self) -> PathBuf {
         self.store.dir().join("scripts")
@@ -264,18 +303,17 @@ impl App {
         self.store.dir().join("python")
     }
 
-    /// Script files in the workspace, sorted by name.
+    /// Script files in the scripts folder and its subfolders, as paths
+    /// relative to it ("ideas/rsi.pine"), sorted.
     pub fn script_files(&self) -> Vec<String> {
-        let mut v: Vec<String> = std::fs::read_dir(self.scripts_dir())
-            .map(|d| {
-                d.flatten()
-                    .filter_map(|e| e.file_name().into_string().ok())
-                    .filter(|n| Lang::of(n).is_some())
-                    .collect()
-            })
-            .unwrap_or_default();
-        v.sort_by_key(|n| n.to_lowercase());
-        v
+        let (files, _) = scan_scripts(&self.scripts_dir());
+        files
+    }
+
+    /// The scripts folder's subfolders (relative paths, empty ones too).
+    pub fn script_dirs(&self) -> Vec<String> {
+        let (_, dirs) = scan_scripts(&self.scripts_dir());
+        dirs
     }
 
     /// Puts a script on the chart.

@@ -727,7 +727,10 @@ impl Chart {
     }
 
     fn add_saved(&mut self, s: &SavedStudy) {
-        if s.id.starts_with("py:") || s.id.starts_with("pine:") {
+        if ["py:", "pine:", "luau:", "js:", "ts:"]
+            .iter()
+            .any(|p| s.id.starts_with(p))
+        {
             self.pending_scripts.push(s.clone());
             return;
         }

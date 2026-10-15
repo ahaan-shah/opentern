@@ -35,9 +35,9 @@ Noticed along the way, also done:
   The default egui ones are no longer used in the app.
 - Empty states (`widgets::empty_state`) for alerts, alerts log, notifications,
   object tree, scripts, strategy report, Strategy Lab and paper tables.
-- App icon (redone 15 Oct 2026, the maintainer: "no bird, terminal trading
-  vibe"): a teal-to-blue prompt chevron and three rising candles on a dark ink
-  squircle, the last candle glowing like a cursor; 16/24 px show `>▌` only
+- App icon (redone twice 15 Oct 2026): a "T" whose bar is a rising price
+  line (teal to violet) and whose stem is a green candlestick, on a dark ink
+  squircle with a faint dot grid; 16/24 px show a bolder plain T
   (`scripts/make-icons.py` → `packaging/linux/opentern*.svg`, `icon-1024.png`,
   `crates/app/assets/icon-512.png` (window icon), `opentern.ico`).
 
@@ -101,6 +101,18 @@ Noticed along the way, also done:
 4. Range bar: a button under the toolbar column hides/shows the drawing
    toolbar; the ranges start where the chart does.
 5. Commodities in search (their own filter) and in the starter watchlist.
+
+## Fifth pass (15 Oct 2026)
+1. The Script Editor's explorer is a tree of the scripts folder: subfolders
+   open and close, scripts anywhere in it open and run on the chart (study ids
+   carry the path, `pine:ideas/rsi.pine`); new script / new folder go in the
+   folder last picked; right-click a folder for New script here, New folder,
+   Rename, Open in your file manager, Delete (empty folders only); drag a
+   script onto a folder to move it. Libraries are found in subfolders too.
+2. Gradient canvas background (Settings → Chart → Canvas: Solid / Gradient,
+   top and bottom colours).
+3. New icon: a "T" whose bar is a rising price line and stem a candlestick.
+4. Fixed: Luau / JS / TS scripts on a chart weren't restored after a restart.
 
 ## Open
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons

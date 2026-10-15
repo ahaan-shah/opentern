@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Regenerates the Opentern icon.
 
-A terminal prompt and a chart: a ">" chevron (teal to blue) and three rising
-candlesticks on a dark ink tile, the last one bright and glowing like a
-blinking cursor. Faint grid lines, as on a chart. The tile is the same true
+A "T" for terminal, drawn from a chart: its bar is a rising price line
+(teal to violet, softly lit) and its stem a green candlestick with wicks,
+on a dark ink tile with a faint dot grid. The tile is the same true
 superellipse (n = 5) as Magpie's, so the two apps look like siblings.
 
 packaging/linux/opentern.svg is the icon everywhere on Linux.
-opentern-24.svg and opentern-16.svg are simpler variants for tiny sizes (the
-chevron and the bright candle only, bigger; no grid, glow or shadow). Two
-rasters are made with resvg (or rsvg-convert): icon-1024.png for the macOS
-.icns, and the window icon embedded in the binary. The Windows opentern.ico
-holds every size rendered separately (needs ImageMagick).
+opentern-24.svg and opentern-16.svg are simpler variants for tiny sizes (a
+bolder T; no grid, glow or shadow). Two rasters are made with resvg (or
+rsvg-convert): icon-1024.png for the macOS .icns, and the window icon
+embedded in the binary. The Windows opentern.ico holds every size rendered
+separately (needs ImageMagick).
 
 Like Magpie's: plain SVG only (paths, gradients, opacity, transforms). No
 filters, clip paths or <use>, which some icon loaders ignore; soft shadows
@@ -31,12 +31,11 @@ OUT = ROOT / "packaging" / "linux"
 
 C, N = 512.0, 5.0  # centre, superellipse exponent
 
-# On the 1024 grid. The prompt chevron, and the candles as
-# (x, wick top, body top, body bottom, wick bottom).
-CHEVRON = "M232 398L346 512L232 626"
-CANDLES = [(486, 548, 584, 690, 724), (616, 430, 468, 618, 654), (752, 272, 316, 540, 580)]
-CANDLE_W = 78
-DIM = ["#56698E", "#8094BC"]  # the two earlier candles
+# On the 1024 grid: the T's bar (a price line) and its stem (a candle:
+# wick top, body top, body bottom, wick bottom).
+BAR = "M262 326L414 300L540 312L762 264"
+STEM = (366, 404, 704, 786)
+BODY_W = 112
 
 
 def squircle(R, samples=96):
@@ -66,15 +65,6 @@ def rounded(x, y, w, h, r):
     )
 
 
-def candle(c, body, wick, wick_w=14):
-    x, wt, bt, bb, wb = c
-    w = CANDLE_W
-    return (
-        f'    <path d="M{x} {wt}V{wb}" stroke="{wick}" stroke-width="{wick_w}" stroke-linecap="round"/>\n'
-        f'    <path d="{rounded(x - w / 2, bt, w, bb - bt, 10)}" fill="{body}"/>'
-    )
-
-
 def svg(small=0):
     """small=0 is the master; 1 and 2 are the 24px and 16px variants."""
     r = [412.0, 470.0, 492.0][small]
@@ -89,31 +79,26 @@ def svg(small=0):
             )
     out.append(f'  <path d="{tile}" fill="url(#fill)"/>')
     out.append(f'  <path d="{tile}" fill="url(#glow)"/>')
+    wt, bt, bb, wb = STEM
     if small == 0:
-        for y in (330, 512, 694):
-            out.append(f'  <path d="M190 {y}H834" stroke="#8FB6FF" stroke-opacity="0.07" stroke-width="4"/>')
-        out.append("  <g>")
+        # A faint dot grid, like a chart's.
+        for gy in range(232, 820, 74):
+            for gx in range(232, 820, 74):
+                out.append(f'  <circle cx="{gx}" cy="{gy}" r="5" fill="#9DB4FF" fill-opacity="0.07"/>')
+        out.append('  <ellipse cx="512" cy="304" rx="300" ry="90" fill="url(#halo)"/>')
         out.append(
-            f'    <path d="{CHEVRON}" fill="none" stroke="url(#chev)" stroke-width="60" '
+            f'  <path d="{BAR}" fill="none" stroke="url(#bar)" stroke-width="64" '
             'stroke-linecap="round" stroke-linejoin="round"/>'
         )
-        for c, col in zip(CANDLES[:2], DIM):
-            out.append(candle(c, col, col))
-        last = CANDLES[2]
-        out.append(f'    <ellipse cx="{last[0]}" cy="{(last[2] + last[3]) / 2}" rx="150" ry="210" fill="url(#halo)"/>')
-        out.append(candle(last, "url(#cur)", "#7FF5DD"))
+        out.append(f'  <path d="M512 {wt}V{wb}" stroke="#3FE3B4" stroke-width="20" stroke-linecap="round"/>')
+        out.append(f'  <path d="{rounded(512 - BODY_W / 2, bt, BODY_W, bb - bt, 18)}" fill="url(#body)"/>')
     else:
-        # Tiny sizes: the chevron and the bright candle, bigger and bolder.
-        zoom = [1.0, 1.22, 1.3][small]
-        tx = 512 - 492 * zoom
-        ty = 512 - 448 * zoom
-        out.append(f'  <g transform="translate({tx:.1f} {ty:.1f}) scale({zoom})">')
+        # Tiny sizes: a straight, heavy T that holds at 16 px.
+        bar_w, body_w = [0, 104, 120][small], [0, 150, 170][small]
         out.append(
-            f'    <path d="M232 340L372 480L232 620" fill="none" stroke="url(#chev)" stroke-width="{[0, 84, 100][small]}" '
-            'stroke-linecap="round" stroke-linejoin="round"/>'
+            f'  <path d="M250 300H774" stroke="url(#bar)" stroke-width="{bar_w}" stroke-linecap="round"/>'
         )
-        out.append(candle((640, 250, 290, 600, 640), "url(#cur)", "#7FF5DD", [0, 22, 26][small]))
-    out.append("  </g>")
+        out.append(f'  <path d="{rounded(512 - body_w / 2, 380, body_w, 420, 28)}" fill="url(#body)"/>')
     # Rim light: a stroke on an inset outline, so it sits fully inside the tile.
     out.append(f'  <path d="{squircle(r - 4)}" fill="none" stroke="url(#edge)" stroke-width="8"/>')
     body = "\n".join(out)
@@ -121,26 +106,26 @@ def svg(small=0):
   <title>Opentern</title>
   <defs>
     <linearGradient id="fill" x1="164" y1="100" x2="860" y2="924" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1A2540"/>
-      <stop offset="0.6" stop-color="#0E1528"/>
-      <stop offset="1" stop-color="#080C18"/>
+      <stop offset="0" stop-color="#18213D"/>
+      <stop offset="0.55" stop-color="#0D1326"/>
+      <stop offset="1" stop-color="#070A16"/>
     </linearGradient>
-    <radialGradient id="glow" cx="300" cy="170" r="720" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#4C7DFF" stop-opacity="0.22"/>
-      <stop offset="0.7" stop-color="#4C7DFF" stop-opacity="0"/>
+    <radialGradient id="glow" cx="512" cy="280" r="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6D5BFF" stop-opacity="0.20"/>
+      <stop offset="0.7" stop-color="#6D5BFF" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="chev" x1="0" y1="340" x2="0" y2="640" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5EEAD4"/>
-      <stop offset="1" stop-color="#3B82F6"/>
-    </linearGradient>
     <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#2EE6C5" stop-opacity="0.30"/>
-      <stop offset="0.55" stop-color="#2EE6C5" stop-opacity="0.08"/>
-      <stop offset="1" stop-color="#2EE6C5" stop-opacity="0"/>
+      <stop offset="0" stop-color="#4FD8F0" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#4FD8F0" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="cur" x1="0" y1="290" x2="0" y2="600" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5CF2D6"/>
-      <stop offset="1" stop-color="#1FB89A"/>
+    <linearGradient id="bar" x1="262" y1="0" x2="762" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3EE6D0"/>
+      <stop offset="0.55" stop-color="#5B8CFF"/>
+      <stop offset="1" stop-color="#A26BFF"/>
+    </linearGradient>
+    <linearGradient id="body" x1="0" y1="380" x2="0" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5CF2C8"/>
+      <stop offset="1" stop-color="#18B98B"/>
     </linearGradient>
     <linearGradient id="edge" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>

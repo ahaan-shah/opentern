@@ -61,6 +61,10 @@ pub struct Editor {
     minimap_to: Option<f32>,
     /// The last error shown, so a new one opens Problems once.
     seen_error: Option<String>,
+    /// Folders open in the explorer (paths in the scripts folder).
+    open_dirs: std::collections::HashSet<String>,
+    /// Where new scripts go: the folder last picked ("" is the top).
+    new_dir: String,
     /// Tried opening the first script once (an empty editor stays empty
     /// after the last tab is closed).
     started: bool,
@@ -86,6 +90,8 @@ impl Default for Editor {
             panel_tab: 0,
             minimap_to: None,
             seen_error: None,
+            open_dirs: Default::default(),
+            new_dir: String::new(),
             started: false,
         }
     }
@@ -511,6 +517,71 @@ fn next_indent(line: &str, lang: Lang) -> String {
     if opens { lead + indent_unit(lang) } else { lead }
 }
 
+/// "ideas/rsi.pine" → "ideas" ("" at the top).
+fn parent_dir(path: &str) -> &str {
+    path.rsplit_once('/').map(|(d, _)| d).unwrap_or("")
+}
+
+/// "ideas/rsi.pine" → "rsi.pine".
+fn base_name(path: &str) -> &str {
+    path.rsplit_once('/').map(|(_, n)| n).unwrap_or(path)
+}
+
+fn join_path(dir: &str, name: &str) -> String {
+    if dir.is_empty() {
+        name.to_string()
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+/// A row of the explorer's tree.
+enum Node {
+    Dir {
+        path: String,
+        depth: usize,
+        open: bool,
+        count: usize,
+    },
+    File {
+        path: String,
+        depth: usize,
+    },
+}
+
+/// The explorer's rows: each folder's subfolders, then its scripts; a
+/// closed folder's contents left out.
+fn tree(files: &[String], dirs: &[String], open: &std::collections::HashSet<String>) -> Vec<Node> {
+    fn level(
+        at: &str,
+        depth: usize,
+        files: &[String],
+        dirs: &[String],
+        open: &std::collections::HashSet<String>,
+        out: &mut Vec<Node>,
+    ) {
+        for d in dirs.iter().filter(|d| parent_dir(d) == at) {
+            let is_open = open.contains(d);
+            let count = files.iter().filter(|f| f.starts_with(&format!("{d}/"))).count();
+            out.push(Node::Dir {
+                path: d.clone(),
+                depth,
+                open: is_open,
+                count,
+            });
+            if is_open {
+                level(d, depth + 1, files, dirs, open, out);
+            }
+        }
+        for f in files.iter().filter(|f| parent_dir(f) == at) {
+            out.push(Node::File { path: f.clone(), depth });
+        }
+    }
+    let mut out = Vec::new();
+    level("", 0, files, dirs, open, &mut out);
+    out
+}
+
 impl App {
     fn doc_index(&self, key: &str) -> Option<usize> {
         self.editor.docs.iter().position(|d| d.key == key)
@@ -527,7 +598,7 @@ impl App {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         self.editor.docs.push(Doc {
             key: file.to_string(),
-            title: file.to_string(),
+            title: base_name(file).to_string(),
             lang,
             saved: text.clone(),
             text,
@@ -594,14 +665,12 @@ impl App {
         }
     }
 
+    /// A new script from its language's template, in the folder last
+    /// picked in the explorer; its name is ready to type.
     fn new_script(&mut self, lang: Lang) {
-        let dir = self.scripts_dir();
-        let _ = std::fs::create_dir_all(&dir);
-        let ext = lang.ext();
-        let name = (1..)
-            .map(|k| format!("Untitled {k}{ext}"))
-            .find(|n| !dir.join(n).exists())
-            .expect("a free name");
+        let dir = self.editor.new_dir.clone();
+        let _ = std::fs::create_dir_all(self.scripts_dir().join(&dir));
+        let name = self.free_name(&dir, "Untitled", lang.ext());
         let body = match lang {
             Lang::Python => PYTHON_TEMPLATE,
             Lang::Pine => PINE_TEMPLATE,
@@ -609,18 +678,19 @@ impl App {
             Lang::Js => JS_TEMPLATE,
             Lang::Ts => TS_TEMPLATE,
         };
-        if std::fs::write(dir.join(&name), body).is_ok() {
+        if std::fs::write(self.scripts_dir().join(&name), body).is_ok() {
             self.open_in_editor(&name);
-            self.editor.renaming = Some((name.clone(), name));
+            self.editor.renaming = Some((name.clone(), base_name(&name).to_string()));
         }
     }
 
-    /// A free "<stem> copy.ext"-style name in the scripts folder.
-    fn free_name(&self, stem: &str, ext: &str) -> String {
-        let dir = self.scripts_dir();
+    /// A free "<stem>.ext" (or "<stem> 2.ext"…) in folder `dir`, as a path.
+    fn free_name(&self, dir: &str, stem: &str, ext: &str) -> String {
+        let root = self.scripts_dir();
         std::iter::once(format!("{stem}{ext}"))
             .chain((2..).map(|k| format!("{stem} {k}{ext}")))
-            .find(|n| !dir.join(n).exists())
+            .map(|n| join_path(dir, &n))
+            .find(|p| !root.join(p).exists())
             .expect("a free name")
     }
 
@@ -628,8 +698,9 @@ impl App {
     fn copy_builtin(&mut self) {
         let Some(d) = self.editor.doc() else { return };
         let (stem, text) = (d.title.clone(), d.text.clone());
-        let name = self.free_name(&stem, ".pine");
-        let _ = std::fs::create_dir_all(self.scripts_dir());
+        let dir = self.editor.new_dir.clone();
+        let name = self.free_name(&dir, &stem, ".pine");
+        let _ = std::fs::create_dir_all(self.scripts_dir().join(&dir));
         match std::fs::write(self.scripts_dir().join(&name), text) {
             Ok(()) => {
                 self.open_in_editor(&name);
@@ -641,40 +712,145 @@ impl App {
 
     fn duplicate_script(&mut self, file: &str) {
         let Some(lang) = Lang::of(file) else { return };
-        let stem = file.strip_suffix(lang.ext()).unwrap_or(file);
-        let name = self.free_name(&format!("{stem} copy"), lang.ext());
-        let dir = self.scripts_dir();
-        if std::fs::copy(dir.join(file), dir.join(&name)).is_ok() {
+        let stem = base_name(file).strip_suffix(lang.ext()).unwrap_or(base_name(file));
+        let name = self.free_name(parent_dir(file), &format!("{stem} copy"), lang.ext());
+        let root = self.scripts_dir();
+        if std::fs::copy(root.join(file), root.join(&name)).is_ok() {
             self.open_in_editor(&name);
         }
     }
 
-    fn rename_script(&mut self, from: &str, to: &str) {
-        let to = to.trim();
-        let Some(lang) = Lang::of(from) else { return };
-        // Keep the language: "My RSI" becomes "My RSI.pine".
-        let to = if Lang::of(to).is_some() {
-            to.to_string()
-        } else {
-            format!("{to}{}", lang.ext())
+    /// Whether a script in `path` (a file, or anything in a folder) is on
+    /// the chart: those keep their place until taken off it.
+    fn on_chart_under(&self, path: &str) -> bool {
+        self.scripts
+            .iter()
+            .any(|r| r.file == path || r.file.starts_with(&format!("{path}/")))
+    }
+
+    /// Open tabs, and the explorer's state, follow a file or folder that
+    /// moved from `from` to `to`.
+    fn follow_move(&mut self, from: &str, to: &str) {
+        let moved = |k: &str| -> Option<String> {
+            if k == from {
+                Some(to.to_string())
+            } else {
+                k.strip_prefix(&format!("{from}/")).map(|rest| format!("{to}/{rest}"))
+            }
         };
-        if to == from || to.contains(['/', '\\']) || to.starts_with('.') {
+        for d in self.editor.docs.iter_mut().filter(|d| !d.readonly) {
+            if let Some(k) = moved(&d.key) {
+                d.title = base_name(&k).to_string();
+                d.lang = Lang::of(&k).unwrap_or(d.lang);
+                d.key = k;
+            }
+        }
+        let open: Vec<String> = self.editor.open_dirs.iter().cloned().collect();
+        self.editor.open_dirs = open.into_iter().map(|d| moved(&d).unwrap_or(d)).collect();
+        if let Some(k) = moved(&self.editor.new_dir) {
+            self.editor.new_dir = k;
+        }
+    }
+
+    /// Renames a file or folder in place (`to` is the new name only).
+    fn rename_path(&mut self, from: &str, to: &str) {
+        let to = to.trim();
+        let root = self.scripts_dir();
+        let is_dir = root.join(from).is_dir();
+        if to.is_empty() || to.contains(['/', '\\']) || to.starts_with('.') {
             return;
         }
-        let dir = self.scripts_dir();
-        if dir.join(&to).exists() {
-            self.editor.status = format!("There's already a script called {to}.");
+        // A script keeps its language: "My RSI" becomes "My RSI.pine".
+        let name = match Lang::of(from) {
+            Some(lang) if !is_dir && Lang::of(to).is_none() => format!("{to}{}", lang.ext()),
+            _ => to.to_string(),
+        };
+        let dest = join_path(parent_dir(from), &name);
+        if dest == from {
             return;
         }
-        if let Err(e) = std::fs::rename(dir.join(from), dir.join(&to)) {
+        if self.on_chart_under(from) {
+            self.editor.status = "Take its scripts off the chart before renaming it.".into();
+            return;
+        }
+        if root.join(&dest).exists() {
+            self.editor.status = format!("There's already something called {name} there.");
+            return;
+        }
+        if let Err(e) = std::fs::rename(root.join(from), root.join(&dest)) {
             self.editor.status = format!("Couldn't rename it: {e}");
             return;
         }
-        if let Some(i) = self.doc_index(from) {
-            let d = &mut self.editor.docs[i];
-            d.key = to.clone();
-            d.title = to.clone();
-            d.lang = Lang::of(&to).unwrap_or(d.lang);
+        self.follow_move(from, &dest);
+    }
+
+    /// Moves a script into folder `dir` ("" is the scripts folder itself).
+    fn move_script(&mut self, file: &str, dir: &str) {
+        let dest = join_path(dir, base_name(file));
+        if dest == file || parent_dir(file) == dir {
+            return;
+        }
+        if self.on_chart_under(file) {
+            self.editor.status = "Take it off the chart before moving it.".into();
+            return;
+        }
+        let root = self.scripts_dir();
+        if root.join(&dest).exists() {
+            self.editor.status = format!("{dir} already has a {}.", base_name(file));
+            return;
+        }
+        match std::fs::rename(root.join(file), root.join(&dest)) {
+            Ok(()) => {
+                self.follow_move(file, &dest);
+                if !dir.is_empty() {
+                    self.editor.open_dirs.insert(dir.to_string());
+                }
+                self.editor.status = format!("Moved to {}.", if dir.is_empty() { "scripts" } else { dir });
+            }
+            Err(e) => self.editor.status = format!("Couldn't move it: {e}"),
+        }
+    }
+
+    /// A new folder in `dir`, with its name ready to type.
+    fn new_folder(&mut self, dir: &str) {
+        let root = self.scripts_dir();
+        let path = std::iter::once("New folder".to_string())
+            .chain((2..).map(|k| format!("New folder {k}")))
+            .map(|n| join_path(dir, &n))
+            .find(|p| !root.join(p).exists())
+            .expect("a free name");
+        match std::fs::create_dir_all(root.join(&path)) {
+            Ok(()) => {
+                if !dir.is_empty() {
+                    self.editor.open_dirs.insert(dir.to_string());
+                }
+                self.editor.scripts_open = true;
+                self.editor.renaming = Some((path.clone(), base_name(&path).to_string()));
+            }
+            Err(e) => self.editor.status = format!("Couldn't make the folder: {e}"),
+        }
+    }
+
+    /// Deletes a folder, only when it's empty (scripts are never deleted
+    /// in bulk).
+    fn delete_folder(&mut self, dir: &str) {
+        let path = self.scripts_dir().join(dir);
+        let empty = std::fs::read_dir(&path)
+            .map(|mut d| d.next().is_none())
+            .unwrap_or(false);
+        if !empty {
+            self.editor.status = format!("{dir} isn't empty: move or delete what's in it first.");
+            return;
+        }
+        match std::fs::remove_dir(&path) {
+            Ok(()) => {
+                self.editor.open_dirs.remove(dir);
+                if self.editor.new_dir == dir {
+                    self.editor.new_dir = parent_dir(dir).to_string();
+                }
+                self.editor.status = format!("Deleted the folder {dir}.");
+            }
+            Err(e) => self.editor.status = format!("Couldn't delete it: {e}"),
         }
     }
 
@@ -873,6 +1049,10 @@ impl App {
             self.editor.filtering = !find;
             self.editor.filter.clear();
         }
+        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, "New folder", false, 24.0).clicked() {
+            let dir = self.editor.new_dir.clone();
+            self.new_folder(&dir);
+        }
         let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, "New script", false, 24.0);
         egui::Popup::menu(&add).show(|ui| {
             ui.set_width(210.0);
@@ -918,15 +1098,19 @@ impl App {
             .auto_shrink([false; 2])
             .show(&mut child, |ui| {
                 ui.spacing_mut().item_spacing.y = 0.0;
-                let shown: Vec<&String> = files
-                    .iter()
-                    .filter(|f| q.is_empty() || f.to_lowercase().contains(&q))
-                    .collect();
-                if folder_row(ui, t, "SCRIPTS", self.editor.scripts_open || !q.is_empty(), shown.len()).clicked() {
+                // The scripts folder as a tree; with a filter, matching
+                // scripts as a flat list of paths.
+                let dirs = self.script_dirs();
+                let root_open = self.editor.scripts_open || !q.is_empty();
+                let head = folder_row(ui, t, "SCRIPTS", root_open, files.len());
+                if head.clicked() {
                     self.editor.scripts_open = !self.editor.scripts_open;
+                    self.editor.new_dir.clear();
                 }
-                if self.editor.scripts_open || !q.is_empty() {
-                    if files.is_empty() {
+                drop_target(ui, t, &head, "", &mut action);
+                head.context_menu(|ui| folder_menu(ui, t, "", &mut action));
+                if root_open {
+                    if files.is_empty() && dirs.is_empty() {
                         ui.horizontal(|ui| {
                             ui.add_space(30.0);
                             ui.label(
@@ -936,64 +1120,110 @@ impl App {
                             );
                         });
                     }
-                    for f in shown {
-                        let lang = Lang::of(f).unwrap_or(Lang::Pine);
-                        let on_chart = self.scripts.iter().any(|r| &r.file == f);
-                        let selected = active_key.as_deref() == Some(f.as_str());
+                    let rows: Vec<Node> = if q.is_empty() {
+                        tree(files, &dirs, &self.editor.open_dirs)
+                    } else {
+                        files
+                            .iter()
+                            .filter(|f| f.to_lowercase().contains(&q))
+                            .map(|f| Node::File {
+                                path: f.clone(),
+                                depth: 0,
+                            })
+                            .collect()
+                    };
+                    for row in rows {
+                        let (path, depth) = match &row {
+                            Node::Dir { path, depth, .. } | Node::File { path, depth } => (path.clone(), *depth),
+                        };
+                        // Being renamed: a field in the row's place.
                         if let Some((from, to)) = &mut self.editor.renaming
-                            && from == f
+                            && *from == path
                         {
-                            let r = ui.add(
-                                w::field(to)
-                                    .desired_width(ui.available_width() - 12.0)
-                                    .font(theme::regular(12.5))
-                                    .margin(vec2(8.0, 3.0)),
-                            );
-                            if !r.has_focus() && !r.lost_focus() {
-                                r.request_focus();
-                            }
-                            let (enter, esc) = ui.input(|i| (i.key_pressed(Key::Enter), i.key_pressed(Key::Escape)));
-                            if r.lost_focus() || enter || esc {
-                                action = Some(if esc { (9, String::new()) } else { (3, to.clone()) });
-                            }
+                            ui.horizontal(|ui| {
+                                ui.add_space(26.0 + depth as f32 * 14.0);
+                                let r = ui.add(
+                                    w::field(to)
+                                        .desired_width(ui.available_width() - 12.0)
+                                        .font(theme::regular(12.5))
+                                        .margin(vec2(8.0, 3.0)),
+                                );
+                                if !r.has_focus() && !r.lost_focus() {
+                                    r.request_focus();
+                                }
+                                let (enter, esc) =
+                                    ui.input(|i| (i.key_pressed(Key::Enter), i.key_pressed(Key::Escape)));
+                                if r.lost_focus() || enter || esc {
+                                    action = Some(if esc { (9, String::new()) } else { (3, to.clone()) });
+                                }
+                            });
                             continue;
                         }
-                        let dirty = self.editor.docs.iter().any(|d| &d.key == f && d.dirty());
-                        let resp = file_row(ui, t, lang, f, selected, on_chart, dirty, 1);
-                        if resp.clicked() {
-                            open = Some(f.clone());
-                        }
-                        if resp.double_clicked() {
-                            self.editor.renaming = Some((f.clone(), f.clone()));
-                        }
-                        resp.context_menu(|ui| {
-                            ui.set_width(210.0);
-                            ui.spacing_mut().item_spacing.y = 1.0;
-                            let mut item = |ui: &mut Ui, icon, label: &str, what: u8| {
-                                if w::menu_item(ui, t, Some(icon), label, "", false).clicked() {
-                                    action = Some((what, f.clone()));
-                                    ui.close();
+                        match row {
+                            Node::Dir {
+                                path,
+                                depth,
+                                open,
+                                count,
+                            } => {
+                                let picked = self.editor.new_dir == path;
+                                let resp = dir_row(ui, t, base_name(&path), open, depth + 1, count, picked);
+                                if resp.clicked() {
+                                    action = Some((15, path.clone()));
                                 }
-                            };
-                            item(
-                                ui,
-                                ph::PLAY,
-                                if on_chart { "Update on chart" } else { "Add to chart" },
-                                1,
-                            );
-                            item(ui, ph::COPY, "Duplicate", 2);
-                            if !on_chart {
-                                item(ui, ph::PENCIL_SIMPLE, "Rename", 4);
-                            }
-                            item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
-                            if !on_chart {
-                                w::menu_rule(ui, t);
-                                if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
-                                    action = Some((6, f.clone()));
-                                    ui.close();
+                                if resp.double_clicked() {
+                                    action = Some((4, path.clone()));
                                 }
+                                drop_target(ui, t, &resp, &path, &mut action);
+                                resp.context_menu(|ui| folder_menu(ui, t, &path, &mut action));
                             }
-                        });
+                            Node::File { path: f, depth } => {
+                                let lang = Lang::of(&f).unwrap_or(Lang::Pine);
+                                let on_chart = self.scripts.iter().any(|r| r.file == f);
+                                let selected = active_key.as_deref() == Some(f.as_str());
+                                let dirty = self.editor.docs.iter().any(|d| d.key == f && d.dirty());
+                                // Filtered: the path, so same names in two folders read apart.
+                                let label = if q.is_empty() { base_name(&f) } else { f.as_str() };
+                                let resp = file_row(ui, t, lang, label, selected, on_chart, dirty, depth + 1);
+                                if resp.drag_started() {
+                                    resp.dnd_set_drag_payload(f.clone());
+                                }
+                                if resp.clicked() {
+                                    open = Some(f.clone());
+                                }
+                                if resp.double_clicked() {
+                                    action = Some((4, f.clone()));
+                                }
+                                resp.context_menu(|ui| {
+                                    ui.set_width(210.0);
+                                    ui.spacing_mut().item_spacing.y = 1.0;
+                                    let mut item = |ui: &mut Ui, icon, label: &str, what: u8| {
+                                        if w::menu_item(ui, t, Some(icon), label, "", false).clicked() {
+                                            action = Some((what, f.clone()));
+                                            ui.close();
+                                        }
+                                    };
+                                    item(
+                                        ui,
+                                        ph::PLAY,
+                                        if on_chart { "Update on chart" } else { "Add to chart" },
+                                        1,
+                                    );
+                                    item(ui, ph::COPY, "Duplicate", 2);
+                                    if !on_chart {
+                                        item(ui, ph::PENCIL_SIMPLE, "Rename", 4);
+                                    }
+                                    item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
+                                    if !on_chart {
+                                        w::menu_rule(ui, t);
+                                        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
+                                            action = Some((6, f.clone()));
+                                            ui.close();
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     }
                 }
                 // Built-ins' Pine source, read-only.
@@ -1093,7 +1323,11 @@ impl App {
         if let Some(k) = open {
             match k.strip_prefix("builtin:") {
                 Some(id) => self.open_builtin_source(id),
-                None => self.open_in_editor(&k),
+                None => {
+                    // New scripts go next to the one opened.
+                    self.editor.new_dir = parent_dir(&k).to_string();
+                    self.open_in_editor(&k);
+                }
             }
         }
         match action {
@@ -1104,10 +1338,44 @@ impl App {
             Some((2, f)) => self.duplicate_script(&f),
             Some((3, to)) => {
                 if let Some((from, _)) = self.editor.renaming.take() {
-                    self.rename_script(&from, &to);
+                    self.rename_path(&from, &to);
                 }
             }
-            Some((4, f)) => self.editor.renaming = Some((f.clone(), f)),
+            Some((4, f)) => {
+                let name = base_name(&f).to_string();
+                self.editor.renaming = Some((f, name));
+            }
+            // Folders: a new folder or script in one, delete, open in the
+            // file manager, open/close, and a script dropped on one.
+            Some((10, dir)) => self.new_folder(&dir),
+            Some((11, dir)) => self.delete_folder(&dir),
+            Some((12, dir)) => {
+                let path = self.scripts_dir().join(&dir);
+                let _ = std::fs::create_dir_all(&path);
+                crate::app::open_path(&path);
+            }
+            Some((13, both)) => {
+                if let Some((file, dir)) = both.split_once('\0') {
+                    self.move_script(file, dir);
+                }
+            }
+            Some((14, both)) => {
+                if let Some((dir, ext)) = both.split_once('\0')
+                    && let Some(lang) = Lang::of(&format!("x{ext}"))
+                {
+                    self.editor.new_dir = dir.to_string();
+                    if !dir.is_empty() {
+                        self.editor.open_dirs.insert(dir.to_string());
+                    }
+                    self.new_script(lang);
+                }
+            }
+            Some((15, dir)) => {
+                if !self.editor.open_dirs.remove(&dir) {
+                    self.editor.open_dirs.insert(dir.clone());
+                }
+                self.editor.new_dir = dir;
+            }
             Some((5, f)) => crate::app::open_path(&self.scripts_dir().join(&f)),
             Some((6, f)) => {
                 if self.editor.deleting.as_deref() == Some(f.as_str()) {
@@ -1208,6 +1476,14 @@ impl App {
         };
         put(p, if d.readonly { "built-in" } else { "scripts" }, c.dim, &font);
         put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
+        // The folders it's in.
+        if !d.readonly {
+            for part in parent_dir(&d.key).split('/').filter(|x| !x.is_empty()) {
+                put(p, ph::FOLDER_SIMPLE, c.dim, &theme::regular(12.0));
+                put(p, part, c.dim, &font);
+                put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
+            }
+        }
         let (icon, col) = file_icon(d.lang);
         put(p, icon, col, &theme::regular(13.0));
         put(p, &d.title, c.text2, &font);
@@ -1956,6 +2232,102 @@ fn folder_row(ui: &mut Ui, t: &Theme, title: &str, open: bool, count: usize) -> 
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
+/// A folder in the explorer's tree: caret, folder icon, name, how many
+/// scripts are in it. `picked`: new scripts go here.
+fn dir_row(ui: &mut Ui, t: &Theme, name: &str, open: bool, depth: usize, count: usize, picked: bool) -> egui::Response {
+    let c = code_colors(t);
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
+    let p = ui.painter();
+    if picked {
+        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash());
+    } else if ui.rect_contains_pointer(r) {
+        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7));
+    }
+    let y = r.center().y;
+    let x0 = r.left() + 14.0 + depth as f32 * 14.0;
+    let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
+    p.text(
+        pos2(x0 - 10.0, y),
+        Align2::CENTER_CENTER,
+        caret,
+        theme::regular(10.0),
+        c.dim,
+    );
+    let icon = if open { ph::FOLDER_OPEN } else { ph::FOLDER_SIMPLE };
+    let col = Color32::from_rgb(0xE0, 0xA8, 0x4E);
+    p.text(
+        pos2(x0 + 6.0, y),
+        Align2::CENTER_CENTER,
+        icon,
+        theme::regular(14.0),
+        col,
+    );
+    let font = theme::regular(13.0);
+    let shown = crate::format::elide_to(p, name, &font, r.right() - 34.0 - (x0 + 20.0));
+    p.text(pos2(x0 + 20.0, y), Align2::LEFT_CENTER, shown, font, c.text2);
+    if count > 0 {
+        p.text(
+            pos2(r.right() - 12.0, y),
+            Align2::RIGHT_CENTER,
+            count.to_string(),
+            theme::regular(10.5),
+            c.dim,
+        );
+    }
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A folder row that takes a dragged script: it lights up while one hovers
+/// and moves it there on drop.
+fn drop_target(ui: &Ui, t: &Theme, resp: &egui::Response, dir: &str, action: &mut Option<(u8, String)>) {
+    if resp.dnd_hover_payload::<String>().is_some() {
+        ui.painter().rect_stroke(
+            resp.rect.shrink(1.0),
+            CornerRadius::same(4),
+            Stroke::new(1.5, t.accent),
+            egui::StrokeKind::Inside,
+        );
+    }
+    if let Some(file) = resp.dnd_release_payload::<String>() {
+        *action = Some((13, format!("{file}\0{dir}")));
+    }
+}
+
+/// A folder's right-click menu ("" is the scripts folder itself).
+fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, String)>) {
+    use crate::widgets as w;
+    ui.set_width(220.0);
+    ui.spacing_mut().item_spacing.y = 1.0;
+    w::menu_heading(ui, t, "NEW SCRIPT HERE");
+    for lang in [Lang::Pine, Lang::Python, Lang::Luau, Lang::Js, Lang::Ts] {
+        let (icon, _) = file_icon(lang);
+        if w::menu_item(ui, t, Some(icon), lang_name(lang), lang.ext(), false).clicked() {
+            *action = Some((14, format!("{dir}\0{}", lang.ext())));
+            ui.close();
+        }
+    }
+    w::menu_rule(ui, t);
+    if w::menu_item(ui, t, Some(ph::FOLDER_PLUS), "New folder", "", false).clicked() {
+        *action = Some((10, dir.to_string()));
+        ui.close();
+    }
+    if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open in your file manager", "", false).clicked() {
+        *action = Some((12, dir.to_string()));
+        ui.close();
+    }
+    if !dir.is_empty() {
+        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked() {
+            *action = Some((4, dir.to_string()));
+            ui.close();
+        }
+        w::menu_rule(ui, t);
+        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete folder (if empty)").clicked() {
+            *action = Some((11, dir.to_string()));
+            ui.close();
+        }
+    }
+}
+
 /// One file in the explorer: its language's icon and name, a dot when
 /// it's on the chart, a filled circle when unsaved.
 #[allow(clippy::too_many_arguments)]
@@ -1970,7 +2342,7 @@ fn file_row(
     depth: usize,
 ) -> egui::Response {
     let c = code_colors(t);
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click_and_drag());
     let p = ui.painter();
     if selected {
         p.rect_filled(r, CornerRadius::ZERO, t.accent_soft());
@@ -2099,6 +2471,52 @@ pub fn outline(text: &str, lang: Lang) -> Vec<(usize, String, Outline)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn folders_in_the_scripts_folder() {
+        let mut d = crate::drive::Driver::new("script-folders");
+        let root = d.app.scripts_dir();
+        std::fs::create_dir_all(root.join("ideas/momentum")).unwrap();
+        std::fs::create_dir_all(root.join("empty")).unwrap();
+        std::fs::write(root.join("ideas/momentum/rsi.pine"), PINE_TEMPLATE).unwrap();
+        std::fs::write(root.join("top.pine"), PINE_TEMPLATE).unwrap();
+        assert_eq!(d.app.script_files(), ["ideas/momentum/rsi.pine", "top.pine"]);
+        assert_eq!(d.app.script_dirs(), ["empty", "ideas", "ideas/momentum"]);
+        // The tree: folders first, open ones show what's in them.
+        let mut open = std::collections::HashSet::new();
+        assert_eq!(tree(&d.app.script_files(), &d.app.script_dirs(), &open).len(), 3);
+        open.insert("ideas".to_string());
+        open.insert("ideas/momentum".to_string());
+        assert_eq!(tree(&d.app.script_files(), &d.app.script_dirs(), &open).len(), 5);
+
+        // A script in a subfolder opens and runs on the chart.
+        d.app.open_in_editor("ideas/momentum/rsi.pine");
+        assert_eq!(d.app.editor.doc().unwrap().title, "rsi.pine");
+        d.app.add_script("ideas/momentum/rsi.pine");
+        d.wait(|a| {
+            a.chart
+                .studies
+                .iter()
+                .any(|s| s.meta().id == "pine:ideas/momentum/rsi.pine")
+        });
+
+        // On the chart, it stays put; off it, it moves and its tab follows.
+        d.app.move_script("ideas/momentum/rsi.pine", "");
+        assert!(root.join("ideas/momentum/rsi.pine").exists());
+        d.app.scripts.clear();
+        d.app.move_script("ideas/momentum/rsi.pine", "");
+        assert!(root.join("rsi.pine").exists());
+        assert_eq!(d.app.editor.doc().unwrap().key, "rsi.pine");
+
+        // Folders rename; only empty ones delete.
+        d.app.rename_path("ideas", "research");
+        assert!(root.join("research/momentum").is_dir());
+        d.app.move_script("top.pine", "research");
+        d.app.delete_folder("research");
+        assert!(root.join("research/top.pine").exists(), "a folder with scripts stays");
+        d.app.delete_folder("empty");
+        assert!(!root.join("empty").exists());
+    }
 
     #[test]
     fn highlighting_keeps_every_character() {

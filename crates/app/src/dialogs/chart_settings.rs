@@ -119,14 +119,16 @@ impl ChartSettings {
             // Changed elsewhere (a template, the right-click menu): follow it.
             self.style = app.chart.style.clone();
         }
+        // Short names when the page is narrow, so all four fit.
+        let narrow = ui.available_width() < 560.0;
         crate::widgets::segmented(
             ui,
             t,
             &mut self.tab,
             &[
                 (Tab::Symbol, "Symbol"),
-                (Tab::Status, "Status line"),
-                (Tab::Scales, "Scales and lines"),
+                (Tab::Status, if narrow { "Status" } else { "Status line" }),
+                (Tab::Scales, if narrow { "Scales" } else { "Scales and lines" }),
                 (Tab::Canvas, "Canvas"),
             ],
         );
@@ -443,7 +445,14 @@ fn canvas_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
     let pal = s.palette(t);
     section(ui, t, "Chart basic styles");
     form_row(ui, t, "Background", |ui| {
+        changed |= crate::widgets::segmented(ui, t, &mut s.gradient, &[(false, "Solid"), (true, "Gradient")]);
+        ui.add_space(6.0);
         changed |= theme_color(ui, t, &mut s.background, pal.bg);
+        if s.gradient {
+            ui.label(egui::RichText::new(crate::icons::ph::ARROW_RIGHT).color(t.text3));
+            let bottom = crate::chart::style::default_bottom(t);
+            changed |= theme_color(ui, t, &mut s.background2, pal.bg2.unwrap_or(bottom));
+        }
     });
     form_row(ui, t, "Vert grid lines", |ui| {
         changed |= crate::widgets::checkbox(ui, &mut s.show_grid_vert, "").changed();

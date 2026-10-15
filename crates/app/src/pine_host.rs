@@ -130,13 +130,13 @@ impl App {
 
     /// Library scripts in the scripts folder, by their `library()` title.
     fn pine_libraries(&self) -> Vec<(String, String)> {
-        let Ok(dir) = std::fs::read_dir(self.scripts_dir()) else {
-            return Vec::new();
-        };
-        let mut out: Vec<(String, String)> = dir
-            .flatten()
-            .filter(|e| e.path().extension().is_some_and(|x| x == "pine"))
-            .filter_map(|e| std::fs::read_to_string(e.path()).ok())
+        // Libraries anywhere in the scripts folder, subfolders included.
+        let dir = self.scripts_dir();
+        let mut out: Vec<(String, String)> = self
+            .script_files()
+            .into_iter()
+            .filter(|f| f.ends_with(".pine"))
+            .filter_map(|f| std::fs::read_to_string(dir.join(f)).ok())
             .filter(|src| src.contains("library("))
             .filter_map(|src| opentern_pine::library_title(&src).map(|t| (t, src)))
             .collect();

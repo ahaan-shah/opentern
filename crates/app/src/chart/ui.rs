@@ -177,7 +177,27 @@ pub fn show(
     let full = ui.max_rect();
     let pal = chart.style.palette(t);
     let painter = ui.painter_at(full);
-    painter.rect_filled(full, CornerRadius::ZERO, pal.bg);
+    match pal.bg2 {
+        // Top to bottom, as one mesh.
+        Some(bottom) => {
+            let mut mesh = Mesh::default();
+            let i = mesh.vertices.len() as u32;
+            for (p, c) in [
+                (full.left_top(), pal.bg),
+                (full.right_top(), pal.bg),
+                (full.right_bottom(), bottom),
+                (full.left_bottom(), bottom),
+            ] {
+                mesh.colored_vertex(p, c);
+            }
+            mesh.add_triangle(i, i + 1, i + 2);
+            mesh.add_triangle(i, i + 2, i + 3);
+            painter.add(egui::Shape::mesh(mesh));
+        }
+        None => {
+            painter.rect_filled(full, CornerRadius::ZERO, pal.bg);
+        }
+    }
     let ppp = ui.ctx().pixels_per_point();
     let scale_font = theme::regular(chart.style.scale_font as f32 - 0.5);
     let small = theme::regular(11.5);

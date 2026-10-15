@@ -978,7 +978,7 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 ```
 Stills also take `compare:<ticker>:scale|pane`, `measure` (a quick measure once
 bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
-maximized), `trades` (Strategy Report → List of trades) and
+maximized), `trades` (Strategy Report → List of trades), `gradient` (gradient canvas) and
 `settings:<appearance|chart|providers|logos>`.
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
