@@ -62,6 +62,8 @@ pub struct App {
     pub(crate) still_menu: Option<String>,
     /// `OPENTERN_STILL=measure`: show a measure once bars are in.
     still_measure: bool,
+    /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
+    still_replay: bool,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
@@ -178,6 +180,7 @@ impl App {
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
             still_measure: false,
+            still_replay: false,
             logos,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
@@ -302,6 +305,8 @@ impl App {
                 self.layout.panel_max = true;
             } else if part == "measure" {
                 self.still_measure = true;
+            } else if part == "replay:play" {
+                self.still_replay = true;
             } else if part == "replay" {
                 self.chart.toggle_replay();
             } else if let Some(kind) = part.strip_prefix("kind:") {
@@ -1022,6 +1027,12 @@ impl App {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
         self.logos.poll(&ctx);
+        if self.still_replay && self.chart.bars.len() > 1200 {
+            self.still_replay = false;
+            let n = self.chart.bars.len();
+            self.chart.toggle_replay();
+            self.chart.replay_from(n - 1161);
+        }
         if self.still_measure && self.chart.bars.len() > 80 {
             self.still_measure = false;
             let n = self.chart.bars.len();
