@@ -888,19 +888,21 @@ mod formula_tests {
             d.frame(vec![Event::Text(ch.to_string())]);
         }
         d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.got == s.seq && !s.results.is_empty()));
-        // Hold the matches back, as if they hadn't arrived yet.
+        // Mark the list as an older query's (still on screen), as if this
+        // query's matches hadn't arrived yet.
         let Some(Modal::Symbol(s)) = &mut d.app.modal else {
             unreachable!()
         };
-        let results = std::mem::take(&mut s.results);
         s.got = s.seq - 1;
         d.key(Key::Enter, Modifiers::NONE);
+        for _ in 0..5 {
+            d.frame(vec![]);
+        }
         let Some(Modal::Symbol(s)) = &mut d.app.modal else {
             panic!("Enter opened something before the matches came back");
         };
-        assert_eq!(s.query, "BTCUSDT/ETH");
+        assert_eq!(s.query, "BTCUSDT/ETH", "Enter took an older query's results");
         // They arrive: the waiting Enter completes the term with the first.
-        s.results = results;
         s.got = s.seq;
         d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.query == "BTCUSDT/BINANCE:ETHUSDT"));
     }

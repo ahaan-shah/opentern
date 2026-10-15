@@ -3399,6 +3399,8 @@ mod tests {
         d.app.layout.widget = Some(crate::shell::Widget::Claude);
         d.app.claude_load();
         d.app.claude.model = "claude-sonnet-5-5".into();
+        // The composer only shows once Claude Code is found; CI has none.
+        d.app.claude.cli = Some(Some(PathBuf::from("claude")));
         for w in [220.0, 260.0, 300.0, 420.0] {
             d.app.layout.widget_w = w;
             for _ in 0..30 {

@@ -288,9 +288,12 @@ impl SymbolSearch {
             // never opens a symbol left over from the last query (the
             // formula row is worked out here, so it never waits).
             let local = !awaiting_match && matches!(shown.get(self.selected), Some(Row::Formula(_)));
-            if enter && !self.query.trim().is_empty() && self.got != self.seq && !local {
+            // A held Enter fires only once this query's results are in, never
+            // on the next frame's leftovers from an older query.
+            let ready = self.got == self.seq || local;
+            if enter && !self.query.trim().is_empty() && !ready {
                 self.enter_pending = true;
-            } else if (enter || self.enter_pending) && self.selected < shown.len() {
+            } else if (enter || (self.enter_pending && ready)) && self.selected < shown.len() {
                 chosen = Some(self.selected);
             }
             if self.got == self.seq {
