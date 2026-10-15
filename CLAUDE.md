@@ -7,8 +7,8 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
 **Status (Oct 2026):** Phases 0–13 built and committed (one commit per phase, as the
-maintainer asked), plus most loose ends. The maintainer is testing; we iterate on UI and
-bugs next. Phase 14 (ship) waits for an explicit go. Read "Where things stand" → "Resume
+maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is a
+private GitHub repo with Linux CI; no release tagged yet. Read "Where things stand" → "Resume
 here" at the end first.
 
 ## Decisions so far (from the maintainer, Oct 2026)
@@ -554,7 +554,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 committed (latest: the DOM widget). Nothing has been pushed or released. The app
 was handed to the maintainer to test (a throwaway data dir, `/tmp/opentern-test`,
 with example scripts in every language); **next is their UI/UX feedback**, folded
-in iteratively. Phase 14 (ship) only on an explicit go.
+in iteratively. Phase 14 has started (item 3).
 
 **What's left, in order:**
 1. **The maintainer's UI/UX feedback.** The first UI pass is done (14 Oct 2026,
@@ -568,7 +568,19 @@ in iteratively. Phase 14 (ship) only on an explicit go.
    TradingView-style logos, formula autocomplete; list in `docs/ui-backlog.md`).
 2. **The Claude panel** (15 Oct 2026, first cut, being tested by the maintainer;
    see "Claude panel" below). Iterate on their feedback.
-3. **Phase 14** (releases, website), only on an explicit go.
+3. **Phase 14 (started 16 Oct 2026, the maintainer's go):** the repo is on
+   GitHub as **private** `ahaan-shah/opentern`. CI is **Linux only** (leaks,
+   `cargo audit`, fmt, clippy, tests; private-repo minutes). `release.yml`
+   builds Linux x86-64 only on a `v*` tag: `opentern-x86_64-unknown-linux-gnu.tar.gz`
+   + `SHA256SUMS` + `install.sh` (`scripts/package-linux.sh`). `install.sh` is
+   Linux only; while private it runs through `gh` (one-liner in the README).
+   The updater falls back to the `gh` CLI on a 404 (private repo) for the check
+   and the download, and now **requires** SHA256SUMS. Settings → About: logo,
+   version, Check for updates, the launch-check toggle. README screenshots in
+   `docs/screenshots/` (demo data; retake with `OPENTERN_STILL`, a fresh
+   `--data-dir` per shot, since layouts persist). Still to do: tagging a
+   release (needs its own go), macOS/Windows builds when it goes public,
+   `THIRD-PARTY-LICENSES.txt` + `--licenses`, the website.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -584,7 +596,7 @@ in iteratively. Phase 14 (ship) only on an explicit go.
 - Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
   tag, × cancels / closes), several paper accounts, email alerts. Still open: a
   `--daemon`, alerts on off-chart indicators.
-- `THIRD-PARTY-LICENSES.txt` + `--licenses`, release workflow, `.icns` (Phase 14).
+- `THIRD-PARTY-LICENSES.txt` + `--licenses`, `.icns` (Phase 14; the Linux release workflow is done).
   The icon itself is done (`packaging/linux/`, `opentern.desktop`).
 
 **Testing the app for the maintainer:** build with `cargo build --profile fast`.

@@ -1,6 +1,6 @@
 //! Settings: a page that takes the chart area (☰ or the gear opens it,
 //! Esc or × closes it), with its categories down the left: Appearance,
-//! Chart, Data providers and Symbol logos.
+//! Chart, Data providers, Symbol logos and About.
 
 use crate::app::App;
 use crate::dialogs::ChartSettings;
@@ -16,10 +16,11 @@ pub enum Cat {
     Chart,
     Providers,
     Logos,
+    About,
 }
 
 impl Cat {
-    pub const ALL: [Cat; 4] = [Cat::Appearance, Cat::Chart, Cat::Providers, Cat::Logos];
+    pub const ALL: [Cat; 5] = [Cat::Appearance, Cat::Chart, Cat::Providers, Cat::Logos, Cat::About];
 
     fn title(self) -> &'static str {
         match self {
@@ -27,6 +28,7 @@ impl Cat {
             Cat::Chart => "Chart",
             Cat::Providers => "Data providers",
             Cat::Logos => "Symbol logos",
+            Cat::About => "About",
         }
     }
 
@@ -36,6 +38,7 @@ impl Cat {
             Cat::Chart => ph::CHART_LINE,
             Cat::Providers => ph::PLUGS_CONNECTED,
             Cat::Logos => ph::IMAGE,
+            Cat::About => ph::INFO,
         }
     }
 
@@ -45,6 +48,7 @@ impl Cat {
             Cat::Chart => "The active chart's look. Save it as a template to use it on other charts.",
             Cat::Providers => "Sources that need an account. Everything else works without one.",
             Cat::Logos => "Round logos beside symbols, as on TradingView.",
+            Cat::About => "This version of Opentern, and updates.",
         }
     }
 }
@@ -168,6 +172,7 @@ impl App {
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
                     Cat::Logos => self.logo_settings(ui, t),
+                    Cat::About => self.about(ui, t),
                 }
                 ui.add_space(24.0);
             });
@@ -284,4 +289,129 @@ impl App {
             self.logos.clear();
         }
     }
+
+    fn about(&mut self, ui: &mut Ui, t: &Theme) {
+        use crate::updater::Phase;
+        // Logo, then the version and what Opentern is (wrapping in a narrow pane).
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 16.0;
+            ui.add(egui::Image::new(&app_logo(ui.ctx())).fit_to_exact_size(vec2(56.0, 56.0)));
+            ui.vertical(|ui| {
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(format!("Opentern {}", env!("CARGO_PKG_VERSION")))
+                        .font(theme::semibold(16.0))
+                        .color(t.text),
+                );
+                ui.label(
+                    egui::RichText::new("A local-first trading terminal. MIT licensed.")
+                        .font(theme::regular(13.0))
+                        .color(t.text2),
+                );
+            });
+        });
+        ui.add_space(18.0);
+
+        crate::dialogs::section(ui, t, "Updates");
+        ui.add_space(4.0);
+        let subtle = |s: String| egui::RichText::new(s).font(theme::regular(12.5)).color(t.text2);
+        let phase = self.updater.phase.clone();
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 12.0;
+            match &phase {
+                Phase::Available(r) => {
+                    if crate::widgets::primary(ui, &format!("Update to {}", r.version)).clicked() {
+                        self.update_action(ui.ctx());
+                    }
+                    ui.label(subtle("Update available".into()));
+                }
+                Phase::Manual(r, why) => {
+                    if crate::widgets::secondary(ui, &format!("Download {}", r.version)).clicked() {
+                        self.update_action(ui.ctx());
+                    }
+                    ui.label(subtle(format!("{why}.")));
+                }
+                Phase::Installing(r) => {
+                    ui.label(subtle(format!(
+                        "Updating to {}… {:.0}%",
+                        r.version,
+                        self.updater.progress * 100.0
+                    )));
+                }
+                Phase::Ready(r) => {
+                    if crate::widgets::primary(ui, "Restart Opentern").clicked() {
+                        self.update_action(ui.ctx());
+                    }
+                    ui.label(subtle(format!(
+                        "Opentern {} is installed. Restart to use it.",
+                        r.version
+                    )));
+                }
+                _ => {
+                    let checking = phase == Phase::Checking;
+                    let label = if checking { "Checking…" } else { "Check for updates" };
+                    if crate::widgets::secondary(ui, label).clicked() && !checking {
+                        self.updater.check(ui.ctx(), true);
+                    }
+                    match &phase {
+                        Phase::UpToDate => {
+                            ui.label(subtle("Opentern is up to date".into()));
+                        }
+                        Phase::Failed(m) => {
+                            ui.label(subtle(m.clone()));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        });
+        ui.add_space(10.0);
+        let mut on = self.store.settings().check_updates;
+        if crate::widgets::checkbox(ui, &mut on, "Check for updates when Opentern starts").changed() {
+            let s = opentern_core::store::Settings {
+                check_updates: on,
+                ..self.store.settings().clone()
+            };
+            if let Err(e) = self.store.set_settings(s) {
+                crate::diag::crumb(format!("couldn't save the update setting: {e}"));
+            }
+        }
+        ui.add_space(6.0);
+        ui.label(subtle(
+            "Opentern only downloads an update when you click Update, and never sends anything about you.".into(),
+        ));
+        ui.add_space(12.0);
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = 8.0;
+            if crate::widgets::secondary(ui, "Release notes").clicked() {
+                crate::app::open_url("https://github.com/ahaan-shah/opentern/releases");
+            }
+            if crate::widgets::secondary(ui, "Source code").clicked() {
+                crate::app::open_url("https://github.com/ahaan-shah/opentern");
+            }
+        });
+    }
+}
+
+/// The app icon as a texture, rendered once from the packaged SVG.
+fn app_logo(ctx: &egui::Context) -> egui::TextureHandle {
+    let id = egui::Id::new("opentern-app-logo");
+    if let Some(tex) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
+        return tex;
+    }
+    use resvg::{tiny_skia, usvg};
+    const SIZE: u32 = 192;
+    let mut img = egui::ColorImage::filled([SIZE as usize; 2], egui::Color32::TRANSPARENT);
+    let svg = include_str!("../../../packaging/linux/opentern.svg");
+    if let (Ok(tree), Some(mut pm)) = (
+        usvg::Tree::from_str(svg, &usvg::Options::default()),
+        tiny_skia::Pixmap::new(SIZE, SIZE),
+    ) {
+        let k = SIZE as f32 / tree.size().width().max(tree.size().height());
+        resvg::render(&tree, tiny_skia::Transform::from_scale(k, k), &mut pm.as_mut());
+        img = egui::ColorImage::from_rgba_premultiplied([SIZE as usize; 2], pm.data());
+    }
+    let tex = ctx.load_texture("opentern-app-logo", img, egui::TextureOptions::LINEAR);
+    ctx.data_mut(|d| d.insert_temp(id, tex.clone()));
+    tex
 }

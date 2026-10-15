@@ -3,13 +3,18 @@
 //!
 //! The feed is GitHub's "latest release" API (or `OPENTERN_UPDATE_FEED`, a URL
 //! or local JSON file of the same shape, for testing). Installing downloads
-//! the build for this platform, checks it against the release's SHA256SUMS,
+//! the build for this platform, checks it against the release's SHA256SUMS
+//! (required),
 //! and replaces the program in place:
 //!
 //! - Linux: the `opentern` binary (renaming over a running binary is safe; the
 //!   running process keeps the old file until it exits).
 //! - macOS: the whole `Opentern.app` bundle.
 //! - Windows: `opentern.exe`, after renaming the running one aside.
+//!
+//! While the repository is private, GitHub answers anonymous requests with
+//! 404, so the check and the download fall back to the GitHub CLI (`gh`) when
+//! it's installed and signed in. Opentern never sees or stores the token.
 //!
 //! Your data folder is never touched. If the app lives somewhere Opentern
 //! can't write (a package manager's /usr/bin, an all-users Program Files
@@ -19,6 +24,7 @@ use crate::{Error, Result};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
+const REPO: &str = "ahaan-shah/opentern";
 const LATEST: &str = "https://api.github.com/repos/ahaan-shah/opentern/releases/latest";
 const AGENT: &str = concat!("opentern/", env!("CARGO_PKG_VERSION"));
 
@@ -30,6 +36,11 @@ pub struct Release {
     pub page: String,
     pub notes: String,
     pub assets: Vec<(String, String)>,
+    /// The release tag ("v0.1.7").
+    pub tag: String,
+    /// Found through the GitHub CLI (a private repository), so downloads go
+    /// through it too.
+    pub gh: bool,
 }
 
 impl Release {
@@ -73,15 +84,39 @@ fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
         })
 }
 
-fn feed_json() -> Result<String> {
-    let feed = std::env::var("OPENTERN_UPDATE_FEED").unwrap_or_else(|_| LATEST.to_string());
+/// Runs the GitHub CLI with fixed arguments; its stdout on success.
+fn gh(args: &[&str]) -> Option<Vec<u8>> {
+    let out = std::process::Command::new("gh")
+        .args(args)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    out.status.success().then_some(out.stdout)
+}
+
+/// The feed's JSON, and whether it came through the GitHub CLI.
+fn feed_json() -> Result<(String, bool)> {
+    let custom = std::env::var("OPENTERN_UPDATE_FEED").ok();
+    let feed = custom.clone().unwrap_or_else(|| LATEST.to_string());
     if !feed.starts_with("http://") && !feed.starts_with("https://") {
-        return Ok(std::fs::read_to_string(feed.trim_start_matches("file://"))?);
+        return Ok((std::fs::read_to_string(feed.trim_start_matches("file://"))?, false));
     }
-    get(&feed)?
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| Error::Http(e.to_string()))
+    match get(&feed) {
+        Ok(mut res) => Ok((
+            res.body_mut()
+                .read_to_string()
+                .map_err(|e| Error::Http(e.to_string()))?,
+            false,
+        )),
+        // A private repository looks missing to anonymous requests.
+        Err(Error::Http(m)) if custom.is_none() && m != OFFLINE => {
+            match gh(&["api", &format!("repos/{REPO}/releases/latest")]) {
+                Some(out) => Ok((String::from_utf8_lossy(&out).into_owned(), true)),
+                None => Err(Error::Http(m)),
+            }
+        }
+        Err(e) => Err(e),
+    }
 }
 
 fn parse_feed(json: &str) -> Result<Release> {
@@ -106,12 +141,16 @@ fn parse_feed(json: &str) -> Result<Release> {
         page: l.html_url,
         notes: l.body.unwrap_or_default(),
         assets: l.assets.into_iter().map(|a| (a.name, a.browser_download_url)).collect(),
+        tag: l.tag_name,
+        gh: false,
     })
 }
 
 /// The newest release if it's newer than this build, else None.
 pub fn check() -> Result<Option<Release>> {
-    let r = parse_feed(&feed_json()?)?;
+    let (json, via_gh) = feed_json()?;
+    let mut r = parse_feed(&json)?;
+    r.gh = via_gh;
     Ok(is_newer(&r.version, env!("CARGO_PKG_VERSION")).then_some(r))
 }
 
@@ -253,14 +292,39 @@ pub fn install(release: &Release, progress: &dyn Fn(f32)) -> Result<()> {
     let work = parent.join(format!(".opentern-update-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&work);
     std::fs::create_dir_all(&work)?;
+    // A private repository's files need the GitHub CLI's sign-in.
+    let fetch = |name: &str, url: &str, to: &Path, progress: &dyn Fn(f32)| -> Result<()> {
+        if !release.gh {
+            return download(url, to, progress);
+        }
+        let dir = to.parent().unwrap_or(Path::new(".")).to_string_lossy().into_owned();
+        gh(&[
+            "release",
+            "download",
+            &release.tag,
+            "-R",
+            REPO,
+            "-p",
+            name,
+            "-D",
+            &dir,
+            "--clobber",
+        ])
+        .ok_or_else(|| Error::Http(format!("couldn't download {name} with the GitHub CLI")))?;
+        progress(1.0);
+        Ok(())
+    };
     let result = (|| {
         let file = work.join(&asset);
-        download(url, &file, progress)?;
+        fetch(&asset, url, &file, progress)?;
 
-        // Verify against SHA256SUMS when the release has one.
-        if let Some(sums_url) = release.asset("SHA256SUMS") {
+        // Every release carries SHA256SUMS; never install one that doesn't.
+        let sums_url = release
+            .asset("SHA256SUMS")
+            .ok_or_else(|| Error::Msg("this release has no SHA256SUMS, so it can't be checked".into()))?;
+        {
             let sums = work.join("SHA256SUMS");
-            download(sums_url, &sums, &|_| {})?;
+            fetch("SHA256SUMS", sums_url, &sums, &|_| {})?;
             let text = std::fs::read_to_string(&sums)?;
             let expected = text
                 .lines()
@@ -466,6 +530,8 @@ mod tests {
                 ("pkg.tar.gz".into(), tar.display().to_string()),
                 ("SHA256SUMS".into(), sums.display().to_string()),
             ],
+            tag: "v9.9.9".into(),
+            gh: false,
         };
         // Exercise the same steps install() runs, against a stand-in target.
         let target = dir.path().join("bin").join("opentern");
