@@ -17,9 +17,10 @@ pub const SERVER: &str = "opentern";
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Mode {
     /// Claude asks before anything that changes files or runs commands.
-    #[default]
     Manual,
-    /// Claude Code's auto mode: it decides what's safe and asks less.
+    /// Claude Code's auto mode: it decides what's safe and asks less (the
+    /// default, as in a terminal set up that way).
+    #[default]
     Auto,
 }
 
@@ -269,13 +270,17 @@ impl Client {
         self.write(&json!({"type": "control_request", "request_id": format!("ot-{}", self.seq), "request": request}));
     }
 
-    /// A user turn: the visible text plus a context block Claude sees first.
-    pub fn send(&self, context: &str, text: &str) {
+    /// A user turn: a context block Claude sees first, attached files'
+    /// blocks, then the visible text.
+    pub fn send(&self, context: &str, files: Vec<Value>, text: &str) {
         let mut content = Vec::new();
         if !context.is_empty() {
             content.push(json!({"type": "text", "text": context}));
         }
-        content.push(json!({"type": "text", "text": text}));
+        content.extend(files);
+        if !text.is_empty() {
+            content.push(json!({"type": "text", "text": text}));
+        }
         self.write(&json!({"type": "user", "message": {"role": "user", "content": content}}));
     }
 

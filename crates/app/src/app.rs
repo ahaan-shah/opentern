@@ -278,6 +278,9 @@ impl App {
                 } else {
                     self.claude.view = crate::claude::View::Chats;
                 }
+            } else if let Some(f) = part.strip_prefix("claude-attach:") {
+                self.layout.widget = Some(crate::shell::Widget::Claude);
+                self.claude.attached.push(f.to_string());
             } else if let Some(m) = part.strip_prefix("claude-menu:") {
                 self.layout.widget = Some(crate::shell::Widget::Claude);
                 self.claude.still_menu = Some(m.to_string());

@@ -5,6 +5,7 @@
 //!
 //! Nothing runs until the user sends a message: no process, no network.
 
+pub mod attach;
 pub mod mark;
 pub mod process;
 pub mod tools;
@@ -33,6 +34,8 @@ pub enum AskState {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Item {
     User(String),
+    /// Files sent with the next `User` message (full paths).
+    Attached(Vec<String>),
     Assistant(String),
     Tool {
         id: String,
@@ -119,6 +122,9 @@ struct Saved {
     limits_at: i64,
     #[serde(default)]
     show_usage: bool,
+    /// Whether the mode was picked by hand (else Auto, the default).
+    #[serde(default)]
+    mode_picked: bool,
 }
 
 /// What the panel shows: a chat, or the list of chats.
@@ -143,6 +149,12 @@ pub struct Claude {
     /// Where the composer's controls landed last frame (tests check they
     /// don't overlap).
     pub footer: Vec<egui::Rect>,
+    /// Files waiting to go with the next message (full paths).
+    pub attached: Vec<String>,
+    /// The file picker, while it's open.
+    picker: Option<crossbeam_channel::Receiver<Vec<PathBuf>>>,
+    /// A short note under the composer (a paste that found nothing).
+    attach_note: Option<(String, f64)>,
     pub chats: Vec<Chat>,
     pub active: Option<u64>,
     pub clients: HashMap<u64, Client>,
@@ -156,6 +168,7 @@ pub struct Claude {
     pub mode: Mode,
     pub model: String,
     pub show_usage: bool,
+    mode_picked: bool,
     /// Tool rows opened to show their result: (chat, item index).
     expanded: HashSet<(u64, usize)>,
     /// Step boxes opened or folded by hand: (chat, first item) → open.
@@ -280,7 +293,16 @@ impl App {
         let c = &mut self.claude;
         c.chats = s.chats;
         c.active = s.active.filter(|a| c.chats.iter().any(|x| x.id == *a));
-        c.mode = s.mode;
+        // Auto is the default, as in the user's terminal; a mode stays only
+        // once it's been picked by hand (earlier versions saved the old
+        // default, Ask first, for every chat).
+        c.mode_picked = s.mode_picked;
+        c.mode = if s.mode_picked { s.mode } else { Mode::Auto };
+        if !s.mode_picked {
+            for chat in &mut c.chats {
+                chat.mode = Mode::Auto;
+            }
+        }
         c.model = model_id(&s.model);
         for chat in &mut c.chats {
             chat.model = model_id(&chat.model);
@@ -302,6 +324,7 @@ impl App {
             limits: c.limits.clone(),
             limits_at: c.limits_at,
             show_usage: c.show_usage,
+            mode_picked: c.mode_picked,
         };
         let path = self.claude_file();
         if let Some(d) = path.parent() {
@@ -407,7 +430,7 @@ impl App {
     pub(crate) fn claude_send(&mut self) {
         self.claude_load();
         let text = self.claude.input.trim().to_string();
-        if text.is_empty() {
+        if text.is_empty() && self.claude.attached.is_empty() {
             return;
         }
         let Some(exe) = self.claude.cli() else {
@@ -451,15 +474,24 @@ impl App {
             }
         }
         let context = self.claude_context();
+        let files = std::mem::take(&mut self.claude.attached);
         if let Some(c) = self.claude.clients.get(&id) {
-            c.send(&context, &text);
+            c.send(&context, attach::blocks(&files), &text);
         }
         crate::diag::crumb("claude send");
         let chat = self.claude.chat_mut(id).expect("active chat");
         if chat.items.is_empty() {
-            chat.title = title_of(&text);
+            chat.title = match files.first() {
+                Some(f) if text.is_empty() => title_of(file_name(f)),
+                _ => title_of(&text),
+            };
         }
-        chat.items.push(Item::User(text));
+        if !files.is_empty() {
+            chat.items.push(Item::Attached(files));
+        }
+        if !text.is_empty() {
+            chat.items.push(Item::User(text));
+        }
         chat.busy = true;
         chat.thinking = true;
         chat.updated = now_ms();
@@ -676,6 +708,7 @@ impl App {
 
     fn claude_set_mode(&mut self, mode: Mode) {
         self.claude.mode = mode;
+        self.claude.mode_picked = true;
         if let Some(id) = self.claude.active {
             if let Some(c) = self.claude.clients.get_mut(&id) {
                 c.set_mode(mode);
@@ -759,7 +792,8 @@ impl App {
             });
             return;
         }
-        let composer_h = self.claude_composer_height();
+        self.claude_take_files(ui, t);
+        let composer_h = self.claude_composer_height(ui.available_width());
         let list_h = (ui.available_height() - composer_h - 8.0).max(80.0);
         // The messages fill a fixed slot so the composer sits at the bottom.
         let (slot, _) = ui.allocate_exact_size(vec2(ui.available_width(), list_h), Sense::hover());
@@ -1072,6 +1106,7 @@ impl App {
         let mut fold = None;
         let scripts = self.claude_scripts();
         let mut open_file: Option<String> = None;
+        let mut open_attachment: Option<String> = None;
         // Keys 1-3 answer a waiting prompt (when no text field has focus).
         let waiting = chat.items.iter().rposition(is_waiting);
         if let Some(i) = waiting
@@ -1105,7 +1140,8 @@ impl App {
                 while i < items.len() {
                     let it = &items[i];
                     // Claude's mark starts each of its turns.
-                    let starts_turn = !matches!(it, Item::User(_)) && (i == 0 || matches!(items[i - 1], Item::User(_)));
+                    let mine = |x: &Item| matches!(x, Item::User(_) | Item::Attached(_));
+                    let starts_turn = !mine(it) && (i == 0 || mine(&items[i - 1]));
                     if starts_turn {
                         ui.add_space(6.0);
                         mark::show(ui, 16.0, mark::CLAUDE);
@@ -1140,9 +1176,17 @@ impl App {
                     }
                     match it {
                         Item::User(text) => {
-                            ui.add_space(10.0);
+                            if !matches!(i.checked_sub(1).map(|k| &items[k]), Some(Item::Attached(_))) {
+                                ui.add_space(10.0);
+                            }
                             user_bubble(ui, t, text, width);
                             ui.add_space(4.0);
+                        }
+                        Item::Attached(files) => {
+                            ui.add_space(10.0);
+                            if let Chip::Open(k) = file_chips(ui, t, files, width, true, false) {
+                                open_attachment = Some(files[k].clone());
+                            }
                         }
                         Item::Assistant(text) => markdown(ui, t, text, (chat.id, i), &scripts, &mut open_file),
                         Item::Ask {
@@ -1196,6 +1240,17 @@ impl App {
         }
         if let Some((k, open)) = fold {
             self.claude.folds.insert(k, open);
+        }
+        if let Some(f) = open_attachment {
+            // A script in the scripts folder opens in the editor; anything
+            // else in the system's own app.
+            let dir = self.scripts_dir();
+            match std::path::Path::new(&f).strip_prefix(&dir) {
+                Ok(rel) if crate::scripting::Lang::of(&rel.to_string_lossy()).is_some() => {
+                    open_file = Some(rel.to_string_lossy().replace('\\', "/"));
+                }
+                _ => crate::app::open_path(std::path::Path::new(&f)),
+            }
         }
         if let Some(f) = open_file {
             self.open_in_editor(&f);
@@ -1283,9 +1338,94 @@ impl App {
 
     // -------------------------------------------------------- composer
 
-    fn claude_composer_height(&self) -> f32 {
+    fn claude_composer_height(&self, width: f32) -> f32 {
         let lines = self.claude.input.lines().count().clamp(2, 8) as f32;
-        lines * 18.5 + 64.0
+        let n = self.claude.attached.len();
+        let per_row = ((width - 20.0) / 176.0).floor().max(1.0) as usize;
+        let chips = if n == 0 {
+            0.0
+        } else {
+            n.div_ceil(per_row) as f32 * 34.0 + 2.0
+        };
+        let note = if self.claude.attach_note.is_some() { 20.0 } else { 0.0 };
+        lines * 18.5 + 64.0 + chips + note
+    }
+
+    /// Adds files to the next message (each once).
+    fn claude_attach(&mut self, files: Vec<PathBuf>) {
+        for f in files {
+            let f = f.to_string_lossy().into_owned();
+            if !self.claude.attached.contains(&f) {
+                self.claude.attached.push(f);
+            }
+        }
+    }
+
+    /// The clipboard's files, or its image (saved in the workspace).
+    fn claude_paste(&mut self, now: f64) {
+        let dir = self.store.dir().join("claude").join("attachments");
+        match attach::from_clipboard(&dir) {
+            Ok(files) if !files.is_empty() => self.claude_attach(files),
+            Ok(_) => self.claude.attach_note = Some(("There's no image or file on the clipboard.".into(), now)),
+            Err(e) => self.claude.attach_note = Some((e, now)),
+        }
+    }
+
+    /// Files from the picker, or dropped on the window while the panel is
+    /// open; and the "drop to attach" overlay while they hover.
+    fn claude_take_files(&mut self, ui: &Ui, t: &Theme) {
+        if let Some(rx) = &self.claude.picker {
+            match rx.try_recv() {
+                Ok(files) => {
+                    self.claude.picker = None;
+                    self.claude_attach(files);
+                }
+                Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.picker = None,
+                Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
+            }
+        }
+        let (dropped, hovering) = ui.input(|i| {
+            (
+                i.raw
+                    .dropped_files
+                    .iter()
+                    .map(|f| f.path().to_path_buf())
+                    .filter(|p| p.is_file())
+                    .collect::<Vec<_>>(),
+                !i.raw.hovered_files.is_empty(),
+            )
+        });
+        if !dropped.is_empty() {
+            self.claude_attach(dropped);
+        }
+        if hovering {
+            let r = ui.max_rect();
+            let p = ui.ctx().layer_painter(egui::LayerId::new(
+                egui::Order::Foreground,
+                egui::Id::new("claude-drop"),
+            ));
+            p.rect(
+                r.shrink(2.0),
+                12,
+                t.bg.gamma_multiply(0.92),
+                Stroke::new(1.5, mark::CLAUDE),
+                egui::StrokeKind::Inside,
+            );
+            p.text(
+                r.center() - vec2(0.0, 14.0),
+                egui::Align2::CENTER_CENTER,
+                ph::PAPERCLIP,
+                theme::regular(28.0),
+                mark::CLAUDE,
+            );
+            p.text(
+                r.center() + vec2(0.0, 18.0),
+                egui::Align2::CENTER_CENTER,
+                "Drop files to attach",
+                theme::medium(13.5),
+                t.text,
+            );
+        }
     }
 
     fn claude_composer(&mut self, ui: &mut Ui, t: &Theme) {
@@ -1323,6 +1463,42 @@ impl App {
             })
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
+                let now = ui.input(|i| i.time);
+                // Pasted files (a file manager copies them as paths) attach;
+                // Alt+V attaches the clipboard's image (egui's Ctrl+V only
+                // carries text).
+                if focused {
+                    let mut files = None;
+                    ui.input_mut(|i| {
+                        i.events.retain(|e| match e {
+                            egui::Event::Paste(text) => match attach::pasted_files(text) {
+                                Some(f) => {
+                                    files = Some(f);
+                                    false
+                                }
+                                None => true,
+                            },
+                            _ => true,
+                        })
+                    });
+                    if let Some(f) = files {
+                        self.claude_attach(f);
+                    }
+                    if ui.input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::V)) {
+                        self.claude_paste(now);
+                    }
+                }
+                if !self.claude.attached.is_empty() {
+                    let files = self.claude.attached.clone();
+                    match file_chips(ui, t, &files, ui.available_width(), false, true) {
+                        Chip::Remove(k) => {
+                            self.claude.attached.remove(k);
+                        }
+                        Chip::Open(k) => crate::app::open_path(std::path::Path::new(&files[k])),
+                        Chip::None => {}
+                    }
+                    ui.add_space(4.0);
+                }
                 // Enter sends; Shift+Enter is a new line.
                 let enter = focused && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
                 let hint = if started {
@@ -1360,22 +1536,56 @@ impl App {
                     // A narrow pane: the mode shrinks to its icon, then the
                     // model drops its version. The send button and the ring
                     // always keep their room.
-                    let room = ui.available_width() - 72.0;
+                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false)
+                        .on_hover_text("Attach files (or drop them here; Alt+V pastes an image)");
+                    egui::Popup::menu(&clip)
+                        .anchor(above(&clip, top))
+                        .align(egui::RectAlign::TOP_START)
+                        .gap(6.0)
+                        .width(220.0)
+                        .show(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            if menu_pick(ui, t, &format!("{}  Add files…", ph::FILE_PLUS), "", false).clicked() {
+                                if self.claude.picker.is_none() {
+                                    self.claude.picker = Some(attach::pick());
+                                }
+                                ui.close();
+                            }
+                            if menu_pick(ui, t, &format!("{}  Paste image", ph::CLIPBOARD_TEXT), "Alt+V", false)
+                                .clicked()
+                            {
+                                self.claude_paste(now);
+                                ui.close();
+                            }
+                        });
+                    // The send button (and the ring, while there's room) keep
+                    // theirs; the rest gives way in steps.
+                    let full_label = label.clone();
+                    let room = ui.available_width() - 66.0;
+                    let mut show_ring = true;
                     let mut mode_text = word;
-                    if pill_width(ui, Some(icon), mode_text, true) + pill_width(ui, None, &label, true) + 4.0 > room {
+                    let mut model_icon = None;
+                    let fits = |ui: &Ui, mode_text: &str, icon_m: Option<&str>, label: &str, room: f32| {
+                        pill_width(ui, Some(icon), mode_text, true) + pill_width(ui, icon_m, label, true) + 4.0 <= room
+                    };
+                    if !fits(ui, mode_text, None, &label, room) {
                         mode_text = "";
                     }
-                    if pill_width(ui, Some(icon), mode_text, true) + pill_width(ui, None, &label, true) + 4.0 > room {
+                    if !fits(ui, mode_text, None, &label, room) {
                         label = label.split(' ').next().unwrap_or("").to_string();
                     }
-                    let full_label = label.clone();
-                    let mut model_icon = None;
-                    if pill_width(ui, Some(icon), mode_text, true) + pill_width(ui, None, &label, true) + 4.0 > room {
+                    if !fits(ui, mode_text, None, &label, room) {
                         label.clear();
                         model_icon = Some(ph::CPU);
                     }
+                    if !fits(ui, mode_text, model_icon, &label, room) {
+                        // Very narrow: the ring steps aside (its numbers go
+                        // in the model button's tooltip).
+                        show_ring = false;
+                    }
                     let resp = pill(ui, t, Some(icon), mode_text, true);
                     self.claude.footer.clear();
+                    self.claude.footer.push(clip.rect);
                     self.claude.footer.push(resp.rect);
                     let resp = if mode_text.is_empty() {
                         resp.on_hover_text(word)
@@ -1419,8 +1629,17 @@ impl App {
                     let resp = ui
                         .add_enabled_ui(!busy, |ui| pill(ui, t, model_icon, &label, true))
                         .inner;
-                    let resp = if label.is_empty() {
-                        resp.on_hover_text(full_label)
+                    let resp = if label.is_empty() || !show_ring {
+                        let usage: String = if show_ring {
+                            String::new()
+                        } else {
+                            self.claude
+                                .limits
+                                .iter()
+                                .map(|w| format!("\n{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
+                                .collect()
+                        };
+                        resp.on_hover_text(format!("{full_label}{usage}"))
                     } else {
                         resp
                     };
@@ -1443,7 +1662,7 @@ impl App {
                         });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 6.0;
-                        let can_send = !self.claude.input.trim().is_empty();
+                        let can_send = !self.claude.input.trim().is_empty() || !self.claude.attached.is_empty();
                         let send_resp = send_button(ui, t, busy, can_send);
                         self.claude.footer.push(send_resp.rect);
                         if send_resp.clicked() {
@@ -1453,9 +1672,20 @@ impl App {
                                 send = true;
                             }
                         }
-                        self.claude_usage_ring(ui, t, top);
+                        if show_ring {
+                            self.claude_usage_ring(ui, t, top);
+                        }
                     });
                 });
+                // A paste that found nothing says so for a few seconds.
+                match &self.claude.attach_note {
+                    Some((text, at)) if now - at < 4.0 => {
+                        ui.label(RichText::new(text).color(t.text3).size(11.5));
+                        ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
+                    }
+                    Some(_) => self.claude.attach_note = None,
+                    None => {}
+                }
             });
         self.claude.composer = Some(frame.response.rect);
         if let Some(m) = set_mode {
@@ -2047,6 +2277,107 @@ fn step_row(ui: &mut Ui, t: &Theme, icon: &str, label: &str, done: bool, error: 
         if hover { t.text } else { t.text2 },
     );
     done && resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
+}
+
+/// What a click on file chips asked for.
+enum Chip {
+    None,
+    Open(usize),
+    Remove(usize),
+}
+
+/// Attached files as chips that wrap: right-aligned under a message, or
+/// left-aligned with a remove button in the composer.
+fn file_chips(ui: &mut Ui, t: &Theme, files: &[String], width: f32, right: bool, removable: bool) -> Chip {
+    let font = theme::regular(12.0);
+    let (h, gap) = (28.0, 6.0);
+    // Sizes, then rows.
+    let sizes: Vec<(String, f32)> = files
+        .iter()
+        .map(|f| {
+            let name = crate::format::elide_to(ui.painter(), file_name(f), &font, 150.0);
+            let w = ui.painter().layout_no_wrap(name.clone(), font.clone(), t.text).size().x
+                + 36.0
+                + if removable { 20.0 } else { 0.0 };
+            (name, w.min(width))
+        })
+        .collect();
+    let mut rows: Vec<Vec<usize>> = vec![Vec::new()];
+    let mut x = 0.0;
+    for (k, (_, w)) in sizes.iter().enumerate() {
+        if x > 0.0 && x + w > width {
+            rows.push(Vec::new());
+            x = 0.0;
+        }
+        rows.last_mut().unwrap().push(k);
+        x += w + gap;
+    }
+    let total_h = rows.len() as f32 * (h + gap) - gap;
+    let (area, _) = ui.allocate_exact_size(vec2(width, total_h), Sense::hover());
+    let mut out = Chip::None;
+    for (r, row) in rows.iter().enumerate() {
+        let row_w: f32 = row.iter().map(|k| sizes[*k].1).sum::<f32>() + gap * (row.len().saturating_sub(1)) as f32;
+        let mut x = if right { area.right() - row_w } else { area.left() };
+        let y = area.top() + r as f32 * (h + gap);
+        for &k in row {
+            let (name, w) = &sizes[k];
+            let rect = egui::Rect::from_min_size(egui::pos2(x, y), vec2(*w, h));
+            let resp = ui.interact(rect, ui.id().with(("chip", k, &files[k])), Sense::click());
+            let hover = resp.hovered();
+            let p = ui.painter();
+            p.rect(
+                rect,
+                8,
+                if hover { t.hover_wash() } else { t.card },
+                Stroke::new(1.0, t.border.gamma_multiply(0.8)),
+                egui::StrokeKind::Inside,
+            );
+            p.text(
+                egui::pos2(rect.left() + 15.0, rect.center().y),
+                egui::Align2::CENTER_CENTER,
+                attach::icon(&files[k]),
+                theme::regular(14.0),
+                t.text2,
+            );
+            p.text(
+                egui::pos2(rect.left() + 28.0, rect.center().y),
+                egui::Align2::LEFT_CENTER,
+                name,
+                font.clone(),
+                t.text,
+            );
+            let mut on_x = false;
+            if removable {
+                let xr =
+                    egui::Rect::from_center_size(egui::pos2(rect.right() - 13.0, rect.center().y), vec2(18.0, 18.0));
+                let xb = ui.interact(xr, ui.id().with(("chip-x", k, &files[k])), Sense::click());
+                on_x = xb.hovered();
+                if on_x {
+                    ui.painter().rect_filled(xr, 5, t.hover_wash());
+                }
+                ui.painter().text(
+                    xr.center(),
+                    egui::Align2::CENTER_CENTER,
+                    ph::X,
+                    theme::regular(11.5),
+                    if on_x { t.text } else { t.text3 },
+                );
+                if xb.on_hover_text("Remove").clicked() {
+                    out = Chip::Remove(k);
+                }
+            }
+            if !on_x
+                && resp
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_text(&files[k])
+                    .clicked()
+            {
+                out = Chip::Open(k);
+            }
+            x += w + gap;
+        }
+    }
+    out
 }
 
 /// The user's message: a soft bubble at the right, text left-aligned.
@@ -2872,6 +3203,12 @@ mod tests {
             std::env::set_var("OPENTERN_CLAUDE", &fake);
         }
         let before = d.app.chart.symbol.id.clone();
+        // A script and an image go with the message.
+        let script = d.dir.join("mine.pine");
+        std::fs::write(&script, "//@version=6\nindicator(\"Mine\")").unwrap();
+        let image = d.dir.join("shot.png");
+        std::fs::write(&image, [0x89, b'P', b'N', b'G']).unwrap();
+        d.app.claude_attach(vec![script.clone(), image.clone()]);
         d.app.claude.input = "What's on my chart?".into();
         d.app.claude_send();
         let id = d.app.claude.active.expect("a chat");
@@ -2903,14 +3240,18 @@ mod tests {
         assert!(reply.contains(&format!("The chart was {before}.")), "{reply}");
         assert!(reply.contains("Write was allow."), "{reply}");
         assert!(reply.contains("ETHUSDT"), "{reply}");
-        assert!(reply.ends_with("Mode manual"), "{reply}");
+        assert!(reply.contains("Blocks text,text,text,image,text"), "{reply}");
+        assert!(reply.contains("File True"), "{reply}");
+        // Auto is the default mode, as in the terminal.
+        assert!(reply.ends_with("Mode auto"), "{reply}");
+        assert!(d.app.claude.attached.is_empty());
         assert!(d.app.chart.symbol.id.contains("ETHUSDT"), "{}", d.app.chart.symbol.id);
         assert_eq!(c.title, "What's on my chart?");
         assert_eq!(c.session.as_deref(), Some("fake-session"));
         assert_eq!(c.context, 1003);
         assert_eq!(c.usage.cache_read, 1000);
         assert!(
-            matches!(&c.items[1], Item::Tool { label, result: Some(r), .. } if label == "Looked at the chart" && *r == before)
+            matches!(&c.items[2], Item::Tool { label, result: Some(r), .. } if label == "Looked at the chart" && *r == before)
         );
         assert_eq!(d.app.claude.limits[0].used, 0.25);
         // Saved for next time; the process stays for the next message, and
@@ -3064,7 +3405,7 @@ mod tests {
                 d.frame(vec![]);
             }
             let f = &d.app.claude.footer;
-            assert_eq!(f.len(), 4, "{f:?}");
+            assert!(f.len() >= 4, "{f:?}");
             for i in 0..f.len() {
                 for j in i + 1..f.len() {
                     assert!(!f[i].intersects(f[j]), "pane {w}: {:?} overlaps {:?}", f[i], f[j]);

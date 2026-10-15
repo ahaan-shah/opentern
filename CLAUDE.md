@@ -1001,6 +1001,21 @@ workspace.
   to content, squeezed and wrapped in a narrow pane), quotes and rules. The
   composer footer degrades in a narrow pane (mode → icon, model → first word →
   icon); `narrow_pane_fits` checks nothing overlaps at 220-420 px.
+  **Mode defaults to Auto** (the maintainer's terminal is set up that way); a mode is
+  kept only once picked by hand (`mode_picked`; older saves stored the old default).
+- **Attachments** (`claude/attach.rs`): the paperclip (Add files… via rfd's async
+  dialog on a thread with pollster, as in Magpie; Paste image), drag and drop onto
+  the window while the panel is open (overlay), Ctrl+V of copied files (egui gives
+  file-manager copies as text: `file://` URIs or paths, intercepted before the text
+  box), and **Alt+V for a clipboard image**: egui-winit eats Ctrl+V and only
+  forwards text, so an image-only clipboard never reaches the app; `arboard`
+  (Wayland data-control on Linux) reads it, saved as PNG under
+  `<workspace>/claude/attachments/`. Sent as content blocks before the text: images
+  (≤ 4.5 MB) as image blocks (checked against the real CLI), UTF-8 files ≤ 256 KB
+  inline in `<attached_file path=…>`, anything else as a path. `Item::Attached`
+  shows chips above the message (click opens: scripts in the editor, else the
+  system app). Still: `claude-attach:<path>`. The narrowest pane hides the usage
+  ring (its numbers go in the model button's tooltip).
   `live_strategy` (ignored; uses the account, Haiku) builds a strategy end to end:
   `cargo test -p opentern --bin opentern live_strategy -- --ignored --nocapture`.
   Stills: `claude-chats`, `claude-new`.

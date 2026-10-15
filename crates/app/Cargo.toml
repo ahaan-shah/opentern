@@ -30,6 +30,9 @@ opentern-pine = { version = "0.0.1", path = "../pine" }
 opentern-script = { version = "0.0.1", path = "../script" }
 opentern-series = { version = "0.0.1", path = "../series" }
 png = "0.18"
+pollster = "1.0.1"
+base64 = "0.22.1"
+percent-encoding = "2.3.2"
 rayon = "1.10"
 resvg = { version = "0.45.1", default-features = false }
 rfd = "0.17.2"
@@ -39,6 +42,11 @@ ureq = "3.4.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc = "0.2"
+# Clipboard images on Wayland too (egui's own clipboard is text only).
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+arboard = "3.6.1"
 
 # Windows: glow (OpenGL) first, with wgpu (Direct3D 12, including its software
 # rasterizer) as the fallback for machines without a usable OpenGL driver.

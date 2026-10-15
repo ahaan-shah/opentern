@@ -389,7 +389,8 @@ pub fn field(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
 pub fn search_field(ui: &mut Ui, t: &Theme, text: &mut String, hint: &str, width: f32) -> Response {
     let r = ui.add(
         egui::TextEdit::singleline(text)
-            .hint_text(egui::RichText::new(hint).color(t.text3))
+            // A little air between the cursor and the hint.
+            .hint_text(egui::RichText::new(format!(" {hint}")).color(t.text3))
             .desired_width(width)
             .margin(egui::Margin {
                 left: 34,

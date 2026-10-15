@@ -20,6 +20,8 @@ for line in sys.stdin:
     d = json.loads(line)
     if d.get("type") != "user":
         continue
+    kinds = ",".join(b["type"] for b in d["message"]["content"])
+    attached = "attached_file" in json.dumps(d["message"]["content"])
     out({"type": "system", "subtype": "init", "session_id": "fake-session", "model": "fake-model"})
     out({"type": "assistant", "parent_tool_use_id": None, "message": {"content": [
         {"type": "tool_use", "id": "t1", "name": "mcp__opentern__get_chart", "input": {}}],
@@ -37,7 +39,7 @@ for line in sys.stdin:
     opened = wait_for("m2")["mcp_response"]["result"]["content"][0]["text"]
     out({"type": "rate_limit_event", "rate_limit_info": {"unifiedWindows": {"five_hour": {"utilization": 0.25, "resetsAt": 1800000000}}}})
     out({"type": "stream_event", "parent_tool_use_id": None, "event": {"type": "content_block_start", "content_block": {"type": "text"}}})
-    for piece in ["The chart was ", chart["symbol"], ". Write was ", allowed, ". ", opened, " Mode ", args[args.index("--permission-mode") + 1]]:
+    for piece in ["The chart was ", chart["symbol"], ". Write was ", allowed, ". ", opened, " Blocks ", kinds, " File ", str(attached), " Mode ", args[args.index("--permission-mode") + 1]]:
         out({"type": "stream_event", "parent_tool_use_id": None, "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": piece}}})
     out({"type": "result", "subtype": "success", "is_error": False, "total_cost_usd": 0.01,
          "usage": {"input_tokens": 3, "cache_read_input_tokens": 1000, "cache_creation_input_tokens": 50, "output_tokens": 7}})
