@@ -5,7 +5,7 @@
 use crate::app::App;
 use crate::icons::ph;
 use crate::theme::{self, Theme};
-use egui::{CornerRadius, Sense, Stroke, Ui, pos2};
+use egui::{CornerRadius, Sense, Stroke, Ui, pos2, vec2};
 use std::time::Instant;
 
 #[derive(Clone, Debug)]
@@ -115,40 +115,68 @@ impl App {
             );
             return;
         }
-        ui.horizontal(|ui| {
-            if ui.small_button("Clear").clicked() {
-                self.notes.list.clear();
-            }
-        });
-        ui.add_space(4.0);
         let mut open = None;
         egui::ScrollArea::vertical()
             .id_salt("notes")
             .auto_shrink([false, false])
             .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 0.0;
+                let w = ui.available_width();
                 for n in &self.notes.list {
                     let when = jiff::Timestamp::from_millisecond(n.time)
                         .map(|ts| ts.to_zoned(jiff::tz::TimeZone::system()).strftime("%H:%M").to_string())
                         .unwrap_or_default();
-                    let r = egui::Frame::new()
-                        .inner_margin(egui::Margin::symmetric(4, 6))
-                        .show(ui, |ui| {
-                            ui.set_width(ui.available_width());
-                            ui.horizontal(|ui| {
-                                ui.label(egui::RichText::new(n.icon).font(theme::regular(14.0)).color(t.accent));
-                                ui.label(egui::RichText::new(&n.title).font(theme::semibold(12.5)));
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                                    ui.label(egui::RichText::new(when).color(t.text3).size(11.5));
-                                });
-                            });
-                            if !n.body.is_empty() {
-                                ui.label(egui::RichText::new(&n.body).color(t.text2).size(12.0));
-                            }
-                        });
-                    let resp = r.response.interact(Sense::click());
-                    if resp.hovered() {
-                        ui.painter().rect_filled(r.response.rect, 6, t.hover_wash());
+                    // Icon in a soft disc; title and time on one line, the
+                    // body under the title, aligned with it.
+                    let text_x = 44.0;
+                    let body = (!n.body.is_empty()).then(|| {
+                        ui.painter().layout(
+                            n.body.clone(),
+                            theme::regular(12.0),
+                            t.text2,
+                            (w - text_x - 10.0).max(60.0),
+                        )
+                    });
+                    let h = 16.0 + 18.0 + body.as_ref().map(|g| g.size().y + 2.0).unwrap_or(0.0) + 12.0;
+                    let (r, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
+                    let p = ui.painter();
+                    if ui.rect_contains_pointer(r) && n.path.is_some() {
+                        p.rect_filled(r, 8, t.hover_wash());
                     }
+                    let disc = egui::pos2(r.left() + 20.0, r.top() + 14.0 + 11.0);
+                    p.circle_filled(disc, 14.0, t.accent_soft());
+                    p.text(
+                        disc,
+                        egui::Align2::CENTER_CENTER,
+                        n.icon,
+                        theme::regular(14.0),
+                        t.accent,
+                    );
+                    let ty = r.top() + 14.0 + 9.0;
+                    let time = p.text(
+                        egui::pos2(r.right() - 10.0, ty),
+                        egui::Align2::RIGHT_CENTER,
+                        when,
+                        theme::regular(11.5),
+                        t.text3,
+                    );
+                    let font = theme::semibold(12.5);
+                    let title = crate::format::elide_to(p, &n.title, &font, time.left() - (r.left() + text_x) - 8.0);
+                    p.text(
+                        egui::pos2(r.left() + text_x, ty),
+                        egui::Align2::LEFT_CENTER,
+                        title,
+                        font,
+                        t.text,
+                    );
+                    if let Some(g) = body {
+                        p.galley(egui::pos2(r.left() + text_x, ty + 11.0), g, t.text2);
+                    }
+                    p.hline(
+                        (r.left() + text_x)..=r.right(),
+                        r.bottom() - 0.5,
+                        egui::Stroke::new(1.0, t.border.gamma_multiply(0.6)),
+                    );
                     if resp.clicked()
                         && let Some(p) = &n.path
                     {

@@ -225,7 +225,10 @@ impl App {
             for (s, last, chg, col) in rows {
                 let active = self.chart.symbol.id == s.id;
                 let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-                let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+                // The pointer, not `hovered()`: the × button on top would otherwise
+                // take the hover, hide itself and flicker every frame.
+                let inside = ui.rect_contains_pointer(rect);
+                let hov = motion::toggle(ui.ctx(), resp.id, inside, motion::MICRO);
                 let p = ui.painter();
                 p.rect_filled(rect, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hov));
                 if active {
@@ -233,10 +236,11 @@ impl App {
                 }
                 let y = rect.center().y;
                 let name_font = theme::medium(13.0);
-                let room = name_right - rect.left() - 6.0;
+                self.logos.paint(p, t, &s, pos2(rect.left() + 15.0, y), 9.0);
+                let room = name_right - rect.left() - 30.0;
                 let name = crate::format::elide_to(p, s.ticker(), &name_font, room);
                 p.text(
-                    pos2(rect.left() + 6.0, y),
+                    pos2(rect.left() + 30.0, y),
                     Align2::LEFT_CENTER,
                     name,
                     name_font,
@@ -249,7 +253,7 @@ impl App {
                     theme::regular(13.0),
                     t.text,
                 );
-                if resp.hovered() {
+                if inside {
                     let x = egui::Rect::from_center_size(pos2(rect.right() - 12.0, y), vec2(20.0, 20.0));
                     let xr = ui.interact(x, resp.id.with("x"), Sense::click());
                     let c = if xr.hovered() { t.neg } else { t.text3 };

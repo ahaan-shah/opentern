@@ -948,45 +948,56 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
 
 fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out) {
     let cache = Cache::open(&dir).ok();
-    let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
-    let binance = Binance::default();
     let yahoo = Yahoo::default();
-    let mut loaded = false;
+    // The exchanges' symbol lists refresh weekly on their own thread, so a
+    // search never waits for five downloads (OKX alone can time out).
+    let (fresh_tx, fresh_rx) = crossbeam_channel::bounded::<()>(1);
+    let stale = cache.as_ref().is_some_and(|c| {
+        c.meta("binance_symbols_at")
+            .and_then(|t| t.parse::<i64>().ok())
+            .is_none_or(|t| crate::provider::now_ms() - t > 7 * 86_400_000)
+    });
+    if stale && !demo {
+        let dir = dir.clone();
+        let _ = std::thread::Builder::new().name("symbol-lists".into()).spawn(move || {
+            let Ok(c) = Cache::open(&dir) else { return };
+            let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
+                ("binance", Binance::default().symbols()),
+                ("bybit", crate::bybit::Bybit::default().symbols()),
+                ("okx", crate::okx::Okx::default().symbols()),
+                ("coinbase", crate::coinbase::Coinbase::default().symbols()),
+                ("kraken", crate::kraken::Kraken::default().symbols()),
+            ];
+            let mut any = false;
+            for (source, list) in lists {
+                if let Ok(list) = list {
+                    let _ = c.save_symbols(source, &list);
+                    any = true;
+                }
+            }
+            if any {
+                let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
+                let _ = fresh_tx.send(());
+            }
+        });
+    }
+    let load = |cache: &Option<Cache>| {
+        let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
+        if let Some(c) = cache {
+            known.extend(c.symbols().unwrap_or_default());
+        }
+        known.sort_by(|a, b| a.id.cmp(&b.id));
+        known.dedup_by(|a, b| a.id == b.id);
+        known
+    };
+    let mut known = load(&cache);
     while let Ok(mut req) = rx.recv() {
         // Only the latest query matters.
         while let Ok(newer) = rx.try_recv() {
             req = newer;
         }
-        if !loaded {
-            loaded = true;
-            if let Some(c) = &cache {
-                let stale = c
-                    .meta("binance_symbols_at")
-                    .and_then(|t| t.parse::<i64>().ok())
-                    .is_none_or(|t| crate::provider::now_ms() - t > 7 * 86_400_000);
-                if stale && !demo {
-                    let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
-                        ("binance", binance.symbols()),
-                        ("bybit", crate::bybit::Bybit::default().symbols()),
-                        ("okx", crate::okx::Okx::default().symbols()),
-                        ("coinbase", crate::coinbase::Coinbase::default().symbols()),
-                        ("kraken", crate::kraken::Kraken::default().symbols()),
-                    ];
-                    let mut any = false;
-                    for (source, list) in lists {
-                        if let Ok(list) = list {
-                            let _ = c.save_symbols(source, &list);
-                            any = true;
-                        }
-                    }
-                    if any {
-                        let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
-                    }
-                }
-                known.extend(c.symbols().unwrap_or_default());
-            }
-            known.sort_by(|a, b| a.id.cmp(&b.id));
-            known.dedup_by(|a, b| a.id == b.id);
+        if fresh_rx.try_recv().is_ok() {
+            known = load(&cache);
         }
         let (seq, query) = req;
         if crate::expr::is_expr(&query) {

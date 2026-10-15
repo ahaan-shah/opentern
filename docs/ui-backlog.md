@@ -39,6 +39,34 @@ Noticed along the way, also done:
   (`scripts/make-icons.py` → `packaging/linux/opentern*.svg`, `icon-1024.png`,
   `crates/app/assets/icon-512.png` (window icon), `opentern.ico`).
 
+## Second pass (15 Oct 2026), from the maintainer's testing
+1. Compare: TradingView's three choices, "Same % scale", "New price scale" (its own
+   axis right of the main one: drag to zoom, double-click to fit, right-click for
+   options) and "New pane" (its own candles and scale). `chart::CompareMode`; the
+   legend's "…" or a right-click switches.
+2. Quick measure as on TradingView: the ruler or Shift+drag / Shift+click; blue up,
+   red down; change, %, ticks, bars, time, volume; both ends marked on the axes;
+   the next click clears it. Not a saved drawing (`Tool::Measure`).
+3. Legend code button (and "Source code" in the … menu): a script opens its file;
+   a built-in opens its Pine twin from the corpus, read-only (`sources.rs`), with
+   "Make a copy".
+4. Script Editor as a small IDE: explorer (filter, language tags, on-chart dot,
+   right-click Add/Update, Duplicate, Rename, Delete, Open in your editor;
+   built-ins' source), tabs, line numbers, current and error lines marked,
+   Run = Ctrl+Enter, auto-indent, Tab/Shift+Tab, Ctrl+/ comments, Ctrl+W, a
+   console whose "Line N" jumps to the line, and a status bar.
+5. Resize handles show a grip (the bottom panel's always; side ones on hover).
+6. Scrollbars keep a 12 px gutter (`floating_allocated_width`), everywhere.
+7. Symbol search: a fixed-height list (it was clipped by last frame's size);
+   typing is upper-cased; Enter waits for that query's results.
+8. Notifications: icon disc, title and time on one line, body aligned under the
+   title, hairline rule; "Clear all" in the header.
+9. Flicker: rows whose buttons appear on hover (watchlist ×, alert actions) test
+   the pointer, not `hovered()` (the button took the hover and hid itself).
+10. Formulas (`BTCUSDT/ETHUSDT`): resolved in the dialog at once, and the search
+    thread no longer downloads five symbol lists before answering.
+11. Symbol logos (watchlist, search, legend), with an off switch in the ☰ menu.
+
 ## Open
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons
   (fine, but could be segmented too).

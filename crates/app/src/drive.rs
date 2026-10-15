@@ -286,7 +286,7 @@ mod tests {
     fn compared_symbols_load_and_are_saved() {
         let mut d = Driver::new("compare");
         let eth = opentern_core::starter_watchlist().remove(1);
-        d.app.add_compare(eth.clone(), false);
+        d.app.add_compare(eth.clone(), crate::chart::CompareMode::Percent);
         d.wait(|a| a.chart.compares.first().is_some_and(|c| !c.bars.is_empty()));
         assert!(d.app.chart.percent, "comparing switches to percent");
         let dir = d.dir.clone();
@@ -841,5 +841,55 @@ mod tests {
             }
         }
         assert_eq!(d.app.panics, 0, "the app panicked during random input");
+    }
+}
+
+#[cfg(test)]
+mod formula_tests {
+    use super::*;
+
+    /// Typing a formula and pressing Enter at once opens the formula, not a
+    /// symbol left over from before the search answered.
+    #[test]
+    fn typing_a_formula_and_enter_opens_it() {
+        let mut d = Driver::new("formula");
+        for ch in "btcusdt/ethusdt".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.key(Key::Enter, Modifiers::NONE);
+        d.wait(|a| a.chart.symbol.id == "BINANCE:BTCUSDT/BINANCE:ETHUSDT" && !a.chart.bars.is_empty());
+    }
+
+    #[test]
+    fn compare_modes_move_between_scale_and_pane() {
+        use crate::chart::CompareMode as M;
+        let mut d = Driver::new("compare-modes");
+        let eth = opentern_core::starter_watchlist().remove(1);
+        d.app.add_compare(eth, M::Scale);
+        d.wait(|a| a.chart.compares.first().is_some_and(|c| !c.bars.is_empty()));
+        assert!(!d.app.chart.percent, "own scale leaves the main scale alone");
+        let panes = d.app.chart.panes.len();
+        d.app.chart.set_compare_mode(0, M::Pane);
+        assert_eq!(d.app.chart.panes.len(), panes + 1);
+        d.frame(vec![]);
+        d.app.chart.set_compare_mode(0, M::Percent);
+        assert_eq!(d.app.chart.panes.len(), panes);
+        assert!(d.app.chart.percent);
+        d.app.remove_compare(0);
+        assert!(!d.app.chart.percent);
+    }
+
+    #[test]
+    fn shift_drag_measures_and_a_click_clears() {
+        let mut d = Driver::new("measure");
+        let (a, b) = (d.at(0.3, 0.6), d.at(0.6, 0.3));
+        d.frame(vec![Event::ModifiersChanged(Modifiers::SHIFT)]);
+        d.drag(a, b);
+        d.frame(vec![Event::ModifiersChanged(Modifiers::NONE)]);
+        let m = d.app.chart_ui.draw.measure().expect("a measure");
+        assert!(m.done && m.b.p > m.a.p);
+        assert!(d.app.chart.drawings.is_empty(), "a measure isn't a drawing");
+        d.click(d.at(0.5, 0.5));
+        assert!(d.app.chart_ui.draw.measure().is_none());
     }
 }

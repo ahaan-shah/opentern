@@ -11,6 +11,33 @@ pub fn price(v: f64, decimals: usize) -> String {
     format!("{v:.decimals$}")
 }
 
+/// A number with thousands separators: 20,068.36.
+pub fn grouped(v: f64, decimals: usize) -> String {
+    if !v.is_finite() {
+        return "—".into();
+    }
+    let s = format!("{:.decimals$}", v.abs());
+    let (int, frac) = s
+        .split_once('.')
+        .map(|(i, f)| (i, Some(f)))
+        .unwrap_or((s.as_str(), None));
+    let mut out = String::new();
+    for (k, ch) in int.chars().enumerate() {
+        if k > 0 && (int.len() - k) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    if let Some(f) = frac {
+        out.push('.');
+        out.push_str(f);
+    }
+    if v < 0.0 && s.chars().any(|c| c.is_ascii_digit() && c != '0') {
+        out.insert(0, '−');
+    }
+    out
+}
+
 /// Volume-style compact numbers: 950, 1.25K, 3.4M, 2.1B.
 pub fn compact(v: f64) -> String {
     if !v.is_finite() {

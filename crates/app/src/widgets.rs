@@ -99,14 +99,31 @@ pub fn hdivider(ui: &mut Ui, t: &Theme, width: f32) {
 pub fn drag_handle(ui: &mut Ui, t: &Theme, rect: Rect, id: &str, vertical: bool) -> f32 {
     let resp = ui.interact(rect, ui.id().with(id), Sense::drag());
     let lit = motion::toggle(ui.ctx(), resp.id, resp.hovered() || resp.dragged(), motion::MICRO);
+    // Always a faint grip in the middle, so it's clear where to drag; on
+    // hover the grip takes the accent and a thin line marks the edge.
+    let c = rect.center();
+    let grip = if vertical {
+        Rect::from_center_size(c, egui::vec2(4.0, 36.0))
+    } else {
+        Rect::from_center_size(c, egui::vec2(36.0, 4.0))
+    };
+    let p = ui.painter();
     if lit > 0.0 {
-        let c = motion::with_alpha(t.accent, lit * 0.8);
+        let line = motion::with_alpha(t.accent, lit * 0.45);
         if vertical {
-            ui.painter().vline(rect.center().x, rect.y_range(), Stroke::new(2.0, c));
+            p.vline(c.x, rect.y_range(), Stroke::new(1.0, line));
         } else {
-            ui.painter().hline(rect.x_range(), rect.center().y, Stroke::new(2.0, c));
+            p.hline(rect.x_range(), c.y, Stroke::new(1.0, line));
         }
     }
+    // Side handles sit in the gap between cards, where a resting grip reads
+    // as a scrollbar: they show on hover only.
+    let rest = if vertical {
+        Color32::TRANSPARENT
+    } else {
+        t.text3.gamma_multiply(0.55)
+    };
+    p.rect_filled(grip, CornerRadius::same(2), motion::lerp_color(rest, t.accent, lit));
     let resp = resp.on_hover_cursor(if vertical {
         egui::CursorIcon::ResizeHorizontal
     } else {

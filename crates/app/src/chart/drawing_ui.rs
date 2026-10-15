@@ -13,6 +13,8 @@ pub struct Tools<'a> {
     pub hide_all: bool,
     /// The style a new drawing of this tool starts with.
     pub style: &'a dyn Fn(Tool) -> DrawStyle,
+    /// Symbol logos for the legend.
+    pub logos: Option<&'a crate::logos::Logos>,
 }
 
 #[derive(Default)]
@@ -23,14 +25,36 @@ pub struct DrawUi {
     clicks: usize,
     drag: Option<(u64, Part, Anchor)>,
     zoom_from: Option<Pos2>,
+    /// The quick measure on screen (the Measure tool, or Shift+drag).
+    measure: Option<Measure>,
     /// The tool finished a drawing (the app switches back to the cross
     /// unless "stay in drawing mode" is on).
     pub finished: bool,
 }
 
+/// A quick measure between two points; `done` once the second is set.
+#[derive(Clone, Copy, Debug)]
+pub struct Measure {
+    pub a: Anchor,
+    pub b: Anchor,
+    pub done: bool,
+}
+
 impl DrawUi {
-    /// Escape: stop placing, then deselect.
+    pub fn measure(&self) -> Option<Measure> {
+        self.measure
+    }
+
+    /// Shows a finished measure (for screenshots).
+    pub fn set_measure(&mut self, a: Anchor, b: Anchor) {
+        self.measure = Some(Measure { a, b, done: true });
+    }
+
+    /// Escape: stop measuring, stop placing, then deselect.
     pub fn cancel(&mut self) {
+        if self.measure.take().is_some() {
+            return;
+        }
         if self.placing.take().is_none() {
             self.selected = None;
         }
@@ -80,6 +104,57 @@ pub fn handle(
         a
     };
     let span = (y.hi - y.lo).abs();
+
+    // ---- the quick measure: the Measure tool, or Shift with the cross.
+    // Click, then click (or drag); the next click clears it.
+    let tool_measure = tools.tool == Tool::Measure;
+    let shift = ui.input(|i| i.modifiers.shift);
+    let active = du.measure.is_some_and(|m| !m.done);
+    if tool_measure || (tools.tool == Tool::Cross && (shift || active)) {
+        if let (Some(m), Some(p)) = (du.measure.as_mut(), pointer)
+            && !m.done
+        {
+            m.b = anchor_at(chart, p);
+        }
+        if resp.drag_started()
+            && let Some(p) = origin
+        {
+            let a = anchor_at(chart, p);
+            du.measure = Some(Measure { a, b: a, done: false });
+        }
+        if resp.drag_stopped()
+            && let Some(m) = du.measure.as_mut()
+        {
+            m.done = true;
+        }
+        if resp.clicked()
+            && let Some(p) = press
+        {
+            let at = anchor_at(chart, p);
+            match du.measure.as_mut() {
+                Some(m) if !m.done => {
+                    m.b = at;
+                    m.done = true;
+                }
+                Some(_) => {
+                    du.measure = None;
+                    du.finished = tool_measure;
+                }
+                None => {
+                    du.measure = Some(Measure {
+                        a: at,
+                        b: at,
+                        done: false,
+                    })
+                }
+            }
+        }
+        return true;
+    }
+    // A finished measure goes on the next press.
+    if du.measure.is_some() && (resp.clicked() || resp.drag_started()) {
+        du.measure = None;
+    }
 
     // ---- zoom: drag a range
     if tools.tool == Tool::Zoom {
@@ -312,5 +387,14 @@ pub fn paint(
             egui::CornerRadius::ZERO,
             egui::Color32::from_rgba_unmultiplied(41, 98, 255, 30),
         );
+    }
+}
+
+/// Paints the quick measure, if any (after the legend, so it's on top).
+pub fn paint_measure(painter: &egui::Painter, chart: &Chart, du: &DrawUi, x: XMap, y: YMap, rect: Rect) {
+    if let Some(m) = du.measure {
+        let g = geo(chart, x, y, rect);
+        let p = painter.with_clip_rect(rect);
+        draw::paint_measure(&p, &chart.bars, chart.symbol.tick_size, &g, m.a, m.b);
     }
 }

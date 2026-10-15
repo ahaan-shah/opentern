@@ -871,8 +871,8 @@ fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {
 /// when the action was clicked.
 fn row_with_action(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)], cells: &[(String, Color32)], action: &str) -> bool {
     let w: f32 = cols.iter().map(|c| c.1).sum();
-    let (r, resp) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-    if resp.hovered() {
+    let (r, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+    if ui.rect_contains_pointer(r) {
         ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
     }
     let mut x = r.left();

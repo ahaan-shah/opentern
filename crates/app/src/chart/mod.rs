@@ -36,16 +36,42 @@ pub const COMPARE_COLORS: [u32; 8] = [
     0xFF9800, 0x9C27B0, 0x00BCD4, 0xE91E63, 0x4CAF50, 0x795548, 0x3F51B5, 0xFFEB3B,
 ];
 
+/// Where a compared symbol goes, as in TradingView's compare dialog.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CompareMode {
+    /// On the main scale, which switches to percent.
+    #[default]
+    Percent,
+    /// Over the chart, with its own price scale beside the main one.
+    Scale,
+    /// In its own pane below, as candles with their own scale.
+    Pane,
+}
+
+impl CompareMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            CompareMode::Percent => "Same % scale",
+            CompareMode::Scale => "New price scale",
+            CompareMode::Pane => "New pane",
+        }
+    }
+}
+
 /// Another symbol drawn on the chart: as a percent comparison (the price
-/// scale switches to percent, as on TradingView's "Compare"), or overlaid
-/// with its own scale.
+/// scale switches to percent, as on TradingView's "Compare"), with its own
+/// price scale, or in its own pane.
 pub struct Compare {
     pub symbol: Symbol,
     pub session: u64,
     pub bars: Vec<Bar>,
     pub status: Status,
     pub color: opentern_series::Rgba,
-    pub overlay: bool,
+    pub mode: CompareMode,
+    /// The pane it lives in (`CompareMode::Pane`), else 0.
+    pub pane: u64,
+    /// Its own scale's range (`CompareMode::Scale`).
+    pub scale: PaneScale,
     pub visible: bool,
 }
 
@@ -59,14 +85,29 @@ impl Compare {
         };
         Some(self.bars[i].close)
     }
+
+    /// The bar at or before `t`.
+    pub fn bar_at(&self, t: i64) -> Option<&Bar> {
+        let i = match self.bars.binary_search_by_key(&t, |b| b.time) {
+            Ok(i) => i,
+            Err(0) => return None,
+            Err(i) => i - 1,
+        };
+        self.bars.get(i)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SavedCompare {
     pub symbol: Symbol,
     pub color: opentern_series::Rgba,
+    /// Before modes: true meant its own scale.
     #[serde(default)]
     pub overlay: bool,
+    #[serde(default)]
+    pub mode: Option<CompareMode>,
+    #[serde(default)]
+    pub pane: u64,
     #[serde(default = "yes")]
     pub visible: bool,
 }
@@ -339,18 +380,39 @@ impl Chart {
         c.compares = s
             .compares
             .into_iter()
-            .map(|x| Compare {
-                symbol: x.symbol,
-                session: 0,
-                bars: Vec::new(),
-                status: Status::Loading,
-                color: x.color,
-                overlay: x.overlay,
-                visible: x.visible,
+            .map(|x| {
+                let mode = x.mode.unwrap_or(if x.overlay {
+                    CompareMode::Scale
+                } else {
+                    CompareMode::Percent
+                });
+                Compare {
+                    symbol: x.symbol,
+                    session: 0,
+                    bars: Vec::new(),
+                    status: Status::Loading,
+                    color: x.color,
+                    mode,
+                    pane: if mode == CompareMode::Pane { x.pane } else { 0 },
+                    scale: PaneScale::default(),
+                    visible: x.visible,
+                }
             })
             .collect();
         if !s.panes.is_empty() && s.panes[0].id == 0 {
             c.panes = s.panes;
+        }
+        for k in 0..c.compares.len() {
+            let p = c.compares[k].pane;
+            if c.compares[k].mode == CompareMode::Pane && (p == 0 || !c.panes.iter().any(|x| x.id == p)) {
+                let id = c.panes.iter().map(|x| x.id).max().unwrap_or(0) + 1;
+                c.panes.push(Pane {
+                    id,
+                    weight: 1.0,
+                    scale: PaneScale::default(),
+                });
+                c.compares[k].pane = id;
+            }
         }
         for st in s.studies {
             c.add_saved(&st);
@@ -362,6 +424,7 @@ impl Chart {
             .iter()
             .map(|s| s.pane)
             .chain(c.pending_scripts.iter().map(|s| s.pane))
+            .chain(c.compares.iter().map(|x| x.pane))
             .collect();
         c.panes.retain(|p| p.id == 0 || used.contains(&p.id));
         c.next_uid = c
@@ -369,6 +432,7 @@ impl Chart {
             .iter()
             .map(|s| s.uid)
             .chain(c.panes.iter().map(|p| p.id))
+            .chain(c.compares.iter().map(|x| x.pane))
             .max()
             .unwrap_or(0)
             + 1;
@@ -393,7 +457,9 @@ impl Chart {
                 .map(|c| SavedCompare {
                     symbol: c.symbol.clone(),
                     color: c.color,
-                    overlay: c.overlay,
+                    overlay: c.mode != CompareMode::Percent,
+                    mode: Some(c.mode),
+                    pane: c.pane,
                     visible: c.visible,
                 })
                 .collect(),
@@ -427,7 +493,7 @@ impl Chart {
 
     /// Adds a symbol to compare (the app opens its data). Comparing puts
     /// the price scale in percent, as TradingView does.
-    pub fn add_compare(&mut self, symbol: Symbol, overlay: bool) -> usize {
+    pub fn add_compare(&mut self, symbol: Symbol, mode: CompareMode) -> usize {
         let used: Vec<_> = self.compares.iter().map(|c| c.color).collect();
         let color = COMPARE_COLORS
             .iter()
@@ -440,15 +506,44 @@ impl Chart {
             bars: Vec::new(),
             status: Status::Loading,
             color,
-            overlay,
+            mode: CompareMode::Percent,
+            pane: 0,
+            scale: PaneScale::default(),
             visible: true,
         });
-        if !overlay {
+        let i = self.compares.len() - 1;
+        self.set_compare_mode(i, mode);
+        self.touch();
+        i
+    }
+
+    /// Moves a compared symbol to the main % scale, its own scale or its
+    /// own pane.
+    pub fn set_compare_mode(&mut self, i: usize, mode: CompareMode) {
+        let Some(c) = self.compares.get(i) else { return };
+        let (old, old_pane) = (c.mode, c.pane);
+        if old_pane != 0 && mode != CompareMode::Pane {
+            self.panes.retain(|p| p.id != old_pane);
+            self.compares[i].pane = 0;
+        }
+        if mode == CompareMode::Pane && old_pane == 0 {
+            let id = self.new_uid();
+            self.panes.push(Pane {
+                id,
+                weight: 1.0,
+                scale: PaneScale::default(),
+            });
+            self.compares[i].pane = id;
+        }
+        self.compares[i].mode = mode;
+        self.compares[i].scale = PaneScale::default();
+        if mode == CompareMode::Percent {
             self.percent = true;
             self.log = false;
+        } else if old == CompareMode::Percent && !self.compares.iter().any(|c| c.mode == CompareMode::Percent) {
+            self.percent = false;
         }
         self.touch();
-        self.compares.len() - 1
     }
 
     /// Removes a compared symbol; returns its data session to close.
@@ -457,7 +552,10 @@ impl Chart {
             return None;
         }
         let c = self.compares.remove(i);
-        if !c.overlay && !self.compares.iter().any(|c| !c.overlay) {
+        if c.pane != 0 {
+            self.panes.retain(|p| p.id != c.pane);
+        }
+        if c.mode == CompareMode::Percent && !self.compares.iter().any(|c| c.mode == CompareMode::Percent) {
             self.percent = false;
         }
         self.touch();
@@ -656,7 +754,12 @@ impl Chart {
         for s in &t.studies {
             self.add_saved(s);
         }
-        let used: Vec<u64> = self.studies.iter().map(|s| s.pane).collect();
+        let used: Vec<u64> = self
+            .studies
+            .iter()
+            .map(|s| s.pane)
+            .chain(self.compares.iter().map(|c| c.pane))
+            .collect();
         self.panes.retain(|p| p.id == 0 || used.contains(&p.id));
         self.touch();
     }

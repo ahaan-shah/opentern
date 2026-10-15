@@ -35,6 +35,7 @@ pub struct App {
     pub layout_id: i64,
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
+    pub compare_menu: Option<(usize, egui::Pos2)>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
     /// Strategy runs and the Strategy Report's state.
     pub strategies: crate::strategy::Strategies,
@@ -57,7 +58,10 @@ pub struct App {
     pub(crate) grid_rect: egui::Rect,
     /// For screenshots: a menu to open at launch (`OPENTERN_STILL=menu:<name>`).
     pub(crate) still_menu: Option<String>,
+    /// `OPENTERN_STILL=measure`: show a measure once bars are in.
+    still_measure: bool,
     pub egui_ctx: egui::Context,
+    pub logos: crate::logos::Logos,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
     /// The other charts of a multi-chart layout (`None` at the active
@@ -99,6 +103,10 @@ impl App {
             store.dir().join("cache"),
             demo,
             std::sync::Arc::new(move || wake_ctx.request_repaint()),
+        );
+        let logos = crate::logos::Logos::new(
+            store.dir().join("logos"),
+            !demo && store.value("symbol_logos").as_deref() != Some("off"),
         );
         // The layout last worked on, else the most recent one.
         let current = store
@@ -150,6 +158,7 @@ impl App {
             layout_id,
             layout_name,
             study_menu: None,
+            compare_menu: None,
             scripts: Vec::new(),
             strategies: Default::default(),
             paper,
@@ -165,6 +174,8 @@ impl App {
             snap: None,
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
+            still_measure: false,
+            logos,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
             slots: vec![None],
@@ -231,12 +242,19 @@ impl App {
                 {
                     self.set_grid(g);
                 }
-            } else if let Some(sym) = part.strip_prefix("compare:") {
+            } else if let Some(rest) = part.strip_prefix("compare:") {
+                // `compare:ETHUSDT`, or `compare:ETHUSDT:scale` / `:pane`.
+                use crate::chart::CompareMode as M;
+                let (sym, mode) = match rest.split_once(':') {
+                    Some((s, "scale")) => (s, M::Scale),
+                    Some((s, "pane")) => (s, M::Pane),
+                    _ => (rest, M::Percent),
+                };
                 let found = opentern_core::starter_watchlist()
                     .into_iter()
                     .find(|s| s.ticker().eq_ignore_ascii_case(sym));
                 if let Some(s) = found {
-                    self.add_compare(s, false);
+                    self.add_compare(s, mode);
                 }
             } else if let Some(tf) = part.strip_prefix("tf:").and_then(Timeframe::parse) {
                 self.set_interval(tf);
@@ -254,6 +272,17 @@ impl App {
                 self.still_menu = Some(m.to_string());
             } else if part == "light" {
                 // Handled in `new` (needs the egui context).
+            } else if part == "note" {
+                // A sample notification, for screenshots of the widget.
+                self.notify(
+                    crate::icons::ph::ALARM,
+                    "BTCUSDT",
+                    "BTCUSDT — Price crossing 81650",
+                    None,
+                    false,
+                );
+            } else if part == "measure" {
+                self.still_measure = true;
             } else if part == "replay" {
                 self.chart.toggle_replay();
             } else if let Some(kind) = part.strip_prefix("kind:") {
@@ -414,12 +443,12 @@ impl App {
         });
     }
 
-    pub fn add_compare(&mut self, symbol: Symbol, overlay: bool) {
+    pub fn add_compare(&mut self, symbol: Symbol, mode: crate::chart::CompareMode) {
         if symbol.id == self.chart.symbol.id || self.chart.compares.iter().any(|c| c.symbol.id == symbol.id) {
             return;
         }
         crate::diag::crumb(format!("compare {}", symbol.id));
-        let i = self.chart.add_compare(symbol, overlay);
+        let i = self.chart.add_compare(symbol, mode);
         self.open_compare(i);
     }
 
@@ -632,6 +661,8 @@ impl App {
                 }
                 Action::RemoveStudy(uid) => self.chart.remove_study(uid),
                 Action::StudyMenu(uid, pos) => self.study_menu = Some((uid, pos)),
+                Action::StudySource(uid) => self.open_study_source(uid),
+                Action::CompareMenu(i, pos) => self.compare_menu = Some((i, pos)),
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
                 Action::RemoveCompare(i) => self.remove_compare(i),
                 Action::ChartSettings => {
@@ -644,6 +675,62 @@ impl App {
                     self.paper_close(&id);
                 }
             }
+        }
+    }
+
+    /// A compared symbol's options: where it goes, hide, remove.
+    fn compare_menu(&mut self, ctx: &egui::Context) {
+        let Some((i, pos)) = self.compare_menu else { return };
+        let Some(c) = self.chart.compares.get(i) else {
+            self.compare_menu = None;
+            return;
+        };
+        let (mode, visible) = (c.mode, c.visible);
+        let t = self.t();
+        let mut close = false;
+        let area = egui::Area::new(egui::Id::new("compare-menu"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_width(210.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::chart::CompareMode as M;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+                    w::menu_heading(ui, &t, "SCALE");
+                    for (m, icon) in [
+                        (M::Percent, ph::PERCENT),
+                        (M::Scale, ph::ARROWS_DOWN_UP),
+                        (M::Pane, ph::ROWS),
+                    ] {
+                        if w::menu_item(ui, &t, Some(icon), m.label(), "", mode == m).clicked() {
+                            self.chart.set_compare_mode(i, m);
+                            close = true;
+                        }
+                    }
+                    w::menu_rule(ui, &t);
+                    let (icon, label) = if visible {
+                        (ph::EYE_SLASH, "Hide")
+                    } else {
+                        (ph::EYE, "Show")
+                    };
+                    if w::menu_item(ui, &t, Some(icon), label, "", false).clicked() {
+                        self.chart.compares[i].visible = !visible;
+                        self.chart.touch();
+                        close = true;
+                    }
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
+                        self.remove_compare(i);
+                        close = true;
+                    }
+                });
+            });
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.compare_menu = None;
         }
     }
 
@@ -684,6 +771,12 @@ impl App {
                         }
                         close = true;
                     }
+                    if Self::has_source(meta.id)
+                        && w::menu_item(ui, &t, Some(ph::CODE), "Source code", "", false).clicked()
+                    {
+                        self.open_study_source(uid);
+                        close = true;
+                    }
                     w::menu_rule(ui, &t);
                     if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
                         self.chart.remove_study(uid);
@@ -718,6 +811,7 @@ impl App {
                         && seq == self.search_seq
                     {
                         s.results = results;
+                        s.got = seq;
                     }
                 }
                 e @ (Event::Bars { chart, .. }
@@ -896,6 +990,16 @@ impl App {
     pub(crate) fn frame(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
+        self.logos.poll(&ctx);
+        if self.still_measure && self.chart.bars.len() > 80 {
+            self.still_measure = false;
+            let n = self.chart.bars.len();
+            let (a, b) = (&self.chart.bars[n - 40], &self.chart.bars[n - 8]);
+            self.chart_ui.draw.set_measure(
+                crate::chart::draw::Anchor { t: a.time, p: a.low },
+                crate::chart::draw::Anchor { t: b.time, p: b.high },
+            );
+        }
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {
             let (title, body) = match note {
@@ -931,6 +1035,7 @@ impl App {
         self.note_toasts(&ctx);
         self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
+        self.compare_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
     }
@@ -959,6 +1064,7 @@ impl App {
         crate::diag::note("RECOVERED", &format!("A frame panicked ({} so far).", self.panics));
         self.modal = None;
         self.study_menu = None;
+        self.compare_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

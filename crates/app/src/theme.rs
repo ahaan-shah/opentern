@@ -588,6 +588,10 @@ fn style(s: &mut Style, t: &Theme) {
     s.spacing.scroll = egui::style::ScrollStyle::floating();
     s.spacing.scroll.floating_width = 6.0;
     s.spacing.scroll.bar_width = 6.0;
+    // Keep a gutter for the bar so it never sits on top of content (only
+    // taken when there is something to scroll).
+    s.spacing.scroll.floating_allocated_width = 12.0;
+    s.spacing.scroll.bar_outer_margin = 2.0;
     s.animation_time = 0.18;
     s.interaction.selectable_labels = false;
     s.visuals = visuals(t);

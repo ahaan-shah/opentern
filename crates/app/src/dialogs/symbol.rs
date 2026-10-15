@@ -14,9 +14,9 @@ use opentern_core::{AssetKind, Symbol};
 pub enum Pick {
     Chart,
     Watchlist,
-    /// Compare (percent) or overlay (own scale) on the active chart.
+    /// Compare on the active chart: same % scale, own scale or own pane.
     Compare {
-        overlay: bool,
+        mode: crate::chart::CompareMode,
     },
 }
 
@@ -25,7 +25,11 @@ pub struct SymbolSearch {
     pub query: String,
     pub results: Vec<Symbol>,
     pub seq: u64,
+    /// The query number `results` answer.
+    pub got: u64,
     sent: Option<String>,
+    /// Enter was pressed before this query's results came back.
+    enter_pending: bool,
     filter: Option<AssetKind>,
     selected: usize,
     focused: bool,
@@ -59,7 +63,9 @@ impl SymbolSearch {
             query: query.to_string(),
             results: opentern_core::starter_watchlist(),
             seq: 0,
+            got: 0,
             sent: None,
+            enter_pending: false,
             filter: None,
             selected: 0,
             focused: false,
@@ -77,7 +83,9 @@ impl SymbolSearch {
     /// Symbol search that compares a symbol on the active chart.
     pub fn for_compare() -> SymbolSearch {
         SymbolSearch {
-            purpose: Pick::Compare { overlay: false },
+            purpose: Pick::Compare {
+                mode: crate::chart::CompareMode::Percent,
+            },
             ..SymbolSearch::new("")
         }
     }
@@ -106,6 +114,10 @@ impl SymbolSearch {
                     .desired_width(f32::INFINITY)
                     .margin(vec2(10.0, 8.0)),
             );
+            // Tickers read in capitals, as on TradingView.
+            if r.changed() && self.query.is_ascii() {
+                self.query.make_ascii_uppercase();
+            }
             // Typing always goes to the search field.
             if !r.has_focus() {
                 r.request_focus();
@@ -124,15 +136,33 @@ impl SymbolSearch {
                 self.sent = Some(self.query.clone());
                 app.search(self.seq, &self.query);
                 self.selected = 0;
+                // A formula needs no lookup: offer it at once (the search
+                // thread answers again with its legs resolved).
+                if opentern_data::expr::is_expr(&self.query)
+                    && let Some(f) = opentern_data::expr::symbol(&self.query, &opentern_core::starter_watchlist())
+                {
+                    self.results = vec![f];
+                    self.got = self.seq;
+                }
             }
             ui.add_space(6.0);
-            if let Pick::Compare { overlay } = &mut self.purpose {
+            if let Pick::Compare { mode } = &mut self.purpose {
+                use crate::chart::CompareMode as M;
                 ui.horizontal(|ui| {
-                    crate::widgets::segmented(ui, t, overlay, &[(false, "Compare"), (true, "Overlay")]);
-                    let tip = if *overlay {
-                        "On its own scale, over the chart"
-                    } else {
-                        "Percent change against the chart's symbol"
+                    crate::widgets::segmented(
+                        ui,
+                        t,
+                        mode,
+                        &[
+                            (M::Percent, M::Percent.label()),
+                            (M::Scale, M::Scale.label()),
+                            (M::Pane, M::Pane.label()),
+                        ],
+                    );
+                    let tip = match mode {
+                        M::Percent => "Percent change, on the chart's scale",
+                        M::Scale => "Over the chart, with its own scale",
+                        M::Pane => "In a pane of its own, below",
                     };
                     ui.label(egui::RichText::new(tip).font(theme::regular(12.0)).color(t.text3));
                 });
@@ -154,51 +184,67 @@ impl SymbolSearch {
             if down && self.selected + 1 < shown.len() {
                 self.selected += 1;
             }
-            if enter && let Some(s) = shown.get(self.selected) {
+            // Enter picks from this query's results, so a quick Enter
+            // never opens a symbol left over from the last query.
+            if enter && !self.query.trim().is_empty() && self.got != self.seq {
+                self.enter_pending = true;
+            } else if (enter || self.enter_pending)
+                && let Some(s) = shown.get(self.selected)
+            {
                 pick = Some((*s).clone());
             }
-            egui::ScrollArea::vertical().max_height(380.0).show(ui, |ui| {
-                if shown.is_empty() {
-                    ui.add_space(12.0);
-                    ui.label(egui::RichText::new("No symbols match.").color(t.text3));
-                }
-                for (i, s) in shown.iter().enumerate() {
-                    let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
-                    let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
-                    let lit = if i == self.selected { 1.0 } else { hov };
-                    ui.painter()
-                        .rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), lit));
-                    let p = ui.painter();
-                    let y = rect.center().y;
-                    p.text(
-                        pos2(rect.left() + 10.0, y),
-                        Align2::LEFT_CENTER,
-                        s.ticker(),
-                        theme::semibold(13.5),
-                        t.text,
-                    );
-                    p.text(
-                        pos2(rect.left() + 150.0, y),
-                        Align2::LEFT_CENTER,
-                        &s.description,
-                        theme::regular(13.0),
-                        t.text2,
-                    );
-                    p.text(
-                        pos2(rect.right() - 10.0, y),
-                        Align2::RIGHT_CENTER,
-                        format!("{}  ·  {}", kind_name(s.kind), s.exchange()),
-                        theme::regular(12.0),
-                        t.text3,
-                    );
-                    if i == self.selected {
-                        resp.scroll_to_me(None);
+            if self.got == self.seq {
+                self.enter_pending = false;
+            }
+            // A fixed height: the dialog doesn't jump as results come and go, and
+            // a short list is never clipped by last frame's size.
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .min_scrolled_height(380.0)
+                .max_height(380.0)
+                .show(ui, |ui| {
+                    if shown.is_empty() {
+                        ui.add_space(12.0);
+                        ui.label(egui::RichText::new("No symbols match.").color(t.text3));
                     }
-                    if resp.clicked() {
-                        pick = Some((*s).clone());
+                    for (i, s) in shown.iter().enumerate() {
+                        let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
+                        let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+                        let lit = if i == self.selected { 1.0 } else { hov };
+                        ui.painter()
+                            .rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), lit));
+                        let p = ui.painter();
+                        let y = rect.center().y;
+                        app.logos.paint(p, t, s, pos2(rect.left() + 21.0, y), 10.0);
+                        p.text(
+                            pos2(rect.left() + 40.0, y),
+                            Align2::LEFT_CENTER,
+                            s.ticker(),
+                            theme::semibold(13.5),
+                            t.text,
+                        );
+                        p.text(
+                            pos2(rect.left() + 180.0, y),
+                            Align2::LEFT_CENTER,
+                            &s.description,
+                            theme::regular(13.0),
+                            t.text2,
+                        );
+                        p.text(
+                            pos2(rect.right() - 10.0, y),
+                            Align2::RIGHT_CENTER,
+                            format!("{}  ·  {}", kind_name(s.kind), s.exchange()),
+                            theme::regular(12.0),
+                            t.text3,
+                        );
+                        if i == self.selected {
+                            resp.scroll_to_me(None);
+                        }
+                        if resp.clicked() {
+                            pick = Some((*s).clone());
+                        }
                     }
-                }
-            });
+                });
         }) {
             done = Done::Close;
         }
@@ -206,7 +252,7 @@ impl SymbolSearch {
             match self.purpose {
                 Pick::Chart => app.open_symbol_synced(s),
                 Pick::Watchlist => app.add_to_watchlist(s),
-                Pick::Compare { overlay } => app.add_compare(s, overlay),
+                Pick::Compare { mode } => app.add_compare(s, mode),
             }
             done = Done::Close;
         }

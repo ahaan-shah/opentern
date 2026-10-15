@@ -5,7 +5,7 @@
 use super::paint::{self, XMap, YMap, band_quad, polyline, rect_mesh, snap, styled_hline, styled_vline};
 use super::scale;
 use super::style::{Palette, SeriesKind, c32};
-use super::{Chart, StudyView};
+use super::{Chart, CompareMode, StudyView};
 use crate::format;
 use crate::icons::ph;
 use crate::motion;
@@ -26,6 +26,11 @@ pub enum Action {
     StudySettings(u64),
     RemoveStudy(u64),
     StudyMenu(u64, Pos2),
+    /// The legend's code button: open the study's source in the editor.
+    StudySource(u64),
+    /// The options of a compared symbol (its "…" button, or a right-click
+    /// on its legend row or price scale).
+    CompareMenu(usize, Pos2),
     MoreHistory,
     ChartSettings,
     RemoveCompare(usize),
@@ -183,10 +188,33 @@ pub fn show(
     let sample = format!("{}0", format::price(widest.max(1.0) * 10.0, prec));
     let label_w = painter.layout_no_wrap(sample, scale_font.clone(), pal.text).size().x;
     let scale_w = (label_w + 18.0).clamp(56.0, 140.0);
-    let plot_all = Rect::from_min_max(full.min, pos2(full.right() - scale_w, full.bottom() - TIME_AXIS_H));
+    // Compared symbols on a scale of their own get a column each, right of
+    // the main scale (as on TradingView).
+    let own: Vec<usize> = chart
+        .compares
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.visible && c.mode == CompareMode::Scale && !c.bars.is_empty())
+        .map(|(i, _)| i)
+        .collect();
+    let own_w: Vec<f32> = own
+        .iter()
+        .map(|&i| {
+            let c = &chart.compares[i];
+            let widest = c.bars.iter().rev().take(500).map(|b| b.high).fold(0.0f64, f64::max);
+            let sample = format!("{}0", format::price(widest.max(1.0) * 10.0, c.symbol.precision()));
+            let w = painter.layout_no_wrap(sample, scale_font.clone(), pal.text).size().x;
+            (w + 18.0).clamp(56.0, 140.0)
+        })
+        .collect();
+    let own_total: f32 = own_w.iter().sum();
+    let plot_all = Rect::from_min_max(
+        full.min,
+        pos2(full.right() - scale_w - own_total, full.bottom() - TIME_AXIS_H),
+    );
     let scale_col = Rect::from_min_max(
         pos2(plot_all.right(), full.top()),
-        pos2(full.right(), plot_all.bottom()),
+        pos2(plot_all.right() + scale_w, plot_all.bottom()),
     );
     let time_axis = Rect::from_min_max(
         pos2(full.left(), plot_all.bottom()),
@@ -244,6 +272,21 @@ pub fn show(
                 } else {
                     grow(b.high);
                     grow(b.low);
+                }
+            }
+        }
+        // A compared symbol in this pane: its highs and lows.
+        if n > 0 {
+            for c in chart
+                .compares
+                .iter()
+                .filter(|c| c.visible && c.mode == CompareMode::Pane && c.pane == pane.id)
+            {
+                for j in first.min(n - 1)..=last {
+                    if let Some(b) = c.bar_at(chart.bars[j].time) {
+                        grow(b.high);
+                        grow(b.low);
+                    }
                 }
             }
         }
@@ -372,6 +415,22 @@ pub fn show(
             pane.scale.hi = g.y.hi;
         }
     }
+    // Compared symbols' own scales: fitted like the main one unless dragged.
+    let mut owns: Vec<(usize, Rect, YMap)> = Vec::new();
+    {
+        let mut cx = scale_col.right();
+        for (k, &ci) in own.iter().enumerate() {
+            let col = Rect::from_min_max(pos2(cx, full.top()), pos2(cx + own_w[k], plot_all.bottom()));
+            cx += own_w[k];
+            let y = own_ymap(chart, &chart.compares[ci], first, last, geos[0].rect);
+            let sc = &mut chart.compares[ci].scale;
+            if sc.auto {
+                sc.lo = y.lo;
+                sc.hi = y.hi;
+            }
+            owns.push((ci, col, y));
+        }
+    }
 
     // ---- interaction
     let pointer = ui.ctx().pointer_hover_pos().filter(|_| interactive);
@@ -458,7 +517,7 @@ pub fn show(
             geos[0].y,
             geos[0].rect,
         );
-    if tools.tool.is_drawing() && interactive {
+    if (tools.tool.is_drawing() || tools.tool == super::draw::Tool::Measure) && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
     if plot_resp.dragged() && !drawing_used && !paper_used {
@@ -541,6 +600,34 @@ pub fn show(
         chart.panes[k].scale.auto = true;
     }
     let scale_resp = scale_resp.on_hover_cursor(egui::CursorIcon::ResizeVertical);
+    // Own scales: drag to zoom, double-click to fit, right-click for options.
+    for (ci, col, y) in owns.iter_mut() {
+        let resp = ui.interact(
+            *col,
+            Id::new(("own-scale", chart.id, *ci)),
+            sense(Sense::click_and_drag()),
+        );
+        let sc = &mut chart.compares[*ci].scale;
+        if resp.dragged() {
+            let f = (resp.drag_delta().y as f64 * 0.006).exp();
+            let mid = (sc.lo + sc.hi) / 2.0;
+            let half = (sc.hi - sc.lo) / 2.0 * f;
+            sc.auto = false;
+            (sc.lo, sc.hi) = (mid - half, mid + half);
+            (y.lo, y.hi) = (sc.lo, sc.hi);
+        }
+        if resp.double_clicked() {
+            sc.auto = true;
+        }
+        if resp.secondary_clicked()
+            && let Some(p) = resp.interact_pointer_pos()
+        {
+            actions.push(Action::CompareMenu(*ci, p));
+        }
+        let _ = resp
+            .on_hover_cursor(egui::CursorIcon::ResizeVertical)
+            .on_hover_text_at_pointer("Drag to scale · double-click to fit · right-click for options");
+    }
     // Time axis: drag to zoom, keeping the right edge.
     let time_resp = ui.interact(
         time_axis,
@@ -694,7 +781,7 @@ pub fn show(
             draw_bg(&p, s, &x, first, last, g.rect);
         }
         draw_series(&p, chart, &g.y, &x, first, last, ppp, g.rect);
-        draw_compares(&p, chart, &g.y, &x, first, last, g.rect);
+        draw_compares(&p, chart, &g.y, &x, first, last, &owns);
         super::profile::paint_overlays(&p, chart, &g.y, &x, first, last, g.rect);
         for s in chart
             .studies
@@ -717,6 +804,13 @@ pub fn show(
         let p = clip_painter(g.rect);
         for s in chart.studies.iter().filter(|s| s.pane == pane_id && s.shown(chart.tf)) {
             draw_bg(&p, s, &x, first, last, g.rect);
+        }
+        for c in chart
+            .compares
+            .iter()
+            .filter(|c| c.visible && c.mode == CompareMode::Pane && c.pane == pane_id)
+        {
+            draw_compare_candles(&p, chart, c, &g.y, &x, first, last);
         }
         for s in chart.studies.iter().filter(|s| s.pane == pane_id && s.shown(chart.tf)) {
             if s.meta().id == "seasonality" {
@@ -762,6 +856,26 @@ pub fn show(
                     scale_font.clone(),
                     pal.scale_text,
                 );
+            }
+        }
+    }
+    if let Some(g) = geos.first() {
+        for (ci, col, y) in &owns {
+            let c = &chart.compares[*ci];
+            painter.vline(snap(col.left(), ppp), col.y_range(), Stroke::new(1.0, pal.border));
+            let (vals, step) = scale::price_ticks(y.lo, y.hi, g.rect.height(), 48.0);
+            let d = format::decimals_for(step, 0);
+            for v in vals {
+                let yy = y.y(v);
+                if yy > g.rect.top() + 6.0 && yy < g.rect.bottom() - 6.0 {
+                    painter.text(
+                        pos2(col.left() + 8.0, yy),
+                        Align2::LEFT_CENTER,
+                        format::price(v, d.max(c.symbol.precision().min(d))),
+                        scale_font.clone(),
+                        pal.scale_text,
+                    );
+                }
             }
         }
     }
@@ -842,6 +956,20 @@ pub fn show(
                 }
             }
         }
+        for c in chart
+            .compares
+            .iter()
+            .filter(|c| c.visible && c.mode == CompareMode::Pane && c.pane == pane_id)
+        {
+            if let Some(b) = c.bars.last() {
+                tags.push((
+                    g.y.y(b.close),
+                    format::price(b.close, c.symbol.precision()),
+                    c32(c.color),
+                    None,
+                ));
+            }
+        }
         tags.retain(|t| t.0 >= g.rect.top() - 1.0 && t.0 <= g.rect.bottom() + 1.0);
         let mut boxes: Vec<(f32, f32, usize)> = tags
             .iter()
@@ -876,8 +1004,72 @@ pub fn show(
             }
         }
     }
+    if let Some(g) = geos.first() {
+        for (ci, col, y) in &owns {
+            let c = &chart.compares[*ci];
+            let Some(b) = c.bars.last() else { continue };
+            let yy = y.y(b.close);
+            if yy >= g.rect.top() && yy <= g.rect.bottom() {
+                let r = Rect::from_min_size(pos2(col.left() + 1.0, yy - tag_h / 2.0), vec2(col.width() - 2.0, tag_h));
+                let bg = c32(c.color);
+                painter.rect_filled(r, CornerRadius::same(3), bg);
+                painter.text(
+                    pos2(r.left() + 7.0, yy),
+                    Align2::LEFT_CENTER,
+                    format::price(b.close, c.symbol.precision()),
+                    theme::medium(chart.style.scale_font as f32 - 0.5),
+                    paint::text_on(bg),
+                );
+            }
+        }
+    }
     if chart.style.countdown && chart.status == Status::Live && chart.tf.millis().is_some() {
         ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+    }
+
+    // ---- the quick measure's ends, marked on both axes
+    if let (Some(m), Some(g)) = (cui.draw.measure(), geos.first()) {
+        let col = super::draw::measure_color(m.b.p >= m.a.p);
+        let tm = super::draw::TimeMap {
+            bars: &chart.bars,
+            step: chart.tf.millis().unwrap_or(30 * 86_400_000),
+            x: XMap { ..x },
+        };
+        let (ya, yb) = (g.y.y(m.a.p), g.y.y(m.b.p));
+        let band = Rect::from_x_y_ranges(scale_col.x_range(), ya.min(yb)..=ya.max(yb)).intersect(g.rect);
+        painter.rect_filled(band, CornerRadius::ZERO, col.gamma_multiply(0.18));
+        let (xa, xb) = (tm.x(m.a.t), tm.x(m.b.t));
+        let tband = Rect::from_x_y_ranges(xa.min(xb)..=xa.max(xb), time_axis.y_range()).intersect(time_axis);
+        painter.rect_filled(tband, CornerRadius::ZERO, col.gamma_multiply(0.18));
+        for (yy, v) in [(ya, m.a.p), (yb, m.b.p)] {
+            if yy >= g.rect.top() && yy <= g.rect.bottom() {
+                let r = Rect::from_min_size(
+                    pos2(scale_col.left() + 1.0, yy - tag_h / 2.0),
+                    vec2(scale_w - 2.0, tag_h),
+                );
+                painter.rect_filled(r, CornerRadius::same(3), col);
+                painter.text(
+                    pos2(r.left() + 7.0, yy),
+                    Align2::LEFT_CENTER,
+                    format::price(v, prec),
+                    theme::medium(chart.style.scale_font as f32 - 0.5),
+                    Color32::WHITE,
+                );
+            }
+        }
+        for (xx, tt) in [(xa, m.a.t), (xb, m.b.t)] {
+            if xx >= time_axis.left() && xx <= time_axis.right() {
+                let text = format::crosshair_time(tt, chart.tf, &chart.tz);
+                let w = painter
+                    .layout_no_wrap(text.clone(), small.clone(), Color32::WHITE)
+                    .size()
+                    .x
+                    + 16.0;
+                let r = Rect::from_center_size(pos2(xx, time_axis.center().y), vec2(w, tag_h + 2.0));
+                painter.rect_filled(r, CornerRadius::same(3), col);
+                painter.text(r.center(), Align2::CENTER_CENTER, text, small.clone(), Color32::WHITE);
+            }
+        }
     }
 
     // ---- crosshair
@@ -912,6 +1104,17 @@ pub fn show(
                 vec2(scale_w - 2.0, tag_h),
             );
             paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+            if geos.first().is_some_and(|m| m.rect == g.rect) {
+                for (ci, col, y) in &owns {
+                    let c = &chart.compares[*ci];
+                    let r = Rect::from_min_size(
+                        pos2(col.left() + 1.0, p.y - tag_h / 2.0),
+                        vec2(col.width() - 2.0, tag_h),
+                    );
+                    let text = format::price(y.value(p.y), c.symbol.precision());
+                    paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+                }
+            }
         }
         // Time label: extrapolated past the last bar.
         let t = if n > 0 && hi >= 0.0 {
@@ -987,7 +1190,10 @@ pub fn show(
         .map(|i| i as usize)
         .or(n.checked_sub(1));
     cui.hover_index = legend_idx;
-    legend(ui, chart, &geos, legend_idx, &pal, t, &mut actions);
+    legend(ui, chart, &geos, legend_idx, &pal, t, &mut actions, tools.logos);
+    if let Some(g) = geos.first() {
+        super::drawing_ui::paint_measure(&painter, chart, &cui.draw, x, g.y, g.rect);
+    }
 
     // ---- states with nothing to draw yet
     if n == 0
@@ -1077,7 +1283,7 @@ fn compare_points(chart: &Chart, first: usize, last: usize) -> Vec<(usize, Vec<(
         .compares
         .iter()
         .enumerate()
-        .filter(|(_, c)| c.visible && !c.overlay)
+        .filter(|(_, c)| c.visible && c.mode == CompareMode::Percent)
         .map(|(k, c)| {
             let cbase = c.close_at(base_t).or_else(|| c.bars.first().map(|b| b.close));
             let pts = (first..=last.min(n - 1))
@@ -1095,39 +1301,93 @@ fn compare_points(chart: &Chart, first: usize, last: usize) -> Vec<(usize, Vec<(
         .collect()
 }
 
-/// Compared and overlaid symbols as lines.
-fn draw_compares(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, last: usize, rect: Rect) {
+/// Compared symbols as lines: on the main scale, or on their own.
+fn draw_compares(
+    p: &Painter,
+    chart: &Chart,
+    y: &YMap,
+    x: &XMap,
+    first: usize,
+    last: usize,
+    owns: &[(usize, Rect, YMap)],
+) {
     for (k, pts) in compare_points(chart, first, last) {
         let c = &chart.compares[k];
         let line: Vec<Pos2> = pts.iter().map(|(j, v)| pos2(x.x(*j as f64), y.y(*v))).collect();
         polyline(p, line, Stroke::new(2.0, c32(c.color)));
     }
-    // Overlays: each on its own scale, fitted to the pane like the main one.
     let n = chart.bars.len();
     if n == 0 || first >= n {
         return;
     }
-    for c in chart.compares.iter().filter(|c| c.visible && c.overlay) {
-        let vals: Vec<(usize, f64)> = (first..=last.min(n - 1))
-            .filter_map(|j| c.close_at(chart.bars[j].time).map(|v| (j, v)))
+    for (ci, _, own) in owns {
+        let c = &chart.compares[*ci];
+        let line: Vec<Pos2> = (first..=last.min(n - 1))
+            .filter_map(|j| c.close_at(chart.bars[j].time).map(|v| pos2(x.x(j as f64), own.y(v))))
             .collect();
-        let (lo, hi) = vals.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), (_, v)| {
-            (l.min(*v), h.max(*v))
-        });
-        if !lo.is_finite() {
-            continue;
-        }
-        let span = (hi - lo).max(hi.abs() * 1e-6).max(1e-12);
-        let own = YMap {
-            top: rect.top(),
-            bottom: rect.bottom(),
-            lo: lo - span * 0.08,
-            hi: hi + span * 0.1,
-            log: false,
-        };
-        let line: Vec<Pos2> = vals.iter().map(|(j, v)| pos2(x.x(*j as f64), own.y(*v))).collect();
         polyline(p, line, Stroke::new(2.0, c32(c.color)));
     }
+}
+
+/// A compared symbol's own scale over the main pane: fitted to what's in
+/// view (TradingView's margins), or where it was dragged to.
+fn own_ymap(chart: &Chart, c: &super::Compare, first: usize, last: usize, rect: Rect) -> YMap {
+    let n = chart.bars.len();
+    let (lo, hi) = if c.scale.auto && n > 0 && first < n {
+        let (lo, hi) = (first..=last.min(n - 1))
+            .filter_map(|j| c.close_at(chart.bars[j].time))
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(l, h), v| (l.min(v), h.max(v)));
+        if lo.is_finite() {
+            let span = (hi - lo).max(hi.abs() * 1e-6).max(1e-12);
+            (lo - span * 0.08, hi + span * 0.1)
+        } else {
+            (0.0, 1.0)
+        }
+    } else {
+        (c.scale.lo, c.scale.hi)
+    };
+    YMap {
+        top: rect.top(),
+        bottom: rect.bottom(),
+        lo,
+        hi,
+        log: false,
+    }
+}
+
+/// A compared symbol in its own pane, as candles in the chart's colours.
+fn draw_compare_candles(p: &Painter, chart: &Chart, c: &super::Compare, y: &YMap, x: &XMap, first: usize, last: usize) {
+    let n = chart.bars.len();
+    if n == 0 || first >= n {
+        return;
+    }
+    let bw = chart.view.bar_w;
+    let body_w = (bw * 0.7).max(1.0);
+    let up_c = c32(chart.style.up_body);
+    let down_c = c32(chart.style.down_body);
+    let mut mesh = egui::Mesh::default();
+    let mut prev = None;
+    for j in first..=last.min(n - 1) {
+        let Some(b) = c.bar_at(chart.bars[j].time) else {
+            continue;
+        };
+        // Each of its bars once (a daily stock bar under hourly crypto).
+        if prev == Some(b.time) {
+            continue;
+        }
+        prev = Some(b.time);
+        let col = if b.close >= b.open { up_c } else { down_c };
+        let cx = x.x(j as f64);
+        let (yo, yc) = (y.y(b.open), y.y(b.close));
+        let (yh, yl) = (y.y(b.high), y.y(b.low));
+        mesh.add_colored_rect(Rect::from_min_max(pos2(cx - 0.5, yh), pos2(cx + 0.5, yl)), col);
+        let (t, bt) = (yo.min(yc), yo.max(yc).max(yo.min(yc) + 1.0));
+        mesh.add_colored_rect(
+            Rect::from_min_max(pos2(cx - body_w / 2.0, t), pos2(cx + body_w / 2.0, bt)),
+            col,
+        );
+    }
+    p.add(egui::Shape::mesh(mesh));
 }
 
 /// Nice ticks for a log scale: a linear step chosen per decade.
@@ -2095,6 +2355,7 @@ fn draw_shape(
 /// The status line of each pane: symbol and OHLC on the main pane, one row
 /// per study with its values, and the eye / settings / remove buttons on
 /// hover.
+#[allow(clippy::too_many_arguments)]
 fn legend(
     ui: &mut Ui,
     chart: &mut Chart,
@@ -2103,6 +2364,7 @@ fn legend(
     pal: &Palette,
     t: &Theme,
     actions: &mut Vec<Action>,
+    logos: Option<&crate::logos::Logos>,
 ) {
     // Clipped to the plot, so a long legend never runs into the scale.
     let plot = geos.iter().fold(egui::Rect::NOTHING, |r, g| r.union(g.rect));
@@ -2123,7 +2385,14 @@ fn legend(
                 chart.symbol.exchange()
             );
             let slot = painter.add(egui::Shape::Noop);
-            let r = painter.text(pos, Align2::LEFT_TOP, &title, bold.clone(), pal.text);
+            let tpos = match logos {
+                Some(l) => {
+                    l.paint(&painter, t, &chart.symbol, pos + vec2(9.0, 8.5), 9.0);
+                    pos + vec2(24.0, 0.0)
+                }
+                None => pos,
+            };
+            let r = painter.text(tpos, Align2::LEFT_TOP, &title, bold.clone(), pal.text);
             let mut xx = r.right() + 10.0;
             // Market open or closed (not for crypto, which never closes).
             let market = opentern_core::calendar::Market::of(&chart.symbol);
@@ -2213,8 +2482,15 @@ fn legend(
                 let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(g.rect.width() * 0.75, LEGEND_ROW));
                 let hovered = ui.rect_contains_pointer(row_rect);
                 let slot = painter.add(egui::Shape::Noop);
+                let tpos = match logos {
+                    Some(l) => {
+                        l.paint(&painter, t, &c.symbol, pos + vec2(7.0, 8.0), 7.0);
+                        pos + vec2(19.0, 0.0)
+                    }
+                    None => pos,
+                };
                 let r = painter.text(
-                    pos,
+                    tpos,
                     Align2::LEFT_TOP,
                     c.symbol.ticker(),
                     font.clone(),
@@ -2256,15 +2532,23 @@ fn legend(
                         "eye",
                     );
                     let remove = btn(ph::X, "Remove", "remove");
+                    let more = btn(ph::DOTS_THREE, "Scale and more", "more");
                     if eye {
                         chart.compares[ci].visible = !visible;
                         chart.touch();
+                    }
+                    if more {
+                        actions.push(Action::CompareMenu(ci, pos2(xx, pos.y + LEGEND_ROW)));
                     }
                     if remove {
                         actions.push(Action::RemoveCompare(ci));
                     }
                 }
                 legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
+                let title = ui.interact(row_rect, Id::new(("legend-cmp-row", chart.id, ci)), Sense::click());
+                if title.secondary_clicked() {
+                    actions.push(Action::CompareMenu(ci, pos2(pos.x, pos.y + LEGEND_ROW)));
+                }
                 pos.y += LEGEND_ROW;
             }
         }
@@ -2319,6 +2603,7 @@ fn legend(
                 let eye = if s.visible { ph::EYE } else { ph::EYE_SLASH };
                 let toggle = btn(eye, if s.visible { "Hide" } else { "Show" }, "eye");
                 let settings = btn(ph::GEAR_SIX, "Settings", "gear");
+                let source = crate::app::App::has_source(s.meta().id) && btn(ph::CODE, "Source code", "code");
                 let remove = btn(ph::X, "Remove", "remove");
                 let more = btn(ph::DOTS_THREE, "More", "more");
                 if toggle && let Some(s) = chart.study_mut(uid) {
@@ -2327,6 +2612,9 @@ fn legend(
                 }
                 if settings {
                     actions.push(Action::StudySettings(uid));
+                }
+                if source {
+                    actions.push(Action::StudySource(uid));
                 }
                 if remove {
                     actions.push(Action::RemoveStudy(uid));

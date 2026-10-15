@@ -520,7 +520,9 @@ impl App {
             for (a, _) in self.alerts.list.iter().rev() {
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
                 let p = ui.painter();
-                if resp.hovered() {
+                // Pointer inside, not `hovered()`: the buttons would steal it.
+                let inside = ui.rect_contains_pointer(r);
+                if inside {
                     p.rect_filled(r, CornerRadius::same(6), t.hover_wash());
                 }
                 let (state, c) = if a.expired(now) {
@@ -559,7 +561,7 @@ impl App {
                     theme::regular(11.0),
                     t.text3,
                 );
-                if resp.hovered() {
+                if inside {
                     // Pause/resume, edit and delete, on hover.
                     let mut x = r.right() - 4.0;
                     for (glyph, tip, what) in [

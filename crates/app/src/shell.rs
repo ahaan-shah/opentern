@@ -334,6 +334,15 @@ impl App {
                         self.toggle_dark(ui.ctx());
                         ui.close();
                     }
+                    let on = self.logos.enabled;
+                    if w::menu_item(ui, t, Some(ph::IMAGE), "Symbol logos", "", on)
+                        .on_hover_text("Fetched once from public logo sites and kept on this computer")
+                        .clicked()
+                    {
+                        self.logos.enabled = !on;
+                        let _ = self.store.set_value("symbol_logos", if on { "off" } else { "on" });
+                        ui.close();
+                    }
                 });
                 w::vdivider(ui, t);
 
@@ -570,8 +579,17 @@ impl App {
                 self.tool_group(ui, t, group);
             }
             w::hdivider(ui, t, TOOLBAR_W);
-            let measure = Tool::DatePriceRange;
-            if w::tool_button(ui, t, ph::RULER, "Measure", self.layout.tool == measure, 36.0).clicked() {
+            let measure = Tool::Measure;
+            if w::tool_button(
+                ui,
+                t,
+                ph::RULER,
+                "Measure (or Shift+drag)",
+                self.layout.tool == measure,
+                36.0,
+            )
+            .clicked()
+            {
                 self.pick_tool(measure);
             }
             if w::tool_button(
@@ -791,7 +809,17 @@ impl App {
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 if !matches!(widget, Widget::Watchlist | Widget::Alerts) {
-                    ui.label(egui::RichText::new(widget.title()).font(theme::semibold(14.0)));
+                    ui.horizontal(|ui| {
+                        ui.set_height(26.0);
+                        ui.label(egui::RichText::new(widget.title()).font(theme::semibold(14.0)));
+                        if widget == Widget::Notifications && !self.notes.list.is_empty() {
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                if small_button(ui, t, "Clear all", false).clicked() {
+                                    self.notes.list.clear();
+                                }
+                            });
+                        }
+                    });
                     ui.add_space(6.0);
                 }
                 match widget {
@@ -898,8 +926,8 @@ impl App {
                 ui,
                 t,
                 Rect::from_min_max(
-                    pos2(full.left(), full.top() - 3.0),
-                    pos2(full.right(), full.top() + 3.0),
+                    pos2(full.left(), full.top() - 4.0),
+                    pos2(full.right(), full.top() + 4.0),
                 ),
                 "panel-resize",
                 false,
@@ -967,7 +995,10 @@ impl App {
 
     /// One chart in `ui`'s rect (the active one, or a slot swapped in).
     pub(crate) fn chart_area_in(&mut self, ui: &mut Ui, t: &Theme) {
-        let interactive = self.modal.is_none() && self.study_menu.is_none() && !egui::Popup::is_any_open(ui.ctx());
+        let interactive = self.modal.is_none()
+            && self.study_menu.is_none()
+            && self.compare_menu.is_none()
+            && !egui::Popup::is_any_open(ui.ctx());
         let saved = self.draw_styles.clone();
         let styles = move |tool| {
             saved
@@ -981,6 +1012,7 @@ impl App {
             lock_all: self.layout.lock_drawings,
             hide_all: self.layout.hide_drawings,
             style: &styles,
+            logos: Some(&self.logos),
         };
         let actions = crate::chart::ui::show(ui, &mut self.chart, &mut self.chart_ui, t, interactive, &tools);
         let finished = self.chart_ui.draw.finished;

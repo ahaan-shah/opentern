@@ -20,6 +20,9 @@ pub enum Tool {
     Eraser,
     /// Drag a range to zoom into it.
     Zoom,
+    /// A quick measure (also Shift+drag): change, bars, time and volume
+    /// between two points. Not saved; the next click clears it.
+    Measure,
     TrendLine,
     Ray,
     ExtendedLine,
@@ -151,6 +154,7 @@ impl Tool {
             Triangle => "Triangle",
             LongPosition => "Long position",
             ShortPosition => "Short position",
+            Measure => "Measure",
             PriceRange => "Price range",
             DateRange => "Date range",
             DatePriceRange => "Date and price range",
@@ -172,6 +176,7 @@ impl Tool {
             Cross => ph::CROSSHAIR_SIMPLE,
             Eraser => ph::ERASER,
             Zoom => ph::MAGNIFYING_GLASS_PLUS,
+            Measure => ph::RULER,
             TrendLine => ph::LINE_SEGMENT,
             Ray => ph::ARROW_UP_RIGHT,
             ExtendedLine => ph::ARROWS_HORIZONTAL,
@@ -208,7 +213,7 @@ impl Tool {
     pub fn points(self) -> usize {
         use Tool::*;
         match self {
-            Cross | Eraser | Zoom => 0,
+            Cross | Eraser | Zoom | Measure => 0,
             HorizontalLine
             | HorizontalRay
             | VerticalLine
@@ -228,7 +233,7 @@ impl Tool {
     }
 
     pub fn is_drawing(self) -> bool {
-        !matches!(self, Tool::Cross | Tool::Eraser | Tool::Zoom)
+        !matches!(self, Tool::Cross | Tool::Eraser | Tool::Zoom | Tool::Measure)
     }
 
     pub fn key(self) -> String {
@@ -924,6 +929,92 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
     let lr = Align2::CENTER_TOP.anchor_size(at, g2.size() + vec2(14.0, 8.0));
     p.rect_filled(lr, CornerRadius::same(5), col);
     p.galley(lr.min + vec2(7.0, 4.0), g2, Color32::WHITE);
+}
+
+/// The quick measure, as on TradingView: a blue (up) or red (down) box
+/// with arrows, and a label with the change, its percent and ticks, the
+/// bars and time between, and the volume traded.
+pub fn paint_measure(p: &Painter, bars: &[opentern_core::Bar], tick: f64, g: &Geo, a: Anchor, b: Anchor) {
+    let (pa, pb) = (pos2(g.tm.x(a.t), g.y.y(a.p)), pos2(g.tm.x(b.t), g.y.y(b.p)));
+    let up = b.p >= a.p;
+    let col = measure_color(up);
+    let r = Rect::from_two_pos(pa, pb);
+    p.rect_filled(r, CornerRadius::ZERO, col.gamma_multiply(0.2));
+    let s = Stroke::new(1.0, col);
+    // Arrows with small fixed heads (egui's scale with the length).
+    let arrow = |from: Pos2, to: Pos2| {
+        let d = to - from;
+        if d.length() < 8.0 {
+            return;
+        }
+        let u = d.normalized();
+        let n = vec2(-u.y, u.x);
+        p.line_segment([from, to], s);
+        p.line_segment([to, to - u * 6.0 + n * 4.0], s);
+        p.line_segment([to, to - u * 6.0 - n * 4.0], s);
+    };
+    arrow(pos2(r.center().x, pa.y), pos2(r.center().x, pb.y));
+    arrow(pos2(pa.x, r.center().y), pos2(pb.x, r.center().y));
+    let dp = b.p - a.p;
+    let pct = if a.p != 0.0 { dp / a.p * 100.0 } else { 0.0 };
+    let ticks = if tick > 0.0 { (dp / tick).round() } else { 0.0 };
+    let (i0, i1) = (g.tm.index(a.t), g.tm.index(b.t));
+    let nb = (i1 - i0).round() as i64;
+    let span = (b.t - a.t).abs();
+    let (days, hours, mins) = (span / 86_400_000, span / 3_600_000 % 24, span / 60_000 % 60);
+    let time = match (days, hours, mins) {
+        (d, 0, _) if d > 0 => format!("{d}d"),
+        (d, h, _) if d > 0 => format!("{d}d {h}h"),
+        (_, h, 0) if h > 0 => format!("{h}h"),
+        (_, h, m) if h > 0 => format!("{h}h {m}m"),
+        (_, _, m) => format!("{m}m"),
+    };
+    let (lo, hi) = (
+        i0.min(i1).round().max(0.0) as usize,
+        i1.max(i0).round().max(0.0) as usize,
+    );
+    let vol: f64 = bars
+        .iter()
+        .skip(lo)
+        .take((hi + 1).saturating_sub(lo))
+        .map(|b| b.volume)
+        .sum();
+    let sign = if dp >= 0.0 { "" } else { "−" };
+    let mut text = format!(
+        "{sign}{} ({}) {sign}{}\n{nb} bars, {time}",
+        format::grouped(dp.abs(), g.decimals),
+        format::signed_pct(pct),
+        format::grouped(ticks.abs(), 0),
+    );
+    if vol > 0.0 {
+        text.push_str(&format!("\nVol {}", format::compact(vol)));
+    }
+    let mut job = egui::text::LayoutJob::simple(text, theme::medium(12.0), Color32::WHITE, f32::INFINITY);
+    job.halign = egui::Align::Center;
+    let galley = p.layout_job(job);
+    let size = galley.size() + vec2(20.0, 12.0);
+    // Above an up move, below a down one, as TradingView; flipped or
+    // pulled in when that would leave the pane.
+    let above = Align2::CENTER_BOTTOM.anchor_size(pos2(r.center().x, r.top() - 8.0), size);
+    let below = Align2::CENTER_TOP.anchor_size(pos2(r.center().x, r.bottom() + 8.0), size);
+    let mut at = match (up, above.top() >= g.rect.top(), below.bottom() <= g.rect.bottom()) {
+        (true, true, _) | (false, true, false) => above,
+        (false, _, true) | (true, false, true) => below,
+        _ => Align2::CENTER_TOP.anchor_size(pos2(r.center().x, g.rect.top() + 6.0), size),
+    };
+    let dx = (g.rect.left() + 4.0 - at.left()).max(0.0) - (at.right() - g.rect.right() + 4.0).max(0.0);
+    at = at.translate(vec2(dx, 0.0));
+    p.rect_filled(at, CornerRadius::same(4), col);
+    p.galley(pos2(at.center().x, at.top() + 6.0), galley, Color32::WHITE);
+}
+
+/// TradingView's measure colours.
+pub fn measure_color(up: bool) -> Color32 {
+    if up {
+        Color32::from_rgb(41, 98, 255)
+    } else {
+        Color32::from_rgb(242, 54, 69)
+    }
 }
 
 /// Where a drawing's draggable handles are on screen.
