@@ -118,6 +118,7 @@ impl Kraken {
                     kind: AssetKind::Crypto,
                     currency: q.into(),
                     tick_size: 10f64.powi(-decimals),
+                    min_qty: 0.0,
                     timezone: "UTC".into(),
                 })
             })

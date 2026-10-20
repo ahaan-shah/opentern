@@ -111,6 +111,7 @@ impl Coinbase {
                     kind: AssetKind::Crypto,
                     currency: quote.into(),
                     tick_size: num(&p["quote_increment"]).filter(|x| *x > 0.0).unwrap_or(0.01),
+                    min_qty: 0.0,
                     timezone: "UTC".into(),
                 })
             })

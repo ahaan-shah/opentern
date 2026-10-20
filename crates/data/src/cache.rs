@@ -71,6 +71,13 @@ impl Cache {
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(SCHEMA)?;
+        // Added later: the symbol's minimum quantity (lot step).
+        let has_lot: bool = conn
+            .prepare("SELECT 1 FROM pragma_table_info('symbols') WHERE name = 'lot'")?
+            .exists([])?;
+        if !has_lot {
+            conn.execute_batch("ALTER TABLE symbols ADD COLUMN lot REAL NOT NULL DEFAULT 0")?;
+        }
         Ok(Cache { conn })
     }
 
@@ -125,8 +132,8 @@ impl Cache {
         tx.execute("DELETE FROM symbols WHERE source = ?1", params![source])?;
         {
             let mut q = tx.prepare_cached(
-                "INSERT OR REPLACE INTO symbols (id, source, description, kind, currency, tick, tz)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                "INSERT OR REPLACE INTO symbols (id, source, description, kind, currency, tick, tz, lot)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             )?;
             for s in symbols {
                 q.execute(params![
@@ -136,7 +143,8 @@ impl Cache {
                     kind_str(s.kind),
                     s.currency,
                     s.tick_size,
-                    s.timezone
+                    s.timezone,
+                    s.min_qty
                 ])?;
             }
         }
@@ -146,7 +154,7 @@ impl Cache {
     pub fn symbols(&self) -> Result<Vec<Symbol>> {
         let mut q = self
             .conn
-            .prepare("SELECT id, description, kind, currency, tick, tz FROM symbols")?;
+            .prepare("SELECT id, description, kind, currency, tick, tz, lot FROM symbols")?;
         q.query_map([], |r| {
             Ok(Symbol {
                 id: r.get(0)?,
@@ -154,6 +162,7 @@ impl Cache {
                 kind: kind_from(&r.get::<_, String>(2)?),
                 currency: r.get(3)?,
                 tick_size: r.get(4)?,
+                min_qty: r.get(6)?,
                 timezone: r.get(5)?,
             })
         })?

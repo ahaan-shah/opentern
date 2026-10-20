@@ -461,6 +461,10 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         ));
     };
     let layout = cx.frames.pop().unwrap_or_default();
+    if kind == Kind::Strategy {
+        // The broker follows this version's rules (margin, exit levels).
+        cx.props.insert("pine_version".into(), serde_json::json!(version));
+    }
     Ok(Program {
         kind,
         version,

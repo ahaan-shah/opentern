@@ -151,6 +151,7 @@ fn crypto(id: &str) -> Symbol {
         kind: opentern_core::AssetKind::Crypto,
         currency: "USD".into(),
         tick_size: 0.01,
+        min_qty: 0.0,
         timezone: "UTC".into(),
     }
 }

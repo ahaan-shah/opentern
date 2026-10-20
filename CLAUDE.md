@@ -696,6 +696,24 @@ workspace.
   working; the account menu switches, makes, renames, deletes. Chart trading:
   `PaperLine::order` tags are drag handles (`Action::PaperMove` →
   `Account::modify`), the × beside a tag cancels it or closes the position.
+- **TradingView parity fixes (21 Oct 2026, the maintainer saw different numbers):**
+  the report used the state after running the script on the *forming* bar
+  (TradingView runs strategies once per closed bar; now `strategy::closed_broker`
+  + `last_bar_forming`, also in the Lab); cash/%-of-equity orders are sized when
+  placed at that bar's close and floored to `Props::min_qty` (`min_qty_for`:
+  1 for stocks/funds/indices/futures, fractional for crypto/forex, unverified);
+  v6 margin (default 100, v5 0; `pine_version` goes into the props) refuses
+  unaffordable entries and runs TradingView's margin-call formula; v6
+  `strategy.exit` takes the nearer of `limit`/`profit`, `stop`/`loss`. The
+  manual's margin example is a test. Then, from the maintainer's own report
+  (BTCUSDT 1D, matched to the cent): %-of-equity sizing leaves room for the
+  entry commission; crypto rounds to the exchange's lot step (`Symbol::min_qty`,
+  Binance `LOT_SIZE`, sent as `Event::Lot` when a chart opens; Pine
+  `syminfo.mincontract`); max drawdown runs from closed-trade equity peaks to a
+  trade's worst point incl. entry commission, % of the peak. Details in
+  `docs/metrics.md`. TradingView's legend shows a strategy's values at the
+  last *closed* bar (it doesn't run on the forming one); ours show the forming
+  bar's, so legend numbers differ slightly while a bar is open.
 - **Gotcha:** bottom-panel tab bodies render in `ui.new_child` with a clip rect; content
   taller than the panel used to grow it and push the tab strip under the range bar.
 - **DOM widget** (Oct 2026, `app/src/dom.rs`, rail icon "Depth of market"):

@@ -67,6 +67,9 @@ pub struct Env {
     pub currency: String,
     /// "crypto", "stock", "fund", "index", "forex", "futures".
     pub kind: String,
+    /// `syminfo.mincontract`, the lot step; 0 = by `kind` (see
+    /// `opentern_engine::min_qty_for`).
+    pub min_qty: f64,
     /// The exchange's timezone (IANA name).
     pub timezone: String,
     /// Libraries `import` can use: (title, source), from the user's
@@ -99,6 +102,7 @@ impl Default for Env {
             mintick: 0.01,
             currency: "USD".into(),
             kind: "crypto".into(),
+            min_qty: 0.0,
             timezone: "UTC".into(),
             libraries: Vec::new(),
             feeds: Feeds::default(),
@@ -107,6 +111,15 @@ impl Default for Env {
 }
 
 impl Env {
+    /// The minimum quantity strategies round to.
+    pub fn mincontract(&self) -> f64 {
+        if self.min_qty > 0.0 {
+            self.min_qty
+        } else {
+            opentern_engine::min_qty_for(&self.kind)
+        }
+    }
+
     pub fn ticker(&self) -> &str {
         self.tickerid.rsplit(':').next().unwrap_or(&self.tickerid)
     }

@@ -84,6 +84,16 @@ impl Binance {
         parse_klines(&provider::get_json(&self.agent, &url)?)
     }
 
+    /// One symbol's lot step (`LOT_SIZE` → `stepSize`), which TradingView
+    /// uses as `syminfo.mincontract`: strategy sizes round down to it.
+    pub fn min_qty(&self, ticker: &str) -> Result<f64> {
+        let v = provider::get_json(&self.agent, &format!("{REST}/api/v3/exchangeInfo?symbol={ticker}"))?;
+        v["symbols"]
+            .get(0)
+            .and_then(lot_step)
+            .ok_or_else(|| Error::Bad("Binance: no lot size".into()))
+    }
+
     /// Every symbol currently trading on Binance spot.
     pub fn symbols(&self) -> Result<Vec<Symbol>> {
         let v = provider::get_json(&self.agent, &format!("{REST}/api/v3/exchangeInfo?symbolStatus=TRADING"))?;
@@ -109,11 +119,22 @@ impl Binance {
                     kind: AssetKind::Crypto,
                     currency: quote.to_string(),
                     tick_size: tick,
+                    min_qty: lot_step(s).unwrap_or(0.0),
                     timezone: "UTC".into(),
                 })
             })
             .collect())
     }
+}
+
+/// A symbol's `LOT_SIZE` step from exchangeInfo.
+fn lot_step(s: &serde_json::Value) -> Option<f64> {
+    s["filters"]
+        .as_array()?
+        .iter()
+        .find(|f| f["filterType"] == "LOT_SIZE")
+        .and_then(|f| num(&f["stepSize"]))
+        .filter(|t| *t > 0.0)
 }
 
 impl Provider for Binance {

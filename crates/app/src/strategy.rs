@@ -8,9 +8,10 @@ use crate::chart::{MarkFill, TradeMarks};
 use crate::shell::small_button;
 use crate::theme::{self, Theme};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
-use opentern_core::Bar;
+use opentern_core::{Bar, Symbol, Timeframe};
 use opentern_engine::{Broker, Order, OrderKind, Props, Report, Trade};
 use opentern_pine::PineStudy;
+use opentern_series::study::Instance;
 use std::sync::Arc;
 
 pub struct StrategyRun {
@@ -68,7 +69,7 @@ impl ReportTab {
 #[derive(Default)]
 pub struct Strategies {
     pub runs: Vec<StrategyRun>,
-    pub(crate) key: (u64, u64, u64),
+    pub(crate) key: (u64, u64, u64, bool),
     pub selected: Option<u64>,
     pub tab: ReportTab,
     pub status: String,
@@ -93,12 +94,58 @@ pub(crate) fn broker_of(state: &dyn std::any::Any) -> Option<&Broker> {
     }
 }
 
-/// A Python strategy's per-bar orders, filled bar by bar by the broker.
-pub fn replay(props: Props, intents: &[serde_json::Value], bars: &[Bar]) -> Broker {
+/// Whether the last of `bars` is still forming: the market is open and its
+/// period hasn't ended. (A daily stock bar after 16:00, or any bar while
+/// replaying, is finished.)
+pub(crate) fn last_bar_forming(symbol: &Symbol, tf: Timeframe, bars: &[Bar], replaying: bool) -> bool {
+    use opentern_core::calendar::{self, Market, State};
+    let Some(last) = bars.last() else { return false };
+    if replaying {
+        return false;
+    }
+    let m = Market::of(symbol);
+    let now = jiff::Timestamp::now().as_millisecond();
+    if calendar::state(m, now) != State::Open {
+        return false;
+    }
+    let end = match tf.millis() {
+        Some(ms) if tf.is_intraday() => last.time + ms,
+        Some(ms) => calendar::last_close_in(m, last.time, last.time + ms).unwrap_or(last.time + ms),
+        // Months: the latest one is still running while the market is open.
+        None => return true,
+    };
+    now < end
+}
+
+/// A strategy study's broker as TradingView reports it. A strategy runs
+/// once per closed bar, so while the last bar is still forming the script
+/// hasn't run on it: its signals don't count yet, but orders placed on the
+/// last closed bar fill on it (at its open, or along its path so far).
+pub(crate) fn closed_broker(inst: &Instance, bars: &[Bar], forming: bool) -> Option<Broker> {
+    if !forming {
+        return inst.latest_state().and_then(broker_of).cloned();
+    }
+    let mut b = inst.state().and_then(broker_of).cloned()?;
+    if let Some(i) = bars.len().checked_sub(1) {
+        b.open_bar(i, &bars[i]);
+        b.close_bar(&bars[i]);
+    }
+    Some(b)
+}
+
+/// A Python strategy's per-bar orders, filled bar by bar by the broker
+/// (orders from a still-forming last bar are left out, as above).
+pub fn replay(props: Props, intents: &[serde_json::Value], bars: &[Bar], forming: bool) -> Broker {
+    let last = if forming {
+        bars.len().saturating_sub(1)
+    } else {
+        bars.len()
+    };
     let mut by_bar: Vec<Vec<&serde_json::Value>> = vec![Vec::new(); bars.len()];
     for it in intents {
         if let Some(i) = it.get("bar").and_then(|b| b.as_u64())
             && let Some(v) = by_bar.get_mut(i as usize)
+            && (i as usize) < last
         {
             v.push(it);
         }
@@ -179,14 +226,20 @@ impl App {
     /// result changed (never every frame), and the chart's trade marks.
     pub(crate) fn refresh_strategies(&mut self) {
         let py: u64 = self.scripts.iter().map(|r| r.out_seq).sum();
-        let key = (self.chart.data_version, self.chart.changed, py);
+        let forming = last_bar_forming(
+            &self.chart.symbol,
+            self.chart.tf,
+            &self.chart.bars,
+            self.chart.replay.is_some(),
+        );
+        let key = (self.chart.data_version, self.chart.changed, py, forming);
         if key == self.strategies.key {
             return;
         }
         self.strategies.key = key;
         let mut runs = Vec::new();
         for s in &self.chart.studies {
-            let pine = s.inst.latest_state().and_then(broker_of).cloned();
+            let pine = closed_broker(&s.inst, &self.chart.bars, forming);
             let broker = match pine {
                 Some(b) => b,
                 None => {
@@ -202,8 +255,9 @@ impl App {
                     let props = Props::from_json(
                         &opentern_engine::merge_json(&run.props, &over),
                         self.chart.symbol.tick_size,
+                        crate::pine_host::min_qty_of(&self.chart.symbol),
                     );
-                    replay(props, &out.intents, &self.chart.bars)
+                    replay(props, &out.intents, &self.chart.bars, forming)
                 }
             };
             let report = Report::new(&broker, &self.chart.bars);
@@ -248,7 +302,7 @@ impl App {
                                 .clicked()
                             {
                                 self.strategies.selected = Some(r.uid);
-                                self.strategies.key = (0, 0, 0);
+                                self.strategies.key = (0, 0, 0, false);
                             }
                         }
                     });
@@ -1099,7 +1153,7 @@ mod tests {
             serde_json::json!({"bar": 0, "type": "entry", "id": "L", "long": true, "qty": 2.0}),
             serde_json::json!({"bar": 3, "type": "close", "id": "L"}),
         ];
-        let b = replay(Props::default(), &intents, &bars);
+        let b = replay(Props::default(), &intents, &bars, false);
         assert_eq!(b.trades.len(), 1);
         assert_eq!((b.trades[0].entry_price, b.trades[0].exit_price), (11.0, 14.0));
         assert_eq!(b.trades[0].qty, 2.0);

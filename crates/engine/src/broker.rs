@@ -48,6 +48,29 @@ pub struct Props {
     /// `strategy.risk.allow_entry_in`: only longs (`Some(true)`) or only
     /// shorts (`Some(false)`); an entry the other way closes the position.
     pub allow_entry_in: Option<bool>,
+    /// The smallest tradable quantity (`syminfo.mincontract`): sizes
+    /// worked out from cash or equity are rounded down to it, as are
+    /// margin-call liquidations. 0 = fractional.
+    #[serde(default)]
+    pub min_qty: f64,
+    /// Pine v6's `strategy.exit`: given both `limit` and `profit` (or
+    /// `stop` and `loss`), the level price reaches first wins. v5 always
+    /// took the absolute price.
+    #[serde(default = "yes")]
+    pub nearest_exit: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+/// `syminfo.mincontract` by `syminfo.type`: whole shares and contracts;
+/// crypto and forex trade in fractions.
+pub fn min_qty_for(kind: &str) -> f64 {
+    match kind {
+        "crypto" | "forex" => 0.0,
+        _ => 1.0,
+    }
 }
 
 impl Default for Props {
@@ -65,6 +88,8 @@ impl Default for Props {
             margin_long: 100.0,
             margin_short: 100.0,
             allow_entry_in: None,
+            min_qty: 0.0,
+            nearest_exit: true,
         }
     }
 }
@@ -81,11 +106,16 @@ pub fn merge_json(base: &serde_json::Value, over: &serde_json::Value) -> serde_j
 }
 
 impl Props {
-    /// From Pine/Python `strategy(...)` arguments as JSON.
-    pub fn from_json(v: &serde_json::Value, mintick: f64) -> Props {
+    /// From Pine/Python `strategy(...)` arguments as JSON, for a symbol
+    /// with this tick size and minimum quantity ([`min_qty_for`]).
+    /// `pine_version` (set by the Pine compiler) picks v5's or v6's rules.
+    pub fn from_json(v: &serde_json::Value, mintick: f64, min_qty: f64) -> Props {
         let d = Props::default();
         let f = |k: &str, def: f64| v.get(k).and_then(|x| x.as_f64()).unwrap_or(def);
         let s = |k: &str| v.get(k).and_then(|x| x.as_str()).unwrap_or("");
+        let v6 = f("pine_version", 6.0) >= 6.0;
+        // Margin defaults to 100% in Pine v6 and to 0 (never checked) in v5.
+        let margin = if v6 { 100.0 } else { 0.0 };
         Props {
             initial_capital: f("initial_capital", d.initial_capital),
             qty_type: match s("default_qty_type") {
@@ -107,9 +137,11 @@ impl Props {
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
             mintick: if mintick > 0.0 { mintick } else { d.mintick },
-            margin_long: f("margin_long", 100.0),
-            margin_short: f("margin_short", 100.0),
+            margin_long: f("margin_long", margin),
+            margin_short: f("margin_short", margin),
             allow_entry_in: None,
+            min_qty,
+            nearest_exit: v6,
         }
     }
 
@@ -290,6 +322,9 @@ pub struct Trade {
     pub pnl: f64,
     pub pnl_pct: f64,
     pub commission: f64,
+    /// The entry's share of `commission`.
+    #[serde(default)]
+    pub entry_commission: f64,
     /// Largest unrealised profit / loss while open (money).
     pub runup: f64,
     pub drawdown: f64,
@@ -333,7 +368,14 @@ pub struct Broker {
     pub max_drawdown: f64,
     #[serde(default)]
     pub max_runup: f64,
+    /// Margin calls so far, and the quantity each one liquidated.
+    #[serde(default)]
+    pub margin_calls: Vec<f64>,
     bar: usize,
+    /// The close of the bar the strategy is running on: orders sized from
+    /// cash or equity are sized at it when placed, as TradingView does.
+    #[serde(default)]
+    mark: f64,
     time: i64,
     last_close: f64,
     #[serde(default)]
@@ -382,8 +424,14 @@ impl Broker {
         self.trades.iter().filter(|t| t.pnl < 0.0).count()
     }
 
-    /// Places or replaces (same id and kind) an order.
-    pub fn submit(&mut self, o: Order) {
+    /// Places or replaces (same id and kind) an order. An entry without a
+    /// quantity gets the default size now, at this bar's close (TradingView
+    /// sizes it when placed, not at the fill: 100% of equity at the close
+    /// can be more than the account has at the next open).
+    pub fn submit(&mut self, mut o: Order) {
+        if o.qty.is_none() && matches!(o.kind, OrderKind::Entry | OrderKind::Order) && self.mark > 0.0 {
+            o.qty = Some(self.default_qty(self.mark));
+        }
         self.pending.retain(|p| !(p.id == o.id && p.kind == o.kind));
         self.pending.push(o);
     }
@@ -405,9 +453,12 @@ impl Broker {
         }
     }
 
-    fn default_qty(&self, price: f64) -> f64 {
+    /// The strategy's default order size if it filled at `price`
+    /// (`strategy.default_entry_qty`), rounded down to the minimum quantity
+    /// when worked out from cash or equity.
+    pub fn default_qty(&self, price: f64) -> f64 {
         let v = self.props.qty_value;
-        match self.props.qty_type {
+        let q = match self.props.qty_type {
             QtyType::Fixed => v,
             QtyType::Cash => {
                 if price > 0.0 {
@@ -418,11 +469,93 @@ impl Broker {
             }
             QtyType::PercentOfEquity => {
                 if price > 0.0 {
-                    self.equity_at(price) * v / 100.0 / price
+                    // The position and its entry commission together make
+                    // up the share of equity (checked against TradingView
+                    // for percent commission).
+                    let cash = self.equity_at(price) * v / 100.0;
+                    let c = self.props.commission_value;
+                    match self.props.commission {
+                        Commission::Percent => cash / (price * (1.0 + c / 100.0)),
+                        Commission::CashPerContract => cash / (price + c),
+                        Commission::CashPerOrder => (cash - c).max(0.0) / price,
+                    }
                 } else {
                     0.0
                 }
             }
+        };
+        if self.props.qty_type == QtyType::Fixed {
+            q
+        } else {
+            self.round_qty(q)
+        }
+    }
+
+    /// `q` rounded down to the minimum quantity (a hair of float error
+    /// doesn't cost a whole contract).
+    fn round_qty(&self, q: f64) -> f64 {
+        let m = self.props.min_qty;
+        if m > 0.0 { (q / m + 1e-9).floor() * m } else { q }
+    }
+
+    fn margin_ratio(&self, long: bool) -> f64 {
+        let m = if long {
+            self.props.margin_long
+        } else {
+            self.props.margin_short
+        };
+        m.max(0.0) / 100.0
+    }
+
+    /// Equity minus the margin the open position ties up, at `price`.
+    fn available_funds(&self, price: f64) -> f64 {
+        let used: f64 = self
+            .lots
+            .iter()
+            .map(|l| l.qty * price * self.margin_ratio(l.long))
+            .sum();
+        self.equity_at(price) - used
+    }
+
+    /// Whether the account can pay the margin for `qty` more at `price`
+    /// (always, with no margin set: Pine v5's default).
+    fn affordable(&self, long: bool, qty: f64, price: f64) -> bool {
+        let r = self.margin_ratio(long);
+        if r == 0.0 {
+            return true;
+        }
+        let need = qty * price * r;
+        let have = self.available_funds(price);
+        need <= have + 1e-9 * have.abs().max(1.0)
+    }
+
+    /// TradingView's margin call: when available funds go negative at
+    /// `price`, it liquidates four times the quantity that covers the
+    /// shortfall (so the next bars don't call again), at that price.
+    fn margin_call(&mut self, price: f64) {
+        let pos = self.position_size();
+        if pos == 0.0 || !price.is_finite() || price <= 0.0 {
+            return;
+        }
+        let r = self.margin_ratio(pos > 0.0);
+        if r == 0.0 {
+            return;
+        }
+        let avail = self.available_funds(price);
+        if avail >= 0.0 {
+            return;
+        }
+        let loss = avail / r;
+        let m = self.props.min_qty;
+        let cover = (loss / price).abs();
+        let cover = if m > 0.0 { (cover / m).trunc() * m } else { cover };
+        let size = (cover * 4.0).min(pos.abs());
+        if size <= 0.0 {
+            return;
+        }
+        let closed = self.close("", size, price, "Margin call", "Margin call");
+        if closed > 0.0 {
+            self.margin_calls.push(closed);
         }
     }
 
@@ -434,6 +567,10 @@ impl Broker {
     /// Opens or adds to a position; returns the quantity filled.
     fn open(&mut self, o: &Order, qty: f64, price: f64) -> f64 {
         if qty <= 0.0 || !qty.is_finite() {
+            return 0.0;
+        }
+        // An entry the account can't pay the margin for isn't opened.
+        if !self.affordable(o.long, qty, price) {
             return 0.0;
         }
         let commission = self.commission(qty, price);
@@ -505,6 +642,7 @@ impl Broker {
                     0.0
                 },
                 commission: entry_comm + exit_comm,
+                entry_commission: entry_comm,
                 runup: ((best - lot.price) * q * dir).max(0.0),
                 drawdown: ((worst - lot.price) * q * dir).min(0.0),
                 entry_comment: lot.comment.clone(),
@@ -738,8 +876,17 @@ impl Broker {
         let avg = lots.iter().map(|l| l.qty * l.price).sum::<f64>() / lots.iter().map(|l| l.qty).sum::<f64>();
         let t = self.props.mintick;
         let dir = if long { 1.0 } else { -1.0 };
-        let limit = o.limit.or(o.profit_ticks.map(|p| avg + dir * p * t));
-        let stop = o.stop.or(o.loss_ticks.map(|p| avg - dir * p * t));
+        let profit = o.profit_ticks.map(|p| avg + dir * p * t);
+        let loss = o.loss_ticks.map(|p| avg - dir * p * t);
+        // Both an absolute and a relative level: v6 uses the one price
+        // reaches first (the nearer one); v5 the absolute one.
+        let first = |abs: Option<f64>, rel: Option<f64>, lower: bool| match (abs, rel) {
+            (Some(a), Some(r)) if self.props.nearest_exit => Some(if lower { a.min(r) } else { a.max(r) }),
+            (Some(a), _) => Some(a),
+            (None, r) => r,
+        };
+        let limit = first(o.limit, profit, long);
+        let stop = first(o.stop, loss, !long);
         Some((long, qty, avg, limit, stop))
     }
 
@@ -747,6 +894,7 @@ impl Broker {
     pub fn open_bar(&mut self, index: usize, bar: &Bar) {
         self.bar = index;
         self.time = bar.time;
+        self.mark = bar.close;
         // Market orders at the open.
         let pending = std::mem::take(&mut self.pending);
         let (market, mut waiting): (Vec<Order>, Vec<Order>) = pending.into_iter().partition(|o| {
@@ -756,6 +904,7 @@ impl Broker {
             let filled = self.execute(o, bar.open);
             Self::oca(o, filled, &mut waiting);
         }
+        self.margin_call(bar.open);
         // Then stops and limits along the intrabar path.
         let path = if (bar.high - bar.open).abs() <= (bar.open - bar.low).abs() {
             [bar.open, bar.high, bar.low, bar.close]
@@ -790,6 +939,9 @@ impl Broker {
                     k += 1;
                 }
             }
+            // Margin is checked at each point of the path, after the
+            // orders that price passed on the way there.
+            self.margin_call(b);
         }
         // Unfilled orders (exits included) wait for later bars.
         self.pending = waiting;
@@ -864,8 +1016,10 @@ mod tests {
             margin_long: 50.0,
             margin_short: 25.0,
             allow_entry_in: None,
+            min_qty: 0.0,
+            nearest_exit: true,
         };
-        assert_eq!(Props::from_json(&p.to_json(), 0.5), p);
+        assert_eq!(Props::from_json(&p.to_json(), 0.5, 0.0), p);
         let base = Props::default();
         let d = p.diff_json(&base);
         assert_eq!(d.as_object().map(|o| o.len()), Some(10));
@@ -1157,5 +1311,156 @@ mod tests {
         });
         assert_eq!(b.position_size(), 0.0);
         assert_eq!(b.trades.len(), 1);
+    }
+
+    #[test]
+    fn tradingviews_margin_call_example() {
+        // The Pine manual's example: TSLA daily, 300% of equity, 25% margin.
+        // The order is sized at the signal bar's close (4.396), rounded down
+        // to whole shares, and fills at the next open (4.43).
+        let props = Props {
+            qty_type: QtyType::PercentOfEquity,
+            qty_value: 300.0,
+            margin_long: 25.0,
+            min_qty: 1.0,
+            mintick: 0.001,
+            ..Props::default()
+        };
+        let bars = [
+            bar(0, 4.3, 4.4, 4.3, 4.396),
+            bar(1, 4.43, 4.5, 4.40, 4.45),
+            bar(2, 4.2, 4.25, 3.9, 4.0),
+        ];
+        let b = run(&bars, props, |i, b| {
+            if i == 0 {
+                b.submit(Order::market("Long", OrderKind::Entry, true));
+            }
+        });
+        assert_eq!(b.fills[0].qty, 682_438.0);
+        assert_eq!(b.fills[0].price, 4.43);
+        // At 3.9: available funds −27,069.19 → cover 27,763 shares, × 4.
+        assert_eq!(b.margin_calls, vec![111_052.0]);
+        let t = &b.trades[0];
+        assert_eq!((t.qty, t.exit_price, t.exit_bar), (111_052.0, 3.9, 2));
+        assert_eq!(t.exit_id, "Margin call");
+        assert_eq!(b.position_size(), 682_438.0 - 111_052.0);
+    }
+
+    #[test]
+    fn an_entry_the_account_cant_pay_for_isnt_opened() {
+        // 100% of equity sized at a close of 10 is 100 shares; the next bar
+        // opens at 10.5, so they'd cost 1,050 of a 1,000 account.
+        let bars = [
+            bar(0, 10.0, 10.0, 10.0, 10.0),
+            bar(1, 10.5, 10.5, 10.5, 10.5),
+            bar(2, 10.5, 10.5, 10.5, 10.5),
+        ];
+        let props = Props {
+            initial_capital: 1000.0,
+            qty_type: QtyType::PercentOfEquity,
+            qty_value: 100.0,
+            min_qty: 1.0,
+            ..Props::default()
+        };
+        let entry = |i: usize, b: &mut Broker| {
+            if i == 0 {
+                b.submit(Order::market("L", OrderKind::Entry, true));
+            }
+        };
+        let b = run(&bars, props.clone(), entry);
+        assert_eq!(b.position_size(), 0.0);
+        assert!(b.pending.is_empty(), "the order is used up");
+        // Pine v5's default margin (0) never checks.
+        let v5 = Props {
+            margin_long: 0.0,
+            margin_short: 0.0,
+            ..props
+        };
+        let b = run(&bars, v5, entry);
+        assert_eq!(b.position_size(), 100.0);
+    }
+
+    #[test]
+    fn a_losing_short_at_full_size_is_margin_called() {
+        // Short 100 at 10 with 1,000 and 100% margin: at 11 equity is 900
+        // and the margin 1,100, so funds are −200 → cover 18 → 72 bought back.
+        let bars = [
+            bar(0, 10.0, 10.0, 10.0, 10.0),
+            bar(1, 10.0, 10.0, 10.0, 10.0),
+            bar(2, 10.0, 11.0, 10.0, 11.0),
+        ];
+        let props = Props {
+            initial_capital: 1000.0,
+            qty_type: QtyType::PercentOfEquity,
+            qty_value: 100.0,
+            min_qty: 1.0,
+            ..Props::default()
+        };
+        let b = run(&bars, props, |i, b| {
+            if i == 0 {
+                b.submit(Order::market("S", OrderKind::Entry, false));
+            }
+        });
+        assert_eq!(b.margin_calls, vec![72.0]);
+        assert_eq!(b.position_size(), -28.0);
+    }
+
+    #[test]
+    fn v6_exit_uses_the_level_reached_first() {
+        let bars = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 100.0, 100.0, 100.0),
+            bar(2, 100.0, 112.0, 100.0, 111.0),
+        ];
+        let exit = |i: usize, b: &mut Broker| {
+            if i == 0 {
+                b.submit(Order::market("L", OrderKind::Entry, true));
+                let mut x = Order::market("X", OrderKind::Exit, true);
+                x.limit = Some(110.0);
+                x.profit_ticks = Some(5.0);
+                b.submit(x);
+            }
+        };
+        let v6 = Props {
+            mintick: 1.0,
+            ..Props::default()
+        };
+        assert_eq!(run(&bars, v6.clone(), exit).trades[0].exit_price, 105.0);
+        let v5 = Props {
+            nearest_exit: false,
+            ..v6
+        };
+        assert_eq!(run(&bars, v5, exit).trades[0].exit_price, 110.0);
+    }
+
+    #[test]
+    fn version_picks_the_default_margin() {
+        let v5 = Props::from_json(&serde_json::json!({"pine_version": 5}), 0.01, 1.0);
+        assert_eq!((v5.margin_long, v5.margin_short, v5.nearest_exit), (0.0, 0.0, false));
+        let v6 = Props::from_json(&serde_json::json!({"pine_version": 6}), 0.01, 1.0);
+        assert_eq!((v6.margin_long, v6.margin_short, v6.nearest_exit), (100.0, 100.0, true));
+        let set = Props::from_json(&serde_json::json!({"pine_version": 5, "margin_long": 50}), 0.01, 1.0);
+        assert_eq!((set.margin_long, set.margin_short), (50.0, 0.0));
+    }
+
+    #[test]
+    fn percent_of_equity_leaves_room_for_the_commission() {
+        // 100% of 10,000 at a close of 100 with 0.1% commission: the
+        // position plus its commission is the equity, rounded down to the
+        // lot step (BTCUSDT's 0.00001, as TradingView does).
+        let props = Props {
+            initial_capital: 10_000.0,
+            qty_type: QtyType::PercentOfEquity,
+            qty_value: 100.0,
+            commission_value: 0.1,
+            min_qty: 0.00001,
+            process_orders_on_close: true,
+            ..Props::default()
+        };
+        let bars = [bar(0, 100.0, 100.0, 100.0, 100.0)];
+        let b = run(&bars, props, |_, b| {
+            b.submit(Order::market("L", OrderKind::Entry, true))
+        });
+        assert_eq!(b.lots[0].qty, 99.90009);
     }
 }

@@ -132,6 +132,10 @@ pub struct Symbol {
     pub kind: AssetKind,
     pub currency: String,
     pub tick_size: f64,
+    /// The smallest tradable quantity (the exchange's lot step,
+    /// `syminfo.mincontract`); 0 when unknown.
+    #[serde(default)]
+    pub min_qty: f64,
     /// The exchange's IANA timezone. Sessions, daily bars and the chart's
     /// "Exchange" time all follow it.
     #[serde(default = "utc")]
@@ -152,6 +156,7 @@ impl Symbol {
             kind: if crypto { AssetKind::Crypto } else { AssetKind::Stock },
             currency: String::new(),
             tick_size: 0.01,
+            min_qty: 0.0,
             timezone: utc(),
         }
     }
@@ -185,6 +190,7 @@ pub fn starter_watchlist() -> Vec<Symbol> {
         kind,
         currency: currency.into(),
         tick_size,
+        min_qty: 0.0,
         timezone: match id.split(':').next() {
             Some("NSE" | "BSE") => "Asia/Kolkata".into(),
             Some("AMEX" | "NASDAQ" | "NYSE") => "America/New_York".into(),
@@ -222,6 +228,7 @@ pub fn commodities() -> Vec<Symbol> {
         kind: AssetKind::Commodity,
         currency: currency.into(),
         tick_size,
+        min_qty: 0.0,
         timezone: "America/New_York".into(),
     };
     vec![

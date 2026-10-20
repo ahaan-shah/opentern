@@ -248,6 +248,7 @@ pub fn symbol(formula: &str, known: &[Symbol]) -> Option<Symbol> {
         kind: AssetKind::Index,
         currency: String::new(),
         tick_size: 0.000001,
+        min_qty: 0.0,
         timezone: first.map(|s| s.timezone.clone()).unwrap_or_else(|| guess_tz(&ids[0])),
     })
 }

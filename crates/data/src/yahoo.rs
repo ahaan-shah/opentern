@@ -279,6 +279,7 @@ impl Yahoo {
                     kind: kind(qt),
                     currency: String::new(),
                     tick_size: 0.01,
+                    min_qty: 0.0,
                     timezone: tz.into(),
                     id,
                 })

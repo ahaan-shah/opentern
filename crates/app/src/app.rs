@@ -875,6 +875,7 @@ impl App {
                 e @ (Event::Bars { chart, .. }
                 | Event::Tick { chart, .. }
                 | Event::Status { chart, .. }
+                | Event::Lot { chart, .. }
                 | Event::Corporate { chart, .. }) => {
                     if chart == self.chart.id {
                         self.chart.apply(e);

@@ -203,6 +203,7 @@ fn sym(id: &str, kind: AssetKind) -> Symbol {
         }
         .into(),
         tick_size: if ex == "NSE" { 0.05 } else { 0.01 },
+        min_qty: 0.0,
         timezone: match ex {
             "NSE" | "BSE" => "Asia/Kolkata",
             "NASDAQ" | "NYSE" | "AMEX" => "America/New_York",
@@ -898,6 +899,7 @@ mod tests {
             mintick: 0.01,
             currency: "USD".into(),
             kind: "stock".into(),
+            min_qty: 0.0,
             timezone: "UTC".into(),
             libraries: Vec::new(),
             feeds: Default::default(),

@@ -8,5 +8,7 @@ pub mod paper;
 pub mod quant;
 pub mod report;
 
-pub use broker::{Broker, Commission, Fill, Lot, OcaType, Order, OrderKind, Props, QtyType, Trade, merge_json};
+pub use broker::{
+    Broker, Commission, Fill, Lot, OcaType, Order, OrderKind, Props, QtyType, Trade, merge_json, min_qty_for,
+};
 pub use report::Report;

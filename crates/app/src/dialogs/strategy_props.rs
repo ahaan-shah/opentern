@@ -45,7 +45,7 @@ impl App {
                     a.compile_pine(i);
                 }
             }
-            a.strategies.key = (0, 0, 0);
+            a.strategies.key = (0, 0, 0, false);
         });
     }
 
@@ -55,9 +55,10 @@ impl App {
             return;
         };
         let mintick = self.chart.symbol.tick_size;
-        let base = Props::from_json(&run.props, mintick);
+        let min_qty = crate::pine_host::min_qty_of(&self.chart.symbol);
+        let base = Props::from_json(&run.props, mintick, min_qty);
         let over = self.strategy_overrides(&run.file);
-        let p = Props::from_json(&opentern_engine::merge_json(&run.props, &over), mintick);
+        let p = Props::from_json(&opentern_engine::merge_json(&run.props, &over), mintick, min_qty);
         let name = self
             .chart
             .studies

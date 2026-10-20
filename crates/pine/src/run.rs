@@ -1195,7 +1195,11 @@ impl PineStudy {
         g.ntypes = prog.types.len();
         g.heap.limits = prog.limits;
         if prog.kind == crate::Kind::Strategy {
-            g.broker = Some(Broker::new(Props::from_json(&prog.props, prog.env.mintick)));
+            g.broker = Some(Broker::new(Props::from_json(
+                &prog.props,
+                prog.env.mintick,
+                prog.env.mincontract(),
+            )));
         }
         g.out = OutBuf {
             vals: vec![f64::NAN; prog.plots.len()],

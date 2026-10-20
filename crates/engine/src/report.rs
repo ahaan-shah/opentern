@@ -171,6 +171,58 @@ pub(crate) fn excursions(curve: &[f64], down: bool) -> (f64, f64, f64) {
     (best, avg(&sizes), avg(&lens))
 }
 
+/// The percent size of the largest drawdown (`down`) or run-up of `curve`,
+/// relative to the peak (trough) it started from, as TradingView shows it.
+fn largest_move_pct(cap: f64, curve: &[f64], down: bool) -> f64 {
+    let (mut anchor, mut best, mut pct) = (cap, 0.0f64, 0.0);
+    for &v in curve {
+        anchor = if down { anchor.max(v) } else { anchor.min(v) };
+        let d = if down { anchor - v } else { v - anchor };
+        if d > best && anchor > 0.0 {
+            best = d;
+            pct = d / anchor * 100.0;
+        }
+    }
+    pct
+}
+
+/// TradingView's max equity drawdown and run-up (the headline "Max
+/// drawdown"): from the peak (trough) of closed-trade equity to a trade's
+/// worst (best) point while it was open, its entry commission counted;
+/// percent of that peak (trough). The drawdown matches TradingView's
+/// report to the cent; the run-up is the mirror image (not yet checked).
+/// Returns ((drawdown, %), (run-up, %)).
+fn trade_excursions(b: &Broker) -> ((f64, f64), (f64, f64)) {
+    let cap = b.props.initial_capital;
+    let (mut e, mut peak, mut trough) = (cap, cap, cap);
+    let (mut dd, mut ru) = ((0.0f64, 0.0), (0.0f64, 0.0));
+    let mut see = |e: f64, peak: f64, trough: f64, worst: f64, best: f64, comm: f64| {
+        let low = e + worst - comm;
+        let high = e + best - comm;
+        if peak - low > dd.0 && peak > 0.0 {
+            dd = (peak - low, (peak - low) / peak * 100.0);
+        }
+        if high - trough > ru.0 && trough > 0.0 {
+            ru = (high - trough, (high - trough) / trough * 100.0);
+        }
+    };
+    for t in &b.trades {
+        see(e, peak, trough, t.drawdown, t.runup, t.entry_commission);
+        e += t.pnl;
+        peak = peak.max(e);
+        trough = trough.min(e);
+    }
+    // Trades still open.
+    for l in &b.lots {
+        let dir = if l.long { 1.0 } else { -1.0 };
+        let (best, worst) = if l.long { (l.hi, l.lo) } else { (l.lo, l.hi) };
+        let worst = ((worst - l.price) * l.qty * dir).min(0.0);
+        let best = ((best - l.price) * l.qty * dir).max(0.0);
+        see(e, peak, trough, worst, best, l.commission);
+    }
+    (dd, ru)
+}
+
 /// Monthly returns of the equity curve (month ends in UTC).
 fn monthly_returns(bars: &[Bar], equity: &[f64]) -> Vec<f64> {
     monthly_returns_at(bars.iter().map(|b| b.time), equity)
@@ -258,40 +310,17 @@ impl Report {
         r.return_on_capital = r.all.net_profit / cap * 100.0;
         let (dd, avg_dd, dd_len) = excursions(&b.equity[..n], true);
         let (ru, avg_ru, ru_len) = excursions(&b.equity[..n], false);
-        // Intrabar: the worst point of each bar against the best before it.
-        let mut peak = f64::NAN;
-        let mut dd_ib = 0.0f64;
-        let mut trough = f64::NAN;
-        let mut ru_ib = 0.0f64;
-        for i in 0..n {
-            let (hi, lo) = (b.equity_hi[i], b.equity_lo[i]);
-            if !peak.is_nan() {
-                dd_ib = dd_ib.max(peak - lo);
-            }
-            if !trough.is_nan() {
-                ru_ib = ru_ib.max(hi - trough);
-            }
-            peak = if peak.is_nan() {
-                hi.max(b.equity[i])
-            } else {
-                peak.max(hi)
-            };
-            trough = if trough.is_nan() {
-                lo.min(b.equity[i])
-            } else {
-                trough.min(lo)
-            };
-        }
         r.max_drawdown = dd;
-        r.max_drawdown_pct = dd / cap * 100.0;
-        r.max_drawdown_intrabar = dd_ib.max(dd);
-        r.max_drawdown_intrabar_pct = r.max_drawdown_intrabar / cap * 100.0;
+        r.max_drawdown_pct = largest_move_pct(cap, &b.equity[..n], true);
         r.avg_drawdown = avg_dd;
         r.avg_drawdown_bars = dd_len;
         r.max_runup = ru;
-        r.max_runup_pct = ru / cap * 100.0;
-        r.max_runup_intrabar = ru_ib.max(ru);
-        r.max_runup_intrabar_pct = r.max_runup_intrabar / cap * 100.0;
+        r.max_runup_pct = largest_move_pct(cap, &b.equity[..n], false);
+        let ((dd_ib, dd_ib_pct), (ru_ib, ru_ib_pct)) = trade_excursions(b);
+        r.max_drawdown_intrabar = dd_ib;
+        r.max_drawdown_intrabar_pct = dd_ib_pct;
+        r.max_runup_intrabar = ru_ib;
+        r.max_runup_intrabar_pct = ru_ib_pct;
         r.avg_runup = avg_ru;
         r.avg_runup_bars = ru_len;
         r.return_of_max_drawdown = if dd > 0.0 { r.all.net_profit / dd } else { f64::NAN };
@@ -319,6 +348,9 @@ impl Report {
         } else {
             0.0
         };
+        r.margin_calls = b.margin_calls.len();
+        r.liquidated_volume = b.margin_calls.iter().sum();
+        r.largest_liquidated_volume = b.margin_calls.iter().cloned().fold(0.0, f64::max);
         r.account_size_required = r.max_drawdown_intrabar + r.max_margin_used.min(cap);
         r.return_on_account_size = if r.account_size_required > 0.0 {
             r.all.net_profit / r.account_size_required * 100.0
@@ -410,5 +442,39 @@ mod tests {
         assert_eq!(len, 2.5);
         let (ru, _, _) = excursions(&[10.0, 8.0, 9.0, 12.0, 7.0, 13.0], false);
         assert_eq!(ru, 6.0);
+    }
+
+    #[test]
+    fn max_drawdown_runs_from_closed_equity_peaks() {
+        // +100 closed (peak 1,100), then a trade that went 300 under water
+        // with 1 of entry commission: 301 from the peak, 27.36% of it.
+        let mut b = Broker::new(Props {
+            initial_capital: 1000.0,
+            ..Props::default()
+        });
+        let t = |pnl: f64, drawdown: f64, entry_commission: f64| Trade {
+            entry_id: "L".into(),
+            exit_id: "L".into(),
+            long: true,
+            qty: 1.0,
+            entry_price: 100.0,
+            entry_bar: 0,
+            entry_time: 0,
+            exit_price: 100.0,
+            exit_bar: 1,
+            exit_time: 0,
+            pnl,
+            pnl_pct: 0.0,
+            commission: entry_commission * 2.0,
+            entry_commission,
+            runup: 0.0,
+            drawdown,
+            entry_comment: String::new(),
+            exit_comment: String::new(),
+        };
+        b.trades = vec![t(100.0, -20.0, 0.0), t(-50.0, -300.0, 1.0)];
+        let ((dd, pct), _) = trade_excursions(&b);
+        assert_eq!(dd, 301.0);
+        assert!((pct - 301.0 / 1100.0 * 100.0).abs() < 1e-9);
     }
 }

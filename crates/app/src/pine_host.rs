@@ -87,6 +87,12 @@ pub(crate) fn inproc_lang(l: Lang) -> std::sync::Arc<dyn opentern_script::inproc
     }
 }
 
+/// The quantity strategies on `s` round down to: its lot step, or the
+/// usual one for its kind.
+pub(crate) fn min_qty_of(s: &opentern_core::Symbol) -> f64 {
+    env_of(s).mincontract()
+}
+
 /// `syminfo` for Luau and JavaScript scripts.
 pub(crate) fn syminfo_of(s: &opentern_core::Symbol) -> opentern_script::SymInfo {
     opentern_script::SymInfo {
@@ -96,6 +102,7 @@ pub(crate) fn syminfo_of(s: &opentern_core::Symbol) -> opentern_script::SymInfo 
         mintick: if s.tick_size > 0.0 { s.tick_size } else { 0.01 },
         currency: s.currency.clone(),
         kind: kind_name(s.kind).into(),
+        min_qty: s.min_qty,
         timezone: s.timezone.clone(),
     }
 }
@@ -108,6 +115,7 @@ pub(crate) fn env_of(s: &opentern_core::Symbol) -> Env {
         mintick: if s.tick_size > 0.0 { s.tick_size } else { 0.01 },
         currency: s.currency.clone(),
         kind: kind_name(s.kind).into(),
+        min_qty: s.min_qty,
         timezone: s.timezone.clone(),
         libraries: Vec::new(),
         feeds: Default::default(),
@@ -149,9 +157,10 @@ impl App {
         let mut h = std::collections::hash_map::DefaultHasher::new();
         env.libraries.hash(&mut h);
         format!(
-            "{}|{}|{}|{}|{:x}",
+            "{}|{}|{}|{}|{}|{:x}",
             env.tickerid,
             env.mintick,
+            env.min_qty,
             env.currency,
             env.timezone,
             h.finish()

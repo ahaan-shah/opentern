@@ -44,6 +44,7 @@ fn crypto_symbol(t: &str) -> Symbol {
         kind: AssetKind::Crypto,
         currency: "USDT".into(),
         tick_size: 0.01,
+        min_qty: 0.0,
         timezone: "UTC".into(),
     }
 }
@@ -60,6 +61,7 @@ fn us_symbol(exchange: &str, t: &str, name: &str) -> Symbol {
         kind: AssetKind::Stock,
         currency: "USD".into(),
         tick_size: 0.01,
+        min_qty: 0.0,
         timezone: "America/New_York".into(),
     }
 }

@@ -481,7 +481,7 @@ mod tests {
         // A Luau strategy gets a report, and the lab can optimize it.
         std::fs::write(
             dir.join("cross.luau"),
-            "strategy(\"Luau cross\", { initial_capital = 1000 })\nlocal fast = input.int(\"Fast\", 5)\nlocal slow = input.int(\"Slow\", 20)\n\
+            "strategy(\"Luau cross\", { initial_capital = 1000000 })\nlocal fast = input.int(\"Fast\", 5)\nlocal slow = input.int(\"Slow\", 20)\n\
              function on_bar(bar)\n  local f = ta.sma(bar.close, fast)\n  local s = ta.sma(bar.close, slow)\n\
                local up = ta.crossover(f, s)\n  local dn = ta.crossunder(f, s)\n\
                if up then strategy.entry(\"L\", \"long\") end\n  if dn then strategy.close(\"L\") end\nend\n",

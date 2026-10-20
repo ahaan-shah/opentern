@@ -564,6 +564,12 @@ fn core_defs() -> Vec<NatDef> {
         })
         .var(),
         d("syminfo.mintick", &[], |g, _, _| Ok(V::Float(g.env.mintick))).var(),
+        d("syminfo.mincontract", &[], |g, _, _| {
+            let m = g.env.mincontract();
+            // Fractional when unknown, as a tiny step.
+            Ok(V::Float(if m > 0.0 { m } else { 1e-8 }))
+        })
+        .var(),
         d("syminfo.pointvalue", &[], |_, _, _| Ok(V::Float(1.0))).var(),
         d("syminfo.timezone", &[], |g, _, _| Ok(V::str(g.env.timezone.as_str()))).var(),
         d("syminfo.type", &[], |g, _, _| Ok(V::str(g.env.kind.as_str()))).var(),

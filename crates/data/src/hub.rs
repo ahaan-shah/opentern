@@ -112,6 +112,12 @@ pub enum Event {
         seq: u64,
         results: Vec<Symbol>,
     },
+    /// The chart symbol's minimum quantity (lot step), when it wasn't
+    /// known at open: strategies round their sizes down to it.
+    Lot {
+        chart: u64,
+        min_qty: f64,
+    },
     /// A stock's dividends and splits (for the chart's markers and ADJ).
     Corporate {
         chart: u64,
@@ -264,6 +270,17 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                     let _ = old.send(Cmd::Stop);
                 }
                 opened.insert(chart, (symbol.clone(), tf));
+                if symbol.min_qty == 0.0
+                    && !demo
+                    && let Some(ticker) = symbol.id.strip_prefix("BINANCE:").map(str::to_string)
+                {
+                    let out = out.clone();
+                    let _ = std::thread::Builder::new().name("data-lot".into()).spawn(move || {
+                        if let Ok(min_qty) = Binance::default().min_qty(&ticker) {
+                            out.send(Event::Lot { chart, min_qty });
+                        }
+                    });
+                }
                 if let Some(tx) = spawn(chart, symbol, tf) {
                     sessions.insert(chart, tx);
                 }
@@ -1052,6 +1069,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                         "USD".into()
                     },
                     tick_size: if forex { 0.00001 } else { 0.01 },
+                    min_qty: 0.0,
                     timezone: if forex { "UTC".into() } else { "America/New_York".into() },
                 },
             ));

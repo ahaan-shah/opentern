@@ -11,7 +11,7 @@
 use crate::app::App;
 use crate::icons::ph;
 use crate::shell::small_button;
-use crate::strategy::{Fmt, broker_of, kpi, num, pct, table, time_text, tone};
+use crate::strategy::{Fmt, closed_broker, kpi, num, pct, table, time_text, tone};
 use crate::theme::{self, Theme};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::{Bar, Symbol, Timeframe};
@@ -187,6 +187,9 @@ struct Target {
     build: Option<Build>,
     tf: Timeframe,
     tz: jiff::tz::TimeZone,
+    /// The chart's forming bar's time: a run whose bars end on it skips
+    /// the strategy's signals there, like the Strategy Report.
+    forming_at: Option<i64>,
 }
 
 fn to_value(spec: Option<&InputKind>, v: &PValue) -> Value {
@@ -216,12 +219,14 @@ fn run_study(
     bars: &[Bar],
     tf: Timeframe,
     tz: &jiff::tz::TimeZone,
+    forming_at: Option<i64>,
 ) -> Option<Broker> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let mut inst = Instance::with_factory(meta, inputs, factory.clone());
         let sess = sessions(bars, tf, tz);
         inst.recompute(bars, &sess, tf);
-        inst.latest_state().and_then(broker_of).cloned()
+        let forming = forming_at.is_some() && bars.last().map(|b| b.time) == forming_at;
+        closed_broker(&inst, bars, forming)
     }))
     .ok()
     .flatten()
@@ -332,6 +337,14 @@ impl App {
             build,
             tf: self.chart.tf,
             tz: self.chart.tz.clone(),
+            forming_at: crate::strategy::last_bar_forming(
+                &self.chart.symbol,
+                self.chart.tf,
+                &self.chart.bars,
+                self.chart.replay.is_some(),
+            )
+            .then(|| self.chart.bars.last().map(|b| b.time))
+            .flatten(),
         })
     }
 
@@ -556,7 +569,7 @@ impl App {
                         let (meta, factory) = build(&sym, &extra)?;
                         let tz = jiff::tz::TimeZone::get(&sym.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
                         let ins = f.target.inputs.normalized(meta);
-                        let b = run_study(meta, &ins, &factory, &bars, f.tf, &tz)
+                        let b = run_study(meta, &ins, &factory, &bars, f.tf, &tz, None)
                             .ok_or("The script failed on this symbol.")?;
                         Ok((bars, b))
                     });
@@ -1630,17 +1643,18 @@ fn date(ms: i64, tz: &jiff::tz::TimeZone) -> String {
 /// The headless runner for the optimizer: the chart's strategy with some
 /// inputs replaced.
 fn runner(target: &Target, params: &[Param]) -> impl Fn(&[PValue], &[Bar]) -> Option<Broker> + Sync + use<> {
-    let (meta, base, factory, tf, tz) = (
+    let (meta, base, factory, tf, tz, forming_at) = (
         target.meta,
         target.inputs.clone(),
         target.factory.clone(),
         target.tf,
         target.tz.clone(),
+        target.forming_at,
     );
     let params = params.to_vec();
     move |values: &[PValue], bars: &[Bar]| {
         let ins = inputs_with(meta, &base, &params, values);
-        run_study(meta, &ins, &factory, bars, tf, &tz)
+        run_study(meta, &ins, &factory, bars, tf, &tz, forming_at)
     }
 }
 
@@ -1951,6 +1965,7 @@ if ta.crossunder(ta.sma(close, fast), ta.sma(close, slow))
             build: None,
             tf: Timeframe::parse("1h").expect("tf"),
             tz: jiff::tz::TimeZone::UTC,
+            forming_at: None,
         };
         let setup = Setup {
             params: vec![
@@ -1984,7 +1999,7 @@ if ta.crossunder(ta.sma(close, fast), ta.sma(close, slow))
         assert!(out.trials.iter().all(|t| !t.failed));
         let best = out.best().expect("best");
         let ins = inputs_with(meta, &meta.default_inputs(), &setup.params, &best.values);
-        let b = run_study(meta, &ins, &script.factory(), &bars, target.tf, &target.tz).expect("runs");
+        let b = run_study(meta, &ins, &script.factory(), &bars, target.tf, &target.tz, None).expect("runs");
         let s = opentern_engine::quant::Summary::of_run(&b, &bars);
         assert_eq!(s.net_profit, best.summary.net_profit);
         // Different inputs give different results.

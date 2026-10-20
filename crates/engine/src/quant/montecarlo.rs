@@ -199,6 +199,7 @@ mod tests {
             pnl,
             pnl_pct: pnl,
             commission: 0.0,
+            entry_commission: 0.0,
             runup: 0.0,
             drawdown: 0.0,
             entry_comment: String::new(),

@@ -136,6 +136,8 @@ pub struct SymInfo {
     pub mintick: f64,
     pub currency: String,
     pub kind: String,
+    /// The lot step; 0 = by `kind`.
+    pub min_qty: f64,
     pub timezone: String,
 }
 
@@ -148,12 +150,22 @@ impl Default for SymInfo {
             mintick: 0.01,
             currency: "USD".into(),
             kind: "crypto".into(),
+            min_qty: 0.0,
             timezone: "UTC".into(),
         }
     }
 }
 
 impl SymInfo {
+    /// The minimum quantity strategies round to.
+    pub fn mincontract(&self) -> f64 {
+        if self.min_qty > 0.0 {
+            self.min_qty
+        } else {
+            opentern_engine::min_qty_for(&self.kind)
+        }
+    }
+
     pub fn to_val(&self) -> Val {
         Val::Map(vec![
             ("tickerid".into(), Val::Str(self.tickerid.clone())),

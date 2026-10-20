@@ -344,7 +344,7 @@ fn strategy_orders_go_to_the_broker() {
     let pine = st.broker().unwrap().clone();
     assert!(pine.trades.len() > 5, "{} trades", pine.trades.len());
     // The same by hand.
-    let props = Props::from_json(s.strategy_props().unwrap(), 0.01);
+    let props = Props::from_json(s.strategy_props().unwrap(), 0.01, 0.0);
     assert_eq!(props.initial_capital, 10000.0);
     assert_eq!(props.qty_type, opentern_engine::QtyType::PercentOfEquity);
     let mut br = Broker::new(props);

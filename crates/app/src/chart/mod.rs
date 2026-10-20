@@ -834,6 +834,10 @@ impl Chart {
             Event::Bars { bars, complete, .. } => self.replace_bars(bars, complete),
             Event::Tick { bar, .. } => self.tick(bar),
             Event::Status { status, .. } => self.status = status,
+            Event::Lot { min_qty, .. } => {
+                self.symbol.min_qty = min_qty;
+                self.touch();
+            }
             Event::Corporate { corporate, .. } => {
                 self.corporate = Some(corporate);
                 if self.adj {

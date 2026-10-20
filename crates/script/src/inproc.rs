@@ -137,7 +137,9 @@ pub fn compile(lang: Arc<dyn Lang>, src: &str, file: &str, syminfo: SymInfo) -> 
     // The dry run: plots are found in the order they're called.
     let mut host = Some(Box::new(HostState::new(
         &decl,
-        props.as_ref().map(|p| Props::from_json(p, syminfo.mintick)),
+        props
+            .as_ref()
+            .map(|p| Props::from_json(p, syminfo.mintick, syminfo.mincontract())),
         syminfo.clone(),
     )));
     if let Some(h) = &mut host {
@@ -226,7 +228,10 @@ impl ScriptStudy {
             decl: Decl::default(),
             inputs: inputs.clone(),
         }));
-        let props = c.props.as_ref().map(|p| Props::from_json(p, c.syminfo.mintick));
+        let props = c
+            .props
+            .as_ref()
+            .map(|p| Props::from_json(p, c.syminfo.mintick, c.syminfo.mincontract()));
         let host = Some(Box::new(HostState::new(&c.decl, props, c.syminfo.clone())));
         let mut s = ScriptStudy {
             vm: None,

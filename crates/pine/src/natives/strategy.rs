@@ -295,13 +295,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         ),
         d("strategy.default_entry_qty", &["fill_price"], |g, a, _| {
             let p = arg(a, 0).f();
-            let b = broker(g)?;
-            let v = b.props.qty_value;
-            Ok(V::Float(match b.props.qty_type {
-                opentern_engine::QtyType::Fixed => v,
-                opentern_engine::QtyType::Cash => v / p,
-                opentern_engine::QtyType::PercentOfEquity => b.equity_at(p) * v / 100.0 / p,
-            }))
+            Ok(V::Float(broker(g)?.default_qty(p)))
         }),
         // ---------------------------------------------------------- variables
         d("strategy.position_size", &[], |g, _, _| {
