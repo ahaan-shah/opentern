@@ -8,7 +8,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 
 **Status (Oct 2026):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is a
-private GitHub repo with Linux CI; v0.1.0 is released (Linux x86-64). Read "Where things stand" → "Resume
+private GitHub repo with Linux CI; v0.1.1 is released (Linux x86-64). Read "Where things stand" → "Resume
 here" at the end first.
 
 ## Decisions so far (from the maintainer, Oct 2026)
@@ -580,7 +580,7 @@ in iteratively. Phase 14 has started (item 3).
    `docs/screenshots/` (demo data; retake with `OPENTERN_STILL`, a fresh
    `--data-dir` per shot, since layouts persist). **v0.1.0 tagged and
    released 16 Oct 2026** (the maintainer's go; each later release needs its
-   own). Still to do: macOS/Windows builds when it goes public,
+   own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity). Still to do: macOS/Windows builds when it goes public,
    `THIRD-PARTY-LICENSES.txt` + `--licenses`, the website.
 
 **Loose ends from earlier phases** (fit in where natural):
