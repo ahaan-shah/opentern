@@ -49,7 +49,7 @@ impl App {
     fn feed_symbol(&self, text: &str) -> Symbol {
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         for w in &self.watchlists {
-            known.extend(w.symbols.iter().cloned());
+            known.extend(w.symbols());
         }
         known.push(self.chart.symbol.clone());
         let id = opentern_data::expr::resolve(text.trim(), &known);

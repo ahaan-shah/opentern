@@ -100,8 +100,9 @@ you choose to add a paid provider.
 **Everything else.**
 - 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 interface fonts.
 - A screener over any watchlist, with an optional script column.
-- Watchlists, hotlists, news, a calendar, depth of market and an object tree in
-  the right-hand widgets.
+- Watchlists with sections, laid out like TradingView's, plus hotlists (crypto, US
+  and Indian stocks), news, a calendar, depth of market and an object tree in the
+  right-hand widgets.
 - Named layouts, chart templates and indicator templates, all of which you can
   export and import as JSON.
 - Opentern updates itself: a quiet **Update available** appears on the right,
@@ -188,17 +189,22 @@ if ta.crossunder(f, s)
 
 ## Keyboard
 
-The shortcuts are TradingView's.
+The shortcuts are TradingView's, and every drawing tool has one. The full list
+is in Settings → Keyboard shortcuts (the keyboard button beside the theme
+switch).
 
 | Keys | Does |
 |---|---|
 | Type anywhere | Symbol search |
 | Type a number | Change the interval (`5`, `45`, `4h`, `D`) |
 | `/` | Indicators |
-| `Alt T` · `Alt H` · `Alt V` · `Alt F` | Trend line · horizontal line · vertical line · Fib retracement |
+| `Alt T` · `Alt H` · `Alt V` · `Alt C` · `Alt F` | Trend line · horizontal line · vertical line · cross line · Fib retracement |
+| `Alt Shift R` | Rectangle (the other tools are `Alt Shift` and a letter) |
+| `Alt L` · `Alt P` · `Alt U` | Log · percent · auto scale |
 | `Alt A` | Create an alert |
 | `Alt R` | Reset the chart view |
 | `Alt S` | Save a snapshot |
+| `Ctrl Alt H` | Hide all drawings |
 | `Shift F` | Full screen |
 | `Ctrl Z` / `Ctrl Y` | Undo / redo |
 | `←` `→` | Step one bar |

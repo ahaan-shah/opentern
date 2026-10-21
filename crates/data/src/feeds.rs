@@ -1,7 +1,8 @@
 //! Lists and headlines for the side widgets: hotlists (top gainers,
 //! losers, volume leaders) and news for a symbol. Both are best effort
 //! from public endpoints (Binance's 24-hour tickers, Yahoo's predefined
-//! screeners and search); in demo mode they're made up.
+//! screeners, spark quotes for the NIFTY 50, and search); in demo mode
+//! they're made up.
 
 use crate::provider::{self, Error, Result};
 use opentern_core::{AssetKind, Symbol};
@@ -10,6 +11,92 @@ use opentern_core::{AssetKind, Symbol};
 pub enum HotMarket {
     Crypto,
     UsStocks,
+    /// Indian stocks: the NIFTY 50's movers (no volume list: Yahoo's batch
+    /// quotes don't carry it).
+    India,
+}
+
+/// The NIFTY 50, by NSE ticker.
+const NIFTY50: [&str; 50] = [
+    "RELIANCE",
+    "TCS",
+    "HDFCBANK",
+    "ICICIBANK",
+    "INFY",
+    "BHARTIARTL",
+    "ITC",
+    "SBIN",
+    "LT",
+    "HINDUNILVR",
+    "KOTAKBANK",
+    "AXISBANK",
+    "BAJFINANCE",
+    "MARUTI",
+    "SUNPHARMA",
+    "HCLTECH",
+    "TITAN",
+    "ASIANPAINT",
+    "WIPRO",
+    "ULTRACEMCO",
+    "NTPC",
+    "POWERGRID",
+    "ONGC",
+    "TATAMOTORS",
+    "TATASTEEL",
+    "JSWSTEEL",
+    "M&M",
+    "ADANIENT",
+    "ADANIPORTS",
+    "COALINDIA",
+    "BAJAJFINSV",
+    "NESTLEIND",
+    "TECHM",
+    "GRASIM",
+    "HINDALCO",
+    "CIPLA",
+    "DRREDDY",
+    "BRITANNIA",
+    "EICHERMOT",
+    "HEROMOTOCO",
+    "APOLLOHOSP",
+    "DIVISLAB",
+    "INDUSINDBK",
+    "SBILIFE",
+    "HDFCLIFE",
+    "TATACONSUM",
+    "BAJAJ-AUTO",
+    "SHRIRAMFIN",
+    "TRENT",
+    "BEL",
+];
+
+fn india_symbol(t: &str) -> Symbol {
+    Symbol {
+        id: format!("NSE:{t}"),
+        description: String::new(),
+        kind: AssetKind::Stock,
+        currency: "INR".into(),
+        tick_size: 0.05,
+        min_qty: 0.0,
+        timezone: "Asia/Kolkata".into(),
+    }
+}
+
+/// Parses Yahoo's spark reply (`{"TCS.NS": {"fulldayPrice": …, "fulldayChangePercent": …}}`).
+pub(crate) fn parse_spark(v: &serde_json::Value) -> Vec<HotRow> {
+    v.as_object()
+        .into_iter()
+        .flatten()
+        .filter_map(|(k, q)| {
+            let t = k.strip_suffix(".NS")?;
+            Some(HotRow {
+                symbol: india_symbol(t),
+                last: q["fulldayPrice"].as_f64()?,
+                change_pct: q["fulldayChangePercent"].as_f64()?,
+                volume: 0.0,
+            })
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -168,6 +255,28 @@ pub fn hotlist(market: HotMarket, kind: HotKind, demo: bool) -> Result<Vec<HotRo
             }
             Ok(rows)
         }
+        HotMarket::India => {
+            // Twenty symbols a request is what spark takes.
+            let mut rows = Vec::new();
+            for chunk in NIFTY50.chunks(20) {
+                let list: Vec<String> = chunk
+                    .iter()
+                    .map(|t| crate::yahoo::urlencode(&format!("{t}.NS")))
+                    .collect();
+                let url = format!(
+                    "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=1d&interval=1d",
+                    list.join(",")
+                );
+                rows.extend(parse_spark(&provider::get_json(&agent, &url)?));
+            }
+            if rows.is_empty() {
+                return Err(Error::Bad(
+                    "Yahoo didn't send prices this time. Try again later.".into(),
+                ));
+            }
+            sort_rows(&mut rows, kind, 30);
+            Ok(rows)
+        }
     }
 }
 
@@ -180,6 +289,7 @@ fn demo_hotlist(market: HotMarket, kind: HotKind) -> Vec<HotRow> {
         HotMarket::UsStocks => &[
             "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AMD", "NFLX", "JPM",
         ],
+        HotMarket::India => &NIFTY50[..10],
     };
     let mut rows: Vec<HotRow> = names
         .iter()
@@ -190,6 +300,7 @@ fn demo_hotlist(market: HotMarket, kind: HotKind) -> Vec<HotRow> {
                 symbol: match market {
                     HotMarket::Crypto => crypto_symbol(t),
                     HotMarket::UsStocks => us_symbol("NMS", t, t),
+                    HotMarket::India => india_symbol(t),
                 },
                 last: 50.0 + i as f64 * 37.3,
                 change_pct: k * 6.0,
@@ -331,6 +442,23 @@ pub fn news(sym: &Symbol, demo: bool) -> Result<Vec<NewsItem>> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn parses_spark_quotes() {
+        let v: serde_json::Value = serde_json::from_str(
+            r#"{"TCS.NS":{"symbol":"TCS.NS","fulldayChangePercent":2.767,"fulldayPrice":2529.0},
+                "M&M.NS":{"symbol":"M&M.NS","fulldayChangePercent":-1.2,"fulldayPrice":3000.5},
+                "BAD.NS":{"symbol":"BAD.NS","fulldayPrice":null}}"#,
+        )
+        .unwrap();
+        let mut rows = parse_spark(&v);
+        sort_rows(&mut rows, HotKind::Gainers, 30);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].symbol.id, "NSE:TCS");
+        assert_eq!(rows[1].symbol.id, "NSE:M&M");
+        assert_eq!(rows[0].last, 2529.0);
+    }
+
     use super::*;
 
     #[test]

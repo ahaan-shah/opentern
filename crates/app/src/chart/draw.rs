@@ -132,6 +132,92 @@ impl Tool {
             .unwrap_or(Group::Cursors)
     }
 
+    /// Every tool, in the toolbar's order (the groups, then the bottom ones).
+    pub const ALL: [Tool; 32] = {
+        use Tool::*;
+        [
+            Cross,
+            Eraser,
+            TrendLine,
+            Ray,
+            ExtendedLine,
+            Arrow,
+            HorizontalLine,
+            HorizontalRay,
+            VerticalLine,
+            CrossLine,
+            ParallelChannel,
+            FibRetracement,
+            FibExtension,
+            Pitchfork,
+            Path,
+            Triangle,
+            LongPosition,
+            ShortPosition,
+            AnchoredVwap,
+            FixedRangeVolumeProfile,
+            AnchoredVolumeProfile,
+            PriceRange,
+            DateRange,
+            DatePriceRange,
+            Rectangle,
+            Ellipse,
+            Brush,
+            Text,
+            ArrowUp,
+            ArrowDown,
+            Measure,
+            Zoom,
+        ]
+    };
+
+    /// The tool's shortcut: TradingView's default where it has one (Alt T,
+    /// H, V, C, F and Alt Shift R), else Alt Shift and a letter, clear of
+    /// TradingView's other Alt keys (G, I, L, P, R, S, W, Z on their own).
+    pub fn shortcut(self) -> &'static str {
+        use Tool::*;
+        match self {
+            Cross => "Esc",
+            TrendLine => "Alt T",
+            HorizontalLine => "Alt H",
+            VerticalLine => "Alt V",
+            CrossLine => "Alt C",
+            FibRetracement => "Alt F",
+            Rectangle => "Alt Shift R",
+            Eraser => "Alt Shift E",
+            Zoom => "Alt Shift Z",
+            Measure => "Alt Shift M",
+            Ray => "Alt Shift Y",
+            ExtendedLine => "Alt Shift X",
+            Arrow => "Alt Shift W",
+            HorizontalRay => "Alt Shift H",
+            ParallelChannel => "Alt Shift C",
+            FibExtension => "Alt Shift F",
+            Pitchfork => "Alt Shift K",
+            Path => "Alt Shift P",
+            Triangle => "Alt Shift I",
+            LongPosition => "Alt Shift L",
+            ShortPosition => "Alt Shift S",
+            PriceRange => "Alt Shift Q",
+            DateRange => "Alt Shift D",
+            DatePriceRange => "Alt Shift J",
+            Ellipse => "Alt Shift O",
+            Brush => "Alt Shift B",
+            Text => "Alt Shift T",
+            ArrowUp => "Alt Shift U",
+            ArrowDown => "Alt Shift N",
+            AnchoredVwap => "Alt Shift V",
+            FixedRangeVolumeProfile => "Alt Shift G",
+            AnchoredVolumeProfile => "Alt Shift A",
+        }
+    }
+
+    /// The tool a key press picks, if any (Alt or Alt Shift plus a letter).
+    pub fn for_key(key: egui::Key, shift: bool) -> Option<Tool> {
+        let want = format!("Alt {}{}", if shift { "Shift " } else { "" }, key.name());
+        Tool::ALL.into_iter().find(|t| t.shortcut() == want)
+    }
+
     pub fn name(self) -> &'static str {
         use Tool::*;
         match self {
@@ -1273,6 +1359,25 @@ pub fn magnet(bar: Option<&Bar>, price: f64, y: &YMap, py: f32) -> f64 {
 
 #[cfg(test)]
 mod tests {
+
+    /// Every tool has a shortcut, none twice; TradingView's are kept.
+    #[test]
+    fn every_tool_has_its_own_shortcut() {
+        let mut seen = std::collections::HashSet::new();
+        for t in Tool::ALL {
+            assert!(!t.shortcut().is_empty(), "{t:?}");
+            assert!(seen.insert(t.shortcut()), "{t:?} shares {}", t.shortcut());
+        }
+        for g in Group::ALL {
+            for t in g.tools() {
+                assert!(Tool::ALL.contains(t), "{t:?} missing from Tool::ALL");
+            }
+        }
+        assert_eq!(Tool::for_key(egui::Key::T, false), Some(Tool::TrendLine));
+        assert_eq!(Tool::for_key(egui::Key::R, true), Some(Tool::Rectangle));
+        assert_eq!(Tool::for_key(egui::Key::R, false), None, "Alt R resets the chart");
+    }
+
     use super::*;
 
     fn bars() -> Vec<Bar> {

@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### New
+
+- **A shortcut for every drawing tool.** TradingView's (Alt T, H, V, C, F and
+  Alt Shift R) plus Alt Shift and a letter for the rest, and Alt L, Alt P and
+  Alt U for log, percent and auto scale. Settings → Keyboard shortcuts lists
+  them all; the keyboard button beside the theme switch opens it.
+- **Watchlists like TradingView's.** Sections that fold, rows you drag to
+  reorder, a circle per list to switch, and naming a new list right away.
+- **Indian stocks in Hotlists.** The NIFTY 50's gainers and losers.
+
+### Changed
+
+- **The update button shows its progress** as a ring that fills while it
+  downloads, then a restart icon.
+- **Dropdowns fit their choices** instead of cutting them short.
+- **About** says what Opentern is.
+
 ## 0.1.2 (2026-10-21)
 
 Opentern now runs on macOS and Windows, and the agent panel works with Codex

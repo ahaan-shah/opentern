@@ -62,9 +62,17 @@ impl App {
         let sd = &mut self.side;
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
-            for (m, label) in [(HotMarket::Crypto, "Crypto"), (HotMarket::UsStocks, "US stocks")] {
+            for (m, label) in [
+                (HotMarket::Crypto, "Crypto"),
+                (HotMarket::UsStocks, "US stocks"),
+                (HotMarket::India, "India"),
+            ] {
                 if crate::shell::small_button(ui, t, label, sd.market == m).clicked() {
                     sd.market = m;
+                    // India has no volume list.
+                    if m == HotMarket::India && sd.kind == HotKind::Volume {
+                        sd.kind = HotKind::Gainers;
+                    }
                 }
             }
         });
@@ -75,6 +83,9 @@ impl App {
                 (HotKind::Losers, "Losers"),
                 (HotKind::Volume, "Volume leaders"),
             ] {
+                if k == HotKind::Volume && sd.market == HotMarket::India {
+                    continue;
+                }
                 if crate::shell::small_button(ui, t, label, sd.kind == k).clicked() {
                     sd.kind = k;
                 }

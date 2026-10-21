@@ -1171,6 +1171,24 @@ every data change (scripts re-run on it).
   remembered (their open questions are in `docs/indicators.md`); check them against
   exports.
 
+### UI pass 5 (22 Oct 2026, for 0.1.3)
+- Shortcuts: `Tool::shortcut()` is the one table (TradingView's Alt T/H/V/C/F,
+  Alt Shift R; the rest Alt Shift + letter, a test keeps them unique);
+  `Tool::for_key` dispatches; Alt L/P/U scale; Ctrl Alt H hides drawings.
+  Settings → Keyboard shortcuts (`settings::shortcuts`) renders the sheet; a
+  rail button beside the theme switch opens it. Alt A / Alt S ignore Shift.
+- Watchlists (`watchlists.rs`): `Item::{Section, Symbol}` (untagged JSON, so
+  old symbol arrays load), `Watchlist::symbols()`; title button with a menu
+  (rename, add section, new list, delete asks twice), switcher circles, drag
+  to reorder, sections fold. Still `watch-sections` splits the starter list.
+- Hotlists: `HotMarket::India` = NIFTY 50 via Yahoo spark (20 symbols a
+  request), gainers and losers only (no volume), fetched only while open.
+- Update button: a ring fills with the download, then a restart icon. Still
+  `update:<pct|ready|available>`.
+- `widgets::option` rows are at least as wide as their text.
+- Screenshot script lesson: only ever kill the process you launched (match its
+  own `--data-dir`), never "an opentern window that isn't the user's pid".
+
 ### Website
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in
 Spotsie's style and Opentern's theme colours, published by `pages.yml` to

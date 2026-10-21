@@ -674,7 +674,16 @@ impl App {
                 l.lock_drawings = !l.lock_drawings;
             }
             let eye = if l.hide_drawings { ph::EYE_SLASH } else { ph::EYE };
-            if w::tool_button(ui, t, eye, "Hide all drawings", l.hide_drawings, 36.0).clicked() {
+            if w::tool_button(
+                ui,
+                t,
+                eye,
+                concat!("Hide all drawings (", shortcut!("Alt H"), ")"),
+                l.hide_drawings,
+                36.0,
+            )
+            .clicked()
+            {
                 l.hide_drawings = !l.hide_drawings;
             }
             w::hdivider(ui, t, TOOLBAR_W);
@@ -768,7 +777,7 @@ impl App {
                 w::menu_heading(ui, t, &g.name().to_uppercase());
                 for tool in g.tools() {
                     let on = self.layout.tool == *tool;
-                    if w::menu_item(ui, t, Some(tool.icon()), tool.name(), "", on).clicked() {
+                    if w::menu_item(ui, t, Some(tool.icon()), tool.name(), tool.shortcut(), on).clicked() {
                         self.pick_tool(*tool);
                     }
                 }
@@ -806,6 +815,13 @@ impl App {
                 if w::tool_button(ui, t, if dark { ph::SUN } else { ph::MOON }, tip, false, 34.0).clicked() {
                     self.toggle_dark(ui.ctx());
                 }
+                let on = self
+                    .settings
+                    .as_ref()
+                    .is_some_and(|s| s.cat == crate::settings::Cat::Shortcuts);
+                if w::tool_button(ui, t, ph::KEYBOARD, "Keyboard shortcuts", on, 34.0).clicked() {
+                    self.open_settings(crate::settings::Cat::Shortcuts);
+                }
                 if self.updater.prompt() {
                     self.update_button(ui, t);
                 }
@@ -813,20 +829,75 @@ impl App {
         });
     }
 
-    /// The quiet update prompt: an icon with an accent dot. Click to update,
-    /// then click again to restart. Never installs on its own.
+    /// The quiet update prompt: an icon with an accent dot. Click to update;
+    /// while it downloads, a ring around it fills with the progress; once
+    /// installed, a full ring and a restart icon. Never installs on its own.
     fn update_button(&mut self, ui: &mut Ui, t: &Theme) {
         use crate::updater::Phase;
         let tip = match &self.updater.phase {
             Phase::Available(r) => format!("Opentern {} is available. Click to update.", r.version),
             Phase::Manual(r, why) => format!("Opentern {} is available. {why}.", r.version),
-            Phase::Installing(_) => format!("Updating… {:.0}%", self.updater.progress * 100.0),
+            Phase::Installing(r) => format!("Updating to {}… {:.0}%", r.version, self.updater.progress * 100.0),
             Phase::Ready(r) => format!("Opentern {} is installed. Click to restart.", r.version),
             _ => String::new(),
         };
-        let resp = w::tool_button(ui, t, ph::ARROW_CIRCLE_UP, &tip, false, 34.0);
-        let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
-        ui.painter().circle_filled(dot, 3.5, t.accent);
+        let size = 34.0;
+        let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+        let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+        let installing = matches!(self.updater.phase, Phase::Installing(_));
+        let ready = matches!(self.updater.phase, Phase::Ready(_));
+        // The ring eases towards the download's progress.
+        let target = if ready {
+            1.0
+        } else {
+            self.updater.progress.clamp(0.0, 1.0)
+        };
+        let shown = motion::tween(ui.ctx(), resp.id.with("ring"), target, motion::STANDARD);
+        let p = ui.painter();
+        p.rect_filled(rect, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hover));
+        let c = rect.center();
+        let glyph = if ready {
+            ph::ARROW_CLOCKWISE
+        } else if installing {
+            ph::ARROW_DOWN
+        } else {
+            ph::ARROW_CIRCLE_UP
+        };
+        let col = motion::lerp_color(t.text2, t.text, hover.max(if installing || ready { 1.0 } else { 0.0 }));
+        let icon_size = if installing || ready { 13.0 } else { 18.0 };
+        p.text(c, Align2::CENTER_CENTER, glyph, theme::regular(icon_size), col);
+        if installing || ready {
+            let rad = 12.0;
+            let ring = if ready { t.pos } else { t.accent };
+            p.circle_stroke(c, rad, Stroke::new(1.8, motion::with_alpha(t.text3, 0.35)));
+            let arc = |from: f32, len: f32| -> Vec<egui::Pos2> {
+                let n = 48;
+                (0..=n)
+                    .map(|k| {
+                        let a = from + len * k as f32 / n as f32;
+                        c + vec2(a.cos(), a.sin()) * rad
+                    })
+                    .collect()
+            };
+            let top = -std::f32::consts::FRAC_PI_2;
+            if installing && self.updater.progress <= 0.0 {
+                // Waiting for the first bytes: a short arc going round.
+                let spin = ui.input(|i| i.time) as f32 * 4.0;
+                p.add(egui::Shape::line(arc(top + spin, 1.4), Stroke::new(1.8, ring)));
+            } else if shown > 0.0 {
+                p.add(egui::Shape::line(
+                    arc(top, shown * std::f32::consts::TAU),
+                    Stroke::new(1.8, ring),
+                ));
+            }
+            if installing {
+                ui.ctx().request_repaint();
+            }
+        } else {
+            let dot = rect.right_top() + vec2(-8.0, 8.0);
+            p.circle_filled(dot, 3.5, t.accent);
+        }
+        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip);
         if resp.clicked() {
             self.update_action(ui.ctx());
         }
@@ -892,28 +963,45 @@ impl App {
 
     // --------------------------------------------------------- range bar
 
+    /// Auto scale on the main pane (Alt U).
+    pub(crate) fn toggle_auto_scale(&mut self) {
+        if let Some(p) = self.chart.panes.first_mut() {
+            p.scale.auto = !p.scale.auto;
+        }
+    }
+
+    /// Log scale (Alt L, as on TradingView).
+    pub(crate) fn toggle_log_scale(&mut self) {
+        self.chart.log = !self.chart.log;
+        self.chart.percent = false;
+        if let Some(p) = self.chart.panes.first_mut() {
+            p.scale.auto = true;
+        }
+        self.chart.touch();
+    }
+
+    /// Percent scale (Alt P, as on TradingView).
+    pub(crate) fn toggle_percent_scale(&mut self) {
+        self.chart.percent = !self.chart.percent;
+        self.chart.log = false;
+    }
+
     fn range_bar(&mut self, ui: &mut Ui, t: &Theme) {
         let roomy = ui.available_width() > 760.0;
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let auto = self.chart.panes.first().is_some_and(|p| p.scale.auto);
             if small_button(ui, t, "auto", auto)
-                .on_hover_text("Auto (fits data to screen)")
+                .on_hover_text("Auto, fits data to screen (Alt U)")
                 .clicked()
-                && let Some(p) = self.chart.panes.first_mut()
             {
-                p.scale.auto = !p.scale.auto;
+                self.toggle_auto_scale();
             }
             if small_button(ui, t, "log", self.chart.log)
-                .on_hover_text("Log scale")
+                .on_hover_text("Log scale (Alt L)")
                 .clicked()
             {
-                self.chart.log = !self.chart.log;
-                self.chart.percent = false;
-                if let Some(p) = self.chart.panes.first_mut() {
-                    p.scale.auto = true;
-                }
-                self.chart.touch();
+                self.toggle_log_scale();
             }
             let has_divs = self.chart.corporate.as_ref().is_some_and(|c| !c.dividends.is_empty());
             if has_divs
@@ -925,11 +1013,10 @@ impl App {
                 self.chart.set_adj(on);
             }
             if small_button(ui, t, "%", self.chart.percent)
-                .on_hover_text("Percent scale")
+                .on_hover_text("Percent scale (Alt P)")
                 .clicked()
             {
-                self.chart.percent = !self.chart.percent;
-                self.chart.log = false;
+                self.toggle_percent_scale();
             }
             if roomy {
                 w::vdivider(ui, t);

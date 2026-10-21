@@ -438,9 +438,24 @@ pub fn option(ui: &mut Ui, selected: bool, text: impl Into<egui::WidgetText>) ->
     let v = ui.visuals().clone();
     let a = accent(&v);
     let pad = 10.0;
-    let check_w = if selected { 22.0 } else { 0.0 };
-    let width = (ui.available_width() - MENU_GUTTER).max(60.0);
-    let galley = text.into().into_galley(
+    // Room for the check on every row, so a menu is as wide as its longest
+    // choice (a narrow button no longer cuts "Dashed" to "Das…").
+    let check_w = 22.0;
+    let text = text.into();
+    let natural = text
+        .clone()
+        .into_galley(
+            ui,
+            Some(egui::TextWrapMode::Extend),
+            f32::INFINITY,
+            egui::TextStyle::Body,
+        )
+        .size()
+        .x;
+    let width = (ui.available_width() - MENU_GUTTER)
+        .max(natural + pad * 2.0 + check_w)
+        .max(60.0);
+    let galley = text.into_galley(
         ui,
         Some(egui::TextWrapMode::Truncate),
         width - pad * 2.0 - check_w,

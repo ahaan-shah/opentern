@@ -1,6 +1,6 @@
 //! Settings: a page that takes the chart area (☰ or the gear opens it,
 //! Esc or × closes it), with its categories down the left: Appearance,
-//! Chart, Data providers, Symbol logos and About.
+//! Chart, Data providers, Symbol logos, Keyboard shortcuts and About.
 
 use crate::app::App;
 use crate::dialogs::ChartSettings;
@@ -16,11 +16,19 @@ pub enum Cat {
     Chart,
     Providers,
     Logos,
+    Shortcuts,
     About,
 }
 
 impl Cat {
-    pub const ALL: [Cat; 5] = [Cat::Appearance, Cat::Chart, Cat::Providers, Cat::Logos, Cat::About];
+    pub const ALL: [Cat; 6] = [
+        Cat::Appearance,
+        Cat::Chart,
+        Cat::Providers,
+        Cat::Logos,
+        Cat::Shortcuts,
+        Cat::About,
+    ];
 
     fn title(self) -> &'static str {
         match self {
@@ -28,6 +36,7 @@ impl Cat {
             Cat::Chart => "Chart",
             Cat::Providers => "Data providers",
             Cat::Logos => "Symbol logos",
+            Cat::Shortcuts => "Keyboard shortcuts",
             Cat::About => "About",
         }
     }
@@ -38,6 +47,7 @@ impl Cat {
             Cat::Chart => ph::CHART_LINE,
             Cat::Providers => ph::PLUGS_CONNECTED,
             Cat::Logos => ph::IMAGE,
+            Cat::Shortcuts => ph::KEYBOARD,
             Cat::About => ph::INFO,
         }
     }
@@ -156,6 +166,7 @@ impl App {
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
                     Cat::Logos => self.logo_settings(ui),
+                    Cat::Shortcuts => shortcuts(ui, t),
                     Cat::About => self.about(ui, t),
                 }
                 ui.add_space(24.0);
@@ -274,6 +285,11 @@ impl App {
                         .font(theme::semibold(16.0))
                         .color(t.text),
                 );
+                ui.label(
+                    egui::RichText::new("A fast, local-first market analysis terminal.")
+                        .font(theme::regular(13.0))
+                        .color(t.text2),
+                );
             });
         });
         ui.add_space(18.0);
@@ -352,6 +368,121 @@ impl App {
                 crate::app::open_url("https://github.com/ahaan-shah/opentern");
             }
         });
+    }
+}
+
+/// The keyboard shortcuts sheet: TradingView's, plus Opentern's own.
+fn shortcuts(ui: &mut Ui, t: &Theme) {
+    use crate::chart::draw::Tool;
+    let general: &[(&str, &str)] = &[
+        ("Symbol search", "Type anywhere"),
+        ("Change the interval", "Type a number"),
+        ("Indicators", "/"),
+        ("Create an alert", "Alt A"),
+        ("Reset the chart view", "Alt R"),
+        ("Save a snapshot", "Alt S"),
+        ("Full screen", "Shift F"),
+        ("Undo", "Ctrl Z"),
+        ("Redo", "Ctrl Y"),
+        ("Step one bar", "← →"),
+        ("Measure", "Shift Drag"),
+        ("Hide all drawings", "Ctrl Alt H"),
+        ("Delete the selected drawing", "Delete"),
+        ("Cancel", "Esc"),
+    ];
+    let scale: &[(&str, &str)] = &[("Log", "Alt L"), ("Percent", "Alt P"), ("Auto", "Alt U")];
+    let agent: &[(&str, &str)] = &[
+        ("Send", "Enter"),
+        ("New line", "Shift Enter"),
+        ("Paste an image", "Alt V"),
+        ("Answer a prompt", "1 2 3"),
+    ];
+    crate::dialogs::section(ui, t, "General");
+    for (what, keys) in general {
+        shortcut_row(ui, t, None, what, keys);
+    }
+    ui.add_space(10.0);
+    crate::dialogs::section(ui, t, "Price scale");
+    for (what, keys) in scale {
+        shortcut_row(ui, t, None, what, keys);
+    }
+    ui.add_space(10.0);
+    crate::dialogs::section(ui, t, "Drawing tools");
+    for tool in Tool::ALL {
+        shortcut_row(ui, t, Some(tool.icon()), tool.name(), tool.shortcut());
+    }
+    ui.add_space(10.0);
+    crate::dialogs::section(ui, t, "Agent panel");
+    for (what, keys) in agent {
+        shortcut_row(ui, t, None, what, keys);
+    }
+}
+
+/// One row of the sheet: what it does on the left, its keys as keycaps on
+/// the right ("Type anywhere" and the like as plain words).
+fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &str) {
+    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
+    let p = ui.painter();
+    p.hline(
+        r.x_range(),
+        r.bottom() - 0.5,
+        Stroke::new(1.0, t.border.gamma_multiply(0.5)),
+    );
+    let mut x = r.left() + 2.0;
+    if let Some(i) = icon {
+        p.text(
+            pos2(x + 8.0, r.center().y),
+            Align2::CENTER_CENTER,
+            i,
+            theme::regular(15.0),
+            t.text2,
+        );
+        x += 26.0;
+    }
+    p.text(
+        pos2(x, r.center().y),
+        Align2::LEFT_CENTER,
+        what,
+        theme::regular(13.5),
+        t.text,
+    );
+    let words = keys.starts_with("Type");
+    if words {
+        p.text(
+            pos2(r.right() - 4.0, r.center().y),
+            Align2::RIGHT_CENTER,
+            keys,
+            theme::regular(12.5),
+            t.text2,
+        );
+        return;
+    }
+    // Keycaps, laid out right to left. Ctrl is Cmd on macOS.
+    let mut right = r.right() - 2.0;
+    for k in keys.split(' ').rev() {
+        let k = if cfg!(target_os = "macos") && k == "Ctrl" {
+            "Cmd"
+        } else {
+            k
+        };
+        let g = p.layout_no_wrap(k.to_string(), theme::medium(12.0), t.text);
+        let w = (g.size().x + 14.0).max(24.0);
+        let cap = Rect::from_min_size(pos2(right - w, r.center().y - 11.0), vec2(w, 22.0));
+        p.rect(
+            cap,
+            CornerRadius::same(6),
+            t.hover,
+            Stroke::new(1.0, t.border),
+            egui::StrokeKind::Inside,
+        );
+        // A slightly deeper bottom edge, like a key.
+        p.hline(
+            cap.x_range().shrink(4.0),
+            cap.bottom() - 0.5,
+            Stroke::new(1.0, t.border.lerp_to_gamma(t.text3, 0.3)),
+        );
+        p.galley(cap.center() - g.size() / 2.0, g, t.text);
+        right = cap.left() - 4.0;
     }
 }
 

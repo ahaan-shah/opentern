@@ -289,3 +289,16 @@ fn order_books_from_crypto_exchanges() {
         }
     }
 }
+
+/// India's hotlist: the NIFTY 50 from Yahoo's spark quotes, in three batches.
+#[test]
+#[ignore]
+fn india_hotlist() {
+    use opentern_data::feeds::{HotKind, HotMarket, hotlist};
+    for kind in [HotKind::Gainers, HotKind::Losers] {
+        let rows = hotlist(HotMarket::India, kind, false).expect("India hotlist");
+        assert_eq!(rows.len(), 30, "the top 30 of the NIFTY 50");
+        let top = &rows[0];
+        println!("{kind:?}: {} {:.2} {:+.2}%", top.symbol.id, top.last, top.change_pct);
+    }
+}

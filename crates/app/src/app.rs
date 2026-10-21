@@ -337,6 +337,46 @@ impl App {
                     .find(|c| format!("{c:?}").eq_ignore_ascii_case(cat.trim_start_matches(':')))
                     .unwrap_or(Cat::Appearance);
                 self.open_settings(cat);
+            } else if let Some(u) = part.strip_prefix("update:") {
+                // The update button mid-download (`update:40`) or installed
+                // (`update:ready`), with a made-up release.
+                use crate::updater::Phase;
+                let r = opentern_core::update::Release {
+                    version: "9.9.9".into(),
+                    page: String::new(),
+                    notes: String::new(),
+                    assets: Vec::new(),
+                    tag: "v9.9.9".into(),
+                    gh: false,
+                };
+                self.updater.phase = match u {
+                    "ready" => Phase::Ready(r),
+                    "available" => Phase::Available(r),
+                    pct => {
+                        self.updater.progress = pct.parse::<f32>().unwrap_or(0.0) / 100.0;
+                        Phase::Installing(r)
+                    }
+                };
+            } else if part == "watch-sections" {
+                // Sections in the starter list, for screenshots.
+                use crate::watchlists::Item;
+                let items = &mut self.watchlists[self.active_list].items;
+                let at = |items: &Vec<Item>, id: &str| {
+                    items
+                        .iter()
+                        .position(|i| matches!(i, Item::Symbol(s) if s.id.ends_with(id)))
+                };
+                for (name, first) in [("India", "NIFTY"), ("US", ":SPY"), ("Crypto", "BTCUSDT")] {
+                    if let Some(k) = at(items, first) {
+                        items.insert(
+                            k,
+                            Item::Section {
+                                section: name.into(),
+                                collapsed: false,
+                            },
+                        );
+                    }
+                }
             } else if part == "gradient" {
                 let mut st = self.chart.style.clone();
                 st.gradient = true;
@@ -987,7 +1027,8 @@ impl App {
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.alt => self.chart.reset_view(),
+                } if modifiers.alt && !modifiers.shift => self.chart.reset_view(),
+
                 egui::Event::Key {
                     key: egui::Key::F,
                     pressed: true,
@@ -1035,7 +1076,7 @@ impl App {
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.alt => {
+                } if modifiers.alt && !modifiers.shift => {
                     self.open_alert_dialog(None);
                 }
                 egui::Event::Key {
@@ -1043,20 +1084,39 @@ impl App {
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.alt => self.take_snapshot(crate::snapshot::Snap::Save),
+                } if modifiers.alt && !modifiers.shift => self.take_snapshot(crate::snapshot::Snap::Save),
+                // TradingView's: Ctrl+Alt+H hides (or shows) every drawing.
                 egui::Event::Key {
-                    key: key @ (egui::Key::T | egui::Key::H | egui::Key::V | egui::Key::F),
+                    key: egui::Key::H,
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.alt => {
-                    let tool = match key {
-                        egui::Key::T => Tool::TrendLine,
-                        egui::Key::H => Tool::HorizontalLine,
-                        egui::Key::V => Tool::VerticalLine,
-                        _ => Tool::FibRetracement,
-                    };
-                    self.pick_tool(tool);
+                } if modifiers.alt && modifiers.command => {
+                    self.layout.hide_drawings = !self.layout.hide_drawings;
+                }
+                // Price scale: TradingView's Alt L (log) and Alt P (percent),
+                // and Alt U for auto.
+                egui::Event::Key {
+                    key: key @ (egui::Key::L | egui::Key::P | egui::Key::U),
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.shift && !modifiers.command => match key {
+                    egui::Key::L => self.toggle_log_scale(),
+                    egui::Key::P => self.toggle_percent_scale(),
+                    _ => self.toggle_auto_scale(),
+                },
+                // Drawing tools: TradingView's Alt keys, Alt Shift for the rest
+                // (`Tool::shortcut`).
+                egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.command => {
+                    if let Some(tool) = Tool::for_key(key, modifiers.shift) {
+                        self.pick_tool(tool);
+                    }
                 }
                 egui::Event::Key {
                     key: egui::Key::ArrowLeft,

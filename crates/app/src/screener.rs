@@ -386,7 +386,7 @@ impl App {
                 .watchlists
                 .iter()
                 .find(|w| w.id == *id)
-                .map(|w| w.symbols.clone())
+                .map(|w| w.symbols())
                 .unwrap_or_default(),
             Universe::Preset(name) => presets()
                 .into_iter()
