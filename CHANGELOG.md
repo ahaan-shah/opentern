@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 (2026-10-22)
+
+Every drawing tool gets a keyboard shortcut, watchlists work like
+TradingView's, and Hotlists cover Indian stocks.
 
 ### New
 
@@ -18,6 +21,15 @@
   downloads, then a restart icon.
 - **Dropdowns fit their choices** instead of cutting them short.
 - **About** says what Opentern is.
+- **A market analysis terminal.** Opentern now describes itself that way
+  everywhere: it's for analysis and paper trading, and never places real orders.
+- **One install line for Linux and macOS.** `install.sh` now installs the Mac app
+  too.
+
+### Fixed
+
+- **Demo mode shows symbol logos** (the ones bundled in the app; it still never
+  goes online).
 
 ## 0.1.2 (2026-10-21)
 
