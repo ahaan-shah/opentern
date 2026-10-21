@@ -611,13 +611,14 @@ fn visuals(t: &Theme) -> Visuals {
     v.hyperlink_color = t.accent;
     v.faint_bg_color = t.hover;
     v.extreme_bg_color = t.bg;
-    v.text_edit_bg_color = Some(t.bg);
+    // Fields sit a shade under the surface they're on, not in a black hole.
+    v.text_edit_bg_color = Some(t.bg.lerp_to_gamma(t.hover, 0.3));
     v.code_bg_color = t.hover;
     v.warn_fg_color = t.warn;
     v.error_fg_color = t.neg;
     v.window_fill = t.elevated;
     v.panel_fill = t.bg;
-    v.window_stroke = Stroke::new(1.0, t.border);
+    v.window_stroke = Stroke::new(1.0, motion::with_alpha(t.border, 0.85));
     v.window_corner_radius = CornerRadius::same(RADIUS);
     v.menu_corner_radius = CornerRadius::same(12);
     let shadow = Shadow {
@@ -628,13 +629,14 @@ fn visuals(t: &Theme) -> Visuals {
     };
     v.window_shadow = shadow;
     v.popup_shadow = Shadow {
-        offset: [0, 8],
-        blur: 24,
+        offset: [0, 14],
+        blur: 40,
         spread: 0,
         color: t.shadow(),
     };
     v.selection.bg_fill = motion::with_alpha(t.accent, 0.35);
-    v.selection.stroke = Stroke::new(1.0, t.accent);
+    // Also the focus ring of text fields: a soft one, not a hard blue line.
+    v.selection.stroke = Stroke::new(1.0, motion::with_alpha(t.accent, 0.6));
     v.text_cursor.stroke = Stroke::new(2.0, t.accent);
     v.button_frame = true;
     v.striped = false;
@@ -649,21 +651,22 @@ fn visuals(t: &Theme) -> Visuals {
 
     w.inactive.bg_fill = t.hover;
     w.inactive.weak_bg_fill = t.hover;
-    w.inactive.bg_stroke = Stroke::new(1.0, t.border);
+    w.inactive.bg_stroke = Stroke::new(1.0, motion::with_alpha(t.border, 0.9));
     w.inactive.fg_stroke = Stroke::new(1.0, t.text);
     w.inactive.corner_radius = r;
     w.inactive.expansion = 0.0;
 
-    w.hovered.bg_fill = t.tint(t.accent, 0.10).lerp_to_gamma(t.hover, 0.5);
+    // Hover is a quiet lift, not a coloured outline.
+    w.hovered.bg_fill = t.hover.lerp_to_gamma(t.text, if t.dark { 0.05 } else { 0.035 });
     w.hovered.weak_bg_fill = w.hovered.bg_fill;
-    w.hovered.bg_stroke = Stroke::new(1.0, motion::with_alpha(t.accent, 0.5));
+    w.hovered.bg_stroke = Stroke::new(1.0, t.border.lerp_to_gamma(t.text3, 0.45));
     w.hovered.fg_stroke = Stroke::new(1.5, t.text);
     w.hovered.corner_radius = r;
     w.hovered.expansion = 0.0;
 
     w.active.bg_fill = t.accent_soft();
     w.active.weak_bg_fill = t.accent_soft();
-    w.active.bg_stroke = Stroke::new(1.0, t.accent);
+    w.active.bg_stroke = Stroke::new(1.0, motion::with_alpha(t.accent, 0.6));
     w.active.fg_stroke = Stroke::new(1.5, t.text);
     w.active.corner_radius = r;
     w.active.expansion = 0.0;

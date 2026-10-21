@@ -357,7 +357,9 @@ impl SymbolSearch {
                         p.text(pos2(rect.left() + 40.0, y), Align2::LEFT_CENTER, tick, tf, t.text);
                         let desc = crate::format::elide_to(p, &desc, &df, right.left() - desc_x - 12.0);
                         p.text(pos2(desc_x, y), Align2::LEFT_CENTER, desc, df, t.text2);
-                        if i == self.selected {
+                        // Only arrow keys bring the selection into view, so
+                        // the wheel and the scrollbar scroll freely.
+                        if i == self.selected && (up || down) {
                             resp.scroll_to_me(None);
                         }
                         if resp.clicked() {

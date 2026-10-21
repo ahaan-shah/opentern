@@ -1,5 +1,6 @@
-//! The app's own tools for Claude: an MCP server that lives in the app and
-//! answers over the Claude Code pipe (`mcp__opentern__*`). Each call runs on
+//! The app's own tools for the agents: an MCP server that lives in the app
+//! and answers over the Claude Code pipe (`mcp__opentern__*`), and the same
+//! tools as Codex's dynamic tools (`codex.rs`). Each call runs on
 //! the UI thread against the active chart. Symbol searches answer later,
 //! when the hub's results come back.
 
@@ -31,7 +32,8 @@ fn tool(name: &str, description: &str, props: Value, required: &[&str]) -> Value
     })
 }
 
-fn tools() -> Value {
+/// The app's tools: name, description and input schema.
+pub fn specs() -> Value {
     let s = |d: &str| json!({"type": "string", "description": d});
     json!([
         tool(
@@ -145,7 +147,7 @@ impl App {
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": SERVER, "version": env!("CARGO_PKG_VERSION")},
             })),
-            "tools/list" => reply(json!({"tools": tools()})),
+            "tools/list" => reply(json!({"tools": specs()})),
             "tools/call" => {
                 let name = msg["params"]["name"].as_str().unwrap_or("").to_string();
                 let args = msg["params"]["arguments"].clone();

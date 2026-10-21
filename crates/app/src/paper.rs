@@ -833,21 +833,12 @@ impl App {
 }
 
 fn empty(ui: &mut Ui, t: &Theme, what: &str) {
-    let (icon, body) = match what {
-        "No open positions." => (
-            crate::icons::ph::STACK,
-            "Place an order from the ticket, or click the DOM.",
-        ),
-        "No working orders." => (
-            crate::icons::ph::LIST_CHECKS,
-            "Limit and stop orders wait here until they fill.",
-        ),
-        _ => (
-            crate::icons::ph::RECEIPT,
-            "Filled orders and closed trades show up here.",
-        ),
+    let icon = match what {
+        "No open positions." => crate::icons::ph::STACK,
+        "No working orders." => crate::icons::ph::LIST_CHECKS,
+        _ => crate::icons::ph::RECEIPT,
     };
-    crate::widgets::empty_state(ui, t, icon, what.trim_end_matches('.'), body);
+    crate::widgets::empty_state(ui, t, icon, what.trim_end_matches('.'));
 }
 
 fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {

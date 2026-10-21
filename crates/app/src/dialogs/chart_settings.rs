@@ -57,7 +57,7 @@ impl ChartSettings {
             use crate::widgets as w;
             ui.set_width(250.0);
             ui.spacing_mut().item_spacing.y = 1.0;
-            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as…", "", false).clicked() {
+            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save as", "", false).clicked() {
                 app.set_chart_style(self.style.clone());
                 app.modal = Some(super::Modal::SaveTemplate {
                     kind: TemplateKind::Chart,

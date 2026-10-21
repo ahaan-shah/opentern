@@ -649,135 +649,126 @@ impl App {
         let row_h = 24.0;
         let mut open = None;
         egui::ScrollArea::horizontal().id_salt("screener-h").show(ui, |ui| {
-        ui.set_min_width(table_w);
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 0.0;
-            let (r, _) = ui.allocate_exact_size(vec2(sym_w, row_h), Sense::hover());
-            ui.painter().text(
-                r.left_center() + vec2(6.0, 0.0),
-                egui::Align2::LEFT_CENTER,
-                "Symbol",
-                theme::medium(12.0),
-                t.text3,
-            );
-            for f in &cols {
-                let (r, resp) = ui.allocate_exact_size(vec2(col_w, row_h), Sense::click());
-                let (sf, desc) = self.screener.sort;
-                let label = if sf == *f {
-                    format!("{} {}", f.name(), if desc { "↓" } else { "↑" })
-                } else {
-                    f.name().to_string()
-                };
+            ui.set_min_width(table_w);
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                let (r, _) = ui.allocate_exact_size(vec2(sym_w, row_h), Sense::hover());
                 ui.painter().text(
-                    r.right_center() - vec2(6.0, 0.0),
-                    egui::Align2::RIGHT_CENTER,
-                    label,
+                    r.left_center() + vec2(6.0, 0.0),
+                    egui::Align2::LEFT_CENTER,
+                    "Symbol",
                     theme::medium(12.0),
-                    if sf == *f { t.accent } else { t.text3 },
+                    t.text3,
                 );
-                if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    self.screener.sort = (*f, if sf == *f { !desc } else { true });
-                }
-            }
-        });
-        let filters = self.screener.setup.filters.clone();
-        let (sf, desc) = self.screener.sort;
-        let mut rows: Vec<&Row> = self
-            .screener
-            .rows
-            .iter()
-            .filter(|r| !r.done || r.error.is_some() || r.passes(&filters))
-            .collect();
-        rows.sort_by(|a, b| {
-            let (x, y) = (a.get(sf), b.get(sf));
-            let o = match (x.is_finite(), y.is_finite()) {
-                (true, true) => x.partial_cmp(&y).unwrap_or(std::cmp::Ordering::Equal),
-                (true, false) => std::cmp::Ordering::Greater,
-                (false, true) => std::cmp::Ordering::Less,
-                _ => std::cmp::Ordering::Equal,
-            };
-            if desc { o.reverse() } else { o }
-        });
-        egui::ScrollArea::vertical()
-            .id_salt("screener-rows")
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                if self.screener.rows.is_empty() {
-                    ui.add_space(10.0);
-                    ui.label(
-                        egui::RichText::new(
-                            "Pick a list and press Run. Add filters to keep only what matches, or a script to add its value as a column.",
-                        )
-                        .color(t.text3),
-                    );
-                }
-                for r in rows {
-                    let (rect, resp) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::click());
-                    if resp.hovered() {
-                        ui.painter().rect_filled(rect, 4, t.hover_wash());
-                    }
-                    let p = ui.painter();
-                    p.text(
-                        rect.left_center() + vec2(6.0, 0.0),
-                        egui::Align2::LEFT_CENTER,
-                        r.symbol.ticker(),
-                        theme::medium(12.5),
-                        t.text,
-                    );
-                    if let Some(e) = &r.error {
-                        p.text(
-                            rect.left_center() + vec2(sym_w, 0.0),
-                            egui::Align2::LEFT_CENTER,
-                            e.lines().next().unwrap_or(e),
-                            theme::regular(12.0),
-                            t.text3,
-                        );
-                    } else if !r.done {
-                        p.text(
-                            rect.left_center() + vec2(sym_w, 0.0),
-                            egui::Align2::LEFT_CENTER,
-                            "…",
-                            theme::regular(12.0),
-                            t.text3,
-                        );
+                for f in &cols {
+                    let (r, resp) = ui.allocate_exact_size(vec2(col_w, row_h), Sense::click());
+                    let (sf, desc) = self.screener.sort;
+                    let label = if sf == *f {
+                        format!("{} {}", f.name(), if desc { "↓" } else { "↑" })
                     } else {
-                        for (k, f) in cols.iter().enumerate() {
-                            let v = r.get(*f);
-                            let text = if !v.is_finite() {
-                                "—".to_string()
-                            } else if f.pct() {
-                                crate::format::signed_pct(v)
-                            } else if *f == Field::Volume {
-                                crate::format::compact(v)
-                            } else if *f == Field::Last {
-                                crate::format::price(v, r.symbol.precision().max(2))
-                            } else {
-                                format!("{v:.2}")
-                            };
-                            let col = if f.pct() && v.is_finite() && *f != Field::Atr {
-                                if v >= 0.0 { t.pos } else { t.neg }
-                            } else {
-                                t.text
-                            };
-                            let x = rect.left() + sym_w + col_w * (k + 1) as f32 - 6.0;
-                            p.text(
-                                egui::pos2(x, rect.center().y),
-                                egui::Align2::RIGHT_CENTER,
-                                text,
-                                theme::regular(12.5),
-                                col,
-                            );
-                        }
-                    }
-                    let resp = match &r.error {
-                        Some(e) => resp.on_hover_text(e),
-                        None => resp,
+                        f.name().to_string()
                     };
-                    if resp.clicked() {
-                        open = Some(r.symbol.clone());
+                    ui.painter().text(
+                        r.right_center() - vec2(6.0, 0.0),
+                        egui::Align2::RIGHT_CENTER,
+                        label,
+                        theme::medium(12.0),
+                        if sf == *f { t.accent } else { t.text3 },
+                    );
+                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                        self.screener.sort = (*f, if sf == *f { !desc } else { true });
                     }
                 }
             });
+            let filters = self.screener.setup.filters.clone();
+            let (sf, desc) = self.screener.sort;
+            let mut rows: Vec<&Row> = self
+                .screener
+                .rows
+                .iter()
+                .filter(|r| !r.done || r.error.is_some() || r.passes(&filters))
+                .collect();
+            rows.sort_by(|a, b| {
+                let (x, y) = (a.get(sf), b.get(sf));
+                let o = match (x.is_finite(), y.is_finite()) {
+                    (true, true) => x.partial_cmp(&y).unwrap_or(std::cmp::Ordering::Equal),
+                    (true, false) => std::cmp::Ordering::Greater,
+                    (false, true) => std::cmp::Ordering::Less,
+                    _ => std::cmp::Ordering::Equal,
+                };
+                if desc { o.reverse() } else { o }
+            });
+            egui::ScrollArea::vertical()
+                .id_salt("screener-rows")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    for r in rows {
+                        let (rect, resp) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::click());
+                        if resp.hovered() {
+                            ui.painter().rect_filled(rect, 4, t.hover_wash());
+                        }
+                        let p = ui.painter();
+                        p.text(
+                            rect.left_center() + vec2(6.0, 0.0),
+                            egui::Align2::LEFT_CENTER,
+                            r.symbol.ticker(),
+                            theme::medium(12.5),
+                            t.text,
+                        );
+                        if let Some(e) = &r.error {
+                            p.text(
+                                rect.left_center() + vec2(sym_w, 0.0),
+                                egui::Align2::LEFT_CENTER,
+                                e.lines().next().unwrap_or(e),
+                                theme::regular(12.0),
+                                t.text3,
+                            );
+                        } else if !r.done {
+                            p.text(
+                                rect.left_center() + vec2(sym_w, 0.0),
+                                egui::Align2::LEFT_CENTER,
+                                "…",
+                                theme::regular(12.0),
+                                t.text3,
+                            );
+                        } else {
+                            for (k, f) in cols.iter().enumerate() {
+                                let v = r.get(*f);
+                                let text = if !v.is_finite() {
+                                    "—".to_string()
+                                } else if f.pct() {
+                                    crate::format::signed_pct(v)
+                                } else if *f == Field::Volume {
+                                    crate::format::compact(v)
+                                } else if *f == Field::Last {
+                                    crate::format::price(v, r.symbol.precision().max(2))
+                                } else {
+                                    format!("{v:.2}")
+                                };
+                                let col = if f.pct() && v.is_finite() && *f != Field::Atr {
+                                    if v >= 0.0 { t.pos } else { t.neg }
+                                } else {
+                                    t.text
+                                };
+                                let x = rect.left() + sym_w + col_w * (k + 1) as f32 - 6.0;
+                                p.text(
+                                    egui::pos2(x, rect.center().y),
+                                    egui::Align2::RIGHT_CENTER,
+                                    text,
+                                    theme::regular(12.5),
+                                    col,
+                                );
+                            }
+                        }
+                        let resp = match &r.error {
+                            Some(e) => resp.on_hover_text(e),
+                            None => resp,
+                        };
+                        if resp.clicked() {
+                            open = Some(r.symbol.clone());
+                        }
+                    }
+                });
         });
         if let Some(s) = open {
             self.open_symbol_synced(s);

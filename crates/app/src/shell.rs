@@ -62,7 +62,7 @@ impl Widget {
             Widget::Calendar => ph::CALENDAR_DOTS,
             Widget::News => ph::NEWSPAPER,
             Widget::Notifications => ph::BELL_SIMPLE,
-            Widget::Claude => ph::ROBOT,
+            Widget::Claude => ph::SPARKLE,
         }
     }
 
@@ -76,10 +76,13 @@ impl Widget {
             Widget::Calendar => "Calendar",
             Widget::News => "News",
             Widget::Notifications => "Notifications",
-            Widget::Claude => "Claude",
+            Widget::Claude => "Agent",
         }
     }
 }
+
+/// The favourites kind for starred indicator templates.
+const TEMPLATE_FAVS: &str = "indicator_template";
 
 /// Tabs of the bottom panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -231,18 +234,28 @@ impl App {
             .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(8, 0)))
             .show(ui, |ui| self.range_bar(ui, &t));
 
-        if self.layout.toolbar {
+        // The drawing toolbar slides in and out, like the other panels.
+        let tk = motion::toggle(ui.ctx(), Id::new("toolbar-open"), self.layout.toolbar, motion::STANDARD);
+        if tk > 0.001 {
             egui::Panel::left("drawing-toolbar")
-                .exact_size(TOOLBAR_W)
+                .exact_size(TOOLBAR_W * tk)
                 .resizable(false)
                 .show_separator_line(false)
                 .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(0, 6)))
-                .show(ui, |ui| self.drawing_toolbar(ui, &t));
+                .show(ui, |ui| {
+                    ui.set_opacity(tk);
+                    // Keep the tools at full width while it slides.
+                    let r = ui.max_rect();
+                    let full = Rect::from_min_size(pos2(r.right() - TOOLBAR_W, r.top()), vec2(TOOLBAR_W, r.height()));
+                    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(full));
+                    child.set_clip_rect(r.intersect(ui.clip_rect()));
+                    self.drawing_toolbar(&mut child, &t)
+                });
         }
 
         egui::CentralPanel::no_frame()
             .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin {
-                left: if self.layout.toolbar { 0 } else { GAP as i8 },
+                left: (GAP * (1.0 - tk)).round() as i8,
                 right: if self.layout.widget.is_some() { 0 } else { GAP as i8 },
                 top: GAP as i8,
                 bottom: 0,
@@ -284,6 +297,14 @@ impl App {
         // take the space that's left and never runs underneath it.
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
+            let open = self.settings.is_some();
+            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Settings", open).clicked() {
+                if open {
+                    self.settings = None;
+                } else {
+                    self.open_settings(crate::settings::Cat::Appearance);
+                }
+            }
             let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (Alt+S)", false);
             egui::Popup::menu(&snap).show(|ui| {
                 ui.set_width(220.0);
@@ -330,16 +351,6 @@ impl App {
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
                 ui.spacing_mut().item_spacing.x = 2.0;
-                let open = self.settings.is_some();
-                let menu = w::bar_button(ui, t, Some(ph::LIST), "", "Settings", open);
-                if menu.clicked() {
-                    if open {
-                        self.settings = None;
-                    } else {
-                        self.open_settings(crate::settings::Cat::Appearance);
-                    }
-                }
-                w::vdivider(ui, t);
 
                 // Symbol search: TradingView opens it when you start typing.
                 let ticker = self.chart.symbol.ticker().to_string();
@@ -506,57 +517,95 @@ impl App {
         });
     }
 
-    /// Indicator templates: save the current set, apply or delete saved ones.
+    /// Indicator templates: save the current set, apply, star or delete
+    /// saved ones. Starred ones sit beside the button.
     fn templates_menu(&mut self, ui: &mut Ui, t: &Theme) {
         let resp = w::bar_button(ui, t, Some(ph::SQUARES_FOUR), "", "Indicator templates", false);
         self.still_open(ui, &resp, "templates");
-        egui::Popup::menu(&resp).show(|ui| {
-            ui.set_width(250.0);
-            ui.spacing_mut().item_spacing.y = 1.0;
-            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save indicator template…", "", false).clicked() {
-                self.modal = Some(Modal::SaveTemplate {
-                    kind: TemplateKind::Indicators,
-                    name: String::new(),
-                });
-                ui.close();
-            }
-            let list = self.store.templates("indicators").to_vec();
-            w::menu_rule(ui, t);
-            if list.is_empty() {
-                ui.horizontal(|ui| {
-                    ui.add_space(10.0);
-                    ui.label(
-                        egui::RichText::new("Your saved templates show up here.")
-                            .font(theme::regular(12.5))
-                            .color(t.text3),
-                    );
-                });
-                ui.add_space(4.0);
-            } else {
-                w::menu_heading(ui, t, "APPLY");
-            }
-            for tpl in list {
-                let n = tpl.name.clone();
-                let resp = w::menu_item(ui, t, Some(ph::SQUARES_FOUR), &n, "", false);
-                let bin = Rect::from_center_size(resp.rect.right_center() - vec2(16.0, 0.0), vec2(24.0, 24.0));
-                let b = ui.interact(bin, resp.id.with("del"), Sense::click());
-                if resp.hovered() || b.hovered() {
-                    ui.painter().text(
-                        bin.center(),
-                        Align2::CENTER_CENTER,
-                        ph::TRASH,
-                        theme::regular(14.0),
-                        if b.hovered() { t.neg } else { t.text3 },
-                    );
-                }
-                if b.on_hover_text("Delete template").clicked() {
-                    self.delete_template(TemplateKind::Indicators, &n);
-                } else if resp.clicked() {
-                    self.apply_indicator_template(&n);
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                ui.set_width(250.0);
+                ui.spacing_mut().item_spacing.y = 1.0;
+                if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save indicator template", "", false).clicked() {
+                    self.modal = Some(Modal::SaveTemplate {
+                        kind: TemplateKind::Indicators,
+                        name: String::new(),
+                    });
                     ui.close();
                 }
+                let list = self.store.templates("indicators").to_vec();
+                if !list.is_empty() {
+                    w::menu_rule(ui, t);
+                }
+                let favs = self.store.favorites(TEMPLATE_FAVS).to_vec();
+                for tpl in list {
+                    let n = tpl.name.clone();
+                    let fav = favs.contains(&n);
+                    let resp = w::menu_item(ui, t, Some(" "), &n, "", false);
+                    let star_r = Rect::from_center_size(resp.rect.left_center() + vec2(18.0, 0.0), vec2(24.0, 24.0));
+                    let star = ui.interact(star_r, resp.id.with("star"), Sense::click());
+                    let c = if fav {
+                        t.warn
+                    } else if star.hovered() {
+                        t.text
+                    } else {
+                        t.text3
+                    };
+                    if fav {
+                        w::filled_star(ui.painter(), star_r.center(), 6.5, c);
+                    } else {
+                        ui.painter().text(
+                            star_r.center(),
+                            Align2::CENTER_CENTER,
+                            ph::STAR,
+                            theme::regular(14.0),
+                            c,
+                        );
+                    }
+                    let bin = Rect::from_center_size(resp.rect.right_center() - vec2(16.0, 0.0), vec2(24.0, 24.0));
+                    let b = ui.interact(bin, resp.id.with("del"), Sense::click());
+                    if resp.hovered() || b.hovered() || star.hovered() {
+                        ui.painter().text(
+                            bin.center(),
+                            Align2::CENTER_CENTER,
+                            ph::TRASH,
+                            theme::regular(14.0),
+                            if b.hovered() { t.neg } else { t.text3 },
+                        );
+                    }
+                    if star
+                        .on_hover_text(if fav {
+                            "Remove from the top bar"
+                        } else {
+                            "Show in the top bar"
+                        })
+                        .clicked()
+                    {
+                        self.toggle_favorite(TEMPLATE_FAVS, &n);
+                    } else if b.on_hover_text("Delete template").clicked() {
+                        if fav {
+                            self.toggle_favorite(TEMPLATE_FAVS, &n);
+                        }
+                        self.delete_template(TemplateKind::Indicators, &n);
+                    } else if resp.clicked() {
+                        self.apply_indicator_template(&n);
+                        ui.close();
+                    }
+                }
+            });
+        // Starred templates, one click each.
+        let names: Vec<String> = self
+            .store
+            .templates("indicators")
+            .iter()
+            .map(|t| t.name.clone())
+            .collect();
+        for n in self.store.favorites(TEMPLATE_FAVS).to_vec() {
+            if names.contains(&n) && w::bar_button(ui, t, None, &elide(&n, 16), &n, false).clicked() {
+                self.apply_indicator_template(&n);
             }
-        });
+        }
     }
 
     // ---------------------------------------------------- drawing toolbar

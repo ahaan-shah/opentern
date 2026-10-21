@@ -1,11 +1,14 @@
-//! The Claude panel: chats with Claude Code (the CLI the user has
-//! installed and signed in to), next to the chart. Claude works in the
-//! scripts folder and drives the chart through the app's own tools
-//! (`tools.rs`); the process protocol is in `process.rs`.
+//! The agent panel: chats with a coding agent the user has installed and
+//! signed in to (Claude Code or Codex, `agent.rs`), next to the chart. The
+//! agent works in the scripts folder and drives the chart through the app's
+//! own tools (`tools.rs`); the protocols are in `process.rs` (Claude Code)
+//! and `codex.rs`.
 //!
 //! Nothing runs until the user sends a message: no process, no network.
 
+pub mod agent;
 pub mod attach;
+pub mod codex;
 pub mod mark;
 pub mod process;
 pub mod tools;
@@ -14,6 +17,7 @@ use crate::app::App;
 use crate::icons::ph;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
+pub use agent::Agent;
 use egui::text::{LayoutJob, TextFormat};
 use egui::{Align, Color32, CornerRadius, FontId, Layout, Margin, RichText, Sense, Stroke, Ui, vec2};
 use process::{Client, Event, Launch, Mode, Usage, Window};
@@ -65,6 +69,9 @@ pub enum Item {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chat {
     pub id: u64,
+    /// Who the chat is with (chats saved before Codex are Claude's).
+    #[serde(default)]
+    pub agent: Agent,
     pub title: String,
     /// Claude Code's session id (to resume it).
     pub session: Option<String>,
@@ -88,10 +95,11 @@ pub struct Chat {
 }
 
 impl Chat {
-    fn new(id: u64, mode: Mode, model: &str) -> Chat {
+    fn new(id: u64, agent: Agent, mode: Mode, model: &str) -> Chat {
         let now = now_ms();
         Chat {
             id,
+            agent,
             title: "New chat".into(),
             session: None,
             created: now,
@@ -125,7 +133,31 @@ struct Saved {
     /// Whether the mode was picked by hand (else Auto, the default).
     #[serde(default)]
     mode_picked: bool,
+    /// The agent picked on the panel (none yet: the picker shows).
+    #[serde(default)]
+    agent: Option<Agent>,
+    #[serde(default)]
+    codex_model: String,
+    #[serde(default)]
+    codex_models: Vec<(String, String)>,
+    #[serde(default)]
+    codex_limits: Vec<Window>,
+    /// Each agent's open chat, for switching back.
+    #[serde(default)]
+    last: Vec<(Agent, u64)>,
 }
+
+/// The move from the picker (or the other agent) into an agent's panel.
+#[derive(Clone, Copy, Debug)]
+pub struct Anim {
+    pub to: Agent,
+    pub start: f64,
+    /// Picked on the picker: where the card and its logo were.
+    pub from: Option<(egui::Rect, egui::Rect)>,
+}
+
+/// How long the move into an agent's panel takes.
+const ANIM: f32 = 0.6;
 
 /// What the panel shows: a chat, or the list of chats.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -137,6 +169,23 @@ pub enum View {
 
 #[derive(Default)]
 pub struct Claude {
+    /// The agent the panel shows; `None` until one is picked.
+    pub agent: Option<Agent>,
+    pub anim: Option<Anim>,
+    /// The picker's cards, last frame (the move starts from them).
+    cards: Vec<(Agent, egui::Rect, egui::Rect)>,
+    /// Where the header's logo was last frame (the move ends there).
+    header_logo: Option<egui::Rect>,
+    /// Each agent's open chat, for switching back.
+    last: HashMap<Agent, u64>,
+    pub codex_model: String,
+    pub codex_models: Vec<(String, String)>,
+    pub codex_limits: Vec<Window>,
+    codex_cli: Option<Option<PathBuf>>,
+    /// When the picker first showed (its entrance).
+    picker_shown: Option<f64>,
+    /// Codex's model list, while it's being fetched.
+    models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
     pub view: View,
     /// The chats list's search text.
     pub chat_query: String,
@@ -256,12 +305,63 @@ impl Claude {
         self.chats.iter().find(|c| Some(c.id) == self.active)
     }
 
+    /// The agent the panel shows (Claude until one is picked).
+    pub fn current(&self) -> Agent {
+        self.agent.unwrap_or_default()
+    }
+
+    /// The model new chats with `a` start on.
+    fn model_for(&self, a: Agent) -> &str {
+        match a {
+            Agent::Claude => &self.model,
+            Agent::Codex => &self.codex_model,
+        }
+    }
+
+    fn limits_for(&self, a: Agent) -> &[Window] {
+        match a {
+            Agent::Claude => &self.limits,
+            Agent::Codex => &self.codex_limits,
+        }
+    }
+
+    /// A model id as people say it.
+    fn model_label(&self, a: Agent, id: &str) -> String {
+        match a {
+            Agent::Claude => model_name(id),
+            Agent::Codex => self
+                .codex_models
+                .iter()
+                .find(|(k, _)| k == id)
+                .map(|(_, n)| n.clone())
+                .unwrap_or_else(|| id.to_string()),
+        }
+    }
+
+    /// The models to pick from for `a`: (id, name), Default first.
+    fn models_for(&self, a: Agent) -> Vec<(String, String)> {
+        let mut v = vec![(String::new(), "Default".to_string())];
+        match a {
+            Agent::Claude => v.extend(
+                MODELS
+                    .iter()
+                    .filter(|(k, _)| !k.is_empty())
+                    .map(|(k, l)| (k.to_string(), l.to_string())),
+            ),
+            Agent::Codex => v.extend(self.codex_models.iter().cloned()),
+        }
+        v
+    }
+
     fn chat_mut(&mut self, id: u64) -> Option<&mut Chat> {
         self.chats.iter_mut().find(|c| c.id == id)
     }
 
-    fn cli(&mut self) -> Option<PathBuf> {
-        self.cli.get_or_insert_with(process::find_cli).clone()
+    fn cli_for(&mut self, a: Agent) -> Option<PathBuf> {
+        match a {
+            Agent::Claude => self.cli.get_or_insert_with(|| a.find()).clone(),
+            Agent::Codex => self.codex_cli.get_or_insert_with(|| a.find()).clone(),
+        }
     }
 }
 
@@ -310,6 +410,17 @@ impl App {
         c.limits = s.limits;
         c.limits_at = s.limits_at;
         c.show_usage = s.show_usage;
+        c.agent = s.agent;
+        c.codex_model = s.codex_model;
+        c.codex_models = s.codex_models;
+        c.codex_limits = s.codex_limits;
+        c.last = s.last.into_iter().collect();
+        // The open chat belongs to the agent on show.
+        if let Some(a) = c.agent
+            && c.chat().is_some_and(|x| x.agent != a)
+        {
+            c.active = c.last.get(&a).copied().filter(|id| c.chats.iter().any(|x| x.id == *id));
+        }
     }
 
     fn claude_save(&mut self) {
@@ -325,6 +436,11 @@ impl App {
             limits_at: c.limits_at,
             show_usage: c.show_usage,
             mode_picked: c.mode_picked,
+            agent: c.agent,
+            codex_model: c.codex_model.clone(),
+            codex_models: c.codex_models.clone(),
+            codex_limits: c.codex_limits.clone(),
+            last: c.last.iter().map(|(a, id)| (*a, *id)).collect(),
         };
         let path = self.claude_file();
         if let Some(d) = path.parent() {
@@ -342,7 +458,8 @@ impl App {
     fn new_chat(&mut self) -> u64 {
         self.claude_load();
         let id = self.claude.chats.iter().map(|c| c.id).max().unwrap_or(0) + 1;
-        let chat = Chat::new(id, self.claude.mode, &self.claude.model);
+        let agent = self.claude.current();
+        let chat = Chat::new(id, agent, self.claude.mode, self.claude.model_for(agent));
         self.claude.chats.push(chat);
         self.claude.active = Some(id);
         self.claude.dirty = true;
@@ -352,10 +469,43 @@ impl App {
     fn delete_chat(&mut self, id: u64) {
         self.claude.clients.remove(&id);
         self.claude.chats.retain(|c| c.id != id);
+        self.claude.last.retain(|_, v| *v != id);
         if self.claude.active == Some(id) {
-            self.claude.active = self.claude.chats.iter().max_by_key(|c| c.updated).map(|c| c.id);
+            let a = self.claude.current();
+            self.claude.active = self
+                .claude
+                .chats
+                .iter()
+                .filter(|c| c.agent == a)
+                .max_by_key(|c| c.updated)
+                .map(|c| c.id);
         }
         self.claude.dirty = true;
+    }
+
+    /// Shows `to`'s panel, with the chat it had open (if any). `from` is
+    /// the picker card it was picked from, for the move.
+    pub(crate) fn claude_switch(&mut self, to: Agent, from: Option<(egui::Rect, egui::Rect)>, now: f64) {
+        self.claude_load();
+        let c = &mut self.claude;
+        if let (Some(a), Some(id)) = (c.agent, c.active) {
+            c.last.insert(a, id);
+        }
+        if c.agent != Some(to) || from.is_some() {
+            c.anim = Some(Anim { to, start: now, from });
+        }
+        c.agent = Some(to);
+        c.view = View::Chat;
+        c.renaming = None;
+        let keep = c.chat().is_some_and(|x| x.agent == to);
+        if !keep {
+            c.active = c
+                .last
+                .get(&to)
+                .copied()
+                .filter(|id| c.chats.iter().any(|x| x.id == *id && x.agent == to));
+        }
+        c.dirty = true;
     }
 
     /// What Claude sees before each message: the chart right now.
@@ -399,8 +549,12 @@ impl App {
         s
     }
 
-    fn claude_system(&self) -> String {
-        format!(
+    fn claude_system(&self, agent: Agent) -> String {
+        let p = match agent {
+            Agent::Claude => "mcp__opentern__",
+            Agent::Codex => "",
+        };
+        let text = format!(
             "You're running inside Opentern, a local trading terminal (TradingView-style charts, Pine Script \
              and other scripting languages, backtests, alerts and paper trading). The user talks to you from a \
              panel next to their chart.\n\n\
@@ -422,7 +576,9 @@ impl App {
              describes the chart at that moment.\n\n\
              This is analysis and paper trading only. You can't place real orders; never say you did.",
             self.scripts_dir().display()
-        )
+        );
+        text.replace("mcp__opentern__", p)
+            .replace("Use the mcp__opentern tools", "Use Opentern's tools")
     }
 
     /// Sends the input box's text in the active chat (starting one, and
@@ -433,28 +589,30 @@ impl App {
         if text.is_empty() && self.claude.attached.is_empty() {
             return;
         }
-        let Some(exe) = self.claude.cli() else {
-            return;
-        };
         let id = match self.claude.active {
             Some(id) if self.claude.chat().is_some() => id,
             _ => self.new_chat(),
+        };
+        let agent = self.claude.chat().map(|c| c.agent).unwrap_or_default();
+        let Some(exe) = self.claude.cli_for(agent) else {
+            return;
         };
         if self.claude.chat().is_some_and(|c| c.busy) {
             return;
         }
         if !self.claude.clients.contains_key(&id) {
-            if crate::app::headless() && std::env::var_os("OPENTERN_CLAUDE").is_none() {
+            if crate::app::headless() && std::env::var_os(agent.env()).is_none() {
                 return;
             }
             let chat = self.claude.chat().expect("active chat");
             let launch = Launch {
+                agent,
                 exe,
                 cwd: self.scripts_dir(),
                 mode: chat.mode,
                 model: (!chat.model.is_empty()).then(|| chat.model.clone()),
                 resume: chat.session.clone(),
-                system: self.claude_system(),
+                system: self.claude_system(agent),
             };
             let _ = std::fs::create_dir_all(&launch.cwd);
             let ctx = self.egui_ctx.clone();
@@ -465,7 +623,7 @@ impl App {
                 Err(e) => {
                     if let Some(chat) = self.claude.chat_mut(id) {
                         chat.items.push(Item::Note {
-                            text: format!("Couldn't start Claude Code: {e}"),
+                            text: format!("Couldn't start {}: {e}", agent.product()),
                             error: true,
                         });
                     }
@@ -476,7 +634,7 @@ impl App {
         let context = self.claude_context();
         let files = std::mem::take(&mut self.claude.attached);
         if let Some(c) = self.claude.clients.get(&id) {
-            c.send(&context, attach::blocks(&files), &text);
+            c.send(&context, &files, &text);
         }
         crate::diag::crumb("claude send");
         let chat = self.claude.chat_mut(id).expect("active chat");
@@ -509,7 +667,7 @@ impl App {
         }
         let mut evs: Vec<(u64, Event)> = Vec::new();
         for (id, c) in &self.claude.clients {
-            evs.extend(c.events.try_iter().map(|e| (*id, e)));
+            evs.extend(c.events().try_iter().map(|e| (*id, e)));
         }
         for (id, e) in evs {
             self.claude_event(id, e);
@@ -541,9 +699,24 @@ impl App {
             }
             return;
         }
+        let agent = self
+            .claude
+            .chats
+            .iter()
+            .find(|c| c.id == id)
+            .map(|c| c.agent)
+            .unwrap_or_default();
         if let Event::Limits(ws) = e {
-            self.claude.limits = ws;
+            match agent {
+                Agent::Claude => self.claude.limits = ws,
+                Agent::Codex => self.claude.codex_limits = ws,
+            }
             self.claude.limits_at = now_ms();
+            self.claude.dirty = true;
+            return;
+        }
+        if let Event::Models(list) = e {
+            self.claude.codex_models = list;
             self.claude.dirty = true;
             return;
         }
@@ -652,7 +825,7 @@ impl App {
                 exited = true;
                 if chat.busy {
                     chat.items.push(Item::Note {
-                        text: exit_message(&err),
+                        text: exit_message(agent, &err),
                         error: true,
                     });
                 }
@@ -661,7 +834,7 @@ impl App {
                 expire_asks(chat);
                 drop_empty(chat);
             }
-            Event::Mcp { .. } | Event::Limits(_) => {}
+            Event::Mcp { .. } | Event::Limits(_) | Event::Models(_) => {}
         }
         self.claude.dirty = true;
         if exited {
@@ -721,7 +894,10 @@ impl App {
     }
 
     fn claude_set_model(&mut self, model: &str) {
-        self.claude.model = model.to_string();
+        match self.claude.current() {
+            Agent::Claude => self.claude.model = model.to_string(),
+            Agent::Codex => self.claude.codex_model = model.to_string(),
+        }
         if let Some(id) = self.claude.active {
             let busy = self.claude.chat().is_some_and(|c| c.busy);
             if let Some(chat) = self.claude.chat_mut(id)
@@ -764,56 +940,229 @@ impl App {
             foreground_color: false,
             ..egui::style::ScrollStyle::floating()
         };
+        let now = ui.input(|i| i.time);
+        let full = ui.max_rect();
+        if self.claude.agent.is_none() {
+            self.claude_picker(ui, t, now);
+            return;
+        }
+        // The move into this agent's panel.
+        let anim = self.claude.anim;
+        let p = match anim {
+            Some(a) => ((now - a.start) as f32 / ANIM).clamp(0.0, 1.0),
+            _ => 1.0,
+        };
+        if p >= 1.0 {
+            self.claude.anim = None;
+        } else {
+            ui.ctx().request_repaint();
+        }
         if self.claude.view == View::Chats {
             self.claude_chats_view(ui, t);
             return;
         }
-        self.claude_header(ui, t);
-        if self.claude.cli().is_none() {
-            ui.add_space(40.0);
+        let agent = self.claude.current();
+        self.claude_header(ui, t, p, anim.is_some_and(|a| a.from.is_some()), now);
+        // The body fades in and rises after the header settles.
+        let body = crate::motion::ease_out(((p - 0.25) / 0.75).clamp(0.0, 1.0));
+        ui.multiply_opacity(body);
+        ui.add_space(16.0 * (1.0 - body));
+        if self.claude.cli_for(agent).is_none() {
+            ui.add_space(48.0);
             ui.vertical_centered(|ui| {
-                mark::show(ui, 34.0, mark::CLAUDE);
-                ui.add_space(10.0);
-                ui.label(RichText::new("Claude Code isn't installed").font(theme::semibold(14.0)));
-                ui.add_space(2.0);
-                ui.add(
-                    egui::Label::new(
-                        RichText::new(
-                            "Install Claude Code and sign in once by running claude in a terminal. Opentern uses it from there.",
-                        )
-                        .color(t.text2),
-                    )
-                    .wrap(),
-                );
-                ui.add_space(10.0);
+                halo(ui, t, agent, 38.0);
+                ui.add_space(14.0);
+                ui.label(RichText::new(format!("{} isn't installed", agent.product())).font(theme::semibold(15.0)));
+                ui.add_space(4.0);
+                ui.add(egui::Label::new(RichText::new(agent.install_hint()).color(t.text2).size(12.5)).wrap());
+                ui.add_space(14.0);
                 if w::secondary(ui, "Check again").clicked() {
-                    self.claude.cli = None;
+                    match agent {
+                        Agent::Claude => self.claude.cli = None,
+                        Agent::Codex => self.claude.codex_cli = None,
+                    }
                 }
             });
-            return;
+        } else {
+            self.claude_take_files(ui, t);
+            let composer_h = self.claude_composer_height(ui.available_width());
+            let list_h = (ui.available_height() - composer_h - 10.0).max(80.0);
+            // The messages fill a fixed slot so the composer sits at the bottom.
+            let (slot, _) = ui.allocate_exact_size(vec2(ui.available_width(), list_h), Sense::hover());
+            ui.scope_builder(egui::UiBuilder::new().max_rect(slot), |ui| self.claude_messages(ui, t));
+            ui.add_space(10.0);
+            self.claude_composer(ui, t);
         }
-        self.claude_take_files(ui, t);
-        let composer_h = self.claude_composer_height(ui.available_width());
-        let list_h = (ui.available_height() - composer_h - 8.0).max(80.0);
-        // The messages fill a fixed slot so the composer sits at the bottom.
-        let (slot, _) = ui.allocate_exact_size(vec2(ui.available_width(), list_h), Sense::hover());
-        ui.scope_builder(egui::UiBuilder::new().max_rect(slot), |ui| self.claude_messages(ui, t));
-        ui.add_space(8.0);
-        self.claude_composer(ui, t);
+        if let Some(a) = anim
+            && let Some(from) = a.from
+            && p < 1.0
+        {
+            self.claude_pick_overlay(ui, t, a.to, from, p, full);
+        }
     }
 
-    fn claude_header(&mut self, ui: &mut Ui, t: &Theme) {
+    /// The first open: a card per agent. Picking one moves into its panel.
+    fn claude_picker(&mut self, ui: &mut Ui, t: &Theme, now: f64) {
+        let shown = *self.claude.picker_shown.get_or_insert(now);
+        let ctx = ui.ctx().clone();
+        let head = crate::motion::appear(&ctx, shown, 0.0, crate::motion::EMPHASIS);
+        ui.add_space((ui.available_height() * 0.16).clamp(16.0, 90.0) + 10.0 * (1.0 - head));
+        ui.scope(|ui| {
+            ui.multiply_opacity(head);
+            ui.vertical_centered(|ui| {
+                let (r, _) = ui.allocate_exact_size(vec2(64.0, 64.0), Sense::hover());
+                let blink = blink_at(now - shown);
+                for (k, a) in [(30.0, 0.05), (24.0, 0.07)] {
+                    ui.painter()
+                        .circle_filled(r.center(), k, crate::motion::with_alpha(t.text, a));
+                }
+                mark::face(ui, r.center(), 19.0, t, 1.0, blink);
+                if blink > 0.0 {
+                    ui.ctx().request_repaint();
+                } else {
+                    ui.ctx()
+                        .request_repaint_after(std::time::Duration::from_secs_f64(blink_wait(now - shown)));
+                }
+                ui.add_space(14.0);
+                ui.label(RichText::new("Pick your agent").font(theme::semibold(17.0)));
+            });
+        });
+        ui.add_space(22.0);
+        let mut picked = None;
+        self.claude.cards.clear();
+        for (k, a) in Agent::ALL.into_iter().enumerate() {
+            let e = crate::motion::appear(&ctx, shown, 0.08 + k as f32 * 0.07, crate::motion::EMPHASIS);
+            let installed = self.claude.cli_for(a).is_some();
+            let (slot, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 64.0), Sense::click());
+            let hover = crate::motion::toggle(&ctx, resp.id, resp.hovered(), crate::motion::MICRO);
+            let r = slot.translate(vec2(0.0, 12.0 * (1.0 - e) - 1.5 * hover));
+            let p = ui.painter();
+            let alpha = e;
+            p.rect(
+                r,
+                14,
+                crate::motion::with_alpha(crate::motion::lerp_color(t.card, t.elevated, hover), alpha),
+                Stroke::new(
+                    1.0,
+                    crate::motion::with_alpha(
+                        crate::motion::lerp_color(t.border, a.accent(t).gamma_multiply(0.7), hover),
+                        alpha,
+                    ),
+                ),
+                egui::StrokeKind::Inside,
+            );
+            let badge = egui::Rect::from_center_size(egui::pos2(r.left() + 37.0, r.center().y), vec2(42.0, 42.0));
+            p.circle_filled(
+                badge.center(),
+                21.0,
+                crate::motion::with_alpha(a.accent(t), alpha * if a == Agent::Codex { 0.08 } else { 0.14 }),
+            );
+            let logo = egui::Rect::from_center_size(badge.center(), vec2(22.0, 22.0));
+            agent::paint(ui, logo, a, crate::motion::with_alpha(a.tint(t), alpha), 0.0);
+            let p = ui.painter();
+            let x = r.left() + 70.0;
+            p.text(
+                egui::pos2(x, r.center().y),
+                egui::Align2::LEFT_CENTER,
+                a.name(),
+                theme::semibold(14.5),
+                crate::motion::with_alpha(t.text, alpha),
+            );
+            if installed {
+                p.text(
+                    egui::pos2(r.right() - 18.0 + 3.0 * hover, r.center().y),
+                    egui::Align2::CENTER_CENTER,
+                    ph::CARET_RIGHT,
+                    theme::regular(14.0),
+                    crate::motion::with_alpha(crate::motion::lerp_color(t.text3, t.text, hover), alpha),
+                );
+            } else {
+                p.text(
+                    egui::pos2(r.right() - 16.0, r.center().y),
+                    egui::Align2::RIGHT_CENTER,
+                    "Not installed",
+                    theme::regular(11.5),
+                    crate::motion::with_alpha(t.text3, alpha),
+                );
+            }
+            self.claude.cards.push((a, r, logo));
+            if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                picked = Some((a, r, logo));
+            }
+            ui.add_space(10.0);
+        }
+        if let Some((a, r, logo)) = picked {
+            self.claude.picker_shown = None;
+            self.claude_switch(a, Some((r, logo)), now);
+        }
+    }
+
+    /// The move from the picker: the picked card shrinks into the header
+    /// while its logo flies to the header's, and the other cards sink away.
+    fn claude_pick_overlay(
+        &self,
+        ui: &Ui,
+        t: &Theme,
+        to: Agent,
+        from: (egui::Rect, egui::Rect),
+        p: f32,
+        clip: egui::Rect,
+    ) {
+        use crate::motion::{ease_in_out, ease_out, lerp, with_alpha};
+        let painter = ui
+            .ctx()
+            .layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("agent-move")))
+            .with_clip_rect(clip);
+        let e = ease_in_out(p);
+        let fade = 1.0 - ease_out((p / 0.55).min(1.0));
+        let lerp_rect = |a: egui::Rect, b: egui::Rect, k: f32| {
+            egui::Rect::from_min_max(
+                egui::pos2(lerp(a.left(), b.left(), k), lerp(a.top(), b.top(), k)),
+                egui::pos2(lerp(a.right(), b.right(), k), lerp(a.bottom(), b.bottom(), k)),
+            )
+        };
+        for (a, r, _) in &self.claude.cards {
+            if *a == to {
+                continue;
+            }
+            let r = r.translate(vec2(0.0, 28.0 * ease_out(p)));
+            painter.rect(
+                r,
+                14,
+                with_alpha(t.card, fade),
+                Stroke::new(1.0, with_alpha(t.border, fade)),
+                egui::StrokeKind::Inside,
+            );
+        }
+        let target_logo = self
+            .claude
+            .header_logo
+            .unwrap_or_else(|| egui::Rect::from_min_size(clip.min + vec2(0.0, 6.0), vec2(18.0, 18.0)));
+        let target_card = target_logo.expand2(vec2(6.0, 6.0));
+        let card = lerp_rect(from.0, target_card, e);
+        painter.rect(
+            card,
+            lerp(14.0, 9.0, e),
+            with_alpha(t.card, fade),
+            Stroke::new(1.0, with_alpha(to.accent(t).gamma_multiply(0.7), fade)),
+            egui::StrokeKind::Inside,
+        );
+        let logo = lerp_rect(from.1, target_logo, e);
+        agent::paint_flat(&painter, logo, to, to.tint(t));
+    }
+
+    fn claude_header(&mut self, ui: &mut Ui, t: &Theme, p: f32, moving: bool, now: f64) {
+        let agent = self.claude.current();
         let title = self
             .claude
             .chat()
             .filter(|c| !c.items.is_empty())
-            .map(|c| c.title.clone())
-            .unwrap_or_else(|| "Claude".into());
-        let has_items = self.claude.chat().is_some_and(|c| !c.items.is_empty());
+            .map(|c| c.title.clone());
         let mut new = false;
         let mut list = false;
+        let mut switch = None;
         ui.horizontal(|ui| {
-            ui.set_height(30.0);
+            ui.set_height(32.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
                 if w::tool_button(ui, t, ph::NOTE_PENCIL, "New chat", false, 28.0).clicked() {
@@ -823,28 +1172,85 @@ impl App {
                     list = true;
                 }
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 8.0;
-                    mark::show(ui, 17.0, mark::CLAUDE);
-                    let editing = self
-                        .claude
-                        .renaming
-                        .as_ref()
-                        .is_some_and(|(id, _)| Some(*id) == self.claude.active);
-                    if editing {
-                        let h = 30.0;
-                        let r = egui::Rect::from_min_size(ui.cursor().min, vec2(ui.available_width(), h));
-                        let r = r.translate(vec2(0.0, (ui.available_height() - h) / 2.0));
-                        self.claude_rename_field(ui, t, r);
-                    } else {
-                        let resp = ui.add(
-                            egui::Label::new(RichText::new(&title).font(theme::semibold(14.0)))
-                                .truncate()
-                                .sense(Sense::click()),
-                        );
-                        if let Some(id) = self.claude.active.filter(|_| has_items)
-                            && resp.on_hover_text("Double-click to rename").double_clicked()
-                        {
-                            self.claude.renaming = Some((id, title.clone()));
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    // The agent: logo, name and a caret; click for the other.
+                    let name_g = ui
+                        .painter()
+                        .layout_no_wrap(agent.name().to_string(), theme::semibold(14.0), t.text);
+                    let bw = 8.0 + 18.0 + 8.0 + name_g.size().x + 6.0 + 12.0 + 8.0;
+                    let (r, resp) = ui.allocate_exact_size(vec2(bw, 30.0), Sense::click());
+                    let hover = crate::motion::toggle(ui.ctx(), resp.id, resp.hovered(), crate::motion::MICRO);
+                    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+                    let pnt = ui.painter();
+                    pnt.rect_filled(
+                        r,
+                        9,
+                        crate::motion::with_alpha(t.hover_wash(), hover.max(if open { 1.0 } else { 0.0 })),
+                    );
+                    let logo =
+                        egui::Rect::from_center_size(egui::pos2(r.left() + 17.0, r.center().y), vec2(18.0, 18.0));
+                    self.claude.header_logo = Some(logo);
+                    if !(moving && p < 1.0) {
+                        // A switch pops the new logo in.
+                        let k = if p < 1.0 {
+                            0.6 + 0.4 * crate::motion::ease_out_back(p)
+                        } else {
+                            1.0
+                        };
+                        agent::paint(ui, logo.scale_from_center(k), agent, agent.tint(t), 0.0);
+                    }
+                    let pnt = ui.painter();
+                    pnt.galley(
+                        egui::pos2(logo.right() + 8.0, r.center().y - name_g.size().y / 2.0),
+                        name_g,
+                        t.text,
+                    );
+                    pnt.text(
+                        egui::pos2(r.right() - 14.0, r.center().y + 1.0),
+                        egui::Align2::CENTER_CENTER,
+                        ph::CARET_DOWN,
+                        theme::regular(10.5),
+                        crate::motion::lerp_color(t.text3, t.text2, hover),
+                    );
+                    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+                    egui::Popup::menu(&resp)
+                        .align(egui::RectAlign::BOTTOM_START)
+                        .gap(6.0)
+                        .width(200.0)
+                        .show(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
+                            for a in Agent::ALL {
+                                let installed = self.claude.cli_for(a).is_some();
+                                if agent_row(ui, t, a, a == agent, installed).clicked() {
+                                    switch = Some(a);
+                                    ui.close();
+                                }
+                            }
+                        });
+                    // The chat's title, after the agent.
+                    if let Some(title) = &title {
+                        ui.label(RichText::new("/").color(t.text3).size(13.0));
+                        let editing = self
+                            .claude
+                            .renaming
+                            .as_ref()
+                            .is_some_and(|(id, _)| Some(*id) == self.claude.active);
+                        if editing {
+                            let h = 30.0;
+                            let r = egui::Rect::from_min_size(ui.cursor().min, vec2(ui.available_width(), h));
+                            let r = r.translate(vec2(0.0, (ui.available_height() - h) / 2.0));
+                            self.claude_rename_field(ui, t, r);
+                        } else {
+                            let resp = ui.add(
+                                egui::Label::new(RichText::new(title).font(theme::medium(13.0)).color(t.text2))
+                                    .truncate()
+                                    .sense(Sense::click()),
+                            );
+                            if let Some(id) = self.claude.active
+                                && resp.on_hover_text("Double-click to rename").double_clicked()
+                            {
+                                self.claude.renaming = Some((id, title.clone()));
+                            }
                         }
                     }
                 });
@@ -857,6 +1263,19 @@ impl App {
             self.claude.view = View::Chats;
             self.claude.chat_query.clear();
         }
+        if let Some(a) = switch
+            && a != agent
+        {
+            self.claude_switch(a, None, now);
+        }
+        // A hairline under the header.
+        ui.add_space(6.0);
+        let (line, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+        ui.painter().hline(
+            line.x_range(),
+            line.center().y,
+            Stroke::new(1.0, t.border.gamma_multiply(0.6)),
+        );
         ui.add_space(6.0);
     }
 
@@ -959,7 +1378,7 @@ impl App {
                 );
                 ui.add_space(4.0);
                 let (head, body) = if q.is_empty() {
-                    ("No chats yet", "Your conversations with Claude show up here.")
+                    ("No chats yet", "Your conversations with your agents show up here.")
                 } else {
                     ("Nothing found", "No chat mentions that.")
                 };
@@ -1001,6 +1420,16 @@ impl App {
                         p.rect_filled(r, 8, t.hover_wash());
                     }
                     let pad = 12.0;
+                    // Whose chat it is.
+                    agent::paint(
+                        ui,
+                        egui::Rect::from_center_size(egui::pos2(r.left() + 20.0, r.top() + 19.0), vec2(14.0, 14.0)),
+                        c.agent,
+                        c.agent.tint(t),
+                        0.0,
+                    );
+                    let p = ui.painter();
+                    let pad_l = 34.0;
                     // Rename and delete on hover.
                     let bin =
                         egui::Rect::from_center_size(egui::pos2(r.right() - 20.0, r.center().y), vec2(26.0, 26.0));
@@ -1012,15 +1441,15 @@ impl App {
                     let when_g = p.layout_no_wrap(when, theme::regular(11.0), t.text3);
                     if editing {
                         let edit = egui::Rect::from_min_max(
-                            egui::pos2(r.left() + pad - 6.0, r.top() + 4.0),
+                            egui::pos2(r.left() + pad_l - 6.0, r.top() + 4.0),
                             egui::pos2(r.right() - pad + 6.0, r.top() + 34.0),
                         );
                         self.claude_rename_field(ui, t, edit);
                     } else {
-                        let title_w = right_edge - (r.left() + pad) - if tools { 0.0 } else { when_g.size().x + 8.0 };
+                        let title_w = right_edge - (r.left() + pad_l) - if tools { 0.0 } else { when_g.size().x + 8.0 };
                         let title = crate::format::elide_to(p, &c.title, &font, title_w);
                         p.text(
-                            egui::pos2(r.left() + pad, r.top() + 19.0),
+                            egui::pos2(r.left() + pad_l, r.top() + 19.0),
                             egui::Align2::LEFT_CENTER,
                             title,
                             font,
@@ -1036,9 +1465,9 @@ impl App {
                     }
                     let preview = preview_of(c);
                     let pf = theme::regular(12.0);
-                    let preview = crate::format::elide_to(ui.painter(), &preview, &pf, right_edge - (r.left() + pad));
+                    let preview = crate::format::elide_to(ui.painter(), &preview, &pf, right_edge - (r.left() + pad_l));
                     ui.painter().text(
-                        egui::pos2(r.left() + pad, r.top() + 42.0),
+                        egui::pos2(r.left() + pad_l, r.top() + 42.0),
                         egui::Align2::LEFT_CENTER,
                         preview,
                         pf,
@@ -1084,6 +1513,13 @@ impl App {
             self.claude_new_chat();
         }
         if let Some(id) = open {
+            // Another agent's chat: switch to that agent first.
+            if let Some(a) = self.claude.chats.iter().find(|c| c.id == id).map(|c| c.agent)
+                && a != self.claude.current()
+            {
+                let now = ui.input(|i| i.time);
+                self.claude_switch(a, None, now);
+            }
             self.claude.active = Some(id);
             self.claude.view = View::Chat;
             self.claude.dirty = true;
@@ -1101,6 +1537,8 @@ impl App {
             self.claude_welcome(ui, t);
             return;
         };
+        ui.ctx()
+            .data_mut(|d| d.insert_temp(egui::Id::new("agent-on-show"), chat.agent));
         let mut answer = None;
         let mut toggle = None;
         let mut fold = None;
@@ -1139,12 +1577,12 @@ impl App {
                 let mut i = 0;
                 while i < items.len() {
                     let it = &items[i];
-                    // Claude's mark starts each of its turns.
+                    // The agent's byline starts each of its turns.
                     let mine = |x: &Item| matches!(x, Item::User(_) | Item::Attached(_));
                     let starts_turn = !mine(it) && (i == 0 || mine(&items[i - 1]));
                     if starts_turn {
-                        ui.add_space(6.0);
-                        mark::show(ui, 16.0, mark::CLAUDE);
+                        ui.add_space(8.0);
+                        byline(ui, t, chat.agent);
                     }
                     // A run of tool calls (and answered prompts) is one box of steps.
                     if is_step(it) {
@@ -1198,7 +1636,7 @@ impl App {
                         } => {
                             let can_always = suggestions.as_array().is_some_and(|a| !a.is_empty());
                             if let Some((allow, always)) =
-                                ask_card(ui, t, tool, label, detail, can_always, (chat.id, i))
+                                ask_card(ui, t, chat.agent, tool, label, detail, can_always, (chat.id, i))
                             {
                                 answer = Some((i, allow, always));
                             }
@@ -1221,13 +1659,12 @@ impl App {
                     ui.horizontal(|ui| {
                         ui.spacing_mut().item_spacing.x = 8.0;
                         if waiting {
-                            mark::show(ui, 15.0, mark::CLAUDE);
+                            agent::show(ui, 15.0, chat.agent, chat.agent.tint(t));
                             ui.label(RichText::new("Waiting for your answer").color(t.text3).size(12.5));
                         } else {
-                            mark::spinner(ui, 15.0);
+                            agent::spinner(ui, 15.0, chat.agent, chat.agent.tint(t));
                             let word = if chat.thinking { "Thinking" } else { "Working" };
-                            let dots = ".".repeat(1 + (ui.input(|i| i.time) * 2.5) as usize % 3);
-                            ui.label(RichText::new(format!("{word}{dots}")).color(t.text3).size(12.5));
+                            shimmer(ui, t, word);
                         }
                     });
                 }
@@ -1262,78 +1699,15 @@ impl App {
         }
     }
 
-    /// An empty chat: a greeting and a few things to ask.
+    /// An empty chat: the agent's logo and name.
     fn claude_welcome(&mut self, ui: &mut Ui, t: &Theme) {
-        let ticker = self.chart.symbol.ticker().to_string();
-        let mut pick = None;
-        egui::ScrollArea::vertical()
-            .id_salt("claude-welcome")
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                ui.add_space((ui.available_height() * 0.18).clamp(12.0, 80.0));
-                ui.vertical_centered(|ui| {
-                    mark::show(ui, 36.0, mark::CLAUDE);
-                    ui.add_space(12.0);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(format!("How can I help with {ticker}?")).font(theme::semibold(16.0)),
-                        )
-                        .wrap(),
-                    );
-                    ui.add_space(4.0);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new("Claude sees this chart and works in your scripts folder.")
-                                .color(t.text2)
-                                .size(12.5),
-                        )
-                        .wrap(),
-                    );
-                });
-                ui.add_space(18.0);
-                let ideas = [
-                    (ph::CHART_LINE, "Explain what this chart is doing"),
-                    (ph::CODE, "Write an RSI strategy in Pine"),
-                    (ph::FLASK, "Backtest a moving-average cross"),
-                    (ph::WRENCH, "Fix the errors in my scripts"),
-                ];
-                for (icon, text) in ideas {
-                    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
-                    let hover = ui.rect_contains_pointer(r);
-                    let p = ui.painter();
-                    p.rect(
-                        r,
-                        10,
-                        if hover { t.hover_wash() } else { Color32::TRANSPARENT },
-                        Stroke::new(1.0, t.border.gamma_multiply(0.8)),
-                        egui::StrokeKind::Inside,
-                    );
-                    p.text(
-                        egui::pos2(r.left() + 14.0, r.center().y),
-                        egui::Align2::LEFT_CENTER,
-                        icon,
-                        theme::regular(14.0),
-                        t.text2,
-                    );
-                    let f = theme::regular(12.5);
-                    let label = crate::format::elide_to(p, text, &f, r.width() - 50.0);
-                    p.text(
-                        egui::pos2(r.left() + 38.0, r.center().y),
-                        egui::Align2::LEFT_CENTER,
-                        label,
-                        f,
-                        t.text,
-                    );
-                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                        pick = Some(text);
-                    }
-                    ui.add_space(2.0);
-                }
-            });
-        if let Some(text) = pick {
-            self.claude.input = text.to_string();
-            self.claude_send();
-        }
+        let agent = self.claude.current();
+        ui.add_space((ui.available_height() * 0.3).clamp(16.0, 160.0));
+        ui.vertical_centered(|ui| {
+            halo(ui, t, agent, 40.0);
+            ui.add_space(14.0);
+            ui.label(RichText::new(agent.name()).font(theme::semibold(18.0)));
+        });
     }
 
     // -------------------------------------------------------- composer
@@ -1408,7 +1782,7 @@ impl App {
                 r.shrink(2.0),
                 12,
                 t.bg.gamma_multiply(0.92),
-                Stroke::new(1.5, mark::CLAUDE),
+                Stroke::new(1.5, self.claude.current().accent(t)),
                 egui::StrokeKind::Inside,
             );
             p.text(
@@ -1416,7 +1790,7 @@ impl App {
                 egui::Align2::CENTER_CENTER,
                 ph::PAPERCLIP,
                 theme::regular(28.0),
-                mark::CLAUDE,
+                self.claude.current().accent(t),
             );
             p.text(
                 r.center() + vec2(0.0, 18.0),
@@ -1431,30 +1805,40 @@ impl App {
     fn claude_composer(&mut self, ui: &mut Ui, t: &Theme) {
         let busy = self.claude.chat().is_some_and(|c| c.busy);
         let started = self.claude.chat().is_some_and(|c| !c.items.is_empty());
+        let agent = self.claude.current();
+        let accent = agent.accent(t);
         let mode = self.claude.chat().map(|c| c.mode).unwrap_or(self.claude.mode);
         let model = self
             .claude
             .chat()
             .map(|c| c.model.clone())
-            .unwrap_or(self.claude.model.clone());
+            .unwrap_or(self.claude.model_for(agent).to_string());
+        let limits = self.claude.limits_for(agent).to_vec();
         let mut send = false;
         let mut stop = false;
         let mut set_mode = None;
         let mut set_model = None;
         let input_id = egui::Id::new("claude-input");
         let focused = ui.memory(|m| m.has_focus(input_id));
+        let focus = crate::motion::toggle(ui.ctx(), input_id.with("ring"), focused, crate::motion::STANDARD);
         let top = self.claude.composer.map_or(0.0, |r| r.top());
         let frame = egui::Frame::new()
-            .fill(t.card)
+            .fill(if t.dark { t.elevated } else { t.card })
             .stroke(Stroke::new(
                 1.0,
-                if focused {
-                    t.border.lerp_to_gamma(t.text3, 0.5)
-                } else {
-                    t.border
-                },
+                crate::motion::lerp_color(
+                    t.border,
+                    accent.gamma_multiply(if agent == Agent::Codex { 0.45 } else { 0.6 }),
+                    focus,
+                ),
             ))
-            .corner_radius(CornerRadius::same(16))
+            .shadow(egui::Shadow {
+                offset: [0, 6],
+                blur: 22,
+                spread: 0,
+                color: Color32::from_black_alpha(if t.dark { 70 } else { 22 }),
+            })
+            .corner_radius(CornerRadius::same(18))
             .inner_margin(Margin {
                 left: 12,
                 right: 8,
@@ -1484,7 +1868,16 @@ impl App {
                     if let Some(f) = files {
                         self.claude_attach(f);
                     }
-                    if ui.input_mut(|i| i.consume_key(egui::Modifiers::ALT, egui::Key::V)) {
+                    // Alt+V also arrives as typed text ("v"): drop it, or
+                    // the paste types a letter too.
+                    let alt_v = ui.input_mut(|i| {
+                        let hit = i.consume_key(egui::Modifiers::ALT, egui::Key::V);
+                        if hit {
+                            i.events.retain(|e| !matches!(e, egui::Event::Text(_)));
+                        }
+                        hit
+                    });
+                    if alt_v {
                         self.claude_paste(now);
                     }
                 }
@@ -1502,9 +1895,9 @@ impl App {
                 // Enter sends; Shift+Enter is a new line.
                 let enter = focused && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
                 let hint = if started {
-                    "Reply to Claude…".to_string()
+                    format!("Reply to {}…", agent.name())
                 } else {
-                    format!("Ask Claude about {}…", self.chart.symbol.ticker())
+                    format!("Ask {} about {}…", agent.name(), self.chart.symbol.ticker())
                 };
                 ui.add(
                     egui::TextEdit::multiline(&mut self.claude.input)
@@ -1531,7 +1924,7 @@ impl App {
                     let mut label = if model.is_empty() {
                         "Default".to_string()
                     } else {
-                        model_name(&model)
+                        self.claude.model_label(agent, &model)
                     };
                     // A narrow pane: the mode shrinks to its icon, then the
                     // model drops its version. The send button and the ring
@@ -1545,7 +1938,7 @@ impl App {
                         .width(220.0)
                         .show(|ui| {
                             ui.spacing_mut().item_spacing.y = 2.0;
-                            if menu_pick(ui, t, &format!("{}  Add files…", ph::FILE_PLUS), "", false).clicked() {
+                            if menu_pick(ui, t, &format!("{}  Add files", ph::FILE_PLUS), "", false).clicked() {
                                 if self.claude.picker.is_none() {
                                     self.claude.picker = Some(attach::pick());
                                 }
@@ -1597,23 +1990,37 @@ impl App {
                         .anchor(above(&resp, top))
                         .align(egui::RectAlign::TOP_START)
                         .gap(6.0)
-                        .width(228.0)
+                        .width(160.0)
                         .show(|ui| {
+                            ui.spacing_mut().item_spacing.y = 2.0;
                             for (m, icon, title, body) in [
                                 (
                                     Mode::Manual,
                                     ph::HAND_PALM,
                                     "Ask first",
-                                    "Claude asks before it edits files or runs commands.",
+                                    match agent {
+                                        Agent::Claude => "Claude asks before it edits files or runs commands.",
+                                        Agent::Codex => "Codex asks before it edits files or runs anything it doesn't know is safe.",
+                                    },
                                 ),
                                 (
                                     Mode::Auto,
                                     ph::LIGHTNING,
                                     "Auto",
-                                    "Claude Code decides what's safe and asks only when it isn't sure.",
+                                    match agent {
+                                        Agent::Claude => {
+                                            "Claude Code decides what's safe and asks only when it isn't sure."
+                                        }
+                                        Agent::Codex => {
+                                            "Codex works freely in your scripts folder and asks before going outside it."
+                                        }
+                                    },
                                 ),
                             ] {
-                                if menu_choice(ui, t, icon, title, body, m == mode).clicked() {
+                                if menu_pick(ui, t, &format!("{icon}  {title}"), "", m == mode)
+                                    .on_hover_text(body)
+                                    .clicked()
+                                {
                                     set_mode = Some(m);
                                     ui.close();
                                 }
@@ -1624,8 +2031,9 @@ impl App {
                         .claude
                         .chat()
                         .filter(|c| c.model.is_empty() && !c.model_name.is_empty())
-                        .map(|c| model_name(&c.model_name))
+                        .map(|c| self.claude.model_label(agent, &c.model_name))
                         .unwrap_or_default();
+                    let models = self.claude.models_for(agent);
                     let resp = ui
                         .add_enabled_ui(!busy, |ui| pill(ui, t, model_icon, &label, true))
                         .inner;
@@ -1633,8 +2041,7 @@ impl App {
                         let usage: String = if show_ring {
                             String::new()
                         } else {
-                            self.claude
-                                .limits
+                            limits
                                 .iter()
                                 .map(|w| format!("\n{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
                                 .collect()
@@ -1645,6 +2052,16 @@ impl App {
                     };
                     self.claude.footer.push(resp.rect);
                     self.claude_still_menu(ui, &resp, "model");
+                    // Codex's models come from the account: ask once, when
+                    // the menu first opens.
+                    if agent == Agent::Codex
+                        && self.claude.codex_models.is_empty()
+                        && self.claude.models_rx.is_none()
+                        && egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp))
+                        && let Some(exe) = self.claude.cli_for(agent)
+                    {
+                        self.claude.models_rx = Some(codex::models(exe, self.scripts_dir()));
+                    }
                     egui::Popup::menu(&resp)
                         .anchor(above(&resp, top))
                         .align(egui::RectAlign::TOP_END)
@@ -1652,18 +2069,21 @@ impl App {
                         .width(176.0)
                         .show(|ui| {
                             ui.spacing_mut().item_spacing.y = 2.0;
-                            for (k, l) in MODELS {
+                            for (k, l) in &models {
                                 let hint = if k.is_empty() { default_hint.as_str() } else { "" };
-                                if menu_pick(ui, t, l, hint, k == model).clicked() {
-                                    set_model = Some(k);
+                                if menu_pick(ui, t, l, hint, *k == model).clicked() {
+                                    set_model = Some(k.clone());
                                     ui.close();
                                 }
+                            }
+                            if models.len() == 1 && agent == Agent::Codex {
+                                ui.label(RichText::new("  Loading models…").color(t.text3).size(11.5));
                             }
                         });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 6.0;
                         let can_send = !self.claude.input.trim().is_empty() || !self.claude.attached.is_empty();
-                        let send_resp = send_button(ui, t, busy, can_send);
+                        let send_resp = send_button(ui, t, agent, busy, can_send);
                         self.claude.footer.push(send_resp.rect);
                         if send_resp.clicked() {
                             if busy {
@@ -1692,7 +2112,20 @@ impl App {
             self.claude_set_mode(m);
         }
         if let Some(k) = set_model {
-            self.claude_set_model(k);
+            self.claude_set_model(&k);
+        }
+        if let Some(rx) = &self.claude.models_rx {
+            match rx.try_recv() {
+                Ok(list) => {
+                    self.claude.models_rx = None;
+                    if !list.is_empty() {
+                        self.claude.codex_models = list;
+                        self.claude.dirty = true;
+                    }
+                }
+                Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.models_rx = None,
+                Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
+            }
         }
         if send {
             self.claude_send();
@@ -1705,7 +2138,8 @@ impl App {
     /// A small ring for the 5-hour limit; hover for the numbers, click for
     /// the account and this chat's usage.
     fn claude_usage_ring(&mut self, ui: &mut Ui, t: &Theme, top: f32) {
-        let used = self.claude.limits.first().map(|w| w.used).unwrap_or(0.0) as f32;
+        let limits = self.claude.limits_for(self.claude.current()).to_vec();
+        let used = limits.first().map(|w| w.used).unwrap_or(0.0) as f32;
         let (r, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
         self.claude.footer.push(r);
         let hover = ui.rect_contains_pointer(r);
@@ -1728,11 +2162,10 @@ impl App {
             let col = if used >= 0.85 { t.warn } else { t.text2 };
             p.add(egui::Shape::line(pts, Stroke::new(2.2, col)));
         }
-        let tip = if self.claude.limits.is_empty() {
+        let tip = if limits.is_empty() {
             "Usage shows after your first message.".to_string()
         } else {
-            self.claude
-                .limits
+            limits
                 .iter()
                 .map(|w| format!("{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
                 .collect::<Vec<_>>()
@@ -1767,9 +2200,6 @@ impl App {
         egui::Frame::new().inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
             ui.spacing_mut().item_spacing.y = 4.0;
             ui.spacing_mut().interact_size.y = 18.0;
-            let heading = |ui: &mut Ui, text: &str| {
-                ui.label(RichText::new(text).font(theme::semibold(11.0)).color(t.text3));
-            };
             let row = |ui: &mut Ui, k: &str, v: String, dim: bool| {
                 ui.horizontal(|ui| {
                     ui.label(RichText::new(k).color(if dim { t.text2 } else { t.text }).size(12.5));
@@ -1778,8 +2208,8 @@ impl App {
                     });
                 });
             };
-            heading(ui, "PLAN USAGE");
-            let limits = &self.claude.limits;
+            let agent = self.claude.current();
+            let limits = self.claude.limits_for(agent);
             if limits.is_empty() {
                 ui.label(
                     RichText::new("Shows after your first message.")
@@ -1802,7 +2232,7 @@ impl App {
                 let mut f = r;
                 f.set_width(r.width() * wd.used.clamp(0.0, 1.0) as f32);
                 ui.painter()
-                    .rect_filled(f, 2, if wd.used >= 0.85 { t.warn } else { mark::CLAUDE });
+                    .rect_filled(f, 2, if wd.used >= 0.85 { t.warn } else { agent.accent(t) });
                 if wd.resets > 0 {
                     ui.label(
                         RichText::new(format!("Resets {}", reset_time(wd.resets)))
@@ -1823,9 +2253,8 @@ impl App {
                 ui.painter()
                     .hline(line.x_range(), line.center().y, Stroke::new(1.0, t.border));
                 ui.add_space(6.0);
-                heading(ui, "THIS CHAT");
                 if !c.model_name.is_empty() {
-                    row(ui, "Model", model_name(&c.model_name), true);
+                    row(ui, "Model", self.claude.model_label(c.agent, &c.model_name), true);
                 }
                 row(ui, "Context now", tokens(c.context), true);
                 row(ui, "Input", tokens(c.usage.input + c.usage.cache_write), true);
@@ -1864,14 +2293,18 @@ fn title_of(text: &str) -> String {
     if s.is_empty() { "New chat".into() } else { s }
 }
 
-fn exit_message(err: &str) -> String {
+fn exit_message(agent: Agent, err: &str) -> String {
     let low = err.to_lowercase();
+    let (name, cmd) = match agent {
+        Agent::Claude => ("Claude Code", "claude"),
+        Agent::Codex => ("Codex", "codex"),
+    };
     if low.contains("login") || low.contains("log in") || low.contains("auth") || low.contains("api key") {
-        "Claude Code isn't signed in. Run claude in a terminal once to sign in, then try again.".into()
+        format!("{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again.")
     } else if err.is_empty() {
-        "Claude Code stopped unexpectedly. Send your message again to pick up where it left off.".into()
+        format!("{name} stopped unexpectedly. Send your message again to pick up where it left off.")
     } else {
-        format!("Claude Code stopped: {err}")
+        format!("{name} stopped: {err}")
     }
 }
 
@@ -2000,6 +2433,10 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
 /// change.
 fn ask_detail(tool: &str, input: &Value, description: &str) -> String {
     let s = |k: &str| input.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+    // Codex sends its change as a ready diff.
+    if !s("diff").is_empty() {
+        return s("diff");
+    }
     match tool {
         "Bash" | "PowerShell" => s("command"),
         "Write" => {
@@ -2416,9 +2853,11 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
 
 /// A permission prompt, Claude Code style: what it wants to do, the change,
 /// and numbered choices (1-3 on the keyboard). Returns (allow, always).
+#[allow(clippy::too_many_arguments)]
 fn ask_card(
     ui: &mut Ui,
     t: &Theme,
+    agent: Agent,
     tool: &str,
     label: &str,
     detail: &str,
@@ -2428,26 +2867,30 @@ fn ask_card(
     let mut out = None;
     egui::Frame::new()
         .fill(t.card)
-        .stroke(Stroke::new(1.0, mark::CLAUDE.gamma_multiply(0.55)))
+        .stroke(Stroke::new(1.0, agent.accent(t).gamma_multiply(0.55)))
         .corner_radius(CornerRadius::same(12))
         .inner_margin(Margin::symmetric(12, 10))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
-                ui.label(RichText::new(tool_icon(tool)).color(mark::CLAUDE).size(15.0));
+                ui.label(RichText::new(tool_icon(tool)).color(agent.accent(t)).size(15.0));
                 ui.add(egui::Label::new(RichText::new(label).font(theme::semibold(13.0))).truncate());
             });
             if !detail.is_empty() {
                 ui.add_space(4.0);
-                if matches!(tool, "Edit" | "MultiEdit") {
+                if matches!(tool, "Edit" | "MultiEdit") || detail.starts_with("+ ") || detail.starts_with("- ") {
                     diff_block(ui, t, detail);
                 } else {
                     code_block(ui, t, detail, "", key);
                 }
             }
             ui.add_space(6.0);
-            ui.label(RichText::new("Allow Claude to do this?").color(t.text2).size(12.5));
+            ui.label(
+                RichText::new(format!("Allow {} to do this?", agent.name()))
+                    .color(t.text2)
+                    .size(12.5),
+            );
             ui.add_space(2.0);
             let mut choices: Vec<Choice> = vec![("1", "Allow", Some((true, false)))];
             if can_always {
@@ -2572,7 +3015,7 @@ fn pill(ui: &mut Ui, t: &Theme, icon: Option<&str>, text: &str, caret: bool) -> 
 
 /// The round send button (Claude's colour when there's something to
 /// send), or Stop while Claude works.
-fn send_button(ui: &mut Ui, t: &Theme, busy: bool, can_send: bool) -> egui::Response {
+fn send_button(ui: &mut Ui, t: &Theme, agent: Agent, busy: bool, can_send: bool) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
     let hover = ui.rect_contains_pointer(r);
     let p = ui.painter();
@@ -2582,9 +3025,9 @@ fn send_button(ui: &mut Ui, t: &Theme, busy: bool, can_send: bool) -> egui::Resp
         p.rect_filled(egui::Rect::from_center_size(c, vec2(10.0, 10.0)), 2, t.card);
     } else if can_send {
         let fill = if hover {
-            mark::CLAUDE.gamma_multiply(0.85)
+            agent.accent(t).gamma_multiply(0.85)
         } else {
-            mark::CLAUDE
+            agent.accent(t)
         };
         p.circle_filled(c, 15.0, fill);
         p.text(
@@ -2592,7 +3035,7 @@ fn send_button(ui: &mut Ui, t: &Theme, busy: bool, can_send: bool) -> egui::Resp
             egui::Align2::CENTER_CENTER,
             ph::ARROW_UP,
             theme::semibold(15.0),
-            Color32::WHITE,
+            agent.on_accent(t),
         );
     } else {
         p.circle_filled(c, 15.0, t.hover);
@@ -2642,46 +3085,6 @@ fn menu_pick(ui: &mut Ui, t: &Theme, label: &str, hint: &str, on: bool) -> egui:
         );
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
-}
-
-/// A menu row with a title and a line under it.
-fn menu_choice(ui: &mut Ui, t: &Theme, icon: &str, title: &str, body: &str, on: bool) -> egui::Response {
-    let w = ui.available_width();
-    let p0 = ui
-        .painter()
-        .layout(body.to_string(), theme::regular(11.5), t.text3, w - 44.0);
-    let h = 22.0 + p0.size().y + 8.0;
-    let (r, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
-    let hover = ui.rect_contains_pointer(r);
-    let p = ui.painter();
-    if hover || on {
-        p.rect_filled(r, 7, if on { t.accent_soft() } else { t.hover_wash() });
-    }
-    p.text(
-        egui::pos2(r.left() + 12.0, r.top() + 15.0),
-        egui::Align2::LEFT_CENTER,
-        icon,
-        theme::regular(14.0),
-        t.text2,
-    );
-    p.text(
-        egui::pos2(r.left() + 34.0, r.top() + 15.0),
-        egui::Align2::LEFT_CENTER,
-        title,
-        theme::medium(13.0),
-        t.text,
-    );
-    p.galley(egui::pos2(r.left() + 34.0, r.top() + 25.0), p0, t.text3);
-    if on {
-        p.text(
-            egui::pos2(r.right() - 12.0, r.top() + 15.0),
-            egui::Align2::RIGHT_CENTER,
-            ph::CHECK,
-            theme::regular(13.0),
-            t.accent,
-        );
-    }
-    resp
 }
 
 /// The last thing said in a chat, for the chats list.
@@ -2847,7 +3250,7 @@ fn table_cells(line: &str) -> Vec<String> {
 }
 
 /// A table cell's text with **bold** and `code` styled.
-fn cell_job(t: &Theme, text: &str, font: FontId, color: Color32, wrap: f32) -> LayoutJob {
+fn cell_job(code_c: Color32, text: &str, font: FontId, color: Color32, wrap: f32) -> LayoutJob {
     let mut job = LayoutJob::default();
     let base = TextFormat {
         font_id: font.clone(),
@@ -2865,11 +3268,7 @@ fn cell_job(t: &Theme, text: &str, font: FontId, color: Color32, wrap: f32) -> L
             let f = if code {
                 TextFormat {
                     font_id: FontId::monospace(font.size - 1.0),
-                    color: if t.dark {
-                        Color32::from_rgb(0xE8, 0xA0, 0x84)
-                    } else {
-                        Color32::from_rgb(0xB0, 0x4E, 0x30)
-                    },
+                    color: code_c,
                     ..base.clone()
                 }
             } else if bold {
@@ -2913,7 +3312,8 @@ fn md_table(ui: &mut Ui, t: &Theme, lines: &[&str]) {
     for (ri, r) in rows.iter().enumerate() {
         for (c, cell) in r.iter().enumerate() {
             let f = if ri == 0 { head.clone() } else { font.clone() };
-            let g = ui.fonts_mut(|fo| fo.layout_job(cell_job(t, cell, f, t.text, f32::INFINITY)));
+            let code_c = code_color(ui.ctx(), t);
+            let g = ui.fonts_mut(|fo| fo.layout_job(cell_job(code_c, cell, f, t.text, f32::INFINITY)));
             natural[c] = natural[c].max(g.size().x + pad.x * 2.0);
         }
     }
@@ -2943,7 +3343,8 @@ fn md_table(ui: &mut Ui, t: &Theme, lines: &[&str]) {
             } else {
                 (font.clone(), t.text)
             };
-            let g = ui.fonts_mut(|fo| fo.layout_job(cell_job(t, cell, f, color, w - pad.x * 2.0)));
+            let code_c = code_color(ui.ctx(), t);
+            let g = ui.fonts_mut(|fo| fo.layout_job(cell_job(code_c, cell, f, color, w - pad.x * 2.0)));
             h = h.max(g.size().y);
             row.push(g);
         }
@@ -3055,12 +3456,7 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
     };
     let code = TextFormat {
         font_id: FontId::monospace(font.size - 1.0),
-        // A soft terracotta, like code in Claude's own apps.
-        color: if t.dark {
-            Color32::from_rgb(0xE8, 0xA0, 0x84)
-        } else {
-            Color32::from_rgb(0xB0, 0x4E, 0x30)
-        },
+        color: code_color(ui.ctx(), t),
         line_height,
         ..Default::default()
     };
@@ -3151,6 +3547,143 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
             *open = Some(f.clone());
         }
     }
+}
+
+/// Inline code's colour for the chat on show: a soft terracotta for
+/// Claude (like its own apps), a soft blue for Codex.
+fn code_color(ctx: &egui::Context, t: &Theme) -> Color32 {
+    let codex = ctx.data(|d| d.get_temp::<Agent>(egui::Id::new("agent-on-show"))) == Some(Agent::Codex);
+    match (codex, t.dark) {
+        (false, true) => Color32::from_rgb(0xE8, 0xA0, 0x84),
+        (false, false) => Color32::from_rgb(0xB0, 0x4E, 0x30),
+        (true, true) => Color32::from_rgb(0xA6, 0xC4, 0xEC),
+        (true, false) => Color32::from_rgb(0x2F, 0x5C, 0x99),
+    }
+}
+
+/// The agent's logo over its turn.
+fn byline(ui: &mut Ui, t: &Theme, agent: Agent) {
+    agent::show(ui, 16.0, agent, agent.tint(t));
+}
+
+/// A word with a soft light passing over it, while the agent works.
+fn shimmer(ui: &mut Ui, t: &Theme, word: &str) {
+    let now = ui.input(|i| i.time) as f32;
+    let n = word.chars().count() as f32;
+    // The highlight sweeps across, then rests a moment.
+    let head = (now * 1.1).rem_euclid(1.6) / 1.2 * (n + 6.0) - 3.0;
+    let mut job = LayoutJob::default();
+    for (k, ch) in word.chars().enumerate() {
+        let d = (k as f32 - head).abs();
+        let glow = (1.0 - d / 3.0).clamp(0.0, 1.0);
+        job.append(
+            &ch.to_string(),
+            0.0,
+            TextFormat {
+                font_id: theme::medium(12.5),
+                color: crate::motion::lerp_color(t.text3, t.text, glow * 0.85),
+                ..Default::default()
+            },
+        );
+    }
+    ui.label(job);
+    ui.ctx().request_repaint();
+}
+
+/// An agent's logo on a soft halo of its colour.
+fn halo(ui: &mut Ui, t: &Theme, agent: Agent, size: f32) {
+    let (r, _) = ui.allocate_exact_size(vec2(size * 1.8, size * 1.8), Sense::hover());
+    let c = agent.accent(t);
+    let k = if agent == Agent::Codex { 0.6 } else { 1.0 };
+    for (rad, a) in [(0.9, 0.05), (0.72, 0.08), (0.56, 0.1)] {
+        ui.painter()
+            .circle_filled(r.center(), size * rad, crate::motion::with_alpha(c, a * k));
+    }
+    agent::paint(
+        ui,
+        egui::Rect::from_center_size(r.center(), vec2(size * 0.62, size * 0.62)),
+        agent,
+        agent.tint(t),
+        0.0,
+    );
+}
+
+/// The face's blink, `since` seconds after it showed: a quick one every
+/// few seconds.
+fn blink_at(since: f64) -> f32 {
+    let period = 4.2;
+    let k = (since - 1.2).rem_euclid(period);
+    if since < 1.2 || k > 0.18 {
+        0.0
+    } else {
+        (k / 0.18 * std::f64::consts::PI).sin() as f32
+    }
+}
+
+/// Seconds until the next blink.
+fn blink_wait(since: f64) -> f64 {
+    let period = 4.2;
+    if since < 1.2 {
+        return 1.2 - since;
+    }
+    (period - (since - 1.2).rem_euclid(period)).max(0.02)
+}
+
+/// A row in the agent menu: logo, name, maker, a check when it's on.
+fn agent_row(ui: &mut Ui, t: &Theme, a: Agent, on: bool, installed: bool) -> egui::Response {
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
+    let hover = ui.rect_contains_pointer(r);
+    if hover || on {
+        ui.painter().rect_filled(
+            r,
+            8,
+            if hover {
+                t.hover_wash()
+            } else {
+                t.hover_wash().gamma_multiply(0.6)
+            },
+        );
+    }
+    let badge = egui::pos2(r.left() + 22.0, r.center().y);
+    ui.painter().circle_filled(
+        badge,
+        15.0,
+        a.accent(t).gamma_multiply(if a == Agent::Codex { 0.08 } else { 0.14 }),
+    );
+    agent::paint(
+        ui,
+        egui::Rect::from_center_size(badge, vec2(17.0, 17.0)),
+        a,
+        a.tint(t),
+        0.0,
+    );
+    let p = ui.painter();
+    p.text(
+        egui::pos2(r.left() + 46.0, r.center().y),
+        egui::Align2::LEFT_CENTER,
+        a.name(),
+        theme::medium(13.0),
+        t.text,
+    );
+    if !installed && !on {
+        p.text(
+            egui::pos2(r.right() - 12.0, r.center().y),
+            egui::Align2::RIGHT_CENTER,
+            "Not installed",
+            theme::regular(11.5),
+            t.text3,
+        );
+    }
+    if on {
+        p.text(
+            egui::pos2(r.right() - 12.0, r.center().y),
+            egui::Align2::RIGHT_CENTER,
+            ph::CHECK,
+            theme::regular(13.0),
+            t.text,
+        );
+    }
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 #[cfg(test)]
@@ -3338,7 +3871,7 @@ mod tests {
     #[ignore]
     fn live_strategy() {
         let mut d = crate::drive::Driver::new("claude-live");
-        let cli = process::find_cli().expect("claude installed");
+        let cli = Agent::Claude.find().expect("claude installed");
         // SAFETY: only this test reads OPENTERN_CLAUDE here.
         unsafe {
             std::env::set_var("OPENTERN_CLAUDE", &cli);
@@ -3391,6 +3924,140 @@ mod tests {
         assert!(d.app.strategies.current().is_some(), "no strategy on the chart");
     }
 
+    /// The first open shows the agent picker; picking one moves into its
+    /// panel, and each agent keeps its own open chat.
+    #[test]
+    fn picking_and_switching_agents() {
+        let mut d = crate::drive::Driver::new("claude-agents");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        d.app.claude.codex_cli = Some(Some(PathBuf::from("codex")));
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        assert_eq!(d.app.claude.agent, None);
+        assert_eq!(d.app.claude.cards.len(), 2, "picker cards");
+        let (a, r, _) = d.app.claude.cards[1];
+        assert_eq!(a, Agent::Codex);
+        d.click(r.center());
+        assert_eq!(d.app.claude.agent, Some(Agent::Codex));
+        for _ in 0..60 {
+            d.frame(vec![]);
+        }
+        assert!(d.app.claude.anim.is_none(), "the move finishes");
+        // A Codex chat, then Claude's panel, then back to the Codex chat.
+        let codex_chat = d.app.new_chat();
+        d.app
+            .claude
+            .chat_mut(codex_chat)
+            .unwrap()
+            .items
+            .push(Item::User("hi".into()));
+        assert_eq!(d.app.claude.chat().unwrap().agent, Agent::Codex);
+        d.app.claude_switch(Agent::Claude, None, 0.0);
+        assert_eq!(d.app.claude.active, None);
+        d.app.claude_switch(Agent::Codex, None, 0.0);
+        assert_eq!(d.app.claude.active, Some(codex_chat));
+        // Saved and loaded with its agent.
+        d.app.claude_save();
+        let text = std::fs::read_to_string(d.dir.join("claude").join("chats.json")).unwrap();
+        let saved: Saved = serde_json::from_str(&text).unwrap();
+        assert_eq!(saved.agent, Some(Agent::Codex));
+        assert!(
+            saved
+                .chats
+                .iter()
+                .any(|c| c.id == codex_chat && c.agent == Agent::Codex)
+        );
+    }
+
+    /// Alt+V pastes and doesn't also type a "v".
+    #[test]
+    fn alt_v_types_nothing() {
+        let mut d = crate::drive::Driver::new("claude-altv");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Claude);
+        d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        d.ctx.memory_mut(|m| m.request_focus(egui::Id::new("claude-input")));
+        d.frame(vec![]);
+        // The box has focus: plain typing lands in it.
+        d.frame(vec![egui::Event::Text("x".into())]);
+        assert_eq!(d.app.claude.input, "x");
+        let alt = egui::Modifiers::ALT;
+        d.frame(vec![
+            egui::Event::ModifiersChanged(alt),
+            egui::Event::Key {
+                key: egui::Key::V,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: alt,
+            },
+            egui::Event::Text("v".into()),
+        ]);
+        d.frame(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
+        assert_eq!(d.app.claude.input, "x");
+    }
+
+    /// Live, against the real Codex CLI (uses the account; run by hand):
+    /// a short turn that uses the app's tools and writes a script.
+    /// `cargo test -p opentern --bin opentern live_codex -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_codex() {
+        let mut d = crate::drive::Driver::new("codex-live");
+        let cli = Agent::Codex.find().expect("codex installed");
+        // SAFETY: only this test reads OPENTERN_CODEX here.
+        unsafe {
+            std::env::set_var("OPENTERN_CODEX", &cli);
+        }
+        d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Codex);
+        d.app.claude.mode = Mode::Manual;
+        d.app.claude.codex_model = std::env::var("CODEX_MODEL").unwrap_or_default();
+        d.app.claude.input = "Call get_chart, then create hello.pine with a one-line Pine v6 indicator that \
+            plots close, check it with check_script, and reply with one short sentence."
+            .into();
+        d.app.claude_send();
+        let start = std::time::Instant::now();
+        loop {
+            d.frame(vec![]);
+            let chat = d.app.claude.chat().unwrap().clone();
+            if let Some(i) = chat.items.iter().position(is_waiting) {
+                eprintln!("ASK {:?}", chat.items[i]);
+                d.app.claude_answer(chat.id, i, true, false);
+            }
+            if !chat.busy || start.elapsed().as_secs() > 240 {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let chat = d.app.claude.chat().unwrap().clone();
+        for it in &chat.items {
+            eprintln!("{it:?}");
+        }
+        eprintln!(
+            "MODEL {} USAGE {:?} CONTEXT {}",
+            chat.model_name, chat.usage, chat.context
+        );
+        eprintln!(
+            "LIMITS {:?} MODELS {:?}",
+            d.app.claude.codex_limits, d.app.claude.codex_models
+        );
+        assert!(!chat.busy, "timed out");
+        assert!(chat.session.is_some());
+        assert!(
+            chat.items
+                .iter()
+                .any(|i| matches!(i, Item::Tool { label, .. } if label == "Looked at the chart"))
+        );
+        assert!(d.app.scripts_dir().join("hello.pine").is_file());
+    }
+
     /// At the narrowest pane, the composer's controls still don't overlap,
     /// and a wide table is squeezed into the pane.
     #[test]
@@ -3398,6 +4065,7 @@ mod tests {
         let mut d = crate::drive::Driver::new("claude-narrow");
         d.app.layout.widget = Some(crate::shell::Widget::Claude);
         d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Claude);
         d.app.claude.model = "claude-sonnet-5-5".into();
         // The composer only shows once Claude Code is found; CI has none.
         d.app.claude.cli = Some(Some(PathBuf::from("claude")));

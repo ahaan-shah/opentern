@@ -503,13 +503,7 @@ impl App {
         });
         ui.add_space(6.0);
         if self.alerts.list.is_empty() {
-            crate::widgets::empty_state(
-                ui,
-                t,
-                crate::icons::ph::ALARM,
-                "No alerts yet",
-                "Press Alt+A to make one for the chart's symbol.",
-            );
+            crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, "No alerts yet");
             return;
         }
         let mut edit = None;
@@ -639,7 +633,6 @@ impl App {
                 t,
                 crate::icons::ph::CLOCK_COUNTER_CLOCKWISE,
                 "Nothing has fired yet",
-                "Alerts that fire show up here, newest first.",
             );
             return;
         }

@@ -26,13 +26,7 @@ impl App {
                 .truncate(),
             );
             if self.chart.studies.is_empty() && self.chart.drawings.is_empty() {
-                crate::widgets::empty_state(
-                    ui,
-                    t,
-                    ph::STACK,
-                    "Nothing on the chart yet",
-                    "Indicators and drawings you add show up here.",
-                );
+                crate::widgets::empty_state(ui, t, ph::STACK, "Nothing on the chart yet");
             }
             let mut remove_study = None;
             let mut settings = None;

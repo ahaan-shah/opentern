@@ -106,13 +106,7 @@ impl App {
     pub(crate) fn notifications_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.notes.unread = 0;
         if self.notes.list.is_empty() {
-            crate::widgets::empty_state(
-                ui,
-                t,
-                crate::icons::ph::BELL_SIMPLE,
-                "All caught up",
-                "Alerts that fire, snapshots and finished runs show up here.",
-            );
+            crate::widgets::empty_state(ui, t, crate::icons::ph::BELL_SIMPLE, "All caught up");
             return;
         }
         let mut open = None;

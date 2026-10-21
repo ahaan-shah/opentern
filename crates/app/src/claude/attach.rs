@@ -34,6 +34,11 @@ fn image_type(p: &Path) -> Option<&'static str> {
     IMAGE.iter().find(|(x, _)| *x == e).map(|(_, m)| *m)
 }
 
+/// Whether a file is an image the agents can look at.
+pub fn is_image(p: &str) -> bool {
+    image_type(Path::new(p)).is_some()
+}
+
 /// The icon for an attached file.
 pub fn icon(p: &str) -> &'static str {
     let p = Path::new(p);

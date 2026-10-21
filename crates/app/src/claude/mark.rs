@@ -1,6 +1,7 @@
-//! The Claude mark, for the panel that talks to Claude Code: rendered once
-//! from `assets/claude.svg` into a white mask, then tinted (grey on the
-//! rail, Claude's terracotta in the panel) and rotated for the spinner.
+//! The panel's marks. The agents' face (the rail button, the agent picker)
+//! is drawn by hand. The Claude mark is rendered once from
+//! `assets/claude.svg` into a white mask, then tinted and rotated for the
+//! spinner.
 //!
 //! The glyph is Simple Icons' "Claude" (CC0-1.0,
 //! https://simpleicons.org). Claude is a trademark of Anthropic; it's used
@@ -41,39 +42,53 @@ pub fn paint(ui: &Ui, rect: Rect, color: Color32, angle: f32) {
         .paint_at(ui, rect);
 }
 
-/// The mark as a widget of `size` points.
-pub fn show(ui: &mut Ui, size: f32, color: Color32) -> Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-    paint(ui, rect, color, 0.0);
-    resp
+/// Paints the mark upright on any painter.
+pub fn paint_flat(p: &egui::Painter, rect: Rect, color: Color32) {
+    let Some(tex) = texture(p.ctx()) else { return };
+    p.image(
+        tex.id(),
+        rect,
+        Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+        color,
+    );
 }
 
-/// The spinner while Claude works: the mark, turning.
-pub fn spinner(ui: &mut Ui, size: f32) -> Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-    let t = ui.input(|i| i.time) as f32;
-    paint(ui, rect, CLAUDE, t * 2.2);
-    ui.ctx().request_repaint();
-    resp
+/// The agents' face: a disc in the theme's colours with two pill-shaped eyes
+/// (the panel's own mark, whichever agent is picked). `blink` 0–1 closes
+/// the eyes.
+pub fn face(ui: &Ui, center: egui::Pos2, radius: f32, t: &Theme, alpha: f32, blink: f32) {
+    let p = ui.painter();
+    // The theme's own colours: its text tinted a touch toward its accent,
+    // with eyes in its background.
+    let disc = t.text.lerp_to_gamma(t.accent, 0.22);
+    let eye = t.bg;
+    p.circle_filled(center, radius, motion::with_alpha(disc, alpha));
+    // Big, tall, rounded eyes; closing squashes them.
+    let open = 1.0 - 0.88 * blink.clamp(0.0, 1.0);
+    let (w, h) = (radius * 0.3, (radius * 0.66 * open).max(radius * 0.1));
+    for dx in [-0.34, 0.34] {
+        let c = center + vec2(radius * dx, -radius * 0.02);
+        let eye_r = Rect::from_center_size(c, vec2(w, h));
+        p.rect_filled(
+            eye_r,
+            CornerRadius::same((w / 2.0).round() as u8),
+            motion::with_alpha(eye, alpha),
+        );
+    }
 }
 
-/// The rail button: like `widgets::tool_button`, with the mark for a glyph.
+/// The rail button: like `widgets::tool_button`, with the face for a
+/// glyph. It blinks as the pointer arrives and leaves.
 pub fn rail_button(ui: &mut Ui, t: &Theme, tip: &str, active: bool, size: f32) -> Response {
     let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
-    let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+    let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::STANDARD);
     let on = motion::toggle(ui.ctx(), resp.id.with("on"), active, motion::MICRO);
     if ui.is_rect_visible(rect) {
         let p = ui.painter();
         let r = CornerRadius::same(7);
-        p.rect_filled(rect, r, motion::with_alpha(t.hover_wash(), hover));
-        p.rect_filled(rect, r, motion::with_alpha(CLAUDE.gamma_multiply(0.16), on));
-        let color = motion::lerp_color(motion::lerp_color(t.text2, t.text, hover), CLAUDE, on);
-        paint(
-            ui,
-            Rect::from_center_size(rect.center(), vec2(size * 0.52, size * 0.52)),
-            color,
-            0.0,
-        );
+        p.rect_filled(rect, r, motion::with_alpha(t.hover_wash(), hover.max(on)));
+        let blink = (hover * std::f32::consts::PI).sin();
+        face(ui, rect.center(), size * 0.29, t, 0.82 + 0.18 * hover.max(on), blink);
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip)
 }

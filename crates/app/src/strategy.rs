@@ -279,14 +279,7 @@ impl App {
 
     pub(crate) fn report_tab(&mut self, ui: &mut Ui, t: &Theme) {
         if self.strategies.runs.is_empty() {
-            crate::widgets::empty_state(
-                ui,
-                t,
-                crate::icons::ph::CHART_LINE_UP,
-                "No strategy on the chart",
-                "Add a strategy to see its report. A strategy is a script that starts with strategy(…); \
-                 make one in the Script Editor.",
-            );
+            crate::widgets::empty_state(ui, t, crate::icons::ph::CHART_LINE_UP, "No strategy on the chart");
             return;
         }
         let narrow = ui.available_width() < 980.0;

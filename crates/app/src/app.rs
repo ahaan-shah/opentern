@@ -284,6 +284,14 @@ impl App {
             } else if let Some(m) = part.strip_prefix("claude-menu:") {
                 self.layout.widget = Some(crate::shell::Widget::Claude);
                 self.claude.still_menu = Some(m.to_string());
+            } else if let Some(m) = part.strip_prefix("agent:") {
+                // Picks an agent on the panel (skips the picker).
+                let a = if m == "codex" {
+                    crate::claude::Agent::Codex
+                } else {
+                    crate::claude::Agent::Claude
+                };
+                self.claude_switch(a, None, 0.0);
             } else if let Some(m) = part.strip_prefix("claude-model:") {
                 self.claude_load();
                 self.claude.model = crate::claude::model_id(m);
@@ -291,9 +299,10 @@ impl App {
                 self.layout.widget = Some(crate::shell::Widget::Claude);
                 self.still_claude = Some(m.to_string());
             } else if let Some(w) = part.strip_prefix("widget:") {
-                self.layout.widget = crate::shell::Widget::ALL
-                    .into_iter()
-                    .find(|x| x.title().to_lowercase().starts_with(&w.to_lowercase()));
+                self.layout.widget = crate::shell::Widget::ALL.into_iter().find(|x| {
+                    let w = w.to_lowercase();
+                    x.title().to_lowercase().starts_with(&w) || format!("{x:?}").to_lowercase() == w
+                });
             } else if part == "screen" {
                 self.layout.tab = Some(crate::shell::Tab::Screener);
                 self.run_screener();
@@ -807,7 +816,7 @@ impl App {
                     ui.spacing_mut().item_spacing.y = 1.0;
                     use crate::icons::ph;
                     use crate::widgets as w;
-                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), "Settings…", "", false).clicked() {
+                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), "Settings", "", false).clicked() {
                         self.chart_actions(vec![Action::StudySettings(uid)]);
                         close = true;
                     }

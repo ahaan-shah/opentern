@@ -127,26 +127,13 @@ impl App {
 }
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
-    let (title, what) = match kind {
-        TemplateKind::Chart => (
-            "Save chart template",
-            "Keeps this chart's colours, chart type and scale settings under a name.".to_string(),
-        ),
-        TemplateKind::Indicators => {
-            let n = app.chart.studies.len();
-            let what = match n {
-                0 => "There are no indicators on this chart yet, so the template will be empty.".to_string(),
-                1 => "Keeps the indicator on this chart, with its inputs and style.".to_string(),
-                n => format!("Keeps the {n} indicators on this chart, with their inputs, styles and panes."),
-            };
-            ("Save indicator template", what)
-        }
+    let title = match kind {
+        TemplateKind::Chart => "Save chart template",
+        TemplateKind::Indicators => "Save indicator template",
     };
     let mut done = Done::Keep;
     if frame(ui, t, title, 380.0, |ui| {
-        ui.label(egui::RichText::new(what).color(t.text2));
         if kind == TemplateKind::Indicators && !app.chart.studies.is_empty() {
-            ui.add_space(4.0);
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
                 for s in &app.chart.studies {

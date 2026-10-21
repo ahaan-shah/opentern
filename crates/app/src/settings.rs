@@ -41,16 +41,6 @@ impl Cat {
             Cat::About => ph::INFO,
         }
     }
-
-    fn blurb(self) -> &'static str {
-        match self {
-            Cat::Appearance => "The app's colours. Charts follow them until you give a chart colours of its own.",
-            Cat::Chart => "The active chart's look. Save it as a template to use it on other charts.",
-            Cat::Providers => "Sources that need an account. Everything else works without one.",
-            Cat::Logos => "Round logos beside symbols, as on TradingView.",
-            Cat::About => "This version of Opentern, and updates.",
-        }
-    }
 }
 
 pub struct SettingsPage {
@@ -148,12 +138,6 @@ impl App {
                 .font(theme::semibold(18.0))
                 .color(t.text),
         );
-        c.add_space(2.0);
-        c.label(
-            egui::RichText::new(page.cat.blurb())
-                .font(theme::regular(12.5))
-                .color(t.text3),
-        );
         c.add_space(14.0);
         egui::ScrollArea::vertical()
             .id_salt(("settings", page.cat as u8))
@@ -171,7 +155,7 @@ impl App {
                         .providers
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
-                    Cat::Logos => self.logo_settings(ui, t),
+                    Cat::Logos => self.logo_settings(ui),
                     Cat::About => self.about(ui, t),
                 }
                 ui.add_space(24.0);
@@ -265,25 +249,12 @@ impl App {
         }
     }
 
-    fn logo_settings(&mut self, ui: &mut Ui, t: &Theme) {
+    fn logo_settings(&mut self, ui: &mut Ui) {
         let mut on = self.logos.enabled;
         if crate::widgets::checkbox(ui, &mut on, "Show symbol logos").changed() {
             self.logos.enabled = on;
             let _ = self.store.set_value("symbol_logos", if on { "on" } else { "off" });
         }
-        ui.add_space(8.0);
-        let note = |ui: &mut Ui, s: &str| {
-            ui.label(egui::RichText::new(s).font(theme::regular(12.5)).color(t.text2));
-        };
-        note(
-            ui,
-            "Companies' marks come from theSVG (brand SVGs), drawn white on the brand's colour; coins from the \
-             cryptocurrency-icons set. Anything without one gets its first letter.",
-        );
-        note(
-            ui,
-            "Each logo is fetched once and kept on this computer. Nothing else is sent: only the logo's name.",
-        );
         ui.add_space(10.0);
         if crate::widgets::secondary(ui, "Clear saved logos").clicked() {
             self.logos.clear();
@@ -302,11 +273,6 @@ impl App {
                     egui::RichText::new(format!("Opentern {}", env!("CARGO_PKG_VERSION")))
                         .font(theme::semibold(16.0))
                         .color(t.text),
-                );
-                ui.label(
-                    egui::RichText::new("A local-first trading terminal. MIT licensed.")
-                        .font(theme::regular(13.0))
-                        .color(t.text2),
                 );
             });
         });
@@ -376,10 +342,6 @@ impl App {
                 crate::diag::crumb(format!("couldn't save the update setting: {e}"));
             }
         }
-        ui.add_space(6.0);
-        ui.label(subtle(
-            "Opentern only downloads an update when you click Update, and never sends anything about you.".into(),
-        ));
         ui.add_space(12.0);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;

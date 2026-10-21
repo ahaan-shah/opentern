@@ -1439,13 +1439,7 @@ impl App {
         if self.editor.docs.is_empty() {
             let rest = Rect::from_min_max(pos2(full.left(), bar.bottom()), full.max);
             let mut e = ui.new_child(egui::UiBuilder::new().max_rect(rest.shrink(20.0)));
-            crate::widgets::empty_state(
-                &mut e,
-                t,
-                ph::CODE,
-                "No file open",
-                "Pick a script in the explorer, or start one with the + there.",
-            );
+            crate::widgets::empty_state(&mut e, t, ph::CODE, "No file open");
             return;
         }
 
@@ -2046,13 +2040,7 @@ impl App {
                             );
                         }
                     }
-                } else if log.is_empty() {
-                    ui.label(
-                        egui::RichText::new("Prints and log.* calls from this script show up here.")
-                            .font(theme::regular(12.5))
-                            .color(c.dim),
-                    );
-                } else {
+                } else if !log.is_empty() {
                     ui.add(egui::Label::new(egui::RichText::new(&log).font(mono).color(c.text)).extend());
                 }
             });

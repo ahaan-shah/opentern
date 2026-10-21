@@ -255,11 +255,7 @@ impl AlertForm {
                         ui.label("the price, against the line");
                     });
                 }
-                Condition::Script { .. } => {
-                    form_row(ui, t, "", |ui| {
-                        ui.label(egui::RichText::new("Fires when the script raises it.").color(t.text2));
-                    });
-                }
+                Condition::Script { .. } => {}
             }
             form_row(ui, t, "Trigger", |ui| {
                 crate::widgets::combo("alert-freq")

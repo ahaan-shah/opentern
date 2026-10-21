@@ -153,14 +153,7 @@ impl StrategyProps {
             form_row(ui, t, "Fill orders on bar close", |ui| {
                 crate::widgets::checkbox(ui, &mut p.process_orders_on_close, "");
             });
-            ui.add_space(4.0);
             let changed = p.diff_json(&self.base).as_object().is_some_and(|o| !o.is_empty());
-            let note = if changed {
-                "Changed from what the script says. Reset goes back to the script's values."
-            } else {
-                "These are the script's own values."
-            };
-            ui.label(egui::RichText::new(note).color(t.text3).size(11.5));
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 if crate::widgets::button(ui, crate::widgets::Kind::Secondary, changed, None, "Reset").clicked() {

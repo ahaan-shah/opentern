@@ -33,41 +33,15 @@ impl Mode {
     }
 }
 
-/// Where the CLI is: `OPENTERN_CLAUDE`, then the PATH, then the places its
-/// installers put it (a desktop launch may not have them on the PATH).
-pub fn find_cli() -> Option<PathBuf> {
-    if let Some(p) = std::env::var_os("OPENTERN_CLAUDE") {
-        return Some(PathBuf::from(p)).filter(|p| p.is_file());
-    }
-    let names: &[&str] = if cfg!(windows) {
-        &["claude.exe", "claude.cmd"]
-    } else {
-        &["claude"]
-    };
-    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
-        .map(|p| std::env::split_paths(&p).collect())
-        .unwrap_or_default();
-    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
-        let home = PathBuf::from(home);
-        dirs.push(home.join(".local").join("bin"));
-        dirs.push(home.join(".claude").join("local"));
-        dirs.push(home.join(".npm-global").join("bin"));
-    }
-    dirs.push(PathBuf::from("/usr/local/bin"));
-    dirs.push(PathBuf::from("/opt/homebrew/bin"));
-    dirs.iter()
-        .flat_map(|d| names.iter().map(move |n| d.join(n)))
-        .find(|p| p.is_file())
-}
-
 pub struct Launch {
+    pub agent: super::agent::Agent,
     pub exe: PathBuf,
     /// The workspace's scripts folder: where Claude reads and edits.
     pub cwd: PathBuf,
     pub mode: Mode,
-    /// A model alias ("opus", "sonnet", "haiku") or `None` for the default.
+    /// A model id, or `None` for the CLI's default.
     pub model: Option<String>,
-    /// Claude Code's session id, to continue a chat.
+    /// The CLI's session (Claude Code) or thread (Codex) id, to continue a chat.
     pub resume: Option<String>,
     pub system: String,
 }
@@ -144,6 +118,8 @@ pub enum Event {
         message: String,
     },
     Limits(Vec<Window>),
+    /// The models the account can use: (id, name). Codex only.
+    Models(Vec<(String, String)>),
     Permission {
         request: String,
         tool: String,
@@ -161,16 +137,83 @@ pub enum Event {
     Exited(String),
 }
 
+/// One running agent CLI: a chat's connection, whichever agent it is.
+pub enum Client {
+    Claude(ClaudeCode),
+    Codex(super::codex::Codex),
+}
+
+impl Client {
+    pub fn start(l: &Launch, wake: Arc<dyn Fn() + Send + Sync>) -> std::io::Result<Client> {
+        Ok(match l.agent {
+            super::agent::Agent::Claude => Client::Claude(ClaudeCode::start(l, wake)?),
+            super::agent::Agent::Codex => Client::Codex(super::codex::Codex::start(l, wake)?),
+        })
+    }
+
+    pub fn events(&self) -> &Receiver<Event> {
+        match self {
+            Client::Claude(c) => &c.events,
+            Client::Codex(c) => &c.events,
+        }
+    }
+
+    /// A user turn: a context block the agent sees first, the attached
+    /// files, then the visible text.
+    pub fn send(&self, context: &str, files: &[String], text: &str) {
+        match self {
+            Client::Claude(c) => c.send(context, super::attach::blocks(files), text),
+            Client::Codex(c) => c.send(context, files, text),
+        }
+    }
+
+    pub fn allow(&self, request: &str, input: &Value, always: Option<&Value>) {
+        match self {
+            Client::Claude(c) => c.allow(request, input, always),
+            Client::Codex(c) => c.answer(request, true, always.is_some()),
+        }
+    }
+
+    pub fn deny(&self, request: &str) {
+        match self {
+            Client::Claude(c) => c.deny(request),
+            Client::Codex(c) => c.answer(request, false, false),
+        }
+    }
+
+    /// The reply to one of the app's tool calls (a JSON-RPC MCP reply).
+    pub fn mcp_reply(&self, request: &str, response: Value) {
+        match self {
+            Client::Claude(c) => c.mcp_reply(request, response),
+            Client::Codex(c) => c.tool_reply(request, &response),
+        }
+    }
+
+    pub fn interrupt(&mut self) {
+        match self {
+            Client::Claude(c) => c.interrupt(),
+            Client::Codex(c) => c.interrupt(),
+        }
+    }
+
+    pub fn set_mode(&mut self, mode: Mode) {
+        match self {
+            Client::Claude(c) => c.set_mode(mode),
+            Client::Codex(c) => c.set_mode(mode),
+        }
+    }
+}
+
 /// One running `claude` process.
-pub struct Client {
+pub struct ClaudeCode {
     child: Child,
     stdin: Arc<Mutex<ChildStdin>>,
     pub events: Receiver<Event>,
     seq: u64,
 }
 
-impl Client {
-    pub fn start(l: &Launch, wake: Arc<dyn Fn() + Send + Sync>) -> std::io::Result<Client> {
+impl ClaudeCode {
+    pub fn start(l: &Launch, wake: Arc<dyn Fn() + Send + Sync>) -> std::io::Result<ClaudeCode> {
         let mcp = json!({"mcpServers": {SERVER: {"type": "sdk", "name": SERVER}}}).to_string();
         let mut cmd = Command::new(&l.exe);
         cmd.args([
@@ -250,7 +293,7 @@ impl Client {
         let _ = std::thread::Builder::new()
             .name("claude".into())
             .spawn(move || read(stdout, tx, wake, err_text));
-        Ok(Client {
+        Ok(ClaudeCode {
             child,
             stdin,
             events,
@@ -318,7 +361,7 @@ impl Client {
     }
 }
 
-impl Drop for Client {
+impl Drop for ClaudeCode {
     fn drop(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
@@ -494,8 +537,18 @@ fn order(name: &str) -> u8 {
     }
 }
 
-/// A plain name for a usage window.
+/// A plain name for a usage window (Codex's are `w<minutes>`).
 pub fn window_name(name: &str) -> String {
+    if let Some(m) = name.strip_prefix('w').and_then(|m| m.parse::<i64>().ok()) {
+        return match m {
+            300 => "5-hour limit".into(),
+            10080 => "Weekly limit".into(),
+            43200 => "Monthly limit".into(),
+            m if m % 1440 == 0 => format!("{}-day limit", m / 1440),
+            m if m % 60 == 0 => format!("{}-hour limit", m / 60),
+            m => format!("{m}-minute limit"),
+        };
+    }
     match name {
         "five_hour" => "5-hour limit".into(),
         "seven_day" => "Weekly limit".into(),

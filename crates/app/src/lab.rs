@@ -798,13 +798,7 @@ impl App {
         let target = self.lab_target();
         let meta = target.as_ref().ok().map(|t| t.meta);
         if self.strategies.runs.is_empty() {
-            crate::widgets::empty_state(
-                ui,
-                t,
-                ph::FLASK,
-                "No strategy on the chart",
-                "Add a strategy to optimize it, walk it forward, stress it with Monte Carlo or run it on a whole list.",
-            );
+            crate::widgets::empty_state(ui, t, ph::FLASK, "No strategy on the chart");
             return;
         }
         let full = ui.available_rect_before_wrap();
@@ -941,7 +935,6 @@ impl App {
                 ui.label(egui::RichText::new(text).color(t.text3).size(11.5));
             }
             Mode::MonteCarlo => {
-                let trades = self.strategies.current().map(|r| r.broker.trades.len()).unwrap_or(0);
                 let s = &mut self.lab.setup.mc;
                 row(ui, t, "Runs", |ui| {
                     ui.add(egui::DragValue::new(&mut s.runs).range(100..=100_000).speed(10));
@@ -966,21 +959,6 @@ impl App {
                 row(ui, t, "Ruin at drawdown", |ui| {
                     ui.add(egui::DragValue::new(&mut s.ruin_pct).range(1.0..=100.0).suffix(" %"));
                 });
-                ui.add_space(6.0);
-                let note = match s.method {
-                    Resample::Shuffle => {
-                        "Replays the same trades in random orders: the final profit stays the same, the drawdowns don't."
-                    }
-                    Resample::Bootstrap => {
-                        "Draws trades at random, with repeats: both the result and the drawdowns vary."
-                    }
-                };
-                ui.label(egui::RichText::new(note).color(t.text3).size(11.5));
-                ui.label(
-                    egui::RichText::new(format!("Uses the {trades} closed trades of the current backtest."))
-                        .color(t.text3)
-                        .size(11.5),
-                );
             }
             Mode::Portfolio => {
                 let current = match &self.lab.setup.universe {
@@ -1024,20 +1002,6 @@ impl App {
                     ui.add(egui::DragValue::new(&mut s.port_bars).range(100..=20_000).speed(10));
                 });
                 ui.add_space(6.0);
-                let cap = self
-                    .strategies
-                    .current()
-                    .map(|r| r.broker.props.initial_capital)
-                    .unwrap_or(0.0);
-                ui.label(
-                    egui::RichText::new(format!(
-                        "Runs the strategy with its current inputs on every symbol at the chart's interval ({}). The initial capital ({}) is split equally between them.",
-                        self.chart.tf.label(),
-                        num(cap, 0)
-                    ))
-                    .color(t.text3)
-                    .size(11.5),
-                );
             }
         }
     }
@@ -1101,11 +1065,6 @@ impl App {
 
     fn lab_opt_results(&mut self, ui: &mut Ui, t: &Theme) {
         let Some((setup, outcome, _)) = &self.lab.opt else {
-            empty(
-                ui,
-                t,
-                "Tick the inputs to vary, set their ranges and press Run. Every run is a full backtest on the chart's bars.",
-            );
             return;
         };
         let setup = setup.clone();
@@ -1295,13 +1254,6 @@ impl App {
                         crate::widgets::option_value(ui, &mut py, k, &p.title);
                     }
                 });
-            if n > 2 {
-                ui.label(
-                    egui::RichText::new("Each cell is the best run with those two values.")
-                        .color(t.text3)
-                        .size(11.5),
-                );
-            }
         });
         self.lab.heat = (px, py);
         if px == py {
@@ -1411,11 +1363,6 @@ impl App {
 
     fn lab_walk_results(&mut self, ui: &mut Ui, t: &Theme) {
         let Some((setup, r)) = &self.lab.walk else {
-            empty(
-                ui,
-                t,
-                "Walk-forward optimizes on a window of bars, trades the winner on the bars after it, then steps on. The stitched result is what re-optimizing on that schedule would have earned.",
-            );
             return;
         };
         let f = self.fmt();
@@ -1471,11 +1418,6 @@ impl App {
 
     fn lab_mc_results(&mut self, ui: &mut Ui, t: &Theme) {
         let Some(r) = &self.lab.mc else {
-            empty(
-                ui,
-                t,
-                "Monte Carlo replays the backtest's trades in thousands of random orders to show how much of its drawdown was luck.",
-            );
             return;
         };
         let f = self.fmt();
@@ -1562,11 +1504,6 @@ impl App {
 
     fn lab_port_results(&mut self, ui: &mut Ui, t: &Theme) {
         let Some(r) = &self.lab.port else {
-            empty(
-                ui,
-                t,
-                "Portfolio runs the strategy on every symbol of a list, each with an equal share of the capital, and adds them up.",
-            );
             return;
         };
         let f = self.fmt();
@@ -1670,11 +1607,6 @@ fn row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut Ui)) {
         );
         control(ui);
     });
-}
-
-fn empty(ui: &mut Ui, t: &Theme, text: &str) {
-    ui.add_space(8.0);
-    ui.label(egui::RichText::new(text).color(t.text3));
 }
 
 /// Low → high: from a faint wash to the accent.

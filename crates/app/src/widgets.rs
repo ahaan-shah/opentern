@@ -381,7 +381,7 @@ pub fn secondary(ui: &mut Ui, label: &str) -> Response {
 /// A single-line text field with room to breathe (egui's default margin
 /// makes fields shorter than the dropdowns beside them).
 pub fn field(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
-    egui::TextEdit::singleline(text).margin(vec2(10.0, 7.0))
+    egui::TextEdit::singleline(text).margin(vec2(12.0, 8.0))
 }
 
 /// A search field with the magnifying glass drawn in its own gutter, so
@@ -543,7 +543,7 @@ fn menu_row_tinted(
 ) -> Response {
     let width = ui.available_width().max(120.0);
     let sense = if enabled { Sense::click() } else { Sense::hover() };
-    let (rect, resp) = ui.allocate_exact_size(vec2(width, 30.0), sense);
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 32.0), sense);
     if ui.is_rect_visible(rect) {
         let hover = motion::toggle(
             ui.ctx(),
@@ -553,9 +553,9 @@ fn menu_row_tinted(
         );
         let p = ui.painter();
         if selected {
-            p.rect_filled(rect, CornerRadius::same(7), t.accent_soft());
+            p.rect_filled(rect, CornerRadius::same(8), t.accent_soft());
         }
-        p.rect_filled(rect, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hover));
+        p.rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), hover));
         let base = if !enabled {
             t.text3
         } else if let Some(c) = tint {
@@ -622,13 +622,12 @@ pub fn menu_rule(ui: &mut Ui, t: &Theme) {
 
 /// A calm "nothing here yet" block: a large faint icon, a title and a line
 /// of help.
-pub fn empty_state(ui: &mut Ui, t: &Theme, glyph: &str, title: &str, body: &str) {
+pub fn empty_state(ui: &mut Ui, t: &Theme, glyph: &str, title: &str) {
     ui.vertical_centered(|ui| {
         ui.add_space(18.0);
         ui.label(egui::RichText::new(glyph).font(theme::regular(34.0)).color(t.text3));
         ui.add_space(4.0);
         ui.label(egui::RichText::new(title).font(theme::semibold(14.0)).color(t.text));
-        ui.add(egui::Label::new(egui::RichText::new(body).color(t.text2)).wrap());
         ui.add_space(12.0);
     });
 }

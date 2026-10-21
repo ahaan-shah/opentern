@@ -121,21 +121,9 @@ impl Indicators {
                             ui.set_width(w - 16.0);
                             if list.is_empty() {
                                 if self.tab == Tab::Favorites && q.is_empty() {
-                                    crate::widgets::empty_state(
-                                        ui,
-                                        t,
-                                        ph::STAR,
-                                        "No favorites yet",
-                                        "Star an indicator to keep it here.",
-                                    );
+                                    crate::widgets::empty_state(ui, t, ph::STAR, "No favorites yet");
                                 } else {
-                                    crate::widgets::empty_state(
-                                        ui,
-                                        t,
-                                        ph::MAGNIFYING_GLASS,
-                                        "Nothing matches",
-                                        "Try a shorter name, like \"RSI\" or \"moving\".",
-                                    );
+                                    crate::widgets::empty_state(ui, t, ph::MAGNIFYING_GLASS, "Nothing matches");
                                 }
                             }
                             for m in list {
