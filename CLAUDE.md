@@ -1168,6 +1168,26 @@ every data change (scripts re-run on it).
   remembered (their open questions are in `docs/indicators.md`); check them against
   exports.
 
+### Releasing (only when asked; same as Magpie and Spotsie)
+1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version
+   = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
+   example; `cargo update -w`.
+2. `CHANGELOG.md` entry (`## X.Y.Z (date)`): a short plain summary, then New /
+   Changed / Fixed / Removed, each item leading with a bold user-facing result.
+   The release notes are cut from it (the publish job fails without one). Never
+   placeholder notes.
+3. If dependencies or bundled assets changed: `python3
+   scripts/third-party-licenses.py`. Run `cargo audit` (CI fails on advisories).
+4. fmt / clippy / test / `scripts/check-leaks.sh`, commit, push `main`, and
+   **wait until every CI job is green on that commit** before tagging.
+5. `git tag -a vX.Y.Z -m "Opentern X.Y.Z" && git push origin vX.Y.Z`; watch
+   `release.yml` with `gh run watch`. A `workflow_dispatch` run builds every
+   platform without publishing (do one after changing packaging).
+6. Run `install.sh` so the installed app is the new version (it replaces the
+   binary, never writes into a running one).
+7. Asset names are a contract with `install.sh`, `install.ps1` and
+   `update::asset_name`. Don't rename them.
+
 ### Dev loop
 ```bash
 cargo run --profile fast -- --demo --data-dir /tmp/opentern-test   # made-up prices, no network
