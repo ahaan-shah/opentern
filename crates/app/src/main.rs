@@ -65,9 +65,13 @@ OPTIONS:
     --data-dir <PATH>   Use a different workspace folder
     --demo              Made-up prices, no network: for trying things out
                         (in its own workspace unless --data-dir is given)
+    --licenses          Print the licenses of the libraries, fonts and icons it includes
     -V, --version       Print version
     -h, --help          Print this help
 ";
+
+/// Everything bundled and its license (scripts/third-party-licenses.py).
+const LICENSES: &str = include_str!("../../../THIRD-PARTY-LICENSES.txt");
 
 fn main() -> eframe::Result<()> {
     #[cfg(windows)]
@@ -81,6 +85,10 @@ fn main() -> eframe::Result<()> {
         match a.as_str() {
             "-h" | "--help" => {
                 print_quietly(HELP);
+                return Ok(());
+            }
+            "--licenses" => {
+                print_quietly(LICENSES);
                 return Ok(());
             }
             "-V" | "--version" => {

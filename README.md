@@ -87,12 +87,13 @@ webhook, Telegram or email.
 Exchange calendars, dividends and splits are built in. Everything is free until
 you choose to add a paid provider.
 
-**A Claude panel.** If you use [Claude Code](https://claude.com/claude-code),
-open it beside the chart and ask it to write a strategy, explain an indicator or
-read your backtest. Opentern starts the `claude` program already on your
+**An agent panel.** If you use [Claude Code](https://claude.com/claude-code) or
+OpenAI's [Codex CLI](https://github.com/openai/codex), open it beside the chart
+and ask it to write a strategy, explain an indicator or read your backtest.
+Switch between the two anytime. Opentern starts the program already on your
 computer, so it uses your own sign-in and plan. Opentern has no key of its own.
-Nothing runs until you send a message, and without Claude Code the panel just
-says how to install it.
+Nothing runs until you send a message, and without the CLI the panel just says
+how to install it.
 
 **Everything else.**
 - 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 bundled interface fonts.
@@ -106,27 +107,36 @@ says how to install it.
 
 ## Install
 
-### Linux (one line)
+### macOS
+
+Download `Opentern-macos-universal.dmg` from the
+[latest release](https://github.com/ahaan-shah/opentern/releases/latest) and drag
+Opentern to Applications (Apple Silicon and Intel). The app isn't notarized yet,
+so the first time, right-click it and choose **Open** (on macOS 15, allow it in
+System Settings → Privacy & Security).
+
+### Windows
+
+```powershell
+irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex
+```
+
+Or download `Opentern-windows-setup.exe` from the
+[latest release](https://github.com/ahaan-shah/opentern/releases/latest). It installs
+for your user (no admin prompt) on x64 and ARM64 PCs.
+
+### Linux
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.sh | sh
 ```
 
-While the repository is private, go through the [GitHub CLI](https://cli.github.com)
-instead. It uses your sign-in for the download:
-
-```bash
-gh api repos/ahaan-shah/opentern/contents/install.sh -H 'Accept: application/vnd.github.raw' | sh
-```
-
 This installs `opentern` into `~/.local/bin` and adds a desktop entry and icon,
-so Opentern shows up in your app launcher. The script checks the download
-against the release's `SHA256SUMS`. To pin a version, set `OPENTERN_VERSION=0.1.0`.
+so Opentern shows up in your app launcher (x86-64 and ARM64). The script checks
+the download against the release's `SHA256SUMS`. To pin a version, set
+`OPENTERN_VERSION=0.1.2`.
 
-Builds are published for Linux x86-64 for now. On macOS and Windows, [build from
-source](#building-from-source).
-
-**Uninstall:** run the install line with `sh -s -- --uninstall` in place of
+**Uninstall (Linux):** run the install line with `sh -s -- --uninstall` in place of
 `sh`. Your workspace is kept.
 
 ## Scripting
@@ -220,3 +230,7 @@ by file, with their authors credited in [docs/indicators.md](docs/indicators.md)
 
 Pine Script® and TradingView® are trademarks of TradingView, Inc. Opentern is
 an independent project, not affiliated with or endorsed by TradingView.
+Claude is a trademark of Anthropic, and OpenAI and Codex are trademarks of
+OpenAI; Opentern only starts their CLIs that you install yourself, and isn't
+affiliated with either. The licenses of everything Opentern includes are in
+[THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) (`opentern --licenses`).

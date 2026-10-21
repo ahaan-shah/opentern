@@ -7,8 +7,8 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
 **Status (Oct 2026):** Phases 0–13 built and committed (one commit per phase, as the
-maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is a
-private GitHub repo with Linux CI; v0.1.1 is released (Linux x86-64). Read "Where things stand" → "Resume
+maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
+public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
 
 ## Decisions so far (from the maintainer, Oct 2026)
@@ -43,6 +43,11 @@ here" at the end first.
 - **They test before you release.** Build it, run it locally, let them try it and iterate.
 - **Design taste:** clean, calm, modern, subtle. Accent colour is used sparingly. Error text
   is plain and human, not red stack traces.
+- **Less is more: no gratuitous text** (the maintainer, Oct 2026). No captions explaining a
+  control, no eyebrow labels over a single list ("APPLY"), no bylines, no reassurance
+  lines, no sub-lines under empty states (`widgets::empty_state` takes only an icon and a
+  title), no "…" on menu items. Keep real information: errors, statuses, where to get a
+  key. Explanations go in tooltips if anywhere.
 - **Wording:** short, plain, friendly. When they specify exact strings, use them verbatim.
 - **They send follow-ups mid-task.** Fold them into the current work and say how each
   was handled.
@@ -82,9 +87,10 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
   web3icons coins and theSVG brand marks, both MIT); others are fetched once per
   symbol from jsDelivr or unpkg into `<workspace>/logos/`, never in demo mode, off in
-  Settings → Symbol logos. Indices and commodities get drawn badges. The Claude
-  panel (§ "Claude panel" below) only talks through the user's own Claude Code CLI,
-  and only after they send a message: nothing starts at launch.
+  Settings → Symbol logos. Indices and commodities get drawn badges. The agent
+  panel (§ "Agent panel" below) only talks through the user's own Claude Code or
+  Codex CLI, and only after they send a message (or open Codex's model menu):
+  nothing starts at launch.
 - **Logs stay local** and are redacted: no API keys, tokens or account IDs, even in panic
   reports.
 - **Private test material stays out of the repo.** The maintainer's own Pine scripts and
@@ -566,22 +572,33 @@ in iteratively. Phase 14 has started (item 3).
    screenshots. Second and third passes done 15 Oct 2026 (compare modes and
    per-axis A/L/% toggles, quick measure, VSCodium-style editor, Settings page,
    TradingView-style logos, formula autocomplete; list in `docs/ui-backlog.md`).
-2. **The Claude panel** (15 Oct 2026, first cut, being tested by the maintainer;
-   see "Claude panel" below). Iterate on their feedback.
-3. **Phase 14 (started 16 Oct 2026, the maintainer's go):** the repo is on
-   GitHub as **private** `ahaan-shah/opentern`. CI is **Linux only** (leaks,
-   `cargo audit`, fmt, clippy, tests; private-repo minutes). `release.yml`
-   builds Linux x86-64 only on a `v*` tag: `opentern-x86_64-unknown-linux-gnu.tar.gz`
-   + `SHA256SUMS` + `install.sh` (`scripts/package-linux.sh`). `install.sh` is
-   Linux only; while private it runs through `gh` (one-liner in the README).
+2. **The agent panel** (Claude since 15 Oct 2026, Codex and the agent picker
+   since 21 Oct 2026; see "Agent panel" below). Iterate on the maintainer's
+   feedback before the next release.
+3. **Phase 14 (started 16 Oct 2026, the maintainer's go):** `ahaan-shah/opentern`
+   on GitHub, **public since 21 Oct 2026** (v0.1.2, the maintainer's go after a
+   full history scan for secrets and personal data: clean). CI is still **Linux
+   only** (leaks, `cargo audit`, fmt, clippy, tests); add macOS/Windows to it
+   now that minutes are free. `release.yml` on a `v*` tag builds Linux x86-64 +
+   ARM64 tarballs (`scripts/package-linux.sh`), a universal macOS `.app` as
+   `.dmg` + `.zip` (`scripts/bundle-macos.sh`, ad-hoc signed, not notarized),
+   Windows x64 + ARM64 zips and an Inno Setup installer
+   (`scripts/package-windows.ps1`, `packaging/windows/opentern.iss`; never
+   change its AppId), plus `SHA256SUMS`, `install.sh` (Linux) and `install.ps1`
+   (Windows). Asset names are a contract with the updater.
+   `THIRD-PARTY-LICENSES.txt` (`scripts/third-party-licenses.py`; re-run after
+   dependency or asset changes) ships in every package and in the binary
+   (`opentern --licenses`).
    The updater falls back to the `gh` CLI on a 404 (private repo) for the check
    and the download, and now **requires** SHA256SUMS. Settings → About: logo,
    version, Check for updates, the launch-check toggle. README screenshots in
    `docs/screenshots/` (demo data; retake with `OPENTERN_STILL`, a fresh
    `--data-dir` per shot, since layouts persist). **v0.1.0 tagged and
    released 16 Oct 2026** (the maintainer's go; each later release needs its
-   own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity). Still to do: macOS/Windows builds when it goes public,
-   `THIRD-PARTY-LICENSES.txt` + `--licenses`, the website.
+   own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity); v0.1.2 the
+   same day (agent panel with Codex, UI pass 4, first macOS/Windows builds;
+   nobody has run those builds on a real Mac or PC yet). Still to do: the
+   website, notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -597,8 +614,8 @@ in iteratively. Phase 14 has started (item 3).
 - Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
   tag, × cancels / closes), several paper accounts, email alerts. Still open: a
   `--daemon`, alerts on off-chart indicators.
-- `THIRD-PARTY-LICENSES.txt` + `--licenses`, `.icns` (Phase 14; the Linux release workflow is done).
-  The icon itself is done (`packaging/linux/`, `opentern.desktop`).
+- Done Oct 2026: `THIRD-PARTY-LICENSES.txt` + `--licenses`, the `.icns` (built in
+  `bundle-macos.sh`). The icon itself is in `packaging/linux/`.
 
 **Testing the app for the maintainer:** build with `cargo build --profile fast`.
 Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It
@@ -614,7 +631,7 @@ workspace.
 | `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
-| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `claude/` (the Claude panel: `process.rs` Claude Code CLI client, `tools.rs` the app's MCP tools, `mod.rs` chats and UI), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
+| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `claude/` (the agent panel: `agent.rs` Claude/Codex, `process.rs` Claude Code client, `codex.rs` Codex client, `tools.rs` the app's tools, `mod.rs` chats and UI), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
@@ -955,6 +972,35 @@ workspace.
 - Licences: mlua/Luau, rquickjs/QuickJS (MIT), swc (Apache-2.0): fine for the
   MIT app; list them in `THIRD-PARTY-LICENSES.txt` at Phase 14.
 
+### Agent panel: Claude and Codex (Oct 2026)
+- **Two agents** (`claude/agent.rs`, `Agent::{Claude, Codex}`): the rail button is
+  the agents' face (sand disc, two dark pill eyes, drawn in `mark::face`; the
+  maintainer's design). First open shows a card per agent (`claude_picker`);
+  picking one moves into its panel (the card shrinks into the header and the
+  logo flies there, `claude_pick_overlay`, `ANIM` 0.6 s). The header's top-left
+  is the agent switcher (dropdown, either agent anytime) + `/ chat title`.
+  Each chat has an `agent`; each agent keeps its open chat (`last`); opening
+  another agent's chat from the list switches. Saved `agent: None` = picker.
+  No suggested prompts: the empty chat shows the logo on a halo and chips of
+  what the agent sees. Per agent: accent (Claude terracotta, Codex
+  monochrome), models, usage windows, inline-code colour.
+- **Codex** (`claude/codex.rs`): one `codex app-server` per chat (JSON-RPC
+  lines; checked live against codex-cli 0.163), cwd = the scripts folder,
+  `thread/start` with `developerInstructions` and the app's tools as
+  `dynamicTools` (`item/tool/call` → answered through `claude_mcp` like
+  Claude's MCP calls), `thread/resume` for older chats, `turn/start` per
+  message (Ask first = `untrusted`, Auto = `on-request`, sandbox
+  `workspace-write`), approvals → the same approval cards (`acceptForSession`
+  = Allow for this chat). Models come from `model/list` (account-specific;
+  fetched by a short-lived app-server when the model menu first opens).
+  `process::Client` is an enum over both CLIs; `Event::Models` is Codex only.
+  `live_codex` (ignored, uses the account): `CODEX_MODEL=<id> cargo test -p
+  opentern --bin opentern live_codex -- --ignored --nocapture`.
+- Alt+V also arrives as typed text; the composer drops that frame's text events.
+- Never read `ctx.data` (e.g. `code_color`) inside `ui.fonts_mut(|…|)`: the
+  context is locked there and the frame deadlocks (the stall watchdog fires).
+- Stills: `agent:claude|codex` picks an agent (skips the picker).
+
 ### Claude panel (Oct 2026)
 - Rail button under Notifications (`Widget::Claude`). Chats with **Claude Code**, the
   CLI the user installed and signed in to (their subscription; no API key in the app).
@@ -1077,6 +1123,17 @@ a channel and wake the UI. **Each (re)open gets a new chart id** (`App::open_cha
 events for old ids are dropped. Studies update incrementally: `Instance::update` steps
 closed bars once and recomputes the forming bar on a clone. `Chart::data_version` bumps on
 every data change (scripts re-run on it).
+
+### UI pass 4 (21 Oct 2026)
+- Settings is a gear at the far right of the top bar (right of the camera); the
+  hamburger is gone. Indicator templates can be starred (favourites kind
+  `indicator_template`); starred ones show as buttons right of the templates
+  button. The drawing toolbar slides like the side and bottom panels.
+- Symbol search only scrolls to the selection on arrow keys (it used to pin the
+  list every frame, so the wheel couldn't scroll).
+- Quieter controls (`theme::visuals`): fields a shade under their surface, a soft
+  focus ring (`selection.stroke` at 60%), neutral hover instead of an accent
+  outline, deeper popup shadow, 32 px menu rows.
 
 ### Gotchas so far
 - **Bars lay out their right-hand group first** (`right_to_left`, then a nested

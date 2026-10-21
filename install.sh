@@ -106,7 +106,8 @@ verify() {
 ARCH="$(uname -m)"
 case "$ARCH" in
 x86_64 | amd64) ARCH=x86_64 ;;
-*) die "only x86-64 builds are published for now, not $ARCH (you can build from source: https://github.com/$REPO#building-from-source)" ;;
+aarch64 | arm64) ARCH=aarch64 ;;
+*) die "there's no build for $ARCH (you can build from source: https://github.com/$REPO#building-from-source)" ;;
 esac
 
 NAME="opentern-$ARCH-unknown-linux-gnu"
