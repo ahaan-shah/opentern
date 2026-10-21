@@ -4,12 +4,12 @@
 
 # Opentern
 
-**A fast, local-first trading terminal.**
+**A fast, local-first market analysis terminal.**
 
 TradingView-style charts, TradingView's built-in indicators, Pine Script®-compatible
 scripting (plus Python, Luau, JavaScript and TypeScript), backtests with
 TradingView's Strategy Report, alerts, paper trading and a coding agent beside
-the chart. A native Rust app for Linux, macOS and Windows, with no account and no
+the chart. It's for analysis: it never places real orders. A native Rust app for Linux, macOS and Windows, with no account and no
 telemetry. Your data stays on your computer.
 
 [Website](https://ahaan-shah.github.io/opentern/) · [Install](#install) · [Features](#features) · [Scripting](#scripting) · [Keyboard](#keyboard) · [Your data](#your-data) · [Building](#building-from-source)

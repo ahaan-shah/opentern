@@ -56,7 +56,7 @@ use opentern_core::Store;
 use std::path::PathBuf;
 
 const HELP: &str = "\
-opentern — a fast, local-first trading terminal
+opentern — a fast, local-first market analysis terminal
 
 USAGE:
     opentern [OPTIONS]

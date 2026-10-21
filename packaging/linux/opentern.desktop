@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Opentern
-GenericName=Trading Terminal
+GenericName=Market Analysis
 Comment=Charts, scripts, backtests, alerts and paper trading
 Exec=opentern
 Icon=opentern

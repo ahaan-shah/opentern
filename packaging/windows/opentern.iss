@@ -69,7 +69,7 @@ Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\THIRD-PARTY-LICENSES.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Opentern"; Filename: "{app}\opentern.exe"; Comment: "Trading terminal"
+Name: "{autoprograms}\Opentern"; Filename: "{app}\opentern.exe"; Comment: "Market analysis terminal"
 Name: "{autodesktop}\Opentern"; Filename: "{app}\opentern.exe"; Tasks: desktopicon
 
 [Run]

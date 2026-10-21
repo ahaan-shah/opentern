@@ -103,7 +103,7 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   `.env` files. If it flags something, fix the leak; don't weaken the check.
 
 ## 1. Product & bar
-Opentern is a local-first trading terminal: TradingView-grade charts, multi-language
+Opentern is a local-first market analysis terminal (it never places real orders): TradingView-grade charts, multi-language
 scripting (indicators and strategies), a backtester, alerts and paper trading. There's no
 account and no telemetry, and the data stays on the machine. It inherits Magpie's bar:
 **blazingly fast, beautiful, light on RAM, fluid, never crashes, easy install on

@@ -555,7 +555,7 @@ impl App {
             Agent::Codex => "",
         };
         let text = format!(
-            "You're running inside Opentern, a local trading terminal (TradingView-style charts, Pine Script \
+            "You're running inside Opentern, a local market analysis terminal (TradingView-style charts, Pine Script \
              and other scripting languages, backtests, alerts and paper trading). The user talks to you from a \
              panel next to their chart.\n\n\
              Your working directory is the user's scripts folder ({}). Scripts there can go on the chart. \

@@ -1,6 +1,6 @@
 [package]
 name = "opentern-core"
-description = "Engine behind the Opentern trading terminal: market data model, storage, settings, updates"
+description = "Engine behind the Opentern market analysis terminal: market data model, storage, settings, updates"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

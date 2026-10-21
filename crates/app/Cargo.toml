@@ -1,6 +1,6 @@
 [package]
 name = "opentern"
-description = "Opentern — a fast, local-first trading terminal with charts, scripting and backtests"
+description = "Opentern — a fast, local-first market analysis terminal with charts, scripting and backtests"
 readme = "../../README.md"
 default-run = "opentern"
 version.workspace = true
