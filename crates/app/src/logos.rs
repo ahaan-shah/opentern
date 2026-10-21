@@ -16,7 +16,8 @@
 //!
 //! A background thread finds and fetches each logo once, keeps the SVG in
 //! `<workspace>/logos/` (a miss as an empty file), and renders the disc with
-//! resvg. Off in Settings → Symbol logos, or in demo mode: no requests.
+//! resvg. Off in Settings → Symbol logos. Demo mode shows only the bundled
+//! ones: no requests.
 
 use crate::icons::ph;
 use crate::theme::Theme;
@@ -45,6 +46,8 @@ enum Slot {
 
 pub struct Logos {
     pub enabled: bool,
+    /// Demo mode: only the logos bundled in the app, never a request.
+    offline: bool,
     dir: PathBuf,
     // Interior mutability: the chart paints logos through `&Logos`.
     slots: RefCell<HashMap<String, Slot>>,
@@ -441,10 +444,11 @@ fn render(kept: &str) -> Option<Image> {
 }
 
 impl Logos {
-    pub fn new(dir: PathBuf, enabled: bool) -> Logos {
+    pub fn new(dir: PathBuf, enabled: bool, offline: bool) -> Logos {
         let (got_tx, got) = unbounded();
         Logos {
             enabled,
+            offline,
             dir,
             slots: RefCell::new(HashMap::new()),
             ask: RefCell::new(None),
@@ -471,6 +475,7 @@ impl Logos {
             let (tx, rx) = unbounded::<(String, Symbol)>();
             let out = self.got_tx.clone();
             let dir = self.dir.clone();
+            let offline = self.offline;
             let ctx = ctx.clone();
             let _ = std::thread::Builder::new().name("logos".into()).spawn(move || {
                 let _ = std::fs::create_dir_all(&dir);
@@ -487,6 +492,7 @@ impl Logos {
                         .or_else(|_| std::fs::read_to_string(&path))
                     {
                         Ok(k) => k,
+                        Err(_) if offline => String::new(),
                         Err(_) => match find(&sym, &agent, &mut mirrors, &mut slugs, &dir) {
                             // Offline: nothing kept, so it's tried again.
                             Some(k) if k.is_empty() => k,

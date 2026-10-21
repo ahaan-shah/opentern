@@ -114,7 +114,8 @@ impl App {
         );
         let logos = crate::logos::Logos::new(
             store.dir().join("logos"),
-            !demo && store.value("symbol_logos").as_deref() != Some("off"),
+            store.value("symbol_logos").as_deref() != Some("off"),
+            demo,
         );
         // The layout last worked on, else the most recent one.
         let current = store
@@ -224,8 +225,15 @@ impl App {
         }
         app.subscribe_quotes();
         app.still();
-        if std::env::var("OPENTERN_STILL").is_ok_and(|v| v.split(',').any(|p| p == "light")) {
-            app.theme = crate::theme::ThemeState::new(ctx, "Opentern Light");
+        if let Ok(v) = std::env::var("OPENTERN_STILL") {
+            // `light`, or `theme:<name>` (e.g. theme:Tokyo Night) for screenshots.
+            let name = v.split(',').find_map(|p| match p {
+                "light" => Some("Opentern Light"),
+                p => p.strip_prefix("theme:"),
+            });
+            if let Some(name) = name {
+                app.theme = crate::theme::ThemeState::new(ctx, name);
+            }
         }
         app
     }
@@ -1173,6 +1181,29 @@ impl App {
 }
 
 impl eframe::App for App {
+    /// `OPENTERN_STILL_NOINPUT=1` (screenshots): mouse and keyboard are
+    /// ignored, so a resting pointer leaves no crosshair and keys typed
+    /// elsewhere while the window has focus never reach it.
+    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
+        if std::env::var_os("OPENTERN_STILL_NOINPUT").is_some() {
+            raw.events.retain(|e| {
+                !matches!(
+                    e,
+                    egui::Event::PointerMoved(_)
+                        | egui::Event::PointerButton { .. }
+                        | egui::Event::MouseWheel { .. }
+                        | egui::Event::MouseMoved(_)
+                        | egui::Event::Key { .. }
+                        | egui::Event::Text(_)
+                        | egui::Event::Paste(_)
+                        | egui::Event::Copy
+                        | egui::Event::Cut
+                )
+            });
+            raw.events.push(egui::Event::PointerGone);
+        }
+    }
+
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         // Frame pacing (vsync is off, see main.rs): while animating, don't
         // render faster than FRAME_CAP. Idle frames aren't affected.
