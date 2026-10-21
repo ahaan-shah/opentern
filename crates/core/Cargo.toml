@@ -21,7 +21,7 @@ sha2 = "0.11.0"
 thiserror = "2.0.21"
 ureq = "3.4.2"
 # Unpacks Windows update zips without `tar`.
-zip = { version = "8.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3.27.0"
