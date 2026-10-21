@@ -1183,8 +1183,8 @@ every data change (scripts re-run on it).
 5. `git tag -a vX.Y.Z -m "Opentern X.Y.Z" && git push origin vX.Y.Z`; watch
    `release.yml` with `gh run watch`. A `workflow_dispatch` run builds every
    platform without publishing (do one after changing packaging).
-6. Run `install.sh` so the installed app is the new version (it replaces the
-   binary, never writes into a running one).
+6. Don't install the new version locally (`install.sh` or otherwise) unless
+   the maintainer asks.
 7. Asset names are a contract with `install.sh`, `install.ps1` and
    `update::asset_name`. Don't rename them.
 
