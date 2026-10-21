@@ -86,7 +86,8 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   turned off), the data providers the user has turned on, and symbol logos. About 200
   logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
   web3icons coins and theSVG brand marks, both MIT); others are fetched once per
-  symbol from jsDelivr or unpkg into `<workspace>/logos/`, never in demo mode, off in
+  symbol from jsDelivr or unpkg into `<workspace>/logos/` (demo mode shows only the bundled
+  ones and fetches nothing), off in
   Settings → Symbol logos. Indices and commodities get drawn badges. The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
@@ -591,9 +592,11 @@ in iteratively. Phase 14 has started (item 3).
    (`opentern --licenses`).
    The updater falls back to the `gh` CLI on a 404 (private repo) for the check
    and the download, and now **requires** SHA256SUMS. Settings → About: logo,
-   version, Check for updates, the launch-check toggle. README screenshots in
-   `docs/screenshots/` (demo data; retake with `OPENTERN_STILL`, a fresh
-   `--data-dir` per shot, since layouts persist). **v0.1.0 tagged and
+   version, Check for updates, the launch-check toggle. Screenshots (README
+   and website) are `site/media/*.webp`: demo data, taken with `OPENTERN_STILL`
+   plus `OPENTERN_STILL_NOINPUT=1` (ignores mouse and keys, so no stray
+   crosshair or typed keys), a fresh `--data-dir` per shot, `theme:<name>` for
+   the theme deck; 2160x1350 grabs scaled to 1880x1175 WebP. **v0.1.0 tagged and
    released 16 Oct 2026** (the maintainer's go; each later release needs its
    own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity); v0.1.2 the
    same day (agent panel with Codex, UI pass 4, first macOS/Windows builds;
@@ -1167,6 +1170,12 @@ every data change (scripts re-run on it).
 - Zig Zag, Auto Fib and Pivot Points Standard follow TradingView's behaviour as
   remembered (their open questions are in `docs/indicators.md`); check them against
   exports.
+
+### Website
+`site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in
+Spotsie's style and Opentern's theme colours, published by `pages.yml` to
+https://ahaan-shah.github.io/opentern/ on pushes touching `site/`. Install lines
+must match `install.sh` / `install.ps1` and the README.
 
 ### Releasing (only when asked; same as Magpie and Spotsie)
 1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version

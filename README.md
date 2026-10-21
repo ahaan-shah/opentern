@@ -6,24 +6,24 @@
 
 **A fast, local-first trading terminal.**
 
-TradingView-style charts, indicators and strategies in Pine Script®-compatible
-code, Python, Luau, JavaScript or TypeScript, a backtester with TradingView's
-Strategy Report, alerts and paper trading. It's a native Rust app with no
-account and no telemetry, and your data stays on your computer.
+TradingView-style charts, TradingView's built-in indicators, Pine Script®-compatible
+scripting (plus Python, Luau, JavaScript and TypeScript), backtests with
+TradingView's Strategy Report, alerts, paper trading and a coding agent beside
+the chart. A native Rust app for Linux, macOS and Windows, with no account and no
+telemetry. Your data stays on your computer.
 
-[Install](#install) · [Features](#features) · [Scripting](#scripting) · [Keyboard](#keyboard) · [Your data](#your-data) · [Building](#building-from-source)
+[Website](https://ahaan-shah.github.io/opentern/) · [Install](#install) · [Features](#features) · [Scripting](#scripting) · [Keyboard](#keyboard) · [Your data](#your-data) · [Building](#building-from-source)
 
-<img src="docs/screenshots/chart.png" alt="Opentern's chart with Bollinger Bands, RSI and the watchlist" width="900">
+<img src="site/media/home-dark.webp" alt="Opentern's chart with Bollinger Bands, RSI, a strategy and the watchlist" width="900">
 
 </div>
 
 ## Features
 
-**Laid out like TradingView.** The drawing toolbar sits on the left, symbol and
-interval are in the top bar, the widget rail is on the right and the Script
-Editor, Strategy Report and Paper Trading tabs are along the bottom. Traders
-already know where everything is, so there's nothing new to learn. It just opens
-faster and asks your computer for less.
+**Laid out like TradingView.** Drawing tools on the left, symbol and interval in
+the top bar, widgets on the right, and the Script Editor, Strategy Report and
+Paper Trading along the bottom. Traders already know where everything is. It just
+opens faster and asks your computer for less.
 
 **Charts.**
 - Candles, hollow candles, bars, line, line with markers, step, area, baseline,
@@ -36,37 +36,47 @@ faster and asks your computer for less.
 - 27 drawing tools in TradingView's groups: trend lines, Fib, pitchfork, channels,
   long/short positions, measures, anchored VWAP and volume profiles. Drawings are
   saved per symbol.
+- Logos for coins and companies, as on TradingView.
 
-**96 of TradingView's built-in indicators**, written in Rust and composed from
-Pine-exact `ta.*` primitives so they match TradingView's numbers. They keep
-TradingView's default inputs, styles, colours and levels, and come with settings
-dialogs, saved defaults and indicator templates. They include the Volume Profile
-family, Ichimoku, SuperTrend, Zig Zag, Auto Fib and Pivot Points.
+**96 of TradingView's built-in indicators**, written in Rust from Pine-exact `ta.*`
+primitives, so they match TradingView's numbers. They keep TradingView's default
+inputs, styles, colours and levels, with settings dialogs, saved defaults and
+indicator templates (star one to keep it in the top bar). They include the Volume
+Profile family, Ichimoku, SuperTrend, Zig Zag, Auto Fib and Pivot Points.
 
-<img src="docs/screenshots/strategy.png" alt="The Strategy Report for a moving-average cross" width="900">
+<img src="site/media/report.webp" alt="The Strategy Report for a moving-average cross" width="900">
 
-**Backtests, the way TradingView reports them.**
-- A broker emulator that follows TradingView's fill rules: next-open fills, the
-  intrabar path for stops and limits, pyramiding, brackets, commission and slippage.
-- The Strategy Report has the same tabs and metric names: Overview, Performance,
-  Trades analysis, Risk/performance ratios, List of trades and Properties. The
-  List of trades exports to CSV.
+**Backtests that match TradingView.** Checked against a TradingView Strategy
+Report on BTCUSDT 1D over 40 trades: net profit, max drawdown, profit factor and
+every trade size agree to the cent.
+- A broker emulator with TradingView's fill rules: next-open fills, the intrabar
+  path for stops and limits, pyramiding, brackets, margin, commission and slippage.
+- The Strategy Report has TradingView's tabs and metric names: Overview,
+  Performance, Trades analysis, Risk/performance ratios, List of trades and
+  Properties. The List of trades exports to CSV.
 - Entry and exit arrows on the chart with "Long +1" labels, as TradingView draws them.
-- The **Strategy Lab** has a grid, random or Bayesian optimizer with a heatmap,
+- The **Strategy Lab**: a grid, random or Bayesian optimizer with a heatmap,
   walk-forward analysis, Monte Carlo and portfolio backtests across a watchlist.
+
+<img src="site/media/agent.webp" alt="Claude beside the chart, after building a strategy" width="900">
+
+**An agent beside the chart.** If you use [Claude Code](https://claude.com/claude-code)
+or OpenAI's [Codex CLI](https://github.com/openai/codex), ask it to write a
+strategy, explain an indicator or read your backtest. It sees the chart, writes
+scripts in your scripts folder, checks they compile, puts them on the chart and
+reads the Strategy Report. Pick your agent the first time you open the panel and
+switch any time; each keeps its own chats. Opentern starts the CLI already on your
+computer, so it uses your own sign-in and plan. Opentern has no key of its own,
+and nothing runs until you send a message.
 
 <table>
 <tr>
-<td><img src="docs/screenshots/editor.png" alt="The Script Editor"></td>
-<td><img src="docs/screenshots/lab.png" alt="The Strategy Lab's optimizer heatmap"></td>
+<td><img src="site/media/editor.webp" alt="The Script Editor"></td>
+<td><img src="site/media/lab.webp" alt="The Strategy Lab's optimizer heatmap"></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/multi-light.png" alt="Four charts in Opentern Light"></td>
-<td><img src="docs/screenshots/screener.png" alt="The screener"></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/about.png" alt="Settings → About, with Check for updates"></td>
-<td></td>
+<td><img src="site/media/multi.webp" alt="Four charts in one layout"></td>
+<td><img src="site/media/screener.webp" alt="The screener"></td>
 </tr>
 </table>
 
@@ -87,57 +97,62 @@ webhook, Telegram or email.
 Exchange calendars, dividends and splits are built in. Everything is free until
 you choose to add a paid provider.
 
-**An agent panel.** If you use [Claude Code](https://claude.com/claude-code) or
-OpenAI's [Codex CLI](https://github.com/openai/codex), open it beside the chart
-and ask it to write a strategy, explain an indicator or read your backtest.
-Switch between the two anytime. Opentern starts the program already on your
-computer, so it uses your own sign-in and plan. Opentern has no key of its own.
-Nothing runs until you send a message, and without the CLI the panel just says
-how to install it.
-
 **Everything else.**
-- 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 bundled interface fonts.
+- 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 interface fonts.
 - A screener over any watchlist, with an optional script column.
-- Watchlists, hotlists, news, a calendar and an object tree in the right-hand widgets.
+- Watchlists, hotlists, news, a calendar, depth of market and an object tree in
+  the right-hand widgets.
 - Named layouts, chart templates and indicator templates, all of which you can
   export and import as JSON.
 - Opentern updates itself: a quiet **Update available** appears on the right,
-  and nothing happens until you click it. Settings → About shows the version and
-  has **Check for updates**.
+  and nothing happens until you click it.
 
 ## Install
 
-### macOS
-
-Download `Opentern-macos-universal.dmg` from the
-[latest release](https://github.com/ahaan-shah/opentern/releases/latest) and drag
-Opentern to Applications (Apple Silicon and Intel). The app isn't notarized yet,
-so the first time, right-click it and choose **Open** (on macOS 15, allow it in
-System Settings → Privacy & Security).
-
-### Windows
-
-```powershell
-irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex
-```
-
-Or download `Opentern-windows-setup.exe` from the
-[latest release](https://github.com/ahaan-shah/opentern/releases/latest). It installs
-for your user (no admin prompt) on x64 and ARM64 PCs.
-
-### Linux
+### Linux & macOS (one line)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.sh | sh
 ```
 
-This installs `opentern` into `~/.local/bin` and adds a desktop entry and icon,
-so Opentern shows up in your app launcher (x86-64 and ARM64). The script checks
-the download against the release's `SHA256SUMS`. To pin a version, set
-`OPENTERN_VERSION=0.1.2`.
+What the script does on each platform:
+- **Linux:** installs `opentern` into `~/.local/bin`, and adds a desktop entry and
+  icon so Opentern shows up in your app launcher. x86-64 and ARM64.
+- **macOS:** installs `Opentern.app` (universal, Apple Silicon + Intel) into `/Applications`.
 
-**Uninstall (Linux):** run the install line with `sh -s -- --uninstall` in place of
-`sh`. Your workspace is kept.
+The script checks every download against the release's `SHA256SUMS`. To pin a
+version, set `OPENTERN_VERSION=0.1.2`.
+
+The app isn't notarized yet. If macOS refuses to open it the first time,
+right-click the app and choose **Open**, or run
+`xattr -dr com.apple.quarantine /Applications/Opentern.app`.
+
+### Windows (one line)
+
+In PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex
+```
+
+This installs Opentern just for you (no admin prompt) into
+`%LOCALAPPDATA%\Programs\Opentern` and adds it to the Start menu, on x64 and
+ARM64 PCs. To pin a version, run `$env:OPENTERN_VERSION = "0.1.2"` first.
+
+Prefer a regular installer? Download
+[`Opentern-windows-setup.exe`](https://github.com/ahaan-shah/opentern/releases/latest/download/Opentern-windows-setup.exe)
+and run it. It isn't code-signed yet, so SmartScreen may say "Windows protected
+your PC". Click **More info**, then **Run anyway**.
+
+### Other downloads
+
+The [latest release](https://github.com/ahaan-shah/opentern/releases/latest)
+also has portable archives (`.tar.gz` for Linux x86-64 and ARM64, `.zip` for
+Windows x64 and ARM64) and the macOS disk image.
+
+**Uninstall:** on Linux and macOS, run the install line with
+`sh -s -- --uninstall` in place of `sh`. On Windows, use **Settings → Apps**.
+Your workspace is kept either way.
 
 ## Scripting
 
@@ -188,6 +203,7 @@ The shortcuts are TradingView's.
 | `Ctrl Z` / `Ctrl Y` | Undo / redo |
 | `←` `→` | Step one bar |
 | `Delete` · `Esc` | Delete the selected drawing · cancel |
+| `Alt V` (agent panel) | Paste an image from the clipboard |
 
 On macOS, use `Cmd` instead of `Ctrl`.
 
@@ -195,17 +211,17 @@ On macOS, use `Cmd` instead of `Ctrl`.
 
 Everything stays on your computer. There's no account, no sign-in and no
 telemetry. Opentern only goes online for the market data providers you use, a
-check for a new release on GitHub (you can turn it off in Settings), and symbol
-logos (also optional). API keys are kept in your system's keychain, never in a
-file.
+check for a new release on GitHub (you can turn it off in Settings), symbol
+logos (also optional), and the agent CLI you choose, when you send it a message.
+API keys are kept in your system's keychain, never in a file.
 
 | | Linux | macOS | Windows |
 |---|---|---|---|
 | Workspace | `~/.local/share/opentern/` | `~/Library/Application Support/dev.opentern.opentern/` | `%APPDATA%\opentern\opentern\data\` |
 
 The workspace holds the database (settings, layouts, drawings, alerts, paper
-accounts and the bar cache) and your scripts. To move to another computer, copy
-the folder.
+accounts and the bar cache), your scripts and your agent chats. To move to
+another computer, copy the folder.
 
 Want to look around first? `opentern --demo` opens a workspace of its own with
 made-up prices. It doesn't go online and doesn't touch your real data.
@@ -227,10 +243,9 @@ libgl1-mesa-dev libgtk-3-dev`). For day-to-day work, `cargo run --profile fast
 
 [MIT](LICENSE). Indicators ported from MPL-2.0 Pine scripts stay MPL-2.0 file
 by file, with their authors credited in [docs/indicators.md](docs/indicators.md).
-
-Pine Script® and TradingView® are trademarks of TradingView, Inc. Opentern is
-an independent project, not affiliated with or endorsed by TradingView.
-Claude is a trademark of Anthropic, and OpenAI and Codex are trademarks of
-OpenAI; Opentern only starts their CLIs that you install yourself, and isn't
-affiliated with either. The licenses of everything Opentern includes are in
+The licenses of everything Opentern includes are in
 [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) (`opentern --licenses`).
+
+Pine Script® and TradingView® are trademarks of TradingView, Inc. Claude is a
+trademark of Anthropic. OpenAI and Codex are trademarks of OpenAI. Opentern is an
+independent project, not affiliated with or endorsed by any of them.

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opentern · A fast, local-first trading terminal</title>
+<meta name="description" content="TradingView-style charts, TradingView's built-in indicators, Pine Script-compatible scripting, backtests that match TradingView's Strategy Report, and paper trading, in a native app for Linux, macOS and Windows. Free and open source.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#14181F">
+<meta property="og:title" content="Opentern">
+<meta property="og:description" content="A fast, local-first trading terminal for Linux, macOS and Windows.">
+<meta property="og:image" content="https://ahaan-shah.github.io/opentern/media/home-dark.webp">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/Figtree-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/PlusJakartaSans-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/PlusJakartaSans-SemiBoldItalic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css">
+<script>
+  // Before first paint, so a saved light/dark choice never flashes.
+  (() => {
+    const r = document.documentElement;
+    try { const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") r.dataset.theme = t; } catch {}
+    r.toggleAttribute("data-dark", r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+  })();
+</script>
+</head>
+<body>
+
+<header class="top">
+  <a class="brand" href="#"><img src="icon.svg" alt="" width="28" height="28"> Opentern</a>
+  <nav>
+    <a href="#tour">Features</a>
+    <a href="#install">Install</a>
+    <a href="#backtests">Backtests</a>
+    <button class="mode" type="button" aria-label="Switch between light and dark"><svg class="moon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M16.5 12.3A6.8 6.8 0 0 1 7.7 3.5a6.8 6.8 0 1 0 8.8 8.8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><svg class="sun" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <a class="gh" href="https://github.com/ahaan-shah/opentern"><svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/></svg><span>GitHub</span></a>
+  </nav>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="glide" aria-hidden="true"><img class="hero-icon" src="icon.svg" alt="" width="128" height="128"></div>
+  <h1>Meet Opentern,<br><em>your markets, on your machine</em></h1>
+  <p class="lede">TradingView’s charts, indicators and Strategy Report, with the Pine Script you already know, in a native app that opens in a blink. No account, and nothing leaves your computer.</p>
+  <div class="cta">
+    <a class="btn primary" href="#install">Install Opentern</a>
+    <a class="btn ghost" href="#tour">Take a look</a>
+  </div>
+  <p class="platforms">Free and open source · Linux, macOS and Windows</p>
+  <figure class="shot hero-shot reveal">
+    <img class="only-light" src="media/home-light.webp" alt="Opentern in Opentern Light: a BTCUSDT chart with Bollinger Bands, RSI, a moving-average strategy and the watchlist" width="1880" height="1175">
+    <img class="only-dark" src="media/home-dark.webp" alt="Opentern in Opentern Dark: a BTCUSDT chart with Bollinger Bands, RSI, a moving-average strategy and the watchlist" width="1880" height="1175">
+  </figure>
+</section>
+
+<section class="facts reveal">
+  <div><strong>Native, written in Rust</strong><span>Opens in a blink, idles at 0% CPU</span></div>
+  <div><strong>Laid out like TradingView</strong><span>Nothing new to learn</span></div>
+  <div><strong>Pine Script®-compatible</strong><span>Plus Python, Luau, JS and TS</span></div>
+  <div><strong>Private, no account</strong><span>No telemetry, keys in your keychain</span></div>
+</section>
+
+<section id="tour" class="tour">
+  <h2 class="reveal">Take a quick look around</h2>
+  <div class="tour-body reveal">
+    <div class="tabs" role="tablist" aria-label="Pages">
+      <button role="tab" aria-selected="false" data-i="0">Charts</button>
+      <button role="tab" aria-selected="false" data-i="1">Script Editor</button>
+      <button role="tab" aria-selected="false" data-i="2">Strategy Report</button>
+      <button role="tab" aria-selected="false" data-i="3">Strategy Lab</button>
+      <button role="tab" aria-selected="false" data-i="4">Agent</button>
+      <button role="tab" aria-selected="false" data-i="5">Multi-chart</button>
+      <button role="tab" aria-selected="false" data-i="6">Screener</button>
+      <button role="tab" aria-selected="false" data-i="7">Settings</button>
+    </div>
+    <div class="stage">
+      <div class="frames shot">
+        <img class="on" src="media/home-dark.webp" alt="A chart with indicators, a strategy and the watchlist" width="1880" height="1175">
+        <img src="media/editor.webp" alt="The Script Editor with a Pine strategy" width="1880" height="1175" loading="lazy">
+        <img src="media/report.webp" alt="The Strategy Report's overview" width="1880" height="1175" loading="lazy">
+        <img src="media/lab.webp" alt="The Strategy Lab's optimizer heatmap" width="1880" height="1175" loading="lazy">
+        <img src="media/agent.webp" alt="Claude beside the chart" width="1880" height="1175" loading="lazy">
+        <img src="media/multi.webp" alt="Four charts in one layout" width="1880" height="1175" loading="lazy">
+        <img src="media/screener.webp" alt="The screener" width="1880" height="1175" loading="lazy">
+        <img src="media/settings.webp" alt="Settings, with the themes" width="1880" height="1175" loading="lazy">
+      </div>
+      <p class="caption" aria-live="polite"></p>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="install">
+  <h2 class="reveal">Install in one line</h2>
+  <p class="sub reveal">Paste this into a terminal. It downloads the latest release, checks it, and puts Opentern in your apps.</p>
+  <div class="installer reveal">
+    <div class="seg" role="tablist" aria-label="Platform">
+      <button role="tab" data-os="unix" aria-selected="true">Linux &amp; macOS</button>
+      <button role="tab" data-os="win" aria-selected="false">Windows</button>
+    </div>
+    <div class="cmd" data-os="unix">
+      <span class="prompt">$</span>
+      <code>curl -fsSL https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.sh | sh</code>
+      <button class="copy" type="button">Copy</button>
+    </div>
+    <div class="cmd" data-os="win" hidden>
+      <span class="prompt">PS&gt;</span>
+      <code>irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex</code>
+      <button class="copy" type="button">Copy</button>
+    </div>
+    <p class="note" data-os="unix">Paste this in your terminal</p>
+    <p class="note" data-os="win" hidden>Paste this in PowerShell</p>
+    <div class="direct" data-os="win" hidden>
+      <p>If you prefer downloading directly, you can install the <code>.exe</code> and set it up the way you’re used to on Windows.</p>
+      <a class="btn primary" href="https://github.com/ahaan-shah/opentern/releases/latest/download/Opentern-windows-setup.exe" download><svg viewBox="0 0 20 20" width="17" height="17" aria-hidden="true"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Download Opentern-windows-setup.exe</a>
+    </div>
+  </div>
+  <p class="fine reveal">Portable archives, ARM builds and the macOS disk image are on the <a href="https://github.com/ahaan-shah/opentern/releases/latest">latest release</a>.</p>
+</section>
+
+<section id="backtests" class="pair">
+  <h2 class="reveal">Backtests that match, <em>to the cent</em></h2>
+  <p class="sub reveal">TradingView’s fill rules, metrics and Strategy Report, checked against TradingView’s own numbers. Then optimize, walk it forward, or stress it with Monte Carlo.</p>
+  <div class="pair-grid reveal">
+    <figure class="shot"><img src="media/report.webp" alt="The Strategy Report" width="1880" height="1175" loading="lazy"></figure>
+    <figure class="shot"><img src="media/lab.webp" alt="The Strategy Lab's optimizer heatmap" width="1880" height="1175" loading="lazy"></figure>
+  </div>
+</section>
+
+<section id="agent" class="solo">
+  <h2 class="reveal">An agent <em>beside the chart</em></h2>
+  <p class="sub reveal">Ask Claude Code or Codex to write a strategy, explain an indicator or read your backtest. It sees the chart and works in your scripts folder, with your own sign-in.</p>
+  <figure class="shot solo-shot reveal"><img src="media/agent.webp" alt="Claude beside the chart, after building a strategy" width="1880" height="1175" loading="lazy"></figure>
+</section>
+
+<section id="themes" class="themes">
+  <h2 class="reveal">Make it yours</h2>
+  <p class="sub reveal">Sixteen themes and nine fonts, crossfading as you switch.</p>
+  <div class="deck theme-deck reveal" aria-roledescription="carousel" aria-label="Themes">
+    <div class="cards">
+      <figure class="card shot" data-name="Opentern Dark"><img src="media/home-dark.webp" alt="Opentern in the Opentern Dark theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Opentern Light"><img src="media/home-light.webp" alt="Opentern in the Opentern Light theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Tokyo Night"><img src="media/themes/tokyo-night.webp" alt="Opentern in the Tokyo Night theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Latte"><img src="media/themes/latte.webp" alt="Opentern in the Latte theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Gruvbox"><img src="media/themes/gruvbox.webp" alt="Opentern in the Gruvbox theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Rosé Pine Dawn"><img src="media/themes/rose-pine-dawn.webp" alt="Opentern in the Rosé Pine Dawn theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Nord"><img src="media/themes/nord.webp" alt="Opentern in the Nord theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Flexoki"><img src="media/themes/flexoki.webp" alt="Opentern in the Flexoki theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Mocha"><img src="media/themes/mocha.webp" alt="Opentern in the Mocha theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Daylight"><img src="media/themes/daylight.webp" alt="Opentern in the Daylight theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Kanagawa"><img src="media/themes/kanagawa.webp" alt="Opentern in the Kanagawa theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Everforest"><img src="media/themes/everforest.webp" alt="Opentern in the Everforest theme" width="1880" height="1175" loading="lazy"></figure>
+      <figure class="card shot" data-name="Midnight"><img src="media/themes/midnight.webp" alt="Opentern in the Midnight theme" width="1880" height="1175" loading="lazy"></figure>
+    </div>
+    <button class="nav prev" type="button" aria-label="Previous theme"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="nav next" type="button" aria-label="Next theme"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <p class="deck-label reveal" aria-live="polite"><span></span></p>
+</section>
+
+<section class="quotes">
+  <h2 class="reveal">What traders are definitely saying</h2>
+  <div class="deck quote-deck reveal" data-auto="6000" aria-roledescription="carousel" aria-label="Made-up testimonials">
+    <div class="cards">
+      <figure class="card quote"><blockquote>“My backtest matched TradingView to the cent. My actual trading still doesn’t match my backtest, but that’s on me.”</blockquote><figcaption><b>Priya K.</b>Overfit, but honest</figcaption></figure>
+      <figure class="card quote"><blockquote>“It opened before I finished saying ‘let me just pull up the chart’. I had to find a new filler phrase.”</blockquote><figcaption><b>Marcus D.</b>Day trader, fast talker</figcaption></figure>
+      <figure class="card quote"><blockquote>“I asked the agent to write me a strategy that never loses. It wrote one that never trades. Technically correct.”</blockquote><figcaption><b>Jonah P.</b>Still undefeated</figcaption></figure>
+      <figure class="card quote"><blockquote>“Paper trading here is so good I’ve lost a fortune that never existed. My accountant is relieved.”</blockquote><figcaption><b>Ravi S.</b>Fictionally broke</figcaption></figure>
+      <figure class="card quote"><blockquote>“I ran the optimizer over 50,000 combinations. The best one was the default settings. I’ve never felt so seen.”</blockquote><figcaption><b>Elena M.</b>Back to 14, 70, 30</figcaption></figure>
+      <figure class="card quote"><blockquote>“No account, no sign-in, no telemetry. For the first time, my charts don’t know more about me than my bank.”</blockquote><figcaption><b>Theo B.</b>Privacy enjoyer</figcaption></figure>
+    </div>
+    <button class="nav prev" type="button" aria-label="Previous"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <button class="nav next" type="button" aria-label="Next"><svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </div>
+  <p class="fine reveal">Testimonials are made up. The app is real. Nothing here is financial advice.</p>
+</section>
+
+<section class="credits reveal">
+  <h2>Standing on good shoulders</h2>
+  <p>The window is <a href="https://github.com/emilk/egui">egui</a>, the scripts run on Opentern’s own Pine engine, <a href="https://luau.org">Luau</a> and <a href="https://bellard.org/quickjs/">QuickJS</a>, and the market data comes from the exchanges and providers you choose. TradingView’s open-source <code>ta</code> library ships with it under the MPL 2.0.</p>
+  <p>Pine Script® and TradingView® are trademarks of <b>TradingView, Inc.</b> Claude is a trademark of Anthropic, and OpenAI and Codex are trademarks of OpenAI. Opentern is an independent project, not affiliated with or endorsed by any of them.</p>
+</section>
+
+<section class="maker reveal">
+  <a href="https://github.com/ahaan-shah">
+    <img src="media/ahaan.jpg" alt="" width="64" height="64">
+    <span><small>Made by</small><b>Ahaan Shah</b><span class="handle">github.com/ahaan-shah</span></span>
+  </a>
+</section>
+
+</main>
+
+<footer>
+  <span>Opentern · MIT licensed · Not affiliated with TradingView</span>
+  <span><a href="https://github.com/ahaan-shah/opentern">Source</a> · <a href="https://github.com/ahaan-shah/opentern/releases">Releases</a> · <a href="https://github.com/ahaan-shah/opentern/blob/main/THIRD-PARTY-LICENSES.txt">Licenses</a></span>
+</footer>
+
+<script src="site.js" defer></script>
+</body>
+</html>

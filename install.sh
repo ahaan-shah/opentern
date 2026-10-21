@@ -1,18 +1,14 @@
 #!/bin/sh
-# Opentern installer for Linux (adapted from Magpie's).
+# Opentern installer for Linux and macOS (adapted from Magpie's).
 #
 #   curl -fsSL https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.sh | sh
 #
-# While the repository is private, fetch it through the GitHub CLI instead
-# (downloads then go through `gh` too, with your sign-in):
-#
-#   gh api repos/ahaan-shah/opentern/contents/install.sh -H 'Accept: application/vnd.github.raw' | sh
-#
-# To uninstall (your data is kept): add `-s -- --uninstall` after `sh`.
+# To uninstall (your workspace is kept): add `-s -- --uninstall` after `sh`.
+# Windows: install.ps1, or Opentern-windows-setup.exe from the releases.
 #
 # Environment:
-#   OPENTERN_VERSION      install a specific version (e.g. 0.1.0) instead of the latest
-#   OPENTERN_INSTALL_DIR  where the binary goes (default: ~/.local/bin)
+#   OPENTERN_VERSION      install a specific version (e.g. 0.1.2) instead of the latest
+#   OPENTERN_INSTALL_DIR  where the binary goes on Linux (default: ~/.local/bin)
 #   OPENTERN_BASE_URL     download from a mirror instead of GitHub releases
 set -eu
 
@@ -36,14 +32,30 @@ refresh() {
 # Removes exactly what an install put there. The workspace stays, so
 # reinstalling picks up where you left off.
 uninstall() {
-    [ -e "$BIN_DIR/opentern" ] || [ -e "$DATA/applications/opentern.desktop" ] ||
-        die "Opentern isn't installed in $BIN_DIR (set OPENTERN_INSTALL_DIR if you chose another folder)"
-    rm -f "$BIN_DIR/opentern" "$DATA/applications/opentern.desktop" "$ICONS"/*/apps/opentern.svg
-    # Left only if an in-app update was interrupted.
-    rm -rf "$BIN_DIR"/.opentern-update-* "$BIN_DIR/.opentern.old"
-    refresh
-    say "uninstalled $BIN_DIR/opentern"
-    say "your workspace is still in $DATA/opentern (delete it to remove that too)"
+    case "$OS" in
+    Linux)
+        [ -e "$BIN_DIR/opentern" ] || [ -e "$DATA/applications/opentern.desktop" ] ||
+            die "Opentern isn't installed in $BIN_DIR (set OPENTERN_INSTALL_DIR if you chose another folder)"
+        rm -f "$BIN_DIR/opentern" "$DATA/applications/opentern.desktop" "$ICONS"/*/apps/opentern.svg
+        # Left only if an in-app update was interrupted.
+        rm -rf "$BIN_DIR"/.opentern-update-* "$BIN_DIR/.opentern.old"
+        refresh
+        say "uninstalled $BIN_DIR/opentern"
+        say "your workspace is still in $DATA/opentern (delete it to remove that too)"
+        ;;
+    Darwin)
+        found=""
+        for app in /Applications/Opentern.app "$HOME/Applications/Opentern.app"; do
+            [ -e "$app" ] || continue
+            found=1
+            rm -rf "$app" 2>/dev/null || die "couldn't remove $app (try: sudo rm -rf '$app')"
+            say "uninstalled $app"
+        done
+        [ -n "$found" ] || die "Opentern.app isn't in /Applications or ~/Applications"
+        say "your workspace is still in ~/Library/Application Support (delete its opentern folder to remove that too)"
+        ;;
+    *) die "unsupported OS: $OS (this installer is for Linux and macOS; on Windows use install.ps1)" ;;
+    esac
 }
 
 case "${1:-}" in
@@ -55,84 +67,88 @@ case "${1:-}" in
 *) die "unknown option: $1 (the only option is --uninstall)" ;;
 esac
 
-case "$OS" in
-Linux) ;;
-*) die "Opentern's installer is Linux only for now (you can build from source: https://github.com/$REPO#building-from-source)" ;;
-esac
-
 need uname
-need tar
+need curl
+
+if [ "$VERSION" = "latest" ]; then
+    BASE="https://github.com/$REPO/releases/latest/download"
+else
+    BASE="https://github.com/$REPO/releases/download/v${VERSION#v}"
+fi
+BASE="${OPENTERN_BASE_URL:-$BASE}"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT INT TERM
 
-# A private repository's releases need a sign-in, so use the GitHub CLI when
-# it's signed in; otherwise plain public downloads.
-if [ -z "${OPENTERN_BASE_URL:-}" ] && command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-    VIA=gh
-else
-    VIA=curl
-    need curl
-    if [ "$VERSION" = "latest" ]; then
-        BASE="https://github.com/$REPO/releases/latest/download"
-    else
-        BASE="https://github.com/$REPO/releases/download/v${VERSION#v}"
-    fi
-    BASE="${OPENTERN_BASE_URL:-$BASE}"
-fi
-
 fetch() {
     say "downloading $1"
-    if [ "$VIA" = gh ]; then
-        if [ "$VERSION" = "latest" ]; then tag=""; else tag="v${VERSION#v}"; fi
-        # shellcheck disable=SC2086 # an empty tag means the latest release
-        gh release download $tag -R "$REPO" -p "$1" -D "$TMP" --clobber ||
-            die "couldn't download $1 from $REPO's releases"
-    else
-        curl -fL --progress-bar "$BASE/$1" -o "$TMP/$1" ||
-            die "couldn't download $BASE/$1 (if the repository is private, install the GitHub CLI and run 'gh auth login')"
-    fi
+    curl -fL --progress-bar "$BASE/$1" -o "$TMP/$1" || die "couldn't download $BASE/$1"
+}
+
+sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1
 }
 
 verify() {
     fetch SHA256SUMS
     expected="$(grep " $1\$" "$TMP/SHA256SUMS" | cut -d' ' -f1)"
     [ -n "$expected" ] || die "$1 isn't listed in the release's SHA256SUMS"
-    actual="$(sha256sum "$TMP/$1" | cut -d' ' -f1)"
-    [ "$expected" = "$actual" ] || die "checksum mismatch for $1"
+    [ "$expected" = "$(sha256 "$TMP/$1")" ] || die "checksum mismatch for $1"
     say "checksum ok"
 }
 
-ARCH="$(uname -m)"
-case "$ARCH" in
-x86_64 | amd64) ARCH=x86_64 ;;
-aarch64 | arm64) ARCH=aarch64 ;;
-*) die "there's no build for $ARCH (you can build from source: https://github.com/$REPO#building-from-source)" ;;
+case "$OS" in
+Linux)
+    need tar
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+    x86_64 | amd64) ARCH=x86_64 ;;
+    aarch64 | arm64) ARCH=aarch64 ;;
+    *) die "there's no build for $ARCH (you can build from source: https://github.com/$REPO#building-from-source)" ;;
+    esac
+
+    NAME="opentern-$ARCH-unknown-linux-gnu"
+    fetch "$NAME.tar.gz"
+    verify "$NAME.tar.gz"
+    tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"
+    SRC="$TMP/$NAME"
+
+    mkdir -p "$BIN_DIR" "$DATA/applications" "$ICONS/scalable/apps"
+    # Replace, never write into, a running copy's file.
+    install -m 755 "$SRC/opentern" "$BIN_DIR/.opentern.new"
+    mv -f "$BIN_DIR/.opentern.new" "$BIN_DIR/opentern"
+    install -m 644 "$SRC/opentern.svg" "$ICONS/scalable/apps/opentern.svg"
+    for s in 16 24; do
+        [ -f "$SRC/opentern-$s.svg" ] || continue
+        mkdir -p "$ICONS/${s}x${s}/apps"
+        install -m 644 "$SRC/opentern-$s.svg" "$ICONS/${s}x${s}/apps/opentern.svg"
+    done
+    sed "s|^Exec=opentern|Exec=$BIN_DIR/opentern|" "$SRC/opentern.desktop" >"$DATA/applications/opentern.desktop"
+    chmod 644 "$DATA/applications/opentern.desktop"
+    refresh
+
+    say "installed $("$BIN_DIR/opentern" --version 2>/dev/null || echo opentern) to $BIN_DIR"
+    case ":$PATH:" in
+    *":$BIN_DIR:"*) ;;
+    *) say "note: $BIN_DIR isn't on your PATH. Add it, or open Opentern from your app menu" ;;
+    esac
+    say "run it with: opentern"
+    ;;
+Darwin)
+    need unzip
+    ASSET="Opentern-macos-universal.zip"
+    fetch "$ASSET"
+    verify "$ASSET"
+    unzip -q "$TMP/$ASSET" -d "$TMP"
+    if [ -w /Applications ]; then DEST=/Applications; else DEST="$HOME/Applications"; mkdir -p "$DEST"; fi
+    rm -rf "$DEST/Opentern.app"
+    mv "$TMP/Opentern.app" "$DEST/"
+    # Downloaded with curl, so there's no quarantine flag, but clear it just in case.
+    xattr -dr com.apple.quarantine "$DEST/Opentern.app" 2>/dev/null || true
+    say "installed $DEST/Opentern.app"
+    say "open it from Launchpad, or run: open -a Opentern"
+    ;;
+*)
+    die "unsupported OS: $OS (this installer is for Linux and macOS; on Windows use install.ps1)"
+    ;;
 esac
-
-NAME="opentern-$ARCH-unknown-linux-gnu"
-fetch "$NAME.tar.gz"
-verify "$NAME.tar.gz"
-tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"
-SRC="$TMP/$NAME"
-
-mkdir -p "$BIN_DIR" "$DATA/applications" "$ICONS/scalable/apps"
-# Replace, never write into, a running copy's file.
-install -m 755 "$SRC/opentern" "$BIN_DIR/.opentern.new"
-mv -f "$BIN_DIR/.opentern.new" "$BIN_DIR/opentern"
-install -m 644 "$SRC/opentern.svg" "$ICONS/scalable/apps/opentern.svg"
-for s in 16 24; do
-    [ -f "$SRC/opentern-$s.svg" ] || continue
-    mkdir -p "$ICONS/${s}x${s}/apps"
-    install -m 644 "$SRC/opentern-$s.svg" "$ICONS/${s}x${s}/apps/opentern.svg"
-done
-sed "s|^Exec=opentern|Exec=$BIN_DIR/opentern|" "$SRC/opentern.desktop" >"$DATA/applications/opentern.desktop"
-chmod 644 "$DATA/applications/opentern.desktop"
-refresh
-
-say "installed $("$BIN_DIR/opentern" --version 2>/dev/null || echo opentern) to $BIN_DIR"
-case ":$PATH:" in
-*":$BIN_DIR:"*) ;;
-*) say "note: $BIN_DIR isn't on your PATH. Add it, or open Opentern from your app menu" ;;
-esac
-say "run it with: opentern"
