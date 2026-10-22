@@ -6,7 +6,7 @@
 # SHA256SUMS, and installs Opentern for the current user (no admin prompt).
 #
 # Environment:
-#   OPENTERN_VERSION   install a specific version (e.g. 0.1.3) instead of the latest
+#   OPENTERN_VERSION   install a specific version (e.g. 0.1.4) instead of the latest
 #   OPENTERN_BASE_URL  download from a mirror instead of GitHub releases
 #
 # Everything runs inside a script block so nothing leaks into your session,

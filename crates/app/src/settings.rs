@@ -385,6 +385,7 @@ fn shortcuts(ui: &mut Ui, t: &Theme) {
         ("Create an alert", "Alt A"),
         ("Reset the chart view", "Alt R"),
         ("Save a snapshot", "Alt S"),
+        ("Add to watchlist", "Alt W"),
         ("Full screen", "Shift F"),
         ("Undo", "Ctrl Z"),
         ("Redo", "Ctrl Y"),

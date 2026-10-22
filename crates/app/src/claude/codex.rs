@@ -135,7 +135,7 @@ impl Codex {
                 "init",
                 "initialize",
                 json!({
-                    "clientInfo": {"name": "opentern", "version": env!("CARGO_PKG_VERSION")},
+                    "clientInfo": {"name": "opentern", "title": "Opentern", "version": env!("CARGO_PKG_VERSION")},
                     "capabilities": {"experimentalApi": true},
                 }),
             );
@@ -254,7 +254,7 @@ pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<
             let _ = writeln!(
                 sin,
                 "{}",
-                json!({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "opentern", "version": env!("CARGO_PKG_VERSION")}}})
+                json!({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "opentern", "title": "Opentern", "version": env!("CARGO_PKG_VERSION")}}})
             );
             let _ = sin.flush();
             let start = std::time::Instant::now();

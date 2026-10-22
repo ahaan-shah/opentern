@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.4 (2026-10-22)
+
+Alt W adds the chart's symbol to your watchlist, updates show a progress bar,
+and the agent panel finds Claude Code and Codex on Windows however they were
+installed.
+
+### New
+
+- **Alt W adds the chart's symbol to the watchlist** that's open, at the end
+  of its top section. Drag it from there to wherever you want it.
+
+### Changed
+
+- **Updates show a progress bar** with the percentage in Settings → About.
+- **Deleting a watchlist takes one click.**
+- **"Install Claude Code" and "Install Codex" link to their install pages**
+  when the agent panel can't find them.
+
+### Fixed
+
+- **The agent panel works with npm installs on Windows.** Opentern runs the
+  Claude Code or Codex program inside the npm package, and a native install
+  wins wherever it is on the PATH.
+- **The watchlist menu stays inside the watchlist panel**, and the indicator
+  settings' Defaults menu no longer stretches across the window.
+
 ## 0.1.3 (2026-10-22)
 
 Every drawing tool gets a keyboard shortcut, watchlists work like

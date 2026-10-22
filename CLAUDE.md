@@ -997,6 +997,10 @@ workspace.
   = Allow for this chat). Models come from `model/list` (account-specific;
   fetched by a short-lived app-server when the model menu first opens).
   `process::Client` is an enum over both CLIs; `Event::Models` is Codex only.
+  **Terms (checked 22 Oct 2026, learn.chatgpt.com/docs/app-server):** local or
+  open-source apps may keep using app-server; it was never permitted for
+  commercial or hosted services. `clientInfo.name` ("opentern") identifies us
+  in OpenAI's compliance logs. Opentern must stay free and local for this.
   `live_codex` (ignored, uses the account): `CODEX_MODEL=<id> cargo test -p
   opentern --bin opentern live_codex -- --ignored --nocapture`.
 - Alt+V also arrives as typed text; the composer drops that frame's text events.
@@ -1008,7 +1012,14 @@ workspace.
 - Rail button under Notifications (`Widget::Claude`). Chats with **Claude Code**, the
   CLI the user installed and signed in to (their subscription; no API key in the app).
   Found via `OPENTERN_CLAUDE`, the PATH, `~/.local/bin`, `~/.claude/local`. No CLI →
-  an empty state saying how to install it.
+  an empty state: "Install Claude Code" links to its install page
+  (`Agent::install_url`; never print other products' install commands).
+  **Windows:** a `.exe` anywhere beats an npm `.cmd` shim; Rust won't pass our
+  JSON/multi-line arguments through cmd.exe, so for a shim we run the binary the
+  npm package carries (`agent::npm_binary`: Claude's `bin/claude.exe` after its
+  postinstall, Codex's `@openai/codex-win32-<arch>/vendor/<triple>/bin/codex.exe`;
+  checked against claude-code 2.1.308 and codex 0.163 package layouts, never run
+  on a real PC).
 - **Protocol** (checked against CLI 2.1.300; the same one Claude Code's SDKs use):
   `claude -p --input-format stream-json --output-format stream-json --verbose
   --include-partial-messages --permission-prompt-tool stdio --permission-mode
@@ -1176,7 +1187,7 @@ every data change (scripts re-run on it).
   Alt Shift R; the rest Alt Shift + letter, a test keeps them unique);
   `Tool::for_key` dispatches; Alt L/P/U scale; Ctrl Alt H hides drawings.
   Settings → Keyboard shortcuts (`settings::shortcuts`) renders the sheet; a
-  rail button beside the theme switch opens it. Alt A / Alt S ignore Shift.
+  rail button beside the theme switch opens it. Alt A / Alt S ignore Shift. Alt W puts the chart symbol at the end of the open list's top section (Ctrl W closes editor tabs, Cmd W windows on macOS).
 - Watchlists (`watchlists.rs`): `Item::{Section, Symbol}` (untagged JSON, so
   old symbol arrays load), `Watchlist::symbols()`; title button with a menu
   (rename, add section, new list, delete), switcher circles, drag

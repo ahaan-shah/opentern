@@ -974,7 +974,32 @@ impl App {
                 ui.add_space(14.0);
                 ui.label(RichText::new(format!("{} isn't installed", agent.product())).font(theme::semibold(15.0)));
                 ui.add_space(4.0);
-                ui.add(egui::Label::new(RichText::new(agent.install_hint()).color(t.text2).size(12.5)).wrap());
+                // "Install X" links to the CLI's own install page.
+                let mut job = LayoutJob::default();
+                let font = FontId::proportional(12.5);
+                job.append(
+                    &format!("Install {}", agent.product()),
+                    0.0,
+                    TextFormat {
+                        font_id: font.clone(),
+                        color: t.text,
+                        underline: Stroke::new(1.0, t.text2),
+                        ..Default::default()
+                    },
+                );
+                job.append(
+                    " and sign in with your account.",
+                    0.0,
+                    TextFormat::simple(font, t.text2),
+                );
+                let link = ui.add(egui::Label::new(job).wrap().sense(Sense::click()));
+                if link
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .on_hover_text(agent.install_url())
+                    .clicked()
+                {
+                    crate::app::open_url(agent.install_url());
+                }
                 ui.add_space(14.0);
                 if w::secondary(ui, "Check again").clicked() {
                     match agent {

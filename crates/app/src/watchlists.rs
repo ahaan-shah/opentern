@@ -157,6 +157,24 @@ impl App {
         }
     }
 
+    /// Alt+W: the chart's symbol goes to the end of the open list's top
+    /// section (the symbols before the first header, or the first header's
+    /// own), from where it can be dragged anywhere.
+    pub(crate) fn watch_chart_symbol(&mut self) {
+        let s = self.chart.symbol.clone();
+        let list = &mut self.watchlists[self.active_list];
+        if list.items.iter().any(|i| matches!(i, Item::Symbol(x) if x.id == s.id)) {
+            return;
+        }
+        let start = usize::from(matches!(list.items.first(), Some(Item::Section { .. })));
+        let at = list.items[start..]
+            .iter()
+            .position(|i| matches!(i, Item::Section { .. }))
+            .map_or(list.items.len(), |k| start + k);
+        list.items.insert(at, Item::Symbol(s));
+        self.save_watchlists();
+    }
+
     /// Sorts each section on its own (a second click on a column reverses).
     fn sort_watchlist(&mut self, by: SortBy) {
         let quotes = self.quotes.clone();

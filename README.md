@@ -122,7 +122,7 @@ What the script does on each platform:
 - **macOS:** installs `Opentern.app` (universal, Apple Silicon + Intel) into `/Applications`.
 
 The script checks every download against the release's `SHA256SUMS`. To pin a
-version, set `OPENTERN_VERSION=0.1.3`.
+version, set `OPENTERN_VERSION=0.1.4`.
 
 The app isn't notarized yet. If macOS refuses to open it the first time,
 right-click the app and choose **Open**, or run
@@ -138,7 +138,7 @@ irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex
 
 This installs Opentern just for you (no admin prompt) into
 `%LOCALAPPDATA%\Programs\Opentern` and adds it to the Start menu, on x64 and
-ARM64 PCs. To pin a version, run `$env:OPENTERN_VERSION = "0.1.3"` first.
+ARM64 PCs. To pin a version, run `$env:OPENTERN_VERSION = "0.1.4"` first.
 
 Prefer a regular installer? Download
 [`Opentern-windows-setup.exe`](https://github.com/ahaan-shah/opentern/releases/latest/download/Opentern-windows-setup.exe)

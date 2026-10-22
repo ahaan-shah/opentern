@@ -39,11 +39,11 @@ impl Agent {
         }
     }
 
-    /// What to do when the CLI isn't found.
-    pub fn install_hint(self) -> &'static str {
+    /// The CLI's own install page, linked when it isn't found.
+    pub fn install_url(self) -> &'static str {
         match self {
-            Agent::Claude => "Install Claude Code, then run claude once in a terminal to sign in.",
-            Agent::Codex => "Install the Codex CLI, then run codex once in a terminal to sign in.",
+            Agent::Claude => "https://code.claude.com/docs/en/setup",
+            Agent::Codex => "https://developers.openai.com/codex/cli",
         }
     }
 
@@ -82,12 +82,6 @@ impl Agent {
         if let Some(p) = std::env::var_os(self.env()) {
             return Some(PathBuf::from(p)).filter(|p| p.is_file());
         }
-        let names: &[&str] = match (self, cfg!(windows)) {
-            (Agent::Claude, true) => &["claude.exe", "claude.cmd"],
-            (Agent::Claude, false) => &["claude"],
-            (Agent::Codex, true) => &["codex.exe", "codex.cmd"],
-            (Agent::Codex, false) => &["codex"],
-        };
         let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
             .map(|p| std::env::split_paths(&p).collect())
             .unwrap_or_default();
@@ -98,11 +92,64 @@ impl Agent {
             dirs.push(home.join(".npm-global").join("bin"));
             dirs.push(home.join(".cargo").join("bin"));
         }
+        if let Some(app) = std::env::var_os("APPDATA") {
+            dirs.push(PathBuf::from(app).join("npm"));
+        }
         dirs.push(PathBuf::from("/usr/local/bin"));
         dirs.push(PathBuf::from("/opt/homebrew/bin"));
+        self.find_in(&dirs, cfg!(windows))
+    }
+
+    fn find_in(self, dirs: &[PathBuf], windows: bool) -> Option<PathBuf> {
+        let name = match self {
+            Agent::Claude => "claude",
+            Agent::Codex => "codex",
+        };
+        if !windows {
+            return dirs.iter().map(|d| d.join(name)).find(|p| p.is_file());
+        }
+        // A native install wins from any folder, even with an npm shim
+        // earlier on the PATH.
+        let exe = format!("{name}.exe");
+        if let Some(p) = dirs.iter().map(|d| d.join(&exe)).find(|p| p.is_file()) {
+            return Some(p);
+        }
+        // npm's `claude.cmd`/`codex.cmd` would run us through cmd.exe, which
+        // can't carry our arguments (JSON, newlines). Both packages carry the
+        // real binary, so run that.
+        let cmd = format!("{name}.cmd");
         dirs.iter()
-            .flat_map(|d| names.iter().map(move |n| d.join(n)))
-            .find(|p| p.is_file())
+            .filter(|d| d.join(&cmd).is_file())
+            .find_map(|d| self.npm_binary(d))
+    }
+
+    /// The native binary inside an npm global install whose shims are in
+    /// `dir`. Claude Code's postinstall copies it over a small placeholder
+    /// (`bin/claude.exe`); Codex keeps it in a platform package, nested or
+    /// hoisted (older versions: in its own `vendor`).
+    fn npm_binary(self, dir: &std::path::Path) -> Option<PathBuf> {
+        let at = |parts: &[&str]| parts.iter().fold(dir.join("node_modules"), |p, s| p.join(s));
+        let (arch, triple) = if cfg!(target_arch = "aarch64") {
+            ("arm64", "aarch64-pc-windows-msvc")
+        } else {
+            ("x64", "x86_64-pc-windows-msvc")
+        };
+        let pkg = format!("codex-win32-{arch}");
+        let tail = ["vendor", triple, "bin", "codex.exe"];
+        let found = match self {
+            Agent::Claude => vec![at(&["@anthropic-ai", "claude-code", "bin", "claude.exe"])],
+            Agent::Codex => [
+                &["@openai", "codex", "node_modules", "@openai", &pkg][..],
+                &["@openai", &pkg][..],
+                &["@openai", "codex"][..],
+            ]
+            .iter()
+            .map(|root| at(&[*root, &tail[..]].concat()))
+            .collect(),
+        };
+        found
+            .into_iter()
+            .find(|p| p.metadata().is_ok_and(|m| m.is_file() && m.len() > 1 << 20))
     }
 }
 
@@ -156,4 +203,58 @@ pub fn spinner(ui: &mut Ui, size: f32, agent: Agent, color: Color32) -> Response
     paint(ui, rect, agent, color, t * 2.2);
     ui.ctx().request_repaint();
     resp
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn file(path: PathBuf, len: u64) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::File::create(&path).unwrap().set_len(len).unwrap();
+    }
+
+    #[test]
+    fn windows_runs_the_binary_inside_an_npm_install() {
+        let root = std::env::temp_dir().join(format!("opentern-agent-find-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let (npm, local) = (root.join("npm"), root.join("local"));
+        let big = 2 << 20;
+        let (arch, triple) = if cfg!(target_arch = "aarch64") {
+            ("arm64", "aarch64-pc-windows-msvc")
+        } else {
+            ("x64", "x86_64-pc-windows-msvc")
+        };
+        let m = npm.join("node_modules");
+        file(npm.join("claude.cmd"), 10);
+        file(npm.join("codex.cmd"), 10);
+        // Claude's placeholder before its postinstall has run: not usable.
+        let claude = m
+            .join("@anthropic-ai")
+            .join("claude-code")
+            .join("bin")
+            .join("claude.exe");
+        file(claude.clone(), 500);
+        let dirs = [npm.clone(), local.clone()];
+        assert_eq!(Agent::Claude.find_in(&dirs, true), None);
+        file(claude.clone(), big);
+        assert_eq!(Agent::Claude.find_in(&dirs, true), Some(claude));
+        // Codex's platform package, nested under the wrapper.
+        let codex = m
+            .join("@openai")
+            .join("codex")
+            .join("node_modules")
+            .join("@openai")
+            .join(format!("codex-win32-{arch}"))
+            .join("vendor")
+            .join(triple)
+            .join("bin")
+            .join("codex.exe");
+        file(codex.clone(), big);
+        assert_eq!(Agent::Codex.find_in(&dirs, true), Some(codex));
+        // A native install wins even when it comes later.
+        file(local.join("claude.exe"), big);
+        assert_eq!(Agent::Claude.find_in(&dirs, true), Some(local.join("claude.exe")));
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

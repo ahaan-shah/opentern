@@ -286,6 +286,47 @@ mod tests {
     }
 
     #[test]
+    fn alt_w_adds_the_chart_symbol_to_the_top_section() {
+        use crate::watchlists::Item;
+        let mut d = Driver::new("alt-w");
+        let mut starter = opentern_core::starter_watchlist();
+        let (eth, sol) = (starter.remove(1), starter.remove(1));
+        let section = |name: &str| Item::Section {
+            section: name.into(),
+            collapsed: false,
+        };
+        let ids = |d: &Driver| -> Vec<String> {
+            d.app.watchlists[d.app.active_list]
+                .items
+                .iter()
+                .map(|i| match i {
+                    Item::Symbol(s) => s.id.clone(),
+                    Item::Section { section, .. } => section.clone(),
+                })
+                .collect()
+        };
+        let chart = d.app.chart.symbol.id.clone();
+        let alt = egui::Modifiers::ALT;
+        // A header first: the end of that header's section.
+        d.app.watchlists[d.app.active_list].items = vec![
+            section("Top"),
+            Item::Symbol(eth.clone()),
+            section("Rest"),
+            Item::Symbol(sol.clone()),
+        ];
+        d.key(egui::Key::W, alt);
+        assert_eq!(ids(&d), ["Top", &eth.id, &chart, "Rest", &sol.id]);
+        // Already there: nothing changes.
+        d.key(egui::Key::W, alt);
+        assert_eq!(ids(&d).len(), 5);
+        // Symbols before the first header are the top section.
+        d.app.watchlists[d.app.active_list].items =
+            vec![Item::Symbol(eth.clone()), section("Rest"), Item::Symbol(sol.clone())];
+        d.key(egui::Key::W, alt);
+        assert_eq!(ids(&d), [&eth.id, &chart, "Rest", &sol.id]);
+    }
+
+    #[test]
     fn compared_symbols_load_and_are_saved() {
         let mut d = Driver::new("compare");
         let eth = opentern_core::starter_watchlist().remove(1);

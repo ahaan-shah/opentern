@@ -1085,6 +1085,12 @@ impl App {
                     modifiers,
                     ..
                 } if modifiers.alt && !modifiers.shift => self.take_snapshot(crate::snapshot::Snap::Save),
+                egui::Event::Key {
+                    key: egui::Key::W,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.shift && !modifiers.command => self.watch_chart_symbol(),
                 // TradingView's: Ctrl+Alt+H hides (or shows) every drawing.
                 egui::Event::Key {
                     key: egui::Key::H,

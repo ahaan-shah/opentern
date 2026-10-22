@@ -7,7 +7,7 @@
 # Windows: install.ps1, or Opentern-windows-setup.exe from the releases.
 #
 # Environment:
-#   OPENTERN_VERSION      install a specific version (e.g. 0.1.3) instead of the latest
+#   OPENTERN_VERSION      install a specific version (e.g. 0.1.4) instead of the latest
 #   OPENTERN_INSTALL_DIR  where the binary goes on Linux (default: ~/.local/bin)
 #   OPENTERN_BASE_URL     download from a mirror instead of GitHub releases
 set -eu
