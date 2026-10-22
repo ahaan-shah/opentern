@@ -600,7 +600,8 @@ in iteratively. Phase 14 has started (item 3).
    released 16 Oct 2026** (the maintainer's go; each later release needs its
    own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity); v0.1.2 the
    same day (agent panel with Codex, UI pass 4, first macOS/Windows builds;
-   nobody has run those builds on a real Mac or PC yet). Still to do: the
+   nobody has run those builds on a real Mac or PC yet). v0.1.3 and v0.1.4 on 22 Oct 2026 (0.1.4: Alt W, update progress bar,
+   Windows npm installs of the agents' CLIs). Still to do: the
    website, notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
