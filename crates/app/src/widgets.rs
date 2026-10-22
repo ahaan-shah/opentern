@@ -647,6 +647,21 @@ pub fn empty_state(ui: &mut Ui, t: &Theme, glyph: &str, title: &str) {
     });
 }
 
+/// A rounded progress bar whose fill eases towards `frac` (from Magpie's
+/// `widgets::paint_progress`).
+pub fn progress(ui: &mut Ui, t: &Theme, id: egui::Id, size: egui::Vec2, frac: f32) -> Response {
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::hover());
+    let f = motion::tween_from(ui.ctx(), id, 0.0, frac.clamp(0.0, 1.0), motion::CHART);
+    let p = ui.painter();
+    let r = CornerRadius::same((rect.height() / 2.0) as u8);
+    p.rect_filled(rect, r, t.hover_wash());
+    if f > 0.001 {
+        let w = (rect.width() * f).max(rect.height());
+        p.rect_filled(Rect::from_min_size(rect.min, vec2(w, rect.height())), r, t.accent);
+    }
+    resp
+}
+
 /// A solid five-point star (the icon font only has the outline), drawn as
 /// a fan from its centre. `r` is the outer radius.
 pub fn filled_star(p: &egui::Painter, c: egui::Pos2, r: f32, color: Color32) {

@@ -568,7 +568,7 @@ in iteratively. Phase 14 has started (item 3).
    `docs/ui-backlog.md`): Magpie-style widgets in `widgets.rs` (use them, not
    egui's checkbox/ComboBox/selectable_value/Button), cards with gaps for the
    chart/widget/bottom panels, drawn chart-type icons, empty states, the app
-   icon (`scripts/make-icons.py`). `OPENTERN_STILL=menu:<interval|type|layout|
+   icon (`scripts/make-icons.py`). `OPENTERN_STILL=menu:<interval|type|layout|watchlist|
    templates|main>` opens a top-bar menu and `light` the light theme, for
    screenshots. Second and third passes done 15 Oct 2026 (compare modes and
    per-axis A/L/% toggles, quick measure, VSCodium-style editor, Settings page,
@@ -1179,7 +1179,7 @@ every data change (scripts re-run on it).
   rail button beside the theme switch opens it. Alt A / Alt S ignore Shift.
 - Watchlists (`watchlists.rs`): `Item::{Section, Symbol}` (untagged JSON, so
   old symbol arrays load), `Watchlist::symbols()`; title button with a menu
-  (rename, add section, new list, delete asks twice), switcher circles, drag
+  (rename, add section, new list, delete), switcher circles, drag
   to reorder, sections fold. Still `watch-sections` splits the starter list.
 - Hotlists: `HotMarket::India` = NIFTY 50 via Yahoo spark (20 symbols a
   request), gainers and losers only (no volume), fetched only while open.

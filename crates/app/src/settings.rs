@@ -314,11 +314,15 @@ impl App {
                     ui.label(subtle(format!("{why}.")));
                 }
                 Phase::Installing(r) => {
-                    ui.label(subtle(format!(
-                        "Updating to {}… {:.0}%",
-                        r.version,
-                        self.updater.progress * 100.0
-                    )));
+                    ui.label(subtle(format!("Updating to {}", r.version)));
+                    crate::widgets::progress(
+                        ui,
+                        t,
+                        egui::Id::new("settings-update-progress"),
+                        vec2(160.0, 6.0),
+                        self.updater.progress,
+                    );
+                    ui.label(subtle(format!("{:.0}%", self.updater.progress * 100.0)));
                 }
                 Phase::Ready(r) => {
                     if crate::widgets::primary(ui, "Restart Opentern").clicked() {
@@ -331,7 +335,7 @@ impl App {
                 }
                 _ => {
                     let checking = phase == Phase::Checking;
-                    let label = if checking { "Checking…" } else { "Check for updates" };
+                    let label = if checking { "Checking" } else { "Check for updates" };
                     if crate::widgets::secondary(ui, label).clicked() && !checking {
                         self.updater.check(ui.ctx(), true);
                     }

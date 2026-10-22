@@ -837,7 +837,7 @@ impl App {
         let tip = match &self.updater.phase {
             Phase::Available(r) => format!("Opentern {} is available. Click to update.", r.version),
             Phase::Manual(r, why) => format!("Opentern {} is available. {why}.", r.version),
-            Phase::Installing(r) => format!("Updating to {}… {:.0}%", r.version, self.updater.progress * 100.0),
+            Phase::Installing(r) => format!("Updating to {} ({:.0}%)", r.version, self.updater.progress * 100.0),
             Phase::Ready(r) => format!("Opentern {} is installed. Click to restart.", r.version),
             _ => String::new(),
         };

@@ -100,7 +100,7 @@ impl StudySettings {
                     &format!("Defaults  {}", ph::CARET_DOWN),
                 );
                 egui::Popup::menu(&resp).show(|ui| {
-                    ui.set_min_width(230.0);
+                    ui.set_width(230.0);
                     let saved = app.store.indicator_default(meta.id).is_some();
                     if crate::widgets::menu_item(ui, t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Reset settings", "", false)
                         .clicked()

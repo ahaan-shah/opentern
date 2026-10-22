@@ -262,10 +262,11 @@ impl App {
                     if resp.double_clicked() {
                         open_rename = true;
                     }
+                    self.still_open(ui, &resp, "watchlist");
                     egui::Popup::menu(&resp)
                         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                         .show(|ui| {
-                            ui.set_min_width(210.0);
+                            ui.set_width(210.0);
                             ui.spacing_mut().item_spacing.y = 1.0;
                             let w = crate::widgets::menu_item;
                             if w(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked() {
@@ -282,24 +283,12 @@ impl App {
                             }
                             if self.watchlists.len() > 1 {
                                 crate::widgets::menu_rule(ui, t);
-                                // Asks twice: a list is gone for good.
-                                let armed_id = state_id("delete-armed");
-                                let armed = ui.data(|d| d.get_temp::<bool>(armed_id)).unwrap_or(false);
-                                let label = if armed { "Click again to delete" } else { "Delete list" };
-                                if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), label).clicked() {
-                                    if armed {
-                                        delete = true;
-                                        ui.data_mut(|d| d.remove::<bool>(armed_id));
-                                        ui.close();
-                                    } else {
-                                        ui.data_mut(|d| d.insert_temp(armed_id, true));
-                                    }
+                                if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), "Delete list").clicked() {
+                                    delete = true;
+                                    ui.close();
                                 }
                             }
                         });
-                    if !egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp)) {
-                        ui.data_mut(|d| d.remove::<bool>(state_id("delete-armed")));
-                    }
                 });
             });
         });
