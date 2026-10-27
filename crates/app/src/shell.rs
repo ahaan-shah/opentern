@@ -23,6 +23,14 @@ pub const RANGE_H: f32 = 32.0;
 pub const TABS_H: f32 = 32.0;
 /// The gap between cards, and their corner radius.
 pub const GAP: f32 = 5.0;
+/// The least the chart keeps when the bottom panel grows (legend, a few
+/// bars, the time scale).
+const CHART_MIN: f32 = 180.0;
+
+/// The bottom panel's tallest content height for a window this tall.
+fn panel_max_h(window_h: f32) -> f32 {
+    (window_h - TOP_H - RANGE_H - TABS_H - GAP - CHART_MIN).max(140.0)
+}
 const CARD_R: f32 = 9.0;
 
 /// Widgets the right rail opens in the widget panel.
@@ -211,10 +219,11 @@ impl App {
             self.layout.tab.is_some(),
             motion::STANDARD,
         );
+        let most = panel_max_h(ui.ctx().content_rect().height());
         let panel_h = if self.layout.panel_max {
-            (ui.ctx().content_rect().height() - TOP_H - RANGE_H - TABS_H - 110.0).max(self.layout.panel_h)
+            most
         } else {
-            self.layout.panel_h
+            self.layout.panel_h.min(most)
         };
         egui::Panel::bottom("bottom-panel")
             .exact_size(TABS_H + panel_h * k)
@@ -1094,7 +1103,9 @@ impl App {
                     self.layout.panel_max = false;
                     self.layout.panel_h = full.height() - TABS_H;
                 }
-                self.layout.panel_h = (self.layout.panel_h - d).clamp(140.0, 900.0);
+                let most = panel_max_h(ui.ctx().content_rect().height());
+                // From what shows (a window made shorter may have shrunk it).
+                self.layout.panel_h = (self.layout.panel_h.min(most) - d).clamp(140.0, most);
             }
         }
         let strip = Rect::from_min_size(full.min, vec2(full.width(), TABS_H));
@@ -1300,7 +1311,7 @@ fn interval_row(ui: &mut Ui, t: &Theme, tf: Timeframe, current: bool, fav: bool)
 
 /// Fills the four corners of `r` outside a rounded rect of radius `rad`
 /// with `fill`, so a panel painted square looks rounded.
-fn round_corners(p: &egui::Painter, r: Rect, rad: f32, fill: egui::Color32) {
+pub(crate) fn round_corners(p: &egui::Painter, r: Rect, rad: f32, fill: egui::Color32) {
     use std::f32::consts::FRAC_PI_2;
     let corners = [
         (r.left_top(), pos2(r.left() + rad, r.top() + rad), 2.0),

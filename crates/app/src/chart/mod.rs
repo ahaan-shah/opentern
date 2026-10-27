@@ -822,6 +822,30 @@ impl Chart {
         self.view.right >= self.last_index()
     }
 
+    /// The newest price on the chart, unless it's replaying the past.
+    pub fn last_price(&self) -> Option<f64> {
+        (!self.replaying()).then(|| self.raw.last().map(|b| b.close)).flatten()
+    }
+
+    /// A quote that arrived after the chart's last update: moved into the
+    /// forming bar, so the chart and the watchlist show the same price.
+    /// Ignored once that bar's period is over (the quote may belong to the
+    /// next one).
+    pub fn take_quote(&mut self, price: f64, now_ms: i64) {
+        let Some(&last) = self.raw.last() else { return };
+        let span = self.tf.millis().unwrap_or(31 * 86_400_000);
+        if self.replaying() || !price.is_finite() || price <= 0.0 || last.close == price || now_ms >= last.time + span {
+            return;
+        }
+        let bar = Bar {
+            close: price,
+            high: last.high.max(price),
+            low: last.low.min(price),
+            ..last
+        };
+        self.apply(Event::Tick { chart: self.id, bar });
+    }
+
     /// Applies a data event meant for this chart.
     pub fn apply(&mut self, e: Event) {
         if self.replay_absorb(&e) {

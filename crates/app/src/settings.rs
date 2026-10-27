@@ -492,7 +492,7 @@ fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &s
 }
 
 /// The app icon as a texture, rendered once from the packaged SVG.
-fn app_logo(ctx: &egui::Context) -> egui::TextureHandle {
+pub(crate) fn app_logo(ctx: &egui::Context) -> egui::TextureHandle {
     let id = egui::Id::new("opentern-app-logo");
     if let Some(tex) = ctx.data(|d| d.get_temp::<egui::TextureHandle>(id)) {
         return tex;

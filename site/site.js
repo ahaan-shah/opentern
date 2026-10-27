@@ -10,7 +10,7 @@ function isDark() {
 function syncTheme() {
   const dark = isDark();
   root.toggleAttribute("data-dark", dark);
-  themeMeta.content = dark ? "#14181F" : "#F7F8FA";
+  themeMeta.content = dark ? "#14181F" : "#F5F8F6";
 }
 // What the switch is heading to, so quick clicks during the crossfade stay in step.
 let wantDark = isDark();

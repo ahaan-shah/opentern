@@ -2508,7 +2508,7 @@ mod tests {
 
     #[test]
     fn highlighting_keeps_every_character() {
-        let t = crate::theme::Theme::by_name("Opentern Dark");
+        let t = crate::theme::Theme::by_name("Tern Dark");
         for (src, lang) in [
             (PYTHON_TEMPLATE, Lang::Python),
             (PINE_TEMPLATE, Lang::Pine),

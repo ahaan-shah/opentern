@@ -3068,7 +3068,7 @@ checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "opentern"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -3100,7 +3100,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "directories",
  "jiff",
@@ -3117,7 +3117,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-data"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "crossbeam-channel",
  "flate2",
@@ -3132,7 +3132,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-engine"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "jiff",
  "opentern-core",
@@ -3143,7 +3143,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-pine"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "jiff",
  "opentern-core",
@@ -3155,7 +3155,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-script"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "crossbeam-channel",
  "jiff",
@@ -3173,7 +3173,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-series"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "jiff",
  "opentern-core",

@@ -27,6 +27,9 @@ pub struct App {
     pub active_list: usize,
     /// Last price and previous close per symbol id.
     pub quotes: HashMap<String, (f64, f64)>,
+    /// Made-up data (`--demo`): each timeframe is its own path, so charts
+    /// and quotes aren't synced.
+    pub demo: bool,
     pub hub: Hub,
     pub chart: Chart,
     pub chart_ui: ChartUi,
@@ -56,6 +59,8 @@ pub struct App {
     pub side: crate::side::Side,
     /// The Claude panel's chats and running Claude Code sessions.
     pub claude: crate::claude::Claude,
+    /// The first-run welcome, while it shows (`onboarding.rs`).
+    pub onboarding: Option<crate::onboarding::Onboarding>,
     /// A snapshot waiting for the window's screenshot.
     pub(crate) snap: Option<crate::snapshot::Snap>,
     /// Where the charts were drawn last frame (snapshots cut this out).
@@ -159,6 +164,7 @@ impl App {
             watchlists,
             active_list,
             quotes: HashMap::new(),
+            demo,
             hub,
             saved: u64::MAX,
             chart,
@@ -182,6 +188,7 @@ impl App {
             notes: Default::default(),
             side: Default::default(),
             claude: Default::default(),
+            onboarding: None,
             snap: None,
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
@@ -223,6 +230,7 @@ impl App {
         if fresh {
             app.saved = app.layout_version();
         }
+        app.onboarding = crate::onboarding::wanted(&mut app.store, fresh);
         app.subscribe_quotes();
         app.still();
         if let Ok(v) = std::env::var("OPENTERN_STILL") {
@@ -466,11 +474,7 @@ impl App {
     }
 
     pub fn toggle_dark(&mut self, ctx: &egui::Context) {
-        let name = if self.t().dark {
-            "Opentern Light"
-        } else {
-            "Opentern Dark"
-        };
+        let name = if self.t().dark { "Opentern Light" } else { "Tern Dark" };
         self.set_theme(ctx, name);
     }
 
@@ -905,9 +909,34 @@ impl App {
     }
 
     fn poll_data(&mut self) {
+        self.poll_events();
+        if self.demo {
+            return;
+        }
+        // A symbol on a chart shows the chart's price in the watchlist too
+        // (whichever arrived last has already reached the chart).
+        let slots = self.slots.iter().flatten().map(|s| &s.chart);
+        for c in std::iter::once(&self.chart).chain(slots) {
+            if let (Some(p), Some(q)) = (c.last_price(), self.quotes.get_mut(&c.symbol.id)) {
+                q.0 = p;
+            }
+        }
+    }
+
+    fn poll_events(&mut self) {
         for e in self.hub.poll() {
             match e {
+                Event::Quote { id, last, prev } if self.demo => {
+                    self.quotes.insert(id, (last, prev));
+                }
                 Event::Quote { id, last, prev } => {
+                    let now = jiff::Timestamp::now().as_millisecond();
+                    let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
+                    for c in std::iter::once(&mut self.chart).chain(slots) {
+                        if c.symbol.id == id {
+                            c.take_quote(last, now);
+                        }
+                    }
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Fetched {
@@ -959,7 +988,9 @@ impl App {
     /// One-off history arrived: for the screener, or a backtest over other
     /// symbols.
     fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
-        if seq >= crate::feeds::SEQ_BASE {
+        if seq >= crate::onboarding::SEQ_BASE {
+            self.onboarding_fetched(symbol, result);
+        } else if seq >= crate::feeds::SEQ_BASE {
             self.feed_fetched(seq, result);
         } else if seq >= 1 << 41 {
             self.lab_fetched(seq, symbol, result);
@@ -1143,6 +1174,12 @@ impl App {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
         self.logos.poll(&ctx);
+        let now = ctx.input(|i| i.time);
+        if self.onboarding.as_ref().is_some_and(|o| o.covers(now)) {
+            self.poll_data();
+            self.onboarding(ui);
+            return;
+        }
         if self.chart.bars.len() > 100
             && let Some(m) = self.still_claude.take()
         {
@@ -1204,6 +1241,7 @@ impl App {
         self.compare_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
+        self.onboarding_overlay(&ctx);
     }
 
     /// Scripts, strategy marks, paper lines and drawing saves for the charts

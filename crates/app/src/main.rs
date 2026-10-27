@@ -37,6 +37,7 @@ mod motion;
 mod multi;
 mod notes;
 mod objects;
+mod onboarding;
 mod paper;
 mod pine_host;
 mod screener;

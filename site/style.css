@@ -3,23 +3,23 @@
 @font-face { font-family: "Plus Jakarta Sans"; src: url(fonts/PlusJakartaSans-SemiBold.woff2) format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
 @font-face { font-family: "Plus Jakarta Sans"; src: url(fonts/PlusJakartaSans-SemiBoldItalic.woff2) format("woff2"); font-weight: 600; font-style: italic; font-display: swap; }
 
-/* Opentern Light / Opentern Dark, straight from crates/app/src/theme.rs */
+/* Opentern Light / Tern Dark, straight from crates/app/src/theme.rs */
 :root {
-  --bg: #F7F8FA;
+  --bg: #F5F8F6;
   --card: #FFFFFF;
-  --text: #161A22;
-  --text2: #4E5663;
-  --text3: #8A919C;
-  --accent: #2F74D8;
-  --accent-text: #2F74D8;
-  --line: rgba(22, 26, 34, .09);
-  --wash: rgba(22, 26, 34, .045);
+  --text: #0F1B15;
+  --text2: #48594F;
+  --text3: #84948A;
+  --accent: #07834A;
+  --accent-text: #07834A;
+  --line: rgba(15, 27, 21, .09);
+  --wash: rgba(15, 27, 21, .045);
   --tint: 6%;
-  --glow1: rgba(47, 116, 216, .16);
+  --glow1: rgba(7, 131, 74, .12);
   --glow2: rgba(34, 181, 108, .10);
-  --glow3: rgba(91, 156, 240, .14);
+  --glow3: rgba(7, 131, 74, .08);
   color-scheme: light;
-  --shadow: 0 1px 2px rgba(12, 20, 36, .06), 0 12px 40px -12px rgba(12, 20, 36, .22);
+  --shadow: 0 1px 2px rgba(12, 28, 20, .06), 0 12px 40px -12px rgba(12, 28, 20, .22);
   --code-bg: #14181F;
   --code-text: #E6E9EE;
 }
@@ -30,14 +30,14 @@
     --text: #E6E9EE;
     --text2: #A8B0BC;
     --text3: #707884;
-    --accent: #5B9CF0;
-    --accent-text: #7DB2F5;
+    --accent: #22B56C;
+    --accent-text: #4FD18F;
     --line: rgba(230, 233, 238, .09);
     --wash: rgba(230, 233, 238, .05);
     --tint: 5%;
-    --glow1: rgba(91, 156, 240, .12);
-    --glow2: rgba(34, 181, 108, .07);
-    --glow3: rgba(91, 156, 240, .07);
+    --glow1: rgba(34, 181, 108, .11);
+    --glow2: rgba(7, 131, 74, .10);
+    --glow3: rgba(34, 181, 108, .06);
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 16px 48px -16px rgba(0, 0, 0, .7);
     --code-bg: #0C0F14;
     --code-text: #E6E9EE;
@@ -50,14 +50,14 @@
   --text: #E6E9EE;
   --text2: #A8B0BC;
   --text3: #707884;
-  --accent: #5B9CF0;
-  --accent-text: #7DB2F5;
+  --accent: #22B56C;
+  --accent-text: #4FD18F;
   --line: rgba(230, 233, 238, .09);
   --wash: rgba(230, 233, 238, .05);
   --tint: 5%;
-  --glow1: rgba(91, 156, 240, .12);
-  --glow2: rgba(34, 181, 108, .07);
-  --glow3: rgba(91, 156, 240, .07);
+  --glow1: rgba(34, 181, 108, .11);
+  --glow2: rgba(7, 131, 74, .10);
+  --glow3: rgba(34, 181, 108, .06);
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 16px 48px -16px rgba(0, 0, 0, .7);
   --code-bg: #0C0F14;
   --code-text: #E6E9EE;
@@ -72,7 +72,7 @@ body {
   font: 400 17px/1.6 Figtree, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-  /* A slow drift down the page: Opentern's slate (or a tern's white), lit by its sea blue. */
+  /* A slow drift down the page: Opentern's slate (or a tern's white), lit by the logo's green. */
   background-color: var(--bg);
   background-image: linear-gradient(180deg,
     var(--bg) 0%,
@@ -81,7 +81,7 @@ body {
     color-mix(in srgb, var(--card) 60%, var(--bg)) 75%,
     color-mix(in srgb, var(--accent) var(--tint), var(--bg)) 100%);
 }
-/* A soft blue and emerald haze, drifting very slowly. */
+/* A soft emerald haze, drifting very slowly. */
 body::before {
   content: "";
   position: fixed;
@@ -157,8 +157,17 @@ h1 { font-size: clamp(36px, 5vw, 60px); line-height: 1.08; }
 }
 .btn:hover { text-decoration: none; }
 .btn:active { transform: scale(.98); }
-.btn.primary { background: var(--accent); color: #FFFFFF; font-weight: 600; box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 60%, transparent); }
-.btn.primary:hover { background: color-mix(in srgb, var(--accent) 90%, #000); }
+.btn.primary {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent));
+  color: #FFFFFF; font-weight: 600;
+  box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .18);
+}
+.btn.primary:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(180deg, color-mix(in srgb, #22B56C 80%, #fff), #22B56C);
+  box-shadow: 0 10px 28px -6px rgba(34, 181, 108, .55), inset 0 1px 0 rgba(255, 255, 255, .28);
+}
+.btn.primary:active { transform: translateY(0) scale(.98); }
 .platforms { color: var(--text3); font-size: 14px; margin: 16px 0 0; }
 .shot.hero-shot { margin: 48px auto 0; width: min(100%, 980px); }
 
@@ -344,7 +353,10 @@ footer a { color: var(--text2); }
 }
 
 /* The hero icon glides, like a tern riding the wind. */
-.glide { width: 128px; height: 128px; margin: 0 auto 24px; }
+.glide { width: 128px; height: 128px; margin: 0 auto 24px; display: flex; justify-content: center; align-items: center; }
+@media (max-width: 520px) {
+  .glide { width: 104px; height: 104px; }
+}
 .glide .hero-icon { margin: 0; animation: glide 7s ease-in-out infinite; }
 @keyframes glide {
   0%, 100% { transform: translate3d(0, 0, 0) rotate(-1.5deg); }
@@ -352,7 +364,7 @@ footer a { color: var(--text2); }
 }
 .btn { gap: 8px; }
 .btn.ghost { color: var(--text); border: 1px solid var(--line); background: var(--card); }
-.btn.ghost:hover { background: color-mix(in srgb, var(--card) 90%, var(--text)); }
+.btn.ghost:hover { background: color-mix(in srgb, var(--card) 90%, var(--text)); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 
 /* Windows: the installer, for people who'd rather click than paste. */
 .direct {

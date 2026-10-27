@@ -38,10 +38,10 @@ pub const fn rgb(v: u32) -> Color32 {
 }
 
 pub const THEMES: &[Theme] = &[
-    // Opentern's own: deep slate like a night sea, with a soft sea-blue accent
-    // that stays clear of the green/red the charts use for up and down.
+    // Opentern's own dark theme: deep slate like a night sea, with the
+    // logo's green for accents and selection.
     Theme {
-        name: "Opentern Dark",
+        name: "Tern Dark",
         dark: true,
         bg: hex(0x14181F),
         sidebar: hex(0x101319),
@@ -52,7 +52,7 @@ pub const THEMES: &[Theme] = &[
         text: hex(0xE6E9EE),
         text2: hex(0xA8B0BC),
         text3: hex(0x707884),
-        accent: hex(0x5B9CF0),
+        accent: hex(0x22B56C),
         on_accent: hex(0xFFFFFF),
         pos: hex(0x22AB94),
         neg: hex(0xF7525F),
@@ -184,20 +184,21 @@ pub const THEMES: &[Theme] = &[
         neg: hex(0xE67E80),
         warn: hex(0xDBBC7F),
     },
-    // Opentern's own light theme: a tern's white and pale grey.
+    // Opentern's own light theme: white and pale sage, the logo's deep green
+    // as the accent.
     Theme {
         name: "Opentern Light",
         dark: false,
-        bg: hex(0xF7F8FA),
-        sidebar: hex(0xEEF0F4),
+        bg: hex(0xF5F8F6),
+        sidebar: hex(0xE9EFEB),
         card: hex(0xFFFFFF),
-        hover: hex(0xEEF1F5),
+        hover: hex(0xEAF1ED),
         elevated: hex(0xFFFFFF),
-        border: hex(0xDDE1E7),
-        text: hex(0x161A22),
-        text2: hex(0x4E5663),
-        text3: hex(0x8A919C),
-        accent: hex(0x2F74D8),
+        border: hex(0xD3DED7),
+        text: hex(0x0F1B15),
+        text2: hex(0x48594F),
+        text3: hex(0x84948A),
+        accent: hex(0x07834A),
         on_accent: hex(0xFFFFFF),
         pos: hex(0x089981),
         neg: hex(0xF23645),
@@ -336,6 +337,7 @@ impl Theme {
         // Themes that were renamed or retired.
         let name = match name {
             "Rosé Pine" => "Rosé Pine Dawn",
+            "Opentern Dark" => "Tern Dark",
             other => other,
         };
         THEMES.iter().copied().find(|t| t.name == name).unwrap_or(THEMES[0])

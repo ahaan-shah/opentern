@@ -997,4 +997,40 @@ mod formula_tests {
         d.click(d.at(0.5, 0.5));
         assert!(d.app.chart_ui.draw.measure().is_none());
     }
+
+    #[test]
+    fn dragging_the_bottom_panel_up_leaves_the_chart_room() {
+        let mut d = Driver::new("panel-drag");
+        d.app.layout.tab = Some(crate::shell::Tab::Screener);
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        let top = 900.0 - crate::shell::TABS_H - d.app.layout.panel_h;
+        d.drag(pos2(700.0, top), pos2(700.0, 2.0));
+        for _ in 0..5 {
+            d.frame(vec![]);
+        }
+        let r = d.app.chart_ui.main_rect;
+        assert!(r.height() > 100.0, "chart squeezed to {r:?}");
+        assert!(d.app.layout.panel_h > 400.0, "the drag did nothing");
+    }
+
+    #[test]
+    fn the_watchlist_and_the_chart_show_one_price() {
+        let mut d = Driver::new("one-price");
+        let id = d.app.chart.symbol.id.clone();
+        d.wait(|a| a.quotes.contains_key(&a.chart.symbol.id));
+        // Demo charts and quotes are separate made-up paths; sync them here.
+        d.app.demo = false;
+        let now = jiff::Timestamp::now().as_millisecond();
+        let p = d.app.chart.last_price().unwrap() * 1.01;
+        d.app.chart.take_quote(p, now);
+        assert_eq!(d.app.chart.last_price(), Some(p));
+        d.frame(vec![]);
+        assert_eq!(d.app.quotes[&id].0, p);
+        // A quote after the bar's period is over stays out of it.
+        let tf = d.app.chart.tf.millis().unwrap();
+        d.app.chart.take_quote(p * 2.0, now + 2 * tf);
+        assert_eq!(d.app.chart.last_price(), Some(p));
+    }
 }

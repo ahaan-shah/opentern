@@ -23,12 +23,12 @@ crossbeam-channel = "0.5.15"
 jiff = "0.2.37"
 lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "rustls-tls", "hostname"] }
 notify-rust = "4"
-opentern-core = { version = "0.1.4", path = "../core" }
-opentern-data = { version = "0.1.4", path = "../data" }
-opentern-engine = { version = "0.1.4", path = "../engine" }
-opentern-pine = { version = "0.1.4", path = "../pine" }
-opentern-script = { version = "0.1.4", path = "../script" }
-opentern-series = { version = "0.1.4", path = "../series" }
+opentern-core = { version = "0.1.5", path = "../core" }
+opentern-data = { version = "0.1.5", path = "../data" }
+opentern-engine = { version = "0.1.5", path = "../engine" }
+opentern-pine = { version = "0.1.5", path = "../pine" }
+opentern-script = { version = "0.1.5", path = "../script" }
+opentern-series = { version = "0.1.5", path = "../series" }
 png = "0.18"
 pollster = "1.0.1"
 base64 = "0.22.1"

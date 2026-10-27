@@ -16,6 +16,9 @@ def wait_for(request_id):
     sys.exit(0)
 
 args = sys.argv[1:]
+if args[:2] == ["auth", "status"]:
+    out({"loggedIn": True})
+    sys.exit(0)
 for line in sys.stdin:
     d = json.loads(line)
     if d.get("type") != "user":

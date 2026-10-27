@@ -8,6 +8,7 @@
 
 pub mod agent;
 pub mod attach;
+pub mod auth;
 pub mod codex;
 pub mod mark;
 pub mod process;
@@ -145,6 +146,9 @@ struct Saved {
     /// Each agent's open chat, for switching back.
     #[serde(default)]
     last: Vec<(Agent, u64)>,
+    /// The model each agent ran when none was picked, as last reported.
+    #[serde(default)]
+    defaults: Vec<(Agent, String)>,
 }
 
 /// The move from the picker (or the other agent) into an agent's panel.
@@ -186,6 +190,8 @@ pub struct Claude {
     picker_shown: Option<f64>,
     /// Codex's model list, while it's being fetched.
     models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
+    /// The model list was asked for while the menu is open.
+    models_asked: bool,
     pub view: View,
     /// The chats list's search text.
     pub chat_query: String,
@@ -225,6 +231,14 @@ pub struct Claude {
     /// The scripts folder's files, for links (looked at every 2 s).
     scripts: Option<(std::time::Instant, Vec<String>)>,
     cli: Option<Option<PathBuf>>,
+    /// The model each agent runs when none is picked: what its own config
+    /// names, read at load (`config_model`).
+    configured: HashMap<Agent, String>,
+    /// The same, as a chat last reported it (Init), for when the config
+    /// doesn't say.
+    defaults: HashMap<Agent, String>,
+    /// Each agent's sign-in, checked when its panel first shows.
+    auth: HashMap<Agent, auth::Auth>,
     loaded: bool,
     dirty: bool,
 }
@@ -334,13 +348,42 @@ impl Claude {
                 .iter()
                 .find(|(k, _)| k == id)
                 .map(|(_, n)| n.clone())
-                .unwrap_or_else(|| id.to_string()),
+                .unwrap_or_else(|| codex_name(id)),
         }
     }
 
-    /// The models to pick from for `a`: (id, name), Default first.
+    /// The model `a` runs when none is picked: its config, else what it
+    /// last reported, else (Codex) the account's default.
+    fn default_model(&self, a: Agent) -> Option<String> {
+        self.configured
+            .get(&a)
+            .or_else(|| self.defaults.get(&a))
+            .cloned()
+            .or_else(|| match a {
+                Agent::Codex => self.codex_models.first().map(|(k, _)| k.clone()),
+                Agent::Claude => None,
+            })
+    }
+
+    /// The name of the model a chat on `model` runs ("" = the default).
+    fn current_label(&self, a: Agent, model: &str) -> String {
+        if !model.is_empty() {
+            return self.model_label(a, model);
+        }
+        match self.default_model(a) {
+            Some(m) => self.model_label(a, &m),
+            None => "Default".to_string(),
+        }
+    }
+
+    /// The models to pick from for `a`: (id, name). The default is listed
+    /// by its name once it's known, else as "Default" first.
     fn models_for(&self, a: Agent) -> Vec<(String, String)> {
-        let mut v = vec![(String::new(), "Default".to_string())];
+        let known = self.default_model(a);
+        let mut v = Vec::new();
+        if known.is_none() {
+            v.push((String::new(), "Default".to_string()));
+        }
         match a {
             Agent::Claude => v.extend(
                 MODELS
@@ -349,6 +392,11 @@ impl Claude {
                     .map(|(k, l)| (k.to_string(), l.to_string())),
             ),
             Agent::Codex => v.extend(self.codex_models.iter().cloned()),
+        }
+        if let Some(m) = known
+            && !v.iter().any(|(k, _)| *k == m)
+        {
+            v.insert(0, (m.clone(), self.model_label(a, &m)));
         }
         v
     }
@@ -375,6 +423,11 @@ impl App {
             return;
         }
         self.claude.loaded = true;
+        for a in Agent::ALL {
+            if let Some(m) = config_model(a) {
+                self.claude.configured.insert(a, m);
+            }
+        }
         let Ok(text) = std::fs::read_to_string(self.claude_file()) else {
             return;
         };
@@ -415,6 +468,7 @@ impl App {
         c.codex_models = s.codex_models;
         c.codex_limits = s.codex_limits;
         c.last = s.last.into_iter().collect();
+        c.defaults = s.defaults.into_iter().collect();
         // The open chat belongs to the agent on show.
         if let Some(a) = c.agent
             && c.chat().is_some_and(|x| x.agent != a)
@@ -441,6 +495,7 @@ impl App {
             codex_models: c.codex_models.clone(),
             codex_limits: c.codex_limits.clone(),
             last: c.last.iter().map(|(a, id)| (*a, *id)).collect(),
+            defaults: c.defaults.iter().map(|(a, m)| (*a, m.clone())).collect(),
         };
         let path = self.claude_file();
         if let Some(d) = path.parent() {
@@ -725,6 +780,11 @@ impl App {
         match e {
             Event::Init { session, model } => {
                 chat.session = Some(session);
+                if chat.model.is_empty() && !model.is_empty() {
+                    let a = chat.agent;
+                    self.claude.defaults.insert(a, model.clone());
+                }
+                let Some(chat) = self.claude.chat_mut(id) else { return };
                 chat.model_name = model;
             }
             Event::TextStart => {
@@ -839,6 +899,8 @@ impl App {
         self.claude.dirty = true;
         if exited {
             self.claude.clients.remove(&id);
+            // It may have stopped because the user signed out: ask again.
+            self.claude.auth.remove(&agent);
         }
     }
 
@@ -1008,7 +1070,7 @@ impl App {
                     }
                 }
             });
-        } else {
+        } else if self.claude_signed_in(ui, t, agent) {
             self.claude_take_files(ui, t);
             let composer_h = self.claude_composer_height(ui.available_width());
             let list_h = (ui.available_height() - composer_h - 10.0).max(80.0);
@@ -1024,6 +1086,119 @@ impl App {
         {
             self.claude_pick_overlay(ui, t, a.to, from, p, full);
         }
+    }
+
+    /// Whether `agent`'s CLI is signed in; otherwise shows the sign-in gate
+    /// (or a spinner while the CLI is asked) and returns false.
+    fn claude_signed_in(&mut self, ui: &mut Ui, t: &Theme, agent: Agent) -> bool {
+        if crate::app::headless() && std::env::var_os(agent.env()).is_none() {
+            return true;
+        }
+        let Some(exe) = self.claude.cli_for(agent) else {
+            return true;
+        };
+        let ctx = self.egui_ctx.clone();
+        let wake = move || ctx.request_repaint();
+        let state = self
+            .claude
+            .auth
+            .entry(agent)
+            .or_insert_with(|| auth::Auth::Checking(auth::check(agent, &exe, wake.clone())));
+        let mut done = false;
+        match state {
+            auth::Auth::In => return true,
+            auth::Auth::Checking(rx) => match rx.try_recv() {
+                Ok(true) => {
+                    *state = auth::Auth::In;
+                    return true;
+                }
+                Ok(false) => *state = auth::Auth::Out,
+                Err(_) => {
+                    ui.add_space(96.0);
+                    ui.vertical_centered(|ui| agent::spinner(ui, 26.0, agent, agent.accent(t)));
+                    ui.ctx().request_repaint();
+                    return false;
+                }
+            },
+            auth::Auth::SigningIn(l) => done = l.poll().is_some(),
+            auth::Auth::Out => {}
+        }
+        if done {
+            *state = auth::Auth::Checking(auth::check(agent, &exe, wake.clone()));
+        }
+        ui.add_space(48.0);
+        let mut action = None;
+        ui.vertical_centered(|ui| {
+            halo(ui, t, agent, 38.0);
+            ui.add_space(14.0);
+            ui.label(RichText::new(format!("Sign in to {}", agent.product())).font(theme::semibold(15.0)));
+            ui.add_space(14.0);
+            match self.claude.auth.get_mut(&agent) {
+                Some(auth::Auth::SigningIn(l)) => {
+                    ui.label(
+                        RichText::new("Finish signing in in your browser.")
+                            .color(t.text2)
+                            .size(12.5),
+                    );
+                    if agent == Agent::Claude {
+                        ui.add_space(12.0);
+                        let w = (ui.available_width() - 32.0).min(260.0);
+                        let r = ui.add_sized(
+                            [w, 34.0],
+                            w::field(&mut l.code)
+                                .hint_text("Paste the code, if asked")
+                                .interactive(!l.sent),
+                        );
+                        if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            l.send_code();
+                        }
+                        ui.add_space(8.0);
+                        let ready = !l.sent && !l.code.trim().is_empty();
+                        if w::button(ui, w::Kind::Primary, ready, None, "Continue").clicked() {
+                            l.send_code();
+                        }
+                    }
+                    ui.add_space(8.0);
+                    ui.horizontal(|ui| {
+                        let url = l.url.clone();
+                        let width = if url.is_some() { 200.0 } else { 90.0 };
+                        ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
+                        if let Some(url) = url
+                            && w::secondary(ui, "Open page").clicked()
+                        {
+                            crate::app::open_url(&url);
+                        }
+                        if w::secondary(ui, "Cancel").clicked() {
+                            action = Some(false);
+                        }
+                    });
+                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
+                }
+                _ => {
+                    if w::primary(ui, "Sign in").clicked() {
+                        action = Some(true);
+                    }
+                    ui.add_space(8.0);
+                    if w::secondary(ui, "Check again").clicked() {
+                        action = Some(false);
+                    }
+                }
+            }
+        });
+        match action {
+            Some(true) => {
+                let state = match auth::Login::start(agent, &exe, wake) {
+                    Ok(l) => auth::Auth::SigningIn(l),
+                    Err(_) => auth::Auth::Out,
+                };
+                self.claude.auth.insert(agent, state);
+            }
+            Some(false) => {
+                self.claude.auth.remove(&agent);
+            }
+            None => {}
+        }
+        false
     }
 
     /// The first open: a card per agent. Picking one moves into its panel.
@@ -1829,7 +2004,6 @@ impl App {
 
     fn claude_composer(&mut self, ui: &mut Ui, t: &Theme) {
         let busy = self.claude.chat().is_some_and(|c| c.busy);
-        let started = self.claude.chat().is_some_and(|c| !c.items.is_empty());
         let agent = self.claude.current();
         let accent = agent.accent(t);
         let mode = self.claude.chat().map(|c| c.mode).unwrap_or(self.claude.mode);
@@ -1919,16 +2093,15 @@ impl App {
                 }
                 // Enter sends; Shift+Enter is a new line.
                 let enter = focused && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-                let hint = if started {
-                    format!("Reply to {}…", agent.name())
-                } else {
-                    format!("Ask {} about {}…", agent.name(), self.chart.symbol.ticker())
-                };
+                // A softer cursor than the app's fields.
+                let cursor = &mut ui.visuals_mut().text_cursor.stroke;
+                cursor.color = crate::motion::with_alpha(t.text, 0.45);
+                cursor.width = cursor.width.min(1.5);
                 ui.add(
                     egui::TextEdit::multiline(&mut self.claude.input)
                         .id(input_id)
                         // A little air between the cursor and the hint.
-                        .hint_text(RichText::new(format!(" {hint}")).color(t.text3))
+                        .hint_text(RichText::new(" What can I help you with?").color(t.text3))
                         .font(theme::regular(13.5))
                         .desired_rows(2)
                         .frame(egui::Frame::NONE)
@@ -1946,11 +2119,7 @@ impl App {
                         Mode::Manual => (ph::HAND_PALM, "Ask first"),
                         Mode::Auto => (ph::LIGHTNING, "Auto"),
                     };
-                    let mut label = if model.is_empty() {
-                        "Default".to_string()
-                    } else {
-                        self.claude.model_label(agent, &model)
-                    };
+                    let mut label = self.claude.current_label(agent, &model);
                     // A narrow pane: the mode shrinks to its icon, then the
                     // model drops its version. The send button and the ring
                     // always keep their room.
@@ -1990,7 +2159,14 @@ impl App {
                         mode_text = "";
                     }
                     if !fits(ui, mode_text, None, &label, room) {
-                        label = label.split(' ').next().unwrap_or("").to_string();
+                        label = match label.split_once(' ') {
+                            Some((first, _)) => first.to_string(),
+                            // One word ("GPT-5.6-Terra"): drop the family.
+                            None => match label.split_once('-') {
+                                Some((_, rest)) if rest.contains('-') => rest.to_string(),
+                                _ => label,
+                            },
+                        };
                     }
                     if !fits(ui, mode_text, None, &label, room) {
                         label.clear();
@@ -2052,12 +2228,12 @@ impl App {
                             }
                         });
                     // Model.
-                    let default_hint = self
-                        .claude
-                        .chat()
-                        .filter(|c| c.model.is_empty() && !c.model_name.is_empty())
-                        .map(|c| self.claude.model_label(agent, &c.model_name))
-                        .unwrap_or_default();
+                    // The model a default chat runs is the one ticked.
+                    let ticked = if model.is_empty() {
+                        self.claude.default_model(agent).unwrap_or_default()
+                    } else {
+                        model.clone()
+                    };
                     let models = self.claude.models_for(agent);
                     let resp = ui
                         .add_enabled_ui(!busy, |ui| pill(ui, t, model_icon, &label, true))
@@ -2079,13 +2255,20 @@ impl App {
                     self.claude_still_menu(ui, &resp, "model");
                     // Codex's models come from the account: ask once, when
                     // the menu first opens.
+                    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
                     if agent == Agent::Codex
                         && self.claude.codex_models.is_empty()
                         && self.claude.models_rx.is_none()
-                        && egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp))
+                        && !self.claude.models_asked
+                        && open
                         && let Some(exe) = self.claude.cli_for(agent)
                     {
+                        // Once per opening of the menu, even if it fails.
+                        self.claude.models_asked = true;
                         self.claude.models_rx = Some(codex::models(exe, self.scripts_dir()));
+                    }
+                    if !open {
+                        self.claude.models_asked = false;
                     }
                     egui::Popup::menu(&resp)
                         .anchor(above(&resp, top))
@@ -2095,14 +2278,20 @@ impl App {
                         .show(|ui| {
                             ui.spacing_mut().item_spacing.y = 2.0;
                             for (k, l) in &models {
-                                let hint = if k.is_empty() { default_hint.as_str() } else { "" };
-                                if menu_pick(ui, t, l, hint, *k == model).clicked() {
+                                if menu_pick(ui, t, l, "", *k == ticked).clicked() {
                                     set_model = Some(k.clone());
                                     ui.close();
                                 }
                             }
-                            if models.len() == 1 && agent == Agent::Codex {
-                                ui.label(RichText::new("  Loading models…").color(t.text3).size(11.5));
+                            if self.claude.models_rx.is_some() && agent == Agent::Codex {
+                                ui.add_space(4.0);
+                                ui.horizontal(|ui| {
+                                    ui.add_space(12.0);
+                                    ui.add(egui::Spinner::new().size(11.0).color(t.text3));
+                                    ui.add_space(4.0);
+                                    ui.label(RichText::new("Loading models").color(t.text3).size(12.0));
+                                });
+                                ui.add_space(6.0);
                             }
                         });
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -2316,6 +2505,72 @@ fn title_of(text: &str) -> String {
         s.push('…');
     }
     if s.is_empty() { "New chat".into() } else { s }
+}
+
+/// The model the agent's own config names, used when no `--model` is
+/// passed: Claude Code's `ANTHROPIC_MODEL` or `settings.json` `model`
+/// (aliases like "opus" mapped to their exact id), Codex's `config.toml`
+/// top-level `model`.
+fn config_model(a: Agent) -> Option<String> {
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(PathBuf::from);
+    let m = match a {
+        Agent::Claude => std::env::var("ANTHROPIC_MODEL").ok().or_else(|| {
+            let dir = std::env::var_os("CLAUDE_CONFIG_DIR")
+                .map(PathBuf::from)
+                .or_else(|| home.map(|h| h.join(".claude")))?;
+            let text = std::fs::read_to_string(dir.join("settings.json")).ok()?;
+            let v: Value = serde_json::from_str(&text).ok()?;
+            v["model"].as_str().map(str::to_string)
+        }),
+        Agent::Codex => {
+            let dir = std::env::var_os("CODEX_HOME")
+                .map(PathBuf::from)
+                .or_else(|| home.map(|h| h.join(".codex")))?;
+            let text = std::fs::read_to_string(dir.join("config.toml")).ok()?;
+            toml_model(&text)
+        }
+    }?;
+    let m = m.trim().to_string();
+    (!m.is_empty()).then(|| match a {
+        Agent::Claude => model_id(&m),
+        Agent::Codex => m,
+    })
+}
+
+/// A Codex model id as its list names it, for before the list has come:
+/// `gpt-5.6-terra` → "GPT-5.6-Terra".
+fn codex_name(id: &str) -> String {
+    id.split('-')
+        .map(|w| {
+            if w.eq_ignore_ascii_case("gpt") {
+                return "GPT".to_string();
+            }
+            let mut c = w.chars();
+            c.next()
+                .map(|f| f.to_uppercase().chain(c).collect())
+                .unwrap_or_default()
+        })
+        .collect::<Vec<String>>()
+        .join("-")
+}
+
+/// `model = "…"` before the first table of a TOML file.
+fn toml_model(text: &str) -> Option<String> {
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            break;
+        }
+        if let Some((k, v)) = line.split_once('=')
+            && k.trim() == "model"
+        {
+            let v = v.split('#').next().unwrap_or("").trim();
+            return Some(v.trim_matches(|c| c == '"' || c == '\'').to_string());
+        }
+    }
+    None
 }
 
 fn exit_message(agent: Agent, err: &str) -> String {
@@ -3732,6 +3987,13 @@ mod tests {
         assert_eq!(model_name("claude-opus-5-5"), "Opus 5.5");
         assert_eq!(model_name("claude-sonnet-4-5-20250929"), "Sonnet 4.5");
         assert_eq!(model_name("haiku"), "Haiku");
+        assert_eq!(codex_name("gpt-5.6-terra"), "GPT-5.6-Terra");
+        assert_eq!(
+            toml_model("# hi\nmodel = \"gpt-6-luna\" # pick\n[x]\nmodel = \"no\""),
+            Some("gpt-6-luna".into())
+        );
+        assert_eq!(toml_model("[profiles.a]\nmodel = \"no\""), None);
+        assert_eq!(model_id("opus"), "claude-opus-5-5");
         assert_eq!(model_id("haiku"), "claude-haiku-5-5");
         assert_eq!(model_id("claude-opus-5-5"), "claude-opus-5-5");
         assert_eq!(model_id(""), "");
@@ -3956,7 +4218,10 @@ mod tests {
         let mut d = crate::drive::Driver::new("claude-agents");
         d.app.layout.widget = Some(crate::shell::Widget::Claude);
         d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        // Signed in (another test may point OPENTERN_CLAUDE at its fake CLI).
+        d.app.claude.auth.insert(Agent::Claude, auth::Auth::In);
         d.app.claude.codex_cli = Some(Some(PathBuf::from("codex")));
+        d.app.claude.auth.insert(Agent::Codex, auth::Auth::In);
         for _ in 0..40 {
             d.frame(vec![]);
         }
@@ -4004,6 +4269,8 @@ mod tests {
         d.app.claude_load();
         d.app.claude.agent = Some(Agent::Claude);
         d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        // Signed in (another test may point OPENTERN_CLAUDE at its fake CLI).
+        d.app.claude.auth.insert(Agent::Claude, auth::Auth::In);
         for _ in 0..20 {
             d.frame(vec![]);
         }
@@ -4094,6 +4361,8 @@ mod tests {
         d.app.claude.model = "claude-sonnet-5-5".into();
         // The composer only shows once Claude Code is found; CI has none.
         d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        // Signed in (another test may point OPENTERN_CLAUDE at its fake CLI).
+        d.app.claude.auth.insert(Agent::Claude, auth::Auth::In);
         for w in [220.0, 260.0, 300.0, 420.0] {
             d.app.layout.widget_w = w;
             for _ in 0..30 {

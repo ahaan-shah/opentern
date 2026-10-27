@@ -235,12 +235,27 @@ impl Codex {
     }
 }
 
+/// The visible models of a `model/list` reply, the server's default first
+/// (the panel takes the first as the default when nothing else names one).
+fn default_first(data: &Value) -> Vec<&Value> {
+    let mut v: Vec<&Value> = data
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|m| m["hidden"] != json!(true))
+        .collect();
+    v.sort_by_key(|m| m["isDefault"] != json!(true));
+    v
+}
+
 /// The account's models, asked of a short-lived `codex app-server` (the
 /// model menu opened before any chat ran). Empty on any failure.
 pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<(String, String)>> {
     let (tx, rx) = unbounded();
     let _ = std::thread::Builder::new().name("codex-models".into()).spawn(move || {
         let mut list = Vec::new();
+        // A new workspace has no scripts folder until something is saved.
+        let _ = std::fs::create_dir_all(&cwd);
         let child = Command::new(&exe)
             .arg("app-server")
             .current_dir(&cwd)
@@ -268,11 +283,8 @@ pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<
                     let _ = writeln!(sin, "{}", json!({"id": 2, "method": "model/list", "params": {}}));
                     let _ = sin.flush();
                 } else if v["id"] == 2 {
-                    list = v["result"]["data"]
-                        .as_array()
+                    list = default_first(&v["result"]["data"])
                         .into_iter()
-                        .flatten()
-                        .filter(|m| m["hidden"] != json!(true))
                         .map(|m| {
                             let id = m["id"].as_str().unwrap_or("").to_string();
                             (id.clone(), m["displayName"].as_str().map(str::to_string).unwrap_or(id))
@@ -548,11 +560,8 @@ fn handle(v: &Value, stdin: &Mutex<ChildStdin>, st: &mut State) -> Vec<Event> {
                 }
             }
             ("models", None) => {
-                let list = v["result"]["data"]
-                    .as_array()
+                let list = default_first(&v["result"]["data"])
                     .into_iter()
-                    .flatten()
-                    .filter(|m| m["hidden"] != json!(true))
                     .map(|m| {
                         let id = m["id"].as_str().unwrap_or("").to_string();
                         let name = m["displayName"].as_str().map(str::to_string).unwrap_or(id.clone());

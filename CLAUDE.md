@@ -601,7 +601,9 @@ in iteratively. Phase 14 has started (item 3).
    own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity); v0.1.2 the
    same day (agent panel with Codex, UI pass 4, first macOS/Windows builds;
    nobody has run those builds on a real Mac or PC yet). v0.1.3 and v0.1.4 on 22 Oct 2026 (0.1.4: Alt W, update progress bar,
-   Windows npm installs of the agents' CLIs). Still to do: the
+   Windows npm installs of the agents' CLIs). v0.1.5 on 27 Oct 2026
+   (onboarding, sign-in gate, Tern Dark / greener Opentern Light, price
+   sync, bottom-panel clamp, site recoloured). Still to do: the
    website, notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
@@ -985,8 +987,8 @@ workspace.
   is the agent switcher (dropdown, either agent anytime) + `/ chat title`.
   Each chat has an `agent`; each agent keeps its open chat (`last`); opening
   another agent's chat from the list switches. Saved `agent: None` = picker.
-  No suggested prompts: the empty chat shows the logo on a halo and chips of
-  what the agent sees. Per agent: accent (Claude terracotta, Codex
+  No suggested prompts: the empty chat shows the logo on a halo, and the
+  composer's hint is "What can I help you with?". Per agent: accent (Claude terracotta, Codex
   monochrome), models, usage windows, inline-code colour.
 - **Codex** (`claude/codex.rs`): one `codex app-server` per chat (JSON-RPC
   lines; checked live against codex-cli 0.163), cwd = the scripts folder,
@@ -1182,6 +1184,41 @@ every data change (scripts re-run on it).
 - Zig Zag, Auto Fib and Pivot Points Standard follow TradingView's behaviour as
   remembered (their open questions are in `docs/indicators.md`); check them against
   exports.
+
+### 0.1.5 (27 Oct 2026)
+- **Onboarding** (`onboarding.rs`): a new workspace only (no saved layout or
+  watchlists; settings key `onboarded`, set silently for older workspaces;
+  never headless). Welcome → markets (`Market::symbols()`, top 7 each) →
+  first chart (cards with sparklines via `Request::Fetch`, seq ≥
+  `onboarding::SEQ_BASE` = 1 << 44, checked before feeds). Enter makes one
+  watchlist per market. Leaving: FOLD (onboarding still covers the app) →
+  the card becomes a window onto the chart and grows to `grid_rect` (waits
+  up to 1.5 s for bars) → SETTLE. Colours are the logo's greens whatever the
+  theme. Stills: `onboarding`, `onboarding:1`, `onboarding:2`.
+- **Agent sign-in gate** (`claude/auth.rs`): `claude auth status --json`
+  (`loggedIn`), `codex login status` ("Not logged in"); only a clear
+  sign-out blocks. Sign in runs `claude auth login` (code pasted through
+  stdin) or `codex login`. Rechecked when a chat's process exits. Tests that
+  open the panel insert `Auth::In` (another test sets `OPENTERN_CLAUDE`
+  process-wide).
+- **Model shown, never "Default"**: `config_model` reads `ANTHROPIC_MODEL` /
+  `~/.claude/settings.json` (aliases via `model_id`) and Codex's
+  `config.toml`; else the model a chat last reported (`defaults`, saved);
+  else Codex's server default (`model/list` sorted default first).
+- **Themes**: Tern Dark (Opentern Dark's surfaces, accent #22B56C) is the
+  default dark theme; Opentern Dark is gone (`by_name` maps it). Opentern
+  Light is white and sage with #07834A. Primary buttons draw white text on
+  the accent whatever `on_accent` says.
+- **Prices**: a quote moves into the chart's forming bar
+  (`Chart::take_quote`), and symbols on a chart show the chart's price in the
+  watchlist; not in demo (each demo timeframe is its own path).
+- **Bottom panel** height is clamped to the window (`panel_max_h`, chart keeps
+  180 px).
+- Gotchas: `ui.set_opacity` replaces the parent's opacity (a child faded
+  with `set_opacity` ignores its step's fade; use `multiply_opacity`). A new
+  workspace has no `scripts/` folder; create it before starting a CLI there.
+  Don't animate font sizes (each size re-rasterises glyphs). Screenshot
+  bursts with grim stutter the compositor; measure frame pacing instead.
 
 ### UI pass 5 (22 Oct 2026, for 0.1.3)
 - Shortcuts: `Tool::shortcut()` is the one table (TradingView's Alt T/H/V/C/F,

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.1.5 (2026-10-27)
+
+A welcome for new installs, Opentern's own green themes, and an agent panel
+that asks you to sign in before you type.
+
+### New
+
+- **A welcome on first launch.** Pick the markets you trade (crypto, US
+  stocks, Indian stocks, forex, commodities) and each becomes a watchlist of
+  its top seven. Then pick your first chart from cards with live prices and
+  sparklines, and it opens into the app.
+- **Sign in from the agent panel.** If Claude Code or Codex is installed but
+  not signed in, the panel says so and signs you in through your browser,
+  instead of failing after your first message.
+
+### Changed
+
+- **Tern Dark is the new dark theme**: Opentern's slate with the logo's green
+  for accents and selection. It replaces Opentern Dark, and a saved Opentern
+  Dark opens as Tern Dark.
+- **Opentern Light is greener**: white and pale sage with the logo's deep
+  green.
+- **The agent panel shows the model it will use** (from Claude Code's or
+  Codex's own settings) instead of "Default".
+- **The agent's message box is quieter**: no suggested prompt, a softer
+  cursor, and "What can I help you with?" until you type.
+- **The website** takes the new colours.
+
+### Fixed
+
+- **Watchlist and chart prices agree.** Whichever price arrived last shows in
+  both.
+- **Dragging the bottom panel up no longer crushes the chart**; it stops
+  where the chart still has room, and shrinks with the window.
+- **Codex's model list loads on a new workspace** (it never did before a
+  script was saved).
+- **The website's logo is centred on phones.**
+
 ## 0.1.4 (2026-10-22)
 
 Alt W adds the chart's symbol to your watchlist, updates show a progress bar,

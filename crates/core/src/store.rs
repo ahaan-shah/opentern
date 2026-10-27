@@ -18,7 +18,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Settings {
-            theme: "Opentern Dark".into(),
+            theme: "Tern Dark".into(),
             font: "Inter".into(),
             check_updates: true,
         }
