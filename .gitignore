@@ -5,3 +5,5 @@
 .env
 # Machine-specific notes for the maintainer's own computer.
 CLAUDE.local.md
+# The maintainer's working notes.
+opentern-upgrades.txt
