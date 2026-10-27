@@ -726,6 +726,270 @@ impl App {
         };
     }
 
+    // ------------------------------------------------------- the agent
+
+    pub(crate) fn lab_busy(&self) -> bool {
+        self.lab.job.is_some() || self.lab.fetch.is_some()
+    }
+
+    pub(crate) fn lab_stop(&mut self) {
+        if let Some(j) = &self.lab.job {
+            j.progress.cancel.store(true, Ordering::Relaxed);
+        }
+        if self.lab.fetch.take().is_some() {
+            self.lab.status = "Stopped.".into();
+        }
+    }
+
+    /// The `strategy_lab` tool's set: changes the setup the way the tab's
+    /// controls would.
+    pub(crate) fn lab_configure(&mut self, a: &serde_json::Value) -> Result<(), String> {
+        use crate::claude::control::norm;
+        self.lab_load();
+        let st = |k: &str| a.get(k).and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+        let n = |k: &str| a.get(k).and_then(|v| v.as_f64());
+        let s = &mut self.lab.setup;
+        if !st("mode").is_empty() {
+            let want = norm(&st("mode"));
+            s.mode = Mode::ALL
+                .into_iter()
+                .find(|m| norm(m.title()) == want || norm(&format!("{m:?}")) == want)
+                .ok_or_else(|| {
+                    format!(
+                        "No lab mode \"{}\": optimize, walk_forward, monte_carlo or portfolio.",
+                        st("mode")
+                    )
+                })?;
+        }
+        match norm(&st("method")).as_str() {
+            "" => {}
+            "grid" => s.method = MethodKind::Grid,
+            "random" => s.method = MethodKind::Random,
+            "bayesian" => s.method = MethodKind::Bayesian,
+            m => return Err(format!("No method \"{m}\": grid, random or bayesian.")),
+        }
+        if !st("objective").is_empty() {
+            let want = norm(&st("objective"));
+            s.objective = Objective::ALL
+                .into_iter()
+                .find(|o| norm(&format!("{o:?}")) == want || norm(o.name()) == want)
+                .ok_or_else(|| format!("No objective \"{}\".", st("objective")))?;
+        }
+        if let Some(v) = n("trials") {
+            s.trials = v.clamp(1.0, 50_000.0) as usize;
+        }
+        if let Some(v) = n("min_trades") {
+            s.min_trades = v.max(0.0) as usize;
+        }
+        if let Some(v) = n("in_sample") {
+            s.in_sample = v.max(10.0) as usize;
+        }
+        if let Some(v) = n("out_sample") {
+            s.out_sample = v.max(1.0) as usize;
+        }
+        if let Some(v) = a.get("anchored").and_then(|v| v.as_bool()) {
+            s.anchored = v;
+        }
+        if let Some(v) = n("mc_runs") {
+            s.mc.runs = v.clamp(10.0, 100_000.0) as usize;
+        }
+        match norm(&st("mc_method")).as_str() {
+            "" => {}
+            "bootstrap" => s.mc.method = Resample::Bootstrap,
+            _ => s.mc.method = Resample::Shuffle,
+        }
+        if let Some(v) = n("ruin_pct") {
+            s.mc.ruin_pct = v.clamp(1.0, 100.0);
+        }
+        if let Some(v) = n("bars") {
+            s.port_bars = v.clamp(100.0, 20_000.0) as usize;
+        }
+        let u = st("universe");
+        if !u.is_empty() {
+            let list = self.watchlists.iter().find(|w| norm(&w.name) == norm(&u)).map(|w| w.id);
+            let preset = crate::screener::presets()
+                .into_iter()
+                .map(|(p, _)| p)
+                .find(|p| norm(p) == norm(&u));
+            self.lab.setup.universe = match (list, preset) {
+                (Some(id), _) => crate::screener::Universe::Watchlist(id),
+                (None, Some(p)) => crate::screener::Universe::Preset(p.to_string()),
+                _ => return Err(format!("No watchlist or preset called \"{u}\".")),
+            };
+        }
+        if let Some(ps) = a.get("params").and_then(|v| v.as_array()) {
+            let meta = self.lab_target()?.meta;
+            let rows = self.lab_params(meta);
+            // Listed inputs are switched on unless they say otherwise.
+            for p in ps {
+                let name = p.get("input").or(p.get("id")).and_then(|v| v.as_str()).unwrap_or("");
+                let row = rows
+                    .iter_mut()
+                    .find(|r| r.id == name || norm(&r.title) == norm(name))
+                    .ok_or_else(|| format!("The strategy has no input \"{name}\" the lab can vary."))?;
+                row.on = p.get("on").and_then(|v| v.as_bool()).unwrap_or(true);
+                let f = |k: &str| p.get(k).and_then(|v| v.as_f64());
+                match &mut row.range {
+                    Range::Int { from, to, step } => {
+                        if let Some(v) = f("from") {
+                            *from = v.round() as i64;
+                        }
+                        if let Some(v) = f("to") {
+                            *to = v.round() as i64;
+                        }
+                        if let Some(v) = f("step") {
+                            *step = (v.round() as i64).max(1);
+                        }
+                    }
+                    Range::Float { from, to, step } => {
+                        if let Some(v) = f("from") {
+                            *from = v;
+                        }
+                        if let Some(v) = f("to") {
+                            *to = v;
+                        }
+                        if let Some(v) = f("step") {
+                            *step = v.abs();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.lab_save();
+        Ok(())
+    }
+
+    /// The setup and the strategy's inputs, for the agent.
+    pub(crate) fn lab_describe(&mut self) -> serde_json::Value {
+        use serde_json::json;
+        self.lab_load();
+        let params = match self.lab_target() {
+            Ok(t) => json!(self.lab_params(t.meta).clone()),
+            Err(e) => json!(e),
+        };
+        let s = &self.lab.setup;
+        let out = json!({
+            "strategy": self.strategies.current().map(|r| r.name.clone()),
+            "mode": format!("{:?}", s.mode),
+            "method": format!("{:?}", s.method),
+            "trials": s.trials,
+            "objective": format!("{:?}", s.objective),
+            "min_trades": s.min_trades,
+            "in_sample": s.in_sample,
+            "out_sample": s.out_sample,
+            "anchored": s.anchored,
+            "monte_carlo": s.mc,
+            "portfolio_universe": format!("{:?}", s.universe),
+            "portfolio_bars": s.port_bars,
+            "params": params,
+            "status": self.lab.status,
+        });
+        json!({"content": [{"type": "text", "text": serde_json::to_string_pretty(&out).unwrap_or_default()}]})
+    }
+
+    /// The latest results of the current mode, trimmed for the agent.
+    pub(crate) fn lab_results(&self) -> serde_json::Value {
+        use serde_json::json;
+        let titled = |s: &Setup, values: &[PValue]| -> serde_json::Map<String, serde_json::Value> {
+            s.params
+                .iter()
+                .zip(values)
+                .map(|(p, v)| (p.title.clone(), json!(v.to_string())))
+                .collect()
+        };
+        let out = match self.lab.setup.mode {
+            Mode::Optimize => self.lab.opt.as_ref().map(|(s, o, _)| {
+                json!({
+                    "runs": o.trials.len(),
+                    "objective": s.objective.name(),
+                    "best_first": o.trials.iter().take(10).enumerate().map(|(k, t)| json!({
+                        "rank": k + 1,
+                        "inputs": titled(s, &t.values),
+                        "score": if t.score.is_nan() { json!(null) } else { json!(t.score) },
+                        "summary": t.summary,
+                    })).collect::<Vec<_>>(),
+                })
+            }),
+            Mode::WalkForward => self.lab.walk.as_ref().map(|(s, r)| {
+                json!({
+                    "windows": r.windows.iter().map(|w| json!({
+                        "in_sample": [crate::claude::control::iso(w.in_time.0), crate::claude::control::iso(w.in_time.1)],
+                        "out_of_sample": [crate::claude::control::iso(w.out_time.0), crate::claude::control::iso(w.out_time.1)],
+                        "best_inputs": w.values.as_ref().map(|v| titled(s, v)),
+                        "out_net": w.out_net,
+                        "out_trades": w.out_trades,
+                    })).collect::<Vec<_>>(),
+                    "out_of_sample_net": r.out_net,
+                    "out_of_sample_trades": r.out_trades,
+                    "out_of_sample_percent_profitable": r.out_percent_profitable,
+                    "out_of_sample_max_drawdown": r.out_max_drawdown,
+                    "efficiency_pct": r.efficiency,
+                    "profitable_windows_pct": r.profitable_windows,
+                })
+            }),
+            Mode::MonteCarlo => self.lab.mc.as_ref().map(|r| {
+                json!({
+                    "runs": r.runs,
+                    "trades": r.trades,
+                    "actual_net": r.actual_net,
+                    "actual_max_drawdown": r.actual_max_drawdown,
+                    "net_profit_percentiles": r.net_profit,
+                    "max_drawdown_percentiles": r.max_drawdown,
+                    "max_drawdown_pct_percentiles": r.max_drawdown_pct,
+                    "longest_losing_streak_percentiles": r.longest_losing_streak,
+                    "chance_of_loss_pct": r.prob_loss,
+                    "chance_of_ruin_pct": r.prob_ruin,
+                })
+            }),
+            Mode::Portfolio => self.lab.port.as_ref().map(|r| {
+                json!({
+                    "legs": r.legs,
+                    "net_profit": r.net_profit,
+                    "net_profit_pct": r.net_profit_pct,
+                    "total_trades": r.total_trades,
+                    "percent_profitable": r.percent_profitable,
+                    "profit_factor": r.profit_factor,
+                    "max_drawdown": r.max_drawdown,
+                    "max_drawdown_pct": r.max_drawdown_pct,
+                    "sharpe": r.sharpe,
+                    "cagr": r.cagr,
+                    "buy_hold_pct": r.buy_hold_pct,
+                    "errors": self.lab.port_errors,
+                })
+            }),
+        };
+        let mut o = out.unwrap_or_else(|| json!({"results": null}));
+        o["mode"] = json!(self.lab.setup.mode.title());
+        o["status"] = json!(self.lab.status);
+        json!({"content": [{"type": "text", "text": serde_json::to_string_pretty(&o).unwrap_or_default()}]})
+    }
+
+    /// Puts the optimizer's `rank`th result on the chart.
+    pub(crate) fn lab_apply_rank(&mut self, rank: usize) -> Result<String, String> {
+        let (values, title) = {
+            let (s, o, _) = self.lab.opt.as_ref().ok_or("Run the optimizer first.")?;
+            let t = o
+                .trials
+                .get(rank - 1)
+                .filter(|t| !t.score.is_nan())
+                .ok_or("There's no scored result at that rank.")?;
+            let title: Vec<String> = s
+                .params
+                .iter()
+                .zip(&t.values)
+                .map(|(p, v)| format!("{} {v}", p.title))
+                .collect();
+            (t.values.clone(), title.join(", "))
+        };
+        self.lab_apply(&values);
+        if self.lab.status == "Applied to the chart." {
+            Ok(format!("Applied {title} to the strategy on the chart."))
+        } else {
+            Err(self.lab.status.clone())
+        }
+    }
+
     // ---------------------------------------------------------------- UI
 
     pub(crate) fn lab_tab(&mut self, ui: &mut Ui, t: &Theme) {

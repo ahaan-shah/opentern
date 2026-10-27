@@ -396,6 +396,8 @@ fn render(kept: &str) -> Option<Image> {
             );
         }
     };
+    // A checkout with Windows line endings must still parse.
+    let kept = kept.replace("\r\n", "\n");
     let (kind, rest) = kept.split_once('\n')?;
     match kind {
         "coin" => {
@@ -683,6 +685,13 @@ mod tests {
         assert_eq!(px[3], 0);
         let mid = (48 * w + 48) * 4;
         assert!(px[mid + 3] > 200);
+        // The same file checked out with CRLF line endings (Windows).
+        assert_eq!(render(&sol.replace('\n', "\r\n")).map(|i| i.2), Some(px.clone()));
+        let (_, aapl) = crate::logos_bundled::BUNDLED
+            .iter()
+            .find(|(k, _)| *k == "co-nasdaq-aapl")
+            .unwrap();
+        assert!(render(&aapl.replace('\n', "\r\n")).is_some());
         assert_eq!(
             js_string("var X =\n  '<svg a=\\'1\\'>\\n</svg>';").as_deref(),
             Some("<svg a='1'>\n</svg>")

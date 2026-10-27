@@ -8,6 +8,8 @@ use crate::icons::ph;
 pub enum Snap {
     Save,
     Copy,
+    /// For the agent's `snapshot` tool: kept as a base64 PNG.
+    Agent,
 }
 
 impl App {
@@ -47,6 +49,12 @@ impl App {
         }
         let crop = egui::ColorImage::new([cw, ch], pixels);
         match kind {
+            Snap::Agent => {
+                // One image pixel per point keeps the picture (and its
+                // tokens) small; it's still sharp enough to read.
+                let img = downscale(&crop, ppp.round().max(1.0) as usize);
+                self.claude.picture = Some(png_bytes(&img).map(|b| base64_of(&b)).unwrap_or_default());
+            }
             Snap::Copy => {
                 ctx.copy_image(crop);
                 self.notify(ph::CAMERA, "Snapshot copied", "Paste it anywhere.", None, true);
@@ -75,14 +83,58 @@ impl App {
             now.strftime("%Y-%m-%d_%H-%M-%S")
         );
         let path = dir.join(name);
-        let file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
-        let [w, h] = img.size;
-        let mut enc = png::Encoder::new(std::io::BufWriter::new(file), w as u32, h as u32);
+        std::fs::write(&path, png_bytes(img)?).map_err(|e| e.to_string())?;
+        Ok(path)
+    }
+}
+
+fn base64_of(b: &[u8]) -> String {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(b)
+}
+
+/// Every `k`th pixel, averaged over its k×k block.
+fn downscale(img: &egui::ColorImage, k: usize) -> egui::ColorImage {
+    if k <= 1 {
+        return img.clone();
+    }
+    let [w, h] = img.size;
+    let (nw, nh) = (w / k, h / k);
+    let mut out = Vec::with_capacity(nw * nh);
+    for y in 0..nh {
+        for x in 0..nw {
+            let mut sum = [0u32; 4];
+            for dy in 0..k {
+                for dx in 0..k {
+                    let c = img.pixels[(y * k + dy) * w + x * k + dx].to_array();
+                    for i in 0..4 {
+                        sum[i] += c[i] as u32;
+                    }
+                }
+            }
+            let n = (k * k) as u32;
+            out.push(egui::Color32::from_rgba_premultiplied(
+                (sum[0] / n) as u8,
+                (sum[1] / n) as u8,
+                (sum[2] / n) as u8,
+                (sum[3] / n) as u8,
+            ));
+        }
+    }
+    egui::ColorImage::new([nw, nh], out)
+}
+
+/// An image as PNG bytes.
+fn png_bytes(img: &egui::ColorImage) -> Result<Vec<u8>, String> {
+    let mut buf = Vec::new();
+    let [w, h] = img.size;
+    {
+        let mut enc = png::Encoder::new(&mut buf, w as u32, h as u32);
         enc.set_color(png::ColorType::Rgba);
         enc.set_depth(png::BitDepth::Eight);
         let mut writer = enc.write_header().map_err(|e| e.to_string())?;
         let data: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
         writer.write_image_data(&data).map_err(|e| e.to_string())?;
-        Ok(path)
     }
+    Ok(buf)
 }

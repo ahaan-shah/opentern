@@ -769,6 +769,16 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             p.rect_filled(rect, CornerRadius::ZERO, fill);
             if d.tool == Rectangle {
                 p.rect_stroke(rect, CornerRadius::ZERO, s, egui::StrokeKind::Middle);
+                // A label above the box (the agent marks patterns this way).
+                if !d.text.is_empty() {
+                    p.text(
+                        rect.left_top() + vec2(0.0, -4.0),
+                        Align2::LEFT_BOTTOM,
+                        &d.text,
+                        theme::medium(d.style.font as f32 * 0.9),
+                        s.color,
+                    );
+                }
             } else {
                 measure(p, d, g, pts[0], pts[1], s);
             }
@@ -931,6 +941,18 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 line(p, w[0], w[1], s, d.style.line);
             }
         }
+    }
+    // Other tools' labels: above a horizontal line at the right, else
+    // above the first point.
+    if !d.text.is_empty()
+        && !matches!(d.tool, Text | ArrowUp | ArrowDown | Rectangle)
+        && let Some(&first) = pts.first()
+    {
+        let (at, align) = match d.tool {
+            HorizontalLine | HorizontalRay => (pos2(r.right() - 6.0, first.y - 3.0), Align2::RIGHT_BOTTOM),
+            _ => (first + vec2(0.0, -4.0), Align2::LEFT_BOTTOM),
+        };
+        p.text(at, align, &d.text, theme::medium(d.style.font as f32 * 0.9), s.color);
     }
     if sel {
         for (i, q) in handle_points(d, g).into_iter().enumerate() {

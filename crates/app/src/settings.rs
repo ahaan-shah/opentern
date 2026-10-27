@@ -365,6 +365,11 @@ impl App {
         ui.add_space(12.0);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
+            if crate::widgets::secondary(ui, "What's new").clicked() {
+                self.modal = Some(crate::dialogs::Modal::WhatsNew(Box::new(
+                    crate::whatsnew::Card::current(),
+                )));
+            }
             if crate::widgets::secondary(ui, "Release notes").clicked() {
                 crate::app::open_url("https://github.com/ahaan-shah/opentern/releases");
             }

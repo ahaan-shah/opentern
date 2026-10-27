@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.0 (2026-10-27)
+
+The agent panel's Claude and Codex can now use the whole app, the way you
+would with clicks. Also: Windows shows Opentern's icon and symbol logos, and
+a What's new card after each update.
+
+### New
+
+- **The agent can drive the app.** Beyond reading the chart and writing
+  scripts, it can change the chart type, zoom to dates, split the window into
+  several charts, compare symbols, change an indicator's inputs, draw (trend
+  lines, boxes, Fibonacci, long/short positions, labels and more), run bar
+  replay, manage watchlists, run the screener, change a strategy's settings,
+  run the Strategy Lab (optimize, walk-forward, Monte Carlo, portfolio) and
+  apply its results, paper trade, set alerts and open bottom-panel tabs.
+- **Learn from real examples.** Ask the agent to teach you a pattern: it
+  finds one in the chart's history (loading older bars if it has to), marks
+  it, and steps through it in bar replay.
+- **The agent can look at the chart.** It takes a picture of what you see to
+  check its drawings or read a pattern.
+- **What's new after updates.** The first launch of a new version shows what
+  changed; Settings → About opens it again.
+- **Labels on drawings.** Rectangles and lines can carry a short label.
+
+### Fixed
+
+- **Windows shows Opentern's icon** in Start, search, the taskbar and
+  Settings → Apps (the program had none of its own).
+- **Symbol logos show on Windows.** The bundled logos were read wrongly on
+  Windows builds.
+
 ## 0.1.5 (2026-10-27)
 
 A welcome for new installs, Opentern's own green themes, and an agent panel

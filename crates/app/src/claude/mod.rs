@@ -10,6 +10,7 @@ pub mod agent;
 pub mod attach;
 pub mod auth;
 pub mod codex;
+pub mod control;
 pub mod mark;
 pub mod process;
 pub mod tools;
@@ -215,6 +216,15 @@ pub struct Claude {
     pub clients: HashMap<u64, Client>,
     pub pending: Vec<tools::Pending>,
     pub search_seq: u64,
+    /// Tool calls that answer once something is done (`control.rs`).
+    pub waiting: Vec<control::Waiting>,
+    pub batches: HashMap<u64, control::Batch>,
+    pub batch_seq: u64,
+    /// The `snapshot` tool's picture (PNG, base64) once it's taken.
+    pub picture: Option<String>,
+    /// Tests: tool answers that had no running CLI to go to.
+    #[cfg(test)]
+    pub answers: Vec<Value>,
     /// The account's usage windows, from the latest reply.
     pub limits: Vec<Window>,
     pub limits_at: i64,
@@ -617,10 +627,15 @@ impl App {
              Pine scripts (.pine) follow TradingView's Pine Script v5/v6. Luau (.luau), JavaScript (.js), \
              TypeScript (.ts) and Python (.py) scripts use Opentern's own API: call mcp__opentern__scripting_guide \
              before writing one.\n\n\
-             Use the mcp__opentern tools to see and change the app: get_chart, get_bars, search_symbols, \
-             open_symbol, set_timeframe, list_scripts, check_script, add_script_to_chart, remove_from_chart, \
-             list_indicators, add_indicator, strategy_report and open_in_editor. After you write or edit a script, \
-             run check_script on it and fix every error before you reply. Scripts on the chart reload by \
+             The mcp__opentern tools let you do what the user can do with clicks: see the chart (get_chart, \
+             get_bars, snapshot for a picture), change it (open_symbol, set_timeframe, chart_view for chart type, \
+             dates, scales, multi-chart layouts and compares), indicators and scripts (list_indicators, \
+             add_indicator, indicator for inputs, add_script_to_chart, remove_from_chart, check_script), drawings \
+             (drawings), bar replay (replay), watchlists, the screener, strategies (strategy_report, \
+             strategy_settings, strategy_lab), paper trading, alerts, and the bottom panel's tabs (open_panel). \
+             To show the user an example from history, find it with get_bars over a date range, then use \
+             chart_view go_to, drawings and replay, and snapshot to check what they see. After you write or edit \
+             a script, run check_script on it and fix every error before you reply. Scripts on the chart reload by \
              themselves when their file changes. When you create a script the user will want to see, add it \
              to the chart.\n\n\
              Strategies: write a Pine strategy() script (or a strategy in another language, see the guide), \
@@ -633,7 +648,7 @@ impl App {
             self.scripts_dir().display()
         );
         text.replace("mcp__opentern__", p)
-            .replace("Use the mcp__opentern tools", "Use Opentern's tools")
+            .replace("The mcp__opentern tools", "Opentern's tools")
     }
 
     /// Sends the input box's text in the active chat (starting one, and
@@ -714,6 +729,7 @@ impl App {
 
     /// Reads every running chat's events; answers the app's tool calls.
     pub(crate) fn poll_claude(&mut self) {
+        self.poll_tool_waits();
         if self.claude.clients.is_empty() {
             if self.claude.dirty {
                 self.claude_save();
@@ -2704,6 +2720,74 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
             format!("Open {} in the editor", file()),
         ),
         "scripting_guide" => ("Read the scripting guide".into(), "Read the scripting guide".into()),
+        "chart_view" => {
+            let what = match s("action").as_str() {
+                "chart_type" => format!("chart type to {}", s("type")),
+                "go_to" => format!("view to {}", s("from")),
+                "layout" => "chart layout".to_string(),
+                "compare" => format!("{} comparison", s("symbol")),
+                _ => "chart view".to_string(),
+            };
+            (format!("Changed the {what}"), format!("Change the {what}"))
+        }
+        "indicator" => match s("action").as_str() {
+            "set" => (
+                format!("Changed {}'s inputs", s("name")),
+                format!("Change {}'s inputs", s("name")),
+            ),
+            "get" => (format!("Looked at {}", s("name")), format!("Look at {}", s("name"))),
+            a => (format!("{a} {}", s("name")), format!("{a} {}", s("name"))),
+        },
+        "drawings" => match s("action").as_str() {
+            "add" => {
+                let n = input["drawings"].as_array().map_or(1, |v| v.len());
+                let what = if n == 1 {
+                    "a drawing".to_string()
+                } else {
+                    format!("{n} drawings")
+                };
+                (format!("Drew {what}"), format!("Draw {what}"))
+            }
+            "remove" | "clear" => ("Removed drawings".into(), "Remove drawings".into()),
+            _ => ("Looked at the drawings".into(), "Look at the drawings".into()),
+        },
+        "replay" => match s("action").as_str() {
+            "start" => (
+                format!("Started a replay at {}", s("time")),
+                format!("Start a replay at {}", s("time")),
+            ),
+            "step" => ("Stepped the replay".into(), "Step the replay".into()),
+            "stop" => ("Ended the replay".into(), "End the replay".into()),
+            a => (format!("Replay: {a}"), format!("Replay: {a}")),
+        },
+        "snapshot" => (
+            "Took a picture of the chart".into(),
+            "Take a picture of the chart".into(),
+        ),
+        "watchlist" => (
+            format!("Watchlist: {}", s("action")),
+            format!("Watchlist: {}", s("action")),
+        ),
+        "screener" => match s("action").as_str() {
+            "run" => ("Ran the screener".into(), "Run the screener".into()),
+            _ => ("Used the screener".into(), "Use the screener".into()),
+        },
+        "strategy_settings" => ("Strategy settings".into(), "Change the strategy settings".into()),
+        "strategy_lab" => match s("action").as_str() {
+            "run" => ("Ran the Strategy Lab".into(), "Run the Strategy Lab".into()),
+            "apply" => ("Applied a lab result".into(), "Apply a lab result".into()),
+            _ => ("Used the Strategy Lab".into(), "Use the Strategy Lab".into()),
+        },
+        "paper_trading" => match s("action").as_str() {
+            "order" => (
+                format!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
+                format!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
+            ),
+            "account" => ("Looked at the paper account".into(), "Look at the paper account".into()),
+            a => (format!("Paper trading: {a}"), format!("Paper trading: {a}")),
+        },
+        "alerts" => (format!("Alerts: {}", s("action")), format!("Alerts: {}", s("action"))),
+        "open_panel" => (format!("Opened {}", s("tab")), format!("Open {}", s("tab"))),
         other => (other.replace('_', " "), other.replace('_', " ")),
     };
     Some(if asking { ask } else { done })
@@ -2783,6 +2867,18 @@ fn tool_icon(name: &str) -> &'static str {
         "strategy_report" => ph::CHART_BAR,
         "open_in_editor" => ph::CODE,
         "scripting_guide" => ph::BOOK_OPEN,
+        "chart_view" => ph::SLIDERS_HORIZONTAL,
+        "indicator" => ph::FUNCTION,
+        "drawings" => ph::PENCIL_LINE,
+        "replay" => ph::REWIND,
+        "snapshot" => ph::CAMERA,
+        "watchlist" => ph::LIST_BULLETS,
+        "screener" => ph::FUNNEL,
+        "strategy_settings" => ph::GEAR_SIX,
+        "strategy_lab" => ph::FLASK,
+        "paper_trading" => ph::WALLET,
+        "alerts" => ph::ALARM,
+        "open_panel" => ph::LAYOUT,
         _ => ph::WRENCH,
     }
 }
@@ -4209,6 +4305,65 @@ mod tests {
                 .any(|i| matches!(i, Item::Tool { label, .. } if label == "Read the Strategy Report"))
         );
         assert!(d.app.strategies.current().is_some(), "no strategy on the chart");
+    }
+
+    /// The agent teaching with the app's hands: a real (demo) example
+    /// found in the bars, marked with drawings, then walked through in a
+    /// bar replay. Uses the account (Haiku):
+    /// `cargo test -p opentern --bin opentern live_teach -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_teach() {
+        let mut d = crate::drive::Driver::new("claude-teach");
+        let cli = Agent::Claude.find().expect("claude installed");
+        // SAFETY: only this test reads OPENTERN_CLAUDE here.
+        unsafe {
+            std::env::set_var("OPENTERN_CLAUDE", &cli);
+        }
+        d.app.claude_load();
+        d.app.claude.mode = Mode::Auto;
+        d.app.claude.model = "claude-haiku-5-5".into();
+        d.app.claude.input = "Teach me the bullish engulfing pattern: find a real example on this chart, mark it \
+             with a labelled rectangle and an arrow, then start a bar replay just before it and step through it."
+            .into();
+        d.app.claude_send();
+        let start = std::time::Instant::now();
+        loop {
+            d.frame(vec![]);
+            let chat = d.app.claude.chat().unwrap().clone();
+            if let Some(i) = chat.items.iter().position(is_waiting) {
+                d.app.claude_answer(chat.id, i, true, false);
+            }
+            if !chat.busy || start.elapsed().as_secs() > 300 {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        let chat = d.app.claude.chat().unwrap().clone();
+        for it in &chat.items {
+            match it {
+                Item::Tool {
+                    label, error, result, ..
+                } => eprintln!(
+                    "STEP {label}{}",
+                    if *error {
+                        format!("  ERROR {}", result.clone().unwrap_or_default())
+                    } else {
+                        String::new()
+                    }
+                ),
+                Item::Assistant(t) => eprintln!("REPLY\n{t}"),
+                Item::Note { text, .. } => eprintln!("NOTE {text}"),
+                _ => {}
+            }
+        }
+        assert!(!chat.busy, "timed out");
+        assert!(!d.app.chart.drawings.is_empty(), "nothing drawn");
+        assert!(
+            chat.items
+                .iter()
+                .any(|i| matches!(i, Item::Tool { label, .. } if label.starts_with("Started a replay")))
+        );
     }
 
     /// The first open shows the agent picker; picking one moves into its

@@ -138,7 +138,7 @@ impl Row {
         self.values.get(&f).copied().unwrap_or(f64::NAN)
     }
 
-    fn passes(&self, filters: &[Filter]) -> bool {
+    pub(crate) fn passes(&self, filters: &[Filter]) -> bool {
         filters.iter().all(|f| {
             let v = self.get(f.field);
             v.is_finite()
@@ -164,7 +164,7 @@ pub struct Screener {
     /// The run whose answers are wanted (older ones are dropped).
     run: u64,
     seq_base: u64,
-    pending: usize,
+    pub(crate) pending: usize,
     sort: (Field, bool),
     tx: crossbeam_channel::Sender<Computed>,
     rx: crossbeam_channel::Receiver<Computed>,
@@ -396,7 +396,7 @@ impl App {
         }
     }
 
-    fn universe_name(&self) -> String {
+    pub(crate) fn universe_name(&self) -> String {
         match &self.screener.setup.universe {
             Universe::Watchlist(id) => self
                 .watchlists
@@ -440,7 +440,7 @@ impl App {
         self.save_screener();
     }
 
-    fn save_screener(&mut self) {
+    pub(crate) fn save_screener(&mut self) {
         if let Ok(j) = serde_json::to_string(&self.screener.setup) {
             let _ = self.store.set_value("screener", &j);
         }

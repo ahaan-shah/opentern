@@ -963,6 +963,10 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
     Some(score)
 }
 
+/// Searches numbered from here are each answered, even when newer ones are
+/// waiting (the agent's lookups); below it only the latest is (typing).
+pub const SEARCH_ALL: u64 = 1 << 40;
+
 fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out) {
     let cache = Cache::open(&dir).ok();
     let yahoo = Yahoo::default();
@@ -1009,11 +1013,25 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         known
     };
     let mut known = load(&cache);
-    while let Ok(mut req) = rx.recv() {
-        // Only the latest query matters.
-        while let Ok(newer) = rx.try_recv() {
-            req = newer;
+    let mut queue: std::collections::VecDeque<(u64, String)> = Default::default();
+    loop {
+        if queue.is_empty() {
+            match rx.recv() {
+                Ok(r) => queue.push_back(r),
+                Err(_) => break,
+            }
         }
+        // Typing in the search box: only the latest query matters. Lookups
+        // numbered from `SEARCH_ALL` (the agent's) all get answers.
+        queue.extend(rx.try_iter());
+        if let Some(last) = queue.iter().rposition(|(s, _)| *s < SEARCH_ALL) {
+            let mut k = 0;
+            queue.retain(|(s, _)| {
+                k += 1;
+                *s >= SEARCH_ALL || k - 1 == last
+            });
+        }
+        let Some(req) = queue.pop_front() else { continue };
         if fresh_rx.try_recv().is_ok() {
             known = load(&cache);
         }

@@ -231,6 +231,12 @@ impl App {
             app.saved = app.layout_version();
         }
         app.onboarding = crate::onboarding::wanted(&mut app.store, fresh);
+        // After an update: what changed (a new workspace has onboarding instead).
+        if let Some(c) = crate::whatsnew::at_launch(&mut app.store, demo)
+            && app.onboarding.is_none()
+        {
+            app.modal = Some(Modal::WhatsNew(Box::new(c)));
+        }
         app.subscribe_quotes();
         app.still();
         if let Ok(v) = std::env::var("OPENTERN_STILL") {
@@ -425,6 +431,7 @@ impl App {
         self.modal = match what.as_str() {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),
+            "whatsnew" => Some(Modal::WhatsNew(Box::new(crate::whatsnew::Card::current()))),
             "chart-settings" => Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self))),
             "providers" => {
                 self.open_providers();

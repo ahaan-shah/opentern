@@ -1,0 +1,10 @@
+# Text files are checked out with LF on every OS. Windows runners default to
+# CRLF, which broke the bundled logos (`include_str!` kept the \r).
+* text=auto eol=lf
+*.png binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.webp binary
+*.woff2 binary
+*.dmg binary

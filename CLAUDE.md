@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Oct 2026, v0.2.0):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -603,8 +603,9 @@ in iteratively. Phase 14 has started (item 3).
    nobody has run those builds on a real Mac or PC yet). v0.1.3 and v0.1.4 on 22 Oct 2026 (0.1.4: Alt W, update progress bar,
    Windows npm installs of the agents' CLIs). v0.1.5 on 27 Oct 2026
    (onboarding, sign-in gate, Tern Dark / greener Opentern Light, price
-   sync, bottom-panel clamp, site recoloured). Still to do: the
-   website, notarizing the macOS app.
+   sync, bottom-panel clamp, site recoloured). v0.2.0 on 27 Oct 2026
+   (the agent drives the whole app, What's new card, Windows icon and
+   logo fixes). Still to do: notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -1038,12 +1039,27 @@ workspace.
   request's suggestions / Deny) and `mcp_message` (the app's tools, answered on the
   UI thread in `tools.rs`; symbol searches answer when the hub replies, seqs from
   `tools::SEARCH_BASE`). Subagent traffic (`parent_tool_use_id`) isn't shown.
-- **Tools** (`mcp__opentern__*`): get_chart, get_bars, search_symbols, open_symbol,
-  set_timeframe, list_scripts, check_script (compiles like the chart does),
-  add_script_to_chart, remove_from_chart, list_indicators, add_indicator,
-  strategy_report (the Report as JSON + latest trades), open_in_editor,
-  scripting_guide (`docs/scripting.md`, embedded). Claude edits files with its own
-  tools; scripts on the chart hot-reload.
+- **Tools** (`mcp__opentern__*`): get_chart, get_bars (latest, or a date
+  range), search_symbols, open_symbol, set_timeframe, list_scripts, check_script
+  (compiles like the chart does), add_script_to_chart, remove_from_chart,
+  list_indicators, add_indicator, strategy_report (the Report as JSON + latest
+  trades), open_in_editor, scripting_guide (`docs/scripting.md`, embedded).
+  Claude edits files with its own tools; scripts on the chart hot-reload.
+- **The agent's hands** (0.2.0, the maintainer: "everything I can do with
+  clicks"; `claude/control.rs`): one tool per area with an `action` (keeps the
+  list, sent with every request, short): chart_view, indicator, drawings,
+  replay, snapshot, watchlist, screener, strategy_settings, strategy_lab,
+  paper_trading, alerts, open_panel. Slow work answers later
+  (`control::Wait`, polled in `poll_claude`): bars back to a date (pages of
+  `Request::More`, 45 s cap; also open_symbol/set_timeframe wait for bars),
+  screener and lab runs, the snapshot (`Snap::Agent`, PNG at 1 px per point,
+  base64; Codex gets it as an `inputImage` data URL, checked against
+  codex-cli 0.164's schema). Lab and screener adapters live in their own
+  modules (`lab_configure`, `lab_results`, `screener_results`). Watchlist adds
+  look each symbol up (`tools::Then::Watch`, a `Batch`); the hub's search
+  worker answers every lookup numbered ≥ `hub::SEARCH_ALL` and coalesces
+  only the search box's. Tests: `control::drive_tests` (every tool, demo
+  data, offline); `live_teach` (ignored, Haiku) teaches a pattern end to end.
 - One process per chat, started on the first send (`--resume` for older chats); a
   background chat's process is dropped once its turn ends. Processes die with the
   app: `on_exit` clears them, and on Linux `PR_SET_PDEATHSIG` covers crashes and
@@ -1244,11 +1260,29 @@ Spotsie's style and Opentern's theme colours, published by `pages.yml` to
 https://ahaan-shah.github.io/opentern/ on pushes touching `site/`. Install lines
 must match `install.sh` / `install.ps1` and the README.
 
+### What's new card (0.2.0)
+`whatsnew.rs`, from Magpie's: `RELEASES` (newest first, 2–4 plain points,
+optional PNG). Opens as `Modal::WhatsNew` on the first launch of a newer
+version (settings key `seen_version`, or the updater's
+`OPENTERN_UPDATED_FROM`); a workspace onboarded before 0.2.0 sees 0.2.0's;
+new, demo, still and headless runs start as seen. Settings → About →
+What's new reopens it. Still: `whatsnew`.
+
+### Windows notes (0.2.0)
+- `crates/app/build.rs` embeds `assets/opentern.ico` and version info with
+  `winresource` (Windows only); without it Start, search and Settings → Apps
+  showed no icon.
+- `.gitattributes` forces LF checkouts: Windows runners check out CRLF, and
+  `include_str!`'d `.logo` files then failed to parse (no symbol logos).
+  `logos::render` also strips `\r` now.
+
 ### Releasing (only when asked; same as Magpie and Spotsie)
 1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
-2. `CHANGELOG.md` entry (`## X.Y.Z (date)`): a short plain summary, then New /
+2. **What's new notes**: an entry for the version at the top of
+   `whatsnew::RELEASES` (a test fails without it). Then the
+   `CHANGELOG.md` entry (`## X.Y.Z (date)`): a short plain summary, then New /
    Changed / Fixed / Removed, each item leading with a bold user-facing result.
    The release notes are cut from it (the publish job fails without one). Never
    placeholder notes.

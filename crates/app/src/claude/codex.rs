@@ -198,17 +198,22 @@ impl Codex {
         let Ok(mut st) = self.st.lock() else { return };
         let Some(id) = st.open.remove(key) else { return };
         let r = &reply["result"];
-        let text: Vec<&str> = r["content"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|c| c["text"].as_str())
-            .collect();
+        let content = r["content"].as_array().cloned().unwrap_or_default();
+        let text: Vec<&str> = content.iter().filter_map(|c| c["text"].as_str()).collect();
+        let mut items = vec![json!({"type": "inputText", "text": text.join("\n")})];
+        // Pictures (the snapshot tool) go as data URLs.
+        for c in content.iter().filter(|c| c["type"] == "image") {
+            let (mime, data) = (
+                c["mimeType"].as_str().unwrap_or("image/png"),
+                c["data"].as_str().unwrap_or(""),
+            );
+            items.push(json!({"type": "inputImage", "imageUrl": format!("data:{mime};base64,{data}")}));
+        }
         let success = !r["isError"].as_bool().unwrap_or(false) && reply.get("error").is_none();
         write(
             &self.stdin,
             &json!({"id": id, "result": {
-                "contentItems": [{"type": "inputText", "text": text.join("\n")}],
+                "contentItems": items,
                 "success": success,
             }}),
         );

@@ -34,6 +34,7 @@ pub enum Modal {
     Alert(Box<AlertForm>),
     Providers(Box<providers::Providers>),
     StrategyProps(Box<strategy_props::StrategyProps>),
+    WhatsNew(Box<crate::whatsnew::Card>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -105,6 +106,13 @@ impl App {
                 Modal::Alert(f) => f.show(ui, self, &t),
                 Modal::Providers(p) => p.show(ui, self, &t),
                 Modal::StrategyProps(p) => p.show(ui, self, &t),
+                Modal::WhatsNew(c) => {
+                    if crate::whatsnew::card(c, ui, &t) {
+                        Done::Close
+                    } else {
+                        Done::Keep
+                    }
+                }
             });
         let done = matches!(resp.inner, Done::Close);
         if done {

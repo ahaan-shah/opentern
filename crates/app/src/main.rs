@@ -51,6 +51,7 @@ mod strategy;
 mod theme;
 mod updater;
 mod watchlists;
+mod whatsnew;
 mod widgets;
 
 use opentern_core::Store;
