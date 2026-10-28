@@ -31,6 +31,32 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.2",
+        items: &[
+            Item {
+                icon: ph::NEWSPAPER,
+                title: "News for every market",
+                body: "News now gathers headlines from many outlets at once. Indian stocks get news \
+                       from Indian outlets, and crypto shows headlines about the coin you're viewing.",
+                image: None,
+            },
+            Item {
+                icon: ph::CALENDAR_DOTS,
+                title: "A tidier calendar",
+                body: "Market holidays show as dates with a clear Closed or early-close tag, and \
+                       dividends are grouped by year with their amounts.",
+                image: None,
+            },
+            Item {
+                icon: ph::PERCENT,
+                title: "Correct daily change for indices",
+                body: "The watchlist's change for NIFTY, SENSEX and BANKNIFTY now matches the chart. \
+                       It had been measured from the wrong day's close.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.1",
         items: &[
             Item {

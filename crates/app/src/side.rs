@@ -3,7 +3,6 @@
 //! symbol's dividends and splits).
 
 use crate::app::App;
-use crate::icons::ph;
 use crate::theme::{self, Theme};
 use egui::{Sense, Ui, vec2};
 use opentern_data::Request;
@@ -248,12 +247,6 @@ impl App {
                                 open = Some(n.link.clone());
                             }
                         }
-                        ui.add_space(6.0);
-                        ui.label(
-                            egui::RichText::new("Headlines from Yahoo Finance.")
-                                .color(t.text3)
-                                .size(11.0),
-                        );
                     });
             }
         }
@@ -263,68 +256,225 @@ impl App {
     }
 
     pub(crate) fn calendar_widget(&mut self, ui: &mut Ui, t: &Theme) {
-        use opentern_core::calendar::{Market, upcoming};
+        use opentern_core::calendar::{Market, Special, upcoming};
         let today = jiff::Zoned::now().date();
         egui::ScrollArea::vertical()
             .id_salt("calendar")
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
-                for (m, name) in [
-                    (Market::Us, "US stocks (NYSE, NASDAQ)"),
-                    (Market::India, "India (NSE, BSE)"),
+                ui.spacing_mut().item_spacing.y = 2.0;
+                for (m, name, exchanges) in [
+                    (Market::Us, "US stocks", "NYSE · NASDAQ"),
+                    (Market::India, "India", "NSE · BSE"),
                 ] {
-                    ui.label(egui::RichText::new(name).font(theme::semibold(12.5)));
+                    section_head(ui, t, name, exchanges);
                     let list = upcoming(m, today, 120);
                     if list.is_empty() {
                         ui.label(egui::RichText::new("No holidays in the next four months.").color(t.text3));
                     }
                     for (d, what) in list.iter().take(8) {
-                        ui.horizontal_top(|ui| {
-                            ui.add_sized(
-                                [82.0, 16.0],
-                                egui::Label::new(
-                                    egui::RichText::new(d.strftime("%a %d %b").to_string()).color(t.text2),
-                                ),
-                            );
-                            ui.add(egui::Label::new(egui::RichText::new(what).color(t.text)).wrap());
-                        });
+                        let (title, pill, tone) = match what {
+                            Special::Holiday(n) => (n.clone(), "Closed".to_string(), t.text2),
+                            Special::EarlyClose(at) => (
+                                "Early close".to_string(),
+                                format!("Closes {}", at.strftime("%H:%M")),
+                                t.warn,
+                            ),
+                        };
+                        let sub = format!("{} · {}", d.strftime("%A"), relative_days((*d - today).get_days()));
+                        holiday_row(ui, t, *d, *d == today, &title, &sub, &pill, tone);
                     }
-                    ui.add_space(8.0);
+                    ui.add_space(14.0);
                 }
                 if let Some(c) = &self.chart.corporate {
-                    ui.label(
-                        egui::RichText::new(format!("{} dividends and splits", self.chart.symbol.ticker()))
-                            .font(theme::semibold(12.5)),
-                    );
-                    let mut ev: Vec<(i64, String)> = c
+                    let mut ev: Vec<(i64, bool, f64)> = c
                         .dividends
                         .iter()
-                        .map(|(ts, amt)| (*ts, format!("Dividend {amt:.4}")))
-                        .chain(c.splits.iter().map(|(ts, r)| (*ts, format!("Split {r}:1"))))
+                        .map(|(ts, amt)| (*ts, true, *amt))
+                        .chain(c.splits.iter().map(|(ts, r)| (*ts, false, *r)))
                         .collect();
-                    ev.sort_by_key(|e| std::cmp::Reverse(e.0));
-                    for (ts, what) in ev.iter().take(10) {
-                        let d = jiff::Timestamp::from_millisecond(*ts)
-                            .map(|x| x.to_zoned(self.chart.sym_tz.clone()).strftime("%d %b %Y").to_string())
-                            .unwrap_or_default();
-                        ui.horizontal_top(|ui| {
-                            ui.add_sized([82.0, 16.0], egui::Label::new(egui::RichText::new(d).color(t.text2)));
-                            ui.add(egui::Label::new(what).wrap());
-                        });
+                    if ev.is_empty() {
+                        return;
                     }
-                } else {
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(format!(
-                                "{}  Dividends and splits show here for stocks and funds.",
-                                ph::INFO
-                            ))
-                            .color(t.text3),
-                        )
-                        .wrap(),
-                    );
+                    ev.sort_by_key(|e| std::cmp::Reverse(e.0));
+                    section_head(ui, t, "Dividends and splits", self.chart.symbol.ticker());
+                    let cur = currency_prefix(&self.chart.symbol);
+                    let mut year = None;
+                    for (ts, dividend, v) in ev.iter().take(12) {
+                        let Ok(z) =
+                            jiff::Timestamp::from_millisecond(*ts).map(|x| x.to_zoned(self.chart.sym_tz.clone()))
+                        else {
+                            continue;
+                        };
+                        if year != Some(z.year()) {
+                            year = Some(z.year());
+                            ui.add_space(if ev.first().is_some_and(|f| f.0 == *ts) {
+                                0.0
+                            } else {
+                                6.0
+                            });
+                            ui.label(
+                                egui::RichText::new(z.year().to_string())
+                                    .font(theme::medium(11.5))
+                                    .color(t.text3),
+                            );
+                        }
+                        let (what, amount) = if *dividend {
+                            ("Dividend", format!("{cur}{}", amount(*v)))
+                        } else {
+                            ("Split", format!("{}:1", amount(*v)))
+                        };
+                        let upcoming = z.date() >= today;
+                        corporate_row(ui, t, &z.strftime("%d %b").to_string(), what, &amount, upcoming);
+                    }
                 }
             });
+    }
+}
+
+/// A section title with a quieter note on the right.
+fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str) {
+    let w = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+    let p = ui.painter();
+    p.text(
+        rect.left_center(),
+        egui::Align2::LEFT_CENTER,
+        title,
+        theme::semibold(13.0),
+        t.text,
+    );
+    p.text(
+        rect.right_center(),
+        egui::Align2::RIGHT_CENTER,
+        note,
+        theme::regular(11.5),
+        t.text3,
+    );
+    ui.add_space(4.0);
+}
+
+/// "Today", "Tomorrow", "in 5 days", "in 3 weeks".
+fn relative_days(n: i32) -> String {
+    match n {
+        ..=0 => "Today".into(),
+        1 => "Tomorrow".into(),
+        2..=13 => format!("in {n} days"),
+        _ => format!("in {} weeks", (n + 3) / 7),
+    }
+}
+
+/// A holiday or early close: a date tile, the name and when, and a pill.
+#[allow(clippy::too_many_arguments)]
+fn holiday_row(
+    ui: &mut Ui,
+    t: &Theme,
+    d: jiff::civil::Date,
+    today: bool,
+    title: &str,
+    sub: &str,
+    pill: &str,
+    tone: egui::Color32,
+) {
+    let w = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(vec2(w, 46.0), Sense::hover());
+    let p = ui.painter();
+    // Date tile.
+    let tile = egui::Rect::from_min_size(rect.left_top() + vec2(0.0, 5.0), vec2(36.0, 36.0));
+    p.rect_filled(tile, 8, if today { t.accent_soft() } else { t.hover_wash() });
+    p.text(
+        tile.center_top() + vec2(0.0, 6.0),
+        egui::Align2::CENTER_TOP,
+        d.strftime("%b").to_string().to_uppercase(),
+        theme::semibold(8.5),
+        if today { t.accent } else { t.text3 },
+    );
+    p.text(
+        tile.center_bottom() - vec2(0.0, 5.0),
+        egui::Align2::CENTER_BOTTOM,
+        d.day().to_string(),
+        theme::semibold(14.0),
+        if today { t.accent } else { t.text },
+    );
+    // Pill on the right.
+    let pill_font = theme::medium(11.0);
+    let pw = p.layout_no_wrap(pill.to_string(), pill_font.clone(), tone).size().x + 14.0;
+    let pill_rect = egui::Rect::from_center_size(egui::pos2(rect.right() - pw / 2.0, rect.center().y), vec2(pw, 20.0));
+    p.rect_filled(pill_rect, 10, crate::motion::with_alpha(tone, 0.14));
+    p.text(pill_rect.center(), egui::Align2::CENTER_CENTER, pill, pill_font, tone);
+    // Name and when, cut to fit.
+    let x = tile.right() + 10.0;
+    let max_w = (pill_rect.left() - 8.0 - x).max(20.0);
+    let title_font = theme::medium(13.0);
+    let shown = crate::format::elide_to(p, title, &title_font, max_w);
+    let cut = shown != title;
+    p.text(
+        egui::pos2(x, rect.top() + 6.0),
+        egui::Align2::LEFT_TOP,
+        shown,
+        title_font,
+        t.text,
+    );
+    let sub_font = theme::regular(11.5);
+    p.text(
+        egui::pos2(x, rect.bottom() - 7.0),
+        egui::Align2::LEFT_BOTTOM,
+        crate::format::elide_to(p, sub, &sub_font, max_w),
+        sub_font,
+        t.text3,
+    );
+    if cut {
+        ui.interact(rect, ui.id().with(("holiday", d)), Sense::hover())
+            .on_hover_text(title);
+    }
+}
+
+/// One dividend or split: date, kind and amount on a line.
+fn corporate_row(ui: &mut Ui, t: &Theme, date: &str, what: &str, amount: &str, upcoming: bool) {
+    let w = ui.available_width();
+    let (rect, _) = ui.allocate_exact_size(vec2(w, 26.0), Sense::hover());
+    let p = ui.painter();
+    p.text(
+        rect.left_center(),
+        egui::Align2::LEFT_CENTER,
+        date,
+        theme::regular(12.5),
+        if upcoming { t.accent } else { t.text2 },
+    );
+    p.text(
+        rect.left_center() + vec2(64.0, 0.0),
+        egui::Align2::LEFT_CENTER,
+        what,
+        theme::regular(12.5),
+        t.text,
+    );
+    p.text(
+        rect.right_center(),
+        egui::Align2::RIGHT_CENTER,
+        amount,
+        theme::medium(12.5),
+        t.text,
+    );
+}
+
+/// What goes before a dividend amount.
+fn currency_prefix(sym: &opentern_core::Symbol) -> &'static str {
+    match (sym.currency.as_str(), sym.exchange()) {
+        ("INR", _) | (_, "NSE" | "BSE") => "₹",
+        ("USD", _) | (_, "NASDAQ" | "NYSE" | "AMEX" | "ARCA") => "$",
+        ("EUR", _) => "€",
+        ("GBP", _) => "£",
+        _ => "",
+    }
+}
+
+/// 25 → "25.00", 0.2375 → "0.2375".
+fn amount(v: f64) -> String {
+    let s = format!("{v:.4}");
+    let s = s.trim_end_matches('0');
+    match s.split_once('.') {
+        Some((_, f)) if f.len() >= 2 => s.to_string(),
+        _ => format!("{v:.2}"),
     }
 }

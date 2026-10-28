@@ -290,6 +290,21 @@ impl App {
                 if let Some(s) = found {
                     self.add_compare(s, mode);
                 }
+            } else if let Some(id) = part.strip_prefix("symbol:") {
+                // `symbol:NSE:INFY`: a starter symbol by id, else a bare one.
+                let s = opentern_core::starter_watchlist()
+                    .into_iter()
+                    .find(|s| s.id == id)
+                    .unwrap_or_else(|| Symbol {
+                        kind: opentern_core::AssetKind::Stock,
+                        description: String::new(),
+                        timezone: match id.split(':').next() {
+                            Some("NSE" | "BSE") => "Asia/Kolkata".into(),
+                            _ => "America/New_York".into(),
+                        },
+                        ..Symbol::bare(id)
+                    });
+                self.open_symbol(s);
             } else if let Some(tf) = part.strip_prefix("tf:").and_then(Timeframe::parse) {
                 self.set_interval(tf);
             } else if part == "claude-chats" || part == "claude-new" {

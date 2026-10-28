@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026, v0.2.1):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Oct 2026, v0.2.2):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -606,7 +606,8 @@ in iteratively. Phase 14 has started (item 3).
    sync, bottom-panel clamp, site recoloured). v0.2.0 on 27 Oct 2026
    (the agent drives the whole app, What's new card, Windows icon and
    logo fixes). v0.2.1 on 28 Oct 2026 (Binance through its market-data
-   mirror when blocked, hotlists' change period). Still to do: notarizing the macOS app.
+   mirror when blocked, hotlists' change period). v0.2.2 on 28 Oct 2026
+   (news from many outlets, Calendar redesign, index change % fix). Still to do: notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -923,13 +924,19 @@ workspace.
   symbols). Settings saved under the `screener` key.
 - **Snapshot** (camera, Alt+S): download PNG to `<workspace>/snapshots/` or copy.
 - **Widgets** (`side.rs`, `notes.rs`): Hotlists (Binance 24h tickers; Yahoo
-  predefined screeners for US stocks), News (Yahoo search for stocks; CoinDesk's
-  public RSS for crypto, since Yahoo has no crypto headlines), Calendar (NYSE/NSE
-  holidays and early closes, the symbol's dividends and splits), Notifications
+  predefined screeners for US stocks), News (`feeds::news`, all sources at once
+  on threads, merged newest first, deduped by title, ≤ 2 weeks, ≤ 50: Google
+  News RSS search for every symbol (name from the description, `when:7d`,
+  en-IN for NSE/BSE; personal use), Yahoo search for non-crypto, CoinDesk/
+  Cointelegraph/Decrypt/The Block RSS for crypto and Economic Times/Mint
+  markets RSS for India, kept only when a headline names the symbol (whole
+  words), except an Indian index keeps all; CryptoCompare now needs a key),
+  Calendar (NYSE/NSE holidays and early closes as date tiles with pills, the
+  symbol's dividends and splits by year), Notifications
   (alerts, snapshots, updates; dot on the rail when unread). Hub requests
   `Hotlist` and `News` (`data/src/feeds.rs`).
 - Stills: `OPENTERN_STILL` also takes `kind:<chart type>`, `grid:<Grid>`,
-  `compare:<ticker>`, `tf:<interval>`, `replay`, `screen`, `widget:<name>`.
+  `compare:<ticker>`, `tf:<interval>`, `symbol:<id>` (e.g. `NSE:INFY`), `replay`, `screen`, `widget:<name>`.
 
 ### Phase 12 (done): quant tools
 - **Strategy Lab** bottom tab (`app/src/lab.rs`) on the strategy picked in the

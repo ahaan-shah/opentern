@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.2.2 (2026-10-28)
+
+News covers Indian stocks and follows the coin you're viewing, the Calendar
+is easier to read, and the watchlist's daily change for indices is right.
+
+### Changed
+
+- **News draws on many outlets at once.** Every symbol gets a search of the
+  past week's news. Indian stocks and indices add the Economic Times and
+  Mint. Crypto adds CoinDesk, Cointelegraph, Decrypt and The Block, keeping
+  only the headlines that name the coin. Repeats are removed, the newest come
+  first, and each headline shows its outlet.
+- **A tidier Calendar.** Holidays show as date tiles with the weekday, how
+  far off they are and a Closed or early-close tag. Dividends and splits are
+  grouped by year, with amounts in the stock's currency (₹25.00, not
+  25.0000).
+
+### Fixed
+
+- **The watchlist's daily change for NIFTY, SENSEX and BANKNIFTY matches the
+  chart.** It was measured from the close two sessions back, so BANKNIFTY
+  could show red on a day it rose.
+
 ## 0.2.1 (2026-10-28)
 
 Crypto charts load again on networks that block Binance, and hotlists say

@@ -328,3 +328,36 @@ fn crypto_hotlist() {
         println!("{kind:?}: {} {} {:+.2}%", top.symbol.id, top.last, top.change_pct);
     }
 }
+
+/// Headlines from every source for a coin, Indian and US stocks, an index
+/// and a currency pair.
+#[test]
+#[ignore]
+fn news_for_each_market() {
+    use opentern_core::AssetKind;
+    let s = |id: &str, desc: &str, kind| Symbol {
+        description: desc.into(),
+        kind,
+        ..Symbol::bare(id)
+    };
+    for sym in [
+        s("BINANCE:BTCUSDT", "Bitcoin / TetherUS", AssetKind::Crypto),
+        s("BINANCE:SOLUSDT", "SOL / USDT", AssetKind::Crypto),
+        s("NSE:INFY", "Infosys Limited", AssetKind::Stock),
+        s("NSE:RELIANCE", "Reliance Industries", AssetKind::Stock),
+        s("NSE:NIFTY", "Nifty 50 Index", AssetKind::Index),
+        s("NASDAQ:AAPL", "Apple Inc.", AssetKind::Stock),
+        s("FX:EURUSD", "EUR/USD", AssetKind::Forex),
+    ] {
+        let items = opentern_data::feeds::news(&sym, false).expect("news");
+        let mut by: std::collections::BTreeMap<&str, usize> = Default::default();
+        for n in &items {
+            *by.entry(n.publisher.as_str()).or_default() += 1;
+        }
+        println!("{} {} headlines from {} outlets", sym.id, items.len(), by.len());
+        for n in items.iter().take(4) {
+            println!("   {} | {}", n.publisher, n.title);
+        }
+        assert!(items.len() >= 5, "{}", sym.id);
+    }
+}

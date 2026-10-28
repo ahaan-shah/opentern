@@ -200,16 +200,25 @@ pub fn holiday(m: Market, d: Date) -> Option<&'static str> {
     }
 }
 
+/// A day the market doesn't keep its usual hours.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Special {
+    /// Closed all day for this holiday.
+    Holiday(String),
+    /// Closes early at this exchange-local time.
+    EarlyClose(Time),
+}
+
 /// Holidays and early closes from `from` for `days` days, for the
-/// Calendar widget: (date, what).
-pub fn upcoming(m: Market, from: Date, days: i64) -> Vec<(Date, String)> {
+/// Calendar widget.
+pub fn upcoming(m: Market, from: Date, days: i64) -> Vec<(Date, Special)> {
     let mut out = Vec::new();
     let mut d = from;
     for _ in 0..days.max(0) {
         if let Some(name) = holiday(m, d) {
-            out.push((d, format!("{name} (closed)")));
+            out.push((d, Special::Holiday(name.to_string())));
         } else if m == Market::Us && us_early_closes(d.year()).contains(&d) {
-            out.push((d, "Early close at 13:00".to_string()));
+            out.push((d, Special::EarlyClose(Time::constant(13, 0, 0, 0))));
         }
         match d.tomorrow() {
             Ok(n) => d = n,
