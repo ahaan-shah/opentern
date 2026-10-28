@@ -119,6 +119,28 @@ impl App {
                 ui.label(egui::RichText::new(e).color(t.text3));
             }
             Some(Ok(rows)) => {
+                // Binance's change is over a rolling 24 hours; Yahoo's is
+                // since the previous session's close.
+                let (chg, tip) = match self.side.market {
+                    HotMarket::Crypto => ("Chg% 24h", "Change over the last 24 hours"),
+                    _ => ("Chg% today", "Change since the previous close"),
+                };
+                let (cols, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
+                let p = ui.painter();
+                let head = |p: &egui::Painter, x: f32, align: egui::Align2, text: &str| {
+                    p.text(
+                        egui::pos2(x, cols.center().y),
+                        align,
+                        text,
+                        theme::medium(11.5),
+                        t.text3,
+                    )
+                };
+                head(p, cols.left() + 6.0, egui::Align2::LEFT_CENTER, "Symbol");
+                head(p, cols.right() - 82.0, egui::Align2::RIGHT_CENTER, "Last");
+                let r = head(p, cols.right() - 6.0, egui::Align2::RIGHT_CENTER, chg);
+                ui.interact(r, ui.id().with("hot-chg"), Sense::hover())
+                    .on_hover_text(tip);
                 egui::ScrollArea::vertical()
                     .id_salt("hot")
                     .auto_shrink([false, false])

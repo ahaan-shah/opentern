@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026, v0.2.0):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Oct 2026, v0.2.1):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -605,7 +605,8 @@ in iteratively. Phase 14 has started (item 3).
    (onboarding, sign-in gate, Tern Dark / greener Opentern Light, price
    sync, bottom-panel clamp, site recoloured). v0.2.0 on 27 Oct 2026
    (the agent drives the whole app, What's new card, Windows icon and
-   logo fixes). Still to do: notarizing the macOS app.
+   logo fixes). v0.2.1 on 28 Oct 2026 (Binance through its market-data
+   mirror when blocked, hotlists' change period). Still to do: notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus
@@ -796,6 +797,14 @@ workspace.
   `OANDA:X` / `IBKR:X` are offered as typed.
 - **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
   machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
+- **Binance gotcha (Oct 2026):** Jio (India) points `api.binance.com` and
+  `stream.binance.com` at a dead address, so charts silently stayed on cached
+  bars. Binance goes to its public market-data mirrors first
+  (`data-api.binance.vision`, `data-stream.binance.vision`; same data, checked
+  byte for byte), falls back to the main hosts on any failure, and remembers
+  which answered (`binance::get`; depth and hotlists use it too). Connects time
+  out after 8 s (`provider::agent`, `provider::websocket`). Jio also resets
+  some handshakes to `api.kraken.com` (SNI); not worked around.
 - Secrets: `opentern_core::secrets` (keyring, service `opentern`); Settings → Data
   providers (☰ menu) saves keys there and non-secret options (`alpaca_sip`,
   `oanda_account`, `oanda_live`, `ibkr_url`) in settings; keys load on a background

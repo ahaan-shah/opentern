@@ -73,12 +73,21 @@ fn search_and_quotes() {
         seq: 1,
         query: "eth".into(),
     });
-    hub.send(Request::Quotes {
-        symbols: opentern_core::starter_watchlist(),
-    });
+    let symbols = opentern_core::starter_watchlist();
+    // Binance quotes arrive over their own websocket: each must show up.
+    let crypto: Vec<String> = symbols
+        .iter()
+        .filter(|s| s.id.starts_with("BINANCE:"))
+        .map(|s| s.id.clone())
+        .collect();
+    assert!(!crypto.is_empty());
+    hub.send(Request::Quotes { symbols });
     let deadline = Instant::now() + Duration::from_secs(60);
     let (mut found, mut quotes) = (false, std::collections::HashSet::new());
-    while Instant::now() < deadline && !(found && quotes.len() >= 8) {
+    let done = |found: bool, quotes: &std::collections::HashSet<String>| {
+        found && quotes.len() >= 8 && crypto.iter().all(|c| quotes.contains(c))
+    };
+    while Instant::now() < deadline && !done(found, &quotes) {
         for e in hub.poll() {
             match e {
                 Event::Search { results, .. } => {
@@ -99,6 +108,9 @@ fn search_and_quotes() {
     }
     assert!(found);
     assert!(quotes.len() >= 8, "only {} quotes", quotes.len());
+    for c in &crypto {
+        assert!(quotes.contains(c), "no quote for {c}");
+    }
 }
 
 #[test]
@@ -217,8 +229,9 @@ fn crypto_exchanges_stream_through_the_hub() {
 #[test]
 #[ignore]
 fn crypto_symbol_lists() {
-    use opentern_data::{bybit::Bybit, coinbase::Coinbase, kraken::Kraken, okx::Okx};
+    use opentern_data::{binance::Binance, bybit::Bybit, coinbase::Coinbase, kraken::Kraken, okx::Okx};
     for (name, list) in [
+        ("binance", Binance::default().symbols()),
         ("bybit", Bybit::default().symbols()),
         ("okx", Okx::default().symbols()),
         ("coinbase", Coinbase::default().symbols()),
@@ -300,5 +313,18 @@ fn india_hotlist() {
         assert_eq!(rows.len(), 30, "the top 30 of the NIFTY 50");
         let top = &rows[0];
         println!("{kind:?}: {} {:.2} {:+.2}%", top.symbol.id, top.last, top.change_pct);
+    }
+}
+
+/// Crypto hotlists: Binance's 24-hour tickers.
+#[test]
+#[ignore]
+fn crypto_hotlist() {
+    use opentern_data::feeds::{HotKind, HotMarket, hotlist};
+    for kind in [HotKind::Gainers, HotKind::Losers, HotKind::Volume] {
+        let rows = hotlist(HotMarket::Crypto, kind, false).expect("crypto hotlist");
+        assert!(!rows.is_empty(), "{kind:?}");
+        let top = &rows[0];
+        println!("{kind:?}: {} {} {:+.2}%", top.symbol.id, top.last, top.change_pct);
     }
 }

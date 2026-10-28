@@ -29,37 +29,57 @@ pub struct Notes {
 
 /// Newest first. Keep each to 2–4 points in everyday words: what changed
 /// and why it helps, not how it works.
-pub const RELEASES: &[Notes] = &[Notes {
-    version: "0.2.0",
-    items: &[
-        Item {
-            icon: ph::SPARKLE,
-            title: "The agent can use the whole app",
-            body: "Ask Claude or Codex to open charts, draw, run the screener, tune a strategy in \
+pub const RELEASES: &[Notes] = &[
+    Notes {
+        version: "0.2.1",
+        items: &[
+            Item {
+                icon: ph::WIFI_HIGH,
+                title: "Crypto charts stay up to date",
+                body: "Binance prices now load on networks that block Binance's main servers, such as \
+                       Jio in India. Charts and watchlists had been stuck on older prices there.",
+                image: None,
+            },
+            Item {
+                icon: ph::FIRE,
+                title: "Hotlists show the period",
+                body: "The change column says what it covers: the last 24 hours for crypto, today for stocks.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
+        version: "0.2.0",
+        items: &[
+            Item {
+                icon: ph::SPARKLE,
+                title: "The agent can use the whole app",
+                body: "Ask Claude or Codex to open charts, draw, run the screener, tune a strategy in \
                    the Strategy Lab, paper trade or set alerts. It does what you'd do with clicks.",
-            image: None,
-        },
-        Item {
-            icon: ph::REWIND,
-            title: "Learn from real examples",
-            body: "Ask the agent to teach you a pattern: it finds one in the chart's history, marks \
+                image: None,
+            },
+            Item {
+                icon: ph::REWIND,
+                title: "Learn from real examples",
+                body: "Ask the agent to teach you a pattern: it finds one in the chart's history, marks \
                    it and walks you through it in bar replay.",
-            image: None,
-        },
-        Item {
-            icon: ph::WINDOWS_LOGO,
-            title: "Fixed on Windows",
-            body: "Opentern's icon shows in Start, search and Settings, and symbol logos appear again.",
-            image: None,
-        },
-        Item {
-            icon: ph::GIFT,
-            title: "See what's new after each update",
-            body: "When Opentern updates, this card shows what changed. Settings → About opens it again.",
-            image: None,
-        },
-    ],
-}];
+                image: None,
+            },
+            Item {
+                icon: ph::WINDOWS_LOGO,
+                title: "Fixed on Windows",
+                body: "Opentern's icon shows in Start, search and Settings, and symbol logos appear again.",
+                image: None,
+            },
+            Item {
+                icon: ph::GIFT,
+                title: "See what's new after each update",
+                body: "When Opentern updates, this card shows what changed. Settings → About opens it again.",
+                image: None,
+            },
+        ],
+    },
+];
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

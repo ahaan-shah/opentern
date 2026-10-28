@@ -71,9 +71,9 @@ pub fn book(sym: &Symbol, last: f64, demo: bool) -> Result<Book> {
     let agent = provider::agent();
     let t = sym.ticker();
     let mut b = match sym.exchange() {
-        "BINANCE" => parse_pairs(&provider::get_json(
+        "BINANCE" => parse_pairs(&crate::binance::get(
             &agent,
-            &format!("https://api.binance.com/api/v3/depth?symbol={t}&limit=50"),
+            &format!("/api/v3/depth?symbol={t}&limit=50"),
         )?),
         "BYBIT" => {
             let v = provider::get_json(

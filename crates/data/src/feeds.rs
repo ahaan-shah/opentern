@@ -236,7 +236,7 @@ pub fn hotlist(market: HotMarket, kind: HotKind, demo: bool) -> Result<Vec<HotRo
     let agent = provider::agent();
     match market {
         HotMarket::Crypto => {
-            let v = provider::get_json(&agent, "https://api.binance.com/api/v3/ticker/24hr")?;
+            let v = crate::binance::get(&agent, "/api/v3/ticker/24hr")?;
             Ok(parse_binance_24h(&v, kind))
         }
         HotMarket::UsStocks => {

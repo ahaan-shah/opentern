@@ -55,6 +55,30 @@ impl Driver {
         out.textures_delta.clear();
     }
 
+    /// Runs a frame and returns every piece of text it painted.
+    pub fn texts(&mut self) -> Vec<String> {
+        fn walk(shape: &egui::Shape, out: &mut Vec<String>) {
+            match shape {
+                egui::Shape::Text(t) => out.push(t.galley.text().to_string()),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),
+                _ => {}
+            }
+        }
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        let mut texts = Vec::new();
+        for c in &out.shapes {
+            walk(&c.shape, &mut texts);
+        }
+        texts
+    }
+
     /// Runs frames until `f` holds (data arrives on other threads). A time
     /// limit, not a frame count: shared CI runners are several times slower
     /// than a desktop.
@@ -150,6 +174,21 @@ impl Drop for Driver {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hotlists_say_what_period_the_change_covers() {
+        use opentern_data::feeds::HotMarket;
+        let mut d = Driver::new("hotlists");
+        d.app.layout.widget = Some(crate::shell::Widget::Hotlists);
+        for (market, label) in [(HotMarket::Crypto, "Chg% 24h"), (HotMarket::UsStocks, "Chg% today")] {
+            d.app.side.market = market;
+            d.frame(vec![]);
+            d.wait(|a| matches!(a.side.hot, Some(Ok(_))));
+            let texts = d.texts();
+            assert!(texts.iter().any(|t| t == label), "{market:?}: no {label:?} header");
+            assert!(texts.iter().any(|t| t == "Last"), "{market:?}: no Last header");
+        }
+    }
 
     #[test]
     fn place_move_undo_delete_a_trend_line() {

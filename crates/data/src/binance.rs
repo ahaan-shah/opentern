@@ -3,10 +3,18 @@
 
 use crate::provider::{self, Error, Live, Provider, Result, num};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-const REST: &str = "https://api.binance.com";
-const WS_HOST: &str = "stream.binance.com";
-const WS_PORT: u16 = 9443;
+/// Binance's REST hosts. `data-api.binance.vision` is Binance's public
+/// market-data mirror (the same data, nothing else), which some networks
+/// that block `api.binance.com` still reach (Jio in India points its DNS
+/// at a dead address). Opentern only reads public market data, so the
+/// mirror goes first; the first host that answers is remembered.
+const REST: [&str; 2] = ["https://data-api.binance.vision", "https://api.binance.com"];
+static REST_AT: AtomicUsize = AtomicUsize::new(0);
+/// Websocket hosts, in the same order.
+const WS: [(&str, u16); 2] = [("data-stream.binance.vision", 443), ("stream.binance.com", 9443)];
+static WS_AT: AtomicUsize = AtomicUsize::new(0);
 const PAGE: usize = 1000;
 
 pub struct Binance {
@@ -24,6 +32,48 @@ impl Default for Binance {
 /// "BINANCE:BTCUSDT" → "BTCUSDT".
 fn pair(sym: &Symbol) -> &str {
     sym.ticker()
+}
+
+/// GET `path` (e.g. `/api/v3/depth?…`) from whichever REST host answers.
+/// Any failure tries the other host (`api.binance.com` refuses some
+/// countries with an HTTP error); when both fail, an answer from the
+/// service beats "couldn't connect".
+pub(crate) fn get(agent: &ureq::Agent, path: &str) -> Result<serde_json::Value> {
+    get_from(agent, &REST, &REST_AT, path)
+}
+
+fn get_from(agent: &ureq::Agent, hosts: &[&str], at: &AtomicUsize, path: &str) -> Result<serde_json::Value> {
+    let start = at.load(Ordering::Relaxed);
+    let mut err = Error::Offline;
+    for k in 0..hosts.len() {
+        let i = (start + k) % hosts.len();
+        match provider::get_json(agent, &format!("{}{path}", hosts[i])) {
+            Ok(v) => {
+                at.store(i, Ordering::Relaxed);
+                return Ok(v);
+            }
+            Err(Error::Offline) => {}
+            Err(e) => err = e,
+        }
+    }
+    Err(err)
+}
+
+/// Opens a websocket on `path` with whichever stream host answers.
+fn websocket(path: &str) -> Result<(provider::Socket, std::net::TcpStream)> {
+    let start = WS_AT.load(Ordering::Relaxed);
+    let mut last = Error::Offline;
+    for k in 0..WS.len() {
+        let i = (start + k) % WS.len();
+        match provider::websocket(WS[i].0, WS[i].1, path) {
+            Ok(ws) => {
+                WS_AT.store(i, Ordering::Relaxed);
+                return Ok(ws);
+            }
+            Err(e) => last = e,
+        }
+    }
+    Err(last)
 }
 
 /// Binance's name for an interval, if it has one.
@@ -77,17 +127,14 @@ pub(crate) fn parse_ws_kline(v: &serde_json::Value) -> Option<Bar> {
 impl Binance {
     fn klines(&self, sym: &Symbol, tf: Timeframe, query: &str) -> Result<Vec<Bar>> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Binance has no {} bars", tf.label())))?;
-        let url = format!(
-            "{REST}/api/v3/klines?symbol={}&interval={iv}&limit={PAGE}{query}",
-            pair(sym)
-        );
-        parse_klines(&provider::get_json(&self.agent, &url)?)
+        let path = format!("/api/v3/klines?symbol={}&interval={iv}&limit={PAGE}{query}", pair(sym));
+        parse_klines(&get(&self.agent, &path)?)
     }
 
     /// One symbol's lot step (`LOT_SIZE` → `stepSize`), which TradingView
     /// uses as `syminfo.mincontract`: strategy sizes round down to it.
     pub fn min_qty(&self, ticker: &str) -> Result<f64> {
-        let v = provider::get_json(&self.agent, &format!("{REST}/api/v3/exchangeInfo?symbol={ticker}"))?;
+        let v = get(&self.agent, &format!("/api/v3/exchangeInfo?symbol={ticker}"))?;
         v["symbols"]
             .get(0)
             .and_then(lot_step)
@@ -96,7 +143,7 @@ impl Binance {
 
     /// Every symbol currently trading on Binance spot.
     pub fn symbols(&self) -> Result<Vec<Symbol>> {
-        let v = provider::get_json(&self.agent, &format!("{REST}/api/v3/exchangeInfo?symbolStatus=TRADING"))?;
+        let v = get(&self.agent, "/api/v3/exchangeInfo?symbolStatus=TRADING")?;
         let list = v["symbols"]
             .as_array()
             .ok_or_else(|| Error::Bad("Binance: unexpected symbol list".into()))?;
@@ -198,7 +245,7 @@ impl Provider for Binance {
     fn stream(&self, sym: &Symbol, tf: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Binance has no {} bars", tf.label())))?;
         let path = format!("/ws/{}@kline_{iv}", pair(sym).to_lowercase());
-        let (mut ws, _tcp) = provider::websocket(WS_HOST, WS_PORT, &path)?;
+        let (mut ws, _tcp) = websocket(&path)?;
         loop {
             let item = match provider::read_text(&mut ws)? {
                 Some(text) => serde_json::from_str::<serde_json::Value>(&text)
@@ -222,7 +269,7 @@ impl Provider for Binance {
 pub(crate) fn stream_quotes(pairs: &[String], sink: &mut dyn FnMut(Option<(String, f64, f64)>) -> bool) -> Result<()> {
     let streams: Vec<String> = pairs.iter().map(|p| format!("{}@kline_1d", p.to_lowercase())).collect();
     let path = format!("/stream?streams={}", streams.join("/"));
-    let (mut ws, _tcp) = provider::websocket(WS_HOST, WS_PORT, &path)?;
+    let (mut ws, _tcp) = websocket(&path)?;
     loop {
         let item = provider::read_text(&mut ws)?.and_then(|text| {
             let v: serde_json::Value = serde_json::from_str(&text).ok()?;
@@ -263,6 +310,43 @@ mod tests {
         .unwrap();
         let b = parse_ws_kline(&v).unwrap();
         assert_eq!((b.open, b.high, b.low, b.close, b.volume), (1.0, 3.0, 0.5, 2.0, 10.0));
+    }
+
+    /// A one-shot HTTP server on localhost answering `body`.
+    fn serve(body: &'static str) -> String {
+        use std::io::{Read, Write};
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for mut c in l.incoming().flatten() {
+                let mut buf = [0u8; 4096];
+                let _ = c.read(&mut buf);
+                let _ = write!(
+                    c,
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    #[test]
+    fn falls_back_to_a_host_that_answers_and_remembers_it() {
+        // Nothing listens on a port that was bound and then dropped.
+        let dead = {
+            let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            format!("http://{}", l.local_addr().unwrap())
+        };
+        let live = serve(r#"{"ok":true}"#);
+        let hosts = [dead.as_str(), live.as_str()];
+        let at = AtomicUsize::new(0);
+        let agent = provider::agent();
+        assert_eq!(get_from(&agent, &hosts, &at, "/x").unwrap()["ok"], true);
+        assert_eq!(at.load(Ordering::Relaxed), 1);
+        // Both down: couldn't connect.
+        let dead2 = [dead.as_str(), dead.as_str()];
+        assert!(matches!(get_from(&agent, &dead2, &at, "/x"), Err(Error::Offline)));
     }
 
     #[test]

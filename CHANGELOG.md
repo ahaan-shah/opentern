@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.1 (2026-10-28)
+
+Crypto charts load again on networks that block Binance, and hotlists say
+what period their change covers.
+
+### Changed
+
+- **Hotlists show what the change covers:** "Chg% 24h" for crypto (a rolling
+  24 hours) and "Chg% today" for stocks (since the previous close).
+
+### Fixed
+
+- **Crypto charts and watchlist prices stay up to date on networks that
+  block Binance** (such as Jio in India). Opentern now reads Binance's public
+  market data from Binance's own mirror first and falls back to the main
+  servers, so charts no longer sit on old cached bars with no prices in the
+  watchlist. The order book and crypto hotlists use it too.
+- **A blocked data service gives up sooner.** Live connections stop trying
+  after 8 seconds instead of hanging for minutes before reconnecting.
+
 ## 0.2.0 (2026-10-27)
 
 The agent panel's Claude and Codex can now use the whole app, the way you

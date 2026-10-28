@@ -2,7 +2,7 @@
 //! websocket plumbing.
 
 use opentern_core::{Bar, Symbol, Timeframe};
-use std::net::TcpStream;
+use std::net::{TcpStream, ToSocketAddrs};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -49,6 +49,9 @@ pub trait Provider: Send + Sync {
 pub(crate) fn agent() -> ureq::Agent {
     ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(20)))
+        // A blocked host often swallows the connection attempt; give up on
+        // it soon so a fallback host gets its turn.
+        .timeout_connect(Some(Duration::from_secs(8)))
         .user_agent(concat!(
             "Mozilla/5.0 (compatible; opentern/",
             env!("CARGO_PKG_VERSION"),
@@ -65,7 +68,12 @@ pub(crate) fn get_json(agent: &ureq::Agent, url: &str) -> Result<serde_json::Val
         | ureq::Error::Timeout(_)
         | ureq::Error::HostNotFound
         | ureq::Error::ConnectionFailed
-        | ureq::Error::BodyStalled => Error::Offline,
+        | ureq::Error::BodyStalled
+        // A network that intercepts a blocked host fails the handshake or
+        // answers with something that isn't the service.
+        | ureq::Error::Tls(_)
+        | ureq::Error::Rustls(_)
+        | ureq::Error::Protocol(_) => Error::Offline,
         e => Error::Bad(e.to_string()),
     })?;
     let text = resp
@@ -83,7 +91,12 @@ pub(crate) type Socket = tungstenite::WebSocket<tungstenite::stream::MaybeTlsStr
 /// TCP stream, used to set a short read timeout so the stream loop can
 /// handle requests between messages.
 pub(crate) fn websocket(host: &str, port: u16, path: &str) -> Result<(Socket, TcpStream)> {
-    let tcp = TcpStream::connect((host, port)).map_err(|_| Error::Offline)?;
+    // Without a timeout a blocked host keeps a connect hanging for minutes.
+    let tcp = (host, port)
+        .to_socket_addrs()
+        .map_err(|_| Error::Offline)?
+        .find_map(|a| TcpStream::connect_timeout(&a, Duration::from_secs(8)).ok())
+        .ok_or(Error::Offline)?;
     tcp.set_read_timeout(Some(Duration::from_secs(10)))
         .map_err(|_| Error::Offline)?;
     let handle = tcp.try_clone().map_err(|_| Error::Offline)?;
@@ -140,7 +153,12 @@ pub(crate) fn get_json_with(agent: &ureq::Agent, url: &str, headers: &[(&str, &s
         | ureq::Error::Timeout(_)
         | ureq::Error::HostNotFound
         | ureq::Error::ConnectionFailed
-        | ureq::Error::BodyStalled => Error::Offline,
+        | ureq::Error::BodyStalled
+        // A network that intercepts a blocked host fails the handshake or
+        // answers with something that isn't the service.
+        | ureq::Error::Tls(_)
+        | ureq::Error::Rustls(_)
+        | ureq::Error::Protocol(_) => Error::Offline,
         e => Error::Bad(e.to_string()),
     })?;
     let text = resp
