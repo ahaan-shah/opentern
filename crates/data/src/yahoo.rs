@@ -139,6 +139,22 @@ pub(crate) fn parse_chart(v: &serde_json::Value, daily: bool) -> Result<(Vec<Bar
     Ok((bars, meta))
 }
 
+/// Last price and previous close from a few daily bars. The previous close
+/// is the close of the bar before the latest: with `range=1d`, Yahoo's
+/// `chartPreviousClose` is two sessions old (NIFTY showed -0.24% for -0.22%).
+fn quote_of(v: &serde_json::Value) -> Result<(f64, f64)> {
+    let (bars, meta) = parse_chart(v, true)?;
+    let last = meta["regularMarketPrice"].as_f64().or(bars.last().map(|b| b.close));
+    let prev = match bars.len() {
+        2.. => Some(bars[bars.len() - 2].close),
+        _ => meta["chartPreviousClose"].as_f64().or(meta["previousClose"].as_f64()),
+    };
+    match (last, prev) {
+        (Some(l), Some(p)) => Ok((l, p)),
+        _ => Err(Error::Bad("Yahoo: no quote".into())),
+    }
+}
+
 /// Dividends and splits, dated like daily bars (00:00 UTC of the
 /// exchange-local date).
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -289,14 +305,8 @@ impl Yahoo {
 
     /// Last price and previous close.
     pub fn quote(&self, sym: &Symbol) -> Result<(f64, f64)> {
-        let url = format!("{CHART}/{}?interval=1d&range=1d", urlencode(&ticker(&sym.id)));
-        let (_, meta) = parse_chart(&provider::get_json(&self.agent, &url)?, true)?;
-        let last = meta["regularMarketPrice"].as_f64();
-        let prev = meta["chartPreviousClose"].as_f64().or(meta["previousClose"].as_f64());
-        match (last, prev) {
-            (Some(l), Some(p)) => Ok((l, p)),
-            _ => Err(Error::Bad("Yahoo: no quote".into())),
-        }
+        let url = format!("{CHART}/{}?interval=1d&range=5d", urlencode(&ticker(&sym.id)));
+        quote_of(&provider::get_json(&self.agent, &url)?)
     }
 }
 
@@ -426,6 +436,8 @@ mod tests {
         assert_eq!(bars[0].time, 1_704_758_400_000);
         assert_eq!(bars[1].close, 2.2);
         assert_eq!(meta["regularMarketPrice"].as_f64(), Some(3.0));
+        // The previous close is the bar before the latest, not chartPreviousClose.
+        assert_eq!(quote_of(&v).unwrap(), (3.0, 1.2));
         let none: serde_json::Value =
             serde_json::from_str(r#"{"chart":{"result":null,"error":{"description":"No data found"}}}"#).unwrap();
         assert!(parse_chart(&none, true).is_err());
