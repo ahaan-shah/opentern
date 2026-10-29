@@ -361,3 +361,31 @@ fn news_for_each_market() {
         assert!(items.len() >= 5, "{}", sym.id);
     }
 }
+
+/// Free float and fundamentals for a few NSE stocks from Yahoo, as the
+/// custom indices use them.
+#[test]
+#[ignore]
+fn nse_fundamentals() {
+    for t in ["RELIANCE", "MARUTI", "HDFCBANK", "M&M", "BAJAJ-AUTO", "TATAMOTORS"] {
+        let s = opentern_core::Symbol {
+            timezone: "Asia/Kolkata".into(),
+            ..opentern_core::Symbol::bare(&format!("NSE:{t}"))
+        };
+        match opentern_data::fundamentals::fetch(&s, false) {
+            Ok(f) => println!(
+                "{t:12} shares {:>14.0} float {:>14.0} ({:>5.1}%)  cap {:>16.0}  P/E {:>6.1}  EV/EBITDA {:>6.1}  gross {:>5.3} ebitda {:>5.3}",
+                f.shares,
+                f.float_shares,
+                f.float_shares / f.shares * 100.0,
+                f.market_cap,
+                f.pe,
+                f.ev_ebitda,
+                f.gross_margin,
+                f.ebitda_margin
+            ),
+            Err(e) => println!("{t:12} error: {e}"),
+        }
+        std::thread::sleep(std::time::Duration::from_millis(800));
+    }
+}
