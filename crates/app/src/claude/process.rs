@@ -44,6 +44,8 @@ pub struct Launch {
     /// The CLI's session (Claude Code) or thread (Codex) id, to continue a chat.
     pub resume: Option<String>,
     pub system: String,
+    /// The account's config folder ("" = the CLI's default; `accounts.rs`).
+    pub account: String,
 }
 
 /// One window of the account's usage limits (`five_hour`, `seven_day`, …).
@@ -241,6 +243,7 @@ impl ClaudeCode {
         if let Some(s) = &l.resume {
             cmd.args(["--resume", s]);
         }
+        super::accounts::apply(&mut cmd, l.agent, &l.account);
         // A session started from inside Claude Code (a terminal, a test)
         // would otherwise think it's nested.
         for (k, _) in std::env::vars_os() {

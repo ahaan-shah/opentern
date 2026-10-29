@@ -1270,6 +1270,52 @@ every data change (scripts re-run on it).
 - Screenshot script lesson: only ever kill the process you launched (match its
   own `--data-dir`), never "an opentern window that isn't the user's pid".
 
+### Seasonality, custom indices, agent accounts (30 Oct 2026, for 0.2.3)
+- **Seasonality** bottom tab (`seasonal.rs`): the active chart's monthly
+  returns (`opentern_series::profile::monthly_returns`: month close vs the
+  month before's, the first month from its open; Year vs last year's
+  close), newest year first, a two-handled year slider (middle grip drags
+  the window; default the last 6 years), "Rises and falls" per column
+  (average on hover). Monthly bars via `Request::Fetch` 1M, seqs from
+  `seasonal::SEQ_BASE` (1 << 45). Fonts lack ▲/▼: the triangles are drawn.
+- **Custom indices** (`indices.rs`, bottom tab "Indices"; **design is v1,
+  to iterate with the maintainer before release**). An index is a formula
+  `units1*NSE:A + units2*NSE:B …` registered with the hub as
+  `CUSTOM:<TICKER>` (`expr::set_customs`, at app start before any chart
+  opens), so chart, quotes, indicators and alerts just work; custom ids are
+  never cached (members can change). Units = share counts (market cap) or
+  1/price (equal), scaled so the index is 1000 on the first day all
+  members have a price; fixed until the members change. No share count
+  for some member → equal weights, with a warning icon. Board: tiles for
+  the index's own numbers, then a heat table (Returns / Valuation / Growth
+  and margins / Technicals; cells tinted by sign/size or by rank, lower
+  P/E and EV/EBITDA better, loss-makers worst) or a treemap (area =
+  weight, colour = picked metric). Index P/E = Σcap/Σearnings, EV/EBITDA
+  = ΣEV/ΣEBITDA, margins revenue-weighted. Saved under settings key
+  `custom_indices`. Members: daily bars (seqs from 1 << 46) and
+  `Request::Fundamentals` (`opentern_data::fundamentals`: Yahoo
+  `quoteSummary` with the fc.yahoo.com cookie + crumb, one request at a
+  time; demo makes numbers up). **The live Yahoo fundamentals path hasn't
+  been run from a dev shell** (curl probing got rate-limited); the
+  maintainer tests it in the app. Stills: `index-map`, `index-edit`,
+  `index-chart`.
+- Formula lexer accepts `&` in tickers (`NSE:M&M`).
+- **Agent accounts** (`claude/accounts.rs`): an account is a CLI config
+  folder: Claude Code's `CLAUDE_CONFIG_DIR`, Codex's `CODEX_HOME`. Found:
+  the default, the launch env's, and `~/.claude-*` / `~/.codex-*` beside
+  the default. The default means *removing* the variable (Claude Code with
+  `CLAUDE_CONFIG_DIR=~/.claude` looks for `~/.claude/.claude.json` and
+  fails). Picked in the header's agent menu (shown when there's more than
+  one), saved as `agent_account:<agent>`; each chat keeps the account it
+  started on (`Chat::account`; older chats = the launch account), so
+  `--resume` keeps working. Every CLI start (chat, auth, login, Codex
+  model list) goes through `accounts::apply`.
+- Agent composer: its height is last frame's measured height (wrapped
+  lines count); the text box scrolls past 8 lines. Strategy Lab list
+  headers elide to their column. Windows `open_url` uses
+  `rundll32 url.dll,FileProtocolHandler` (`explorer <url>` opened
+  Documents for long news links).
+
 ### Website
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in
 Spotsie's style and Opentern's theme colours, published by `pages.yml` to

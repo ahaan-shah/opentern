@@ -182,6 +182,60 @@ pub fn seasonality(bars: &[Bar], tz: &jiff::tz::TimeZone, years: usize) -> Vec<S
     out
 }
 
+/// One year of monthly returns: each month's close against the month
+/// before's (in percent; NaN where there's no month), and the year's close
+/// against the previous year's.
+#[derive(Clone, Debug, PartialEq)]
+pub struct MonthRow {
+    pub year: i16,
+    pub months: [f64; 12],
+    pub year_pct: f64,
+}
+
+/// Monthly returns from any bars (daily, monthly, …), grouped by calendar
+/// month in `tz`, newest year first. A month's base is the previous
+/// month's last close; the very first month, which has none, uses its
+/// first open.
+pub fn monthly_returns(bars: &[Bar], tz: &jiff::tz::TimeZone) -> Vec<MonthRow> {
+    // (year, month) → (first open, last close), in time order.
+    let mut months: Vec<((i16, i8), f64, f64)> = Vec::new();
+    for b in bars {
+        let Ok(ts) = jiff::Timestamp::from_millisecond(b.time) else {
+            continue;
+        };
+        let d = ts.to_zoned(tz.clone()).date();
+        let key = (d.year(), d.month());
+        match months.last_mut() {
+            Some((k, _, c)) if *k == key => *c = b.close,
+            _ => months.push((key, b.open, b.close)),
+        }
+    }
+    let mut rows: Vec<MonthRow> = Vec::new();
+    let mut prev: Option<f64> = None;
+    let mut year_base: Option<f64> = None;
+    for &((y, m), open, close) in &months {
+        if rows.last().is_none_or(|r| r.year != y) {
+            year_base = prev.or(Some(open));
+            rows.push(MonthRow {
+                year: y,
+                months: [f64::NAN; 12],
+                year_pct: f64::NAN,
+            });
+        }
+        let base = prev.unwrap_or(open);
+        let r = rows.last_mut().expect("pushed");
+        if base != 0.0 {
+            r.months[(m - 1) as usize] = (close / base - 1.0) * 100.0;
+        }
+        if let Some(b0) = year_base.filter(|b| *b != 0.0) {
+            r.year_pct = (close / b0 - 1.0) * 100.0;
+        }
+        prev = Some(close);
+    }
+    rows.reverse();
+    rows
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -213,6 +267,32 @@ mod tests {
         assert!(p.val <= p.poc && p.vah >= p.poc);
         let va: f64 = (p.val..=p.vah).map(|i| p.total(i)).sum();
         assert!(va >= 0.7 * 130.0);
+    }
+
+    #[test]
+    fn monthly_returns_chain_month_closes() {
+        let day = 86_400_000i64;
+        // 2024-01-01 is 19723 days after the epoch.
+        let t0 = 19_723 * day;
+        let bars = vec![
+            bar(t0, 100.0, 0.0, 0.0, 110.0, 0.0),            // Jan 1
+            bar(t0 + 20 * day, 110.0, 0.0, 0.0, 120.0, 0.0), // Jan 21
+            bar(t0 + 40 * day, 120.0, 0.0, 0.0, 90.0, 0.0),  // Feb 10
+            bar(t0 + 370 * day, 90.0, 0.0, 0.0, 99.0, 0.0),  // 2025
+        ];
+        let rows = monthly_returns(&bars, &jiff::tz::TimeZone::UTC);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].year, 2025);
+        assert!((rows[0].months[0] - 10.0).abs() < 1e-9);
+        assert!((rows[0].year_pct - 10.0).abs() < 1e-9);
+        let y24 = &rows[1];
+        assert!(
+            (y24.months[0] - 20.0).abs() < 1e-9,
+            "the first month runs from its open"
+        );
+        assert!((y24.months[1] + 25.0).abs() < 1e-9);
+        assert!(y24.months[2].is_nan());
+        assert!((y24.year_pct + 10.0).abs() < 1e-9);
     }
 
     #[test]

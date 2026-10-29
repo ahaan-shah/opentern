@@ -96,6 +96,8 @@ const TEMPLATE_FAVS: &str = "indicator_template";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Tab {
     Screener,
+    Seasonality,
+    Indices,
     Editor,
     Report,
     Lab,
@@ -104,8 +106,10 @@ pub enum Tab {
 }
 
 impl Tab {
-    pub const ALL: [Tab; 6] = [
+    pub const ALL: [Tab; 8] = [
         Tab::Screener,
+        Tab::Seasonality,
+        Tab::Indices,
         Tab::Editor,
         Tab::Report,
         Tab::Lab,
@@ -116,6 +120,8 @@ impl Tab {
     pub fn title(self) -> &'static str {
         match self {
             Tab::Screener => "Screener",
+            Tab::Seasonality => "Seasonality",
+            Tab::Indices => "Indices",
             Tab::Editor => "Script Editor",
             Tab::Report => "Strategy Report",
             Tab::Lab => "Strategy Lab",
@@ -1169,6 +1175,8 @@ impl App {
                 ui.set_opacity(k);
                 match self.last_tab {
                     Tab::Screener => self.screener_tab(ui, t),
+                    Tab::Seasonality => self.seasonal_tab(ui, t),
+                    Tab::Indices => self.indices_tab(ui, t),
                     Tab::Editor => self.editor_tab(ui, t),
                     Tab::Report => self.report_tab(ui, t),
                     Tab::Lab => self.lab_tab(ui, t),

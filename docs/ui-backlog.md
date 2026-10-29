@@ -125,3 +125,20 @@ Noticed along the way, also done:
 - Panel tabs in the Strategy Report and Strategy Lab are still small buttons
   (fine, but could be segmented too).
 - DragValue number fields are egui's (styled by the visuals, not custom).
+
+## Custom indices v1 (30 Oct 2026), to iterate with the maintainer
+What's built (`indices.rs`), and the choices still open:
+1. Lives in the bottom panel ("Indices" tab): a list of indices on the left,
+   the board on the right; picking one puts it on the chart above.
+2. Board: header (name, value, change, Table | Map, edit), a strip of the
+   index's own 12 numbers, then either the heat table (grouped columns,
+   each cell tinted against the other members, click a row to chart it)
+   or a treemap (tile = weight, colour = one picked metric).
+3. Metric order: Returns (1M, 3M), Valuation (P/E, EV/EBITDA), Growth and
+   margins (revenue growth, gross, EBITDA, EBIT, PAT), Technicals (RSI 14,
+   vs 50 SMA, vs 200 SMA).
+4. Builder: one dialog with name, search-to-add (Enter adds the top hit),
+   "Add a watchlist", chips, Market cap | Equal.
+Open questions: a rail widget instead of (or as well as) the tab; the KPI
+strip taking two rows in a short panel; indices in symbol search; free-float
+vs total shares; rebalancing (weights stay fixed until members change).

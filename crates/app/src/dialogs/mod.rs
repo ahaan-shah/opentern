@@ -35,6 +35,7 @@ pub enum Modal {
     Providers(Box<providers::Providers>),
     StrategyProps(Box<strategy_props::StrategyProps>),
     WhatsNew(Box<crate::whatsnew::Card>),
+    Index(Box<crate::indices::IndexEditor>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -106,6 +107,7 @@ impl App {
                 Modal::Alert(f) => f.show(ui, self, &t),
                 Modal::Providers(p) => p.show(ui, self, &t),
                 Modal::StrategyProps(p) => p.show(ui, self, &t),
+                Modal::Index(e) => e.show(ui, self, &t),
                 Modal::WhatsNew(c) => {
                     if crate::whatsnew::card(c, ui, &t) {
                         Done::Close

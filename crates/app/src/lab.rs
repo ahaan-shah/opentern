@@ -1435,14 +1435,25 @@ impl App {
         egui::ScrollArea::horizontal().id_salt("lab-opt-h").show(ui, |ui| {
             ui.set_min_width(table_w);
             let (r, _) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::hover());
+            // Long input titles are cut to their column (whole on hover), or
+            // neighbours run into each other.
+            let font = theme::medium(12.0);
             for (k, h) in heads.iter().enumerate() {
+                let room = if k == 0 { num_w } else { col_w } - 14.0;
+                let shown = crate::format::elide_to(ui.painter(), h, &font, room);
+                let x = r.left() + x_at(k);
+                let cell = egui::Rect::from_min_max(pos2(x - room, r.top()), pos2(x, r.bottom()));
                 ui.painter().text(
-                    pos2(r.left() + x_at(k), r.center().y),
+                    pos2(x, r.center().y),
                     Align2::RIGHT_CENTER,
-                    h,
-                    theme::medium(12.0),
+                    &shown,
+                    font.clone(),
                     t.text3,
                 );
+                if shown != *h {
+                    ui.interact(cell, ui.id().with(("lab-head", k)), Sense::hover())
+                        .on_hover_text(h);
+                }
             }
             ui.painter().hline(r.x_range(), r.bottom(), Stroke::new(1.0, t.border));
             egui::ScrollArea::vertical()

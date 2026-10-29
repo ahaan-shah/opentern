@@ -58,6 +58,11 @@ pub enum Request {
         tf: Timeframe,
         count: usize,
     },
+    /// A company's fundamentals (custom indices).
+    Fundamentals {
+        seq: u64,
+        symbol: Symbol,
+    },
     /// The order book for the DOM widget (`last` seeds the demo book).
     Depth {
         seq: u64,
@@ -135,6 +140,12 @@ pub enum Event {
     Depth {
         seq: u64,
         result: Result<crate::depth::Book, String>,
+    },
+    /// The answer to a `Request::Fundamentals`.
+    Fundamentals {
+        seq: u64,
+        symbol: String,
+        result: Result<crate::fundamentals::Fundamentals, String>,
     },
     /// The answer to a `Request::Fetch`.
     Fetched {
@@ -239,10 +250,30 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 }
             });
     }
+    // Fundamentals one at a time: Yahoo limits bursts.
+    let (fund_tx, fund_rx) = unbounded::<(u64, Symbol)>();
+    {
+        let out = out.clone();
+        let _ = std::thread::Builder::new()
+            .name("data-fundamentals".into())
+            .spawn(move || {
+                for (seq, symbol) in fund_rx {
+                    let result = crate::fundamentals::fetch(&symbol, demo).map_err(|e| e.to_string());
+                    out.send(Event::Fundamentals {
+                        seq,
+                        symbol: symbol.id.clone(),
+                        result,
+                    });
+                }
+            });
+    }
     for req in rx {
         match req {
             Request::Fetch { seq, symbol, tf, count } => {
                 let _ = fetch_tx.send((seq, symbol, tf, count));
+            }
+            Request::Fundamentals { seq, symbol } => {
+                let _ = fund_tx.send((seq, symbol));
             }
             Request::Hotlist { seq, market, kind } => {
                 let out = out.clone();
@@ -349,7 +380,11 @@ pub(crate) fn fetch_once(
         _ => 22,
     };
     let wanted = (count.max(1) * ratio + ratio).min(MAX_BASE);
-    let cache = if demo { None } else { Cache::open(dir).ok() };
+    let cache = if demo || crate::expr::is_custom(&symbol.id) {
+        None
+    } else {
+        Cache::open(dir).ok()
+    };
     let mut bars = cache
         .as_ref()
         .and_then(|c| c.last(&symbol.id, base, wanted).ok())
@@ -436,6 +471,14 @@ impl Provider for Missing {
 /// provider (Alpaca for US stocks, Upstox for NSE/BSE) when its keys are
 /// set, else Yahoo.
 pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
+    if crate::expr::is_custom(&sym.id) {
+        return match crate::expr::custom_formula(&sym.id)
+            .and_then(|f| crate::expr::ExprProvider::from_formula(&f, demo))
+        {
+            Some(p) => Arc::new(p),
+            None => Arc::new(Missing("This index no longer exists.".into())),
+        };
+    }
     if crate::expr::is_expr(&sym.id)
         && let Some(p) = crate::expr::ExprProvider::new(sym, demo)
     {
@@ -535,8 +578,13 @@ impl Session {
             return;
         };
         let tz = TimeZone::get(&symbol.timezone).unwrap_or(TimeZone::UTC);
-        // Demo data is made up on the spot; never cache it.
-        let cache = if demo { None } else { Cache::open(&dir).ok() };
+        // Demo data is made up on the spot; never cache it. Nor a custom
+        // index: its members and weights can change under the same name.
+        let cache = if demo || crate::expr::is_custom(&symbol.id) {
+            None
+        } else {
+            Cache::open(&dir).ok()
+        };
         let mut s = Session {
             chart,
             symbol,
@@ -843,8 +891,9 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
     let mut exprs = Vec::new();
     let mut plain: Vec<Symbol> = Vec::new();
     for s in symbols {
-        match crate::expr::parse(&s.id) {
-            Some((e, legs)) if crate::expr::is_expr(&s.id) => {
+        let formula = crate::expr::custom_formula(&s.id).unwrap_or_else(|| s.id.clone());
+        match crate::expr::parse(&formula) {
+            Some((e, legs)) if crate::expr::is_expr(&formula) => {
                 for l in &legs {
                     if !plain.iter().any(|p| p.id == *l) {
                         plain.push(Symbol {

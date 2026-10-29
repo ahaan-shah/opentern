@@ -50,6 +50,8 @@ pub struct App {
     pub alerts: crate::alerts::Alerts,
     pub editor: crate::editor::Editor,
     pub screener: crate::screener::Screener,
+    pub seasonal: crate::seasonal::Seasonal,
+    pub indices: crate::indices::Indices,
     pub lab: crate::lab::Lab,
     pub dom: crate::dom::Dom,
     /// Other series for Pine `request.security`, shared by every chart.
@@ -84,7 +86,7 @@ pub struct App {
     pub multi: crate::multi::Multi,
     pub(crate) drawings_saved: u64,
     last_style_edit: Option<(u64, Instant)>,
-    search_seq: u64,
+    pub(crate) search_seq: u64,
     saved: u64,
     last_save: Instant,
     last_frame: Option<Instant>,
@@ -155,6 +157,8 @@ impl App {
         let (watchlists, active_list) = App::load_watchlists(&store);
         let paper = crate::paper::Paper::load(&store);
         let alerts = crate::alerts::Alerts::load(&store);
+        // Before any chart opens: a saved chart may be on a custom index.
+        let indices = crate::indices::Indices::load(&store);
         let mut app = App {
             store,
             theme,
@@ -181,6 +185,8 @@ impl App {
             alerts,
             editor: Default::default(),
             screener: Default::default(),
+            seasonal: Default::default(),
+            indices,
             lab: Default::default(),
             dom: Default::default(),
             feeds: Default::default(),
@@ -415,6 +421,16 @@ impl App {
                 self.strategies.tab = crate::strategy::ReportTab::List;
             } else if part == "max" {
                 self.layout.panel_max = true;
+            } else if part == "index-map" {
+                self.indices.view = crate::indices::View::Map;
+            } else if part == "index-edit" {
+                let def = self.indices.defs.first().cloned();
+                self.modal = Some(Modal::Index(Box::new(crate::indices::IndexEditor::new(def.as_ref()))));
+            } else if part == "index-chart" {
+                if let Some(d) = self.indices.defs.first() {
+                    self.indices.chart_when_ready = Some(d.ticker.clone());
+                    self.layout.tab = Some(crate::shell::Tab::Indices);
+                }
             } else if part == "measure" {
                 self.still_measure = true;
             } else if part == "replay:play" {
@@ -969,17 +985,18 @@ impl App {
                 } => self.fetched(seq, &symbol, tf, result),
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Depth { seq, result } => self.dom_event(seq, result),
+                Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
                 Event::Search { seq, results } if seq >= crate::claude::tools::SEARCH_BASE => {
                     self.claude_search_done(seq, results)
                 }
-                Event::Search { seq, results } => {
-                    if let Some(Modal::Symbol(s)) = &mut self.modal
-                        && seq == self.search_seq
-                    {
+                Event::Search { seq, results } => match &mut self.modal {
+                    Some(Modal::Symbol(s)) if seq == self.search_seq => {
                         s.results = results;
                         s.got = seq;
                     }
-                }
+                    Some(Modal::Index(e)) if seq == self.search_seq => e.results = results,
+                    _ => {}
+                },
                 e @ (Event::Bars { chart, .. }
                 | Event::Tick { chart, .. }
                 | Event::Status { chart, .. }
@@ -1010,7 +1027,11 @@ impl App {
     /// One-off history arrived: for the screener, or a backtest over other
     /// symbols.
     fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
-        if seq >= crate::onboarding::SEQ_BASE {
+        if seq >= crate::indices::SEQ_BASE {
+            self.indices_fetched(symbol, result);
+        } else if seq >= crate::seasonal::SEQ_BASE {
+            self.seasonal_fetched(seq, symbol, result);
+        } else if seq >= crate::onboarding::SEQ_BASE {
             self.onboarding_fetched(symbol, result);
         } else if seq >= crate::feeds::SEQ_BASE {
             self.feed_fetched(seq, result);
@@ -1397,8 +1418,13 @@ pub fn open_url(url: &str) {
     }
     #[cfg(target_os = "macos")]
     let r = std::process::Command::new("open").arg(url).spawn();
+    // Not `explorer <url>`: it opens Documents for links it can't parse
+    // (long news links with `?` and `&`). The URL protocol handler takes
+    // any link or file and hands it to its default app.
     #[cfg(target_os = "windows")]
-    let r = std::process::Command::new("explorer").arg(url).spawn();
+    let r = std::process::Command::new("rundll32")
+        .args(["url.dll,FileProtocolHandler", url])
+        .spawn();
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let r = std::process::Command::new("xdg-open").arg(url).spawn();
     if let Err(e) = r {

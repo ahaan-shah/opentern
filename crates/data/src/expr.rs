@@ -61,7 +61,8 @@ fn lex(s: &str) -> Option<Vec<Tok>> {
     let c: Vec<char> = s.chars().collect();
     let mut out = Vec::new();
     let mut i = 0;
-    let word = |ch: char| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | ':' | '^' | '=' | '!');
+    // `&` is part of some NSE tickers (M&M, M&MFIN).
+    let word = |ch: char| ch.is_ascii_alphanumeric() || matches!(ch, '_' | '.' | ':' | '^' | '=' | '!' | '&');
     while i < c.len() {
         let ch = c[i];
         if ch.is_whitespace() {
@@ -298,6 +299,35 @@ pub fn combine_one(e: &Expr, row: &[Bar]) -> Option<Bar> {
     })
 }
 
+/// Custom indices (`CUSTOM:NAME`): the app registers each one's formula
+/// here, and the hub charts and quotes it like that formula.
+fn customs() -> &'static std::sync::RwLock<std::collections::HashMap<String, String>> {
+    static C: std::sync::OnceLock<std::sync::RwLock<std::collections::HashMap<String, String>>> =
+        std::sync::OnceLock::new();
+    C.get_or_init(Default::default)
+}
+
+pub const CUSTOM: &str = "CUSTOM:";
+
+pub fn is_custom(id: &str) -> bool {
+    id.starts_with(CUSTOM)
+}
+
+/// Replaces every custom index (id → formula).
+pub fn set_customs(all: impl IntoIterator<Item = (String, String)>) {
+    if let Ok(mut m) = customs().write() {
+        *m = all.into_iter().collect();
+    }
+}
+
+/// A custom index's formula.
+pub fn custom_formula(id: &str) -> Option<String> {
+    if !is_custom(id) {
+        return None;
+    }
+    customs().read().ok()?.get(id).cloned()
+}
+
 /// A provider for a formula: runs the legs' providers and combines.
 pub struct ExprProvider {
     expr: Expr,
@@ -306,7 +336,11 @@ pub struct ExprProvider {
 
 impl ExprProvider {
     pub fn new(sym: &Symbol, demo: bool) -> Option<ExprProvider> {
-        let (expr, ids) = parse(&sym.id)?;
+        ExprProvider::from_formula(&sym.id, demo)
+    }
+
+    pub fn from_formula(formula: &str, demo: bool) -> Option<ExprProvider> {
+        let (expr, ids) = parse(formula)?;
         let legs = ids
             .iter()
             .map(|id| {
@@ -428,6 +462,8 @@ mod tests {
         assert!(is_expr("AAPL - MSFT"));
         assert!(!is_expr("BRK-B"));
         assert!(!is_expr("NASDAQ:AAPL"));
+        let (_, legs) = parse("0.0000012*NSE:M&M + 3*NSE:BAJAJ-AUTO").unwrap();
+        assert_eq!(legs, ["NSE:M&M", "NSE:BAJAJ-AUTO"]);
         let (e, legs) = parse("(BTCUSDT + ETHUSDT) / 2").unwrap();
         assert_eq!(legs, ["BTCUSDT", "ETHUSDT"]);
         assert_eq!(e.eval(&[10.0, 20.0]), 15.0);

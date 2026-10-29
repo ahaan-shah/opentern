@@ -71,6 +71,7 @@ impl Codex {
     pub fn start(l: &Launch, wake: Arc<dyn Fn() + Send + Sync>) -> std::io::Result<Codex> {
         let mut cmd = Command::new(&l.exe);
         cmd.arg("app-server");
+        super::accounts::apply(&mut cmd, l.agent, &l.account);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -261,7 +262,9 @@ pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<
         let mut list = Vec::new();
         // A new workspace has no scripts folder until something is saved.
         let _ = std::fs::create_dir_all(&cwd);
-        let child = Command::new(&exe)
+        let mut cmd = Command::new(&exe);
+        super::accounts::apply(&mut cmd, super::Agent::Codex, &super::accounts::current(super::Agent::Codex));
+        let child = cmd
             .arg("app-server")
             .current_dir(&cwd)
             .stdin(Stdio::piped())

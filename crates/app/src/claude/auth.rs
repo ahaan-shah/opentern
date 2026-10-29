@@ -22,9 +22,11 @@ pub enum Auth {
 }
 
 /// The CLI with the app's usual launch rules: no console window on Windows,
-/// not nested in a Claude Code that launched the app, dies with the app.
-fn command(exe: &Path) -> Command {
+/// not nested in a Claude Code that launched the app, dies with the app,
+/// runs as the account picked in the panel.
+fn command(agent: Agent, exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
+    super::accounts::apply(&mut cmd, agent, &super::accounts::current(agent));
     for (k, _) in std::env::vars_os() {
         if let Some(k) = k.to_str()
             && (k == "CLAUDECODE" || k.starts_with("CLAUDE_CODE_"))
@@ -55,7 +57,7 @@ fn command(exe: &Path) -> Command {
 /// without the command, or one that hangs, isn't held against the user.
 pub fn check(agent: Agent, exe: &Path, wake: impl Fn() + Send + 'static) -> Receiver<bool> {
     let (tx, rx) = unbounded();
-    let mut cmd = command(exe);
+    let mut cmd = command(agent, exe);
     match agent {
         Agent::Claude => cmd.args(["auth", "status", "--json"]),
         Agent::Codex => cmd.args(["login", "status"]),
@@ -128,7 +130,7 @@ pub struct Login {
 
 impl Login {
     pub fn start(agent: Agent, exe: &Path, wake: impl Fn() + Send + Sync + 'static) -> std::io::Result<Login> {
-        let mut cmd = command(exe);
+        let mut cmd = command(agent, exe);
         match agent {
             Agent::Claude => cmd.args(["auth", "login"]),
             Agent::Codex => cmd.args(["login"]),

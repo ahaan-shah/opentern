@@ -141,7 +141,7 @@ impl App {
     /// Live prices for every symbol in the active list.
     pub(crate) fn subscribe_quotes(&mut self) {
         let mut symbols = self.watchlist();
-        for s in self.paper_symbols() {
+        for s in self.paper_symbols().into_iter().chain(self.indices.symbols()) {
             if !symbols.iter().any(|x| x.id == s.id) {
                 symbols.push(s);
             }

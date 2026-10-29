@@ -13,6 +13,7 @@ pub mod demo;
 pub mod depth;
 pub mod expr;
 pub mod feeds;
+pub mod fundamentals;
 pub mod hub;
 pub mod ibkr;
 pub mod kraken;

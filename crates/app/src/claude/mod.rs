@@ -6,6 +6,7 @@
 //!
 //! Nothing runs until the user sends a message: no process, no network.
 
+pub mod accounts;
 pub mod agent;
 pub mod attach;
 pub mod auth;
@@ -90,6 +91,10 @@ pub struct Chat {
     pub cost: f64,
     /// The latest request's context size, in tokens.
     pub context: u64,
+    /// The account it runs as (`accounts.rs`); chats saved before accounts
+    /// ran as the app's launch account.
+    #[serde(default)]
+    pub account: Option<String>,
     #[serde(skip)]
     pub busy: bool,
     #[serde(skip)]
@@ -113,6 +118,7 @@ impl Chat {
             usage: Usage::default(),
             cost: 0.0,
             context: 0,
+            account: Some(accounts::current(agent)),
             busy: false,
             thinking: false,
         }
@@ -434,6 +440,9 @@ impl App {
         }
         self.claude.loaded = true;
         for a in Agent::ALL {
+            if let Some(d) = self.store.value(&account_key(a)) {
+                accounts::set_current(a, &d);
+            }
             if let Some(m) = config_model(a) {
                 self.claude.configured.insert(a, m);
             }
@@ -683,6 +692,7 @@ impl App {
                 model: (!chat.model.is_empty()).then(|| chat.model.clone()),
                 resume: chat.session.clone(),
                 system: self.claude_system(agent),
+                account: chat.account.clone().unwrap_or_else(|| accounts::launched(agent)),
             };
             let _ = std::fs::create_dir_all(&launch.cwd);
             let ctx = self.egui_ctx.clone();
@@ -1377,6 +1387,7 @@ impl App {
         let mut new = false;
         let mut list = false;
         let mut switch = None;
+        let mut account = None;
         ui.horizontal(|ui| {
             ui.set_height(32.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1442,6 +1453,24 @@ impl App {
                                     ui.close();
                                 }
                             }
+                            // Accounts, when there's more than one folder.
+                            let list = accounts::list(agent);
+                            if list.len() > 1 {
+                                ui.separator();
+                                let now = accounts::current(agent);
+                                for acc in list {
+                                    let tip = accounts::folder(agent, &acc.dir)
+                                        .map(|f| f.to_string_lossy().to_string())
+                                        .unwrap_or_default();
+                                    if w::option(ui, acc.dir == now, format!("{}  {}", ph::USER_CIRCLE, acc.label))
+                                        .on_hover_text(tip)
+                                        .clicked()
+                                    {
+                                        account = Some(acc.dir);
+                                        ui.close();
+                                    }
+                                }
+                            }
                         });
                     // The chat's title, after the agent.
                     if let Some(title) = &title {
@@ -1483,6 +1512,9 @@ impl App {
             && a != agent
         {
             self.claude_switch(a, None, now);
+        }
+        if let Some(dir) = account {
+            self.claude_set_account(agent, &dir);
         }
         // A hairline under the header.
         ui.add_space(6.0);
@@ -1528,6 +1560,44 @@ impl App {
             self.claude.renaming = None;
         } else {
             self.claude.renaming = Some((id, text));
+        }
+    }
+
+    /// Runs `agent` as another account from now on: its sign-in, model and
+    /// usage are the new account's, and the open chat (if it has started)
+    /// gives way to a new one. Older chats keep their own account.
+    pub(crate) fn claude_set_account(&mut self, agent: Agent, dir: &str) {
+        if accounts::current(agent) == dir {
+            return;
+        }
+        accounts::set_current(agent, dir);
+        let _ = self.store.set_value(&account_key(agent), dir);
+        let c = &mut self.claude;
+        c.auth.remove(&agent);
+        c.defaults.remove(&agent);
+        match config_model(agent) {
+            Some(m) => c.configured.insert(agent, m),
+            None => c.configured.remove(&agent),
+        };
+        match agent {
+            Agent::Claude => c.limits.clear(),
+            Agent::Codex => {
+                c.codex_limits.clear();
+                c.codex_models.clear();
+                c.models_asked = false;
+            }
+        }
+        if self
+            .claude
+            .chat()
+            .is_some_and(|ch| ch.agent == agent && ch.account.as_deref() != Some(dir) && !ch.items.is_empty())
+        {
+            self.new_chat();
+        } else if let Some(id) = self.claude.active
+            && let Some(ch) = self.claude.chat_mut(id)
+            && ch.items.is_empty()
+        {
+            ch.account = Some(dir.to_string());
         }
     }
 
@@ -1928,8 +1998,15 @@ impl App {
 
     // -------------------------------------------------------- composer
 
+    /// The composer's height: as tall as it was last frame (wrapped lines
+    /// count, which a line count of the text misses), else an estimate.
     fn claude_composer_height(&self, width: f32) -> f32 {
-        let lines = self.claude.input.lines().count().clamp(2, 8) as f32;
+        if let Some(r) = self.claude.composer
+            && (r.width() - width).abs() < 1.0
+        {
+            return r.height();
+        }
+        let lines = (self.claude.input.lines().count() as f32).clamp(2.0, MAX_LINES);
         let n = self.claude.attached.len();
         let per_row = ((width - 20.0) / 176.0).floor().max(1.0) as usize;
         let chips = if n == 0 {
@@ -1938,7 +2015,7 @@ impl App {
             n.div_ceil(per_row) as f32 * 34.0 + 2.0
         };
         let note = if self.claude.attach_note.is_some() { 20.0 } else { 0.0 };
-        lines * 18.5 + 64.0 + chips + note
+        lines * LINE_H + 64.0 + chips + note
     }
 
     /// Adds files to the next message (each once).
@@ -2113,16 +2190,24 @@ impl App {
                 let cursor = &mut ui.visuals_mut().text_cursor.stroke;
                 cursor.color = crate::motion::with_alpha(t.text, 0.45);
                 cursor.width = cursor.width.min(1.5);
-                ui.add(
-                    egui::TextEdit::multiline(&mut self.claude.input)
-                        .id(input_id)
-                        // A little air between the cursor and the hint.
-                        .hint_text(RichText::new(" What can I help you with?").color(t.text3))
-                        .font(theme::regular(13.5))
-                        .desired_rows(2)
-                        .frame(egui::Frame::NONE)
-                        .desired_width(ui.available_width()),
-                );
+                // Long prompts scroll inside the box (at most `MAX_LINES`
+                // tall) instead of growing it out of the pane.
+                egui::ScrollArea::vertical()
+                    .id_salt("claude-input-scroll")
+                    .max_height(MAX_LINES * LINE_H)
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        ui.add(
+                            egui::TextEdit::multiline(&mut self.claude.input)
+                                .id(input_id)
+                                // A little air between the cursor and the hint.
+                                .hint_text(RichText::new(" What can I help you with?").color(t.text3))
+                                .font(theme::regular(13.5))
+                                .desired_rows(2)
+                                .frame(egui::Frame::NONE)
+                                .desired_width(ui.available_width()),
+                        );
+                    });
                 if enter && !busy {
                     send = true;
                 }
@@ -2337,6 +2422,14 @@ impl App {
                     None => {}
                 }
             });
+        // Grown or shrunk: lay out again so the messages make room.
+        if self
+            .claude
+            .composer
+            .is_some_and(|r| (r.height() - frame.response.rect.height()).abs() > 0.5)
+        {
+            ui.ctx().request_repaint();
+        }
         self.claude.composer = Some(frame.response.rect);
         if let Some(m) = set_mode {
             self.claude_set_mode(m);
@@ -2523,27 +2616,29 @@ fn title_of(text: &str) -> String {
     if s.is_empty() { "New chat".into() } else { s }
 }
 
+/// The composer's text: line height, and the most lines it grows to.
+const LINE_H: f32 = 18.5;
+const MAX_LINES: f32 = 8.0;
+
+/// The settings key holding an agent's account.
+fn account_key(a: Agent) -> String {
+    format!("agent_account:{}", a.name().to_lowercase())
+}
+
 /// The model the agent's own config names, used when no `--model` is
 /// passed: Claude Code's `ANTHROPIC_MODEL` or `settings.json` `model`
 /// (aliases like "opus" mapped to their exact id), Codex's `config.toml`
 /// top-level `model`.
 fn config_model(a: Agent) -> Option<String> {
-    let home = std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from);
     let m = match a {
         Agent::Claude => std::env::var("ANTHROPIC_MODEL").ok().or_else(|| {
-            let dir = std::env::var_os("CLAUDE_CONFIG_DIR")
-                .map(PathBuf::from)
-                .or_else(|| home.map(|h| h.join(".claude")))?;
+            let dir = accounts::folder(a, &accounts::current(a))?;
             let text = std::fs::read_to_string(dir.join("settings.json")).ok()?;
             let v: Value = serde_json::from_str(&text).ok()?;
             v["model"].as_str().map(str::to_string)
         }),
         Agent::Codex => {
-            let dir = std::env::var_os("CODEX_HOME")
-                .map(PathBuf::from)
-                .or_else(|| home.map(|h| h.join(".codex")))?;
+            let dir = accounts::folder(a, &accounts::current(a))?;
             let text = std::fs::read_to_string(dir.join("config.toml")).ok()?;
             toml_model(&text)
         }

@@ -305,7 +305,7 @@ fn last_of(
         .unwrap_or(f64::NAN)
 }
 
-fn builtin_last(id: &str, len: Option<i64>, bars: &[Bar], sess: &[bool], tf: Timeframe) -> f64 {
+pub(crate) fn builtin_last(id: &str, len: Option<i64>, bars: &[Bar], sess: &[bool], tf: Timeframe) -> f64 {
     let Some(m) = opentern_series::builtins::by_id(id) else {
         return f64::NAN;
     };
@@ -317,7 +317,7 @@ fn builtin_last(id: &str, len: Option<i64>, bars: &[Bar], sess: &[bool], tf: Tim
 }
 
 /// The close at or before `t`.
-fn close_at(bars: &[Bar], t: i64) -> Option<f64> {
+pub(crate) fn close_at(bars: &[Bar], t: i64) -> Option<f64> {
     let i = bars.partition_point(|b| b.time <= t);
     (i > 0).then(|| bars[i - 1].close)
 }
