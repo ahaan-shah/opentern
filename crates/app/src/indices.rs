@@ -1,14 +1,25 @@
-//! Custom indices: a named basket of symbols ("Nifty Auto"), weighted by
-//! market cap (or equally), charted like any symbol and measured on one
-//! board: the index's own numbers on top, then every member's, as a heat
-//! table or a treemap.
+//! Custom indices: a named basket of symbols ("Nifty Auto"), weighted the
+//! way NSE weights its indices, charted like any symbol and measured on one
+//! board: the index's own numbers on top, then every member's, as a table
+//! or a treemap; and every index side by side (Compare).
 //!
-//! An index is a formula (`w1*NSE:MARUTI + w2*NSE:M&M + …`) registered with
-//! the hub under `CUSTOM:<TICKER>` (`opentern_data::expr::set_customs`), so
-//! the chart, quotes, indicators and alerts all work on it unchanged. The
-//! weights are the members' share counts (or 1 ÷ price for equal weight),
-//! scaled so the index is `base` (1000) on the first day every member has
-//! a price. They're fixed when the members are, like a fixed-share index.
+//! The method follows NSE's, except caps:
+//! - **Free-float market cap.** Each member counts its public float
+//!   (Yahoo's `floatShares`, promoters' and locked-in holdings left out),
+//!   or all its shares, or equally; picked per index.
+//! - **Base 1000** on the first day every member has a price.
+//! - **A divisor that keeps the level continuous.** Weights hold for a
+//!   segment of time; a rebalance (1 April and 1 October, NSE's schedule,
+//!   when the app sees the date pass; or any edit to the members, or
+//!   "Rebalance now") starts a new segment whose weights are scaled so the
+//!   index stands exactly where the old weights left it.
+//! - **Corporate actions.** Prices are split-adjusted after the fact; each
+//!   segment keeps the prices it was set at and rescales its units when a
+//!   split shows up as a changed past price.
+//!
+//! The segments are formulas (`u1*NSE:MARUTI + u2*NSE:M&M …`) registered
+//! with the hub under `CUSTOM:<TICKER>` (`opentern_data::expr::set_customs`),
+//! so the chart, quotes, indicators and alerts work on it unchanged.
 //!
 //! Members' daily bars come by `Request::Fetch` (seqs from `SEQ_BASE`), their
 //! fundamentals by `Request::Fundamentals` (Yahoo, `opentern_data::fundamentals`).
@@ -19,27 +30,73 @@ use crate::icons::ph;
 use crate::motion::lerp_color;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
-use egui::{Align2, Color32, CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align2, Color32, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
 use opentern_data::Request;
 use opentern_data::fundamentals::Fundamentals;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
 
 /// Fetch seqs for members' bars: `SEQ_BASE + n`.
 pub const SEQ_BASE: u64 = 1 << 46;
-/// Daily bars per member: a 200-day average with room to warm up.
-const BARS: usize = 400;
+/// Daily bars per member: enough to warm up a 200-day average and to see
+/// the prices each recent segment was set at.
+const BARS: usize = 1500;
 /// Members' data is fetched again when it's older than this.
 const STALE: Duration = Duration::from_secs(15 * 60);
 const SETTINGS_KEY: &str = "custom_indices";
+/// A past price that moved more than this since a segment was set means
+/// a split (or similar) was adjusted in.
+const SPLIT_TOLERANCE: f64 = 0.02;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Weighting {
+    /// Public float only, as NSE.
     #[default]
+    FreeFloat,
+    /// All shares outstanding.
     MarketCap,
     Equal,
+}
+
+impl Weighting {
+    fn name(self) -> &'static str {
+        match self {
+            Weighting::FreeFloat => "Free-float market cap",
+            Weighting::MarketCap => "Full market cap",
+            Weighting::Equal => "Equal weight",
+        }
+    }
+}
+
+/// Weights in force from a time on.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Segment {
+    /// First bar time it applies to (`i64::MIN` for the first segment,
+    /// which also covers history before the index was made).
+    pub from: i64,
+    /// Member ids, parallel to `units`.
+    pub members: Vec<String>,
+    pub units: Vec<f64>,
+    /// The bar whose closes set the units, and those closes (the split
+    /// check compares against them).
+    pub anchor_time: i64,
+    pub anchors: Vec<f64>,
+    /// When it was worked out (ms): rebalance dates after this are due.
+    pub made: i64,
+}
+
+impl Segment {
+    fn formula(&self) -> String {
+        self.members
+            .iter()
+            .zip(&self.units)
+            .map(|(m, u)| format!("{u}*{m}"))
+            .collect::<Vec<_>>()
+            .join(" + ")
+    }
 }
 
 /// One index, as saved (settings key `custom_indices`).
@@ -52,13 +109,17 @@ pub struct IndexDef {
     pub members: Vec<Symbol>,
     pub weighting: Weighting,
     pub base: f64,
-    /// Units of each member (parallel to `members`); empty until worked
-    /// out from the members' prices and share counts.
-    pub units: Vec<f64>,
-    /// When the index stood at `base`.
-    pub base_time: i64,
-    /// Market cap was asked for but some member had no share count.
+    pub segments: Vec<Segment>,
+    /// Members or weighting changed (or "Rebalance now"): a new segment is
+    /// due as soon as the data is in.
+    pub pending: bool,
+    /// Cap weighting was asked for but some member had no share count.
     pub equal_fallback: bool,
+    /// Before segments (0.2.2's test builds): one set of units.
+    #[serde(skip_serializing)]
+    units: Vec<f64>,
+    #[serde(skip_serializing)]
+    base_time: i64,
 }
 
 impl Default for IndexDef {
@@ -67,11 +128,13 @@ impl Default for IndexDef {
             ticker: String::new(),
             name: String::new(),
             members: Vec::new(),
-            weighting: Weighting::MarketCap,
+            weighting: Weighting::FreeFloat,
             base: 1000.0,
+            segments: Vec::new(),
+            pending: false,
+            equal_fallback: false,
             units: Vec::new(),
             base_time: 0,
-            equal_fallback: false,
         }
     }
 }
@@ -81,20 +144,32 @@ impl IndexDef {
         format!("{}{}", opentern_data::expr::CUSTOM, self.ticker)
     }
 
+    /// It can be charted (it has weights, maybe not yet for new members).
     pub fn ready(&self) -> bool {
-        !self.units.is_empty() && self.units.len() == self.members.len()
+        !self.segments.is_empty()
     }
 
-    /// The formula the hub charts.
-    pub fn formula(&self) -> Option<String> {
-        self.ready().then(|| {
-            self.members
-                .iter()
-                .zip(&self.units)
-                .map(|(m, u)| format!("{u}*{}", m.id))
-                .collect::<Vec<_>>()
-                .join(" + ")
-        })
+    /// The hub's segments.
+    fn hub_segments(&self) -> Vec<(i64, String)> {
+        self.segments.iter().map(|s| (s.from, s.formula())).collect()
+    }
+
+    /// Every symbol whose prices the index needs: today's members and the
+    /// current segment's (a removed member still sets the level until the
+    /// next segment starts).
+    fn needs(&self) -> Vec<Symbol> {
+        let mut out = self.members.clone();
+        if let Some(last) = self.segments.last() {
+            for id in &last.members {
+                if !out.iter().any(|m| m.id == *id) {
+                    out.push(Symbol {
+                        timezone: opentern_data::expr::guess_tz(id),
+                        ..Symbol::bare(id)
+                    });
+                }
+            }
+        }
+        out
     }
 
     /// The index as a chart symbol (hours and currency of its first member).
@@ -110,32 +185,20 @@ impl IndexDef {
             timezone: first.map(|s| s.timezone.clone()).unwrap_or_else(|| "UTC".into()),
         }
     }
-}
 
-/// A ticker from a name: "Nifty Auto" → "NIFTYAUTO".
-fn ticker_for(name: &str, taken: &[String]) -> String {
-    let base: String = name
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .map(|c| c.to_ascii_uppercase())
-        .take(20)
-        .collect();
-    let base = if base.is_empty() { "INDEX".to_string() } else { base };
-    let mut t = base.clone();
-    let mut n = 2;
-    while taken.contains(&t) {
-        t = format!("{base}{n}");
-        n += 1;
+    /// Older saves had one set of units: that's the first segment.
+    fn migrate(&mut self) {
+        if self.segments.is_empty() && self.units.len() == self.members.len() && !self.units.is_empty() {
+            self.segments.push(Segment {
+                from: i64::MIN,
+                members: self.members.iter().map(|m| m.id.clone()).collect(),
+                units: std::mem::take(&mut self.units),
+                anchor_time: self.base_time,
+                anchors: Vec::new(),
+                made: 0,
+            });
+        }
     }
-    t
-}
-
-/// What's been fetched for one member.
-#[derive(Default)]
-struct MemberData {
-    bars: Option<Result<Vec<Bar>, String>>,
-    fund: Option<Result<Fundamentals, String>>,
-    asked: Option<Instant>,
 }
 
 /// The measures on the board, in the order shown: how it's moved, what
@@ -286,15 +349,364 @@ impl Metric {
     }
 }
 
-/// A score's cell colour: soft green for good, soft red for bad.
-fn heat(t: &Theme, s: Option<f32>) -> Color32 {
-    match s {
-        None => Color32::TRANSPARENT,
-        Some(s) => {
-            let c = if s >= 0.0 { t.pos } else { t.neg };
-            lerp_color(t.bg, c, 0.08 + 0.42 * s.abs())
+/// A ticker from a name: "Nifty Auto" → "NIFTYAUTO".
+fn ticker_for(name: &str, taken: &[String]) -> String {
+    let base: String = name
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .take(20)
+        .collect();
+    let base = if base.is_empty() { "INDEX".to_string() } else { base };
+    let mut t = base.clone();
+    let mut n = 2;
+    while taken.contains(&t) {
+        t = format!("{base}{n}");
+        n += 1;
+    }
+    t
+}
+
+/// What's been fetched for one member.
+#[derive(Default)]
+struct MemberData {
+    bars: Option<Result<Vec<Bar>, String>>,
+    fund: Option<Result<Fundamentals, String>>,
+    asked: Option<Instant>,
+}
+
+/// The close at or before `t`.
+fn close_at(bars: &[Bar], t: i64) -> f64 {
+    crate::screener::close_at(bars, t).unwrap_or(f64::NAN)
+}
+
+/// The bar at exactly `t`.
+fn bar_at(bars: &[Bar], t: i64) -> Option<&Bar> {
+    bars.binary_search_by_key(&t, |b| b.time).ok().map(|i| &bars[i])
+}
+
+/// The segment in force at `t`.
+fn seg_at(segs: &[Segment], t: i64) -> Option<&Segment> {
+    let k = segs.partition_point(|s| s.from <= t);
+    segs.get(k.saturating_sub(1))
+}
+
+/// Times every one of `ids` has a bar.
+fn common_times(ids: &[String], bars: &HashMap<String, &[Bar]>) -> Vec<i64> {
+    let mut sets = ids
+        .iter()
+        .map(|id| bars.get(id).map(|b| b.iter().map(|x| x.time).collect::<BTreeSet<_>>()));
+    let Some(Some(mut all)) = sets.next() else {
+        return Vec::new();
+    };
+    for s in sets {
+        let Some(s) = s else { return Vec::new() };
+        all.retain(|t| s.contains(t));
+    }
+    all.into_iter().collect()
+}
+
+/// Units so `Σ units × price` is `level` at `prices`: share counts for cap
+/// weights, else 1 ÷ price (equal). Also says whether cap weights had to
+/// fall back to equal (a member with no share count).
+fn units_for(prices: &[f64], shares: &[f64], weighting: Weighting, level: f64) -> Option<(Vec<f64>, bool)> {
+    if prices.iter().any(|p| !p.is_finite() || *p <= 0.0) {
+        return None;
+    }
+    let caps = weighting != Weighting::Equal;
+    let have = shares.iter().all(|s| s.is_finite() && *s > 0.0);
+    let raw: Vec<f64> = if caps && have {
+        shares.to_vec()
+    } else {
+        prices.iter().map(|p| 1.0 / p).collect()
+    };
+    let total: f64 = raw.iter().zip(prices).map(|(u, p)| u * p).sum();
+    (total > 0.0).then(|| (raw.iter().map(|u| u * level / total).collect(), caps && !have))
+}
+
+/// The share count a weighting uses.
+fn shares_for(w: Weighting, f: Option<&Fundamentals>) -> f64 {
+    match (w, f) {
+        (Weighting::Equal, _) | (_, None) => f64::NAN,
+        (Weighting::MarketCap, Some(f)) => f.shares,
+        // No float figure: all shares, rather than dropping to equal.
+        (Weighting::FreeFloat, Some(f)) => {
+            if f.float_shares.is_finite() {
+                f.float_shares
+            } else {
+                f.shares
+            }
         }
     }
+}
+
+/// The most recent NSE rebalance date (1 April, 1 October, UTC midnight)
+/// after `after` and at or before `now`.
+fn rebalance_due(after: i64, now: i64) -> Option<i64> {
+    let year = |ms: i64| {
+        jiff::Timestamp::from_millisecond(ms)
+            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).year())
+            .unwrap_or(1970)
+    };
+    let mut best = None;
+    for y in year(after.max(0))..=year(now) {
+        for m in [4, 10] {
+            let Ok(z) = jiff::civil::date(y, m, 1).to_zoned(jiff::tz::TimeZone::UTC) else {
+                continue;
+            };
+            let d = z.timestamp().as_millisecond();
+            if d > after && d <= now {
+                best = Some(d);
+            }
+        }
+    }
+    best
+}
+
+/// Rescales a segment's units where a past price changed under it (a
+/// split adjusted in after the fact). True if anything changed.
+fn adjust_for_splits(seg: &mut Segment, bars: &HashMap<String, &[Bar]>) -> bool {
+    let mut changed = false;
+    if seg.anchors.len() != seg.members.len() {
+        // Older saves: take today's view of the anchor prices.
+        let now: Vec<f64> = seg
+            .members
+            .iter()
+            .map(|id| bars.get(id).map_or(f64::NAN, |b| close_at(b, seg.anchor_time)))
+            .collect();
+        if now.iter().all(|p| p.is_finite()) {
+            seg.anchors = now;
+            changed = true;
+        }
+        return changed;
+    }
+    for (k, id) in seg.members.iter().enumerate() {
+        let Some(b) = bars.get(id) else { continue };
+        // Only when the bars reach back to the anchor.
+        if b.first().is_none_or(|x| x.time > seg.anchor_time) {
+            continue;
+        }
+        let now = close_at(b, seg.anchor_time);
+        let then = seg.anchors[k];
+        if now.is_finite() && now > 0.0 && then.is_finite() && (then / now - 1.0).abs() > SPLIT_TOLERANCE {
+            seg.units[k] *= then / now;
+            seg.anchors[k] = now;
+            changed = true;
+        }
+    }
+    changed
+}
+
+/// The index's daily bars from its members' bars, each day on the segment
+/// in force (days some member of that segment didn't trade are skipped).
+fn index_series(segs: &[Segment], bars: &HashMap<String, &[Bar]>) -> Vec<Bar> {
+    let mut times = BTreeSet::new();
+    for s in segs {
+        for id in &s.members {
+            if let Some(b) = bars.get(id) {
+                times.extend(b.iter().map(|x| x.time));
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for t in times {
+        let Some(s) = seg_at(segs, t) else { continue };
+        let (mut o, mut h, mut l, mut c) = (0.0, 0.0, 0.0, 0.0);
+        let mut all = true;
+        for (id, u) in s.members.iter().zip(&s.units) {
+            match bars.get(id).and_then(|b| bar_at(b, t)) {
+                Some(b) => {
+                    o += u * b.open;
+                    h += u * b.high;
+                    l += u * b.low;
+                    c += u * b.close;
+                }
+                None => {
+                    all = false;
+                    break;
+                }
+            }
+        }
+        if all {
+            out.push(Bar {
+                time: t,
+                open: o,
+                high: h.max(o).max(c),
+                low: l.min(o).min(c),
+                close: c,
+                volume: 0.0,
+            });
+        }
+    }
+    out
+}
+
+/// The index's level at the close of `t` on its segments.
+fn level_at(segs: &[Segment], bars: &HashMap<String, &[Bar]>, t: i64) -> f64 {
+    let Some(s) = seg_at(segs, t) else { return f64::NAN };
+    s.members
+        .iter()
+        .zip(&s.units)
+        .map(|(id, u)| u * bars.get(id).map_or(f64::NAN, |b| close_at(b, t)))
+        .sum()
+}
+
+/// Works out an index's weights as far as its data allows: the first
+/// segment (base 1000), a due rebalance or pending edit (a new segment,
+/// level kept), and split rescaling. True if `def` changed.
+/// `funds` holds every member whose fundamentals answered (`None`: an error).
+fn settle(
+    def: &mut IndexDef,
+    bars: &HashMap<String, &[Bar]>,
+    funds: &HashMap<String, Option<&Fundamentals>>,
+    now: i64,
+) -> bool {
+    let mut changed = false;
+    for s in &mut def.segments {
+        changed |= adjust_for_splits(s, bars);
+    }
+    let ids: Vec<String> = def.members.iter().map(|m| m.id.clone()).collect();
+    if ids.is_empty() || ids.iter().any(|id| !bars.contains_key(id)) {
+        return changed;
+    }
+    // Shares, once every member's fundamentals have answered (cap weights).
+    if def.weighting != Weighting::Equal && ids.iter().any(|id| !funds.contains_key(id)) {
+        return changed;
+    }
+    let shares: Vec<f64> = ids
+        .iter()
+        .map(|id| shares_for(def.weighting, funds.get(id).copied().flatten()))
+        .collect();
+    let times = common_times(&ids, bars);
+    let Some(&first) = times.first() else { return changed };
+    let due = def.segments.last().and_then(|s| rebalance_due(s.made, now));
+    if def.segments.is_empty() {
+        let p0: Vec<f64> = ids.iter().map(|id| close_at(bars[id], first)).collect();
+        if let Some((units, fb)) = units_for(&p0, &shares, def.weighting, def.base) {
+            def.segments.push(Segment {
+                from: i64::MIN,
+                members: ids,
+                units,
+                anchor_time: first,
+                anchors: p0,
+                made: now,
+            });
+            def.equal_fallback = fb;
+            def.pending = false;
+            changed = true;
+        }
+        return changed;
+    }
+    if !(def.pending || due.is_some()) {
+        return changed;
+    }
+    // The new weights start on `start`; they're set at the close before it,
+    // where the old weights' level is kept.
+    let start = match due {
+        Some(d) if !def.pending => times.iter().copied().find(|t| *t >= d),
+        _ => times.last().copied(),
+    };
+    let Some(start) = start else { return changed };
+    // Re-editing on the day a segment started replaces that segment.
+    while def.segments.len() > 1 && def.segments.last().is_some_and(|s| s.from >= start) {
+        def.segments.pop();
+    }
+    let old: Vec<String> = def.segments.last().map(|s| s.members.clone()).unwrap_or_default();
+    let both: Vec<String> = ids.iter().chain(&old).cloned().collect();
+    let Some(&prev) = common_times(&both, bars).iter().rev().find(|t| **t < start) else {
+        return changed;
+    };
+    let level = level_at(&def.segments, bars, prev);
+    let prices: Vec<f64> = ids.iter().map(|id| close_at(bars[id], prev)).collect();
+    if !level.is_finite() || level <= 0.0 {
+        return changed;
+    }
+    let Some((units, fb)) = units_for(&prices, &shares, def.weighting, level) else {
+        return changed;
+    };
+    def.segments.push(Segment {
+        from: start,
+        members: ids,
+        units,
+        anchor_time: prev,
+        anchors: prices,
+        made: now,
+    });
+    def.equal_fallback = fb;
+    def.pending = false;
+    true
+}
+
+/// Yahoo's gaps cleaned up: it reports 0 for margins it doesn't have
+/// (banks have no gross or EBITDA margin), and ratios on near-zero
+/// earnings run to nonsense. Those become "no value".
+fn clean(f: &Fundamentals) -> Fundamentals {
+    let mut g = f.clone();
+    let nan = f64::NAN;
+    if g.gross_margin == 0.0 {
+        g.gross_margin = nan;
+    }
+    if g.ebitda_margin == 0.0 {
+        g.ebitda_margin = nan;
+    }
+    if g.ebit_margin == 0.0 && g.pat_margin == 0.0 {
+        g.ebit_margin = nan;
+    }
+    if g.ebitda == 0.0 || g.ebitda_margin.is_nan() {
+        g.ebitda = nan;
+    }
+    if g.revenue <= 0.0 {
+        g.revenue = nan;
+    }
+    if !(g.ev_ebitda > 0.0 && g.ev_ebitda <= 200.0) {
+        g.ev_ebitda = nan;
+    }
+    if g.pe.abs() > 1000.0 {
+        g.pe = nan;
+    }
+    g
+}
+
+/// The index's fundamentals from its members': totals over totals, and
+/// margins weighted by revenue.
+fn index_fundamentals(funds: &[Fundamentals], out: &mut HashMap<Metric, f64>) {
+    let sum = |f: &dyn Fn(&Fundamentals) -> (f64, f64)| {
+        let (mut a, mut b, mut n) = (0.0, 0.0, 0);
+        for x in funds {
+            let (p, q) = f(x);
+            if p.is_finite() && q.is_finite() {
+                a += p;
+                b += q;
+                n += 1;
+            }
+        }
+        if n > 0 && b != 0.0 { a / b } else { f64::NAN }
+    };
+    out.insert(Metric::Pe, sum(&|f| (f.market_cap, f.net_income)));
+    out.insert(Metric::EvEbitda, sum(&|f| (f.enterprise_value, f.ebitda)));
+    let g = sum(&|f| (f.revenue, f.revenue / (1.0 + f.revenue_growth)));
+    out.insert(Metric::RevGrowth, (g - 1.0) * 100.0);
+    for (m, get) in [
+        (
+            Metric::GrossMargin,
+            (|f: &Fundamentals| f.gross_margin) as fn(&Fundamentals) -> f64,
+        ),
+        (Metric::EbitdaMargin, |f| f.ebitda_margin),
+        (Metric::EbitMargin, |f| f.ebit_margin),
+        (Metric::PatMargin, |f| f.pat_margin),
+    ] {
+        out.insert(m, sum(&|f| (get(f) * f.revenue, f.revenue)) * 100.0);
+    }
+}
+
+fn member_fundamentals(f: &Fundamentals, out: &mut HashMap<Metric, f64>) {
+    out.insert(Metric::Pe, f.pe);
+    out.insert(Metric::EvEbitda, f.ev_ebitda);
+    out.insert(Metric::RevGrowth, f.revenue_growth * 100.0);
+    out.insert(Metric::GrossMargin, f.gross_margin * 100.0);
+    out.insert(Metric::EbitdaMargin, f.ebitda_margin * 100.0);
+    out.insert(Metric::EbitMargin, f.ebit_margin * 100.0);
+    out.insert(Metric::PatMargin, f.pat_margin * 100.0);
 }
 
 /// One row of the board.
@@ -309,12 +721,6 @@ pub struct BoardRow {
     pub error: Option<String>,
 }
 
-impl BoardRow {
-    fn get(&self, m: Metric) -> f64 {
-        self.values.get(&m).copied().unwrap_or(f64::NAN)
-    }
-}
-
 /// Everything the board shows for one index, worked out when data changes.
 #[derive(Clone, Debug, Default)]
 pub struct Board {
@@ -322,128 +728,90 @@ pub struct Board {
     pub index: HashMap<Metric, f64>,
     pub value: f64,
     pub change: f64,
-    pub series: Vec<f64>,
+    /// The members' market caps together (sizes indices in Compare's map).
+    pub total_cap: f64,
     /// Members still loading.
     pub waiting: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum View {
-    #[default]
-    Table,
-    Map,
-}
-
-pub struct Indices {
-    pub defs: Vec<IndexDef>,
-    /// The index on the board.
-    pub open: Option<String>,
-    data: HashMap<String, MemberData>,
-    seq: u64,
-    pub view: View,
-    /// What colours the treemap.
-    pub metric: Metric,
-    /// The table's order: a metric (or `None` = weight), descending?
-    sort: (Option<Metric>, bool),
-    version: u64,
-    board: Option<(u64, String, Board)>,
-    /// Put this index on the chart once its weights are worked out.
-    pub(crate) chart_when_ready: Option<String>,
-}
-
-impl Indices {
-    pub fn load(store: &opentern_core::Store) -> Indices {
-        let defs: Vec<IndexDef> = store
-            .value(SETTINGS_KEY)
-            .and_then(|j| serde_json::from_str(&j).ok())
-            .unwrap_or_default();
-        let ix = Indices {
-            open: defs.first().map(|d| d.ticker.clone()),
-            defs,
-            data: HashMap::new(),
-            seq: 0,
-            view: View::Table,
-            metric: Metric::Ret1M,
-            sort: (None, true),
-            version: 0,
-            board: None,
-            chart_when_ready: None,
+fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
+    let tz = jiff::tz::TimeZone::get(&def.symbol().timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+    let mut board = Board::default();
+    let mut funds: Vec<Fundamentals> = Vec::new();
+    let bars = bars_of(data);
+    let current = def.segments.last();
+    let mut caps = Vec::new();
+    for m in &def.members {
+        let d = data.get(&m.id);
+        let mut row = BoardRow {
+            symbol: m.clone(),
+            weight: f64::NAN,
+            price: f64::NAN,
+            change: f64::NAN,
+            market_cap: f64::NAN,
+            values: HashMap::new(),
+            error: None,
         };
-        ix.register();
-        ix
+        match d.and_then(|d| d.bars.as_ref()) {
+            Some(Ok(b)) if !b.is_empty() => {
+                let n = b.len();
+                row.price = b[n - 1].close;
+                if n >= 2 && b[n - 2].close != 0.0 {
+                    row.change = (b[n - 1].close / b[n - 2].close - 1.0) * 100.0;
+                }
+                price_measures(b, &tz, &mut row.values);
+                if let Some(s) = current
+                    && let Some(k) = s.members.iter().position(|x| *x == m.id)
+                {
+                    caps.push((board.rows.len(), s.units[k] * row.price));
+                }
+            }
+            Some(Ok(_)) => row.error = Some("No prices came back.".into()),
+            Some(Err(e)) => row.error = Some(e.clone()),
+            None => board.waiting += 1,
+        }
+        match d.and_then(|d| d.fund.as_ref()) {
+            Some(Ok(f)) => {
+                let f = clean(f);
+                member_fundamentals(&f, &mut row.values);
+                row.market_cap = f.market_cap;
+                funds.push(f);
+            }
+            Some(Err(e)) if row.error.is_none() => row.error = Some(format!("Fundamentals: {e}")),
+            None if d.and_then(|d| d.bars.as_ref()).is_some() => board.waiting += 1,
+            _ => {}
+        }
+        board.rows.push(row);
     }
-
-    /// Tells the hub every index's formula.
-    fn register(&self) {
-        opentern_data::expr::set_customs(self.defs.iter().filter_map(|d| d.formula().map(|f| (d.id(), f))));
-    }
-
-    pub fn by_ticker(&self, t: &str) -> Option<&IndexDef> {
-        self.defs.iter().find(|d| d.ticker == t)
-    }
-
-    /// The indices ready to chart (for live quotes).
-    pub fn symbols(&self) -> Vec<Symbol> {
-        self.defs.iter().filter(|d| d.ready()).map(|d| d.symbol()).collect()
-    }
-}
-
-/// The close at or before `t`.
-fn close_at(bars: &[Bar], t: i64) -> f64 {
-    crate::screener::close_at(bars, t).unwrap_or(f64::NAN)
-}
-
-/// Units per member so the index is `base` on the first day all have a
-/// price: share counts (market cap) or 1 ÷ price (equal). Returns
-/// (units, base time, fell back to equal).
-pub fn work_out_units(members: &[(&[Bar], f64)], weighting: Weighting, base: f64) -> Option<(Vec<f64>, i64, bool)> {
-    let t0 = members
-        .iter()
-        .map(|(b, _)| b.first().map(|x| x.time))
-        .collect::<Option<Vec<_>>>()?;
-    let t0 = *t0.iter().max()?;
-    let p0: Vec<f64> = members.iter().map(|(b, _)| close_at(b, t0)).collect();
-    if p0.iter().any(|p| !p.is_finite() || *p <= 0.0) {
-        return None;
-    }
-    let caps = weighting == Weighting::MarketCap;
-    let have_shares = members.iter().all(|(_, s)| s.is_finite() && *s > 0.0);
-    let raw: Vec<f64> = if caps && have_shares {
-        members.iter().map(|(_, s)| *s).collect()
-    } else {
-        p0.iter().map(|p| 1.0 / p).collect()
-    };
-    let total: f64 = raw.iter().zip(&p0).map(|(u, p)| u * p).sum();
-    if total <= 0.0 {
-        return None;
-    }
-    let units = raw.iter().map(|u| u * base / total).collect();
-    Some((units, t0, caps && !have_shares))
-}
-
-/// The index's daily closes from its members' bars (on days all trade).
-fn index_series(members: &[&[Bar]], units: &[f64]) -> Vec<Bar> {
-    let mut by_time: BTreeMap<i64, (usize, f64, f64, f64, f64)> = BTreeMap::new();
-    for (bars, u) in members.iter().zip(units) {
-        for b in bars.iter() {
-            let e = by_time.entry(b.time).or_insert((0, 0.0, 0.0, 0.0, 0.0));
-            e.0 += 1;
-            e.1 += u * b.open;
-            e.2 += u * b.high;
-            e.3 += u * b.low;
-            e.4 += u * b.close;
+    // Today's weights: each member's units at today's price.
+    let total: f64 = caps.iter().map(|(_, c)| c).sum();
+    if total > 0.0 {
+        for (k, c) in caps {
+            board.rows[k].weight = c / total * 100.0;
         }
     }
-    by_time
-        .into_iter()
-        .filter(|(_, e)| e.0 == members.len())
-        .map(|(time, (_, o, h, l, c))| Bar {
-            time,
-            open: o,
-            high: h.max(o).max(c),
-            low: l.min(o).min(c),
-            close: c,
-            volume: 0.0,
+    board.total_cap = funds.iter().map(|f| f.market_cap).filter(|c| c.is_finite()).sum();
+    if def.ready() {
+        let series = index_series(&def.segments, &bars);
+        if let Some(last) = series.last() {
+            board.value = last.close;
+            let n = series.len();
+            if n >= 2 && series[n - 2].close != 0.0 {
+                board.change = (last.close / series[n - 2].close - 1.0) * 100.0;
+            }
+        }
+        price_measures(&series, &tz, &mut board.index);
+    }
+    index_fundamentals(&funds, &mut board.index);
+    board
+}
+
+/// Every member's bars that arrived.
+fn bars_of(data: &HashMap<String, MemberData>) -> HashMap<String, &[Bar]> {
+    data.iter()
+        .filter_map(|(id, d)| match &d.bars {
+            Some(Ok(b)) if !b.is_empty() => Some((id.clone(), b.as_slice())),
+            _ => None,
         })
         .collect()
 }
@@ -469,48 +837,137 @@ fn price_measures(bars: &[Bar], tz: &jiff::tz::TimeZone, out: &mut HashMap<Metri
     }
 }
 
-/// The index's fundamentals from its members': totals over totals, and
-/// margins weighted by revenue.
-fn index_fundamentals(funds: &[&Fundamentals], out: &mut HashMap<Metric, f64>) {
-    let sum = |f: &dyn Fn(&Fundamentals) -> Option<(f64, f64)>| {
-        let (mut a, mut b, mut n) = (0.0, 0.0, 0);
-        for x in funds {
-            if let Some((p, q)) = f(x)
-                && p.is_finite()
-                && q.is_finite()
-            {
-                a += p;
-                b += q;
-                n += 1;
-            }
-        }
-        if n > 0 && b != 0.0 { a / b } else { f64::NAN }
-    };
-    out.insert(Metric::Pe, sum(&|f| Some((f.market_cap, f.net_income))));
-    out.insert(Metric::EvEbitda, sum(&|f| Some((f.enterprise_value, f.ebitda))));
-    let g = sum(&|f| Some((f.revenue, f.revenue / (1.0 + f.revenue_growth))));
-    out.insert(Metric::RevGrowth, (g - 1.0) * 100.0);
-    for (m, get) in [
-        (
-            Metric::GrossMargin,
-            (|f: &Fundamentals| f.gross_margin) as fn(&Fundamentals) -> f64,
-        ),
-        (Metric::EbitdaMargin, |f| f.ebitda_margin),
-        (Metric::EbitMargin, |f| f.ebit_margin),
-        (Metric::PatMargin, |f| f.pat_margin),
-    ] {
-        out.insert(m, sum(&|f| Some((get(f) * f.revenue, f.revenue))) * 100.0);
+/// A score's text colour: the further from the middle, the stronger the
+/// green or red; middling values stay a quiet grey.
+fn tone(t: &Theme, s: Option<f32>) -> Color32 {
+    match s {
+        None => t.text3,
+        Some(s) if s.abs() < 0.08 => t.text2,
+        Some(s) => lerp_color(t.text2, if s > 0.0 { t.pos } else { t.neg }, 0.35 + 0.65 * s.abs()),
     }
 }
 
-fn member_fundamentals(f: &Fundamentals, out: &mut HashMap<Metric, f64>) {
-    out.insert(Metric::Pe, f.pe);
-    out.insert(Metric::EvEbitda, f.ev_ebitda);
-    out.insert(Metric::RevGrowth, f.revenue_growth * 100.0);
-    out.insert(Metric::GrossMargin, f.gross_margin * 100.0);
-    out.insert(Metric::EbitdaMargin, f.ebitda_margin * 100.0);
-    out.insert(Metric::EbitMargin, f.ebit_margin * 100.0);
-    out.insert(Metric::PatMargin, f.pat_margin * 100.0);
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum View {
+    #[default]
+    Table,
+    Map,
+}
+
+/// What a click on the board opens.
+#[derive(Clone, Debug)]
+enum Click {
+    Symbol(Symbol),
+    Index(String),
+}
+
+/// One row of a metrics table: a member, or an index (Compare).
+struct TRow {
+    label: String,
+    symbol: Option<Symbol>,
+    click: Option<Click>,
+    weight: f64,
+    price: f64,
+    change: f64,
+    values: HashMap<Metric, f64>,
+    error: Option<String>,
+}
+
+impl TRow {
+    fn get(&self, m: Metric) -> f64 {
+        self.values.get(&m).copied().unwrap_or(f64::NAN)
+    }
+
+    fn of(r: &BoardRow) -> TRow {
+        TRow {
+            label: r.symbol.ticker().to_string(),
+            symbol: Some(r.symbol.clone()),
+            click: Some(Click::Symbol(r.symbol.clone())),
+            weight: r.weight,
+            price: r.price,
+            change: r.change,
+            values: r.values.clone(),
+            error: r.error.clone(),
+        }
+    }
+}
+
+pub struct Indices {
+    pub defs: Vec<IndexDef>,
+    /// The index on the board.
+    pub open: Option<String>,
+    /// Every index side by side instead of one.
+    pub compare: bool,
+    data: HashMap<String, MemberData>,
+    seq: u64,
+    pub view: View,
+    /// What colours the treemap.
+    pub metric: Metric,
+    /// The table's order: a metric (or `None` = weight / name), descending?
+    sort: (Option<Metric>, bool),
+    version: u64,
+    boards: HashMap<String, (u64, Board)>,
+    /// Put this index on the chart once its weights are worked out.
+    pub(crate) chart_when_ready: Option<String>,
+}
+
+impl Indices {
+    pub fn load(store: &opentern_core::Store) -> Indices {
+        let mut defs: Vec<IndexDef> = store
+            .value(SETTINGS_KEY)
+            .and_then(|j| serde_json::from_str(&j).ok())
+            .unwrap_or_default();
+        for d in &mut defs {
+            d.migrate();
+        }
+        let ix = Indices {
+            open: defs.first().map(|d| d.ticker.clone()),
+            compare: false,
+            defs,
+            data: HashMap::new(),
+            seq: 0,
+            view: View::Table,
+            metric: Metric::Ret1M,
+            sort: (None, true),
+            version: 0,
+            boards: HashMap::new(),
+            chart_when_ready: None,
+        };
+        ix.register();
+        ix
+    }
+
+    /// Tells the hub every index's segments.
+    fn register(&self) {
+        opentern_data::expr::set_customs(
+            self.defs
+                .iter()
+                .filter(|d| d.ready())
+                .map(|d| (d.id(), d.hub_segments())),
+        );
+    }
+
+    pub fn by_ticker(&self, t: &str) -> Option<&IndexDef> {
+        self.defs.iter().find(|d| d.ticker == t)
+    }
+
+    /// The indices ready to chart (for live quotes).
+    pub fn symbols(&self) -> Vec<Symbol> {
+        self.defs.iter().filter(|d| d.ready()).map(|d| d.symbol()).collect()
+    }
+
+    /// An index's board, worked out again only when data changed.
+    fn board(&mut self, ticker: &str) -> Option<Board> {
+        let def = self.defs.iter().find(|d| d.ticker == ticker)?;
+        if let Some((v, b)) = self.boards.get(ticker)
+            && *v == self.version
+        {
+            return Some(b.clone());
+        }
+        let b = board_for(def, &self.data);
+        self.boards.insert(ticker.to_string(), (self.version, b.clone()));
+        Some(b)
+    }
 }
 
 impl App {
@@ -527,10 +984,11 @@ impl App {
         self.indices.version += 1;
     }
 
-    /// Asks for whatever the open index's members are missing.
+    /// Asks for whatever any index's members are missing (the list shows
+    /// every index's value, Compare every board).
     fn indices_want(&mut self) {
-        let Some(def) = self.index_def().cloned() else { return };
-        for m in def.members {
+        let need: Vec<Symbol> = self.indices.defs.iter().flat_map(|d| d.needs()).collect();
+        for m in need {
             let d = self.indices.data.entry(m.id.clone()).or_default();
             if d.asked.is_some_and(|a| a.elapsed() < STALE) {
                 continue;
@@ -569,51 +1027,30 @@ impl App {
         self.indices_settle();
     }
 
-    /// Works out the weights of indices whose members have all arrived.
+    /// Works out weights wherever the data allows (`settle`), and charts
+    /// see the new ones.
     fn indices_settle(&mut self) {
-        let mut changed = Vec::new();
-        for (k, def) in self.indices.defs.iter().enumerate() {
-            if def.ready() || def.members.is_empty() {
-                continue;
-            }
-            let mut ins = Vec::new();
-            for m in &def.members {
-                let Some(d) = self.indices.data.get(&m.id) else { break };
-                let Some(Ok(bars)) = &d.bars else { break };
-                // Shares only matter for market cap; a failed lookup counts
-                // as "none" (equal weights then).
-                let shares = match (&d.fund, def.weighting) {
-                    (_, Weighting::Equal) => f64::NAN,
-                    (Some(Ok(f)), _) => f.shares,
-                    (Some(Err(_)), _) => f64::NAN,
-                    (None, _) => break,
-                };
-                ins.push((bars.as_slice(), shares));
-            }
-            if ins.len() != def.members.len() {
-                continue;
-            }
-            if let Some(r) = work_out_units(&ins, def.weighting, def.base) {
-                changed.push((k, r));
-            }
-        }
-        if changed.is_empty() {
-            return;
-        }
+        let now = jiff::Timestamp::now().as_millisecond();
+        let ix = &mut self.indices;
+        let bars = bars_of(&ix.data);
+        let funds: HashMap<String, Option<&Fundamentals>> = ix
+            .data
+            .iter()
+            .filter_map(|(id, d)| d.fund.as_ref().map(|f| (id.clone(), f.as_ref().ok())))
+            .collect();
         let mut settled = Vec::new();
-        for (k, (units, t0, fallback)) in changed {
-            let d = &mut self.indices.defs[k];
-            d.units = units;
-            d.base_time = t0;
-            d.equal_fallback = fallback;
-            settled.push(d.clone());
+        for def in &mut ix.defs {
+            if settle(def, &bars, &funds, now) {
+                settled.push(def.clone());
+            }
         }
-        self.save_indices();
-        self.subscribe_quotes();
-        // Charts already on an index see its new weights.
-        let id = self.chart.symbol.id.clone();
-        if let Some(def) = settled.iter().find(|d| d.id() == id) {
-            self.open_symbol(def.symbol());
+        if !settled.is_empty() {
+            self.save_indices();
+            self.subscribe_quotes();
+            let id = self.chart.symbol.id.clone();
+            if let Some(def) = settled.iter().find(|d| d.id() == id) {
+                self.open_symbol(def.symbol());
+            }
         }
         if let Some(t) = self.indices.chart_when_ready.take()
             && let Some(def) = self.indices.by_ticker(&t).cloned()
@@ -626,86 +1063,17 @@ impl App {
         }
     }
 
-    /// The open index's board, worked out again only when data changed.
-    fn index_board(&mut self) -> Option<Board> {
-        let def = self.index_def()?.clone();
-        let v = self.indices.version;
-        if let Some((ver, t, b)) = &self.indices.board
-            && *ver == v
-            && *t == def.ticker
+    /// An index's value and day change: live when there's a quote (not in
+    /// demo, whose quotes don't add up), else from its daily bars.
+    fn index_now(&mut self, def: &IndexDef) -> Option<(f64, f64)> {
+        if !self.demo
+            && let Some((l, p)) = self.quotes.get(&def.id()).copied()
+            && p != 0.0
         {
-            return Some(b.clone());
+            return Some((l, (l / p - 1.0) * 100.0));
         }
-        let tz = jiff::tz::TimeZone::get(&def.symbol().timezone).unwrap_or(jiff::tz::TimeZone::UTC);
-        let mut board = Board::default();
-        let mut all_bars: Vec<&[Bar]> = Vec::new();
-        let mut funds: Vec<&Fundamentals> = Vec::new();
-        let mut caps = Vec::new();
-        for (k, m) in def.members.iter().enumerate() {
-            let d = self.indices.data.get(&m.id);
-            let mut row = BoardRow {
-                symbol: m.clone(),
-                weight: f64::NAN,
-                price: f64::NAN,
-                change: f64::NAN,
-                market_cap: f64::NAN,
-                values: HashMap::new(),
-                error: None,
-            };
-            match d.and_then(|d| d.bars.as_ref()) {
-                Some(Ok(bars)) if !bars.is_empty() => {
-                    let n = bars.len();
-                    row.price = bars[n - 1].close;
-                    if n >= 2 && bars[n - 2].close != 0.0 {
-                        row.change = (bars[n - 1].close / bars[n - 2].close - 1.0) * 100.0;
-                    }
-                    price_measures(bars, &tz, &mut row.values);
-                    all_bars.push(bars);
-                    if let Some(u) = def.units.get(k) {
-                        caps.push((k, u * row.price));
-                    }
-                }
-                Some(Ok(_)) => row.error = Some("No prices came back.".into()),
-                Some(Err(e)) => row.error = Some(e.clone()),
-                None => board.waiting += 1,
-            }
-            match d.and_then(|d| d.fund.as_ref()) {
-                Some(Ok(f)) => {
-                    member_fundamentals(f, &mut row.values);
-                    row.market_cap = f.market_cap;
-                    funds.push(f);
-                }
-                Some(Err(e)) if row.error.is_none() => {
-                    row.values.insert(Metric::Pe, f64::NAN);
-                    row.error = Some(format!("Fundamentals: {e}"));
-                }
-                None if row.error.is_none() && d.and_then(|d| d.bars.as_ref()).is_some() => board.waiting += 1,
-                _ => {}
-            }
-            board.rows.push(row);
-        }
-        // Today's weights: each member's units at today's price.
-        let total: f64 = caps.iter().map(|(_, c)| c).sum();
-        if total > 0.0 {
-            for (k, c) in caps {
-                board.rows[k].weight = c / total * 100.0;
-            }
-        }
-        if def.ready() && all_bars.len() == def.members.len() {
-            let series = index_series(&all_bars, &def.units);
-            if let Some(last) = series.last() {
-                board.value = last.close;
-                let n = series.len();
-                if n >= 2 && series[n - 2].close != 0.0 {
-                    board.change = (last.close / series[n - 2].close - 1.0) * 100.0;
-                }
-            }
-            price_measures(&series, &tz, &mut board.index);
-            board.series = series.iter().rev().take(90).rev().map(|b| b.close).collect();
-        }
-        index_fundamentals(&funds, &mut board.index);
-        self.indices.board = Some((v, def.ticker.clone(), board.clone()));
-        Some(board)
+        let b = self.indices.board(&def.ticker)?;
+        (b.value.is_finite() && b.value > 0.0).then_some((b.value, b.change))
     }
 
     // ------------------------------------------------------------- tab
@@ -725,18 +1093,20 @@ impl App {
             self.open_symbol_synced(def.symbol());
         }
         let rect = ui.available_rect_before_wrap();
-        let list_w = 190.0_f32.min(rect.width() * 0.3);
+        let list_w = 210.0_f32.min(rect.width() * 0.3);
         let list = Rect::from_min_size(rect.min, vec2(list_w, rect.height()));
-        let main = Rect::from_min_max(pos2(list.right() + 14.0, rect.top()), rect.max);
+        let main = Rect::from_min_max(pos2(list.right() + 16.0, rect.top()), rect.max);
         ui.scope_builder(egui::UiBuilder::new().max_rect(list), |ui| self.indices_list(ui, t));
         ui.painter().vline(
-            list.right() + 6.0,
+            list.right() + 8.0,
             list.y_range(),
             Stroke::new(1.0, t.border.gamma_multiply(0.6)),
         );
         ui.scope_builder(egui::UiBuilder::new().max_rect(main), |ui| {
             ui.set_clip_rect(main.intersect(ui.clip_rect()));
-            if self.index_def().is_some() {
+            if self.indices.compare && self.indices.defs.len() >= 2 {
+                self.indices_compare(ui, t);
+            } else if self.index_def().is_some() {
                 self.index_dashboard(ui, t);
             } else {
                 ui.add_space(20.0);
@@ -751,6 +1121,8 @@ impl App {
         ui.allocate_rect(rect, Sense::hover());
     }
 
+    /// A card per index (name, value, day change), and Compare on top
+    /// once there are two.
     fn indices_list(&mut self, ui: &mut Ui, t: &Theme) {
         ui.horizontal(|ui| {
             ui.set_height(28.0);
@@ -761,55 +1133,81 @@ impl App {
                 }
             });
         });
-        ui.add_space(4.0);
+        ui.add_space(6.0);
+        let defs = self.indices.defs.clone();
         let mut pick = None;
+        let mut compare = false;
         egui::ScrollArea::vertical()
             .id_salt("indices-list")
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                for d in &self.indices.defs {
-                    let on = self.indices.open.as_deref() == Some(&d.ticker);
-                    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 42.0), Sense::click());
+                ui.spacing_mut().item_spacing.y = 6.0;
+                if defs.len() >= 2 {
+                    let on = self.indices.compare;
+                    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
+                    card(ui, t, r, on, resp.hovered());
                     let p = ui.painter();
-                    if on {
-                        p.rect_filled(r, 8, t.accent_soft());
-                    } else if resp.hovered() {
-                        p.rect_filled(r, 8, t.hover_wash());
-                    }
-                    let name = crate::format::elide_to(p, &d.name, &theme::medium(13.0), r.width() - 20.0);
                     p.text(
-                        r.left_top() + vec2(10.0, 7.0),
-                        Align2::LEFT_TOP,
-                        name,
+                        r.left_center() + vec2(12.0, 0.0),
+                        Align2::LEFT_CENTER,
+                        ph::SQUARES_FOUR,
+                        theme::regular(15.0),
+                        if on { t.accent } else { t.text2 },
+                    );
+                    p.text(
+                        r.left_center() + vec2(34.0, 0.0),
+                        Align2::LEFT_CENTER,
+                        "Compare",
                         theme::medium(13.0),
                         t.text,
                     );
-                    // Demo quotes are made up per symbol and don't add up to the index.
-                    let quote = if self.demo { None } else { self.quotes.get(&d.id()) };
-                    let sub = match quote {
-                        _ if !d.ready() => format!("{} symbols", d.members.len()),
-                        Some((last, prev)) if *prev != 0.0 => {
-                            format!(
-                                "{}  {}",
-                                crate::format::price(*last, 2),
-                                crate::format::signed_pct((last / prev - 1.0) * 100.0)
-                            )
-                        }
-                        _ => format!("{} symbols", d.members.len()),
-                    };
+                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                        compare = true;
+                    }
+                }
+                for d in &defs {
+                    let on = !self.indices.compare && self.indices.open.as_deref() == Some(&d.ticker);
+                    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
+                    card(ui, t, r, on, resp.hovered());
+                    let now = self.index_now(d);
+                    let p = ui.painter();
+                    let name = crate::format::elide_to(p, &d.name, &theme::semibold(13.0), r.width() - 24.0);
                     p.text(
-                        r.left_bottom() + vec2(10.0, -7.0),
-                        Align2::LEFT_BOTTOM,
-                        sub,
-                        theme::regular(11.5),
-                        t.text3,
+                        r.left_top() + vec2(12.0, 10.0),
+                        Align2::LEFT_TOP,
+                        name,
+                        theme::semibold(13.0),
+                        t.text,
                     );
-                    if resp.clicked() {
+                    let y = r.bottom() - 16.0;
+                    match now {
+                        Some((v, ch)) => {
+                            let g = p.layout_no_wrap(crate::format::price(v, 2), theme::medium(12.5), t.text2);
+                            let x = r.left() + 12.0;
+                            let gw = g.size().x;
+                            p.galley(pos2(x, y - g.size().y / 2.0), g, t.text2);
+                            change_pill(p, t, pos2(x + gw + 8.0, y), ch);
+                        }
+                        None => {
+                            p.text(
+                                pos2(r.left() + 12.0, y),
+                                Align2::LEFT_CENTER,
+                                format!("{} symbols", d.members.len()),
+                                theme::regular(12.0),
+                                t.text3,
+                            );
+                        }
+                    }
+                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                         pick = Some(d.clone());
                     }
                 }
             });
+        if compare {
+            self.indices.compare = true;
+        }
         if let Some(d) = pick {
+            self.indices.compare = false;
             self.indices.open = Some(d.ticker.clone());
             if d.ready() {
                 self.open_symbol_synced(d.symbol());
@@ -821,8 +1219,12 @@ impl App {
 
     fn index_dashboard(&mut self, ui: &mut Ui, t: &Theme) {
         let Some(def) = self.index_def().cloned() else { return };
-        let Some(board) = self.index_board() else { return };
-        // ---- header: name, value, change; view and edit on the right
+        let Some(board) = self.indices.board(&def.ticker) else {
+            return;
+        };
+        let now = self.index_now(&def);
+        let mut rebalance = false;
+        // ---- header: name, value, change; view, rebalance and edit
         ui.horizontal(|ui| {
             ui.set_height(32.0);
             ui.spacing_mut().item_spacing.x = 10.0;
@@ -837,376 +1239,615 @@ impl App {
             {
                 self.open_symbol_synced(def.symbol());
             }
-            let live = if self.demo {
-                None
+            match now {
+                Some((v, ch)) => {
+                    ui.label(egui::RichText::new(crate::format::price(v, 2)).font(theme::medium(15.0)));
+                    let (r, _) = ui.allocate_exact_size(vec2(pill_w(ui.painter(), ch), 22.0), Sense::hover());
+                    change_pill(ui.painter(), t, r.left_center(), ch);
+                }
+                None if board.waiting > 0 || def.pending => {
+                    ui.spinner();
+                }
+                None => {}
+            }
+            let (icon, color) = if def.equal_fallback {
+                (ph::WARNING_CIRCLE, t.warn)
             } else {
-                self.quotes.get(&def.id()).copied()
+                (ph::INFO, t.text3)
             };
-            let (value, change) = match live {
-                Some((l, p)) if p != 0.0 => (l, (l / p - 1.0) * 100.0),
-                _ => (board.value, board.change),
-            };
-            if value.is_finite() && value > 0.0 {
-                ui.label(egui::RichText::new(crate::format::price(value, 2)).font(theme::medium(15.0)));
-                ui.label(
-                    egui::RichText::new(crate::format::signed_pct(change))
-                        .font(theme::medium(13.0))
-                        .color(if change >= 0.0 { t.pos } else { t.neg }),
-                );
-            } else if board.waiting > 0 {
-                ui.spinner();
-            }
-            if def.equal_fallback {
-                ui.label(egui::RichText::new(ph::INFO).color(t.warn))
-                    .on_hover_text("Weighted equally: some members have no share count for market-cap weights.");
-            }
+            ui.label(egui::RichText::new(icon).color(color))
+                .on_hover_text(method_note(&def));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
                 if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
                 }
-                let mut view = self.indices.view;
-                w::segmented(ui, t, &mut view, &[(View::Table, "Table"), (View::Map, "Map")]);
-                self.indices.view = view;
-                if view == View::Map {
-                    w::combo("index-map-metric")
-                        .selected_text(self.indices.metric.name())
-                        .width(140.0)
-                        .show_ui(ui, |ui| {
-                            for m in Metric::ALL {
-                                w::option_value(ui, &mut self.indices.metric, m, m.name());
-                            }
-                        });
+                if w::tool_button(
+                    ui,
+                    t,
+                    ph::ARROWS_CLOCKWISE,
+                    "Rebalance now: today's free float, with the level kept",
+                    false,
+                    28.0,
+                )
+                .clicked()
+                {
+                    rebalance = true;
                 }
+                view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
             });
         });
-        ui.add_space(6.0);
-        // ---- the index's own numbers, one tile each
-        kpi_strip(ui, t, &board);
-        ui.add_space(8.0);
-        let open = match self.indices.view {
-            View::Table => self.index_table(ui, t, &board),
-            View::Map => treemap(ui, t, &board, self.indices.metric),
-        };
-        if let Some(s) = open {
-            self.open_symbol_synced(s);
+        if rebalance && let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == def.ticker) {
+            d.pending = true;
+            // Fresh share counts first.
+            for m in &d.members {
+                if let Some(x) = self.indices.data.get_mut(&m.id) {
+                    x.asked = None;
+                }
+            }
+            self.indices_want();
         }
+        ui.add_space(8.0);
+        kpi_strip(ui, t, &board.index);
+        ui.add_space(10.0);
+        let rows: Vec<TRow> = board.rows.iter().map(TRow::of).collect();
+        let pinned = TRow {
+            label: "Index".into(),
+            symbol: None,
+            click: def.ready().then(|| Click::Index(def.ticker.clone())),
+            weight: f64::NAN,
+            price: board.value,
+            change: board.change,
+            values: board.index.clone(),
+            error: None,
+        };
+        let click = match self.indices.view {
+            View::Table => metric_table(
+                ui,
+                t,
+                &self.logos,
+                "index",
+                &rows,
+                Some(&pinned),
+                &mut self.indices.sort,
+                true,
+            ),
+            View::Map => treemap(
+                ui,
+                t,
+                &self.logos,
+                &rows
+                    .iter()
+                    .filter(|r| r.weight.is_finite() && r.weight > 0.0)
+                    .map(|r| (r, r.weight))
+                    .collect::<Vec<_>>(),
+                self.indices.metric,
+                board.waiting > 0,
+            ),
+        };
+        self.index_click(click);
     }
 
-    /// Members as rows, metrics as columns grouped under a band; each cell
-    /// tinted by how it stands among the members.
-    fn index_table(&mut self, ui: &mut Ui, t: &Theme, board: &Board) -> Option<Symbol> {
-        let mut open = None;
-        let sym_w = 150.0;
-        let fixed = [("Weight", 64.0), ("Price", 82.0)];
-        let fixed_w: f32 = fixed.iter().map(|(_, w)| w).sum();
-        let col = ((ui.available_width() - sym_w - fixed_w) / Metric::ALL.len() as f32).clamp(66.0, 110.0);
-        let total = sym_w + fixed_w + col * Metric::ALL.len() as f32;
-        let row_h = 26.0;
-        let x0 = sym_w + fixed_w;
-        let border = Stroke::new(1.0, t.border.gamma_multiply(0.6));
-        let columns: HashMap<Metric, Vec<f64>> = Metric::ALL
-            .iter()
-            .map(|m| (*m, board.rows.iter().map(|r| r.get(*m)).collect()))
-            .collect();
-        let mut rows: Vec<&BoardRow> = board.rows.iter().collect();
-        let (sf, desc) = self.indices.sort;
-        rows.sort_by(|a, b| {
-            let (x, y) = match sf {
-                Some(m) => (a.get(m), b.get(m)),
-                None => (a.weight, b.weight),
+    /// Every index side by side: the same metrics, a row (or tile) each.
+    fn indices_compare(&mut self, ui: &mut Ui, t: &Theme) {
+        let defs = self.indices.defs.clone();
+        let mut rows = Vec::new();
+        let mut caps = Vec::new();
+        let mut waiting = false;
+        for d in &defs {
+            let Some(b) = self.indices.board(&d.ticker) else {
+                continue;
             };
-            let o = match (x.is_finite(), y.is_finite()) {
-                (true, true) => x.partial_cmp(&y).unwrap_or(std::cmp::Ordering::Equal),
-                (true, false) => std::cmp::Ordering::Greater,
-                (false, true) => std::cmp::Ordering::Less,
-                _ => std::cmp::Ordering::Equal,
-            };
-            if desc { o.reverse() } else { o }
+            let now = self.index_now(d);
+            waiting |= b.waiting > 0;
+            caps.push(b.total_cap);
+            rows.push(TRow {
+                label: d.name.clone(),
+                symbol: None,
+                click: d.ready().then(|| Click::Index(d.ticker.clone())),
+                weight: f64::NAN,
+                price: now.map_or(f64::NAN, |n| n.0),
+                change: now.map_or(f64::NAN, |n| n.1),
+                values: b.index.clone(),
+                error: None,
+            });
+        }
+        ui.horizontal(|ui| {
+            ui.set_height(32.0);
+            ui.label(egui::RichText::new("Compare indices").font(theme::semibold(16.0)));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
+            });
         });
-        let max_weight = board
-            .rows
-            .iter()
-            .map(|r| r.weight)
-            .filter(|w| w.is_finite())
-            .fold(0.0, f64::max);
-        egui::ScrollArea::horizontal().id_salt("index-table-h").show(ui, |ui| {
-            ui.set_min_width(total);
-            // Group band.
-            let (band, _) = ui.allocate_exact_size(vec2(total, 18.0), Sense::hover());
-            let p = ui.painter();
-            let mut k = 0;
-            while k < Metric::ALL.len() {
-                let g = Metric::ALL[k].group();
-                let n = Metric::ALL[k..].iter().take_while(|m| m.group() == g).count();
-                let r = Rect::from_min_size(
-                    band.min + vec2(x0 + col * k as f32 + 4.0, 0.0),
-                    vec2(col * n as f32 - 8.0, 16.0),
-                );
-                p.hline(r.x_range(), r.bottom(), Stroke::new(1.0, t.border));
-                let label = crate::format::elide_to(p, g, &theme::medium(11.0), r.width());
-                p.text(r.center_top(), Align2::CENTER_TOP, label, theme::medium(11.0), t.text3);
-                k += n;
-            }
-            // Column titles (click to sort).
-            let (head, _) = ui.allocate_exact_size(vec2(total, row_h), Sense::hover());
-            let font = theme::medium(12.0);
-            let mut sort_click = None;
-            let mut title = |ui: &mut Ui, r: Rect, text: &str, key: Option<Metric>, tip: &str, left: bool| {
-                let on = self.indices.sort.0 == key;
-                let room = r.width() - 12.0;
-                let shown = crate::format::elide_to(ui.painter(), text, &font, room);
-                let c = if on { t.accent } else { t.text3 };
-                if left {
-                    ui.painter().text(
-                        r.left_center() + vec2(8.0, 0.0),
-                        Align2::LEFT_CENTER,
-                        &shown,
-                        font.clone(),
-                        c,
-                    );
-                } else {
-                    ui.painter().text(
-                        r.right_center() - vec2(8.0, 0.0),
-                        Align2::RIGHT_CENTER,
-                        &shown,
-                        font.clone(),
-                        c,
-                    );
-                }
-                let resp = ui
-                    .interact(r, ui.id().with(("index-head", text)), Sense::click())
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
-                    .on_hover_text(tip);
-                if resp.clicked() {
-                    sort_click = Some(key);
-                }
-            };
-            title(
+        ui.add_space(10.0);
+        let click = match self.indices.view {
+            View::Table => metric_table(
                 ui,
-                Rect::from_min_size(head.min, vec2(sym_w, row_h)),
-                "Symbol",
+                t,
+                &self.logos,
+                "compare",
+                &rows,
                 None,
-                "Sort by weight",
-                true,
-            );
-            let mut x = sym_w;
-            for (name, wd) in fixed {
-                let r = Rect::from_min_size(head.min + vec2(x, 0.0), vec2(wd, row_h));
-                if name == "Weight" {
-                    title(ui, r, name, None, "Today's weight in the index", false);
-                } else {
-                    ui.painter().text(
-                        r.right_center() - vec2(8.0, 0.0),
-                        Align2::RIGHT_CENTER,
-                        name,
-                        font.clone(),
-                        t.text3,
-                    );
+                &mut self.indices.sort,
+                false,
+            ),
+            View::Map => {
+                // Tiles by the members' market cap together; equal when a
+                // cap is missing.
+                let all = caps.iter().all(|c| *c > 0.0);
+                let items: Vec<(&TRow, f64)> = rows
+                    .iter()
+                    .zip(&caps)
+                    .map(|(r, c)| (r, if all { *c } else { 1.0 }))
+                    .collect();
+                treemap(ui, t, &self.logos, &items, self.indices.metric, waiting)
+            }
+        };
+        self.index_click(click);
+    }
+
+    fn index_click(&mut self, click: Option<Click>) {
+        match click {
+            Some(Click::Symbol(s)) => self.open_symbol_synced(s),
+            Some(Click::Index(ticker)) => {
+                if let Some(d) = self.indices.by_ticker(&ticker).cloned() {
+                    self.indices.compare = false;
+                    self.indices.open = Some(ticker);
+                    self.open_symbol_synced(d.symbol());
                 }
-                x += wd;
             }
-            for (k, m) in Metric::ALL.iter().enumerate() {
-                let r = Rect::from_min_size(head.min + vec2(x0 + col * k as f32, 0.0), vec2(col, row_h));
-                let text = if col >= 96.0 { m.name() } else { m.short() };
-                title(ui, r, text, Some(*m), m.tip(), false);
-            }
-            if let Some(key) = sort_click {
-                let (cur, d) = self.indices.sort;
-                self.indices.sort = (key, if cur == key { !d } else { true });
-            }
-            ui.painter().hline(head.x_range(), head.bottom(), border);
-            // The index's own row, then the members.
-            egui::ScrollArea::vertical()
-                .id_salt("index-table-v")
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    let (r, resp) = ui.allocate_exact_size(vec2(total, row_h), Sense::click());
-                    let p = ui.painter();
-                    p.rect_filled(r, 4, t.hover_wash());
-                    p.text(
-                        r.left_center() + vec2(8.0, 0.0),
-                        Align2::LEFT_CENTER,
-                        "Index",
-                        theme::semibold(12.5),
-                        t.text,
-                    );
-                    p.text(
-                        r.left_center() + vec2(sym_w + fixed[0].1 - 8.0, 0.0),
-                        Align2::RIGHT_CENTER,
-                        "100%",
-                        theme::regular(12.5),
-                        t.text2,
-                    );
-                    if board.value.is_finite() && board.value > 0.0 {
-                        p.text(
-                            r.left_center() + vec2(sym_w + fixed_w - 8.0, 0.0),
-                            Align2::RIGHT_CENTER,
-                            crate::format::price(board.value, 2),
-                            theme::regular(12.5),
-                            t.text,
-                        );
-                    }
-                    for (k, m) in Metric::ALL.iter().enumerate() {
-                        let v = board.index.get(m).copied().unwrap_or(f64::NAN);
-                        let c = Rect::from_min_size(r.min + vec2(x0 + col * k as f32, 0.0), vec2(col, row_h));
-                        p.text(
-                            c.right_center() - vec2(8.0, 0.0),
-                            Align2::RIGHT_CENTER,
-                            m.format(v),
-                            theme::semibold(12.5),
-                            t.text,
-                        );
-                    }
-                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                        open = self.index_def().filter(|d| d.ready()).map(|d| d.symbol());
-                    }
-                    for row in &rows {
-                        let (r, resp) = ui.allocate_exact_size(vec2(total, row_h), Sense::click());
-                        let p = ui.painter();
-                        if resp.hovered() {
-                            p.rect_filled(r, 4, t.hover_wash());
-                        }
-                        // Weight as a bar behind the ticker.
-                        if row.weight.is_finite() && max_weight > 0.0 {
-                            let wbar = (sym_w - 12.0) * (row.weight / max_weight) as f32;
-                            p.rect_filled(
-                                Rect::from_min_size(r.left_bottom() + vec2(6.0, -4.0), vec2(wbar, 2.0)),
-                                1,
-                                t.accent.gamma_multiply(0.55),
-                            );
-                        }
-                        let ticker =
-                            crate::format::elide_to(p, row.symbol.ticker(), &theme::medium(12.5), sym_w - 16.0);
-                        p.text(
-                            r.left_center() + vec2(8.0, -1.0),
-                            Align2::LEFT_CENTER,
-                            ticker,
-                            theme::medium(12.5),
-                            t.text,
-                        );
-                        let mut x = sym_w;
-                        let cells = [
-                            (
-                                if row.weight.is_finite() {
-                                    format!("{:.1}%", row.weight)
-                                } else {
-                                    "—".into()
-                                },
-                                t.text2,
-                            ),
-                            (
-                                if row.price.is_finite() {
-                                    crate::format::price(row.price, row.symbol.precision().max(2))
-                                } else {
-                                    "—".into()
-                                },
-                                t.text,
-                            ),
-                        ];
-                        for ((text, c), (_, wd)) in cells.into_iter().zip(fixed) {
-                            p.text(
-                                r.left_center() + vec2(x + wd - 8.0, 0.0),
-                                Align2::RIGHT_CENTER,
-                                text,
-                                theme::regular(12.5),
-                                c,
-                            );
-                            x += wd;
-                        }
-                        if row.error.is_some() && row.values.is_empty() {
-                            p.text(
-                                r.left_center() + vec2(x0 + 8.0, 0.0),
-                                Align2::LEFT_CENTER,
-                                row.error.as_deref().unwrap_or_default(),
-                                theme::regular(12.0),
-                                t.text3,
-                            );
-                        } else {
-                            for (k, m) in Metric::ALL.iter().enumerate() {
-                                let v = row.get(*m);
-                                let c = Rect::from_min_size(r.min + vec2(x0 + col * k as f32, 0.0), vec2(col, row_h));
-                                p.rect_filled(c.shrink2(vec2(1.0, 1.5)), 4, heat(t, m.score(v, &columns[m])));
-                                p.text(
-                                    c.right_center() - vec2(8.0, 0.0),
-                                    Align2::RIGHT_CENTER,
-                                    m.format(v),
-                                    theme::regular(12.5),
-                                    if v.is_finite() { t.text } else { t.text3 },
-                                );
-                            }
-                        }
-                        let tip = match (&row.error, row.market_cap.is_finite()) {
-                            (Some(e), _) => e.clone(),
-                            (None, true) => format!(
-                                "{}\nMarket cap {}",
-                                row.symbol.id,
-                                crate::format::compact(row.market_cap)
-                            ),
-                            (None, false) => row.symbol.id.clone(),
-                        };
-                        if resp.on_hover_text(tip).clicked() {
-                            open = Some(row.symbol.clone());
-                        }
-                    }
-                });
-        });
-        open
+            None => {}
+        }
     }
 }
 
-/// The index's metrics as a row of small tiles (wrapping when narrow).
-fn kpi_strip(ui: &mut Ui, t: &Theme, board: &Board) {
-    let n = Metric::ALL.len() as f32;
-    let gap = 6.0;
-    let per_row = if ui.available_width() / n >= 84.0 {
-        n
-    } else {
-        (n / 2.0).ceil()
+/// How the index is built, for the info icon.
+fn method_note(def: &IndexDef) -> String {
+    let date = |ms: i64| {
+        jiff::Timestamp::from_millisecond(ms)
+            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
+            .unwrap_or_default()
     };
-    let tile_w = ((ui.available_width() - gap * (per_row - 1.0)) / per_row).floor();
-    ui.horizontal_wrapped(|ui| {
-        ui.spacing_mut().item_spacing = vec2(gap, gap);
-        for m in Metric::ALL {
-            let v = board.index.get(&m).copied().unwrap_or(f64::NAN);
-            let (r, resp) = ui.allocate_exact_size(vec2(tile_w, 44.0), Sense::hover());
-            let p = ui.painter();
-            p.rect(
-                r,
-                8,
-                t.card,
-                Stroke::new(1.0, t.border.gamma_multiply(0.6)),
-                egui::StrokeKind::Inside,
-            );
-            let label = crate::format::elide_to(p, m.name(), &theme::regular(11.0), r.width() - 16.0);
-            p.text(
-                r.left_top() + vec2(9.0, 7.0),
-                Align2::LEFT_TOP,
-                label,
-                theme::regular(11.0),
-                t.text3,
-            );
-            let signed = matches!(
-                m,
-                Metric::Ret1M | Metric::Ret3M | Metric::RevGrowth | Metric::Sma50 | Metric::Sma200
-            );
-            let c = if !v.is_finite() {
-                t.text3
-            } else if signed {
-                if v >= 0.0 { t.pos } else { t.neg }
-            } else {
-                t.text
-            };
-            p.text(
-                r.left_bottom() + vec2(9.0, -6.0),
-                Align2::LEFT_BOTTOM,
-                m.format(v),
-                theme::semibold(14.0),
-                c,
-            );
-            resp.on_hover_text(m.tip());
+    let mut s = format!("{}, base {}.", def.weighting.name(), def.base);
+    if def.equal_fallback {
+        s.push_str("\nWeighted equally for now: a member has no share count.");
+    }
+    if let Some(last) = def.segments.last() {
+        if last.from != i64::MIN {
+            s.push_str(&format!("\nLast rebalanced {}.", date(last.from)));
+        }
+        let now = jiff::Timestamp::now().as_millisecond();
+        if let Some(next) = (1..=8)
+            .map(|k| now + k * 46 * 86_400_000)
+            .find_map(|t| rebalance_due(now, t))
+        {
+            s.push_str(&format!("\nNext rebalance {} (1 April and 1 October).", date(next)));
+        }
+    }
+    s
+}
+
+/// A list card's background: quiet, an accent edge when it's the open one.
+fn card(ui: &Ui, t: &Theme, r: Rect, on: bool, hover: bool) {
+    let p = ui.painter();
+    let fill = if on {
+        lerp_color(t.card, t.accent, 0.08)
+    } else if hover {
+        lerp_color(t.card, t.text, 0.04)
+    } else {
+        t.card
+    };
+    let edge = if on {
+        t.accent.gamma_multiply(0.7)
+    } else {
+        t.border.gamma_multiply(0.7)
+    };
+    p.rect(r, 10, fill, Stroke::new(1.0, edge), egui::StrokeKind::Inside);
+}
+
+fn pill_w(p: &egui::Painter, ch: f64) -> f32 {
+    p.layout_no_wrap(crate::format::signed_pct(ch), theme::semibold(11.5), Color32::WHITE)
+        .size()
+        .x
+        + 14.0
+}
+
+/// A day change as a small tinted pill, its left edge at `at`.
+fn change_pill(p: &egui::Painter, t: &Theme, at: egui::Pos2, ch: f64) {
+    if !ch.is_finite() {
+        return;
+    }
+    let c = if ch >= 0.0 { t.pos } else { t.neg };
+    let g = p.layout_no_wrap(crate::format::signed_pct(ch), theme::semibold(11.5), c);
+    let r = Rect::from_min_size(pos2(at.x, at.y - 10.0), vec2(g.size().x + 14.0, 20.0));
+    p.rect_filled(r, 6, lerp_color(t.card, c, 0.16));
+    p.galley(r.center() - g.size() / 2.0, g, c);
+}
+
+/// Table | Map, and the metric the map colours by.
+fn view_switch(ui: &mut Ui, t: &Theme, view: &mut View, metric: &mut Metric) {
+    w::segmented(ui, t, view, &[(View::Table, "Table"), (View::Map, "Map")]);
+    if *view == View::Map {
+        w::combo("index-map-metric")
+            .selected_text(metric.name())
+            .width(150.0)
+            .show_ui(ui, |ui| {
+                for m in Metric::ALL {
+                    w::option_value(ui, metric, m, m.name());
+                }
+            });
+    }
+}
+
+/// The index's metrics as tiles: one row when they fit with their names
+/// whole, else two.
+fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
+    let gap = 8.0;
+    let label_font = theme::regular(11.5);
+    let widest = Metric::ALL
+        .iter()
+        .map(|m| {
+            ui.painter()
+                .layout_no_wrap(m.name().to_string(), label_font.clone(), t.text)
+                .size()
+                .x
+        })
+        .fold(0.0, f32::max);
+    let avail = ui.available_width();
+    let fits = |n: f32| (avail - gap * (n - 1.0)) / n >= widest + 26.0;
+    let per_row = [12.0, 6.0, 4.0].into_iter().find(|n| fits(*n)).unwrap_or(3.0);
+    let tile_w = ((avail - gap * (per_row - 1.0)) / per_row).floor();
+    for row in Metric::ALL.chunks(per_row as usize) {
+        ui.horizontal(|ui| {
+            ui.spacing_mut().item_spacing.x = gap;
+            for m in row {
+                let v = values.get(m).copied().unwrap_or(f64::NAN);
+                let (r, resp) = ui.allocate_exact_size(vec2(tile_w, 58.0), Sense::hover());
+                let p = ui.painter();
+                p.rect(
+                    r,
+                    10,
+                    t.card,
+                    Stroke::new(1.0, t.border.gamma_multiply(0.6)),
+                    egui::StrokeKind::Inside,
+                );
+                let label = crate::format::elide_to(p, m.name(), &label_font, r.width() - 22.0);
+                p.text(
+                    r.left_top() + vec2(11.0, 10.0),
+                    Align2::LEFT_TOP,
+                    label,
+                    label_font.clone(),
+                    t.text3,
+                );
+                let signed = matches!(
+                    m,
+                    Metric::Ret1M | Metric::Ret3M | Metric::RevGrowth | Metric::Sma50 | Metric::Sma200
+                );
+                let c = if !v.is_finite() {
+                    t.text3
+                } else if signed {
+                    if v >= 0.0 { t.pos } else { t.neg }
+                } else {
+                    t.text
+                };
+                p.text(
+                    r.left_bottom() + vec2(11.0, -10.0),
+                    Align2::LEFT_BOTTOM,
+                    m.format(v),
+                    theme::semibold(15.0),
+                    c,
+                );
+                resp.on_hover_text(m.tip());
+            }
+        });
+        ui.add_space(gap - ui.spacing().item_spacing.y);
+    }
+}
+
+/// The metrics table: a lead column (logo and ticker, or an index's
+/// name), weight (members only), price and day change, then each metric
+/// under its group. Numbers are coloured by how they stand among the rows.
+#[allow(clippy::too_many_arguments)]
+fn metric_table(
+    ui: &mut Ui,
+    t: &Theme,
+    logos: &crate::logos::Logos,
+    salt: &str,
+    rows: &[TRow],
+    pinned: Option<&TRow>,
+    sort: &mut (Option<Metric>, bool),
+    weights: bool,
+) -> Option<Click> {
+    let mut click = None;
+    let head_font = theme::medium(12.0);
+    let cell_font = theme::regular(12.5);
+    let measure = |s: &str| {
+        ui.painter()
+            .layout_no_wrap(s.to_string(), head_font.clone(), t.text)
+            .size()
+            .x
+    };
+    let lead_w = 170.0;
+    let mut fixed: Vec<(&str, f32)> = Vec::new();
+    if weights {
+        fixed.push(("Weight", 96.0));
+    }
+    fixed.push((if weights { "Price" } else { "Value" }, 92.0));
+    fixed.push(("1D", 78.0));
+    let mut widths: Vec<f32> = Metric::ALL
+        .iter()
+        .map(|m| (measure(m.short()) + 26.0).max(76.0))
+        .collect();
+    let used: f32 = lead_w + fixed.iter().map(|f| f.1).sum::<f32>() + widths.iter().sum::<f32>();
+    let spare = (ui.available_width() - used).max(0.0) / widths.len() as f32;
+    for w in &mut widths {
+        *w += spare.min(40.0);
+    }
+    let x0 = lead_w + fixed.iter().map(|f| f.1).sum::<f32>();
+    let xs: Vec<f32> = widths
+        .iter()
+        .scan(x0, |x, w| {
+            let at = *x;
+            *x += w;
+            Some(at)
+        })
+        .collect();
+    let total = x0 + widths.iter().sum::<f32>();
+    let row_h = 32.0;
+    let hair = Stroke::new(1.0, t.border.gamma_multiply(0.45));
+    let columns: HashMap<Metric, Vec<f64>> = Metric::ALL
+        .iter()
+        .map(|m| (*m, rows.iter().map(|r| r.get(*m)).collect()))
+        .collect();
+    let max_weight = rows
+        .iter()
+        .map(|r| r.weight)
+        .filter(|w| w.is_finite())
+        .fold(0.0, f64::max);
+    // Where one group ends and the next starts (a faint rule down the table).
+    let bounds: Vec<f32> = (1..Metric::ALL.len())
+        .filter(|k| Metric::ALL[*k].group() != Metric::ALL[k - 1].group())
+        .map(|k| xs[k])
+        .chain(std::iter::once(x0))
+        .collect();
+    let mut order: Vec<&TRow> = rows.iter().collect();
+    order.sort_by(|a, b| {
+        let (x, y) = match sort.0 {
+            Some(m) => (a.get(m), b.get(m)),
+            None if weights => (a.weight, b.weight),
+            None => return a.label.cmp(&b.label).reverse(),
+        };
+        match (x.is_finite(), y.is_finite()) {
+            (true, true) => x.partial_cmp(&y).unwrap_or(std::cmp::Ordering::Equal),
+            (true, false) => std::cmp::Ordering::Greater,
+            (false, true) => std::cmp::Ordering::Less,
+            _ => std::cmp::Ordering::Equal,
         }
     });
+    if sort.1 {
+        order.reverse();
+    }
+    egui::ScrollArea::horizontal().id_salt((salt, "h")).show(ui, |ui| {
+        ui.set_min_width(total);
+        // Group headers: a soft band over exactly their columns.
+        let (band, _) = ui.allocate_exact_size(vec2(total, 24.0), Sense::hover());
+        let p = ui.painter();
+        let mut k = 0;
+        while k < Metric::ALL.len() {
+            let g = Metric::ALL[k].group();
+            let n = Metric::ALL[k..].iter().take_while(|m| m.group() == g).count();
+            let w: f32 = widths[k..k + n].iter().sum();
+            let r = Rect::from_min_size(band.min + vec2(xs[k] + 3.0, 0.0), vec2(w - 6.0, 22.0));
+            p.rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
+            let label = crate::format::elide_to(p, g, &theme::medium(11.5), r.width() - 12.0);
+            p.text(r.center(), Align2::CENTER_CENTER, label, theme::medium(11.5), t.text2);
+            k += n;
+        }
+        // Column titles; click to sort.
+        let (head, _) = ui.allocate_exact_size(vec2(total, row_h), Sense::hover());
+        let mut sorted = None;
+        let mut title = |ui: &mut Ui, r: Rect, text: &str, key: Option<Metric>, tip: &str, left: bool| {
+            let on = sort.0 == key;
+            let c = if on { t.accent } else { t.text3 };
+            let shown = crate::format::elide_to(ui.painter(), text, &head_font, r.width() - 16.0);
+            let (pos, align) = if left {
+                (r.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER)
+            } else {
+                (r.right_center() - vec2(10.0, 0.0), Align2::RIGHT_CENTER)
+            };
+            ui.painter().text(pos, align, shown, head_font.clone(), c);
+            if ui
+                .interact(r, ui.id().with((salt, "head", text)), Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(tip)
+                .clicked()
+            {
+                sorted = Some(key);
+            }
+        };
+        let lead_title = if weights { "Symbol" } else { "Index" };
+        let lead_tip = if weights { "Sort by weight" } else { "Sort by name" };
+        title(
+            ui,
+            Rect::from_min_size(head.min, vec2(lead_w, row_h)),
+            lead_title,
+            None,
+            lead_tip,
+            true,
+        );
+        let mut x = lead_w;
+        for (name, wd) in &fixed {
+            let r = Rect::from_min_size(head.min + vec2(x, 0.0), vec2(*wd, row_h));
+            let tip = match *name {
+                "Weight" => "Today's weight in the index",
+                "1D" => "Change since the last close",
+                _ => "",
+            };
+            if *name == "Weight" {
+                title(ui, r, name, None, tip, false);
+            } else {
+                ui.painter().text(
+                    r.right_center() - vec2(10.0, 0.0),
+                    Align2::RIGHT_CENTER,
+                    *name,
+                    head_font.clone(),
+                    t.text3,
+                );
+                if !tip.is_empty() {
+                    ui.interact(r, ui.id().with((salt, "fixed", *name)), Sense::hover())
+                        .on_hover_text(tip);
+                }
+            }
+            x += wd;
+        }
+        for (k, m) in Metric::ALL.iter().enumerate() {
+            let r = Rect::from_min_size(head.min + vec2(xs[k], 0.0), vec2(widths[k], row_h));
+            title(ui, r, m.short(), Some(*m), &format!("{}: {}", m.name(), m.tip()), false);
+        }
+        if let Some(key) = sorted {
+            *sort = (key, if sort.0 == key { !sort.1 } else { true });
+        }
+        ui.painter()
+            .hline(head.x_range(), head.bottom(), Stroke::new(1.0, t.border));
+        egui::ScrollArea::vertical()
+            .id_salt((salt, "v"))
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 0.0;
+                let all: Vec<(&TRow, bool)> = pinned
+                    .map(|p| (p, true))
+                    .into_iter()
+                    .chain(order.iter().map(|r| (*r, false)))
+                    .collect();
+                for (row, pin) in all {
+                    let sense = if row.click.is_some() {
+                        Sense::click()
+                    } else {
+                        Sense::hover()
+                    };
+                    let (r, resp) = ui.allocate_exact_size(vec2(total, row_h), sense);
+                    let p = ui.painter();
+                    if pin {
+                        p.rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
+                    } else if resp.hovered() {
+                        p.rect_filled(r, 6, t.hover_wash());
+                    }
+                    for b in &bounds {
+                        p.vline(r.left() + b, r.y_range(), hair);
+                    }
+                    let strong = pin;
+                    // Lead: logo and ticker, or the name.
+                    let mut tx = r.left() + 10.0;
+                    if let Some(s) = &row.symbol {
+                        logos.paint(p, t, s, pos2(r.left() + 19.0, r.center().y), 9.0);
+                        tx = r.left() + 36.0;
+                    }
+                    let lead_font = if strong || row.symbol.is_none() {
+                        theme::semibold(12.5)
+                    } else {
+                        theme::medium(12.5)
+                    };
+                    let label = crate::format::elide_to(p, &row.label, &lead_font, r.left() + lead_w - tx - 8.0);
+                    p.text(pos2(tx, r.center().y), Align2::LEFT_CENTER, label, lead_font, t.text);
+                    let mut x = lead_w;
+                    for (name, wd) in &fixed {
+                        let cell = Rect::from_min_size(r.min + vec2(x, 0.0), vec2(*wd, row_h));
+                        let right = cell.right_center() - vec2(10.0, 0.0);
+                        match *name {
+                            "Weight" if row.weight.is_finite() => {
+                                // A small bar beside the number.
+                                let track = Rect::from_min_size(cell.left_center() + vec2(10.0, -2.0), vec2(30.0, 4.0));
+                                p.rect_filled(track, 2, t.hover_wash());
+                                if max_weight > 0.0 {
+                                    let fill = Rect::from_min_size(
+                                        track.min,
+                                        vec2(track.width() * (row.weight / max_weight) as f32, 4.0),
+                                    );
+                                    p.rect_filled(fill, 2, t.accent.gamma_multiply(0.7));
+                                }
+                                p.text(
+                                    right,
+                                    Align2::RIGHT_CENTER,
+                                    format!("{:.1}%", row.weight),
+                                    cell_font.clone(),
+                                    t.text2,
+                                );
+                            }
+                            "Price" | "Value" if row.price.is_finite() && row.price > 0.0 => {
+                                let d = row.symbol.as_ref().map_or(2, |s| s.precision().max(2));
+                                p.text(
+                                    right,
+                                    Align2::RIGHT_CENTER,
+                                    crate::format::price(row.price, d),
+                                    cell_font.clone(),
+                                    t.text,
+                                );
+                            }
+                            "1D" if row.change.is_finite() => {
+                                let c = if row.change >= 0.0 { t.pos } else { t.neg };
+                                p.text(
+                                    right,
+                                    Align2::RIGHT_CENTER,
+                                    crate::format::signed_pct(row.change),
+                                    cell_font.clone(),
+                                    c,
+                                );
+                            }
+                            _ => {}
+                        }
+                        x += wd;
+                    }
+                    if row.error.is_some() && row.values.is_empty() {
+                        p.text(
+                            r.left_center() + vec2(x0 + 10.0, 0.0),
+                            Align2::LEFT_CENTER,
+                            row.error.as_deref().unwrap_or_default(),
+                            theme::regular(12.0),
+                            t.text3,
+                        );
+                    } else {
+                        for (k, m) in Metric::ALL.iter().enumerate() {
+                            let v = row.get(*m);
+                            let cell = Rect::from_min_size(r.min + vec2(xs[k], 0.0), vec2(widths[k], row_h));
+                            let c = if strong {
+                                if v.is_finite() { t.text } else { t.text3 }
+                            } else {
+                                tone(t, m.score(v, &columns[m]))
+                            };
+                            let f = if strong {
+                                theme::semibold(12.5)
+                            } else {
+                                cell_font.clone()
+                            };
+                            p.text(
+                                cell.right_center() - vec2(10.0, 0.0),
+                                Align2::RIGHT_CENTER,
+                                m.format(v),
+                                f,
+                                c,
+                            );
+                        }
+                    }
+                    if !pin {
+                        p.hline(r.x_range(), r.bottom(), hair);
+                    }
+                    let tip = match (&row.error, &row.symbol) {
+                        (Some(e), _) => Some(e.clone()),
+                        (None, Some(s)) => Some(s.id.clone()),
+                        _ => None,
+                    };
+                    let resp = match tip {
+                        Some(tip) => resp.on_hover_text(tip),
+                        None => resp,
+                    };
+                    if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                        click = row.click.clone();
+                    }
+                }
+            });
+    });
+    click
 }
 
 /// Squarified treemap: rectangles for `areas` (largest first) in `r`.
@@ -1256,73 +1897,6 @@ pub fn squarify(areas: &[f64], r: Rect) -> Vec<Rect> {
         i = j;
     }
     out
-}
-
-/// Members as tiles sized by weight, coloured by `metric`.
-fn treemap(ui: &mut Ui, t: &Theme, board: &Board, metric: Metric) -> Option<Symbol> {
-    let area = ui.available_rect_before_wrap();
-    let resp = ui.allocate_rect(area, Sense::click());
-    let mut rows: Vec<&BoardRow> = board
-        .rows
-        .iter()
-        .filter(|r| r.weight.is_finite() && r.weight > 0.0)
-        .collect();
-    rows.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
-    if rows.is_empty() {
-        if board.waiting > 0 {
-            ui.put(area, egui::Spinner::new());
-        }
-        return None;
-    }
-    let all: Vec<f64> = board.rows.iter().map(|r| r.get(metric)).collect();
-    let rects = squarify(&rows.iter().map(|r| r.weight).collect::<Vec<_>>(), area);
-    let p = ui.painter_at(area);
-    let hover = resp.hover_pos();
-    let mut open = None;
-    for (row, r) in rows.iter().zip(rects) {
-        let r = r.shrink(1.5);
-        let v = row.get(metric);
-        let fill = match metric.score(v, &all) {
-            Some(s) => heat(t, Some(s)),
-            None => t.hover_wash(),
-        };
-        p.rect_filled(r, 6, fill);
-        let hot = hover.is_some_and(|h| r.contains(h));
-        if hot {
-            p.rect_stroke(r, 6, Stroke::new(1.5, t.text2), egui::StrokeKind::Inside);
-        }
-        if r.width() > 46.0 && r.height() > 30.0 {
-            let big = (r.width().min(r.height() * 2.2) / 6.0).clamp(11.0, 20.0);
-            let name = crate::format::elide_to(&p, row.symbol.ticker(), &theme::semibold(big), r.width() - 10.0);
-            p.text(
-                r.center() - vec2(0.0, big * 0.55),
-                Align2::CENTER_CENTER,
-                name,
-                theme::semibold(big),
-                t.text,
-            );
-            p.text(
-                r.center() + vec2(0.0, big * 0.6),
-                Align2::CENTER_CENTER,
-                metric.format(v),
-                theme::regular((big * 0.75).max(10.5)),
-                t.text2,
-            );
-        }
-        if hot {
-            let tip = format!(
-                "{}\nWeight {:.1}%\n{}: {}",
-                row.symbol.id,
-                row.weight,
-                metric.name(),
-                metric.format(v)
-            );
-            if resp.clone().on_hover_text(tip).clicked() {
-                open = Some(row.symbol.clone());
-            }
-        }
-    }
-    open
 }
 
 // ------------------------------------------------------------ editor
@@ -1451,8 +2025,9 @@ impl IndexEditor {
                     if k == self.selected || resp.hovered() {
                         p.rect_filled(r, 6, t.hover_wash());
                     }
+                    app.logos.paint(p, t, s, r.left_center() + vec2(18.0, 0.0), 9.0);
                     p.text(
-                        r.left_center() + vec2(10.0, 0.0),
+                        r.left_center() + vec2(34.0, 0.0),
                         Align2::LEFT_CENTER,
                         s.ticker(),
                         theme::medium(12.5),
@@ -1503,7 +2078,7 @@ impl IndexEditor {
                             .layout_no_wrap(m.ticker().to_string(), font.clone(), t.text)
                             .size()
                             .x
-                            + 36.0
+                            + 58.0
                     })
                     .collect();
                 let mut rows: Vec<Vec<usize>> = vec![Vec::new()];
@@ -1527,8 +2102,10 @@ impl IndexEditor {
                                     let m = &self.members[k];
                                     let (r, resp) = ui.allocate_exact_size(vec2(widths[k], 26.0), Sense::hover());
                                     ui.painter().rect_filled(r, 6, t.hover);
+                                    app.logos
+                                        .paint(ui.painter(), t, m, r.left_center() + vec2(15.0, 0.0), 8.0);
                                     ui.painter().text(
-                                        r.left_center() + vec2(8.0, 0.0),
+                                        r.left_center() + vec2(29.0, 0.0),
                                         Align2::LEFT_CENTER,
                                         m.ticker(),
                                         font.clone(),
@@ -1569,7 +2146,11 @@ impl IndexEditor {
                 ui,
                 t,
                 &mut self.weighting,
-                &[(Weighting::MarketCap, "Market cap"), (Weighting::Equal, "Equal")],
+                &[
+                    (Weighting::FreeFloat, "Free float"),
+                    (Weighting::MarketCap, "Full market cap"),
+                    (Weighting::Equal, "Equal"),
+                ],
             );
             ui.add_space(16.0);
             ui.horizontal(|ui| {
@@ -1606,6 +2187,88 @@ impl IndexEditor {
     }
 }
 
+/// Tiles sized by `items`' weights, coloured by how `metric` stands among
+/// them.
+fn treemap(
+    ui: &mut Ui,
+    t: &Theme,
+    logos: &crate::logos::Logos,
+    items: &[(&TRow, f64)],
+    metric: Metric,
+    waiting: bool,
+) -> Option<Click> {
+    let area = ui.available_rect_before_wrap();
+    let resp = ui.allocate_rect(area, Sense::click());
+    let mut items: Vec<&(&TRow, f64)> = items.iter().filter(|(_, w)| w.is_finite() && *w > 0.0).collect();
+    items.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    if items.is_empty() {
+        if waiting {
+            ui.put(area, egui::Spinner::new());
+        }
+        return None;
+    }
+    let all: Vec<f64> = items.iter().map(|(r, _)| r.get(metric)).collect();
+    let total: f64 = items.iter().map(|(_, w)| w).sum();
+    let rects = squarify(&items.iter().map(|(_, w)| *w).collect::<Vec<_>>(), area);
+    let p = ui.painter_at(area);
+    let hover = resp.hover_pos();
+    let mut click = None;
+    for ((row, wgt), r) in items.iter().zip(rects) {
+        let r = r.shrink(2.0);
+        let v = row.get(metric);
+        let fill = match metric.score(v, &all) {
+            Some(s) => {
+                let c = if s >= 0.0 { t.pos } else { t.neg };
+                lerp_color(t.card, c, 0.12 + 0.4 * s.abs())
+            }
+            None => t.card,
+        };
+        p.rect_filled(r, 8, fill);
+        let hot = hover.is_some_and(|h| r.contains(h));
+        if hot {
+            p.rect_stroke(r, 8, Stroke::new(1.5, t.text2), egui::StrokeKind::Inside);
+        }
+        if r.width() > 50.0 && r.height() > 34.0 {
+            let big = (r.width().min(r.height() * 2.2) / 7.0).clamp(11.0, 19.0);
+            let font = theme::semibold(big);
+            let name = crate::format::elide_to(&p, &row.label, &font, r.width() - 14.0);
+            p.text(
+                r.center() - vec2(0.0, big * 0.55),
+                Align2::CENTER_CENTER,
+                name,
+                font,
+                t.text,
+            );
+            p.text(
+                r.center() + vec2(0.0, big * 0.65),
+                Align2::CENTER_CENTER,
+                metric.format(v),
+                theme::regular((big * 0.78).max(10.5)),
+                t.text2,
+            );
+            if let Some(s) = &row.symbol
+                && r.height() > 70.0
+                && r.width() > 70.0
+            {
+                logos.paint(&p, t, s, r.left_top() + vec2(16.0, 16.0), 8.0);
+            }
+        }
+        if hot {
+            let tip = format!(
+                "{}\n{:.1}% of the map\n{}: {}",
+                row.symbol.as_ref().map_or(row.label.clone(), |s| s.id.clone()),
+                wgt / total * 100.0,
+                metric.name(),
+                metric.format(v)
+            );
+            if resp.clone().on_hover_text(tip).clicked() {
+                click = row.click.clone();
+            }
+        }
+    }
+    click
+}
+
 impl App {
     fn save_index(&mut self, e: &IndexEditor) {
         let taken: Vec<String> = self
@@ -1628,13 +2291,15 @@ impl App {
         if !same {
             def.members = e.members.clone();
             def.weighting = e.weighting;
-            def.units.clear();
+            // A new segment from today keeps the level (the divisor).
+            def.pending = def.ready();
         }
         let ticker = def.ticker.clone();
         match pos {
             Some(k) => self.indices.defs[k] = def,
             None => self.indices.defs.push(def),
         }
+        self.indices.compare = false;
         self.indices.open = Some(ticker.clone());
         self.indices.chart_when_ready = Some(ticker);
         self.save_indices();
@@ -1657,12 +2322,14 @@ impl App {
 mod tests {
     use super::*;
 
+    const DAY: i64 = 86_400_000;
+
     fn bars(prices: &[f64]) -> Vec<Bar> {
         prices
             .iter()
             .enumerate()
             .map(|(i, p)| Bar {
-                time: i as i64 * 86_400_000,
+                time: i as i64 * DAY,
                 open: *p,
                 high: *p,
                 low: *p,
@@ -1672,36 +2339,118 @@ mod tests {
             .collect()
     }
 
+    fn fund(shares: f64, float: f64) -> Fundamentals {
+        Fundamentals {
+            shares,
+            float_shares: float,
+            ..Default::default()
+        }
+    }
+
+    fn def(ids: &[&str], w: Weighting) -> IndexDef {
+        IndexDef {
+            ticker: "T".into(),
+            name: "T".into(),
+            members: ids.iter().map(|id| Symbol::bare(id)).collect(),
+            weighting: w,
+            ..Default::default()
+        }
+    }
+
     #[test]
-    fn market_cap_index_starts_at_its_base() {
-        let a = bars(&[100.0, 110.0, 121.0]);
-        let b = bars(&[50.0, 50.0, 25.0]);
-        // A: 10 shares (cap 1000), B: 20 shares (cap 1000).
-        let (units, t0, fell_back) = work_out_units(&[(&a, 10.0), (&b, 20.0)], Weighting::MarketCap, 1000.0).unwrap();
-        assert_eq!(t0, 0);
-        assert!(!fell_back);
-        let s = index_series(&[&a, &b], &units);
+    fn free_float_index_starts_at_its_base_and_keeps_its_level() {
+        let (a, b, c) = (
+            bars(&[100.0, 110.0, 121.0, 121.0]),
+            bars(&[50.0, 50.0, 25.0, 25.0]),
+            bars(&[10.0, 10.0, 10.0, 20.0]),
+        );
+        let map: HashMap<String, &[Bar]> = [("A", &a), ("B", &b), ("C", &c)]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.as_slice()))
+            .collect();
+        // A floats 10 of 40 shares (float cap 1000), B 20 of 20 (1000).
+        let (fa, fb, fc) = (fund(40.0, 10.0), fund(20.0, 20.0), fund(100.0, 50.0));
+        let funds: HashMap<String, Option<&Fundamentals>> = [("A", &fa), ("B", &fb), ("C", &fc)]
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), Some(v)))
+            .collect();
+        let mut d = def(&["A", "B"], Weighting::FreeFloat);
+        assert!(settle(&mut d, &map, &funds, 0));
+        let s = index_series(&d.segments, &map);
         assert!((s[0].close - 1000.0).abs() < 1e-9);
         // Day 2: A +21% on half the weight, B -50% on the other half.
         assert!((s[2].close - (1210.0 + 500.0) / 2.0).abs() < 1e-9);
-        // No share count for one: equal weights, and it says so.
-        let (u2, _, fb) = work_out_units(&[(&a, 10.0), (&b, f64::NAN)], Weighting::MarketCap, 1000.0).unwrap();
-        assert!(fb);
-        assert!((u2[0] * 100.0 - u2[1] * 50.0).abs() < 1e-9);
+        // Adding C on the last day: the level at the close before is kept.
+        let before = s[2].close;
+        d.members.push(Symbol::bare("C"));
+        d.pending = true;
+        assert!(settle(&mut d, &map, &funds, 1));
+        assert_eq!(d.segments.len(), 2);
+        assert_eq!(d.segments[1].from, 3 * DAY);
+        assert!((level_at(&d.segments, &map, 2 * DAY) - before).abs() < 1e-9);
+        // C doubles on day 3; A and B are flat, so the index moves by C's weight.
+        let s = index_series(&d.segments, &map);
+        let wc = 50.0 * 10.0 / (10.0 * 121.0 + 20.0 * 25.0 + 50.0 * 10.0);
+        assert!((s[3].close / s[2].close - (1.0 + wc)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_split_adjusted_in_later_rescales_units() {
+        let a = bars(&[100.0, 100.0]);
+        let map: HashMap<String, &[Bar]> = [("A".to_string(), a.as_slice())].into_iter().collect();
+        let mut seg = Segment {
+            from: i64::MIN,
+            members: vec!["A".into()],
+            units: vec![5.0],
+            anchor_time: 0,
+            // Set when the price was 200, before a 2:1 split.
+            anchors: vec![200.0],
+            made: 0,
+        };
+        assert!(adjust_for_splits(&mut seg, &map));
+        assert_eq!(seg.units[0], 10.0);
+        assert_eq!(seg.anchors[0], 100.0);
+        assert!(!adjust_for_splits(&mut seg, &map));
+    }
+
+    #[test]
+    fn rebalances_on_nse_dates() {
+        let ms = |y, m, d| {
+            jiff::civil::date(y, m, d)
+                .to_zoned(jiff::tz::TimeZone::UTC)
+                .unwrap()
+                .timestamp()
+                .as_millisecond()
+        };
+        assert_eq!(rebalance_due(ms(2026, 4, 2), ms(2026, 9, 30)), None);
+        assert_eq!(rebalance_due(ms(2026, 4, 2), ms(2026, 10, 29)), Some(ms(2026, 10, 1)));
+        assert_eq!(rebalance_due(ms(2025, 1, 1), ms(2026, 5, 1)), Some(ms(2026, 4, 1)));
+    }
+
+    #[test]
+    fn missing_numbers_are_not_zero() {
+        let f = Fundamentals {
+            gross_margin: 0.0,
+            ebitda_margin: 0.0,
+            ev_ebitda: 1028.5,
+            ebit_margin: 0.3,
+            pat_margin: 0.2,
+            ..Default::default()
+        };
+        let g = clean(&f);
+        assert!(g.gross_margin.is_nan() && g.ebitda_margin.is_nan() && g.ev_ebitda.is_nan());
+        assert_eq!(g.ebit_margin, 0.3);
     }
 
     #[test]
     fn formula_charts_through_the_hub() {
-        let def = IndexDef {
-            ticker: "T".into(),
-            name: "T".into(),
-            members: vec![Symbol::bare("NSE:A"), Symbol::bare("NSE:B")],
+        let seg = Segment {
+            members: vec!["NSE:M&M".into(), "NSE:B".into()],
             units: vec![0.5, 0.000001],
             ..Default::default()
         };
-        let f = def.formula().unwrap();
-        let (e, legs) = opentern_data::expr::parse(&f).unwrap();
-        assert_eq!(legs, ["NSE:A", "NSE:B"]);
+        let (e, legs) = opentern_data::expr::parse(&seg.formula()).unwrap();
+        assert_eq!(legs, ["NSE:M&M", "NSE:B"]);
         assert!((e.eval(&[10.0, 1_000_000.0]) - 6.0).abs() < 1e-9);
         assert_eq!(ticker_for("Nifty Auto", &["NIFTYAUTO".into()]), "NIFTYAUTO2");
     }

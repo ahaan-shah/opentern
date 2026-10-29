@@ -226,7 +226,12 @@ impl App {
             motion::STANDARD,
         );
         let most = panel_max_h(ui.ctx().content_rect().height());
-        let panel_h = if self.layout.panel_max {
+        // Maximized, the panel takes the chart's place too (and the range
+        // bar's): everything under the top bar.
+        let full = self.layout.panel_max && self.layout.tab.is_some();
+        let panel_h = if full {
+            (ui.ctx().content_rect().height() - TOP_H - TABS_H - GAP).max(140.0)
+        } else if self.layout.panel_max {
             most
         } else {
             self.layout.panel_h.min(most)
@@ -242,12 +247,14 @@ impl App {
                 }
             });
 
-        egui::Panel::bottom("range-bar")
-            .exact_size(RANGE_H)
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(8, 0)))
-            .show(ui, |ui| self.range_bar(ui, &t));
+        if !full {
+            egui::Panel::bottom("range-bar")
+                .exact_size(RANGE_H)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin::symmetric(8, 0)))
+                .show(ui, |ui| self.range_bar(ui, &t));
+        }
 
         // The drawing toolbar slides in and out, like the other panels.
         let tk = motion::toggle(ui.ctx(), Id::new("toolbar-open"), self.layout.toolbar, motion::STANDARD);
@@ -276,6 +283,10 @@ impl App {
                 bottom: 0,
             }))
             .show(ui, |ui| {
+                // A maximized panel leaves no room for the chart.
+                if ui.max_rect().height() < 60.0 {
+                    return;
+                }
                 cards.push(ui.max_rect());
                 if self.settings.is_some() {
                     self.settings_page(ui, &t);

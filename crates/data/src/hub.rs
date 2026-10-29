@@ -472,8 +472,8 @@ impl Provider for Missing {
 /// set, else Yahoo.
 pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
     if crate::expr::is_custom(&sym.id) {
-        return match crate::expr::custom_formula(&sym.id)
-            .and_then(|f| crate::expr::ExprProvider::from_formula(&f, demo))
+        return match crate::expr::custom_segments(&sym.id)
+            .and_then(|s| crate::expr::ExprProvider::from_segments(&s, demo))
         {
             Some(p) => Arc::new(p),
             None => Arc::new(Missing("This index no longer exists.".into())),

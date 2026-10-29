@@ -421,6 +421,8 @@ impl App {
                 self.strategies.tab = crate::strategy::ReportTab::List;
             } else if part == "max" {
                 self.layout.panel_max = true;
+            } else if part == "index-compare" {
+                self.indices.compare = true;
             } else if part == "index-map" {
                 self.indices.view = crate::indices::View::Map;
             } else if part == "index-edit" {

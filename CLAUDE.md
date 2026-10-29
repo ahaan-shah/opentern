@@ -1278,50 +1278,38 @@ every data change (scripts re-run on it).
   the window; default the last 6 years), "Rises and falls" per column
   (average on hover). Monthly bars via `Request::Fetch` 1M, seqs from
   `seasonal::SEQ_BASE` (1 << 45). Fonts lack ▲/▼: the triangles are drawn.
-- **Custom indices** (`indices.rs`, bottom tab "Indices"; **design is v1,
-  to iterate with the maintainer before release**). An index is a formula
-  `units1*NSE:A + units2*NSE:B …` registered with the hub as
-  `CUSTOM:<TICKER>` (`expr::set_customs`, at app start before any chart
-  opens), so chart, quotes, indicators and alerts just work; custom ids are
-  never cached (members can change). Units = share counts (market cap) or
-  1/price (equal), scaled so the index is 1000 on the first day all
-  members have a price; fixed until the members change. No share count
-  for some member → equal weights, with a warning icon. Board: tiles for
-  the index's own numbers, then a heat table (Returns / Valuation / Growth
-  and margins / Technicals; cells tinted by sign/size or by rank, lower
-  P/E and EV/EBITDA better, loss-makers worst) or a treemap (area =
-  weight, colour = picked metric). Index P/E = Σcap/Σearnings, EV/EBITDA
-  = ΣEV/ΣEBITDA, margins revenue-weighted. Saved under settings key
-  `custom_indices`. Members: daily bars (seqs from 1 << 46) and
-  `Request::Fundamentals` (`opentern_data::fundamentals`: Yahoo
-  `quoteSummary` with the fc.yahoo.com cookie + crumb, one request at a
-  time; demo makes numbers up). **The live Yahoo fundamentals path hasn't
-  been run from a dev shell** (curl probing got rate-limited); the
-  maintainer tests it in the app. Stills: `index-map`, `index-edit`,
-  `index-chart`.
-- **Custom indices: to do** (the maintainer, 30 Oct 2026; before release):
-  - Math, to get closer to NSE's methodology (today: total shares, no
-    caps, weights fixed, no divisor adjustment, base 1000 on the first
-    common day of ~400 days):
-    1. Free-float weighting (Yahoo `floatShares`), probably the default,
-       total shares as an option.
-    2. Optional caps: any one stock ≤ 33%, top 3 ≤ 62% (Nifty sectoral
-       rules), or user limits.
-    3. Rebalance (button and/or schedule) that recomputes weights and
-       adjusts the divisor so the level stays continuous.
-    4. Match a real index level: base so it lines up with e.g.
-       NSE:CNXAUTO on a chosen date.
-  - Heat-table colouring (`Metric::score`; today: sign and size against
-    the column's largest move for returns/growth/SMA distance, rank among
-    members for P/E, EV/EBITDA and margins, RSI around 50):
-    1. Yahoo's 0 for missing margins (banks/financials have no gross or
-       EBITDA margin) is ranked worst and painted red: treat it as "—",
-       uncoloured.
-    2. Outliers like EV/EBITDA 1028.5 (near-zero EBITDA or bad data):
-       show "—" past a sane bound (e.g. > 200).
-    3. Decide with the maintainer: keep rank colouring, or colour each
-       cell against the index's own value (green = better than the
-       basket).
+- **Custom indices** (`indices.rs`, bottom tab "Indices"; **v2, still to
+  iterate with the maintainer before release**). Method = NSE's except
+  caps (module doc): free-float market cap (Yahoo `floatShares`; all
+  shares when a stock has no float figure; also full cap or equal), base
+  1000 on the first common day, **segments**: weights hold from a time on,
+  and a rebalance (1 April / 1 October when the app sees the date pass, any
+  member or weighting edit, or "Rebalance now") starts a new segment
+  scaled so the level at the close before is kept (the divisor). Each
+  segment keeps the closes it was set at (`anchors`) and rescales its
+  units when a split shows up as a changed past price. The hub charts
+  segments (`expr::set_customs(id → [(from, formula)])`,
+  `ExprProvider::from_segments`; live bars stream the current segment's
+  legs only); custom ids are never cached. Old saves (one set of
+  `units`) migrate to a first segment. Not done: caps (the maintainer
+  left them out), NSE's IWF banding, historical float (past segments use
+  the float known when they were made).
+- Board: tiles for the index's own numbers (one row when names fit, else
+  6 or 4 a row), then a table (logos, weight with a mini bar, price, 1D,
+  metrics under group bands with rules between groups; numbers coloured
+  by score, no cell boxes; P/E and EV/EBITDA rank lower-better,
+  loss-makers worst) or a treemap. **Compare** (top of the list once
+  there are two indices): every index's own numbers side by side, table
+  or map (tiles by members' total market cap). Index P/E = Σcap/Σearnings,
+  EV/EBITDA = ΣEV/ΣEBITDA, margins revenue-weighted. `clean`: Yahoo's 0
+  for missing margins (banks) and EV/EBITDA outside (0, 200], |P/E| > 1000
+  become "—". Members' data: daily bars (1500, seqs from 1 << 46) and
+  `Request::Fundamentals` (Yahoo `quoteSummary` + cookie/crumb, one at a
+  time; demo makes numbers up). Settings key `custom_indices`. Stills:
+  `index-map`, `index-edit`, `index-chart`, `index-compare`.
+- A maximized bottom panel takes the chart's and range bar's place.
+- **Custom indices, still open:** colour against the index's value
+  instead of by rank (kept rank for now); caps if ever wanted.
 - Formula lexer accepts `&` in tickers (`NSE:M&M`).
 - **Agent accounts** (`claude/accounts.rs`): an account is a CLI config
   folder: Claude Code's `CLAUDE_CONFIG_DIR`, Codex's `CODEX_HOME`. Found:

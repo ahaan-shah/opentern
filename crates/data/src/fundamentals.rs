@@ -16,6 +16,9 @@ use std::sync::Mutex;
 pub struct Fundamentals {
     pub market_cap: f64,
     pub shares: f64,
+    /// Shares the public can trade (promoters' and locked-in holdings
+    /// left out): what NSE weights its indices by.
+    pub float_shares: f64,
     pub pe: f64,
     pub ev_ebitda: f64,
     pub enterprise_value: f64,
@@ -38,6 +41,7 @@ impl Default for Fundamentals {
         Fundamentals {
             market_cap: f64::NAN,
             shares: f64::NAN,
+            float_shares: f64::NAN,
             pe: f64::NAN,
             ev_ebitda: f64::NAN,
             enterprise_value: f64::NAN,
@@ -143,9 +147,16 @@ pub(crate) fn parse(v: &serde_json::Value) -> Result<Fundamentals> {
     if !pe.is_finite() {
         pe = raw(&ks["trailingPE"]);
     }
+    let float_shares = raw(&ks["floatShares"]);
     Ok(Fundamentals {
         market_cap,
         shares,
+        // A float above the share count is a data error.
+        float_shares: if float_shares > 0.0 && float_shares <= shares * 1.0001 {
+            float_shares
+        } else {
+            f64::NAN
+        },
         pe,
         ev_ebitda: raw(&ks["enterpriseToEbitda"]),
         enterprise_value: raw(&ks["enterpriseValue"]),
@@ -230,6 +241,7 @@ fn made_up(symbol: &Symbol) -> Fundamentals {
     Fundamentals {
         market_cap,
         shares,
+        float_shares: shares * (0.3 + next() * 0.65),
         pe,
         ev_ebitda: ev / ebitda,
         enterprise_value: ev,
@@ -255,7 +267,7 @@ mod tests {
             r#"{"quoteSummary":{"result":[{
                 "price":{"marketCap":{"raw":4.0e12},"regularMarketPrice":{"raw":12500.0},"currency":"INR"},
                 "summaryDetail":{"trailingPE":{"raw":27.5}},
-                "defaultKeyStatistics":{"sharesOutstanding":{"raw":3.2e8},"enterpriseToEbitda":{"raw":18.2},
+                "defaultKeyStatistics":{"sharesOutstanding":{"raw":3.2e8},"floatShares":{"raw":1.4e8},"enterpriseToEbitda":{"raw":18.2},
                     "enterpriseValue":{"raw":3.9e12},"netIncomeToCommon":{"raw":1.45e11}},
                 "financialData":{"totalRevenue":{"raw":1.5e12},"ebitda":{"raw":2.1e11},"revenueGrowth":{"raw":0.081},
                     "grossMargins":{"raw":0.27},"ebitdaMargins":{"raw":0.14},"operatingMargins":{"raw":0.11},
@@ -265,6 +277,7 @@ mod tests {
         .unwrap();
         let f = parse(&v).unwrap();
         assert_eq!(f.shares, 3.2e8);
+        assert_eq!(f.float_shares, 1.4e8);
         assert_eq!(f.pe, 27.5);
         assert_eq!(f.ebit_margin, 0.11);
         assert_eq!(f.currency, "INR");

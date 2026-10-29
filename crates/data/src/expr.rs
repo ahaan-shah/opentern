@@ -299,10 +299,14 @@ pub fn combine_one(e: &Expr, row: &[Bar]) -> Option<Bar> {
     })
 }
 
-/// Custom indices (`CUSTOM:NAME`): the app registers each one's formula
-/// here, and the hub charts and quotes it like that formula.
-fn customs() -> &'static std::sync::RwLock<std::collections::HashMap<String, String>> {
-    static C: std::sync::OnceLock<std::sync::RwLock<std::collections::HashMap<String, String>>> =
+/// Custom indices (`CUSTOM:NAME`): the app registers each one's formulas
+/// here, and the hub charts and quotes it through them. An index is a list
+/// of (from, formula) segments, oldest first: a rebalance starts a new
+/// segment, so each bar uses the weights that held on its day.
+type Segments = Vec<(i64, String)>;
+
+fn customs() -> &'static std::sync::RwLock<std::collections::HashMap<String, Segments>> {
+    static C: std::sync::OnceLock<std::sync::RwLock<std::collections::HashMap<String, Segments>>> =
         std::sync::OnceLock::new();
     C.get_or_init(Default::default)
 }
@@ -313,24 +317,85 @@ pub fn is_custom(id: &str) -> bool {
     id.starts_with(CUSTOM)
 }
 
-/// Replaces every custom index (id → formula).
-pub fn set_customs(all: impl IntoIterator<Item = (String, String)>) {
+/// Replaces every custom index (id → segments).
+pub fn set_customs(all: impl IntoIterator<Item = (String, Segments)>) {
     if let Ok(mut m) = customs().write() {
         *m = all.into_iter().collect();
     }
 }
 
-/// A custom index's formula.
-pub fn custom_formula(id: &str) -> Option<String> {
+/// A custom index's segments.
+pub fn custom_segments(id: &str) -> Option<Segments> {
     if !is_custom(id) {
         return None;
     }
-    customs().read().ok()?.get(id).cloned()
+    customs().read().ok()?.get(id).cloned().filter(|s| !s.is_empty())
 }
 
-/// A provider for a formula: runs the legs' providers and combines.
-pub struct ExprProvider {
+/// A custom index's current formula (its latest segment's).
+pub fn custom_formula(id: &str) -> Option<String> {
+    custom_segments(id)?.pop().map(|(_, f)| f)
+}
+
+/// `e` with its legs renumbered through `map`.
+fn remap(e: &Expr, map: &[usize]) -> Expr {
+    match e {
+        Expr::Num(v) => Expr::Num(*v),
+        Expr::Leg(i) => Expr::Leg(map[*i]),
+        Expr::Neg(x) => Expr::Neg(Box::new(remap(x, map))),
+        Expr::Bin(op, a, b) => Expr::Bin(*op, Box::new(remap(a, map)), Box::new(remap(b, map))),
+    }
+}
+
+/// One formula in force from a time on, and the legs it uses.
+#[derive(Clone, Debug)]
+struct Seg {
+    from: i64,
     expr: Expr,
+    used: Vec<usize>,
+}
+
+/// The segment in force at `t` (the first one covers everything before).
+fn seg_at(segs: &[Seg], t: i64) -> &Seg {
+    let k = segs.partition_point(|s| s.from <= t);
+    &segs[k.saturating_sub(1)]
+}
+
+/// One bar at `time` from the legs' bars (unused legs may be missing).
+fn combine_at(s: &Seg, row: &[Option<Bar>], time: i64) -> Option<Bar> {
+    if s.used.iter().any(|&i| row[i].is_none()) {
+        return None;
+    }
+    let blank = Bar {
+        time,
+        open: 0.0,
+        high: 0.0,
+        low: 0.0,
+        close: 0.0,
+        volume: 0.0,
+    };
+    let full: Vec<Bar> = row.iter().map(|b| b.unwrap_or(blank)).collect();
+    combine_one(&s.expr, &full).map(|b| Bar { time, ..b })
+}
+
+/// Joins legs' bars on time and applies each time's segment.
+fn combine_segs(segs: &[Seg], legs: &[Vec<Bar>]) -> Vec<Bar> {
+    let mut by_time: BTreeMap<i64, Vec<Option<Bar>>> = BTreeMap::new();
+    for (k, bars) in legs.iter().enumerate() {
+        for b in bars {
+            by_time.entry(b.time).or_insert_with(|| vec![None; legs.len()])[k] = Some(*b);
+        }
+    }
+    by_time
+        .into_iter()
+        .filter_map(|(t, row)| combine_at(seg_at(segs, t), &row, t))
+        .collect()
+}
+
+/// A provider for a formula (or a custom index's segments): runs the
+/// legs' providers and combines.
+pub struct ExprProvider {
+    segs: Vec<Seg>,
     legs: Vec<(Symbol, Arc<dyn Provider>)>,
 }
 
@@ -340,7 +405,37 @@ impl ExprProvider {
     }
 
     pub fn from_formula(formula: &str, demo: bool) -> Option<ExprProvider> {
-        let (expr, ids) = parse(formula)?;
+        ExprProvider::from_segments(&[(i64::MIN, formula.to_string())], demo)
+    }
+
+    pub fn from_segments(segments: &[(i64, String)], demo: bool) -> Option<ExprProvider> {
+        let mut ids: Vec<String> = Vec::new();
+        let mut segs = Vec::new();
+        for (from, f) in segments {
+            let (expr, names) = parse(f)?;
+            let map: Vec<usize> = names
+                .iter()
+                .map(|n| match ids.iter().position(|x| x == n) {
+                    Some(i) => i,
+                    None => {
+                        ids.push(n.clone());
+                        ids.len() - 1
+                    }
+                })
+                .collect();
+            let mut used = map.clone();
+            used.sort_unstable();
+            used.dedup();
+            segs.push(Seg {
+                from: *from,
+                expr: remap(&expr, &map),
+                used,
+            });
+        }
+        if segs.is_empty() {
+            return None;
+        }
+        segs.sort_by_key(|s| s.from);
         let legs = ids
             .iter()
             .map(|id| {
@@ -352,7 +447,7 @@ impl ExprProvider {
                 (s, p)
             })
             .collect();
-        Some(ExprProvider { expr, legs })
+        Some(ExprProvider { segs, legs })
     }
 
     fn each(&self, f: impl Fn(&Symbol, &dyn Provider) -> Result<Vec<Bar>>) -> Result<Vec<Bar>> {
@@ -360,7 +455,7 @@ impl ExprProvider {
         for (s, p) in &self.legs {
             all.push(f(s, p.as_ref())?);
         }
-        Ok(combine(&self.expr, &all))
+        Ok(combine_segs(&self.segs, &all))
     }
 }
 
@@ -391,7 +486,12 @@ impl Provider for ExprProvider {
         let stop = Arc::new(AtomicBool::new(false));
         let (tx, rx) = unbounded::<(usize, Option<Bar>)>();
         let mut threads = Vec::new();
+        // Only the current segment's legs stream; the live bar uses it.
+        let live = self.segs.last().expect("a segment").clone();
         for (k, (s, p)) in self.legs.iter().enumerate() {
+            if !live.used.contains(&k) {
+                continue;
+            }
             let (s, p, tx, stop) = (s.clone(), p.clone(), tx.clone(), stop.clone());
             threads.push(std::thread::spawn(move || {
                 let r = p.stream(&s, tf, &mut |item| {
@@ -412,16 +512,13 @@ impl Provider for ExprProvider {
                 Ok((k, Some(b))) => {
                     last[k] = Some(b);
                     // Emit once every leg has a bar at the newest time.
-                    let newest = last.iter().flatten().map(|b| b.time).max();
+                    let newest = live.used.iter().filter_map(|&i| last[i]).map(|b| b.time).max();
                     if let Some(t) = newest
-                        && last.iter().all(|b| b.is_some_and(|b| b.time == t))
+                        && live.used.iter().all(|&i| last[i].is_some_and(|b| b.time == t))
+                        && let Some(bar) = combine_at(&live, &last, t)
+                        && !sink(Live::Bar(bar))
                     {
-                        let row: Vec<Bar> = last.iter().flatten().copied().collect();
-                        if let Some(bar) = combine_one(&self.expr, &row)
-                            && !sink(Live::Bar(bar))
-                        {
-                            break Ok(());
-                        }
+                        break Ok(());
                     }
                 }
                 Ok((_, None)) => break Err(Error::Offline),
@@ -509,6 +606,19 @@ mod tests {
         assert_eq!((x.open, x.close), (5.0, 5.5));
         // H/H = 3, L/L = 9: the high and low cover both.
         assert_eq!((x.high, x.low), (9.0, 3.0));
+    }
+
+    #[test]
+    fn segments_switch_weights_on_their_day() {
+        let segs = [(i64::MIN, "2*A".to_string()), (10, "B + A".to_string())];
+        let p = ExprProvider::from_segments(&segs, true).unwrap();
+        let a = vec![bar(5, 1.0, 1.0, 1.0, 1.0), bar(10, 1.0, 1.0, 1.0, 1.0)];
+        // B starts later: before its segment it isn't needed.
+        let b = vec![bar(10, 3.0, 3.0, 3.0, 3.0)];
+        let out = combine_segs(&p.segs, &[a, b]);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].close, 2.0);
+        assert_eq!(out[1].close, 4.0);
     }
 
     #[test]
