@@ -373,6 +373,10 @@ struct MemberData {
     bars: Option<Result<Vec<Bar>, String>>,
     fund: Option<Result<Fundamentals, String>>,
     asked: Option<Instant>,
+    /// When the latest bars and fundamentals answered (a rebalance waits
+    /// for answers newer than its press).
+    bars_at: Option<Instant>,
+    fund_at: Option<Instant>,
 }
 
 /// The close at or before `t`.
@@ -935,6 +939,8 @@ pub struct Indices {
     boards: HashMap<String, (u64, Board)>,
     /// Put this index on the chart once its weights are worked out.
     pub(crate) chart_when_ready: Option<String>,
+    /// "Rebalance now" pressed: which index, and when.
+    rebalancing: Option<(String, Instant)>,
 }
 
 impl Indices {
@@ -958,6 +964,7 @@ impl Indices {
             version: 0,
             boards: HashMap::new(),
             chart_when_ready: None,
+            rebalancing: None,
         };
         ix.register();
         ix
@@ -1040,6 +1047,7 @@ impl App {
         if result.is_ok() || !matches!(d.bars, Some(Ok(_))) {
             d.bars = Some(result);
         }
+        d.bars_at = Some(Instant::now());
         self.indices.version += 1;
         self.indices_settle();
     }
@@ -1049,6 +1057,7 @@ impl App {
         if result.is_ok() || !matches!(d.fund, Some(Ok(_))) {
             d.fund = Some(result);
         }
+        d.fund_at = Some(Instant::now());
         self.indices.version += 1;
         self.indices_settle();
     }
@@ -1256,6 +1265,7 @@ impl App {
         };
         let now = self.index_now(&def);
         let mut rebalance = false;
+        let spinning = self.rebalance_running(&def);
         // ---- header: name, value, change; view, rebalance and edit
         ui.horizontal(|ui| {
             ui.set_height(32.0);
@@ -1294,22 +1304,19 @@ impl App {
                 if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
                 }
-                if w::tool_button(
-                    ui,
-                    t,
-                    ph::ARROWS_CLOCKWISE,
-                    "Rebalance now: today's free float, with the level kept",
-                    false,
-                    28.0,
-                )
-                .clicked()
-                {
+                let tip = if spinning {
+                    "Rebalancing…"
+                } else {
+                    "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+                };
+                if spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
                     rebalance = true;
                 }
                 view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
             });
         });
         if rebalance && let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == def.ticker) {
+            self.indices.rebalancing = Some((def.ticker.clone(), Instant::now()));
             d.pending = true;
             // Fresh share counts first.
             for m in &d.members {
@@ -1419,6 +1426,33 @@ impl App {
         self.index_click(click);
     }
 
+    /// Whether a "Rebalance now" on `def` is still under way: until every
+    /// member's prices and share counts have answered since the press and
+    /// the new weights are set (at least a beat, so the turn shows; at most
+    /// half a minute).
+    fn rebalance_running(&mut self, def: &IndexDef) -> bool {
+        let Some((ticker, at)) = &self.indices.rebalancing else {
+            return false;
+        };
+        if *ticker != def.ticker {
+            return false;
+        }
+        let at = *at;
+        let fresh = |x: Option<Instant>| x.is_some_and(|x| x >= at);
+        let answered = def.members.iter().all(|m| {
+            self.indices
+                .data
+                .get(&m.id)
+                .is_some_and(|d| fresh(d.bars_at) && fresh(d.fund_at))
+        });
+        let busy = (!answered || def.pending || at.elapsed() < Duration::from_millis(700))
+            && at.elapsed() < Duration::from_secs(30);
+        if !busy {
+            self.indices.rebalancing = None;
+        }
+        busy
+    }
+
     fn index_click(&mut self, click: Option<Click>) {
         match click {
             Some(Click::Symbol(s)) => self.open_symbol_synced(s),
@@ -1432,6 +1466,55 @@ impl App {
             None => {}
         }
     }
+}
+
+/// The weighting choices, explained (the editor's info icon).
+fn weighting_help(ui: &mut Ui, t: &Theme) {
+    ui.set_max_width(270.0);
+    ui.spacing_mut().item_spacing.y = 2.0;
+    let items = [
+        (
+            "Free float",
+            "Counts only the shares the public can trade, as NSE does.",
+        ),
+        ("Full market cap", "Counts all of a company's shares."),
+        ("Equal", "Every stock starts with the same weight."),
+    ];
+    for (k, (name, what)) in items.iter().enumerate() {
+        if k > 0 {
+            ui.add_space(8.0);
+        }
+        ui.label(egui::RichText::new(*name).font(theme::semibold(12.5)).color(t.text));
+        ui.label(egui::RichText::new(*what).font(theme::regular(12.0)).color(t.text2));
+    }
+}
+
+/// An icon button like `widgets::tool_button` whose icon turns while
+/// `spinning`.
+fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: bool) -> egui::Response {
+    let size = 28.0;
+    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let hover = crate::motion::toggle(ui.ctx(), resp.id, resp.hovered() && !spinning, crate::motion::MICRO);
+    let p = ui.painter();
+    p.rect_filled(rect, 7, crate::motion::with_alpha(t.hover_wash(), hover));
+    let color = if spinning {
+        t.accent
+    } else {
+        lerp_color(t.text2, t.text, hover)
+    };
+    let galley = p.layout_no_wrap(glyph.to_string(), theme::regular(size * 0.56), color);
+    let angle = if spinning {
+        ui.ctx().request_repaint();
+        (ui.input(|i| i.time) * 5.0) as f32
+    } else {
+        0.0
+    };
+    // Turn about the glyph's centre.
+    let half = galley.size() / 2.0;
+    let pos = rect.center() - egui::emath::Rot2::from_angle(angle) * half;
+    p.add(egui::epaint::TextShape::new(pos, galley, color).with_angle(angle));
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    resp.on_hover_text(tip)
 }
 
 /// How the index is built, for the info icon.
@@ -2182,11 +2265,8 @@ impl IndexEditor {
             ui.add_space(12.0);
             ui.horizontal(|ui| {
                 label(ui, "Weighting");
-                ui.label(egui::RichText::new(ph::INFO).color(t.text3)).on_hover_text(
-                    "Free float: each stock counts only shares the public can trade, as NSE does.\n\
-                     Full market cap: each stock counts all its shares.\n\
-                     Equal: every stock starts with the same weight.",
-                );
+                ui.label(egui::RichText::new(ph::INFO).color(t.text3))
+                    .on_hover_ui(|ui| weighting_help(ui, t));
             });
             w::segmented(
                 ui,
