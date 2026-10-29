@@ -559,13 +559,21 @@ fn settle(
     def: &mut IndexDef,
     bars: &HashMap<String, &[Bar]>,
     funds: &HashMap<String, Option<&Fundamentals>>,
+    failed: &BTreeSet<String>,
     now: i64,
 ) -> bool {
     let mut changed = false;
     for s in &mut def.segments {
         changed |= adjust_for_splits(s, bars);
     }
-    let ids: Vec<String> = def.members.iter().map(|m| m.id.clone()).collect();
+    // A member whose prices can't be had (a renamed or delisted ticker) is
+    // left out, rather than holding the whole index back.
+    let ids: Vec<String> = def
+        .members
+        .iter()
+        .map(|m| m.id.clone())
+        .filter(|id| !failed.contains(id))
+        .collect();
     if ids.is_empty() || ids.iter().any(|id| !bars.contains_key(id)) {
         return changed;
     }
@@ -597,7 +605,15 @@ fn settle(
         }
         return changed;
     }
-    if !(def.pending || due.is_some()) {
+    // Members in and out of the index changed (one came back, or failed).
+    let regrouped = def.segments.last().is_some_and(|s| {
+        let mut a = s.members.clone();
+        let mut b = ids.clone();
+        a.sort();
+        b.sort();
+        a != b
+    });
+    if !(def.pending || regrouped || due.is_some()) {
         return changed;
     }
     // The new weights start on `start`; they're set at the close before it,
@@ -736,7 +752,11 @@ pub struct Board {
 
 fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
     let tz = jiff::tz::TimeZone::get(&def.symbol().timezone).unwrap_or(jiff::tz::TimeZone::UTC);
-    let mut board = Board::default();
+    let mut board = Board {
+        value: f64::NAN,
+        change: f64::NAN,
+        ..Default::default()
+    };
     let mut funds: Vec<Fundamentals> = Vec::new();
     let bars = bars_of(data);
     let current = def.segments.last();
@@ -767,7 +787,13 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
                 }
             }
             Some(Ok(_)) => row.error = Some("No prices came back.".into()),
-            Some(Err(e)) => row.error = Some(e.clone()),
+            Some(Err(e)) => {
+                row.error = Some(if e.contains("(404)") {
+                    "No prices: the ticker may have been renamed or delisted. Left out of the index.".into()
+                } else {
+                    format!("{e} Left out of the index.")
+                })
+            }
             None => board.waiting += 1,
         }
         match d.and_then(|d| d.fund.as_ref()) {
@@ -1038,9 +1064,15 @@ impl App {
             .iter()
             .filter_map(|(id, d)| d.fund.as_ref().map(|f| (id.clone(), f.as_ref().ok())))
             .collect();
+        let failed: BTreeSet<String> = ix
+            .data
+            .iter()
+            .filter(|(_, d)| matches!(&d.bars, Some(Err(_))) || matches!(&d.bars, Some(Ok(b)) if b.is_empty()))
+            .map(|(id, _)| id.clone())
+            .collect();
         let mut settled = Vec::new();
         for def in &mut ix.defs {
-            if settle(def, &bars, &funds, now) {
+            if settle(def, &bars, &funds, &failed, now) {
                 settled.push(def.clone());
             }
         }
@@ -1246,7 +1278,7 @@ impl App {
                     change_pill(ui.painter(), t, r.left_center(), ch);
                 }
                 None if board.waiting > 0 || def.pending => {
-                    ui.spinner();
+                    ui.add(egui::Spinner::new().size(13.0).color(t.text3));
                 }
                 None => {}
             }
@@ -2375,7 +2407,7 @@ mod tests {
             .map(|(k, v)| (k.to_string(), Some(v)))
             .collect();
         let mut d = def(&["A", "B"], Weighting::FreeFloat);
-        assert!(settle(&mut d, &map, &funds, 0));
+        assert!(settle(&mut d, &map, &funds, &BTreeSet::new(), 0));
         let s = index_series(&d.segments, &map);
         assert!((s[0].close - 1000.0).abs() < 1e-9);
         // Day 2: A +21% on half the weight, B -50% on the other half.
@@ -2384,7 +2416,7 @@ mod tests {
         let before = s[2].close;
         d.members.push(Symbol::bare("C"));
         d.pending = true;
-        assert!(settle(&mut d, &map, &funds, 1));
+        assert!(settle(&mut d, &map, &funds, &BTreeSet::new(), 1));
         assert_eq!(d.segments.len(), 2);
         assert_eq!(d.segments[1].from, 3 * DAY);
         assert!((level_at(&d.segments, &map, 2 * DAY) - before).abs() < 1e-9);
@@ -2392,6 +2424,20 @@ mod tests {
         let s = index_series(&d.segments, &map);
         let wc = 50.0 * 10.0 / (10.0 * 121.0 + 20.0 * 25.0 + 50.0 * 10.0);
         assert!((s[3].close / s[2].close - (1.0 + wc)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_member_without_prices_is_left_out() {
+        let a = bars(&[100.0, 110.0]);
+        let map: HashMap<String, &[Bar]> = [("A".to_string(), a.as_slice())].into_iter().collect();
+        let fa = fund(10.0, 10.0);
+        let funds: HashMap<String, Option<&Fundamentals>> = [("A".to_string(), Some(&fa))].into_iter().collect();
+        let failed: BTreeSet<String> = ["GONE".to_string()].into_iter().collect();
+        let mut d = def(&["A", "GONE"], Weighting::FreeFloat);
+        assert!(settle(&mut d, &map, &funds, &failed, 0));
+        assert_eq!(d.segments[0].members, ["A"]);
+        let s = index_series(&d.segments, &map);
+        assert!((s[1].close - 1100.0).abs() < 1e-9);
     }
 
     #[test]
