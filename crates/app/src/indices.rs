@@ -1947,6 +1947,9 @@ pub struct IndexEditor {
     pub results: Vec<Symbol>,
     selected: usize,
     confirm_delete: bool,
+    /// The name field took focus on opening (only then: asking every frame
+    /// pulled the cursor back from the search field).
+    focused: bool,
 }
 
 impl IndexEditor {
@@ -1962,6 +1965,7 @@ impl IndexEditor {
             results: Vec::new(),
             selected: 0,
             confirm_delete: false,
+            focused: false,
         }
     }
 
@@ -1988,8 +1992,11 @@ impl IndexEditor {
                     .hint_text("e.g. Nifty Auto")
                     .desired_width(f32::INFINITY),
             );
-            if self.editing.is_none() && self.name.is_empty() && self.members.is_empty() && !name.has_focus() {
-                name.request_focus();
+            if !self.focused {
+                self.focused = true;
+                if self.editing.is_none() {
+                    name.request_focus();
+                }
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
@@ -2173,7 +2180,14 @@ impl IndexEditor {
                 }
             }
             ui.add_space(12.0);
-            label(ui, "Weighting");
+            ui.horizontal(|ui| {
+                label(ui, "Weighting");
+                ui.label(egui::RichText::new(ph::INFO).color(t.text3)).on_hover_text(
+                    "Free float: each stock counts only shares the public can trade, as NSE does.\n\
+                     Full market cap: each stock counts all its shares.\n\
+                     Equal: every stock starts with the same weight.",
+                );
+            });
             w::segmented(
                 ui,
                 t,
