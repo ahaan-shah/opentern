@@ -65,7 +65,8 @@ or OpenAI's [Codex CLI](https://github.com/openai/codex), ask it to write a
 strategy, explain an indicator or read your backtest. It sees the chart, writes
 scripts in your scripts folder, checks they compile, puts them on the chart and
 reads the Strategy Report. Pick your agent the first time you open the panel and
-switch any time; each keeps its own chats. Opentern starts the CLI already on your
+switch any time; each keeps its own chats. With more than one Claude Code or
+Codex account on your computer, pick which one it uses. Opentern starts the CLI already on your
 computer, so it uses your own sign-in and plan. Opentern has no key of its own,
 and nothing runs until you send a message.
 
@@ -79,6 +80,21 @@ and nothing runs until you send a message.
 <td><img src="site/media/screener.webp" alt="The screener"></td>
 </tr>
 </table>
+
+<img src="site/media/indices.webp" alt="A custom Nifty Auto index: its own numbers, then every member's" width="900">
+
+**Your own indices.** Pick any stocks, or a whole watchlist, and Opentern
+builds an index the way NSE builds its own: weighted by free-float market cap
+(or full market cap, or equally), starting at 1000, and rebalanced on 1 April
+and 1 October without the level jumping. Chart it like any symbol, with
+indicators and alerts. Its board shows the index's returns, P/E, EV/EBITDA,
+revenue growth, margins, RSI and moving averages, then every member's, as a
+colour-coded table or a treemap. **Compare** puts all your indices side by side.
+
+**Seasonality.** See how the chart's symbol did in every month of every year,
+with a slider to pick the years and a count of rises and falls per month.
+
+<img src="site/media/seasonality.webp" alt="Ten years of monthly returns for RELIANCE" width="900">
 
 **Paper trading.** Several simulated accounts with market, limit, stop,
 stop-limit, trailing and bracket orders. Trade from the chart by dragging an
@@ -122,7 +138,7 @@ What the script does on each platform:
 - **macOS:** installs `Opentern.app` (universal, Apple Silicon + Intel) into `/Applications`.
 
 The script checks every download against the release's `SHA256SUMS`. To pin a
-version, set `OPENTERN_VERSION=0.2.2`.
+version, set `OPENTERN_VERSION=0.2.3`.
 
 The app isn't notarized yet. If macOS refuses to open it the first time,
 right-click the app and choose **Open**, or run
@@ -138,7 +154,7 @@ irm https://raw.githubusercontent.com/ahaan-shah/opentern/main/install.ps1 | iex
 
 This installs Opentern just for you (no admin prompt) into
 `%LOCALAPPDATA%\Programs\Opentern` and adds it to the Start menu, on x64 and
-ARM64 PCs. To pin a version, run `$env:OPENTERN_VERSION = "0.2.2"` first.
+ARM64 PCs. To pin a version, run `$env:OPENTERN_VERSION = "0.2.3"` first.
 
 Prefer a regular installer? Download
 [`Opentern-windows-setup.exe`](https://github.com/ahaan-shah/opentern/releases/latest/download/Opentern-windows-setup.exe)

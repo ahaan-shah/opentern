@@ -44,8 +44,11 @@ pub struct Seasonal {
     pub rows: Vec<MonthRow>,
     error: Option<String>,
     loading: bool,
-    /// The years shown, inclusive; `None` = the last 6 (as TradingView).
+    /// The years shown, inclusive; `None` = the last `years` (6, as
+    /// TradingView).
     pub range: Option<(i16, i16)>,
+    /// How many years to start with (`OPENTERN_STILL=season-years:<n>`).
+    pub years: Option<i16>,
 }
 
 impl App {
@@ -100,7 +103,8 @@ impl App {
             crate::widgets::empty_state(ui, t, ph::CALENDAR_BLANK, "No monthly history");
             return;
         };
-        let mut range = s.range.unwrap_or(((newest - 5).max(oldest), newest));
+        let span = s.years.unwrap_or(6).max(1) - 1;
+        let mut range = s.range.unwrap_or(((newest - span).max(oldest), newest));
         range = (range.0.clamp(oldest, newest), range.1.clamp(oldest, newest));
         if oldest < newest {
             year_slider(ui, t, oldest, newest, &mut range);
@@ -203,10 +207,13 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
                     for (k, (v, strong)) in values.enumerate() {
                         let c = Rect::from_min_size(rect.min + vec2(x_of(k), 0.0), vec2(col, row_h));
                         p.rect_filled(c.shrink(0.5), CornerRadius::ZERO, tint(t, v, strong));
-                        let text = if v.is_finite() {
-                            format!("{v:.2}%")
-                        } else {
+                        // A sliver of a loss rounds to 0.00%, not -0.00%.
+                        let text = if !v.is_finite() {
                             "—".into()
+                        } else if v.abs() < 0.005 {
+                            "0.00%".into()
+                        } else {
+                            format!("{v:.2}%")
                         };
                         let f = if strong {
                             theme::semibold(12.5)

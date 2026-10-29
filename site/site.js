@@ -45,6 +45,8 @@ const captions = [
   "Claude Code or Codex, beside the chart: it writes the strategy, checks it, and reads you the results.",
   "Up to eight charts at once, with symbol, interval, crosshair and time kept in sync.",
   "Screen a watchlist on price, change, volume and RSI, or any script of your own.",
+  "Build your own index, weighted by free float like NSE’s, and see its valuation, growth, margins and returns, member by member.",
+  "Every month of every year at a glance, with a slider to pick the years.",
   "Sixteen themes and nine fonts, data providers, symbol logos and updates, all in one calm page.",
 ];
 const tabs = [...document.querySelectorAll(".tabs button")];

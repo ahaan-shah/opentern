@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.2.3 (2026-10-30)
+
+Build your own indices, see a symbol's seasonality, and choose which Claude
+Code or Codex account the agent panel uses.
+
+### New
+
+- **Custom indices.** Make an index from any symbols in the new Indices tab
+  (search, or add a whole watchlist). It's weighted by free-float market cap
+  as NSE weights its indices, or by full market cap, or equally; starts at
+  1000; and rebalances on 1 April and 1 October (or on demand) without the
+  level jumping. Chart it like any symbol, with indicators and alerts.
+- **An index board.** Each index shows its returns, P/E, EV/EBITDA, revenue
+  growth, margins, RSI and distance from its 50- and 200-day averages, then
+  every member's, as a colour-coded table or a treemap.
+- **Compare indices.** Every index's numbers side by side, as a table or a
+  map.
+- **Seasonality.** A new bottom tab shows the chart symbol's return for
+  every month of every year, with a slider to pick the years and a count of
+  rises and falls per month.
+- **Agent accounts.** With more than one Claude Code or Codex account on
+  the computer, pick which one the agent panel uses from its menu. Each chat
+  stays on the account it started with.
+
+### Changed
+
+- **Maximizing the bottom panel gives it the whole window** under the top
+  bar, chart included.
+
+### Fixed
+
+- **The agent's message box stays in view** when a long message wraps; past
+  eight lines it scrolls.
+- **Strategy Lab column titles no longer overlap.**
+- **On Windows, links open in the browser** (news links used to open the
+  Documents folder).
+- **Formulas accept tickers with "&"**, such as NSE:M&M.
+
 ## 0.2.2 (2026-10-28)
 
 News covers Indian stocks and follows the coin you're viewing, the Calendar

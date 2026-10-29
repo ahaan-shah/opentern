@@ -31,6 +31,33 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.3",
+        items: &[
+            Item {
+                icon: ph::CHART_PIE_SLICE,
+                title: "Build your own index",
+                body: "Make an index from any stocks, weighted by free-float market cap like NSE's. \
+                       Chart it like any symbol, see its valuation, growth, margins and returns, and \
+                       compare your indices side by side.",
+                image: None,
+            },
+            Item {
+                icon: ph::CALENDAR_DOTS,
+                title: "Seasonality",
+                body: "A new tab shows how the chart's symbol did in every month of every year, with \
+                       a slider to pick the years.",
+                image: None,
+            },
+            Item {
+                icon: ph::USERS,
+                title: "Switch agent accounts",
+                body: "If you have more than one Claude Code or Codex account on this computer, pick \
+                       which one the agent panel uses from its menu.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.2",
         items: &[
             Item {

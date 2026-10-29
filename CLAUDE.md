@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026, v0.2.2):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Oct 2026, v0.2.3):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -607,7 +607,14 @@ in iteratively. Phase 14 has started (item 3).
    (the agent drives the whole app, What's new card, Windows icon and
    logo fixes). v0.2.1 on 28 Oct 2026 (Binance through its market-data
    mirror when blocked, hotlists' change period). v0.2.2 on 28 Oct 2026
-   (news from many outlets, Calendar redesign, index change % fix). Still to do: notarizing the macOS app.
+   (news from many outlets, Calendar redesign, index change % fix). v0.2.3 on
+   30 Oct 2026 (custom indices, Seasonality, agent accounts). Website shots
+   of a tiled window: a temporary Hyprland rule floats new opentern windows
+   at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
+   "opentern-shot", match = { class = "^opentern$" }, float = true, size =
+   {1080, 675}, move = {17, 59} })'`, then `otShot:set_enabled(false)`); grab
+   only after `hyprctl activewindow` shows your own pid; `widget:none` closes
+   the side panel. Still to do: notarizing the macOS app.
 
 **Loose ends from earlier phases** (fit in where natural):
 - Done Oct 2026: `request.security` on other symbols and lower timeframes plus

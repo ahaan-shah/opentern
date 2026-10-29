@@ -421,6 +421,8 @@ impl App {
                 self.strategies.tab = crate::strategy::ReportTab::List;
             } else if part == "max" {
                 self.layout.panel_max = true;
+            } else if let Some(n) = part.strip_prefix("season-years:") {
+                self.seasonal.years = n.parse().ok();
             } else if part == "index-compare" {
                 self.indices.compare = true;
             } else if part == "index-map" {
