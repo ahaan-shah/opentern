@@ -1299,6 +1299,29 @@ every data change (scripts re-run on it).
   been run from a dev shell** (curl probing got rate-limited); the
   maintainer tests it in the app. Stills: `index-map`, `index-edit`,
   `index-chart`.
+- **Custom indices: to do** (the maintainer, 30 Oct 2026; before release):
+  - Math, to get closer to NSE's methodology (today: total shares, no
+    caps, weights fixed, no divisor adjustment, base 1000 on the first
+    common day of ~400 days):
+    1. Free-float weighting (Yahoo `floatShares`), probably the default,
+       total shares as an option.
+    2. Optional caps: any one stock ≤ 33%, top 3 ≤ 62% (Nifty sectoral
+       rules), or user limits.
+    3. Rebalance (button and/or schedule) that recomputes weights and
+       adjusts the divisor so the level stays continuous.
+    4. Match a real index level: base so it lines up with e.g.
+       NSE:CNXAUTO on a chosen date.
+  - Heat-table colouring (`Metric::score`; today: sign and size against
+    the column's largest move for returns/growth/SMA distance, rank among
+    members for P/E, EV/EBITDA and margins, RSI around 50):
+    1. Yahoo's 0 for missing margins (banks/financials have no gross or
+       EBITDA margin) is ranked worst and painted red: treat it as "—",
+       uncoloured.
+    2. Outliers like EV/EBITDA 1028.5 (near-zero EBITDA or bad data):
+       show "—" past a sane bound (e.g. > 200).
+    3. Decide with the maintainer: keep rank colouring, or colour each
+       cell against the index's own value (green = better than the
+       basket).
 - Formula lexer accepts `&` in tickers (`NSE:M&M`).
 - **Agent accounts** (`claude/accounts.rs`): an account is a CLI config
   folder: Claude Code's `CLAUDE_CONFIG_DIR`, Codex's `CODEX_HOME`. Found:
