@@ -142,6 +142,21 @@ fn cell_text(p: &egui::Painter, r: Rect, text: &str, left: bool, font: egui::Fon
     }
 }
 
+/// A return as shown in a cell, with `dp` decimals (none from four digits
+/// up).
+fn pct_text(v: f64, dp: usize) -> String {
+    if !v.is_finite() {
+        "—".into()
+    } else if v.abs() < 0.5 * 10f64.powi(-(dp as i32)) {
+        // A sliver of a loss rounds to 0%, not -0%.
+        format!("{:.dp$}%", 0.0)
+    } else if v.abs() >= 1000.0 {
+        format!("{v:.0}%")
+    } else {
+        format!("{v:.dp$}%")
+    }
+}
+
 /// A return's cell colour: a soft green or red, stronger for the year.
 fn tint(t: &Theme, v: f64, strong: bool) -> Color32 {
     if !v.is_finite() {
@@ -155,7 +170,29 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
     // A little room on the right so the Year column doesn't touch the edge.
     let width = ui.available_width() - 4.0;
     let first = 84.0_f32.min(width * 0.1);
-    let col = ((width - first) / 13.0).max(52.0);
+    // Columns never get narrower than their widest number. When two
+    // decimals don't fit, fewer do; past that the table scrolls sideways.
+    let widest = |dp: usize| {
+        rows.iter()
+            .flat_map(|r| r.months.iter().map(|v| (*v, false)).chain([(r.year_pct, true)]))
+            .map(|(v, strong)| {
+                let f = if strong {
+                    theme::semibold(12.5)
+                } else {
+                    theme::regular(12.5)
+                };
+                ui.painter().layout_no_wrap(pct_text(v, dp), f, Color32::WHITE).size().x
+            })
+            .fold(0.0_f32, f32::max)
+            + 20.0
+    };
+    let fit = (width - first) / 13.0;
+    let (dp, need) = (0..=2)
+        .rev()
+        .map(|dp| (dp, widest(dp)))
+        .find(|(_, w)| *w <= fit)
+        .unwrap_or((0, widest(0)));
+    let col = fit.max(52.0).max(need);
     let total = first + col * 13.0;
     let row_h = 30.0;
     let border = Stroke::new(1.0, t.border.gamma_multiply(0.7));
@@ -204,17 +241,15 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
                         t.text2,
                     );
                     let values = r.months.iter().map(|v| (*v, false)).chain([(r.year_pct, true)]);
+                    // With decimals dropped, the exact value shows on hover.
+                    let mut exact = None;
                     for (k, (v, strong)) in values.enumerate() {
                         let c = Rect::from_min_size(rect.min + vec2(x_of(k), 0.0), vec2(col, row_h));
+                        if dp < 2 && v.is_finite() && resp.hover_pos().is_some_and(|h| c.contains(h)) {
+                            exact = Some(pct_text(v, 2));
+                        }
                         p.rect_filled(c.shrink(0.5), CornerRadius::ZERO, tint(t, v, strong));
-                        // A sliver of a loss rounds to 0.00%, not -0.00%.
-                        let text = if !v.is_finite() {
-                            "—".into()
-                        } else if v.abs() < 0.005 {
-                            "0.00%".into()
-                        } else {
-                            format!("{v:.2}%")
-                        };
+                        let text = pct_text(v, dp);
                         let f = if strong {
                             theme::semibold(12.5)
                         } else {
@@ -223,6 +258,9 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
                         cell_text(p, c, &text, false, f, if v.is_finite() { t.text } else { t.text3 });
                     }
                     p.hline(rect.x_range(), rect.bottom(), border);
+                    if let Some(e) = exact {
+                        resp.clone().on_hover_text(e);
+                    }
                     if resp.hovered() {
                         p.rect_stroke(
                             rect,
@@ -385,5 +423,21 @@ fn year_slider(ui: &mut Ui, t: &Theme, lo: i16, hi: i16, range: &mut (i16, i16))
     }
     if ra.hovered() || ra.dragged() || rb.hovered() || rb.dragged() || rm.dragged() {
         ra.on_hover_text(format!("{} – {}", range.0, range.1));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pct_text;
+
+    #[test]
+    fn cell_text_drops_decimals_when_asked_and_from_four_digits() {
+        assert_eq!(pct_text(-15.304, 2), "-15.30%");
+        assert_eq!(pct_text(-15.304, 1), "-15.3%");
+        assert_eq!(pct_text(-15.304, 0), "-15%");
+        assert_eq!(pct_text(11177.78, 2), "11178%");
+        assert_eq!(pct_text(-0.004, 2), "0.00%");
+        assert_eq!(pct_text(-0.3, 0), "0%");
+        assert_eq!(pct_text(f64::NAN, 2), "—");
     }
 }
