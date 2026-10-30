@@ -1286,8 +1286,14 @@ every data change (scripts re-run on it).
   month before's, the first month from its open; Year vs last year's
   close), newest year first, a two-handled year slider (middle grip drags
   the window; default the last 6 years), "Rises and falls" per column
-  (average on hover). Monthly bars via `Request::Fetch` 1M, seqs from
-  `seasonal::SEQ_BASE` (1 << 45). Fonts lack ▲/▼: the triangles are drawn.
+  then an Average row. Columns never get narrower than their numbers
+  (fewer decimals first, then a sideways scroll). Chart view (toggle top
+  left, as TradingView's): a line per year from daily bars
+  (`profile::seasonality`, fetched only once the view opens), dashed
+  average, tags on the right pushed apart, hover line + readout. Monthly
+  bars via `Request::Fetch` 1M, seqs from `seasonal::SEQ_BASE` (1 << 45);
+  monthly and daily replies are told apart by their own seqs. Fonts lack
+  ▲/▼: the triangles are drawn. Still: `season-chart`.
 - **Custom indices** (`indices.rs`, bottom tab "Indices"; **v2, still to
   iterate with the maintainer before release**). Method = NSE's except
   caps (module doc): free-float market cap (Yahoo `floatShares`; all

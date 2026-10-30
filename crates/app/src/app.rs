@@ -423,6 +423,8 @@ impl App {
                 self.layout.panel_max = true;
             } else if let Some(n) = part.strip_prefix("season-years:") {
                 self.seasonal.years = n.parse().ok();
+            } else if part == "season-chart" {
+                self.seasonal.view = crate::seasonal::View::Chart;
             } else if part == "index-compare" {
                 self.indices.compare = true;
             } else if part == "index-map" {

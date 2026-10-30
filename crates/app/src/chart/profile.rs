@@ -203,7 +203,7 @@ pub fn paint_overlays(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usi
 }
 
 /// Seasonality's colours, the newest year first (TradingView-like).
-const SEASON_COLORS: [u32; 10] = [
+pub const SEASON_COLORS: [u32; 10] = [
     0x2962FF, 0xFF9800, 0x089981, 0xF23645, 0x9C27B0, 0x00BCD4, 0x795548, 0xE91E63, 0x607D8B, 0x4CAF50,
 ];
 
