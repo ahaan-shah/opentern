@@ -35,6 +35,9 @@ impl Default for Side {
     }
 }
 
+/// Seconds before a failed list asks again.
+const RETRY: u64 = 15;
+
 fn ago(ms: i64) -> String {
     let s = (jiff::Timestamp::now().as_millisecond() - ms).max(0) / 1000;
     match s {
@@ -90,9 +93,11 @@ impl App {
                 }
             }
         });
-        // Ask again when the choice changes, or every minute while open.
+        // Ask again when the choice changes, every minute while open, or
+        // after 15 s when it failed (the connection may be back).
+        let every = if matches!(sd.hot, Some(Err(_))) { RETRY } else { 60 };
         let stale = match sd.hot_asked {
-            Some((m, k, at)) => m != sd.market || k != sd.kind || at.elapsed() > Duration::from_secs(60),
+            Some((m, k, at)) => m != sd.market || k != sd.kind || at.elapsed() > Duration::from_secs(every),
             None => true,
         };
         if stale {
@@ -107,7 +112,7 @@ impl App {
                 kind: self.side.kind,
             });
         }
-        ui.ctx().request_repaint_after(Duration::from_secs(60));
+        ui.ctx().request_repaint_after(Duration::from_secs(every));
         ui.add_space(6.0);
         let mut open = None;
         match &self.side.hot {
@@ -191,10 +196,14 @@ impl App {
 
     pub(crate) fn news_widget(&mut self, ui: &mut Ui, t: &Theme) {
         let id = self.chart.symbol.id.clone();
+        // Every 5 minutes, or 15 s after a failure (the connection may be back).
+        let failed = matches!(self.side.news, Some(Err(_)));
+        let every = if failed { RETRY } else { 300 };
         let stale = match &self.side.news_for {
-            Some((s, at)) => *s != id || at.elapsed() > Duration::from_secs(300),
+            Some((s, at)) => *s != id || at.elapsed() > Duration::from_secs(every),
             None => true,
         };
+        ui.ctx().request_repaint_after(Duration::from_secs(every));
         if stale {
             if self.side.news_for.as_ref().is_some_and(|(s, _)| *s != id) {
                 self.side.news = None;
@@ -206,7 +215,23 @@ impl App {
                 symbol: self.chart.symbol.clone(),
             });
         }
-        ui.label(egui::RichText::new(format!("About {}", self.chart.symbol.ticker())).color(t.text3));
+        let loading = self.side.news.is_none();
+        let mut refresh = false;
+        ui.horizontal(|ui| {
+            ui.label(egui::RichText::new(format!("About {}", self.chart.symbol.ticker())).color(t.text3));
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                refresh = crate::widgets::tool_button(ui, t, crate::icons::ph::ARROW_CLOCKWISE, "Refresh", false, 24.0)
+                    .clicked()
+                    && !loading;
+            });
+        });
+        if refresh {
+            // A failure shows "Loading…" again; headlines stay until new ones come.
+            if failed {
+                self.side.news = None;
+            }
+            self.side.news_for = None;
+        }
         ui.add_space(4.0);
         let mut open = None;
         match &self.side.news {
