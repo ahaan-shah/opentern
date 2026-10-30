@@ -557,6 +557,18 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
+**Unreleased since 0.2.3 (30 Oct 2026), all committed on `main`, not pushed:**
+Seasonality columns fit their numbers; Seasonality Average row (above Rises
+and falls) and chart view with TradingView's toggle; agent tools
+`seasonality` and `custom_index`; News refresh button (`widgets::spin_button`,
+moved from `indices.rs`) and a 15 s retry after a failure for News and
+Hotlists. The maintainer has tested the Seasonality changes ("rest looks
+good"); the News refresh and the agent tools haven't been tried by them yet.
+User-facing notes are already in `CHANGELOG.md` under `## Unreleased`:
+**when asked to release, rename that heading to `## X.Y.Z (date)`** (likely
+0.2.4), write the `whatsnew::RELEASES` entry from it, and follow "Releasing".
+More changes may be added first; add each to `## Unreleased` as it lands.
+
 **Where we are (14 Oct 2026):** Phases 0–13 and most loose ends are built and
 committed (latest: the DOM widget). Nothing has been pushed or released. The app
 was handed to the maintainer to test (a throwaway data dir, `/tmp/opentern-test`,
@@ -938,6 +950,8 @@ workspace.
   Cointelegraph/Decrypt/The Block RSS for crypto and Economic Times/Mint
   markets RSS for India, kept only when a headline names the symbol (whole
   words), except an Indian index keeps all; CryptoCompare now needs a key),
+  News has a refresh button (spins while loading); News and Hotlists
+  ask again 15 s after a failure (`side::RETRY`).
   Calendar (NYSE/NSE holidays and early closes as date tiles with pills, the
   symbol's dividends and splits by year), Notifications
   (alerts, snapshots, updates; dot on the rail when unread). Hub requests
@@ -1371,7 +1385,8 @@ What's new reopens it. Still: `whatsnew`.
    example; `cargo update -w`.
 2. **What's new notes**: an entry for the version at the top of
    `whatsnew::RELEASES` (a test fails without it). Then the
-   `CHANGELOG.md` entry (`## X.Y.Z (date)`): a short plain summary, then New /
+   `CHANGELOG.md` entry (`## X.Y.Z (date)`; if there's a `## Unreleased`
+   section, rename it and check it covers everything since the last tag): a short plain summary, then New /
    Changed / Fixed / Removed, each item leading with a bold user-facing result.
    The release notes are cut from it (the publish job fails without one). Never
    placeholder notes.

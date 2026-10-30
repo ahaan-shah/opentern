@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+Seasonality gets a chart of every year side by side, and the agent panel can
+now work with Seasonality and custom indices.
+
+### New
+
+- **Seasonality chart.** A toggle at the top left of the Seasonality tab
+  switches between the table and a chart with a line per year (the change
+  since the year before ended), a dashed average and each year's latest
+  change tagged on the right. Hover to see every year's change on that day.
+- **An Average row in Seasonality**, above Rises and falls: each month's
+  average return over the years shown.
+- **The agent works with Seasonality and custom indices.** Claude and Codex
+  can read a symbol's monthly returns, and list, read, make, edit,
+  rebalance, compare, delete and show custom indices.
+- **A refresh button for News.** It turns while headlines load.
+
+### Fixed
+
+- **Seasonality numbers no longer run into each other** when the side panel
+  is open or a year's return is in the thousands of percent: columns fit
+  their numbers, with fewer decimals when space is short (hover for the
+  exact value).
+- **News and Hotlists recover by themselves after a dropped connection.**
+  They try again 15 seconds after a failure instead of waiting minutes or
+  needing the chart reloaded.
+
 ## 0.2.3 (2026-10-30)
 
 Build your own indices, see a symbol's seasonality, and choose which Claude
