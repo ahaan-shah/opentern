@@ -13,6 +13,7 @@ pub mod auth;
 pub mod codex;
 pub mod control;
 pub mod mark;
+pub mod markets;
 pub mod process;
 pub mod tools;
 
@@ -640,8 +641,9 @@ impl App {
              get_bars, snapshot for a picture), change it (open_symbol, set_timeframe, chart_view for chart type, \
              dates, scales, multi-chart layouts and compares), indicators and scripts (list_indicators, \
              add_indicator, indicator for inputs, add_script_to_chart, remove_from_chart, check_script), drawings \
-             (drawings), bar replay (replay), watchlists, the screener, strategies (strategy_report, \
-             strategy_settings, strategy_lab), paper trading, alerts, and the bottom panel's tabs (open_panel). \
+             (drawings), bar replay (replay), watchlists, the screener, seasonality, custom indices \
+             (custom_index), strategies (strategy_report, strategy_settings, strategy_lab), paper trading, \
+             alerts, and the bottom panel's tabs (open_panel). \
              To show the user an example from history, find it with get_bars over a date range, then use \
              chart_view go_to, drawings and replay, and snapshot to check what they see. After you write or edit \
              a script, run check_script on it and fix every error before you reply. Scripts on the chart reload by \
@@ -2883,6 +2885,20 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
         },
         "alerts" => (format!("Alerts: {}", s("action")), format!("Alerts: {}", s("action"))),
         "open_panel" => (format!("Opened {}", s("tab")), format!("Open {}", s("tab"))),
+        "seasonality" => ("Read the seasonality".into(), "Read the seasonality".into()),
+        "custom_index" => match s("action").as_str() {
+            "create" => (
+                format!("Made the index {}", s("name")),
+                format!("Make the index {}", s("name")),
+            ),
+            "edit" => (format!("Edited {}", s("name")), format!("Edit {}", s("name"))),
+            "rebalance" => (format!("Rebalanced {}", s("name")), format!("Rebalance {}", s("name"))),
+            "delete" => (format!("Deleted {}", s("name")), format!("Delete {}", s("name"))),
+            "compare" => ("Compared the indices".into(), "Compare the indices".into()),
+            "list" => ("Listed the indices".into(), "List the indices".into()),
+            _ if s("name").is_empty() => ("Used the indices".into(), "Use the indices".into()),
+            _ => (format!("Looked at {}", s("name")), format!("Look at {}", s("name"))),
+        },
         other => (other.replace('_', " "), other.replace('_', " ")),
     };
     Some(if asking { ask } else { done })
@@ -2974,6 +2990,8 @@ fn tool_icon(name: &str) -> &'static str {
         "paper_trading" => ph::WALLET,
         "alerts" => ph::ALARM,
         "open_panel" => ph::LAYOUT,
+        "seasonality" => ph::CALENDAR_BLANK,
+        "custom_index" => ph::CHART_PIE_SLICE,
         _ => ph::WRENCH,
     }
 }

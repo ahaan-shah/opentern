@@ -53,7 +53,7 @@ pub struct Seasonal {
 
 impl App {
     /// Asks for the chart symbol's monthly bars when they aren't here.
-    fn seasonal_want(&mut self) {
+    pub(crate) fn seasonal_want(&mut self) {
         let sym = self.chart.symbol.clone();
         if self.seasonal.symbol == sym.id {
             return;
@@ -85,6 +85,93 @@ impl App {
             Ok(_) => s.error = Some("No monthly history for this symbol.".into()),
             Err(e) => s.error = Some(e),
         }
+    }
+
+    /// The table as the agent gets it, for years `from..=to` (the tab's
+    /// years when not given; given ones move the tab's slider too). `None`
+    /// while the monthly bars load.
+    pub(crate) fn seasonal_report(
+        &mut self,
+        from: Option<i16>,
+        to: Option<i16>,
+    ) -> Option<Result<serde_json::Value, String>> {
+        use serde_json::json;
+        self.seasonal_want();
+        let s = &mut self.seasonal;
+        if s.loading {
+            return None;
+        }
+        if let Some(e) = &s.error {
+            return Some(Err(e.clone()));
+        }
+        let (Some(newest), Some(oldest)) = (s.rows.first().map(|r| r.year), s.rows.last().map(|r| r.year)) else {
+            return Some(Err("No monthly history for this symbol.".into()));
+        };
+        let span = s.years.unwrap_or(6).max(1) - 1;
+        let shown = s.range.unwrap_or(((newest - span).max(oldest), newest));
+        let range = match (from, to) {
+            (None, None) => shown,
+            (f, t) => {
+                let r = (
+                    f.unwrap_or(oldest).clamp(oldest, newest),
+                    t.unwrap_or(newest).clamp(oldest, newest),
+                );
+                let r = (r.0.min(r.1), r.0.max(r.1));
+                s.range = Some(r);
+                r
+            }
+        };
+        let round = |v: f64| {
+            if v.is_finite() {
+                json!((v * 100.0).round() / 100.0)
+            } else {
+                json!(null)
+            }
+        };
+        let rows: Vec<&MonthRow> = s
+            .rows
+            .iter()
+            .filter(|r| r.year >= range.0 && r.year <= range.1)
+            .collect();
+        let years: Vec<serde_json::Value> = rows
+            .iter()
+            .map(|r| {
+                let mut m = serde_json::Map::new();
+                m.insert("year".into(), json!(r.year));
+                for (k, n) in NAMES.iter().enumerate() {
+                    m.insert(n[..3].to_lowercase(), round(r.months[k]));
+                }
+                m.insert("whole_year".into(), round(r.year_pct));
+                serde_json::Value::Object(m)
+            })
+            .collect();
+        let columns: Vec<serde_json::Value> = (0..13)
+            .map(|k| {
+                let vals: Vec<f64> = rows
+                    .iter()
+                    .map(|r| if k == 12 { r.year_pct } else { r.months[k] })
+                    .filter(|v| v.is_finite())
+                    .collect();
+                let avg = if vals.is_empty() {
+                    f64::NAN
+                } else {
+                    vals.iter().sum::<f64>() / vals.len() as f64
+                };
+                json!({
+                    "column": if k == 12 { "Year" } else { NAMES[k] },
+                    "rises": vals.iter().filter(|v| **v > 0.0).count(),
+                    "falls": vals.iter().filter(|v| **v < 0.0).count(),
+                    "average": round(avg),
+                })
+            })
+            .collect();
+        Some(Ok(json!({
+            "symbol": s.symbol,
+            "years_available": [oldest, newest],
+            "years_shown": [range.0, range.1],
+            "returns_pct": years,
+            "per_column": columns,
+        })))
     }
 
     pub(crate) fn seasonal_tab(&mut self, ui: &mut Ui, t: &Theme) {

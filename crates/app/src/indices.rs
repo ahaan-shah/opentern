@@ -61,7 +61,7 @@ pub enum Weighting {
 }
 
 impl Weighting {
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Weighting::FreeFloat => "Free-float market cap",
             Weighting::MarketCap => "Full market cap",
@@ -296,7 +296,7 @@ impl Metric {
         }
     }
 
-    fn format(self, v: f64) -> String {
+    pub fn format(self, v: f64) -> String {
         if !v.is_finite() {
             return "—".into();
         }
@@ -990,7 +990,7 @@ impl Indices {
     }
 
     /// An index's board, worked out again only when data changed.
-    fn board(&mut self, ticker: &str) -> Option<Board> {
+    pub(crate) fn board(&mut self, ticker: &str) -> Option<Board> {
         let def = self.defs.iter().find(|d| d.ticker == ticker)?;
         if let Some((v, b)) = self.boards.get(ticker)
             && *v == self.version
@@ -1019,7 +1019,7 @@ impl App {
 
     /// Asks for whatever any index's members are missing (the list shows
     /// every index's value, Compare every board).
-    fn indices_want(&mut self) {
+    pub(crate) fn indices_want(&mut self) {
         let need: Vec<Symbol> = self.indices.defs.iter().flat_map(|d| d.needs()).collect();
         for m in need {
             let d = self.indices.data.entry(m.id.clone()).or_default();
@@ -1106,7 +1106,7 @@ impl App {
 
     /// An index's value and day change: live when there's a quote (not in
     /// demo, whose quotes don't add up), else from its daily bars.
-    fn index_now(&mut self, def: &IndexDef) -> Option<(f64, f64)> {
+    pub(crate) fn index_now(&mut self, def: &IndexDef) -> Option<(f64, f64)> {
         if !self.demo
             && let Some((l, p)) = self.quotes.get(&def.id()).copied()
             && p != 0.0
@@ -1315,16 +1315,8 @@ impl App {
                 view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
             });
         });
-        if rebalance && let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == def.ticker) {
-            self.indices.rebalancing = Some((def.ticker.clone(), Instant::now()));
-            d.pending = true;
-            // Fresh share counts first.
-            for m in &d.members {
-                if let Some(x) = self.indices.data.get_mut(&m.id) {
-                    x.asked = None;
-                }
-            }
-            self.indices_want();
+        if rebalance {
+            self.rebalance_index(&def.ticker);
         }
         ui.add_space(8.0);
         kpi_strip(ui, t, &board.index);
@@ -1430,7 +1422,7 @@ impl App {
     /// member's prices and share counts have answered since the press and
     /// the new weights are set (at least a beat, so the turn shows; at most
     /// half a minute).
-    fn rebalance_running(&mut self, def: &IndexDef) -> bool {
+    pub(crate) fn rebalance_running(&mut self, def: &IndexDef) -> bool {
         let Some((ticker, at)) = &self.indices.rebalancing else {
             return false;
         };
@@ -1451,6 +1443,22 @@ impl App {
             self.indices.rebalancing = None;
         }
         busy
+    }
+
+    /// "Rebalance now": fresh share counts, then a new segment.
+    pub(crate) fn rebalance_index(&mut self, ticker: &str) -> bool {
+        let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == ticker) else {
+            return false;
+        };
+        self.indices.rebalancing = Some((ticker.to_string(), Instant::now()));
+        d.pending = true;
+        for m in &d.members {
+            if let Some(x) = self.indices.data.get_mut(&m.id) {
+                x.asked = None;
+            }
+        }
+        self.indices_want();
+        true
     }
 
     fn index_click(&mut self, click: Option<Click>) {
@@ -1518,7 +1526,7 @@ fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: bool) -
 }
 
 /// How the index is built, for the info icon.
-fn method_note(def: &IndexDef) -> String {
+pub(crate) fn method_note(def: &IndexDef) -> String {
     let date = |ms: i64| {
         jiff::Timestamp::from_millisecond(ms)
             .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
@@ -2397,26 +2405,35 @@ fn treemap(
 
 impl App {
     fn save_index(&mut self, e: &IndexEditor) {
+        self.upsert_index(e.editing.as_deref(), &e.name, e.members.clone(), e.weighting);
+    }
+
+    /// Makes an index, or changes the one with ticker `editing`; opens it
+    /// on the board and charts it once its weights are in. Its ticker.
+    pub(crate) fn upsert_index(
+        &mut self,
+        editing: Option<&str>,
+        name: &str,
+        members: Vec<Symbol>,
+        weighting: Weighting,
+    ) -> String {
         let taken: Vec<String> = self
             .indices
             .defs
             .iter()
-            .filter(|d| Some(&d.ticker) != e.editing.as_ref())
+            .filter(|d| Some(d.ticker.as_str()) != editing)
             .map(|d| d.ticker.clone())
             .collect();
-        let pos = e
-            .editing
-            .as_ref()
-            .and_then(|t| self.indices.defs.iter().position(|d| d.ticker == *t));
+        let pos = editing.and_then(|t| self.indices.defs.iter().position(|d| d.ticker == t));
         let mut def = pos.map(|k| self.indices.defs[k].clone()).unwrap_or_default();
-        let same = def.members == e.members && def.weighting == e.weighting;
-        def.name = e.name.trim().to_string();
+        let same = def.members == members && def.weighting == weighting;
+        def.name = name.trim().to_string();
         if pos.is_none() {
             def.ticker = ticker_for(&def.name, &taken);
         }
         if !same {
-            def.members = e.members.clone();
-            def.weighting = e.weighting;
+            def.members = members;
+            def.weighting = weighting;
             // A new segment from today keeps the level (the divisor).
             def.pending = def.ready();
         }
@@ -2432,9 +2449,10 @@ impl App {
         self.layout.tab = Some(crate::shell::Tab::Indices);
         self.indices_want();
         self.indices_settle();
+        self.indices.open.clone().unwrap_or_default()
     }
 
-    fn delete_index(&mut self, ticker: &str) {
+    pub(crate) fn delete_index(&mut self, ticker: &str) {
         self.indices.defs.retain(|d| d.ticker != ticker);
         if self.indices.open.as_deref() == Some(ticker) {
             self.indices.open = self.indices.defs.first().map(|d| d.ticker.clone());

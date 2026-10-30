@@ -28,6 +28,10 @@ pub enum Then {
         batch: u64,
         list: i64,
     },
+    /// A member for a custom index (one of a batch of lookups).
+    Index {
+        batch: u64,
+    },
 }
 
 /// A tool call waiting for search results.
@@ -254,9 +258,29 @@ pub fn specs() -> Value {
         ),
         tool(
             "open_panel",
-            "Opens a bottom-panel tab so the user sees it: screener, editor, report (Strategy Report), lab (Strategy Lab), paper, alerts (log); none closes the panel.",
+            "Opens a bottom-panel tab so the user sees it: screener, seasonality, indices, editor, report (Strategy Report), lab (Strategy Lab), paper, alerts (log); none closes the panel.",
             json!({"tab": s("The tab.")}),
             &["tab"]
+        ),
+        tool(
+            "seasonality",
+            "The Seasonality tab: the active chart symbol's monthly returns (% each month vs the month before, whole_year vs last year's close), a row per year, and per column how many rises and falls and the average. Open another symbol first to see its. from_year/to_year pick the years (and move the tab's slider); without them, the years the tab shows.",
+            json!({"from_year": t("integer"), "to_year": t("integer")}),
+            &[]
+        ),
+        tool(
+            "custom_index",
+            "The user's custom indices (Indices tab): baskets weighted like NSE's indices (free-float market cap by default, base 1000, rebalanced 1 April and 1 October keeping the level), charted as CUSTOM:<TICKER>. Actions: list; get {name} (value, day change, the index's metrics and every member's weight, price and metrics: returns, P/E, EV/EBITDA, growth, margins, RSI, vs 50/200 SMA); compare (every index's numbers side by side); create {name, symbols, weighting?: free_float|market_cap|equal}; edit {name, new_name?, symbols? (replaces the members), add?, remove?, weighting?} (a member change rebalances); rebalance {name} (fresh share counts, new weights, same level); delete {name}; open {name or \"compare\", view?: table|map, metric?} shows it on the Indices tab and the chart. create, edit and rebalance answer with the board once the members' data is in.",
+            json!({
+                "action": s("list, get, compare, create, edit, rebalance, delete or open."),
+                "name": s("The index's name or ticker."),
+                "symbols": {"type": "array", "items": {"type": "string"}, "description": "Tickers or ids, e.g. NSE:MARUTI, NASDAQ:AAPL."},
+                "add": {"type": "array", "items": {"type": "string"}},
+                "remove": {"type": "array", "items": {"type": "string"}},
+                "new_name": t("string"), "weighting": t("string"),
+                "view": t("string"), "metric": t("string"),
+            }),
+            &["action"]
         ),
         tool(
             "scripting_guide",
@@ -491,6 +515,8 @@ impl App {
             "paper_trading" => self.tool_paper(a),
             "alerts" => self.tool_alerts(a),
             "open_panel" => self.tool_open_panel(a),
+            "seasonality" => return self.tool_seasonality((chat, request, id), a),
+            "custom_index" => return self.tool_custom_index((chat, request, id), a),
             other => error(format!("Opentern has no tool called {other}.")),
         })
     }
@@ -682,6 +708,10 @@ impl App {
         let result = match (p.then, best) {
             (Then::Watch { batch, list }, best) => {
                 self.watch_found(batch, list, &p.query, best);
+                return;
+            }
+            (Then::Index { batch }, best) => {
+                self.index_found(batch, &p.query, best);
                 return;
             }
             (Then::List, _) => {

@@ -30,6 +30,18 @@ pub enum Wait {
     Screener,
     Lab,
     Snapshot,
+    /// The Seasonality tab's monthly bars.
+    Seasonal {
+        from: Option<i16>,
+        to: Option<i16>,
+    },
+    /// A custom index's board (after a save or rebalance), answered with
+    /// `note` first.
+    Index {
+        ticker: String,
+        rebalance: bool,
+        note: String,
+    },
 }
 
 pub struct Waiting {
@@ -48,6 +60,8 @@ pub struct Batch {
     pub left: usize,
     pub added: Vec<String>,
     pub missed: Vec<String>,
+    /// Lookups for a custom index's members, saved once all are back.
+    pub index: Option<super::markets::IndexJob>,
 }
 
 /// Letters and digits only, lowercased: "Heikin Ashi" = "heikin_ashi".
@@ -228,6 +242,34 @@ impl App {
                         Some(text(
                             "The Strategy Lab is still running. Call strategy_lab with action results later.",
                         ))
+                    } else {
+                        None
+                    }
+                }
+                Wait::Seasonal { from, to } => {
+                    let (from, to) = (*from, *to);
+                    match self.seasonal_report(from, to) {
+                        Some(r) => Some(super::markets::seasonal_answer(r)),
+                        None if age > Duration::from_secs(60) => {
+                            Some(error("The monthly history is still loading. Try again in a moment."))
+                        }
+                        None => None,
+                    }
+                }
+                Wait::Index {
+                    ticker,
+                    rebalance,
+                    note,
+                } => {
+                    let (ticker, rebalance, note) = (ticker.clone(), *rebalance, note.clone());
+                    if self.index_settled(&ticker, rebalance) || age > super::markets::INDEX_WAIT {
+                        let mut r = self.index_detail(&ticker);
+                        if !note.is_empty()
+                            && let Some(t) = r["content"][0]["text"].as_str()
+                        {
+                            r["content"][0]["text"] = json!(format!("{note}\n{t}"));
+                        }
+                        Some(r)
                     } else {
                         None
                     }
@@ -1047,6 +1089,7 @@ impl App {
                 left: symbols.len(),
                 added: Vec::new(),
                 missed: Vec::new(),
+                index: None,
             },
         );
         for s in symbols {
@@ -1816,5 +1859,68 @@ mod drive_tests {
             json!({"action": "run", "mode": "monte_carlo", "mc_runs": 200}),
         ));
         assert!(r.contains("chance_of_loss_pct"), "{r}");
+    }
+
+    #[test]
+    fn the_agent_reads_seasonality_and_runs_custom_indices() {
+        let mut d = Driver::new("agent-markets");
+        let r = ok(&call(&mut d, "seasonality", json!({})));
+        let v: Value = serde_json::from_str(&r).unwrap();
+        assert!(!v["returns_pct"].as_array().unwrap().is_empty(), "{r}");
+        assert_eq!(v["per_column"].as_array().unwrap().len(), 13);
+        let newest = v["years_available"][1].as_i64().unwrap();
+        let r = ok(&call(
+            &mut d,
+            "seasonality",
+            json!({"from_year": newest, "to_year": newest}),
+        ));
+        let v: Value = serde_json::from_str(&r).unwrap();
+        assert_eq!(v["returns_pct"].as_array().unwrap().len(), 1, "{r}");
+        assert_eq!(d.app.seasonal.range, Some((newest as i16, newest as i16)));
+
+        // Make an index, read its board, change it, compare, delete.
+        let r = ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "create", "name": "Big Tech", "symbols": ["AAPL", "NVDA", "NOSUCHTHINGXYZ"], "weighting": "equal"}),
+        ));
+        assert!(r.contains("No match for: NOSUCHTHINGXYZ"), "{r}");
+        let v: Value = serde_json::from_str(r.split_once('\n').unwrap().1).unwrap();
+        assert_eq!(v["members"].as_array().unwrap().len(), 2, "{r}");
+        assert!(v["value"].as_f64().is_some(), "{r}");
+        assert!(d.app.indices.defs[0].ready());
+        let r = ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "get", "name": "BIGTECH"}),
+        ));
+        assert!(r.contains("\"P/E\""), "{r}");
+        ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "edit", "name": "Big Tech", "remove": ["NVDA"], "new_name": "Apple only"}),
+        ));
+        assert_eq!(d.app.indices.defs[0].name, "Apple only");
+        assert_eq!(d.app.indices.defs[0].members.len(), 1);
+        ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "rebalance", "name": "Apple only"}),
+        ));
+        let r = call(&mut d, "custom_index", json!({"action": "open", "name": "compare"}));
+        assert!(r["isError"].as_bool().unwrap_or(false), "one index can't be compared");
+        ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "open", "name": "Apple only", "view": "map"}),
+        ));
+        assert_eq!(d.app.layout.tab, Some(crate::shell::Tab::Indices));
+        assert!(ok(&call(&mut d, "custom_index", json!({"action": "compare"}))).contains("Apple only"));
+        ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "delete", "name": "Apple only"}),
+        ));
+        assert!(d.app.indices.defs.is_empty());
     }
 }

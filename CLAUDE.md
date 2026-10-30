@@ -1072,7 +1072,10 @@ workspace.
   clicks"; `claude/control.rs`): one tool per area with an `action` (keeps the
   list, sent with every request, short): chart_view, indicator, drawings,
   replay, snapshot, watchlist, screener, strategy_settings, strategy_lab,
-  paper_trading, alerts, open_panel. Slow work answers later
+  paper_trading, alerts, open_panel; seasonality and custom_index
+  (`claude/markets.rs`: list/get/compare/create/edit/rebalance/delete/open;
+  member lookups are a `Batch` with an `IndexJob`, saved via
+  `App::upsert_index`, answered with the board once settled). Slow work answers later
   (`control::Wait`, polled in `poll_claude`): bars back to a date (pages of
   `Request::More`, 45 s cap; also open_symbol/set_timeframe wait for bars),
   screener and lab runs, the snapshot (`Snap::Agent`, PNG at 1 px per point,
