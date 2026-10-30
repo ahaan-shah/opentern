@@ -1286,7 +1286,7 @@ every data change (scripts re-run on it).
   month before's, the first month from its open; Year vs last year's
   close), newest year first, a two-handled year slider (middle grip drags
   the window; default the last 6 years), "Rises and falls" per column
-  then an Average row. Columns never get narrower than their numbers
+  under an Average row. Columns never get narrower than their numbers
   (fewer decimals first, then a sideways scroll). Chart view (toggle top
   left, as TradingView's): a line per year from daily bars
   (`profile::seasonality`, fetched only once the view opens), dashed

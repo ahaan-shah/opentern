@@ -382,7 +382,7 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         let yr = Rect::from_min_size(head.min + vec2(x_of(12), 0.0), vec2(col, row_h));
         cell_text(p, yr, "Year", false, theme::semibold(12.5), t.text2);
         p.hline(head.x_range(), head.bottom(), border);
-        // The footer (rises and falls, average) keeps its place under the years.
+        // The footer (average, rises and falls) keeps its place under the years.
         let body_h = (ui.available_height() - 2.0 * row_h - 2.0).max(row_h);
         egui::ScrollArea::vertical()
             .id_salt("seasonal-rows")
@@ -433,7 +433,41 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
                     }
                 }
             });
-        // Rises and falls, per column; the average return on hover.
+        // The average return per column.
+        let (avg_row, _) = ui.allocate_exact_size(vec2(total, row_h), Sense::hover());
+        let p = ui.painter();
+        cell_text(
+            p,
+            Rect::from_min_size(avg_row.min, vec2(first, row_h)),
+            "Average",
+            true,
+            theme::semibold(12.5),
+            t.text2,
+        );
+        #[allow(clippy::needless_range_loop)]
+        for k in 0..13 {
+            let vals: Vec<f64> = rows
+                .iter()
+                .map(|r| if k == 12 { r.year_pct } else { r.months[k] })
+                .filter(|v| v.is_finite())
+                .collect();
+            let avg = if vals.is_empty() {
+                f64::NAN
+            } else {
+                vals.iter().sum::<f64>() / vals.len() as f64
+            };
+            let c = Rect::from_min_size(avg_row.min + vec2(x_of(k), 0.0), vec2(col, row_h));
+            let color = if !avg.is_finite() {
+                t.text3
+            } else if avg >= 0.0 {
+                t.pos
+            } else {
+                t.neg
+            };
+            cell_text(p, c, &pct_text(avg, dp), false, theme::semibold(12.5), color);
+        }
+        p.hline(avg_row.x_range(), avg_row.bottom(), border);
+        // Rises and falls, per column.
         let (foot, _) = ui.allocate_exact_size(vec2(total, row_h), Sense::hover());
         let p = ui.painter();
         cell_text(
@@ -476,40 +510,6 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
             }
         }
         p.hline(foot.x_range(), foot.bottom(), border);
-        // The average return per column.
-        let (avg_row, _) = ui.allocate_exact_size(vec2(total, row_h), Sense::hover());
-        let p = ui.painter();
-        cell_text(
-            p,
-            Rect::from_min_size(avg_row.min, vec2(first, row_h)),
-            "Average",
-            true,
-            theme::semibold(12.5),
-            t.text2,
-        );
-        #[allow(clippy::needless_range_loop)]
-        for k in 0..13 {
-            let vals: Vec<f64> = rows
-                .iter()
-                .map(|r| if k == 12 { r.year_pct } else { r.months[k] })
-                .filter(|v| v.is_finite())
-                .collect();
-            let avg = if vals.is_empty() {
-                f64::NAN
-            } else {
-                vals.iter().sum::<f64>() / vals.len() as f64
-            };
-            let c = Rect::from_min_size(avg_row.min + vec2(x_of(k), 0.0), vec2(col, row_h));
-            let color = if !avg.is_finite() {
-                t.text3
-            } else if avg >= 0.0 {
-                t.pos
-            } else {
-                t.neg
-            };
-            cell_text(p, c, &pct_text(avg, dp), false, theme::semibold(12.5), color);
-        }
-        p.hline(avg_row.x_range(), avg_row.bottom(), border);
     });
 }
 
