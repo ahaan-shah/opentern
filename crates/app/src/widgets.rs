@@ -678,3 +678,31 @@ pub fn filled_star(p: &egui::Painter, c: egui::Pos2, r: f32, color: Color32) {
     }
     p.add(mesh);
 }
+
+/// An icon button like `tool_button` whose icon turns while
+/// `spinning`.
+pub fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: bool) -> egui::Response {
+    let size = 28.0;
+    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered() && !spinning, motion::MICRO);
+    let p = ui.painter();
+    p.rect_filled(rect, 7, motion::with_alpha(t.hover_wash(), hover));
+    let color = if spinning {
+        t.accent
+    } else {
+        motion::lerp_color(t.text2, t.text, hover)
+    };
+    let galley = p.layout_no_wrap(glyph.to_string(), theme::regular(size * 0.56), color);
+    let angle = if spinning {
+        ui.ctx().request_repaint();
+        (ui.input(|i| i.time) * 5.0) as f32
+    } else {
+        0.0
+    };
+    // Turn about the glyph's centre.
+    let half = galley.size() / 2.0;
+    let pos = rect.center() - egui::emath::Rot2::from_angle(angle) * half;
+    p.add(egui::epaint::TextShape::new(pos, galley, color).with_angle(angle));
+    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    resp.on_hover_text(tip)
+}

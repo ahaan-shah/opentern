@@ -1309,7 +1309,7 @@ impl App {
                 } else {
                     "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
                 };
-                if spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
+                if w::spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
                     rebalance = true;
                 }
                 view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
@@ -1495,34 +1495,6 @@ fn weighting_help(ui: &mut Ui, t: &Theme) {
         ui.label(egui::RichText::new(*name).font(theme::semibold(12.5)).color(t.text));
         ui.label(egui::RichText::new(*what).font(theme::regular(12.0)).color(t.text2));
     }
-}
-
-/// An icon button like `widgets::tool_button` whose icon turns while
-/// `spinning`.
-fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: bool) -> egui::Response {
-    let size = 28.0;
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
-    let hover = crate::motion::toggle(ui.ctx(), resp.id, resp.hovered() && !spinning, crate::motion::MICRO);
-    let p = ui.painter();
-    p.rect_filled(rect, 7, crate::motion::with_alpha(t.hover_wash(), hover));
-    let color = if spinning {
-        t.accent
-    } else {
-        lerp_color(t.text2, t.text, hover)
-    };
-    let galley = p.layout_no_wrap(glyph.to_string(), theme::regular(size * 0.56), color);
-    let angle = if spinning {
-        ui.ctx().request_repaint();
-        (ui.input(|i| i.time) * 5.0) as f32
-    } else {
-        0.0
-    };
-    // Turn about the glyph's centre.
-    let half = galley.size() / 2.0;
-    let pos = rect.center() - egui::emath::Rot2::from_angle(angle) * half;
-    p.add(egui::epaint::TextShape::new(pos, galley, color).with_angle(angle));
-    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-    resp.on_hover_text(tip)
 }
 
 /// How the index is built, for the info icon.

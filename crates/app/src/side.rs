@@ -18,6 +18,8 @@ pub struct Side {
     pub news: Option<Result<Vec<NewsItem>, String>>,
     news_seq: u64,
     news_for: Option<(String, Instant)>,
+    /// A refresh is out (since when), so the button turns.
+    news_busy: Option<Instant>,
 }
 
 impl Default for Side {
@@ -31,6 +33,7 @@ impl Default for Side {
             news: None,
             news_seq: 1 << 51,
             news_for: None,
+            news_busy: None,
         }
     }
 }
@@ -55,6 +58,7 @@ impl App {
             }
             opentern_data::Event::News { seq, result } if seq == self.side.news_seq => {
                 self.side.news = Some(result);
+                self.side.news_busy = None;
             }
             _ => {}
         }
@@ -210,19 +214,26 @@ impl App {
             }
             self.side.news_seq += 1;
             self.side.news_for = Some((id, Instant::now()));
+            self.side.news_busy = Some(Instant::now());
             self.hub.send(Request::News {
                 seq: self.side.news_seq,
                 symbol: self.chart.symbol.clone(),
             });
         }
-        let loading = self.side.news.is_none();
+        // Turns while a refresh is out, and long enough to be seen.
+        let spinning = self.side.news_busy.is_some()
+            || self
+                .side
+                .news_for
+                .as_ref()
+                .is_some_and(|(_, at)| at.elapsed() < Duration::from_millis(700));
         let mut refresh = false;
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(format!("About {}", self.chart.symbol.ticker())).color(t.text3));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                refresh = crate::widgets::tool_button(ui, t, crate::icons::ph::ARROW_CLOCKWISE, "Refresh", false, 24.0)
+                refresh = crate::widgets::spin_button(ui, t, crate::icons::ph::ARROWS_CLOCKWISE, "Refresh", spinning)
                     .clicked()
-                    && !loading;
+                    && !spinning;
             });
         });
         if refresh {
