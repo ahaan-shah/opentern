@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Solana's logo is Solana's again:** its purple-to-mint bars on black,
+  instead of a teal and green disc.
+
 ## 0.2.4 (2026-10-31)
 
 Seasonality gets a chart of every year side by side, and the agent panel can

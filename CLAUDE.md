@@ -559,7 +559,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ### Resume here (next session)
 **0.2.4 released 31 Oct 2026** (Seasonality chart view and Average row,
 agent tools `seasonality` and `custom_index`, News refresh button, News and
-Hotlists retry 15 s after a failure). Nothing unreleased. Add new
+Hotlists retry 15 s after a failure). Since then: the Solana logo fix. Add new
 user-facing changes to a fresh `## Unreleased` section at the top of
 `CHANGELOG.md` as they land; at release time rename it and follow
 "Releasing".

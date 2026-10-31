@@ -35,6 +35,11 @@ ZEC DASH XMR NEO IOTA KSM ZIL ENJ BAT 1INCH SUSHI YFI CELO QNT FET AGIX OCEAN TA
 BLUR MEME NOT TRUMP BOME PENDLE ETHFI W ENS RPL SSV FXS LRC MASK API3 BAND KAVA ROSE ONE ICX ANKR SKL
 USDT USDC DAI FDUSD TUSD WBTC WETH STETH HYPE BERA S FTM""".split()
 
+# Coins whose "background" icon is off-brand: their "branded" mark (the real
+# colours) on this background instead. web3icons' SOL background is teal and
+# mint; Solana's own mark is purple to mint bars on black.
+ON_BLACK = {"SOL": "#000"}
+
 # (exchange, ticker, company name, theSVG slug if the name doesn't lead to it)
 COMPANIES = [
     ("NASDAQ", "AAPL", "Apple", "apple"), ("NASDAQ", "MSFT", "Microsoft", "microsoft"),
@@ -139,6 +144,20 @@ def js_string(src):
     return raw.encode("latin-1", "backslashreplace").decode("unicode_escape")
 
 
+def on_background(coin, colour):
+    """The coin's branded mark, scaled into a square of `colour`."""
+    src = get(f"{W3}/dist/svgs/tokens/branded/{coin}.svg.js")
+    svg = src and js_string(src)
+    if not svg or "<svg" not in svg:
+        return None
+    head, rest = svg.split(">", 1)
+    body, tail = rest.rsplit("</svg>", 1)
+    return (
+        f'{head}>\n    <rect width="24" height="24" fill="{colour}"/>\n'
+        f'    <g transform="translate(12 12) scale(.78) translate(-12 -12)">{body}</g>\n</svg>{tail}'
+    )
+
+
 def thesvg(slug):
     js = get(f"{THESVG}/dist/{slug}.js")
     if not js:
@@ -163,8 +182,11 @@ def main():
     known = slugs()
     kept = {}
     for coin in COINS:
-        src = get(f"{W3}/dist/svgs/tokens/background/{coin}.svg.js")
-        svg = src and js_string(src)
+        if coin in ON_BLACK:
+            svg = on_background(coin, ON_BLACK[coin])
+        else:
+            src = get(f"{W3}/dist/svgs/tokens/background/{coin}.svg.js")
+            svg = src and js_string(src)
         if svg and "<svg" in svg:
             kept[f"coin-{coin.lower()}"] = f"square\n{svg}"
         else:
