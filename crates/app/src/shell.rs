@@ -328,7 +328,7 @@ impl App {
                 if open {
                     self.settings = None;
                 } else {
-                    self.open_settings(crate::settings::Cat::Appearance);
+                    self.open_settings(crate::settings::Cat::General);
                 }
             }
             let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (Alt+S)", false);
@@ -344,7 +344,7 @@ impl App {
                     ui.close();
                 }
                 if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open snapshots folder", "", false).clicked() {
-                    let dir = self.store.dir().join("snapshots");
+                    let dir = self.snapshots_dir();
                     let _ = std::fs::create_dir_all(&dir);
                     crate::app::open_path(&dir.join("."));
                     ui.close();

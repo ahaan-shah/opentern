@@ -71,7 +71,8 @@ impl Driver {
             ..Default::default()
         };
         let app = &mut self.app;
-        let out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
         let mut texts = Vec::new();
         for c in &out.shapes {
             walk(&c.shape, &mut texts);

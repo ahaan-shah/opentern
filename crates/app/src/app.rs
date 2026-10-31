@@ -77,6 +77,9 @@ pub struct App {
     still_claude: Option<String>,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
+    /// Folders picked in Settings → General (`None` = inside the
+    /// workspace), read once so frames never ask the database.
+    pub(crate) folders: crate::settings::Folders,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
     /// The other charts of a multi-chart layout (`None` at the active
@@ -119,6 +122,7 @@ impl App {
             demo,
             std::sync::Arc::new(move || wake_ctx.request_repaint()),
         );
+        let folders = crate::settings::Folders::load(&store);
         let logos = crate::logos::Logos::new(
             store.dir().join("logos"),
             store.value("symbol_logos").as_deref() != Some("off"),
@@ -202,6 +206,7 @@ impl App {
             still_replay: false,
             still_claude: None,
             logos,
+            folders,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
             slots: vec![None],
@@ -370,7 +375,7 @@ impl App {
                 let cat = Cat::ALL
                     .into_iter()
                     .find(|c| format!("{c:?}").eq_ignore_ascii_case(cat.trim_start_matches(':')))
-                    .unwrap_or(Cat::Appearance);
+                    .unwrap_or(Cat::General);
                 self.open_settings(cat);
             } else if let Some(u) = part.strip_prefix("update:") {
                 // The update button mid-download (`update:40`) or installed

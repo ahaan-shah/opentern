@@ -295,8 +295,22 @@ pub fn scan_scripts(root: &std::path::Path) -> (Vec<String>, Vec<String>) {
 }
 
 impl App {
+    /// The scripts folder: the one picked in Settings → General, else
+    /// `scripts` in the workspace.
     pub fn scripts_dir(&self) -> PathBuf {
-        self.store.dir().join("scripts")
+        self.folders
+            .scripts
+            .clone()
+            .unwrap_or_else(|| self.store.dir().join("scripts"))
+    }
+
+    /// Where snapshots are saved: picked in Settings → General, else
+    /// `snapshots` in the workspace.
+    pub fn snapshots_dir(&self) -> PathBuf {
+        self.folders
+            .snapshots
+            .clone()
+            .unwrap_or_else(|| self.store.dir().join("snapshots"))
     }
 
     fn sdk_dir(&self) -> PathBuf {

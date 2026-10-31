@@ -38,6 +38,9 @@ pub struct Launch {
     pub exe: PathBuf,
     /// The workspace's scripts folder: where Claude reads and edits.
     pub cwd: PathBuf,
+    /// More folders it may work in (Claude Code's `--add-dir`): the scripts
+    /// folder, when a resumed chat started somewhere else.
+    pub add_dirs: Vec<PathBuf>,
     pub mode: Mode,
     /// A model id, or `None` for the CLI's default.
     pub model: Option<String>,
@@ -242,6 +245,9 @@ impl ClaudeCode {
         }
         if let Some(s) = &l.resume {
             cmd.args(["--resume", s]);
+        }
+        for d in &l.add_dirs {
+            cmd.arg("--add-dir").arg(d);
         }
         super::accounts::apply(&mut cmd, l.agent, &l.account);
         // A session started from inside Claude Code (a terminal, a test)

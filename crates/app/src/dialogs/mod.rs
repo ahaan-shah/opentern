@@ -238,8 +238,13 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
 /// A labelled row in a settings form: label on the left, control on the
 /// right, lined up in two columns.
 pub fn form_row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut Ui)) {
+    form_row_w(ui, t, 170.0, label, control);
+}
+
+/// [`form_row`] with a label column `w` wide.
+pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(170.0, 26.0), egui::Sense::hover());
+        let (r, _) = ui.allocate_exact_size(vec2(w, 26.0), egui::Sense::hover());
         ui.painter().text(
             r.left_center(),
             egui::Align2::LEFT_CENTER,

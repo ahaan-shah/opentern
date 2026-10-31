@@ -559,7 +559,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ### Resume here (next session)
 **0.2.4 released 31 Oct 2026** (Seasonality chart view and Average row,
 agent tools `seasonality` and `custom_index`, News refresh button, News and
-Hotlists retry 15 s after a failure). Since then: the Solana logo fix. Add new
+Hotlists retry 15 s after a failure). Since then: the Solana logo fix; Settings → General with scripts and snapshots folders (`scripts_dir`/`snapshots_dir` settings, cached in `App::folders`; always go through `App::scripts_dir()`/`snapshots_dir()`). A Claude chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current one; every message's context names the scripts folder. Add new
 user-facing changes to a fresh `## Unreleased` section at the top of
 `CHANGELOG.md` as they land; at release time rename it and follow
 "Releasing".
@@ -1412,7 +1412,7 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 Stills also take `compare:<ticker>:scale|pane`, `measure` (a quick measure once
 bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
 maximized), `trades` (Strategy Report → List of trades), `gradient` (gradient canvas), `replay:play` (a replay under way) and
-`settings:<appearance|chart|providers|logos>`.
+`settings:<general|chart|providers|shortcuts|about>` (add `scroll-end` to start at the bottom).
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
 study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a

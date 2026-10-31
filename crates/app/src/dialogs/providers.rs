@@ -2,7 +2,7 @@
 //! Secrets go to the OS keychain; the rest (account ids, URLs, flags) to
 //! the workspace settings. Each section says where to get its key.
 
-use super::{Done, form_row, frame, section};
+use super::{Done, frame, section};
 use crate::app::App;
 use crate::theme::Theme;
 use egui::Ui;
@@ -118,7 +118,7 @@ fn secret_field(ui: &mut Ui, value: &mut String, saved: bool, hint: &str) {
         crate::widgets::field(value)
             .password(true)
             .hint_text(hint)
-            .desired_width(260.0),
+            .desired_width(ui.available_width().min(260.0)),
     );
 }
 
@@ -167,20 +167,27 @@ impl Providers {
 
     /// The form's sections (shared by the dialog and the Settings page).
     fn fields(&mut self, ui: &mut Ui, t: &Theme) {
+        // Labels take less room when the form is narrow (Settings beside
+        // the widget panel in a small window).
+        let lw = (ui.available_width() * 0.36).clamp(110.0, 170.0);
+        let form_row = |ui: &mut Ui, t: &Theme, label: &str, control: &mut dyn FnMut(&mut Ui)| {
+            super::form_row_w(ui, t, lw, label, |ui| control(ui))
+        };
         section(ui, t, "Alpaca · US stocks");
         note(
             ui,
             t,
             "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys.",
         );
-        form_row(ui, t, "Key ID", |ui| {
+        form_row(ui, t, "Key ID", &mut |ui| {
             secret_field(ui, &mut self.alpaca_key, self.have[0], "PK…")
         });
-        form_row(ui, t, "Secret key", |ui| {
+        form_row(ui, t, "Secret key", &mut |ui| {
             secret_field(ui, &mut self.alpaca_secret, self.have[1], "")
         });
-        form_row(ui, t, "Feed", |ui| {
-            crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP (all US exchanges)");
+        form_row(ui, t, "Feed", &mut |ui| {
+            crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP")
+                .on_hover_text("SIP: prices from all US exchanges, not just IEX");
         });
         section(ui, t, "OANDA · forex and CFDs");
         note(
@@ -188,17 +195,17 @@ impl Providers {
             t,
             "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD.",
         );
-        form_row(ui, t, "API token", |ui| {
+        form_row(ui, t, "API token", &mut |ui| {
             secret_field(ui, &mut self.oanda_token, self.have[2], "")
         });
-        form_row(ui, t, "Account ID", |ui| {
+        form_row(ui, t, "Account ID", &mut |ui| {
             ui.add(
                 crate::widgets::field(&mut self.oanda_account)
                     .hint_text("101-…")
-                    .desired_width(260.0),
+                    .desired_width(ui.available_width().min(260.0)),
             );
         });
-        form_row(ui, t, "Account", |ui| {
+        form_row(ui, t, "Account", &mut |ui| {
             crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
             crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
         });
@@ -209,7 +216,7 @@ impl Providers {
             "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste \
                  its access token (it lasts until the next morning).",
         );
-        form_row(ui, t, "Access token", |ui| {
+        form_row(ui, t, "Access token", &mut |ui| {
             secret_field(ui, &mut self.upstox_token, self.have[3], "")
         });
         section(ui, t, "Interactive Brokers");
@@ -219,12 +226,12 @@ impl Providers {
             "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR \
                  market-data subscriptions.",
         );
-        form_row(ui, t, "Use the gateway", |ui| {
+        form_row(ui, t, "Use the gateway", &mut |ui| {
             crate::widgets::checkbox(ui, &mut self.ibkr_on, "");
         });
         if self.ibkr_on {
-            form_row(ui, t, "Gateway URL", |ui| {
-                ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(260.0));
+            form_row(ui, t, "Gateway URL", &mut |ui| {
+                ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(ui.available_width().min(260.0)));
             });
         }
     }

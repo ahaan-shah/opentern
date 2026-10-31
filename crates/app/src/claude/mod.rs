@@ -96,6 +96,11 @@ pub struct Chat {
     /// ran as the app's launch account.
     #[serde(default)]
     pub account: Option<String>,
+    /// The folder Claude Code started it in: it only resumes a session from
+    /// there. Chats saved before the folder could move started in the
+    /// workspace's `scripts`.
+    #[serde(default)]
+    pub folder: Option<std::path::PathBuf>,
     #[serde(skip)]
     pub busy: bool,
     #[serde(skip)]
@@ -120,6 +125,7 @@ impl Chat {
             cost: 0.0,
             context: 0,
             account: Some(accounts::current(agent)),
+            folder: None,
             busy: false,
             thinking: false,
         }
@@ -584,7 +590,7 @@ impl App {
     }
 
     /// What Claude sees before each message: the chart right now.
-    fn claude_context(&self) -> String {
+    pub(crate) fn claude_context(&self) -> String {
         let c = &self.chart;
         let mut s = format!(
             "<opentern_context>\nActive chart: {} ({}), {}, {}",
@@ -620,6 +626,9 @@ impl App {
         if let Some(d) = self.editor.doc().filter(|d| !d.readonly) {
             s.push_str(&format!("Open in the Script Editor: {}.\n", d.key));
         }
+        // Always said, as the folder can move after a chat starts (the
+        // system prompt keeps the one it started with).
+        s.push_str(&format!("Scripts folder: {}.\n", self.scripts_dir().display()));
         s.push_str("</opentern_context>");
         s
     }
@@ -654,7 +663,8 @@ impl App {
              and the latest trades). The report is for the symbol and timeframe on the chart; switch them with \
              open_symbol and set_timeframe to test elsewhere. Iterate on the script until the user is happy.\n\n\
              Each user message starts with an <opentern_context> block: the app wrote it, not the user, and it \
-             describes the chart at that moment.\n\n\
+             describes the chart at that moment. If the scripts folder it names differs from the one above, the \
+             user has moved it: read and write scripts there.\n\n\
              This is analysis and paper trading only. You can't place real orders; never say you did.",
             self.scripts_dir().display()
         );
@@ -685,11 +695,25 @@ impl App {
             if crate::app::headless() && std::env::var_os(agent.env()).is_none() {
                 return;
             }
+            let scripts = self.scripts_dir();
+            // Claude Code finds a session only from the folder it started
+            // in, so a resumed chat starts there and gets the scripts folder
+            // added when that has moved since. Codex resumes anywhere.
+            let cwd = match self.claude.chat() {
+                Some(c) if agent == Agent::Claude && c.session.is_some() => {
+                    c.folder.clone().unwrap_or_else(|| self.store.dir().join("scripts"))
+                }
+                _ => scripts.clone(),
+            };
+            if let Some(c) = self.claude.chat_mut(id) {
+                c.folder = Some(cwd.clone());
+            }
             let chat = self.claude.chat().expect("active chat");
             let launch = Launch {
                 agent,
                 exe,
-                cwd: self.scripts_dir(),
+                add_dirs: if cwd == scripts { Vec::new() } else { vec![scripts] },
+                cwd,
                 mode: chat.mode,
                 model: (!chat.model.is_empty()).then(|| chat.model.clone()),
                 resume: chat.session.clone(),

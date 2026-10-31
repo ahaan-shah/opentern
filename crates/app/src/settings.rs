@@ -1,6 +1,7 @@
 //! Settings: a page that takes the chart area (☰ or the gear opens it,
-//! Esc or × closes it), with its categories down the left: Appearance,
-//! Chart, Data providers, Symbol logos, Keyboard shortcuts and About.
+//! Esc or × closes it), with its categories down the left: General
+//! (folders, theme, symbol logos), Chart, Data providers, Keyboard
+//! shortcuts and About.
 
 use crate::app::App;
 use crate::dialogs::ChartSettings;
@@ -12,30 +13,21 @@ use egui::{Align2, CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Cat {
-    Appearance,
+    General,
     Chart,
     Providers,
-    Logos,
     Shortcuts,
     About,
 }
 
 impl Cat {
-    pub const ALL: [Cat; 6] = [
-        Cat::Appearance,
-        Cat::Chart,
-        Cat::Providers,
-        Cat::Logos,
-        Cat::Shortcuts,
-        Cat::About,
-    ];
+    pub const ALL: [Cat; 5] = [Cat::General, Cat::Chart, Cat::Providers, Cat::Shortcuts, Cat::About];
 
     fn title(self) -> &'static str {
         match self {
-            Cat::Appearance => "Appearance",
+            Cat::General => "General",
             Cat::Chart => "Chart",
             Cat::Providers => "Data providers",
-            Cat::Logos => "Symbol logos",
             Cat::Shortcuts => "Keyboard shortcuts",
             Cat::About => "About",
         }
@@ -43,14 +35,75 @@ impl Cat {
 
     fn icon(self) -> &'static str {
         match self {
-            Cat::Appearance => ph::PALETTE,
+            Cat::General => ph::SLIDERS_HORIZONTAL,
             Cat::Chart => ph::CHART_LINE,
             Cat::Providers => ph::PLUGS_CONNECTED,
-            Cat::Logos => ph::IMAGE,
             Cat::Shortcuts => ph::KEYBOARD,
             Cat::About => ph::INFO,
         }
     }
+}
+
+/// A folder Settings → General can move out of the workspace.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Folder {
+    Scripts,
+    Snapshots,
+}
+
+impl Folder {
+    fn key(self) -> &'static str {
+        match self {
+            Folder::Scripts => "scripts_dir",
+            Folder::Snapshots => "snapshots_dir",
+        }
+    }
+}
+
+/// The folders picked in Settings → General (`None` = the workspace's own).
+#[derive(Default)]
+pub struct Folders {
+    pub scripts: Option<std::path::PathBuf>,
+    pub snapshots: Option<std::path::PathBuf>,
+    /// A folder picker that's open, and the folder it's for.
+    picking: Option<(Folder, crossbeam_channel::Receiver<Option<std::path::PathBuf>>)>,
+}
+
+impl Folders {
+    pub fn load(store: &opentern_core::Store) -> Folders {
+        let get = |f: Folder| {
+            store
+                .value(f.key())
+                .filter(|v| !v.is_empty())
+                .map(std::path::PathBuf::from)
+        };
+        Folders {
+            scripts: get(Folder::Scripts),
+            snapshots: get(Folder::Snapshots),
+            picking: None,
+        }
+    }
+
+    fn slot(&mut self, f: Folder) -> &mut Option<std::path::PathBuf> {
+        match f {
+            Folder::Scripts => &mut self.scripts,
+            Folder::Snapshots => &mut self.snapshots,
+        }
+    }
+}
+
+/// Opens the system's folder picker without blocking the UI.
+fn pick_folder(title: &str, start: &std::path::Path) -> crossbeam_channel::Receiver<Option<std::path::PathBuf>> {
+    let (tx, rx) = crossbeam_channel::bounded(1);
+    // Made here (some platforms need the UI thread), awaited on another.
+    let fut = rfd::AsyncFileDialog::new()
+        .set_title(title)
+        .set_directory(start)
+        .pick_folder();
+    std::thread::spawn(move || {
+        let _ = tx.send(pollster::block_on(fut).map(|h| h.path().to_path_buf()));
+    });
+    rx
 }
 
 pub struct SettingsPage {
@@ -83,7 +136,9 @@ impl App {
         let Some(mut page) = self.settings.take() else { return };
         let full = ui.max_rect();
         ui.painter().rect_filled(full, CornerRadius::ZERO, t.bg);
-        let nav_w = 220.0;
+        // Narrower categories when the window is (a 1000 px window has the
+        // widget panel open beside this).
+        let nav_w = if full.width() < 760.0 { 188.0 } else { 220.0 };
         let nav = Rect::from_min_size(full.min, vec2(nav_w, full.height()));
         ui.painter().vline(
             nav.right(),
@@ -149,6 +204,8 @@ impl App {
                 .color(t.text),
         );
         c.add_space(14.0);
+        // `OPENTERN_STILL=…,scroll-end` (screenshots): start at the bottom.
+        let end = std::env::var("OPENTERN_STILL").is_ok_and(|v| v.split(',').any(|p| p == "scroll-end"));
         egui::ScrollArea::vertical()
             .id_salt(("settings", page.cat as u8))
             .auto_shrink([false; 2])
@@ -156,7 +213,7 @@ impl App {
                 let w = (ui.available_width() - 14.0).min(720.0);
                 ui.set_max_width(w);
                 match page.cat {
-                    Cat::Appearance => self.appearance(ui, t),
+                    Cat::General => self.general(ui, t),
                     Cat::Chart => page
                         .chart
                         .get_or_insert_with(|| ChartSettings::new(self))
@@ -165,15 +222,153 @@ impl App {
                         .providers
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
-                    Cat::Logos => self.logo_settings(ui),
                     Cat::Shortcuts => shortcuts(ui, t),
                     Cat::About => self.about(ui, t),
                 }
                 ui.add_space(24.0);
+                if end {
+                    ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
+                }
             });
         if !close && self.settings.is_none() {
             self.settings = Some(page);
         }
+    }
+
+    fn general(&mut self, ui: &mut Ui, t: &Theme) {
+        self.poll_folder_pick();
+        crate::dialogs::section(ui, t, "Folders");
+        ui.add_space(4.0);
+        self.folder_row(ui, t, Folder::Scripts);
+        ui.add_space(8.0);
+        self.folder_row(ui, t, Folder::Snapshots);
+        ui.add_space(22.0);
+        self.appearance(ui, t);
+        ui.add_space(12.0);
+        crate::dialogs::section(ui, t, "Symbol logos");
+        ui.add_space(4.0);
+        self.logo_settings(ui);
+    }
+
+    /// A picked folder arriving from the system's picker.
+    fn poll_folder_pick(&mut self) {
+        let Some((f, rx)) = &self.folders.picking else { return };
+        let f = *f;
+        match rx.try_recv() {
+            Ok(Some(dir)) => {
+                self.folders.picking = None;
+                self.set_folder(f, Some(dir));
+            }
+            Ok(None) | Err(crossbeam_channel::TryRecvError::Disconnected) => self.folders.picking = None,
+            Err(crossbeam_channel::TryRecvError::Empty) => {}
+        }
+    }
+
+    /// Points `f` at `dir` (`None` = back inside the workspace) and saves it.
+    pub(crate) fn set_folder(&mut self, f: Folder, dir: Option<std::path::PathBuf>) {
+        // The workspace's own folder picked by hand is the default.
+        let own = self.store.dir().join(match f {
+            Folder::Scripts => "scripts",
+            Folder::Snapshots => "snapshots",
+        });
+        let dir = dir.filter(|d| *d != own);
+        let _ = self.store.set_value(
+            f.key(),
+            &dir.as_ref()
+                .map(|d| d.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+        );
+        // Scripts on the charts look for their files there within a second.
+        *self.folders.slot(f) = dir;
+    }
+
+    fn folder_row(&mut self, ui: &mut Ui, t: &Theme, f: Folder) {
+        let (name, icon, dir) = match f {
+            Folder::Scripts => ("Scripts", ph::CODE, self.scripts_dir()),
+            Folder::Snapshots => ("Snapshots", ph::CAMERA, self.snapshots_dir()),
+        };
+        let custom = match f {
+            Folder::Scripts => self.folders.scripts.is_some(),
+            Folder::Snapshots => self.folders.snapshots.is_some(),
+        };
+        let h = 56.0;
+        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), h), Sense::hover());
+        let p = ui.painter();
+        p.rect_filled(r, CornerRadius::same(10), t.card);
+        p.rect_stroke(
+            r,
+            CornerRadius::same(10),
+            Stroke::new(1.0, t.border.gamma_multiply(0.7)),
+            egui::StrokeKind::Inside,
+        );
+        p.text(
+            pos2(r.left() + 18.0, r.center().y),
+            Align2::LEFT_CENTER,
+            icon,
+            theme::regular(17.0),
+            t.text2,
+        );
+        // Buttons on the right first; the path gets what's left.
+        let mut right = r.right() - 10.0;
+        let mut buttons = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(r.shrink2(vec2(10.0, 0.0)))
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+        );
+        buttons.spacing_mut().item_spacing.x = 4.0;
+        if crate::widgets::secondary(&mut buttons, "Change").clicked() && self.folders.picking.is_none() {
+            let _ = std::fs::create_dir_all(&dir);
+            let title = format!("Choose a {} folder", name.to_lowercase());
+            self.folders.picking = Some((f, pick_folder(&title, &dir)));
+        }
+        if crate::widgets::tool_button(&mut buttons, t, ph::FOLDER_OPEN, "Open folder", false, 30.0).clicked() {
+            let _ = std::fs::create_dir_all(&dir);
+            crate::app::open_path(&dir.join("."));
+        }
+        if custom
+            && crate::widgets::tool_button(
+                &mut buttons,
+                t,
+                ph::ARROW_COUNTER_CLOCKWISE,
+                "Use the default folder",
+                false,
+                30.0,
+            )
+            .clicked()
+        {
+            self.set_folder(f, None);
+        }
+        right = right.min(buttons.min_rect().left() - 12.0);
+        let text_l = r.left() + 46.0;
+        let p = ui.painter().with_clip_rect(Rect::from_min_max(
+            pos2(text_l, r.top()),
+            pos2(right.max(text_l), r.bottom()),
+        ));
+        p.text(
+            pos2(text_l, r.center().y - 9.0),
+            Align2::LEFT_CENTER,
+            name,
+            theme::medium(13.5),
+            t.text,
+        );
+        let path = shorten_home(&dir);
+        let galley = ui.painter().layout_no_wrap(path.clone(), theme::regular(12.0), t.text3);
+        let room = right - text_l;
+        let shown = if galley.size().x > room {
+            elide_middle(ui, &path, room)
+        } else {
+            path.clone()
+        };
+        p.text(
+            pos2(text_l, r.center().y + 10.0),
+            Align2::LEFT_CENTER,
+            shown,
+            theme::regular(12.0),
+            t.text3,
+        );
+        let hit = Rect::from_min_max(pos2(text_l, r.top()), pos2(right.max(text_l), r.bottom()));
+        ui.interact(hit, ui.id().with(("folder", f.key())), Sense::hover())
+            .on_hover_text(dir.to_string_lossy());
     }
 
     fn appearance(&mut self, ui: &mut Ui, t: &Theme) {
@@ -185,7 +380,7 @@ impl App {
         // As many as fit, sharing the row's width (less room for the
         // scrollbar's gutter).
         let avail = ui.available_width() - 14.0;
-        let per_row = ((avail + 10.0) / 160.0).floor().clamp(1.0, 4.0) as usize;
+        let per_row = ((avail + 10.0) / 150.0).floor().clamp(2.0, 4.0) as usize;
         let card = vec2((avail - 10.0 * (per_row - 1) as f32) / per_row as f32, 92.0);
         for row in THEMES.chunks(per_row) {
             ui.horizontal(|ui| {
@@ -517,4 +712,109 @@ pub(crate) fn app_logo(ctx: &egui::Context) -> egui::TextureHandle {
     let tex = ctx.load_texture("opentern-app-logo", img, egui::TextureOptions::LINEAR);
     ctx.data_mut(|d| d.insert_temp(id, tex.clone()));
     tex
+}
+
+/// `~/…` for paths under the home folder (only for showing).
+fn shorten_home(p: &std::path::Path) -> String {
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .map(std::path::PathBuf::from);
+    match home.and_then(|h| p.strip_prefix(&h).ok().map(|r| r.to_path_buf())) {
+        Some(rest) => format!("~{}{}", std::path::MAIN_SEPARATOR, rest.display()),
+        None => p.display().to_string(),
+    }
+}
+
+/// `text` cut in the middle with "…" to fit `width` at 12 pt.
+fn elide_middle(ui: &Ui, text: &str, width: f32) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let fits = |s: &str| {
+        ui.painter()
+            .layout_no_wrap(s.to_string(), theme::regular(12.0), egui::Color32::WHITE)
+            .size()
+            .x
+            <= width
+    };
+    let (mut lo, mut hi) = (0usize, chars.len());
+    // Largest n whose head + … + tail fits, keeping more of the tail.
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        let head = mid / 3;
+        let s: String = chars[..head]
+            .iter()
+            .chain(['…'].iter())
+            .chain(chars[chars.len() - (mid - head)..].iter())
+            .collect();
+        if fits(&s) { lo = mid } else { hi = mid - 1 }
+    }
+    let head = lo / 3;
+    chars[..head]
+        .iter()
+        .chain(['…'].iter())
+        .chain(chars[chars.len() - (lo - head)..].iter())
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::drive::Driver;
+
+    #[test]
+    fn folders_move_scripts_and_snapshots_and_stay_moved() {
+        let mut d = Driver::new("folders");
+        let ws = d.dir.clone();
+        let scripts = ws.with_file_name(format!("{}-my-scripts", ws.file_name().unwrap().to_string_lossy()));
+        let snaps = ws.with_file_name(format!("{}-My Snapshots", ws.file_name().unwrap().to_string_lossy()));
+        let _ = std::fs::remove_dir_all(&scripts);
+        let _ = std::fs::remove_dir_all(&snaps);
+        assert_eq!(d.app.scripts_dir(), ws.join("scripts"));
+        assert_eq!(d.app.snapshots_dir(), ws.join("snapshots"));
+
+        d.app.set_folder(Folder::Scripts, Some(scripts.clone()));
+        d.app.set_folder(Folder::Snapshots, Some(snaps.clone()));
+        assert_eq!(d.app.scripts_dir(), scripts);
+        assert_eq!(d.app.snapshots_dir(), snaps);
+
+        // The editor, the chart and the agent all read the new folder.
+        std::fs::create_dir_all(&scripts).unwrap();
+        std::fs::write(
+            scripts.join("moved.pine"),
+            "//@version=6\nindicator(\"Moved\")\nplot(close)\n",
+        )
+        .unwrap();
+        assert_eq!(d.app.script_files(), ["moved.pine"]);
+        assert!(
+            d.app
+                .claude_context()
+                .contains(&format!("Scripts folder: {}.", scripts.display()))
+        );
+
+        // Snapshots save there.
+        let img = egui::ColorImage::new([4, 4], vec![egui::Color32::WHITE; 16]);
+        let png = d.app.save_png(&img).unwrap();
+        assert_eq!(png.parent(), Some(snaps.as_path()));
+
+        // The page shows them.
+        d.app.open_settings(Cat::General);
+        let texts = d.texts().join("\n");
+        assert!(
+            texts.contains("FOLDERS") && texts.contains("Scripts") && texts.contains("Snapshots"),
+            "{texts}"
+        );
+
+        // Loaded again at the next start.
+        let f = Folders::load(&opentern_core::Store::open(&ws).unwrap());
+        assert_eq!(f.scripts.as_deref(), Some(scripts.as_path()));
+        assert_eq!(f.snapshots.as_deref(), Some(snaps.as_path()));
+
+        // Back to the default, by reset or by picking the workspace's own.
+        d.app.set_folder(Folder::Scripts, None);
+        d.app.set_folder(Folder::Snapshots, Some(ws.join("snapshots")));
+        assert_eq!(d.app.store.value("scripts_dir").as_deref(), Some(""));
+        assert_eq!(d.app.store.value("snapshots_dir").as_deref(), Some(""));
+        assert_eq!(d.app.scripts_dir(), ws.join("scripts"));
+        let _ = std::fs::remove_dir_all(&scripts);
+        let _ = std::fs::remove_dir_all(&snaps);
+    }
 }

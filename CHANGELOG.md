@@ -2,7 +2,22 @@
 
 ## Unreleased
 
+### New
+
+- **Choose where scripts and snapshots live.** Settings → General has a
+  folder for each: change it, open it, or go back to the default. Scripts
+  on the chart, the Script Editor and the agents follow the new scripts
+  folder.
+
+### Changed
+
+- **Settings → General** gathers the folders, the theme and symbol logos
+  (Appearance and Symbol logos were categories of their own).
+
 ### Fixed
+
+- **Data providers settings fit a small window** instead of running off
+  the right edge.
 
 - **Solana's logo is Solana's again:** its purple-to-mint bars on black,
   instead of a teal and green disc.

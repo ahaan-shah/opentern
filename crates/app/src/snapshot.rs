@@ -72,8 +72,8 @@ impl App {
         }
     }
 
-    fn save_png(&self, img: &egui::ColorImage) -> Result<std::path::PathBuf, String> {
-        let dir = self.store.dir().join("snapshots");
+    pub(crate) fn save_png(&self, img: &egui::ColorImage) -> Result<std::path::PathBuf, String> {
+        let dir = self.snapshots_dir();
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let now = jiff::Zoned::now();
         let name = format!(
