@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026, v0.2.3):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Oct 2026, v0.2.4):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -557,17 +557,12 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Unreleased since 0.2.3 (30 Oct 2026), all committed on `main`, not pushed:**
-Seasonality columns fit their numbers; Seasonality Average row (above Rises
-and falls) and chart view with TradingView's toggle; agent tools
-`seasonality` and `custom_index`; News refresh button (`widgets::spin_button`,
-moved from `indices.rs`) and a 15 s retry after a failure for News and
-Hotlists. The maintainer has tested the Seasonality changes ("rest looks
-good"); the News refresh and the agent tools haven't been tried by them yet.
-User-facing notes are already in `CHANGELOG.md` under `## Unreleased`:
-**when asked to release, rename that heading to `## X.Y.Z (date)`** (likely
-0.2.4), write the `whatsnew::RELEASES` entry from it, and follow "Releasing".
-More changes may be added first; add each to `## Unreleased` as it lands.
+**0.2.4 released 31 Oct 2026** (Seasonality chart view and Average row,
+agent tools `seasonality` and `custom_index`, News refresh button, News and
+Hotlists retry 15 s after a failure). Nothing unreleased. Add new
+user-facing changes to a fresh `## Unreleased` section at the top of
+`CHANGELOG.md` as they land; at release time rename it and follow
+"Releasing".
 
 **Where we are (14 Oct 2026):** Phases 0–13 and most loose ends are built and
 committed (latest: the DOM widget). Nothing has been pushed or released. The app
@@ -620,7 +615,8 @@ in iteratively. Phase 14 has started (item 3).
    logo fixes). v0.2.1 on 28 Oct 2026 (Binance through its market-data
    mirror when blocked, hotlists' change period). v0.2.2 on 28 Oct 2026
    (news from many outlets, Calendar redesign, index change % fix). v0.2.3 on
-   30 Oct 2026 (custom indices, Seasonality, agent accounts). Website shots
+   30 Oct 2026 (custom indices, Seasonality, agent accounts). v0.2.4 on
+   31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =

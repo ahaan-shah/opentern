@@ -138,7 +138,7 @@ What the script does on each platform:
 - **macOS:** installs `Opentern.app` (universal, Apple Silicon + Intel) into `/Applications`.
 
 The script checks every download against the release's `SHA256SUMS`. To pin a
-version, set `OPENTERN_VERSION=0.2.3`.
+version, set `OPENTERN_VERSION=0.2.4`.
 
 The app isn't notarized yet. If macOS refuses to open it the first time,
 right-click the app and choose **Open**, or run

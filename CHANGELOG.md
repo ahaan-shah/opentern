@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.4 (2026-10-31)
 
 Seasonality gets a chart of every year side by side, and the agent panel can
 now work with Seasonality and custom indices.

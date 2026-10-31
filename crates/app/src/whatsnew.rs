@@ -31,6 +31,32 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.4",
+        items: &[
+            Item {
+                icon: ph::CHART_LINE,
+                title: "Seasonality as a chart",
+                body: "See every year side by side as a line, with the average dashed in. \
+                       The table also gets an Average row for each month.",
+                image: None,
+            },
+            Item {
+                icon: ph::SPARKLE,
+                title: "The agent knows seasonality and your indices",
+                body: "Ask Claude or Codex about a symbol's monthly returns, or have it make, edit, \
+                       rebalance and compare your custom indices.",
+                image: None,
+            },
+            Item {
+                icon: ph::NEWSPAPER,
+                title: "News that keeps up",
+                body: "A refresh button for headlines, and News and Hotlists try again by themselves \
+                       after a dropped connection.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.3",
         items: &[
             Item {
