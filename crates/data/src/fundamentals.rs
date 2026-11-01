@@ -58,18 +58,18 @@ impl Default for Fundamentals {
     }
 }
 
-const SUMMARY: &str = "https://query2.finance.yahoo.com/v10/finance/quoteSummary";
+pub(crate) const SUMMARY: &str = "https://query2.finance.yahoo.com/v10/finance/quoteSummary";
 const CRUMB: &str = "https://query2.finance.yahoo.com/v1/test/getcrumb";
 /// Any Yahoo address hands out the session cookie, even with an error page.
 const COOKIE: &str = "https://fc.yahoo.com";
 
 /// The session (cookie, crumb), once one worked.
-fn session() -> &'static Mutex<Option<(String, String)>> {
+pub(crate) fn session() -> &'static Mutex<Option<(String, String)>> {
     static S: Mutex<Option<(String, String)>> = Mutex::new(None);
     &S
 }
 
-fn text(agent: &ureq::Agent, url: &str, cookie: Option<&str>) -> Result<(u16, String, Vec<String>)> {
+pub(crate) fn text(agent: &ureq::Agent, url: &str, cookie: Option<&str>) -> Result<(u16, String, Vec<String>)> {
     let mut req = agent.get(url);
     if let Some(c) = cookie {
         req = req.header("Cookie", c);
@@ -98,7 +98,7 @@ fn text(agent: &ureq::Agent, url: &str, cookie: Option<&str>) -> Result<(u16, St
     Ok((status, body, cookies))
 }
 
-fn new_session(agent: &ureq::Agent) -> Result<(String, String)> {
+pub(crate) fn new_session(agent: &ureq::Agent) -> Result<(String, String)> {
     let (_, _, cookies) = text(agent, COOKIE, None)?;
     if cookies.is_empty() {
         return Err(Error::Bad("Yahoo didn't start a session.".into()));

@@ -21,6 +21,7 @@ mod alerts;
 mod app;
 mod chart;
 mod claude;
+mod daemon;
 mod diag;
 mod dialogs;
 mod dom;
@@ -51,7 +52,9 @@ mod snapshot;
 mod sources;
 mod strategy;
 mod theme;
+mod timezones;
 mod updater;
+mod watcher;
 mod watchlists;
 mod whatsnew;
 mod widgets;
@@ -69,6 +72,8 @@ OPTIONS:
     --data-dir <PATH>   Use a different workspace folder
     --demo              Made-up prices, no network: for trying things out
                         (in its own workspace unless --data-dir is given)
+    --daemon            Watch alerts with no window (started by Opentern
+                        when it closes, or at login)
     --licenses          Print the licenses of the libraries, fonts and icons it includes
     -V, --version       Print version
     -h, --help          Print this help
@@ -85,6 +90,7 @@ fn main() -> eframe::Result<()> {
     let mut args = std::env::args().skip(1);
     let mut data_dir: Option<PathBuf> = None;
     let mut demo = std::env::var_os("OPENTERN_DEMO").is_some();
+    let mut daemon = false;
     while let Some(a) = args.next() {
         match a.as_str() {
             "-h" | "--help" => {
@@ -101,6 +107,7 @@ fn main() -> eframe::Result<()> {
             }
             "--data-dir" => data_dir = args.next().map(PathBuf::from),
             "--demo" => demo = true,
+            "--daemon" => daemon = true,
             other => {
                 eprintln!("opentern: unknown option {other} (try --help)");
                 std::process::exit(2);
@@ -122,6 +129,9 @@ fn main() -> eframe::Result<()> {
     let separate = data_dir.is_some();
     let dir = data_dir.unwrap_or_else(opentern_core::data_dir);
     diag::init(&dir);
+    if daemon {
+        std::process::exit(daemon::run(dir, demo));
+    }
     let store = match Store::open(&dir) {
         Ok(s) => s,
         Err(e) => fatal(&format!(

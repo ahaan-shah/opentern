@@ -32,6 +32,8 @@ pub enum Request {
         chart: u64,
         symbol: Symbol,
         tf: Timeframe,
+        /// US stocks on Yahoo: pre- and after-hours bars too.
+        ext: bool,
     },
     /// Load older history for a chart.
     More {
@@ -212,13 +214,13 @@ enum Cmd {
 fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
     let mut sessions: HashMap<u64, Sender<Cmd>> = HashMap::new();
     // What each chart shows, to restart it when keys change.
-    let mut opened: HashMap<u64, (Symbol, Timeframe)> = HashMap::new();
-    let spawn = |chart: u64, symbol: Symbol, tf: Timeframe| -> Option<Sender<Cmd>> {
+    let mut opened: HashMap<u64, (Symbol, Timeframe, bool)> = HashMap::new();
+    let spawn = |chart: u64, symbol: Symbol, tf: Timeframe, ext: bool| -> Option<Sender<Cmd>> {
         let (tx, cmd_rx) = unbounded();
         let (dir, out) = (dir.clone(), out.clone());
         std::thread::Builder::new()
             .name(format!("data-{}", symbol.ticker()))
-            .spawn(move || Session::run(chart, symbol, tf, dir, demo, cmd_rx, out))
+            .spawn(move || Session::run(chart, symbol, tf, ext, dir, demo, cmd_rx, out))
             .ok()
             .map(|_| tx)
     };
@@ -296,11 +298,11 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                     out.send(Event::News { seq, result });
                 });
             }
-            Request::Open { chart, symbol, tf } => {
+            Request::Open { chart, symbol, tf, ext } => {
                 if let Some(old) = sessions.remove(&chart) {
                     let _ = old.send(Cmd::Stop);
                 }
-                opened.insert(chart, (symbol.clone(), tf));
+                opened.insert(chart, (symbol.clone(), tf, ext));
                 if symbol.min_qty == 0.0
                     && !demo
                     && let Some(ticker) = symbol.id.strip_prefix("BINANCE:").map(str::to_string)
@@ -312,7 +314,7 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                         }
                     });
                 }
-                if let Some(tx) = spawn(chart, symbol, tf) {
+                if let Some(tx) = spawn(chart, symbol, tf, ext) {
                     sessions.insert(chart, tx);
                 }
             }
@@ -349,11 +351,11 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 *creds().write().unwrap_or_else(|e| e.into_inner()) = c;
                 // Charts may now come from another source: restart them.
                 if changed {
-                    for (chart, (symbol, tf)) in &opened {
+                    for (chart, (symbol, tf, ext)) in &opened {
                         if let Some(old) = sessions.remove(chart) {
                             let _ = old.send(Cmd::Stop);
                         }
-                        if let Some(tx) = spawn(*chart, symbol.clone(), *tf) {
+                        if let Some(tx) = spawn(*chart, symbol.clone(), *tf, *ext) {
                             sessions.insert(*chart, tx);
                         }
                     }
@@ -555,6 +557,8 @@ fn exchange_rank(ex: &str) -> u32 {
 /// One chart's data: cache, fetch, stream, reconnect.
 struct Session {
     chart: u64,
+    /// The cache's name for the series (pre/post-hours bars apart).
+    cache_id: String,
     symbol: Symbol,
     tf: Timeframe,
     base: Timeframe,
@@ -568,8 +572,34 @@ struct Session {
 }
 
 impl Session {
-    fn run(chart: u64, symbol: Symbol, tf: Timeframe, dir: PathBuf, demo: bool, cmds: Receiver<Cmd>, out: Out) {
-        let provider = provider_for(&symbol, demo);
+    #[allow(clippy::too_many_arguments)]
+    fn run(
+        chart: u64,
+        symbol: Symbol,
+        tf: Timeframe,
+        ext: bool,
+        dir: PathBuf,
+        demo: bool,
+        cmds: Receiver<Cmd>,
+        out: Out,
+    ) {
+        // Pre- and after-hours bars: Yahoo's, for US stocks and funds on
+        // intraday intervals. Cached apart from the regular-hours ones.
+        let ext = ext
+            && !demo
+            && tf.is_intraday()
+            && opentern_core::calendar::Market::of(&symbol) == opentern_core::calendar::Market::Us
+            && yahoo_routed(&symbol);
+        let provider: Arc<dyn Provider> = if ext {
+            Arc::new(Yahoo::extended())
+        } else {
+            provider_for(&symbol, demo)
+        };
+        let cache_id = if ext {
+            format!("{}#ext", symbol.id)
+        } else {
+            symbol.id.clone()
+        };
         let Some(base) = resample::choose_base(tf, &provider.natives()) else {
             out.send(Event::Status {
                 chart,
@@ -587,6 +617,7 @@ impl Session {
         };
         let mut s = Session {
             chart,
+            cache_id,
             symbol,
             tf,
             base,
@@ -639,7 +670,7 @@ impl Session {
 
     fn save(&self, bars: &[Bar]) {
         if let Some(c) = &self.cache {
-            let _ = c.save(&self.symbol.id, self.base, bars);
+            let _ = c.save(&self.cache_id, self.base, bars);
         }
     }
 
@@ -649,7 +680,7 @@ impl Session {
         let wanted = self.wanted();
         if self.bars.is_empty() {
             if let Some(c) = &self.cache {
-                self.bars = c.last(&self.symbol.id, self.base, wanted).unwrap_or_default();
+                self.bars = c.last(&self.cache_id, self.base, wanted).unwrap_or_default();
             }
             if !self.bars.is_empty() {
                 self.publish();
@@ -661,7 +692,7 @@ impl Session {
                 if behind as usize > wanted {
                     // Too far behind to patch: start over.
                     if let Some(c) = &self.cache {
-                        let _ = c.clear(&self.symbol.id, self.base);
+                        let _ = c.clear(&self.cache_id, self.base);
                     }
                     self.bars.clear();
                     self.provider.latest(&self.symbol, self.base, wanted)?
@@ -711,7 +742,7 @@ impl Session {
         let mut older = self
             .cache
             .as_ref()
-            .and_then(|c| c.before(&self.symbol.id, self.base, first, n).ok())
+            .and_then(|c| c.before(&self.cache_id, self.base, first, n).ok())
             .unwrap_or_default();
         if older.len() < n {
             let end = older.first().map(|b| b.time).unwrap_or(first);
@@ -746,8 +777,9 @@ impl Session {
         true
     }
 
-    /// Dividends and splits, for stocks and funds (from Yahoo, whichever
-    /// source serves the prices).
+    /// Dividends, splits and earnings, for stocks and funds (from Yahoo
+    /// and Nasdaq, whichever source serves the prices). Demo stocks get
+    /// made-up earnings.
     fn corporate(&self, demo: bool) {
         use opentern_core::AssetKind;
         let stocky = matches!(self.symbol.kind, AssetKind::Stock | AssetKind::Fund)
@@ -755,12 +787,27 @@ impl Session {
                 self.symbol.exchange(),
                 "NASDAQ" | "NYSE" | "AMEX" | "NSE" | "BSE" | "YAHOO"
             );
-        if demo || !stocky {
+        if !stocky {
             return;
         }
-        if let Ok(c) = Yahoo::default().corporate(&self.symbol)
-            && (!c.dividends.is_empty() || !c.splits.is_empty())
-        {
+        let earns = crate::earnings::applies(&self.symbol);
+        let c = if demo {
+            crate::yahoo::Corporate {
+                earnings: if earns {
+                    crate::earnings::made_up(&self.symbol, crate::provider::now_ms())
+                } else {
+                    Vec::new()
+                },
+                ..Default::default()
+            }
+        } else {
+            let mut c = Yahoo::default().corporate(&self.symbol).unwrap_or_default();
+            if earns {
+                c.earnings = crate::earnings::fetch(&self.symbol).unwrap_or_default();
+            }
+            c
+        };
+        if !c.dividends.is_empty() || !c.splits.is_empty() || !c.earnings.is_empty() {
             self.out.send(Event::Corporate {
                 chart: self.chart,
                 corporate: c,
@@ -1193,6 +1240,7 @@ mod tests {
             chart: 1,
             symbol: sym,
             tf: Timeframe::parse("7m").unwrap(),
+            ext: false,
         });
         let deadline = Instant::now() + Duration::from_secs(10);
         let (mut got_bars, mut got_tick) = (false, false);

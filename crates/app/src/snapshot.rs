@@ -73,19 +73,27 @@ impl App {
     }
 
     pub(crate) fn save_png(&self, img: &egui::ColorImage) -> Result<std::path::PathBuf, String> {
-        let dir = self.snapshots_dir();
-        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let now = jiff::Zoned::now();
-        let name = format!(
-            "{}_{}_{}.png",
-            self.chart.symbol.ticker().replace(['/', ':', ' '], "-"),
-            self.chart.tf.label(),
-            now.strftime("%Y-%m-%d_%H-%M-%S")
-        );
-        let path = dir.join(name);
-        std::fs::write(&path, png_bytes(img)?).map_err(|e| e.to_string())?;
-        Ok(path)
+        write_png(&self.snapshots_dir(), &self.chart, img)
     }
+}
+
+/// Saves a chart picture in `dir`, named after the chart and the time.
+pub(crate) fn write_png(
+    dir: &std::path::Path,
+    chart: &crate::chart::Chart,
+    img: &egui::ColorImage,
+) -> Result<std::path::PathBuf, String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let now = jiff::Zoned::now();
+    let name = format!(
+        "{}_{}_{}.png",
+        chart.symbol.ticker().replace(['/', ':', ' '], "-"),
+        chart.tf.label(),
+        now.strftime("%Y-%m-%d_%H-%M-%S")
+    );
+    let path = dir.join(name);
+    std::fs::write(&path, png_bytes(img)?).map_err(|e| e.to_string())?;
+    Ok(path)
 }
 
 fn base64_of(b: &[u8]) -> String {

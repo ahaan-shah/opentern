@@ -8,6 +8,24 @@
   folder for each: change it, open it, or go back to the default. Scripts
   on the chart, the Script Editor and the agents follow the new scripts
   folder.
+- **Pick the chart's timezone from the clock.** Click the time at the
+  bottom right for Exchange, UTC, Local or any of 80 cities (search by
+  name or offset). Chart settings → Symbol has the same list.
+- **Alerts keep working when Opentern is closed.** Closing the window
+  hands your active alerts to a small background process that watches
+  them and sends them as usual (desktop, sound, webhook, Telegram,
+  email); opening Opentern takes them back, with a note of any that fired
+  meanwhile. Settings → General → Alerts turns it off, or on at login
+  too.
+- **Alerts on other symbols and indicators off the chart.** An indicator
+  or script alert keeps working after you switch symbol or remove the
+  indicator, and price alerts work for any symbol, not only ones in the
+  watchlist.
+- **Earnings on the chart.** Stocks show an E marker for each report:
+  green when it beat the estimate, red when it missed, grey for the next
+  one. Hover for reported and expected EPS and the surprise.
+- **EXT: pre-market and after-hours bars** for US stocks on intraday
+  charts, shaded as on TradingView (the EXT button in the bottom bar).
 
 ### Changed
 

@@ -14,12 +14,25 @@ const POLL: Duration = Duration::from_secs(30);
 
 pub struct Yahoo {
     agent: ureq::Agent,
+    /// Pre- and after-hours bars too (US stocks).
+    prepost: bool,
 }
 
 impl Default for Yahoo {
     fn default() -> Self {
         Yahoo {
             agent: provider::agent(),
+            prepost: false,
+        }
+    }
+}
+
+impl Yahoo {
+    /// Bars from pre-market (04:00) to after-hours (20:00) New York.
+    pub fn extended() -> Yahoo {
+        Yahoo {
+            prepost: true,
+            ..Yahoo::default()
         }
     }
 }
@@ -163,6 +176,8 @@ pub struct Corporate {
     pub dividends: Vec<(i64, f64)>,
     /// (date, ratio new shares per old: 4 for a 4-for-1 split).
     pub splits: Vec<(i64, f64)>,
+    /// Earnings reports, oldest first (the last may be upcoming).
+    pub earnings: Vec<crate::earnings::Earning>,
 }
 
 pub(crate) fn parse_events(v: &serde_json::Value) -> Corporate {
@@ -250,8 +265,9 @@ impl Yahoo {
             format!("range={range}")
         };
         let url = format!(
-            "{CHART}/{}?interval={iv}&{span}&includePrePost=false",
-            urlencode(&ticker(&sym.id))
+            "{CHART}/{}?interval={iv}&{span}&includePrePost={}",
+            urlencode(&ticker(&sym.id)),
+            self.prepost
         );
         let (bars, meta) = parse_chart(&provider::get_json(&self.agent, &url)?, !tf.is_intraday())?;
         // Never pass off bars of another length as the ones asked for.

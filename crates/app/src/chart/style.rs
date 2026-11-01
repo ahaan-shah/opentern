@@ -111,12 +111,14 @@ impl SeriesKind {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimeZoneChoice {
     /// The exchange's own timezone (TradingView's default).
     Exchange,
     Utc,
     Local,
+    /// A city's zone by IANA name (`Asia/Kolkata`).
+    Zone(String),
 }
 
 /// Chart settings. Colours that are `None` follow the app theme, so a

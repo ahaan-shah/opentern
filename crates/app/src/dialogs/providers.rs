@@ -14,6 +14,8 @@ pub const ALPACA_SIP: &str = "alpaca_sip";
 pub const OANDA_ACCOUNT: &str = "oanda_account";
 pub const OANDA_LIVE: &str = "oanda_live";
 pub const IBKR_URL: &str = "ibkr_url";
+/// The non-secret provider settings.
+pub const SETTINGS: [&str; 4] = [ALPACA_SIP, OANDA_ACCOUNT, OANDA_LIVE, IBKR_URL];
 
 pub struct Providers {
     alpaca_key: String,
@@ -55,10 +57,7 @@ pub fn load_credentials(settings: &[(String, Option<String>)]) -> Credentials {
 impl App {
     /// The non-secret provider settings, to read with the keychain.
     pub(crate) fn provider_settings(&self) -> Vec<(String, Option<String>)> {
-        [ALPACA_SIP, OANDA_ACCOUNT, OANDA_LIVE, IBKR_URL]
-            .iter()
-            .map(|k| (k.to_string(), self.store.value(k)))
-            .collect()
+        SETTINGS.iter().map(|k| (k.to_string(), self.store.value(k))).collect()
     }
 
     /// Reads the keys (on a background thread) and hands them to the hub.

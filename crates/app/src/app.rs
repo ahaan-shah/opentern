@@ -30,6 +30,9 @@ pub struct App {
     /// Made-up data (`--demo`): each timeframe is its own path, so charts
     /// and quotes aren't synced.
     pub demo: bool,
+    /// Held while the window is open: the background alert process steps
+    /// down for it (`daemon.rs`). `None` in tests and a second window.
+    pub(crate) app_lock: Option<std::fs::File>,
     pub hub: Hub,
     pub chart: Chart,
     pub chart_ui: ChartUi,
@@ -108,7 +111,12 @@ impl App {
             .storage
             .and_then(|s| eframe::get_value(s, "layout"))
             .unwrap_or_default();
-        App::with_context(&cc.egui_ctx, layout, store, demo)
+        // Before the alerts load: a background process watching them
+        // hands over first.
+        let lock = crate::daemon::take_app_lock(store.dir());
+        let mut app = App::with_context(&cc.egui_ctx, layout, store, demo);
+        app.app_lock = lock;
+        app
     }
 
     /// Builds the app against any egui context (the real window, or a
@@ -160,12 +168,16 @@ impl App {
         };
         let (watchlists, active_list) = App::load_watchlists(&store);
         let paper = crate::paper::Paper::load(&store);
-        let alerts = crate::alerts::Alerts::load(&store);
+        let alerts = crate::alerts::Alerts::load(
+            &store,
+            folders.scripts.clone().unwrap_or_else(|| store.dir().join("scripts")),
+        );
         // Before any chart opens: a saved chart may be on a custom index.
         let indices = crate::indices::Indices::load(&store);
         let mut app = App {
             store,
             theme,
+            app_lock: None,
             updater: Updater::default(),
             last_tab: layout.tab.unwrap_or(Tab::Editor),
             layout,
@@ -249,6 +261,7 @@ impl App {
             app.modal = Some(Modal::WhatsNew(Box::new(c)));
         }
         app.subscribe_quotes();
+        app.alerts_fired_away();
         app.still();
         if let Ok(v) = std::env::var("OPENTERN_STILL") {
             // `light`, or `theme:<name>` (e.g. theme:Tokyo Night) for screenshots.
@@ -318,6 +331,10 @@ impl App {
                 self.open_symbol(s);
             } else if let Some(tf) = part.strip_prefix("tf:").and_then(Timeframe::parse) {
                 self.set_interval(tf);
+            } else if part == "ext" {
+                if !self.chart.ext {
+                    self.toggle_ext();
+                }
             } else if part == "claude-chats" || part == "claude-new" {
                 self.claude_load();
                 self.layout.widget = Some(crate::shell::Widget::Claude);
@@ -516,6 +533,7 @@ impl App {
             chart: self.chart.id,
             symbol: self.chart.symbol.clone(),
             tf: self.chart.tf,
+            ext: self.chart.shows_ext(),
         });
         for i in 0..self.chart.compares.len() {
             self.open_compare(i);
@@ -605,6 +623,7 @@ impl App {
             chart: c.session,
             symbol: c.symbol.clone(),
             tf,
+            ext: false,
         });
     }
 
@@ -698,6 +717,14 @@ impl App {
         }
         crate::diag::crumb(format!("interval {}", tf.label()));
         let sym = self.chart.symbol.clone();
+        self.chart.reset_series(sym, tf);
+        self.open_chart();
+    }
+
+    /// Pre- and after-hours bars on or off (EXT): the chart loads again.
+    pub fn toggle_ext(&mut self) {
+        self.chart.ext = !self.chart.ext;
+        let (sym, tf) = (self.chart.symbol.clone(), self.chart.tf);
         self.chart.reset_series(sym, tf);
         self.open_chart();
     }
@@ -974,6 +1001,10 @@ impl App {
 
     fn poll_events(&mut self) {
         for e in self.hub.poll() {
+            // Sessions the alert watcher opened for itself.
+            let Some(e) = self.alerts.watcher.apply(e) else {
+                continue;
+            };
             match e {
                 Event::Quote { id, last, prev } if self.demo => {
                     self.quotes.insert(id, (last, prev));
@@ -1388,6 +1419,7 @@ impl eframe::App for App {
         self.autosave(true);
         self.each_chart(|a| a.save_drawings(true));
         self.updater.on_exit();
+        self.alerts_on_exit();
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

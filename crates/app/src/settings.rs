@@ -248,6 +248,48 @@ impl App {
         crate::dialogs::section(ui, t, "Symbol logos");
         ui.add_space(4.0);
         self.logo_settings(ui);
+        ui.add_space(22.0);
+        crate::dialogs::section(ui, t, "Alerts");
+        ui.add_space(4.0);
+        self.alert_settings(ui, t);
+    }
+
+    /// Keep alerts running with the window closed, and from login.
+    fn alert_settings(&mut self, ui: &mut Ui, t: &Theme) {
+        use crate::daemon::{AT_LOGIN, BACKGROUND};
+        let mut background = crate::daemon::background_on(&self.store);
+        if crate::widgets::checkbox(ui, &mut background, "Keep alerts running when Opentern is closed")
+            .on_hover_text("Alerts are watched in the background until Opentern opens again.")
+            .changed()
+        {
+            let _ = self.store.set_value(BACKGROUND, if background { "on" } else { "off" });
+        }
+        ui.add_space(8.0);
+        let err_id = egui::Id::new("alerts-at-login-error");
+        let mut at_login = self.store.value(AT_LOGIN).as_deref() == Some("on");
+        let resp = ui.add_enabled_ui(background, |ui| {
+            crate::widgets::checkbox(ui, &mut at_login, "Start watching at login")
+                .on_hover_text("Alerts keep working after a restart, without opening Opentern.")
+        });
+        if resp.inner.changed() {
+            let dir = self.store.dir().to_path_buf();
+            let separate = dir != opentern_core::data_dir();
+            match crate::daemon::set_at_login(&dir, separate, at_login) {
+                Ok(()) => {
+                    let _ = self.store.set_value(AT_LOGIN, if at_login { "on" } else { "off" });
+                    ui.data_mut(|d| d.remove::<String>(err_id));
+                }
+                Err(e) => {
+                    ui.data_mut(|d| {
+                        d.insert_temp(err_id, format!("Couldn't change the login items: {e}"));
+                    });
+                }
+            }
+        }
+        if let Some(e) = ui.data(|d| d.get_temp::<String>(err_id)) {
+            ui.add_space(6.0);
+            ui.label(egui::RichText::new(e).font(theme::regular(12.5)).color(t.text2));
+        }
     }
 
     /// A picked folder arriving from the system's picker.

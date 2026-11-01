@@ -636,8 +636,8 @@ in iteratively. Phase 14 has started (item 3).
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
 - Done Oct 2026: Strategy settings dialog, chart trading (drag a paper order's
-  tag, × cancels / closes), several paper accounts, email alerts. Still open: a
-  `--daemon`, alerts on off-chart indicators.
+  tag, × cancels / closes), several paper accounts, email alerts, the
+  `--daemon` and off-chart alerts (Nov 2026).
 - Done Oct 2026: `THIRD-PARTY-LICENSES.txt` + `--licenses`, the `.icns` (built in
   `bundle-macos.sh`). The icon itself is in `packaging/linux/`.
 
@@ -645,6 +645,38 @@ in iteratively. Phase 14 has started (item 3).
 Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It
 helps to drop a few demo scripts in `<data-dir>/scripts/`. Never use their real
 workspace.
+
+### Background alerts, earnings, EXT (Nov 2026, unreleased)
+- **`opentern --daemon`** (`daemon.rs`): watches alerts with no window.
+  One evaluator per workspace: the app holds `app.lock` (std file locks,
+  hence `rust-version` 1.89), the daemon `alerts.lock`; the daemon checks
+  `app.lock` every ~200 ms and exits when the app opens (the app waits up
+  to 1.5 s for it before loading alerts); it also exits when no alert is
+  active. The app spawns it on exit (own process group / detached) when
+  `alerts_background` isn't "off" and an alert is active; `alerts_at_login`
+  writes an XDG autostart file / LaunchAgent plist / HKCU Run value
+  (macOS and Windows untested). `alerts_fired_away` counts fires for the
+  app's "N alerts fired while Opentern was closed" note.
+- **`watcher.rs`**: UI-free alert evaluation: a hub session per (symbol,
+  tf) and the alert's study rebuilt from `Alert::study_spec` (built-in id
+  or `pine:file`, inputs) via `pine_host::instance_for_file` (Pine with the
+  folder's libraries, Luau/JS/TS; Python needs the app; no feeds, so
+  `request.security` on other symbols is `na` there). The app uses it for
+  alerts whose symbol or study isn't on the active chart. Alerts now save
+  `sym` and `study_spec` (`App::fill_alert_context`, refreshed on exit).
+  `Alerts::{evaluate, fire, save}` are shared by both.
+- **Earnings** (`data/src/earnings.rs`): Yahoo's visualization API
+  (history, but stale after mid-2025), Nasdaq's earnings-surprise (last 4
+  quarters, US), Yahoo `calendarEvents` (next date), merged within 5
+  days; carried in `Corporate::earnings`, drawn as E markers (upcoming
+  ones placed past the last bar by time). Demo stocks get made-up ones.
+- **EXT**: `Request::Open { ext }`; US stocks on Yahoo get
+  `includePrePost=true`, cached as `<id>#ext`; `Chart::ext` (saved),
+  shading in `draw_ext_hours`. Still `ext`.
+- **Journal: shelved** (the maintainer, 2 Nov 2026: "don't want it"). The
+  module is in `git stash` ("shelved: trade journal"); its glue (tab, App
+  field, `Snap::Journal`, notes' trade link) was removed. Don't bring it
+  back unless asked.
 
 ### Crates
 | Crate | What it owns |
@@ -790,8 +822,8 @@ workspace.
   password in the keychain (`email-smtp-password`), server/port/login/recipient
   in settings (`email_smtp_*`, `email_to`); "Send a test email" in the dialog.
   Never tested against a real mail server.
-- Not yet: `opentern --daemon` (alerts while the app is closed), alerts on symbols'
-  indicators off-chart, sound files.
+- `opentern --daemon` and off-chart alerts: done Nov 2026 (see "Background
+  alerts" above). Not yet: sound files.
 
 ### Phase 9 (done): providers, calendars, dividends
 - New adapters in `opentern-data`, one file each, all on the `Provider` trait:

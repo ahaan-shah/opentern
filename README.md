@@ -256,7 +256,7 @@ cd opentern
 cargo run --release
 ```
 
-Rust 1.88+ is required. On Linux you also need the usual GUI libraries (on
+Rust 1.89+ is required. On Linux you also need the usual GUI libraries (on
 Debian or Ubuntu: `pkg-config libdbus-1-dev libxkbcommon-dev libwayland-dev
 libgl1-mesa-dev libgtk-3-dev`). For day-to-day work, `cargo run --profile fast
 -- --demo` builds quicker.

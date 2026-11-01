@@ -13,7 +13,6 @@ use crossbeam_channel::{Sender, unbounded};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::Timeframe;
 use opentern_engine::alerts::{Alert, Condition, Freq, Watch};
-use opentern_pine::PineStudy;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
@@ -100,6 +99,9 @@ pub struct Alerts {
     /// Script alerts already seen, per alert: (bar time, message).
     seen: HashMap<i64, HashSet<(i64, String)>>,
     tx: Option<Sender<Delivery>>,
+    delivery: Option<std::thread::JoinHandle<()>>,
+    /// Alerts whose symbol or study isn't on the chart.
+    pub watcher: crate::watcher::Watcher,
 }
 
 pub fn now_ms() -> i64 {
@@ -107,12 +109,12 @@ pub fn now_ms() -> i64 {
 }
 
 /// Starts the delivery thread (nothing is sent in headless runs).
-fn deliverer() -> Option<Sender<Delivery>> {
+fn deliverer() -> Option<(Sender<Delivery>, std::thread::JoinHandle<()>)> {
     if std::env::var_os("OPENTERN_HEADLESS").is_some() {
         return None;
     }
     let (tx, rx) = unbounded::<Delivery>();
-    std::thread::Builder::new()
+    let handle = std::thread::Builder::new()
         .name("alert-delivery".into())
         .spawn(move || {
             for d in rx {
@@ -120,7 +122,7 @@ fn deliverer() -> Option<Sender<Delivery>> {
             }
         })
         .ok()?;
-    Some(tx)
+    Some((tx, handle))
 }
 
 fn deliver(d: &Delivery) {
@@ -179,7 +181,7 @@ fn deliver(d: &Delivery) {
 }
 
 impl Alerts {
-    pub fn load(store: &opentern_core::Store) -> Alerts {
+    pub fn load(store: &opentern_core::Store, scripts: std::path::PathBuf) -> Alerts {
         let list = store
             .alerts()
             .into_iter()
@@ -194,27 +196,30 @@ impl Alerts {
             .into_iter()
             .filter_map(|(_, _, json)| serde_json::from_str(&json).ok())
             .collect();
+        let (tx, delivery) = deliverer().unzip();
         Alerts {
             list,
             log,
             toasts: Vec::new(),
             fed: HashMap::new(),
             seen: HashMap::new(),
-            tx: deliverer(),
+            tx,
+            delivery,
+            watcher: crate::watcher::Watcher::new(scripts),
         }
     }
-}
 
-/// The open time of the `tf` bar containing `t` (fixed-length intervals;
-/// months fall back to days).
-fn bucket(tf: &str, t: i64) -> i64 {
-    let ms = Timeframe::parse(tf).and_then(|t| t.millis()).unwrap_or(86_400_000);
-    t.div_euclid(ms) * ms
-}
+    /// Waits for messages still being sent (the background process,
+    /// before it exits).
+    pub fn flush(&mut self) {
+        self.tx = None;
+        if let Some(h) = self.delivery.take() {
+            let _ = h.join();
+        }
+    }
 
-impl App {
     /// Saves an alert (new ones get their id) and keeps it in the list.
-    pub(crate) fn save_alert(&mut self, mut a: Alert) {
+    pub fn save(&mut self, store: &mut opentern_core::Store, mut a: Alert) {
         if a.created == 0 {
             a.created = now_ms();
         }
@@ -225,152 +230,92 @@ impl App {
                 return;
             }
         };
-        match self.store.save_alert(a.id, &json) {
+        match store.save_alert(a.id, &json) {
             Ok(id) => {
                 a.id = id;
-                match self.alerts.list.iter_mut().find(|(x, _)| x.id == id) {
+                match self.list.iter_mut().find(|(x, _)| x.id == id) {
                     Some(slot) => *slot = (a, Watch::default()),
-                    None => self.alerts.list.push((a, Watch::default())),
+                    None => self.list.push((a, Watch::default())),
                 }
-                self.alerts.fed.remove(&id);
-                self.alerts.seen.remove(&id);
+                self.fed.remove(&id);
+                self.seen.remove(&id);
             }
             Err(e) => crate::diag::crumb(format!("couldn't save an alert: {e}")),
         }
     }
 
-    pub(crate) fn delete_alert(&mut self, id: i64) {
-        if let Err(e) = self.store.delete_alert(id) {
-            crate::diag::crumb(format!("couldn't delete an alert: {e}"));
-        }
-        self.alerts.list.retain(|(a, _)| a.id != id);
-    }
-
-    /// The value an alert watches and the level it's compared with, now.
-    fn alert_inputs(&self, a: &Alert, now: i64) -> Option<(f64, f64, i64)> {
-        let chart_sym = a.symbol == self.chart.symbol.id;
-        let price = self.last_price(&a.symbol)?;
-        let b = if chart_sym && a.tf == self.chart.tf.label() {
-            self.chart
-                .bars
-                .last()
-                .map(|b| b.time)
-                .unwrap_or_else(|| bucket(&a.tf, now))
-        } else {
-            bucket(&a.tf, now)
-        };
-        match &a.condition {
-            Condition::Price { value, .. } => Some((price, *value, b)),
-            Condition::Line { drawing, .. } => {
-                // Follow the drawing if it moved.
-                let cond = match drawing.and_then(|id| self.chart.drawings.iter().find(|d| d.id == id)) {
-                    Some(d) if chart_sym => {
-                        line_condition(d, opentern_engine::alerts::Op::Crossing).unwrap_or(a.condition.clone())
-                    }
-                    _ => a.condition.clone(),
-                };
-                Some((price, cond.line_price(now)?, b))
-            }
-            Condition::Plot { uid, plot, value, .. } => {
-                if !chart_sym {
-                    return None;
-                }
-                let s = self.chart.studies.iter().find(|s| s.uid == *uid)?;
-                let v = *s.inst.out.plots.get(*plot)?.last()?;
-                Some((v, value.unwrap_or(price), b))
-            }
-            Condition::Script { .. } => None,
-        }
-    }
-
-    /// Every frame: checks alerts against new values and fires them.
-    pub(crate) fn poll_alerts(&mut self) {
+    /// Feeds every active alert what it sees now (`probe`) and returns the
+    /// ones that fire, with a script's message if it has one. Expired
+    /// alerts are switched off and saved.
+    pub fn evaluate(
+        &mut self,
+        store: &mut opentern_core::Store,
+        mut probe: impl FnMut(&Alert, &mut crate::watcher::Watcher, i64) -> crate::watcher::Probe,
+    ) -> Vec<(usize, String)> {
+        use crate::watcher::Probe;
         let now = now_ms();
         let mut fire: Vec<(usize, String)> = Vec::new();
-        for i in 0..self.alerts.list.len() {
-            let a = &self.alerts.list[i].0;
+        let mut expired = Vec::new();
+        for i in 0..self.list.len() {
+            let a = &self.list[i].0;
             if !a.active {
                 continue;
             }
             if a.expired(now) {
-                let mut a = a.clone();
-                a.active = false;
-                self.save_alert(a);
+                expired.push(i);
                 continue;
             }
-            if let Condition::Script { uid, title, .. } = &a.condition {
-                let id = a.id;
-                let close_only = a.freq == Freq::OncePerBarClose;
-                let title = title.clone();
-                let Some(st) = self
-                    .chart
-                    .studies
-                    .iter()
-                    .find(|s| s.uid == *uid)
-                    .and_then(|s| s.inst.latest_state())
-                else {
-                    continue;
-                };
-                // (time, message, alertcondition title) from any language.
-                let fired: Vec<(i64, String, String)> = if let Some(p) = st.downcast_ref::<PineStudy>() {
-                    p.alerts()
-                        .iter()
-                        .map(|a| (a.time, a.message.clone(), a.title.clone()))
-                        .collect()
-                } else if let Some(p) = st.downcast_ref::<opentern_script::ScriptStudy>() {
-                    p.alerts()
-                        .iter()
-                        .map(|a| (a.time, a.message.clone(), String::new()))
-                        .collect()
-                } else {
-                    continue;
-                };
-                let forming = self.chart.bars.last().map(|b| b.time).unwrap_or(i64::MAX);
-                let first = !self.alerts.seen.contains_key(&id);
-                let seen = self.alerts.seen.entry(id).or_default();
-                for (time, message, al_title) in fired {
-                    let wanted = match &title {
-                        Some(t) => &al_title == t,
-                        None => al_title.is_empty(),
-                    };
-                    if !wanted || (close_only && time >= forming) {
+            match probe(a, &mut self.watcher, now) {
+                Probe::Nothing => {}
+                Probe::Script(raised, forming) => {
+                    let Condition::Script { title, .. } = &a.condition else {
                         continue;
-                    }
-                    // Alerts from history don't fire when the alert is made
-                    // or the app starts; only new ones do.
-                    if seen.insert((time, message.clone())) && !first {
-                        fire.push((i, message));
+                    };
+                    let id = a.id;
+                    let close_only = a.freq == Freq::OncePerBarClose;
+                    let first = !self.seen.contains_key(&id);
+                    let seen = self.seen.entry(id).or_default();
+                    for (time, message, al_title) in raised {
+                        let wanted = match title {
+                            Some(t) => &al_title == t,
+                            None => al_title.is_empty(),
+                        };
+                        if !wanted || (close_only && time >= forming) {
+                            continue;
+                        }
+                        // Alerts from history don't fire when the alert is
+                        // made or the app starts; only new ones do.
+                        if seen.insert((time, message.clone())) && !first {
+                            fire.push((i, message));
+                        }
                     }
                 }
-                continue;
-            }
-            let Some((v, l, b)) = self.alert_inputs(a, now) else {
-                continue;
-            };
-            let id = a.id;
-            if self.alerts.fed.get(&id) == Some(&(v, l, b)) {
-                continue;
-            }
-            self.alerts.fed.insert(id, (v, l, b));
-            let (a, w) = &mut self.alerts.list[i];
-            if w.feed(a, v, l, now, b) {
-                fire.push((i, String::new()));
+                Probe::Values(v, l, b) => {
+                    let id = a.id;
+                    if self.fed.get(&id) == Some(&(v, l, b)) {
+                        continue;
+                    }
+                    self.fed.insert(id, (v, l, b));
+                    let (a, w) = &mut self.list[i];
+                    if w.feed(a, v, l, now, b) {
+                        fire.push((i, String::new()));
+                    }
+                }
             }
         }
-        for (i, msg) in fire {
-            self.fire_alert(i, msg);
+        for i in expired {
+            let mut a = self.list[i].0.clone();
+            a.active = false;
+            self.save(store, a);
         }
-        self.alerts.toasts.retain(|(_, t)| t.elapsed().as_secs_f32() < 8.0);
-        if !self.alerts.toasts.is_empty() {
-            self.egui_ctx
-                .request_repaint_after(std::time::Duration::from_millis(500));
-        }
+        fire
     }
 
-    fn fire_alert(&mut self, i: usize, script_message: String) {
+    /// Fires alert `i`: counts it, logs it, and sends it where it asks.
+    /// `price` fills `{{close}}`; a script's own message wins.
+    pub fn fire(&mut self, store: &mut opentern_core::Store, i: usize, price: f64, script_message: String) -> Fired {
         let now = now_ms();
-        let price = self.last_price(&self.alerts.list[i].0.symbol).unwrap_or(f64::NAN);
-        let a = &mut self.alerts.list[i].0;
+        let a = &mut self.list[i].0;
         a.fired += 1;
         a.last_fired = Some(now);
         if a.freq == Freq::Once {
@@ -402,22 +347,20 @@ impl App {
             message: message.clone(),
         };
         if let Ok(j) = serde_json::to_string(&f)
-            && let Err(e) = self.store.log_alert(a.id, now, &j)
+            && let Err(e) = store.log_alert(a.id, now, &j)
         {
             crate::diag::crumb(format!("couldn't log an alert: {e}"));
         }
-        self.alerts.log.insert(0, f.clone());
-        self.alerts.log.truncate(500);
-        self.alerts.toasts.push((f, Instant::now()));
-        self.notify(crate::icons::ph::ALARM, &name, &message, None, false);
+        self.log.insert(0, f.clone());
+        self.log.truncate(500);
         crate::diag::crumb(format!("alert {} fired", a.id));
-        if let Some(tx) = &self.alerts.tx {
+        if let Some(tx) = &self.tx {
             let chat = a
                 .telegram
-                .then(|| self.store.value(TELEGRAM_CHAT))
+                .then(|| store.value(TELEGRAM_CHAT))
                 .flatten()
                 .filter(|c| !c.trim().is_empty());
-            let email = a.email.then(|| self.email_to()).flatten();
+            let email = a.email.then(|| email_to(store)).flatten();
             let _ = tx.send(Delivery {
                 title: format!("Opentern: {name}"),
                 body: message,
@@ -428,19 +371,236 @@ impl App {
                 email,
             });
         }
-        self.save_alert(a);
+        self.save(store, a);
+        f
+    }
+}
+
+/// The email settings, if they're filled in.
+pub(crate) fn email_to(store: &opentern_core::Store) -> Option<EmailTo> {
+    let get = |k: &str| store.value(k).filter(|v| !v.trim().is_empty());
+    Some(EmailTo {
+        host: get(EMAIL_HOST)?,
+        port: get(EMAIL_PORT).and_then(|p| p.trim().parse().ok()).unwrap_or(587),
+        user: get(EMAIL_USER)?,
+        to: get(EMAIL_TO)?,
+    })
+}
+
+/// The open time of the `tf` bar containing `t` (fixed-length intervals;
+/// months fall back to days).
+fn bucket(tf: &str, t: i64) -> i64 {
+    let ms = Timeframe::parse(tf).and_then(|t| t.millis()).unwrap_or(86_400_000);
+    t.div_euclid(ms) * ms
+}
+
+impl App {
+    /// Saves an alert (new ones get their id) and keeps it in the list.
+    /// It also keeps what's needed to watch it with no chart: the
+    /// symbol's details and, for plot and script alerts, the study.
+    pub(crate) fn save_alert(&mut self, mut a: Alert) {
+        self.fill_alert_context(&mut a);
+        self.alerts.save(&mut self.store, a);
+    }
+
+    /// Fills an alert's symbol details and study from the charts showing
+    /// them (unchanged when no chart has them).
+    pub(crate) fn fill_alert_context(&self, a: &mut Alert) {
+        let slots = self.slots.iter().flatten().map(|s| &s.chart);
+        for c in std::iter::once(&self.chart).chain(slots) {
+            if c.symbol.id == a.symbol {
+                a.sym = Some(c.symbol.clone());
+            }
+            let uid = match &a.condition {
+                Condition::Plot { uid, .. } | Condition::Script { uid, .. } => *uid,
+                _ => continue,
+            };
+            if let Some(s) = c.studies.iter().find(|s| s.uid == uid) {
+                a.study_spec = Some(opentern_engine::alerts::StudySpec {
+                    id: s.meta().id.to_string(),
+                    inputs: serde_json::to_value(&s.inst.inputs).unwrap_or_default(),
+                });
+            }
+        }
+        if a.sym.is_none() {
+            a.sym = self
+                .watchlists
+                .iter()
+                .flat_map(|w| w.symbols())
+                .find(|s| s.id == a.symbol);
+        }
+    }
+
+    /// Before the app closes: every alert keeps its symbol and study as
+    /// they are now, for the background process.
+    pub(crate) fn refresh_alert_context(&mut self) {
+        for i in 0..self.alerts.list.len() {
+            let mut a = self.alerts.list[i].0.clone();
+            self.fill_alert_context(&mut a);
+            if a != self.alerts.list[i].0 {
+                self.alerts.save(&mut self.store, a);
+            }
+        }
+    }
+
+    pub(crate) fn delete_alert(&mut self, id: i64) {
+        if let Err(e) = self.store.delete_alert(id) {
+            crate::diag::crumb(format!("couldn't delete an alert: {e}"));
+        }
+        self.alerts.list.retain(|(a, _)| a.id != id);
+    }
+
+    /// Whether the active chart can answer for this alert itself: its
+    /// symbol, and (plot and script alerts) its study.
+    fn on_chart(&self, a: &Alert) -> bool {
+        if a.symbol != self.chart.symbol.id {
+            return false;
+        }
+        match &a.condition {
+            Condition::Plot { uid, .. } | Condition::Script { uid, .. } => {
+                self.chart.studies.iter().any(|s| s.uid == *uid)
+            }
+            _ => true,
+        }
+    }
+
+    /// The chart's view of an alert: the value it watches, the level, and
+    /// the bar.
+    fn chart_probe(&self, a: &Alert, now: i64) -> crate::watcher::Probe {
+        use crate::watcher::Probe;
+        let Some(price) = self.chart.bars.last().map(|b| b.close) else {
+            return Probe::Nothing;
+        };
+        let b = if a.tf == self.chart.tf.label() {
+            self.chart
+                .bars
+                .last()
+                .map(|b| b.time)
+                .unwrap_or_else(|| bucket(&a.tf, now))
+        } else {
+            bucket(&a.tf, now)
+        };
+        match &a.condition {
+            Condition::Price { value, .. } => Probe::Values(price, *value, b),
+            Condition::Line { drawing, .. } => {
+                // Follow the drawing if it moved.
+                let cond = match drawing.and_then(|id| self.chart.drawings.iter().find(|d| d.id == id)) {
+                    Some(d) => line_condition(d, opentern_engine::alerts::Op::Crossing).unwrap_or(a.condition.clone()),
+                    None => a.condition.clone(),
+                };
+                match cond.line_price(now) {
+                    Some(l) => Probe::Values(price, l, b),
+                    None => Probe::Nothing,
+                }
+            }
+            Condition::Plot { uid, plot, value, .. } => {
+                let v = self
+                    .chart
+                    .studies
+                    .iter()
+                    .find(|s| s.uid == *uid)
+                    .and_then(|s| s.inst.out.plots.get(*plot)?.last().copied());
+                match v {
+                    Some(v) => Probe::Values(v, value.unwrap_or(price), b),
+                    None => Probe::Nothing,
+                }
+            }
+            Condition::Script { uid, .. } => {
+                let forming = self.chart.bars.last().map(|b| b.time).unwrap_or(i64::MAX);
+                self.chart
+                    .studies
+                    .iter()
+                    .find(|s| s.uid == *uid)
+                    .and_then(|s| crate::watcher::script_alerts(&s.inst))
+                    .map_or(Probe::Nothing, |l| Probe::Script(l, forming))
+            }
+        }
+    }
+
+    /// Every frame: checks alerts against new values and fires them. The
+    /// chart answers for alerts on its symbol and studies; the watcher
+    /// follows the rest (other symbols, studies no longer on the chart).
+    pub(crate) fn poll_alerts(&mut self) {
+        let off: Vec<Alert> = self
+            .alerts
+            .list
+            .iter()
+            .map(|(a, _)| a)
+            .filter(|a| a.active && !self.on_chart(a))
+            .cloned()
+            .collect();
+        let hub = self.hub.sender();
+        self.alerts.watcher.set_scripts_dir(self.scripts_dir());
+        self.alerts.watcher.sync(off.iter(), &|r| {
+            let _ = hub.send(r);
+        });
+        let now = now_ms();
+        let mut probes: HashMap<i64, crate::watcher::Probe> = self
+            .alerts
+            .list
+            .iter()
+            .filter(|(a, _)| a.active && self.on_chart(a))
+            .map(|(a, _)| (a.id, self.chart_probe(a, now)))
+            .collect();
+        let fire = self
+            .alerts
+            .evaluate(&mut self.store, |a, w, now| match probes.remove(&a.id) {
+                Some(p) => p,
+                None => w.probe(a, now),
+            });
+        for (i, msg) in fire {
+            self.fire_alert(i, msg);
+        }
+        self.alerts.toasts.retain(|(_, t)| t.elapsed().as_secs_f32() < 8.0);
+        if !self.alerts.toasts.is_empty() {
+            self.egui_ctx
+                .request_repaint_after(std::time::Duration::from_millis(500));
+        }
+    }
+
+    fn fire_alert(&mut self, i: usize, script_message: String) {
+        let symbol = self.alerts.list[i].0.symbol.clone();
+        let price = self
+            .last_price(&symbol)
+            .or_else(|| self.alerts.watcher.price(&symbol))
+            .unwrap_or(f64::NAN);
+        let f = self.alerts.fire(&mut self.store, i, price, script_message);
+        self.alerts.toasts.push((f.clone(), Instant::now()));
+        self.notify(crate::icons::ph::ALARM, &f.name, &f.message, None, false);
         self.egui_ctx.request_repaint();
+    }
+
+    /// Alerts that fired while the app was closed: one notification.
+    pub(crate) fn alerts_fired_away(&mut self) {
+        let key = crate::daemon::FIRED_AWAY;
+        let n: u64 = self.store.value(key).and_then(|v| v.parse().ok()).unwrap_or(0);
+        if n == 0 {
+            return;
+        }
+        let _ = self.store.set_value(key, "0");
+        let title = if n == 1 {
+            "An alert fired while Opentern was closed".to_string()
+        } else {
+            format!("{n} alerts fired while Opentern was closed")
+        };
+        self.notify(crate::icons::ph::ALARM, &title, "", None, true);
+    }
+
+    /// The window is closing: alerts carry on in the background process
+    /// if that's on and any is active.
+    pub(crate) fn alerts_on_exit(&mut self) {
+        self.refresh_alert_context();
+        let Some(lock) = self.app_lock.take() else { return };
+        drop(lock);
+        let active = self.alerts.list.iter().any(|(a, _)| a.active);
+        if active && crate::daemon::background_on(&self.store) && !crate::app::headless() {
+            crate::daemon::spawn(self.store.dir(), self.demo);
+        }
     }
 
     /// The email settings, if they're filled in.
     pub(crate) fn email_to(&self) -> Option<EmailTo> {
-        let get = |k: &str| self.store.value(k).filter(|v| !v.trim().is_empty());
-        Some(EmailTo {
-            host: get(EMAIL_HOST)?,
-            port: get(EMAIL_PORT).and_then(|p| p.trim().parse().ok()).unwrap_or(587),
-            user: get(EMAIL_USER)?,
-            to: get(EMAIL_TO)?,
-        })
+        email_to(&self.store)
     }
 
     /// Toasts for fired alerts, top right over the chart.
@@ -548,12 +708,16 @@ impl App {
                     theme::regular(12.0),
                     t.text2,
                 );
+                let (line, c) = match self.alerts.watcher.error(a.id) {
+                    Some(e) if a.active => (e.to_string(), t.warn),
+                    _ => (format!("{state} · {} · fired {}×", a.freq.name(), a.fired), t.text3),
+                };
                 p.text(
                     pos2(r.left() + 22.0, r.top() + 48.0),
                     Align2::LEFT_CENTER,
-                    format!("{state} · {} · fired {}×", a.freq.name(), a.fired),
+                    line,
                     theme::regular(11.0),
-                    t.text3,
+                    c,
                 );
                 if inside {
                     // Pause/resume, edit and delete, on hover.

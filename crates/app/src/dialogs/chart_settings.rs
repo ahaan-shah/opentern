@@ -7,7 +7,7 @@ use super::study::line_style_name;
 use super::{Done, TemplateKind, form_row, frame, section};
 use crate::app::App;
 use crate::chart::ChartStyle;
-use crate::chart::style::{SeriesKind, TimeZoneChoice, c32, rgba};
+use crate::chart::style::{SeriesKind, c32, rgba};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -134,7 +134,7 @@ impl ChartSettings {
         );
         ui.add_space(10.0);
         let mut changed = match self.tab {
-            Tab::Symbol => symbol_tab(ui, t, &mut self.style),
+            Tab::Symbol => symbol_tab(ui, t, &mut self.style, &app.chart.sym_tz),
             Tab::Status => status_tab(ui, &mut self.style),
             Tab::Scales => scales_tab(ui, t, &mut self.style),
             Tab::Canvas => canvas_tab(ui, t, &mut self.style),
@@ -195,7 +195,7 @@ impl ChartSettings {
                     egui::ScrollArea::vertical().max_height(height).show(ui, |ui| {
                         ui.set_width(w - 12.0);
                         changed = match self.tab {
-                            Tab::Symbol => symbol_tab(ui, t, &mut self.style),
+                            Tab::Symbol => symbol_tab(ui, t, &mut self.style, &app.chart.sym_tz),
                             Tab::Status => status_tab(ui, &mut self.style),
                             Tab::Scales => scales_tab(ui, t, &mut self.style),
                             Tab::Canvas => canvas_tab(ui, t, &mut self.style),
@@ -256,7 +256,7 @@ fn up_down(ui: &mut Ui, t: &Theme, label: &str, up: &mut Rgba, down: &mut Rgba, 
     changed
 }
 
-fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
+fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle, exchange: &jiff::tz::TimeZone) -> bool {
     let mut changed = false;
     section(ui, t, "Chart type");
     form_row(ui, t, "Type", |ui| {
@@ -382,17 +382,18 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
             });
     });
     form_row(ui, t, "Timezone", |ui| {
-        let name = |z: TimeZoneChoice| match z {
-            TimeZoneChoice::Exchange => "Exchange",
-            TimeZoneChoice::Utc => "UTC",
-            TimeZoneChoice::Local => "Local",
-        };
-        crate::widgets::combo("chart-tz")
-            .selected_text(name(s.timezone))
-            .show_ui(ui, |ui| {
-                for z in [TimeZoneChoice::Exchange, TimeZoneChoice::Utc, TimeZoneChoice::Local] {
-                    changed |= crate::widgets::option_value(ui, &mut s.timezone, z, name(z)).changed();
-                }
+        let resp = crate::widgets::button(
+            ui,
+            crate::widgets::Kind::Secondary,
+            true,
+            None,
+            &format!("{}  {}", crate::timezones::choice_name(&s.timezone), ph::CARET_DOWN),
+        );
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| {
+                ui.set_width(250.0);
+                changed |= crate::timezones::picker(ui, t, egui::Id::new("chart-tz-search"), &mut s.timezone, exchange);
             });
     });
     changed

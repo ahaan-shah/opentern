@@ -237,6 +237,8 @@ pub struct Chart {
     /// dividends (TradingView's ADJ). `raw` keeps the unadjusted bars.
     pub corporate: Option<opentern_data::yahoo::Corporate>,
     pub adj: bool,
+    /// Pre- and after-hours bars (US stocks, intraday), as TradingView's EXT.
+    pub ext: bool,
     raw: Vec<Bar>,
     /// The box size (Renko, Kagi, Point & figure) the bars were built with.
     pub brick: f64,
@@ -310,6 +312,8 @@ pub struct ChartState {
     #[serde(default)]
     pub adj: bool,
     #[serde(default)]
+    pub ext: bool,
+    #[serde(default)]
     pub compares: Vec<SavedCompare>,
     #[serde(default)]
     pub percent: bool,
@@ -341,6 +345,7 @@ impl Chart {
             paper: Vec::new(),
             corporate: None,
             adj: false,
+            ext: false,
             raw: Vec::new(),
             brick: 0.0,
             built_for: String::new(),
@@ -383,6 +388,7 @@ impl Chart {
         c.style = s.style;
         c.log = s.log;
         c.adj = s.adj;
+        c.ext = s.ext;
         c.percent = s.percent;
         c.compares = s
             .compares
@@ -459,6 +465,7 @@ impl Chart {
             panes: self.panes.clone(),
             log: self.log,
             adj: self.adj,
+            ext: self.ext,
             percent: self.percent,
             compares: self
                 .compares
@@ -590,10 +597,12 @@ impl Chart {
 
     pub fn apply_timezone(&mut self) {
         use style::TimeZoneChoice::*;
-        self.tz = match self.style.timezone {
+        self.tz = match &self.style.timezone {
             Exchange => self.sym_tz.clone(),
             Utc => TimeZone::UTC,
             Local => TimeZone::system(),
+            // A zone this computer's database lacks falls back to UTC.
+            Zone(z) => TimeZone::get(z).unwrap_or(TimeZone::UTC),
         };
     }
 
@@ -995,6 +1004,17 @@ impl Chart {
             }
             _ => self.raw.clone(),
         }
+    }
+
+    /// Whether EXT applies here: a US stock or fund, intraday.
+    pub fn can_ext(&self) -> bool {
+        self.tf.is_intraday()
+            && opentern_core::calendar::Market::of(&self.symbol) == opentern_core::calendar::Market::Us
+    }
+
+    /// Whether pre- and after-hours bars are shown (and shaded).
+    pub fn shows_ext(&self) -> bool {
+        self.ext && self.can_ext()
     }
 
     /// Turns dividend adjustment on or off.

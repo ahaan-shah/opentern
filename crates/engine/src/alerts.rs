@@ -190,6 +190,18 @@ pub struct Alert {
     pub created: i64,
     pub fired: u32,
     pub last_fired: Option<i64>,
+    /// The symbol's details, so it can be watched with no chart open.
+    pub sym: Option<opentern_core::Symbol>,
+    /// Plot and script alerts: the study to run when it isn't on a chart.
+    pub study_spec: Option<StudySpec>,
+}
+
+/// A study as an alert remembers it: a built-in's id (`rsi`) or a
+/// script's (`pine:file.pine`), and its inputs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct StudySpec {
+    pub id: String,
+    pub inputs: serde_json::Value,
 }
 
 impl Default for Alert {
@@ -215,6 +227,8 @@ impl Default for Alert {
             created: 0,
             fired: 0,
             last_fired: None,
+            sym: None,
+            study_spec: None,
         }
     }
 }

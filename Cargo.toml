@@ -9,7 +9,7 @@ license = "MIT"
 authors = ["Ahaan Shah"]
 repository = "https://github.com/ahaan-shah/opentern"
 homepage = "https://github.com/ahaan-shah/opentern"
-rust-version = "1.88"
+rust-version = "1.89"
 
 [profile.release]
 opt-level = 3

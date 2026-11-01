@@ -122,6 +122,54 @@ pub(crate) fn env_of(s: &opentern_core::Symbol) -> Env {
     }
 }
 
+/// Library scripts anywhere in `dir`, by their `library()` title.
+pub(crate) fn libraries_in(dir: &std::path::Path) -> Vec<(String, String)> {
+    let (files, _) = crate::scripting::scan_scripts(dir);
+    let mut out: Vec<(String, String)> = files
+        .into_iter()
+        .filter(|f| f.ends_with(".pine"))
+        .filter_map(|f| std::fs::read_to_string(dir.join(f)).ok())
+        .filter(|src| src.contains("library("))
+        .filter_map(|src| opentern_pine::library_title(&src).map(|t| (t, src)))
+        .collect();
+    out.sort();
+    out
+}
+
+/// Compiles a script in `dir` with no chart (alerts watched in the
+/// background): its study with `inputs`, run as on `sym`. Python scripts
+/// need the app (they run in a worker it owns).
+pub(crate) fn instance_for_file(
+    dir: &std::path::Path,
+    file: &str,
+    sym: &opentern_core::Symbol,
+    inputs: &opentern_series::study::Inputs,
+) -> Result<Instance, String> {
+    let lang = Lang::of(file).ok_or_else(|| format!("{file} isn't a script"))?;
+    if !lang.in_process() {
+        return Err("Python scripts' alerts need Opentern open.".into());
+    }
+    let src = std::fs::read_to_string(dir.join(file)).map_err(|e| format!("Couldn't read {file}: {e}"))?;
+    let compiled = match lang {
+        Lang::Pine => {
+            let env = Env {
+                libraries: libraries_in(dir),
+                ..env_of(sym)
+            };
+            opentern_pine::compile(&src, file, env)
+                .map(Compiled::Pine)
+                .map_err(|e| e.to_string())?
+        }
+        _ => opentern_script::inproc::compile(inproc_lang(lang), &src, file, syminfo_of(sym))
+            .map(|c| Compiled::Other(Box::new(c)))
+            .map_err(|e| e.to_string())?,
+    };
+    if compiled.kind() == Kind::Library {
+        return Err(format!("{file} is a library."));
+    }
+    Ok(Instance::with_factory(compiled.meta(), inputs, compiled.factory()))
+}
+
 impl App {
     pub(crate) fn pine_env(&self) -> Env {
         self.pine_env_for(&self.chart.symbol)
@@ -138,18 +186,7 @@ impl App {
 
     /// Library scripts in the scripts folder, by their `library()` title.
     fn pine_libraries(&self) -> Vec<(String, String)> {
-        // Libraries anywhere in the scripts folder, subfolders included.
-        let dir = self.scripts_dir();
-        let mut out: Vec<(String, String)> = self
-            .script_files()
-            .into_iter()
-            .filter(|f| f.ends_with(".pine"))
-            .filter_map(|f| std::fs::read_to_string(dir.join(f)).ok())
-            .filter(|src| src.contains("library("))
-            .filter_map(|src| opentern_pine::library_title(&src).map(|t| (t, src)))
-            .collect();
-        out.sort();
-        out
+        libraries_in(&self.scripts_dir())
     }
 
     fn env_key(env: &Env) -> String {

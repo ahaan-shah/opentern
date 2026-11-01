@@ -1038,6 +1038,13 @@ impl App {
                 let on = !self.chart.adj;
                 self.chart.set_adj(on);
             }
+            if self.chart.can_ext()
+                && small_button(ui, t, "EXT", self.chart.ext)
+                    .on_hover_text("Extended trading hours")
+                    .clicked()
+            {
+                self.toggle_ext();
+            }
             if small_button(ui, t, "%", self.chart.percent)
                 .on_hover_text("Percent scale (Alt P)")
                 .clicked()
@@ -1049,8 +1056,27 @@ impl App {
                 // Minutes only, repainting on the minute: a seconds clock
                 // would cost a frame every second while idle.
                 let now = jiff::Timestamp::now().to_zoned(self.chart.tz.clone());
-                let clock = format!("{}  {}", now.strftime("%H:%M"), now.strftime("UTC%:z"));
-                small_button(ui, t, &clock, false).on_hover_text("Chart timezone (Chart settings → Symbol)");
+                let clock = format!(
+                    "{}  {}",
+                    now.strftime("%H:%M"),
+                    crate::timezones::offset_label(&self.chart.tz)
+                );
+                let resp = small_button(ui, t, &clock, false)
+                    .on_hover_text(crate::timezones::choice_name(&self.chart.style.timezone));
+                self.still_open(ui, &resp, "timezone");
+                egui::Popup::menu(&resp)
+                    .align(egui::RectAlign::TOP_END)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                    .show(|ui| {
+                        ui.set_width(250.0);
+                        let mut choice = self.chart.style.timezone.clone();
+                        let exchange = self.chart.sym_tz.clone();
+                        if crate::timezones::picker(ui, t, Id::new("clock-tz-search"), &mut choice, &exchange) {
+                            let mut s = self.chart.style.clone();
+                            s.timezone = choice;
+                            self.set_chart_style(s);
+                        }
+                    });
                 let secs = 60 - (now.second() as u64).min(59);
                 ui.ctx().request_repaint_after(std::time::Duration::from_secs(secs));
             }

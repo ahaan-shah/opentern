@@ -15,6 +15,7 @@ fn open(symbol: Symbol, tf: &str, want_tick: bool) {
         chart: 1,
         symbol,
         tf: Timeframe::parse(tf).unwrap(),
+        ext: false,
     });
     let deadline = Instant::now() + Duration::from_secs(40);
     let (mut bars_n, mut ticked) = (0, false);
@@ -123,6 +124,7 @@ fn binance_loads_older_history() {
         chart: 1,
         symbol: btc,
         tf: Timeframe::parse("1h").unwrap(),
+        ext: false,
     });
     let deadline = Instant::now() + Duration::from_secs(60);
     let (mut first_len, mut asked, mut grown) = (0, false, false);
@@ -266,6 +268,7 @@ fn yahoo_dividends_and_splits_reach_the_chart() {
         chart: 1,
         symbol: aapl,
         tf: Timeframe::parse("1D").unwrap(),
+        ext: false,
     });
     let deadline = Instant::now() + Duration::from_secs(40);
     let mut got = false;
@@ -388,4 +391,24 @@ fn nse_fundamentals() {
         }
         std::thread::sleep(std::time::Duration::from_millis(800));
     }
+}
+
+#[test]
+#[ignore]
+fn earnings_for_a_us_stock() {
+    let s = opentern_core::starter_watchlist()
+        .into_iter()
+        .find(|s| s.id == "NASDAQ:AAPL")
+        .expect("AAPL");
+    let e = opentern_data::earnings::fetch(&s).expect("earnings");
+    let reported = e.iter().filter(|x| x.eps.is_some()).count();
+    eprintln!(
+        "{} reports, {reported} with EPS; latest: {:?}",
+        e.len(),
+        e.iter().rev().take(3).collect::<Vec<_>>()
+    );
+    assert!(reported >= 4);
+    // Nasdaq's figures cover the last year, past the calendar's gap.
+    let year_ago = jiff::Timestamp::now().as_millisecond() - 400 * 86_400_000;
+    assert!(e.iter().any(|x| x.eps.is_some() && x.time > year_ago));
 }

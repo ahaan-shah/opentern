@@ -873,6 +873,9 @@ pub fn show(
         for s in chart.studies.iter().filter(|s| s.pane == 0 && s.shown(chart.tf)) {
             draw_bg(&p, s, &x, first, last, g.rect);
         }
+        if chart.ext {
+            draw_ext_hours(&p, chart, &x, first, last, g.rect);
+        }
         draw_series(&p, chart, &g.y, &x, first, last, ppp, g.rect);
         draw_compares(&p, chart, &g.y, &x, first, last, &owns);
         super::profile::paint_overlays(&p, chart, &g.y, &x, first, last, g.rect);
@@ -2263,8 +2266,8 @@ fn draw_trades(
     }
 }
 
-/// Dividends (D) and splits (S) along the bottom of the price pane, as on
-/// TradingView, with the details on hover.
+/// Dividends (D), splits (S) and earnings (E) along the bottom of the
+/// price pane, as on TradingView, with the details on hover.
 #[allow(clippy::too_many_arguments)]
 fn draw_corporate(
     ctx: &egui::Context,
@@ -2320,17 +2323,57 @@ fn draw_corporate(
             };
             (*d, 'S', format!("{text}\n{}", fmt_day(*d)))
         }));
-    for (date, kind, text) in items {
-        let Some(i) = bar_of(date) else { continue };
-        if i < first || i > last {
+    // Earnings: green when they beat the estimate, red when they missed,
+    // grey when still to come.
+    let earnings = c.earnings.iter().map(|e| {
+        let num = |v: Option<f64>| v.map(trim_num).unwrap_or_else(|| "—".into());
+        let text = match e.eps {
+            Some(eps) => {
+                let mut t = format!(
+                    "Earnings {}\nReported EPS {}\nEstimate {}",
+                    fmt_day(e.time),
+                    trim_num(eps),
+                    num(e.estimate)
+                );
+                if let Some(s) = e.surprise {
+                    t.push_str(&format!("\nSurprise {}{:.2}%", if s >= 0.0 { "+" } else { "" }, s));
+                }
+                t
+            }
+            None => format!("Next earnings {}\nEstimate {}", fmt_day(e.time), num(e.estimate)),
+        };
+        let kind = match (e.eps, e.estimate) {
+            (None, _) => 'e',
+            (Some(a), Some(est)) if a < est => 'm',
+            _ => 'E',
+        };
+        (e.time, kind, text)
+    });
+    let n = chart.bars.len();
+    let bar_ms = chart.tf.millis().unwrap_or(86_400_000) as f64;
+    // Daily and longer bars of a stock skip weekends: about 5 a week.
+    let per_day = if chart.tf.is_intraday() { 1.0 } else { 5.0 / 7.0 };
+    let last_time = chart.bars[n - 1].time;
+    for (date, kind, text) in items.chain(earnings) {
+        // Past the last bar (an upcoming report): placed by time.
+        let at = match bar_of(date) {
+            Some(i) if i >= first && i <= last => i as f64,
+            Some(_) => continue,
+            None if date > last_time => (n - 1) as f64 + (date - last_time) as f64 / bar_ms * per_day,
+            None => continue,
+        };
+        let center = pos2(x.x(at), y);
+        if center.x < rect.left() || center.x > rect.right() {
             continue;
         }
-        let center = pos2(x.x(i as f64), y);
-        let col = if kind == 'D' {
-            Color32::from_rgb(0x00, 0x89, 0x7B)
-        } else {
-            Color32::from_rgb(0xFF, 0x98, 0x00)
+        let col = match kind {
+            'D' => Color32::from_rgb(0x00, 0x89, 0x7B),
+            'S' => Color32::from_rgb(0xFF, 0x98, 0x00),
+            'E' => Color32::from_rgb(0x08, 0x99, 0x81),
+            'm' => Color32::from_rgb(0xF2, 0x36, 0x45),
+            _ => Color32::from_rgb(0x78, 0x7B, 0x86),
         };
+        let kind = if matches!(kind, 'e' | 'm') { 'E' } else { kind };
         p.circle_filled(center, r, col);
         p.text(
             center,
@@ -2354,6 +2397,51 @@ fn draw_corporate(
             ui.label(text);
         });
     }
+}
+
+/// Pre-market (04:00–09:30 New York) and after-hours (16:00–20:00)
+/// bars on a soft background, as on TradingView with EXT on.
+fn draw_ext_hours(p: &Painter, chart: &Chart, x: &XMap, first: usize, last: usize, rect: Rect) {
+    if !chart.shows_ext() || chart.bars.is_empty() {
+        return;
+    }
+    const PRE: Color32 = Color32::from_rgba_premultiplied(0x14, 0x0C, 0x00, 0x14);
+    const POST: Color32 = Color32::from_rgba_premultiplied(0x03, 0x08, 0x14, 0x14);
+    let tz = opentern_core::calendar::Market::Us.tz();
+    let half = x.bar_w / 2.0;
+    let mut run: Option<(usize, usize, Color32)> = None;
+    let flush = |run: Option<(usize, usize, Color32)>| {
+        if let Some((a, b, c)) = run {
+            let r = Rect::from_x_y_ranges(x.x(a as f64) - half..=x.x(b as f64) + half, rect.y_range());
+            p.rect_filled(r.intersect(rect), 0.0, c);
+        }
+    };
+    for i in first..=last.min(chart.bars.len() - 1) {
+        let Ok(t) = jiff::Timestamp::from_millisecond(chart.bars[i].time) else {
+            continue;
+        };
+        let z = t.to_zoned(tz.clone());
+        let mins = z.hour() as i32 * 60 + z.minute() as i32;
+        let c = if mins < 9 * 60 + 30 {
+            Some(PRE)
+        } else if mins >= 16 * 60 {
+            Some(POST)
+        } else {
+            None
+        };
+        match (c, run) {
+            (Some(c), Some((a, _, rc))) if rc == c => run = Some((a, i, c)),
+            (Some(c), r) => {
+                flush(r);
+                run = Some((i, i, c));
+            }
+            (None, r) => {
+                flush(r);
+                run = None;
+            }
+        }
+    }
+    flush(run);
 }
 
 fn trim_num(v: f64) -> String {
