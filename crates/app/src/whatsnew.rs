@@ -31,6 +31,32 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.5",
+        items: &[
+            Item {
+                icon: ph::ALARM,
+                title: "Alerts keep working when Opentern is closed",
+                body: "Close the window and your alerts are still watched in the background, \
+                       with desktop notifications as usual. Turn it off, or on at login, in \
+                       Settings → General.",
+                image: None,
+            },
+            Item {
+                icon: ph::CHART_BAR,
+                title: "Earnings and extended hours",
+                body: "Stocks show an E for each earnings report: green for a beat, red for a miss. \
+                       EXT shows pre-market and after-hours bars for US stocks.",
+                image: None,
+            },
+            Item {
+                icon: ph::GLOBE,
+                title: "Your own timezone",
+                body: "Click the clock at the bottom right to show the chart in any city's time.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.4",
         items: &[
             Item {

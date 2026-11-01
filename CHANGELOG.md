@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.5 (2026-11-02)
+
+Alerts keep working with Opentern closed, stock charts show earnings and
+extended hours, and the chart's clock picks any timezone.
 
 ### New
 

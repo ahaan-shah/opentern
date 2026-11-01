@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Oct 2026, v0.2.4):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.5):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -557,9 +557,10 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.4 released 31 Oct 2026** (Seasonality chart view and Average row,
-agent tools `seasonality` and `custom_index`, News refresh button, News and
-Hotlists retry 15 s after a failure). Since then: the Solana logo fix; Settings → General with scripts and snapshots folders (`scripts_dir`/`snapshots_dir` settings, cached in `App::folders`; always go through `App::scripts_dir()`/`snapshots_dir()`). A Claude chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current one; every message's context names the scripts folder. Add new
+**0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
+--daemon`, off-chart alerts, earnings markers, EXT, clock timezone
+picker; see "Background alerts" below). Before that, 0.2.4 on 31 Oct
+(Seasonality chart, agent Seasonality/index tools, News refresh). In 0.2.5 too: the Solana logo fix; Settings → General with scripts and snapshots folders (`scripts_dir`/`snapshots_dir` settings, cached in `App::folders`; always go through `App::scripts_dir()`/`snapshots_dir()`). A Claude chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current one; every message's context names the scripts folder. Add new
 user-facing changes to a fresh `## Unreleased` section at the top of
 `CHANGELOG.md` as they land; at release time rename it and follow
 "Releasing".
@@ -616,7 +617,8 @@ in iteratively. Phase 14 has started (item 3).
    mirror when blocked, hotlists' change period). v0.2.2 on 28 Oct 2026
    (news from many outlets, Calendar redesign, index change % fix). v0.2.3 on
    30 Oct 2026 (custom indices, Seasonality, agent accounts). v0.2.4 on
-   31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). Website shots
+   31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
+   2 Nov 2026 (background alerts, earnings, EXT, timezone picker). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
@@ -646,7 +648,7 @@ Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). 
 helps to drop a few demo scripts in `<data-dir>/scripts/`. Never use their real
 workspace.
 
-### Background alerts, earnings, EXT (Nov 2026, unreleased)
+### Background alerts, earnings, EXT (0.2.5, Nov 2026)
 - **`opentern --daemon`** (`daemon.rs`): watches alerts with no window.
   One evaluator per workspace: the app holds `app.lock` (std file locks,
   hence `rust-version` 1.89), the daemon `alerts.lock`; the daemon checks
