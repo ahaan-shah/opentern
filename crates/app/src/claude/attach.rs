@@ -90,6 +90,12 @@ pub fn blocks(files: &[String]) -> Vec<Value> {
 
 /// Files a paste names: `file://` URIs or absolute paths, one per line,
 /// all existing. Anything else is ordinary text.
+/// `C:` or `C:/…`: a Windows drive.
+fn is_drive(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b.len() == 2 || matches!(b[2], b'/' | b'\\'))
+}
+
 pub fn pasted_files(text: &str) -> Option<Vec<PathBuf>> {
     let lines: Vec<&str> = text
         .lines()
@@ -103,18 +109,22 @@ pub fn pasted_files(text: &str) -> Option<Vec<PathBuf>> {
     for l in lines {
         let path = match l.strip_prefix("file://") {
             Some(rest) => {
-                // file://host/path: drop a host.
-                let rest = if rest.starts_with('/') {
+                // file://host/path: drop a host (but not a Windows drive,
+                // as in file://C:/x).
+                let rest = if rest.starts_with('/') || is_drive(rest) {
                     rest
                 } else {
                     rest.find('/').map(|i| &rest[i..])?
                 };
-                PathBuf::from(
-                    percent_encoding::percent_decode_str(rest)
-                        .decode_utf8()
-                        .ok()?
-                        .into_owned(),
-                )
+                let decoded = percent_encoding::percent_decode_str(rest)
+                    .decode_utf8()
+                    .ok()?
+                    .into_owned();
+                // file:///C:/x on Windows: the drive has no slash before it.
+                match decoded.strip_prefix('/') {
+                    Some(d) if cfg!(windows) && is_drive(d) => PathBuf::from(d),
+                    _ => PathBuf::from(decoded),
+                }
             }
             None => PathBuf::from(l),
         };
@@ -189,11 +199,18 @@ mod tests {
         assert_eq!(b[2]["source"]["media_type"], "image/png");
         assert!(b[3]["text"].as_str().unwrap().contains("data.bin"));
         // Copied files paste as URIs (spaces encoded) or paths.
-        let uri = format!("file://{}", script.to_string_lossy().replace(' ', "%20"));
+        // file:///home/… on Linux and macOS, file:///C:/Users/… on Windows.
+        let p = script.to_string_lossy().replace('\\', "/").replace(' ', "%20");
+        let uri = if p.starts_with('/') {
+            format!("file://{p}")
+        } else {
+            format!("file:///{p}")
+        };
         assert_eq!(pasted_files(&uri), Some(vec![script.clone()]));
         assert_eq!(pasted_files(&img.to_string_lossy()), Some(vec![img.clone()]));
         assert_eq!(pasted_files("just some words"), None);
         assert_eq!(pasted_files("/no/such/file.pine"), None);
+        assert!(is_drive("C:/x") && is_drive("d:\\y") && !is_drive("host/x") && !is_drive("C:x"));
         assert_eq!(icon("a.pine"), ph::FILE_CODE);
         let _ = std::fs::remove_dir_all(&dir);
     }

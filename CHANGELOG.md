@@ -42,6 +42,8 @@ extended hours, and the chart's clock picks any timezone.
 
 - **Solana's logo is Solana's again:** its purple-to-mint bars on black,
   instead of a teal and green disc.
+- **Pasting a copied file into the agent panel works on Windows** (its
+  `file:///C:/…` links were read as a computer name and ignored).
 
 ## 0.2.4 (2026-10-31)
 
