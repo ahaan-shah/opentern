@@ -586,9 +586,9 @@ in iteratively. Phase 14 has started (item 3).
    feedback before the next release.
 3. **Phase 14 (started 16 Oct 2026, the maintainer's go):** `ahaan-shah/opentern`
    on GitHub, **public since 21 Oct 2026** (v0.1.2, the maintainer's go after a
-   full history scan for secrets and personal data: clean). CI is still **Linux
-   only** (leaks, `cargo audit`, fmt, clippy, tests); add macOS/Windows to it
-   now that minutes are free. `release.yml` on a `v*` tag builds Linux x86-64 +
+   full history scan for secrets and personal data: clean). CI runs leaks, `cargo audit`, fmt, clippy
+   and tests on Linux, plus clippy and tests on macOS 15 and Windows
+   (since 0.2.5). `release.yml` on a `v*` tag builds Linux x86-64 +
    ARM64 tarballs (`scripts/package-linux.sh`), a universal macOS `.app` as
    `.dmg` + `.zip` (`scripts/bundle-macos.sh`, ad-hoc signed, not notarized),
    Windows x64 + ARM64 zips and an Inno Setup installer
@@ -1423,7 +1423,13 @@ What's new reopens it. Still: `whatsnew`.
 3. If dependencies or bundled assets changed: `python3
    scripts/third-party-licenses.py`. Run `cargo audit` (CI fails on advisories).
 4. fmt / clippy / test / `scripts/check-leaks.sh`, commit, push `main`, and
-   **wait until every CI job is green on that commit** before tagging.
+   **wait until every CI job is green on that commit** before tagging
+   (CI covers Linux, macOS and Windows since 0.2.5). Also look at the
+   annotations of the last CI and Release runs (`gh run view <id>`) for
+   runner-image deprecation notices: 0.2.5's first tag hit a scheduled
+   macOS 14 brownout (GitHub retired it 2 Nov 2026) and its macOS job
+   was cancelled before it started. Images are pinned; move `ci.yml` and
+   `release.yml` together when one is announced for retirement.
 5. `git tag -a vX.Y.Z -m "Opentern X.Y.Z" && git push origin vX.Y.Z`; watch
    `release.yml` with `gh run watch`. A `workflow_dispatch` run builds every
    platform without publishing (do one after changing packaging).

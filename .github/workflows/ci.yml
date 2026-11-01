@@ -1,7 +1,9 @@
 name: CI
 
-# Linux only: the repository is private, and macOS and Windows minutes cost
-# ten and two times as much. Add them back to the matrix when it goes public.
+# Linux checks everything; macOS and Windows build and test too, so a
+# platform problem shows up on a push, not on release day. Runner images
+# are pinned (macos-15, as in release.yml): when GitHub announces one's
+# retirement, move both files to the next.
 on:
   push:
     branches: [main]
@@ -53,6 +55,27 @@ jobs:
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --all --locked
+        env:
+          OPENTERN_HEADLESS: "1"
+
+  platforms:
+    name: check-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --all --locked
         env:
