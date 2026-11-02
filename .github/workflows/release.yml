@@ -34,7 +34,7 @@ jobs:
             runner: ubuntu-22.04-arm
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -48,7 +48,7 @@ jobs:
         run: |
           tar -xzf dist/opentern-${{ matrix.target }}.tar.gz -C "$RUNNER_TEMP"
           "$RUNNER_TEMP/opentern-${{ matrix.target }}/opentern" --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux-${{ matrix.target }}
           path: dist/*.tar.gz
@@ -56,7 +56,7 @@ jobs:
   macos:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -66,7 +66,7 @@ jobs:
       - run: ./scripts/bundle-macos.sh "${GITHUB_REF_NAME#v}"
       - name: The app runs
         run: dist/Opentern.app/Contents/MacOS/opentern --version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: |
@@ -76,7 +76,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
@@ -107,7 +107,7 @@ jobs:
           $version = (Get-Content $out -Raw).Trim()
           Write-Host "built: $version"
           if ($version -notmatch '^opentern \d+\.\d+\.\d+$') { throw "--version failed: '$version'" }
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: |
@@ -118,19 +118,19 @@ jobs:
   publish:
     needs: [linux, macos, windows]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: linux-*
           merge-multiple: true
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: macos
           path: artifacts
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: windows
           path: artifacts
@@ -144,7 +144,7 @@ jobs:
           awk -v v="$version" '$0 ~ "^## \\[?"v {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notes.md
           [ -s notes.md ] || { echo "CHANGELOG.md has no entry for $version"; exit 1; }
           cat notes.md
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*
           body_path: notes.md
