@@ -17,6 +17,7 @@ Move your Opentern to another computer, as a file or straight over your network.
 
 ### Fixed
 - **Luau scripts can no longer load files or raw bytecode.** `require` and `loadstring` were reachable and are gone.
+- **Only web pages open from links.** A news item or other link that points at a file, a program or another app is now ignored.
 - **Odd symbol names can't write outside their folders** when saving logos or snapshots.
 - **Script names Windows can't save** no longer stop an import: the rest come in and the message lists which were left out.
 

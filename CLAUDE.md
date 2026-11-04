@@ -1411,7 +1411,7 @@ every data change (scripts re-run on it).
   once by `App::import_outcome` (settings key `import_result`). The daemon isn't started
   while an import is pending. A failed import isn't retried.
 - **Security: a file is untrusted input, whoever sent it** (a signature couldn't help:
-  there's no identity to check). Don't weaken these. `manifest.json` is only for display;
+  there's no identity to check). Don't weaken these. `app::open_url` opens only `http(s)` links (`may_open`). `manifest.json` is only for display;
   warnings use `transfer::inspect` (the real contents). Python has no sandbox, so an import
   records each `.py`'s SHA-256 in `PYTHON_HELD_KEY`; `App::start_script` (the only thing that
   spawns Python) won't start a held one, and only the editor's Run, pressed twice, clears it
@@ -1423,7 +1423,7 @@ every data change (scripts re-run on it).
   tries to break out. Handoff: `is_local` on every peer, `MAX_TRIES` per search,
   `HANDSHAKE_LIMIT`. Attacked for real before 0.2.6 (hostile files in real windows, loopback
   fuzzing). Known limits: 5 guesses at a 6-digit code per offer; a LAN device can end an offer
-  or a search (fails safe); news and agent links go to `open_url` unchecked; the agents can
+  or a search (fails safe); the agents can
   read imported scripts, so a hostile script could try to talk them into something.
 - **Permissions:** Windows Firewall and macOS Local Network ask once. `NetHelp` offers the way
   back: `handoff::firewall` runs `opentern --allow-firewall` elevated (clears the exe's block

@@ -1457,8 +1457,29 @@ pub fn open_path(path: &std::path::Path) {
     }
 }
 
+/// macOS's page for apps on the local network: the one link that isn't a web page.
+pub const MACOS_LOCAL_NETWORK: &str =
+    "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork";
+
+/// Whether a link may be handed to the system. Links come from news feeds and
+/// the like, and the system opens whatever it's given: `file:` or a path could
+/// start a program, and a custom scheme could reach any app that registered one.
+fn may_open(url: &str) -> bool {
+    if url == MACOS_LOCAL_NETWORK {
+        return true;
+    }
+    let lower = url.to_ascii_lowercase();
+    let rest = lower.strip_prefix("https://").or_else(|| lower.strip_prefix("http://"));
+    let host = rest.and_then(|r| r.split(['/', '?', '#']).next()).unwrap_or("");
+    !host.is_empty() && !url.chars().any(|c| c.is_control() || c.is_whitespace())
+}
+
 /// Opens a web page in the default browser.
 pub fn open_url(url: &str) {
+    if !may_open(url) {
+        crate::diag::crumb("a link that isn't a web page: not opened");
+        return;
+    }
     if headless() {
         return;
     }
@@ -1475,5 +1496,41 @@ pub fn open_url(url: &str) {
     let r = std::process::Command::new("xdg-open").arg(url).spawn();
     if let Err(e) = r {
         crate::diag::crumb(format!("couldn't open link: {e}"));
+    }
+}
+
+#[cfg(test)]
+mod link_tests {
+    use super::{MACOS_LOCAL_NETWORK, may_open};
+
+    #[test]
+    fn only_web_pages_are_handed_to_the_system() {
+        for good in [
+            "https://github.com/ahaan-shah/opentern",
+            "HTTPS://Example.com",
+            "http://example.com/a?b=c&d=e#f",
+            MACOS_LOCAL_NETWORK,
+        ] {
+            assert!(may_open(good), "{good}");
+        }
+        for bad in [
+            "",
+            "file:///C:/Windows/System32/calc.exe",
+            r"C:\Windows\System32\calc.exe",
+            r"\\attacker\share\evil.exe",
+            "/usr/bin/xcalc",
+            "--help",
+            "javascript:alert(1)",
+            "ms-msdt:/id",
+            "search-ms:query=x",
+            "x-apple.systempreferences:com.apple.other",
+            "smb://attacker/share",
+            "https://",
+            "https:///path",
+            "https://example.com/a b",
+            "https://example.com/\nfile:///x",
+        ] {
+            assert!(!may_open(bad), "{bad}");
+        }
     }
 }

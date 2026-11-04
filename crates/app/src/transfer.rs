@@ -99,9 +99,6 @@ enum NetKind {
     LocalNetwork,
 }
 
-const LOCAL_NETWORK_SETTINGS: &str =
-    "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_LocalNetwork";
-
 enum FirewallAsk {
     Idle,
     Asking(Receiver<Result<(), String>>),
@@ -170,7 +167,7 @@ impl NetHelp {
             (NetKind::LocalNetwork, _) => {
                 let tip = "macOS asks once. If Opentern isn't allowed, turn it on here, then try again.";
                 if press(ui, "Open Local Network settings", tip) {
-                    crate::app::open_url(LOCAL_NETWORK_SETTINGS);
+                    crate::app::open_url(crate::app::MACOS_LOCAL_NETWORK);
                 }
             }
             (NetKind::Firewall, FirewallAsk::Asking(_)) => line(ui, t, "Waiting for Windows"),
