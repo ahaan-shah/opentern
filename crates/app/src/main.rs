@@ -53,6 +53,7 @@ mod sources;
 mod strategy;
 mod theme;
 mod timezones;
+mod transfer;
 mod updater;
 mod watcher;
 mod watchlists;
@@ -86,6 +87,14 @@ fn main() -> eframe::Result<()> {
     #[cfg(windows)]
     if std::env::args().len() > 1 {
         attach_console();
+    }
+    // Windows Firewall's rule, run as administrator by Settings → Export and
+    // import. Nothing else happens in this run.
+    if std::env::args().nth(1).as_deref() == Some("--allow-firewall") {
+        let done = std::env::current_exe()
+            .map_err(|e| e.to_string())
+            .and_then(|exe| opentern_core::handoff::firewall::allow(&exe));
+        std::process::exit(if done.is_ok() { 0 } else { 1 });
     }
     let mut args = std::env::args().skip(1);
     let mut data_dir: Option<PathBuf> = None;
@@ -131,6 +140,10 @@ fn main() -> eframe::Result<()> {
     diag::init(&dir);
     if daemon {
         std::process::exit(daemon::run(dir, demo));
+    }
+    // An import waiting from the last run goes in before the workspace opens.
+    if opentern_core::transfer::pending(&dir) {
+        daemon::apply_pending_import(&dir);
     }
     let store = match Store::open(&dir) {
         Ok(s) => s,

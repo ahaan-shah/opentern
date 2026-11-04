@@ -30,7 +30,7 @@ pub struct Doc {
 }
 
 impl Doc {
-    fn dirty(&self) -> bool {
+    pub(crate) fn dirty(&self) -> bool {
         !self.readonly && self.text != self.saved
     }
 }
@@ -39,6 +39,8 @@ pub struct Editor {
     pub docs: Vec<Doc>,
     pub active: usize,
     pub status: String,
+    /// An imported Python script Run has asked about once.
+    pub trust_asked: Option<String>,
     filter: String,
     show_builtins: bool,
     /// (file, new name) while a file is being renamed in the explorer.
@@ -76,6 +78,7 @@ impl Default for Editor {
             docs: Vec::new(),
             active: 0,
             status: String::new(),
+            trust_asked: None,
             filter: String::new(),
             show_builtins: false,
             renaming: None,
@@ -889,12 +892,25 @@ impl App {
     }
 
     /// Run: save, then put the script on the chart or update it there.
-    fn run_script(&mut self) {
+    pub(crate) fn run_script(&mut self) {
         let Some(d) = self.editor.doc() else { return };
         if d.readonly {
             return;
         }
         let file = d.key.clone();
+        if self.python_held(&file) {
+            if self.editor.trust_asked.as_deref() != Some(&file) {
+                self.editor.status = format!(
+                    "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+                );
+                self.editor.trust_asked = Some(file);
+                return;
+            }
+            self.editor.trust_asked = None;
+            self.trust_python(&file);
+            self.editor.status = format!("Added {file} to the chart.");
+            return;
+        }
         self.save_script();
         if !self.scripts.iter().any(|r| r.file == file) {
             self.add_script(&file);

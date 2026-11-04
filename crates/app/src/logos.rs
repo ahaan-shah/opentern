@@ -63,6 +63,11 @@ const QUOTES: [&str; 12] = [
 
 /// The cache key for a symbol's logo (None: letter disc only).
 fn key(s: &Symbol) -> Option<String> {
+    // It names a file, and symbols can come from an imported watchlist.
+    file_key(s).filter(|k| k.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'))
+}
+
+fn file_key(s: &Symbol) -> Option<String> {
     let ticker = s.ticker().to_uppercase();
     match s.kind {
         AssetKind::Crypto => coin(&ticker).map(|c| format!("coin-{c}")),

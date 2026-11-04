@@ -42,6 +42,8 @@ pub struct Updater {
     launch_done: bool,
     manual: bool,
     restart_on_exit: bool,
+    /// Restarting the same version: not an update, so no What's new.
+    relaunch_only: bool,
     /// Where this copy was launched from, read before any update swaps it:
     /// afterwards Linux reports the renamed old file ("….old (deleted)").
     exe: Option<std::path::PathBuf>,
@@ -59,6 +61,7 @@ impl Default for Updater {
             launch_done: false,
             manual: false,
             restart_on_exit: false,
+            relaunch_only: false,
             exe: std::env::current_exe().ok(),
         }
     }
@@ -161,6 +164,18 @@ impl Updater {
         }
     }
 
+    /// Restarts the same version (an import was staged).
+    pub fn relaunch(&mut self, ctx: &egui::Context) {
+        self.restart_on_exit = true;
+        self.relaunch_only = true;
+        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+    }
+
+    #[cfg(test)]
+    pub fn relaunching(&self) -> bool {
+        self.relaunch_only && self.restart_on_exit
+    }
+
     /// Called from `App::on_exit`, after everything is saved.
     pub fn on_exit(&self) {
         if !self.restart_on_exit {
@@ -175,15 +190,28 @@ impl Updater {
                 .nth(3)
                 .filter(|a| a.extension().is_some_and(|e| e == "app"))
             {
-                let _ = std::process::Command::new("open").arg("-n").arg(app).spawn();
+                let mut open = std::process::Command::new("open");
+                open.arg("-n").arg(app);
+                // `open` passes on nothing by itself, and a staged import
+                // lives in the workspace this run was given.
+                let args: Vec<_> = std::env::args_os().skip(1).collect();
+                if !args.is_empty() {
+                    open.arg("--args").args(args);
+                }
+                let _ = open.spawn();
                 return;
             }
         }
-        let _ = std::process::Command::new(exe)
-            .args(std::env::args_os().skip(1))
+        let mut cmd = std::process::Command::new(exe);
+        cmd.args(std::env::args_os().skip(1));
+        if self.relaunch_only {
+            // A screenshot's instructions are for the run that got them.
+            cmd.env_remove("OPENTERN_STILL");
+        } else {
             // So the new version can say what's new right away.
-            .env("OPENTERN_UPDATED_FROM", env!("CARGO_PKG_VERSION"))
-            .spawn();
+            cmd.env("OPENTERN_UPDATED_FROM", env!("CARGO_PKG_VERSION"));
+        }
+        let _ = cmd.spawn();
     }
 
     /// Applies results from the worker thread. Returns a message for a toast

@@ -288,6 +288,11 @@ impl Lang for Luau {
             g.raw_set("syminfo", from_val(lua, &syminfo.to_val())?)?;
             g.raw_set("NaN", f64::NAN)?;
             g.raw_set("state", lua.create_table()?)?;
+            // mlua adds `require`, which reads files from disk. Luau itself
+            // has no I/O, `loadstring` could feed the VM raw bytecode (unsafe), and scripts can come from someone else's file.
+            for name in ["require", "package", "load", "loadstring", "loadfile", "dofile"] {
+                g.raw_set(name, mlua::Value::Nil)?;
+            }
             Ok(())
         };
         setup(&lua).map_err(|e| ScriptError::new(0, format!("Couldn't start Luau: {e}")))?;

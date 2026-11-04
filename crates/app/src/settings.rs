@@ -1,7 +1,7 @@
 //! Settings: a page that takes the chart area (☰ or the gear opens it,
 //! Esc or × closes it), with its categories down the left: General
 //! (folders, theme, symbol logos), Chart, Data providers, Keyboard
-//! shortcuts and About.
+//! shortcuts, Export and import, and About.
 
 use crate::app::App;
 use crate::dialogs::ChartSettings;
@@ -17,11 +17,19 @@ pub enum Cat {
     Chart,
     Providers,
     Shortcuts,
+    Transfer,
     About,
 }
 
 impl Cat {
-    pub const ALL: [Cat; 5] = [Cat::General, Cat::Chart, Cat::Providers, Cat::Shortcuts, Cat::About];
+    pub const ALL: [Cat; 6] = [
+        Cat::General,
+        Cat::Chart,
+        Cat::Providers,
+        Cat::Shortcuts,
+        Cat::Transfer,
+        Cat::About,
+    ];
 
     fn title(self) -> &'static str {
         match self {
@@ -29,6 +37,7 @@ impl Cat {
             Cat::Chart => "Chart",
             Cat::Providers => "Data providers",
             Cat::Shortcuts => "Keyboard shortcuts",
+            Cat::Transfer => "Export and import",
             Cat::About => "About",
         }
     }
@@ -39,6 +48,7 @@ impl Cat {
             Cat::Chart => ph::CHART_LINE,
             Cat::Providers => ph::PLUGS_CONNECTED,
             Cat::Shortcuts => ph::KEYBOARD,
+            Cat::Transfer => ph::ARROWS_LEFT_RIGHT,
             Cat::About => ph::INFO,
         }
     }
@@ -110,6 +120,8 @@ pub struct SettingsPage {
     pub cat: Cat,
     providers: Option<Providers>,
     chart: Option<ChartSettings>,
+    /// Its flows stop when Settings closes.
+    pub(crate) transfer: Option<crate::transfer::Transfer>,
 }
 
 impl SettingsPage {
@@ -118,6 +130,7 @@ impl SettingsPage {
             cat,
             providers: None,
             chart: None,
+            transfer: None,
         }
     }
 }
@@ -223,6 +236,10 @@ impl App {
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
                     Cat::Shortcuts => shortcuts(ui, t),
+                    Cat::Transfer => page
+                        .transfer
+                        .get_or_insert_with(|| crate::transfer::Transfer::new(self))
+                        .page(ui, self, t),
                     Cat::About => self.about(ui, t),
                 }
                 ui.add_space(24.0);
@@ -757,7 +774,7 @@ pub(crate) fn app_logo(ctx: &egui::Context) -> egui::TextureHandle {
 }
 
 /// `~/…` for paths under the home folder (only for showing).
-fn shorten_home(p: &std::path::Path) -> String {
+pub(crate) fn shorten_home(p: &std::path::Path) -> String {
     let home = std::env::var_os("HOME")
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(std::path::PathBuf::from);

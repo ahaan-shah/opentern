@@ -87,7 +87,10 @@ pub(crate) fn write_png(
     let now = jiff::Zoned::now();
     let name = format!(
         "{}_{}_{}.png",
-        chart.symbol.ticker().replace(['/', ':', ' '], "-"),
+        chart
+            .symbol
+            .ticker()
+            .replace(['/', '\\', ':', ' ', '*', '?', '"', '<', '>', '|'], "-"),
         chart.tf.label(),
         now.strftime("%Y-%m-%d_%H-%M-%S")
     );

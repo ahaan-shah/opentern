@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.5):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.6):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -80,10 +80,12 @@ their own from the first launch. Nothing about the maintainer may be baked in.
 - **All user state** lives in the OS data dir (`directories` crate:
   `~/.local/share/opentern`, `%APPDATA%\opentern`, `~/Library/Application
   Support/opentern`). API keys are stored only in the OS keychain (`keyring`). There are
-  no hardcoded paths. Settings → Your data offers backup and restore of the whole
-  workspace as one file, so a user can move machines.
+  no hardcoded paths. Settings → Export and import moves the workspace to another
+  machine, as one file or directly over the local network.
 - **No telemetry.** The only outbound traffic is the update check (GitHub releases, can be
-  turned off), the data providers the user has turned on, and symbol logos. About 200
+  turned off), the data providers the user has turned on, symbol logos, and, only while
+  the user is sending or receiving in Settings → Export and import, the local network
+  (a UDP broadcast and one encrypted TCP connection; never the internet). About 200
   logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
   web3icons coins and theSVG brand marks, both MIT); others are fetched once per
   symbol from jsDelivr or unpkg into `<workspace>/logos/` (demo mode shows only the bundled
@@ -557,7 +559,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
+**0.2.6 released 5 Nov 2026** (Export and import, see its section). **0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
 --daemon`, off-chart alerts, earnings markers, EXT, clock timezone
 picker; see "Background alerts" below). Before that, 0.2.4 on 31 Oct
 (Seasonality chart, agent Seasonality/index tools, News refresh). In 0.2.5 too: the Solana logo fix; Settings → General with scripts and snapshots folders (`scripts_dir`/`snapshots_dir` settings, cached in `App::folders`; always go through `App::scripts_dir()`/`snapshots_dir()`). A Claude chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current one; every message's context names the scripts folder. Add new
@@ -683,7 +685,7 @@ workspace.
 ### Crates
 | Crate | What it owns |
 |---|---|
-| `opentern-core` | `Bar`, `Timeframe`, `Symbol`, `starter_watchlist()`, SQLite workspace (`db.rs` migrations: v1 settings, v2 layouts/templates/indicator_defaults/favorites, v3 drawings/watchlists), `Store` (named layouts, templates, drawings per symbol, watchlists, `value`/`set_value` for app keys like `layout_id`), self-updater |
+| `opentern-core` | `Bar`, `Timeframe`, `Symbol`, `starter_watchlist()`, SQLite workspace (`db.rs` migrations: v1 settings, v2 layouts/templates/indicator_defaults/favorites, v3 drawings/watchlists), `Store` (named layouts, templates, drawings per symbol, watchlists, `value`/`set_value` for app keys like `layout_id`), self-updater, `transfer.rs` (export files, import), `handoff.rs` (device to device) |
 | `opentern-data` | `Hub`, providers `binance.rs`, `yahoo.rs`, `demo.rs`, **`expr.rs` (symbol maths: `BTCUSDT/ETHUSDT`, `(A + B)/2`; legs joined on time; quotes derived from legs)**, `cache.rs`, `resample.rs` |
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
 | `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
@@ -1386,6 +1388,57 @@ every data change (scripts re-run on it).
   headers elide to their column. Windows `open_url` uses
   `rundll32 url.dll,FileProtocolHandler` (`explorer <url>` opened
   Documents for long news links).
+
+### Export and import (Nov 2026, 0.2.6)
+- **Settings → Export and import** (`app/src/transfer.rs`, `Cat::Transfer`). Export view:
+  a checkbox per `transfer::Item` (all on, with counts), Export (a save dialog) and Send to
+  another device. Import view: From a file (or drop one on the page) / From another device.
+  Both end in the same review: items in the file, Merge or Replace, Import and restart.
+- **The file** (`core/src/transfer.rs`, `.opentern`): a zip of `manifest.json`,
+  `data/<item>.json` and `scripts/<path>`. JSON, never the raw database, so versions can
+  differ; bump `FORMAT` only for what older apps can't read (they ask for an update).
+  Never included: secrets (keychain), folder settings, login items, agent accounts and
+  chats, bar cache. A **new setting that belongs to an item must be added to that item's
+  `gather`/`apply_item`**, or it won't travel. Script paths are checked on the way in.
+- **Merge** matches by name (watchlists, layouts, templates, paper accounts), symbol
+  (drawings), ticker (indices), path (scripts) or what the alert watches (`alert_identity`);
+  the file wins and the rest stays. **Replace** clears the ticked items first.
+- **Importing happens at startup:** the app verifies the file, saves everything to
+  `<workspace>/backups/before-import-*.opentern` (latest 5), stages it
+  (`import/pending.*`) and restarts (`Updater::relaunch`, which drops `OPENTERN_STILL`).
+  `main` applies it before the store opens (`daemon::apply_pending_import` takes
+  `app.lock` first); the database commits as one transaction; the outcome is reported
+  once by `App::import_outcome` (settings key `import_result`). The daemon isn't started
+  while an import is pending. A failed import isn't retried.
+- **Security: a file is untrusted input, whoever sent it** (a signature couldn't help:
+  there's no identity to check). Don't weaken these. `manifest.json` is only for display;
+  warnings use `transfer::inspect` (the real contents). Python has no sandbox, so an import
+  records each `.py`'s SHA-256 in `PYTHON_HELD_KEY`; `App::start_script` (the only thing that
+  spawns Python) won't start a held one, and only the editor's Run, pressed twice, clears it
+  (`trust_python`; the agent's `add_script` can't). By content, so no path spelling gets
+  past it. Any script path from saved data goes through `transfer::stays_inside`. Alert
+  delivery settings only fill blanks (the keychain's mail password goes to whatever server
+  they name). Symbols name files in logos and snapshots: sanitise. Luau: `require`,
+  `loadstring` and friends are removed in `luau.rs` (mlua adds them); `script/tests/sandbox.rs`
+  tries to break out. Handoff: `is_local` on every peer, `MAX_TRIES` per search,
+  `HANDSHAKE_LIMIT`. Attacked for real before 0.2.6 (hostile files in real windows, loopback
+  fuzzing). Known limits: 5 guesses at a 6-digit code per offer; a LAN device can end an offer
+  or a search (fails safe); news and agent links go to `open_url` unchecked; the agents can
+  read imported scripts, so a hostile script could try to talk them into something.
+- **Permissions:** Windows Firewall and macOS Local Network ask once. `NetHelp` offers the way
+  back: `handoff::firewall` runs `opentern --allow-firewall` elevated (clears the exe's block
+  rules, adds rule "Opentern transfer" for port 47811; stays after uninstalling on a per-user
+  install, harmless) and macOS opens its settings page. Windows CI runs the real `netsh` and
+  elevation (`firewall` tests, `CI` set). Stills: `send@windows`, `notfound@mac`.
+- **Send** (`core/src/handoff.rs`): sender listens only while its code shows (TCP and UDP
+  `PORT` 47811, TCP falls back to any). Receiver broadcasts, or takes a typed address once
+  the search fails. SPAKE2 on the six-digit code, ChaCha20-Poly1305 per direction; five
+  wrong codes end the offer, the code lasts 15 minutes. The sender's code keeps working
+  after a dropped connection. **Only run between processes on one machine so far; real
+  two-machine runs, Windows Firewall and macOS's local network prompt are unverified.**
+- Stills: `settings:transfer` plus `transfer:import|saved|send:<code>|receive:<code>|
+  review:<path>|import-now:<path>|sending:<pct>|sent|send-failed|receiving:<pct>|notfound|wrong`.
+  Two windows with `send:` and `receive:` of one code run a real transfer.
 
 ### Website
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in

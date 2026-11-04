@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.6 (2026-11-05)
+
+Move your Opentern to another computer, as a file or straight over your network.
+
+### New
+- **Export and import** in Settings: tick what to bring (watchlists, layouts, drawings, templates, favorites, alerts, custom indices, paper accounts, scripts, screener and Strategy Lab settings), then save one file you can email or copy across.
+- **Send to another device**: a six-digit code connects two computers on the same network, with no account and no server, and everything sent is encrypted.
+- **Merge or replace when importing**: pick what to bring in, keep what's already there or replace it. A backup is saved first, and importing that backup puts everything back. API keys and passwords never leave the device.
+- **Windows and macOS permissions have a way back.** Windows Firewall and macOS's Local Network prompt only ask once. If one was turned down, the send page has a link to allow it (Windows asks for administrator permission).
+
+### Security
+- **Imported files are treated as untrusted, however they arrive.** Imported Python scripts never start by themselves, not even from a saved layout: press Run in the Script Editor and confirm first. Saved layouts, alerts and screens can't reach scripts outside the scripts folder.
+- **Importing shows what a file really contains**, read from its contents: how many Python scripts, and where its alerts would send things. It can't change a mail or Telegram setup you already have, so your saved password never goes to another server.
+- **Transfers stay on the local network.** Internet addresses are refused, a device pretending to be the sender gets only three tries per search, and a connection has 20 seconds to prove the code.
+
+### Fixed
+- **Luau scripts can no longer load files or raw bytecode.** `require` and `loadstring` were reachable and are gone.
+- **Odd symbol names can't write outside their folders** when saving logos or snapshots.
+- **Script names Windows can't save** no longer stop an import: the rest come in and the message lists which were left out.
+
 ## 0.2.5 (2026-11-02)
 
 Alerts keep working with Opentern closed, stock charts show earnings and

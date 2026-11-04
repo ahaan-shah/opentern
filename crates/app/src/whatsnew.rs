@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.6",
+        items: &[
+            Item {
+                icon: ph::ARROWS_LEFT_RIGHT,
+                title: "Move Opentern to another computer",
+                body: "Settings → Export and import saves your watchlists, layouts, scripts and more \
+                       in one file. Pick what to bring, then merge or replace.",
+                image: None,
+            },
+            Item {
+                icon: ph::MONITOR,
+                title: "Send it straight across your network",
+                body: "A six-digit code connects two computers, encrypted, with no account or server. \
+                       Windows and macOS may ask for permission the first time.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.5",
         items: &[
             Item {

@@ -489,6 +489,7 @@ impl App {
                 }
                 None => Job::None,
             },
+            ScreenScript::Pine(file, _) if !opentern_core::transfer::stays_inside(file) => Job::None,
             ScreenScript::Pine(file, plot) => match std::fs::read_to_string(self.scripts_dir().join(file)) {
                 Ok(src) => Job::Pine(src, file.clone(), self.pine_env_for(symbol), *plot),
                 Err(_) => Job::None,

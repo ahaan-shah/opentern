@@ -593,7 +593,8 @@ impl App {
         let Some(lock) = self.app_lock.take() else { return };
         drop(lock);
         let active = self.alerts.list.iter().any(|(a, _)| a.active);
-        if active && crate::daemon::background_on(&self.store) && !crate::app::headless() {
+        let importing = opentern_core::transfer::pending(self.store.dir());
+        if active && !importing && crate::daemon::background_on(&self.store) && !crate::app::headless() {
             crate::daemon::spawn(self.store.dir(), self.demo);
         }
     }

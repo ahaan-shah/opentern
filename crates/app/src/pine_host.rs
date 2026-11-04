@@ -149,6 +149,9 @@ pub(crate) fn instance_for_file(
     if !lang.in_process() {
         return Err("Python scripts' alerts need Opentern open.".into());
     }
+    if !opentern_core::transfer::stays_inside(file) {
+        return Err(format!("{file} isn't in the scripts folder"));
+    }
     let src = std::fs::read_to_string(dir.join(file)).map_err(|e| format!("Couldn't read {file}: {e}"))?;
     let compiled = match lang {
         Lang::Pine => {

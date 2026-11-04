@@ -10,6 +10,13 @@ homepage.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+# Device-to-device transfer: a short code becomes a shared key (SPAKE2), and
+# everything after it is encrypted.
+chacha20poly1305 = "0.10.1"
+getrandom = "0.3.4"
+hostname = "0.4.2"
+if-addrs = "0.15"
+spake2 = "0.4.0"
 # Secrets live in the OS keychain; pure-Rust D-Bus on Linux.
 keyring = { version = "3", features = ["apple-native", "windows-native", "async-secret-service", "crypto-rust", "async-io"] }
 directories = "6.0.0"

@@ -335,11 +335,58 @@ impl App {
         self.start_script(file, None);
     }
 
+    /// Whether this is an imported Python script nobody has agreed to run.
+    pub(crate) fn python_held(&self, file: &str) -> bool {
+        file.ends_with(".py")
+            && std::fs::read(self.scripts_dir().join(file)).is_ok_and(|bytes| {
+                self.held_python()
+                    .contains(&opentern_core::transfer::script_hash(&bytes))
+            })
+    }
+
+    fn held_python(&self) -> Vec<String> {
+        self.store
+            .value(opentern_core::transfer::PYTHON_HELD_KEY)
+            .and_then(|v| serde_json::from_str(&v).ok())
+            .unwrap_or_default()
+    }
+
+    /// The person pressed Run, asked twice: this script may run from now on.
+    /// A script waiting on the chart's layout starts where it was saved.
+    pub(crate) fn trust_python(&mut self, file: &str) {
+        if let Ok(bytes) = std::fs::read(self.scripts_dir().join(file)) {
+            let hash = opentern_core::transfer::script_hash(&bytes);
+            let held: Vec<String> = self.held_python().into_iter().filter(|h| *h != hash).collect();
+            let json = serde_json::to_string(&held).unwrap_or_default();
+            let _ = self.store.set_value(opentern_core::transfer::PYTHON_HELD_KEY, &json);
+        }
+        let waiting = self.scripts.iter().position(|r| r.file == file && r.runner.is_none());
+        let restore = waiting.and_then(|i| self.scripts.remove(i).restore);
+        if waiting.is_some() || !self.scripts.iter().any(|r| r.file == file) {
+            self.start_script(file, restore);
+        }
+    }
+
     fn start_script(&mut self, file: &str, restore: Option<SavedStudy>) {
         let Some(lang) = Lang::of(file) else { return };
+        // Saved layouts name their scripts, and layouts can come from a file.
+        if !opentern_core::transfer::stays_inside(file) {
+            crate::diag::crumb("a saved script path leaves the scripts folder: not started");
+            return;
+        }
+        let held = self.python_held(file);
+        if held {
+            self.notify(
+                crate::icons::ph::WARNING,
+                "Python script not started",
+                &format!("{file} was imported. To run it, open it in the Script Editor and press Run."),
+                None,
+                true,
+            );
+        }
         let path = self.scripts_dir().join(file);
         let runner = match lang {
-            Lang::Python => {
+            Lang::Python if !held => {
                 let ctx = self.egui_ctx.clone();
                 Some(python::Runner::start(
                     path,
@@ -357,7 +404,7 @@ impl App {
             restore,
             desc: None,
             signature: String::new(),
-            error: None,
+            error: held.then(|| "Imported. Press Run in the Script Editor to start it.".to_string()),
             log: String::new(),
             sent_version: u64::MAX,
             sent_inputs: None,
@@ -569,5 +616,74 @@ mod tests {
         assert_eq!(parse_color("red"), Rgba::hex(0xF23645));
         assert_eq!(plot_style("histogram"), PlotStyle::Histogram);
         assert_eq!(line_style("solid"), LineStyle::Solid);
+    }
+}
+
+#[cfg(test)]
+mod held_python_tests {
+    use crate::drive::Driver;
+    use opentern_core::transfer::{PYTHON_HELD_KEY, script_hash};
+
+    fn running(d: &Driver, file: &str) -> bool {
+        d.app.scripts.iter().any(|r| r.file == file && r.runner.is_some())
+    }
+
+    #[test]
+    fn imported_python_waits_for_a_yes_and_no_path_gets_around_it() {
+        let mut d = Driver::new("held-python");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let source = b"# from a file\n";
+        std::fs::write(dir.join("evil.py"), source).unwrap();
+        std::fs::write(dir.join("sub/copy.py"), source).unwrap();
+        std::fs::write(dir.join("mine.py"), b"# my own\n").unwrap();
+        d.app
+            .store
+            .set_value(PYTHON_HELD_KEY, &format!("[\"{}\"]", script_hash(source)))
+            .unwrap();
+
+        // Any way of reaching it, under any name: nothing starts.
+        for file in ["evil.py", "sub/./copy.py", "sub/copy.py"] {
+            d.app.add_script(file);
+            assert!(!running(&d, file), "{file}");
+        }
+        assert!(d.app.scripts.iter().all(|r| r.error.is_some()));
+
+        // A script the person wrote is untouched.
+        d.app.add_script("mine.py");
+        assert!(running(&d, "mine.py"));
+
+        // Outside the folder is never started at all, even if not held.
+        let outside = dir.parent().unwrap().join("outside.py");
+        std::fs::write(&outside, b"# elsewhere\n").unwrap();
+        for file in ["../outside.py".to_string(), outside.display().to_string()] {
+            let before = d.app.scripts.len();
+            d.app.add_script(&file);
+            assert_eq!(d.app.scripts.len(), before, "{file}");
+        }
+
+        // Yes, once: it runs from here on.
+        d.app.trust_python("evil.py");
+        assert!(running(&d, "evil.py"));
+        assert!(!d.app.python_held("evil.py"));
+    }
+
+    #[test]
+    fn run_asks_before_trusting_an_imported_script() {
+        let mut d = Driver::new("held-python-run");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let source = b"# from a file\n";
+        std::fs::write(dir.join("evil.py"), source).unwrap();
+        d.app
+            .store
+            .set_value(PYTHON_HELD_KEY, &format!("[\"{}\"]", script_hash(source)))
+            .unwrap();
+        d.app.open_in_editor("evil.py");
+        d.app.run_script();
+        assert!(!running(&d, "evil.py"), "the first press only asks");
+        assert!(d.app.editor.status.contains("full access"), "{}", d.app.editor.status);
+        d.app.run_script();
+        assert!(running(&d, "evil.py"));
     }
 }

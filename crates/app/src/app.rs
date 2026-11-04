@@ -262,6 +262,7 @@ impl App {
         }
         app.subscribe_quotes();
         app.alerts_fired_away();
+        app.import_outcome();
         app.still();
         if let Ok(v) = std::env::var("OPENTERN_STILL") {
             // `light`, or `theme:<name>` (e.g. theme:Tokyo Night) for screenshots.
@@ -387,6 +388,8 @@ impl App {
                     None,
                     false,
                 );
+            } else if let Some(what) = part.strip_prefix("transfer:") {
+                self.transfer_still(what);
             } else if let Some(cat) = part.strip_prefix("settings") {
                 use crate::settings::Cat;
                 let cat = Cat::ALL

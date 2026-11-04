@@ -26,5 +26,7 @@
     <true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Opentern uses the local network only when you send your data to another device or receive it.</string>
 </dict>
 </plist>
