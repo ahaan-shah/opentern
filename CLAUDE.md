@@ -90,7 +90,11 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   web3icons coins and theSVG brand marks, both MIT); others are fetched once per
   symbol from jsDelivr or unpkg into `<workspace>/logos/` (demo mode shows only the bundled
   ones and fetches nothing), off in
-  Settings → Symbol logos. Indices and commodities get drawn badges. The agent
+  Settings → Symbol logos. Indices and commodities get drawn badges. The market
+  overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
+  500 list (niftyindices.com, else archives.nseindia.com) at most weekly, Yahoo's
+  screener, spark and batch quotes, and CoinGecko's free markets API (one request
+  per refresh, no key) plus Binance daily bars for coins. The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
   nothing starts at launch.
@@ -559,6 +563,10 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
+**Unreleased (8 Nov 2026): the market overview and the new-coin search fix**
+(see "Market overview" below), committed locally, not pushed. **The
+maintainer said not to release yet** (more features first): no tag, no push
+until they say so.
 **0.2.6 released 5 Nov 2026** (Export and import, see its section). **0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
 --daemon`, off-chart alerts, earnings markers, EXT, clock timezone
 picker; see "Background alerts" below). Before that, 0.2.4 on 31 Oct
@@ -686,12 +694,12 @@ workspace.
 | Crate | What it owns |
 |---|---|
 | `opentern-core` | `Bar`, `Timeframe`, `Symbol`, `starter_watchlist()`, SQLite workspace (`db.rs` migrations: v1 settings, v2 layouts/templates/indicator_defaults/favorites, v3 drawings/watchlists), `Store` (named layouts, templates, drawings per symbol, watchlists, `value`/`set_value` for app keys like `layout_id`), self-updater, `transfer.rs` (export files, import), `handoff.rs` (device to device) |
-| `opentern-data` | `Hub`, providers `binance.rs`, `yahoo.rs`, `demo.rs`, **`expr.rs` (symbol maths: `BTCUSDT/ETHUSDT`, `(A + B)/2`; legs joined on time; quotes derived from legs)**, `cache.rs`, `resample.rs` |
+| `opentern-data` | `Hub`, `overview.rs` (market overview boards), providers `binance.rs`, `yahoo.rs`, `demo.rs`, **`expr.rs` (symbol maths: `BTCUSDT/ETHUSDT`, `(A + B)/2`; legs joined on time; quotes derived from legs)**, `cache.rs`, `resample.rs` |
 | `opentern-series` | `ta.rs` (Pine-exact primitives; highest/lowest use a monotonic queue), `study.rs` (`Instance` with built-in, `with_factory` (Pine) and `external` (Python) modes; `Out`/`Output` with palette colours plus `raw` colours, `bg`, `bar`; `PlotStyle::Shape` + `ShapeSpec`; `InputKind::Text`), `builtins/` (62 indicators) |
 | `opentern-script` | **Luau / JavaScript / TypeScript (Phase 13)**: `host.rs` (all semantics: declarations → `Decl`/`Meta`, `HostState` per-bar runtime with `ta.*` by call order, plots, `state` snapshots, strategy → `opentern_engine::Broker`), `inproc.rs` (`Lang`/`Vm` traits, `compile` = load + 60-bar dry run to find plots, `ScriptStudy`), `luau.rs` (mlua, Luau vendored), `js.rs` (rquickjs; TS via `swc_ts_fast_strip`, types blanked so lines match). Python host: SDK embedded from `python/opentern/` and unpacked to `<workspace>/python`; one worker process per script (`_runner.py`, JSON lines); reload on file change; errors and prints returned |
 | `opentern-engine` | `quant/` (Phase 12: `optimize.rs` grid/random/Bayesian + heatmap, `gp.rs` Gaussian process + expected improvement, `walkforward.rs`, `montecarlo.rs`, `portfolio.rs`, `export.rs` CSV; all take a `run(values, bars) -> Broker` closure so any in-process language works; seeded and deterministic), `broker.rs` (TradingView-style emulator: next-open market fills, intrabar O→H→L→C / O→L→H→C path for stops/limits, gaps, reversals, pyramiding, brackets and tick exits, commission, slippage, qty types, process_orders_on_close, run-up/drawdown per trade, equity incl. intrabar) and `report.rs` (Strategy Report metrics) |
 | `opentern-pine` | Pine engine: `lexer.rs`, `parser.rs` → `ast.rs`, `compile.rs` (names → frame slots, constant folding, declarations → `Meta`), `run.rs` (`PineStudy`, bar-by-bar interpreter), `natives/` (`mod.rs` core/math/str/color/time/syminfo/timeframe/barstate, `ta.rs` on `opentern_series::ta`), `natives/collections.rs` (array/map/matrix), `natives/draw.rs` (label/line/box/table/linefill/polyline/chart.point), `natives/security.rs` (`request.security`), `natives/strategy.rs`; `heap.rs` (objects with GC; drawing types live in `opentern_series::drawings`), `value.rs`; `tests/corpus/` + `tests/conformance.rs` |
-| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `claude/` (the agent panel: `agent.rs` Claude/Codex, `process.rs` Claude Code client, `codex.rs` Codex client, `tools.rs` the app's tools, `mod.rs` chats and UI), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
+| `opentern` (app) | `app.rs`, `shell.rs`, `chart/` (`draw.rs` + `drawing_ui.rs` = drawings and the quick measure), `drawbar.rs` (floating toolbar for the selected drawing), `watchlists.rs`, `layouts.rs`, `objects.rs` (Object tree + Data window), `scripting.rs` (scripts on the chart), `editor.rs` (Script Editor: explorer, tabs, code view), `sources.rs` (built-ins' Pine source from the corpus), `logos.rs` (symbol logos, rendered with resvg), `settings.rs` (the Settings page in the chart area), `overview.rs` (the market overview, also in the chart area), `claude/` (the agent panel: `agent.rs` Claude/Codex, `process.rs` Claude Code client, `codex.rs` Codex client, `tools.rs` the app's tools, `mod.rs` chats and UI), `pine_host.rs` (Pine scripts on the chart), `dialogs/`, `drive.rs` (headless test driver) |
 
 ### Phase 4 (done): drawings, layouts, watchlists
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
@@ -845,7 +853,8 @@ workspace.
   stocks → Alpaca and NSE/BSE → Upstox when their keys are set, else Yahoo. Changing
   credentials restarts open chart sessions. Quotes for non-Yahoo, non-Binance symbols
   come from two daily bars every 30 s. Search loads Bybit/OKX/Coinbase/Kraken lists
-  (weekly), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows;
+  (daily since Nov 2026; a coin search with no match asks Binance's exchangeInfo
+  for that pair at once, alongside Yahoo's search), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows;
   `OANDA:X` / `IBKR:X` are offered as typed.
 - **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
   machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
@@ -1439,6 +1448,51 @@ every data change (scripts re-run on it).
 - Stills: `settings:transfer` plus `transfer:import|saved|send:<code>|receive:<code>|
   review:<path>|import-now:<path>|sending:<pct>|sent|send-failed|receiving:<pct>|notfound|wrong`.
   Two windows with `send:` and `receive:` of one code run a real transfer.
+
+### Market overview (Nov 2026, unreleased)
+- **Top-bar button** (a drawn treemap, left of the grid button; `Alt M`;
+  `Arrangement::overview`, saved). Open, it takes the chart area *and* the
+  bottom panel's place (no drawing toolbar, range bar or bottom panel); the
+  side panel and rail stay. Settings still wins over it. The chart controls
+  in the top bar are disabled meanwhile; symbol search stays, and
+  `open_symbol_synced` (any symbol pick: search, watchlist, a tile) closes it.
+- **Data** (`opentern_data::overview`, `Request::Overview` → `Event::Overview`,
+  one thread per request): US = S&P 500 (bundled `assets/overview/sp500.csv`
+  with an Exchange column, refreshed weekly from the PDDL dataset on jsDelivr;
+  the live file has no exchange, so it comes from the bundled one or the
+  screener), India = NIFTY 500 (bundled NSE file, refreshed weekly). Prices,
+  1D and history: Yahoo spark (20 a request, 4 threads, range 1y). **Caps:
+  US from Yahoo's `largest_market_cap` predefined screener** (no crumb; ~10
+  pages reach every member but about 9 small ones, which go to batch quotes);
+  **India from v7 batch quotes** (needs the crumb session fundamentals use).
+  Caps are kept as share counts in `<cache>/overview/shares-*.json` (refreshed
+  daily), so caps follow the price when Yahoo refuses later. Under half with
+  caps → `Sizing::Equal` (the legend's tooltip says so); the rest get the
+  smallest known cap. Crypto: CoinGecko `coins/markets` (250, filtered:
+  stablecoins, wrapped/staked, tokenized funds and stocks; `excluded`), kept to
+  coins with a pair in the cached exchange lists (`crypto_pairs`: Binance USDT
+  first), top 150; categories from the `CATEGORIES` table, else "Other";
+  3M/YTD and the hover line from Binance daily klines (kept an hour). No
+  CoinGecko → Binance 24h tickers sized by volume (`Sizing::Volume`).
+- **Yahoo's crumb endpoint answered 429 for a while on 8 Nov 2026** (then
+  worked again). Don't try to get around a limit; the design above keeps
+  working without the crumb for US and with kept share counts for India.
+- Periods (`changes`): 1W = close at or before 7 days ago, 1M/3M/1Y by
+  calendar months, YTD vs the last close of the previous year (UTC); too
+  little history = NaN (grey tile). Colour scale per period (±3% 1D … ±30%).
+- UI (`app/src/overview.rs`): sectors squarified by total size, then members
+  (reuses `indices::squarify`); sector titles zoom (`Overview::sector`), Esc
+  unzooms then closes; tile labels by size (logo + ticker + %, ticker + %,
+  one line for wide-short, logo only); hover card on the Tooltip layer;
+  refresh every 3 min while open, 30 s after a failure. `Overview::drawn`
+  records tile/sector/button rects for tests. Market and period saved under
+  settings key `overview`. CoinGecko's free API asks for attribution: the
+  legend's tooltip names the source. Stills: `overview[:market[:period[:sector]]]`,
+  `overview-hover:<ticker>`.
+- Agent tool `market_overview` (open/close/get; `claude/markets.rs`,
+  `Wait::Overview`). Tests: `drive::tests::market_overview_…`,
+  `control::drive_tests::the_agent_reads_and_opens_the_market_overview`,
+  data unit tests, and `live::overview_boards` (ignored, real services).
 
 ### Website
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in

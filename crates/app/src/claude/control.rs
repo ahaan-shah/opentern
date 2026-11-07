@@ -35,6 +35,11 @@ pub enum Wait {
         from: Option<i16>,
         to: Option<i16>,
     },
+    /// A market's overview board, then the call runs again.
+    Overview {
+        market: opentern_data::overview::Market,
+        args: Value,
+    },
     /// A custom index's board (after a save or rebalance), answered with
     /// `note` first.
     Index {
@@ -254,6 +259,17 @@ impl App {
                             Some(error("The monthly history is still loading. Try again in a moment."))
                         }
                         None => None,
+                    }
+                }
+                Wait::Overview { market, args } => {
+                    let (market, args) = (*market, args.clone());
+                    if self.overview.boards.contains_key(&market)
+                        || (!self.overview.loading(market) && self.overview.errors.contains_key(&market))
+                        || age > Duration::from_secs(90)
+                    {
+                        Some(self.overview_answer(&args))
+                    } else {
+                        None
                     }
                 }
                 Wait::Index {
@@ -1859,6 +1875,46 @@ mod drive_tests {
             json!({"action": "run", "mode": "monte_carlo", "mc_runs": 200}),
         ));
         assert!(r.contains("chance_of_loss_pct"), "{r}");
+    }
+
+    #[test]
+    fn the_agent_reads_and_opens_the_market_overview() {
+        let mut d = Driver::new("agent-overview");
+        // get waits for the board, then answers.
+        let r = ok(&call(
+            &mut d,
+            "market_overview",
+            json!({"action": "get", "market": "india", "period": "1M", "top": 3}),
+        ));
+        let v: Value = serde_json::from_str(&r).unwrap();
+        assert_eq!(v["universe"], "NIFTY 500", "{r}");
+        assert_eq!(v["gainers"].as_array().unwrap().len(), 3);
+        assert_eq!(v["largest"][0]["symbol"], "NSE:RELIANCE");
+        let g = &v["gainers"].as_array().unwrap();
+        assert!(g[0]["change_pct"].as_f64() >= g[2]["change_pct"].as_f64());
+        let r = ok(&call(
+            &mut d,
+            "market_overview",
+            json!({"action": "get", "market": "india", "sector": "auto"}),
+        ));
+        assert!(r.contains("\"sector\": \"Automobiles\""), "{r}");
+        let r = call(
+            &mut d,
+            "market_overview",
+            json!({"action": "get", "market": "india", "sector": "nosuch"}),
+        );
+        assert!(r["isError"] == true && r.to_string().contains("Finance"), "{r}");
+        // open shows it; close shows the charts.
+        ok(&call(
+            &mut d,
+            "market_overview",
+            json!({"action": "open", "market": "us stocks", "period": "ytd"}),
+        ));
+        assert!(d.app.overview_open());
+        assert_eq!(d.app.overview.market, opentern_data::overview::Market::Us);
+        assert_eq!(d.app.overview.period, opentern_data::overview::Period::Ytd);
+        ok(&call(&mut d, "market_overview", json!({"action": "close"})));
+        assert!(!d.app.overview_open());
     }
 
     #[test]

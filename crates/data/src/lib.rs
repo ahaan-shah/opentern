@@ -20,6 +20,7 @@ pub mod ibkr;
 pub mod kraken;
 pub mod oanda;
 pub mod okx;
+pub mod overview;
 pub mod provider;
 pub mod resample;
 pub mod upstox;

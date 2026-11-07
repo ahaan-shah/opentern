@@ -82,6 +82,11 @@ pub enum Request {
         seq: u64,
         symbol: Symbol,
     },
+    /// A market's heatmap: every index member's sector, cap and changes.
+    Overview {
+        seq: u64,
+        market: crate::overview::Market,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -137,6 +142,12 @@ pub enum Event {
     News {
         seq: u64,
         result: Result<Vec<crate::feeds::NewsItem>, String>,
+    },
+    /// The answer to a `Request::Overview`.
+    Overview {
+        seq: u64,
+        market: crate::overview::Market,
+        result: Result<crate::overview::Board, String>,
     },
     /// The answer to a `Request::Depth`.
     Depth {
@@ -282,6 +293,14 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 let _ = std::thread::Builder::new().name("data-hotlist".into()).spawn(move || {
                     let result = crate::feeds::hotlist(market, kind, demo).map_err(|e| e.to_string());
                     out.send(Event::Hotlist { seq, result });
+                });
+            }
+            Request::Overview { seq, market } => {
+                let out = out.clone();
+                let dir = dir.clone();
+                let _ = std::thread::Builder::new().name("data-overview".into()).spawn(move || {
+                    let result = crate::overview::board(market, &dir, demo).map_err(|e| e.to_string());
+                    out.send(Event::Overview { seq, market, result });
                 });
             }
             Request::Depth { seq, symbol, last } => {
@@ -1063,41 +1082,81 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
 /// waiting (the agent's lookups); below it only the latest is (typing).
 pub const SEARCH_ALL: u64 = 1 << 40;
 
+/// The exchanges' symbol lists are fetched again after a day; sooner
+/// (but not more than every half hour) once a search found a new coin.
+const LISTS_DAY: i64 = 86_400_000;
+const LISTS_SOON: i64 = 1_800_000;
+
+/// Binance pairs worth asking about when a search found no coin for `q`:
+/// the query as a pair, and its USDT pair. Nothing for queries that can't
+/// be a ticker or that already matched a coin.
+pub(crate) fn coin_lookups(q: &str, hits: &[&Symbol]) -> Vec<String> {
+    if q.len() < 2 || q.len() > 20 || !q.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Vec::new();
+    }
+    let coin = |s: &&&Symbol| s.kind == opentern_core::AssetKind::Crypto;
+    if hits.iter().filter(coin).any(|s| s.ticker().starts_with(q)) {
+        return Vec::new();
+    }
+    let quoted = ["USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB", "TRY", "EUR"]
+        .iter()
+        .any(|x| q.len() > x.len() && q.ends_with(x));
+    if quoted {
+        vec![q.to_string()]
+    } else {
+        vec![format!("{q}USDT")]
+    }
+}
+
 fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out) {
     let cache = Cache::open(&dir).ok();
     let yahoo = Yahoo::default();
-    // The exchanges' symbol lists refresh weekly on their own thread, so a
-    // search never waits for five downloads (OKX alone can time out).
+    // The exchanges' symbol lists refresh daily on their own thread, so a
+    // search never waits for five downloads (OKX alone can time out). A
+    // search that finds no coin also asks Binance about it right away, so
+    // a new listing shows up the day it lists.
     let (fresh_tx, fresh_rx) = crossbeam_channel::bounded::<()>(1);
-    let stale = cache.as_ref().is_some_and(|c| {
-        c.meta("binance_symbols_at")
-            .and_then(|t| t.parse::<i64>().ok())
-            .is_none_or(|t| crate::provider::now_ms() - t > 7 * 86_400_000)
-    });
-    if stale && !demo {
+    let refreshing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let refresh = |cache: &Option<Cache>, within: i64| {
+        let stale = cache.as_ref().is_some_and(|c| {
+            c.meta("binance_symbols_at")
+                .and_then(|t| t.parse::<i64>().ok())
+                .is_none_or(|t| crate::provider::now_ms() - t > within)
+        });
+        if !stale || demo || refreshing.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
         let dir = dir.clone();
+        let fresh_tx = fresh_tx.clone();
+        let refreshing = refreshing.clone();
         let _ = std::thread::Builder::new().name("symbol-lists".into()).spawn(move || {
-            let Ok(c) = Cache::open(&dir) else { return };
-            let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
-                ("binance", Binance::default().symbols()),
-                ("bybit", crate::bybit::Bybit::default().symbols()),
-                ("okx", crate::okx::Okx::default().symbols()),
-                ("coinbase", crate::coinbase::Coinbase::default().symbols()),
-                ("kraken", crate::kraken::Kraken::default().symbols()),
-            ];
-            let mut any = false;
-            for (source, list) in lists {
-                if let Ok(list) = list {
-                    let _ = c.save_symbols(source, &list);
-                    any = true;
+            if let Ok(c) = Cache::open(&dir) {
+                let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
+                    ("binance", Binance::default().symbols()),
+                    ("bybit", crate::bybit::Bybit::default().symbols()),
+                    ("okx", crate::okx::Okx::default().symbols()),
+                    ("coinbase", crate::coinbase::Coinbase::default().symbols()),
+                    ("kraken", crate::kraken::Kraken::default().symbols()),
+                ];
+                let mut any = false;
+                for (source, list) in lists {
+                    if let Ok(list) = list {
+                        let _ = c.save_symbols(source, &list);
+                        any = true;
+                    }
+                }
+                if any {
+                    let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
+                    let _ = fresh_tx.try_send(());
                 }
             }
-            if any {
-                let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
-                let _ = fresh_tx.send(());
-            }
+            refreshing.store(false, std::sync::atomic::Ordering::SeqCst);
         });
-    }
+    };
+    refresh(&cache, LISTS_DAY);
+    let mut checked = std::time::Instant::now();
+    // Coins asked of Binance that it didn't have, and when.
+    let mut missed: HashMap<String, std::time::Instant> = HashMap::new();
     let load = |cache: &Option<Cache>| {
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         known.extend(opentern_core::commodities());
@@ -1128,6 +1187,11 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             });
         }
         let Some(req) = queue.pop_front() else { continue };
+        // A window left open for days still gets each day's lists.
+        if checked.elapsed() > std::time::Duration::from_secs(600) {
+            checked = std::time::Instant::now();
+            refresh(&cache, LISTS_DAY);
+        }
         if fresh_rx.try_recv().is_ok() {
             known = load(&cache);
         }
@@ -1188,10 +1252,55 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 },
             ));
         }
-        if !demo
-            && want_ex.is_none()
-            && let Ok(found) = yahoo.search(&q)
-        {
+        // No coin by that name yet: perhaps it listed today. Binance is
+        // asked while Yahoo searches, so stock searches don't wait longer.
+        let asks: Vec<String> = if !demo && want_ex.as_deref().is_none_or(|e| e == "BINANCE") {
+            coin_lookups(&q, &hits.iter().map(|(_, s)| s).collect::<Vec<_>>())
+                .into_iter()
+                .filter(|t| {
+                    missed
+                        .get(t)
+                        .is_none_or(|at| at.elapsed() > std::time::Duration::from_secs(600))
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let (coins, found) = std::thread::scope(|s| {
+            let coins = (!asks.is_empty()).then(|| {
+                s.spawn(|| {
+                    asks.iter()
+                        .map(|t| (t.clone(), Binance::default().symbol(t)))
+                        .collect::<Vec<_>>()
+                })
+            });
+            let found = if !demo && want_ex.is_none() {
+                yahoo.search(&q).ok()
+            } else {
+                None
+            };
+            (coins.and_then(|h| h.join().ok()).unwrap_or_default(), found)
+        });
+        let mut new_coin = false;
+        for (t, got) in coins {
+            match got {
+                Some(s) => {
+                    new_coin = true;
+                    if let Some(r) = rank(&s, &q) {
+                        hits.push((r, s.clone()));
+                    }
+                    known.push(s);
+                }
+                None => {
+                    missed.insert(t, std::time::Instant::now());
+                }
+            }
+        }
+        if new_coin {
+            // The other exchanges may list it too: fetch their lists again.
+            refresh(&cache, LISTS_SOON);
+        }
+        if let Some(found) = found {
             for s in found {
                 if !hits.iter().any(|(_, h)| h.id == s.id)
                     && let Some(r) = rank(&s, &q).or(Some(80))
@@ -1215,6 +1324,31 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_coin_search_with_no_match_asks_binance() {
+        let coin = |id: &str| Symbol {
+            id: id.into(),
+            description: String::new(),
+            kind: opentern_core::AssetKind::Crypto,
+            currency: "USDT".into(),
+            tick_size: 0.01,
+            min_qty: 0.0,
+            timezone: "UTC".into(),
+        };
+        assert_eq!(coin_lookups("NEWCOIN", &[]), vec!["NEWCOINUSDT".to_string()]);
+        assert_eq!(coin_lookups("NEWCOINUSDT", &[]), vec!["NEWCOINUSDT".to_string()]);
+        assert_eq!(coin_lookups("NEWBTC", &[]), vec!["NEWBTC".to_string()]);
+        let btc = coin("BINANCE:BTCUSDT");
+        assert!(coin_lookups("BTC", &[&btc]).is_empty());
+        assert!(coin_lookups("BTCUSDT", &[&btc]).is_empty());
+        assert!(coin_lookups("M&M", &[]).is_empty());
+        assert!(coin_lookups("A", &[]).is_empty());
+        // A stock with the same letters doesn't count as the coin.
+        let mut stock = coin("NASDAQ:NEWC");
+        stock.kind = opentern_core::AssetKind::Stock;
+        assert_eq!(coin_lookups("NEWC", &[&stock]), vec!["NEWCUSDT".to_string()]);
+    }
 
     #[test]
     fn search_ranks_exact_then_prefix() {

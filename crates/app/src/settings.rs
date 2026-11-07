@@ -645,6 +645,7 @@ fn shortcuts(ui: &mut Ui, t: &Theme) {
         ("Reset the chart view", "Alt R"),
         ("Save a snapshot", "Alt S"),
         ("Add to watchlist", "Alt W"),
+        ("Market overview", "Alt M"),
         ("Full screen", "Shift F"),
         ("Undo", "Ctrl Z"),
         ("Redo", "Ctrl Y"),

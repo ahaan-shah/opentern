@@ -412,3 +412,63 @@ fn earnings_for_a_us_stock() {
     let year_ago = jiff::Timestamp::now().as_millisecond() - 400 * 86_400_000;
     assert!(e.iter().any(|x| x.eps.is_some() && x.time > year_ago));
 }
+
+#[test]
+#[ignore]
+fn overview_boards() {
+    use opentern_data::overview::{Market, Period, Sizing, board};
+    let dir = tempfile::tempdir().unwrap();
+    for m in Market::ALL {
+        let t = std::time::Instant::now();
+        match board(m, dir.path(), false) {
+            Ok(b) => {
+                let mut top: Vec<_> = b.members.iter().collect();
+                top.sort_by(|a, c| c.cap.total_cmp(&a.cap));
+                let with = |p: Period| b.members.iter().filter(|x| x.change(p).is_finite()).count();
+                println!(
+                    "{m:?}: {} members, {:?} from {}, {:.1}s; 1D {} 1W {} 3M {} YTD {} 1Y {}; sectors {}",
+                    b.members.len(),
+                    b.sizing,
+                    b.source,
+                    t.elapsed().as_secs_f32(),
+                    with(Period::Day),
+                    with(Period::Week),
+                    with(Period::Quarter),
+                    with(Period::Ytd),
+                    with(Period::Year),
+                    b.members
+                        .iter()
+                        .map(|x| x.sector.as_str())
+                        .collect::<std::collections::BTreeSet<_>>()
+                        .len()
+                );
+                for x in top.iter().take(6) {
+                    println!(
+                        "  {} {} {} cap {:.0}B 1D {:+.2}% 1M {:+.2}% closes {}",
+                        x.symbol.id,
+                        x.name,
+                        x.sector,
+                        x.cap / 1e9,
+                        x.change(Period::Day),
+                        x.change(Period::Month),
+                        x.closes.len()
+                    );
+                }
+                assert!(b.members.len() >= 100);
+                if m != Market::India {
+                    assert_ne!(b.sizing, Sizing::Equal);
+                }
+            }
+            Err(e) => println!("{m:?}: {e}"),
+        }
+    }
+    let new = opentern_data::binance::Binance::default()
+        .symbol("BTCUSDT")
+        .expect("BTCUSDT");
+    assert_eq!(new.id, "BINANCE:BTCUSDT");
+    assert!(
+        opentern_data::binance::Binance::default()
+            .symbol("NOSUCHCOINUSDT")
+            .is_none()
+    );
+}

@@ -91,6 +91,13 @@ indicators and alerts. Its board shows the index's returns, P/E, EV/EBITDA,
 revenue growth, margins, RSI and moving averages, then every member's, as a
 colour-coded table or a treemap. **Compare** puts all your indices side by side.
 
+**Market overview.** One click beside the layout button swaps the charts for a
+heatmap of a whole market: the S&P 500, the NIFTY 500 or the 150 largest coins.
+Tiles are sized by market cap, grouped by sector and coloured by the day's
+change, or the week's, month's, quarter's, year to date or year's. Click a
+sector to zoom in, click a tile to open its chart. Your watchlists and the
+agent stay beside it.
+
 **Seasonality.** See how the chart's symbol did in every month of every year,
 with a slider to pick the years and a count of rises and falls per month.
 
@@ -220,6 +227,7 @@ switch).
 | `Alt A` | Create an alert |
 | `Alt R` | Reset the chart view |
 | `Alt S` | Save a snapshot |
+| `Alt M` | Market overview |
 | `Ctrl Alt H` | Hide all drawings |
 | `Shift F` | Full screen |
 | `Ctrl Z` / `Ctrl Y` | Undo / redo |
@@ -235,6 +243,8 @@ Everything stays on your computer. There's no account, no sign-in and no
 telemetry. Opentern only goes online for the market data providers you use, a
 check for a new release on GitHub (you can turn it off in Settings), symbol
 logos (also optional), and the agent CLI you choose, when you send it a message.
+The market overview, while it's open, also fetches the S&P 500 and NIFTY 500
+member lists (weekly) and coin market caps from CoinGecko.
 API keys are kept in your system's keychain, never in a file.
 
 | | Linux | macOS | Windows |

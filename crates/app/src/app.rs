@@ -55,6 +55,8 @@ pub struct App {
     pub screener: crate::screener::Screener,
     pub seasonal: crate::seasonal::Seasonal,
     pub indices: crate::indices::Indices,
+    /// The market overview's state (`overview.rs`).
+    pub overview: crate::overview::Overview,
     pub lab: crate::lab::Lab,
     pub dom: crate::dom::Dom,
     /// Other series for Pine `request.security`, shared by every chart.
@@ -174,6 +176,7 @@ impl App {
         );
         // Before any chart opens: a saved chart may be on a custom index.
         let indices = crate::indices::Indices::load(&store);
+        let overview = crate::overview::Overview::load(&store);
         let mut app = App {
             store,
             theme,
@@ -203,6 +206,7 @@ impl App {
             screener: Default::default(),
             seasonal: Default::default(),
             indices,
+            overview,
             lab: Default::default(),
             dom: Default::default(),
             feeds: Default::default(),
@@ -448,6 +452,20 @@ impl App {
                 self.layout.panel_max = true;
             } else if let Some(n) = part.strip_prefix("season-years:") {
                 self.seasonal.years = n.parse().ok();
+            } else if let Some(h) = part.strip_prefix("overview-hover:") {
+                self.overview.still_hover = Some(h.to_string());
+            } else if let Some(m) = part.strip_prefix("overview") {
+                // `overview`, `overview:india`, `overview:crypto:1M`,
+                // `overview:us:YTD:Finance` (a sector zoomed in).
+                let mut bits = m.trim_start_matches(':').split(':').filter(|b| !b.is_empty());
+                if let Some(mk) = bits.next().and_then(opentern_data::overview::Market::from_key) {
+                    self.overview.market = mk;
+                }
+                if let Some(p) = bits.next().and_then(opentern_data::overview::Period::from_label) {
+                    self.overview.period = p;
+                }
+                self.overview.sector = bits.next().map(str::to_string);
+                self.set_overview(true);
             } else if part == "season-chart" {
                 self.seasonal.view = crate::seasonal::View::Chart;
             } else if part == "index-compare" {
@@ -1030,6 +1048,7 @@ impl App {
                 } => self.fetched(seq, &symbol, tf, result),
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Depth { seq, result } => self.dom_event(seq, result),
+                Event::Overview { seq, market, result } => self.overview_event(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
                 Event::Search { seq, results } if seq >= crate::claude::tools::SEARCH_BASE => {
                     self.claude_search_done(seq, results)
@@ -1210,6 +1229,15 @@ impl App {
                     modifiers,
                     ..
                 } if modifiers.alt && !modifiers.shift && !modifiers.command => self.watch_chart_symbol(),
+                egui::Event::Key {
+                    key: egui::Key::M,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.shift && !modifiers.command => {
+                    let open = self.overview_open();
+                    self.set_overview(!open);
+                }
                 // TradingView's: Ctrl+Alt+H hides (or shows) every drawing.
                 egui::Event::Key {
                     key: egui::Key::H,
@@ -1318,6 +1346,7 @@ impl App {
         self.poll_lab();
         self.poll_alerts();
         self.poll_claude();
+        self.poll_overview(&ctx);
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);

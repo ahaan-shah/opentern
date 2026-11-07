@@ -367,6 +367,8 @@ impl App {
     /// Applies a symbol to the active chart, and to all of them when the
     /// symbol is synced.
     pub fn open_symbol_synced(&mut self, symbol: opentern_core::Symbol) {
+        // Picking a symbol anywhere shows its chart.
+        self.layout.overview = false;
         if self.multi.sync.symbol {
             let s = symbol.clone();
             self.each_chart(move |a| a.open_symbol(s.clone()));

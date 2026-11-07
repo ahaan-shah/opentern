@@ -40,6 +40,7 @@ mod multi;
 mod notes;
 mod objects;
 mod onboarding;
+mod overview;
 mod paper;
 mod pine_host;
 mod screener;

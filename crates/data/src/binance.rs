@@ -147,31 +147,45 @@ impl Binance {
         let list = v["symbols"]
             .as_array()
             .ok_or_else(|| Error::Bad("Binance: unexpected symbol list".into()))?;
-        Ok(list
-            .iter()
-            .filter_map(|s| {
-                let ticker = s["symbol"].as_str()?;
-                let base = s["baseAsset"].as_str()?;
-                let quote = s["quoteAsset"].as_str()?;
-                let tick = s["filters"]
-                    .as_array()?
-                    .iter()
-                    .find(|f| f["filterType"] == "PRICE_FILTER")
-                    .and_then(|f| num(&f["tickSize"]))
-                    .filter(|t| *t > 0.0)
-                    .unwrap_or(0.01);
-                Some(Symbol {
-                    id: format!("BINANCE:{ticker}"),
-                    description: format!("{base} / {quote}"),
-                    kind: AssetKind::Crypto,
-                    currency: quote.to_string(),
-                    tick_size: tick,
-                    min_qty: lot_step(s).unwrap_or(0.0),
-                    timezone: "UTC".into(),
-                })
-            })
-            .collect())
+        Ok(list.iter().filter_map(listed).collect())
     }
+
+    /// One pair, asked of Binance right away (a coin listed since the
+    /// symbol lists were last fetched); `None` when it isn't trading.
+    pub fn symbol(&self, ticker: &str) -> Option<Symbol> {
+        if ticker.is_empty() || !ticker.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return None;
+        }
+        let v = get(&self.agent, &format!("/api/v3/exchangeInfo?symbol={ticker}")).ok()?;
+        v["symbols"]
+            .as_array()?
+            .iter()
+            .find(|s| s["status"] == "TRADING")
+            .and_then(listed)
+    }
+}
+
+/// A pair from exchangeInfo.
+fn listed(s: &serde_json::Value) -> Option<Symbol> {
+    let ticker = s["symbol"].as_str()?;
+    let base = s["baseAsset"].as_str()?;
+    let quote = s["quoteAsset"].as_str()?;
+    let tick = s["filters"]
+        .as_array()?
+        .iter()
+        .find(|f| f["filterType"] == "PRICE_FILTER")
+        .and_then(|f| num(&f["tickSize"]))
+        .filter(|t| *t > 0.0)
+        .unwrap_or(0.01);
+    Some(Symbol {
+        id: format!("BINANCE:{ticker}"),
+        description: format!("{base} / {quote}"),
+        kind: AssetKind::Crypto,
+        currency: quote.to_string(),
+        tick_size: tick,
+        min_qty: lot_step(s).unwrap_or(0.0),
+        timezone: "UTC".into(),
+    })
 }
 
 /// A symbol's `LOT_SIZE` step from exchangeInfo.

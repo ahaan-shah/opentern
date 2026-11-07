@@ -99,6 +99,14 @@ def main():
         "trademarks of their owners and are shown only to identify the symbols.",
     )
     section(
+        "Index member lists (crates/data/assets/overview)",
+        "sp500.csv: datasets/s-and-p-500-companies, Open Data Commons Public Domain\n"
+        "Dedication and License 1.0, https://github.com/datasets/s-and-p-500-companies\n"
+        "(exchange column added). nifty500.csv: NSE Indices' NIFTY 500 constituent list,\n"
+        "https://niftyindices.com. Both are refreshed from their sources at run time.\n"
+        "S&P 500 is a trademark of S&P Dow Jones Indices; NIFTY 500 of NSE Indices.",
+    )
+    section(
         "Claude mark (crates/app/assets/claude.svg)",
         "Simple Icons, CC0 1.0 Universal, https://simpleicons.org\n"
         "Claude is a trademark of Anthropic. OpenAI and Codex are trademarks of OpenAI\n"

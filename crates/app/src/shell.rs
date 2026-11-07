@@ -150,6 +150,8 @@ pub struct Arrangement {
     pub panel_max: bool,
     /// The drawing toolbar on the left is showing.
     pub toolbar: bool,
+    /// The market overview has the chart area (and the bottom panel's).
+    pub overview: bool,
 }
 
 impl Default for Arrangement {
@@ -167,6 +169,7 @@ impl Default for Arrangement {
             hide_drawings: false,
             panel_max: false,
             toolbar: true,
+            overview: false,
         }
     }
 }
@@ -217,6 +220,9 @@ impl App {
                 });
         }
 
+        // The market overview takes the charts' place and the bottom
+        // panel's; the side panel stays.
+        let ov = self.overview_open();
         // Bottom panel: the tab strip always shows; the content slides up
         // when a tab is open.
         let k = motion::toggle(
@@ -236,18 +242,20 @@ impl App {
         } else {
             self.layout.panel_h.min(most)
         };
-        egui::Panel::bottom("bottom-panel")
-            .exact_size(TABS_H + panel_h * k)
-            .resizable(false)
-            .show_separator_line(false)
-            .frame(egui::Frame::new().fill(t.sidebar))
-            .show(ui, |ui| {
-                if let Some(r) = self.bottom_panel(ui, &t, k) {
-                    cards.push(r);
-                }
-            });
+        if !ov {
+            egui::Panel::bottom("bottom-panel")
+                .exact_size(TABS_H + panel_h * k)
+                .resizable(false)
+                .show_separator_line(false)
+                .frame(egui::Frame::new().fill(t.sidebar))
+                .show(ui, |ui| {
+                    if let Some(r) = self.bottom_panel(ui, &t, k) {
+                        cards.push(r);
+                    }
+                });
+        }
 
-        if !full {
+        if !full && !ov {
             egui::Panel::bottom("range-bar")
                 .exact_size(RANGE_H)
                 .resizable(false)
@@ -257,7 +265,12 @@ impl App {
         }
 
         // The drawing toolbar slides in and out, like the other panels.
-        let tk = motion::toggle(ui.ctx(), Id::new("toolbar-open"), self.layout.toolbar, motion::STANDARD);
+        let tk = motion::toggle(
+            ui.ctx(),
+            Id::new("toolbar-open"),
+            self.layout.toolbar && !ov,
+            motion::STANDARD,
+        );
         if tk > 0.001 {
             egui::Panel::left("drawing-toolbar")
                 .exact_size(TOOLBAR_W * tk)
@@ -280,7 +293,7 @@ impl App {
                 left: (GAP * (1.0 - tk)).round() as i8,
                 right: if self.layout.widget.is_some() { 0 } else { GAP as i8 },
                 top: GAP as i8,
-                bottom: 0,
+                bottom: if ov { GAP as i8 } else { 0 },
             }))
             .show(ui, |ui| {
                 // A maximized panel leaves no room for the chart.
@@ -290,6 +303,8 @@ impl App {
                 cards.push(ui.max_rect());
                 if self.settings.is_some() {
                     self.settings_page(ui, &t);
+                } else if ov {
+                    self.overview_page(ui, &t);
                 } else {
                     self.chart_grid(ui, &t)
                 }
@@ -372,6 +387,12 @@ impl App {
             egui::Popup::menu(&resp)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.grid_menu(ui, t));
+            let ov = self.overview_open();
+            let resp = crate::overview::button(ui, t, ov);
+            self.overview.drawn.borrow_mut().button = Some(resp.rect);
+            if resp.clicked() {
+                self.set_overview(!ov);
+            }
             w::vdivider(ui, t);
 
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -391,6 +412,11 @@ impl App {
                 .clicked()
                 {
                     self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::new("")));
+                }
+                // The chart's own controls stand down while the overview
+                // shows (search stays: picking a symbol opens its chart).
+                if self.overview_open() {
+                    ui.disable();
                 }
                 if w::bar_button(ui, t, Some(ph::PLUS_CIRCLE), "", "Compare or add symbol", false).clicked() {
                     self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::for_compare()));

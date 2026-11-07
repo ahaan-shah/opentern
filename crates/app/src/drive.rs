@@ -309,6 +309,79 @@ mod tests {
     }
 
     #[test]
+    fn market_overview_opens_zooms_and_opens_a_chart() {
+        use opentern_data::overview::{Market, Period};
+        let mut d = Driver::new("overview");
+        let button = d.app.overview.drawn.borrow().button.expect("the top-bar button");
+        d.click(button.center());
+        assert!(d.app.layout.overview);
+        d.wait(|a| a.overview.boards.contains_key(&Market::Us));
+        d.frame(vec![]);
+        let tiles = d.app.overview.drawn.borrow().tiles.clone();
+        assert!(tiles.len() > 400, "{} tiles", tiles.len());
+        // The biggest tile is the biggest company, and no chart is drawn.
+        let (big, r) = tiles
+            .iter()
+            .max_by(|a, b| a.1.area().total_cmp(&b.1.area()))
+            .cloned()
+            .unwrap();
+        assert_eq!(big, "NASDAQ:NVDA");
+        // Hovering shows the card.
+        d.move_to(r.center());
+        let texts = d.texts();
+        assert!(texts.iter().any(|t| t == "Market cap"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "Change 1D"));
+        // A sector's title zooms into it; Esc comes back out.
+        let (name, bar) = d.app.overview.drawn.borrow().sectors[1].clone();
+        d.click(bar.left_center() + vec2(8.0, 0.0));
+        assert_eq!(d.app.overview.sector.as_deref(), Some(name.as_str()));
+        d.frame(vec![]);
+        let zoomed = d.app.overview.drawn.borrow().tiles.len();
+        let board = &d.app.overview.boards[&Market::Us];
+        let want = board.members.iter().filter(|m| m.sector == name).count();
+        // Every tile drawn is the sector's (the very smallest may be
+        // under a pixel and skipped).
+        let ids: Vec<String> = d
+            .app
+            .overview
+            .drawn
+            .borrow()
+            .tiles
+            .iter()
+            .map(|t| t.0.clone())
+            .collect();
+        assert!(
+            ids.iter()
+                .all(|id| board.members.iter().any(|m| m.symbol.id == *id && m.sector == name))
+        );
+        assert!(zoomed * 10 >= want * 9, "{zoomed} of {want}");
+        d.key(Key::Escape, Modifiers::NONE);
+        assert!(d.app.overview.sector.is_none());
+        assert!(d.app.layout.overview);
+        // The period is remembered.
+        d.app.overview.period = Period::Month;
+        d.app.save_overview();
+        let again = crate::overview::Overview::load(&d.app.store);
+        assert_eq!((again.market, again.period), (Market::Us, Period::Month));
+        // A click on a tile opens its chart and leaves the overview.
+        d.frame(vec![]);
+        let (id, r) = d.app.overview.drawn.borrow().tiles[0].clone();
+        d.click(r.center());
+        assert!(!d.app.layout.overview);
+        assert_eq!(d.app.chart.symbol.id, id);
+        d.wait(|a| !a.chart.bars.is_empty());
+        // Esc closes it too; the other markets load.
+        d.app.set_overview(true);
+        d.app.overview.market = Market::Crypto;
+        d.app.overview_fetch(Market::Crypto);
+        d.wait(|a| a.overview.boards.contains_key(&Market::Crypto));
+        d.frame(vec![]);
+        d.key(Key::Escape, Modifiers::NONE);
+        assert!(!d.app.layout.overview);
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
     fn bar_replay_from_a_clicked_bar() {
         let mut d = Driver::new("replay");
         let n = d.app.chart.bars.len();

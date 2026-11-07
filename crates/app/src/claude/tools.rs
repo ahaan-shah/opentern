@@ -269,6 +269,18 @@ pub fn specs() -> Value {
             &[]
         ),
         tool(
+            "market_overview",
+            "The market overview (the heatmap beside the layout grid button): every member of the S&P 500 (market us), the NIFTY 500 (india) or the largest coins (crypto), grouped by sector, sized by market cap and coloured by the change over a period (1D, 1W, 1M, 3M, YTD or 1Y). Actions: open {market?, period?, sector?} shows it in place of the charts (sector zooms into one); close shows the charts again; get {market?, period?, sector?, top?} answers with each sector's share of the market and size-weighted change, the largest members and the top gainers and losers (top of each, default 10).",
+            json!({
+                "action": s("open, close or get."),
+                "market": s("us, india or crypto (default: the one showing)."),
+                "period": s("1D, 1W, 1M, 3M, YTD or 1Y (default: the one showing)."),
+                "sector": t("string"),
+                "top": t("integer"),
+            }),
+            &["action"]
+        ),
+        tool(
             "custom_index",
             "The user's custom indices (Indices tab): baskets weighted like NSE's indices (free-float market cap by default, base 1000, rebalanced 1 April and 1 October keeping the level), charted as CUSTOM:<TICKER>. Actions: list; get {name} (value, day change, the index's metrics and every member's weight, price and metrics: returns, P/E, EV/EBITDA, growth, margins, RSI, vs 50/200 SMA); compare (every index's numbers side by side); create {name, symbols, weighting?: free_float|market_cap|equal}; edit {name, new_name?, symbols? (replaces the members), add?, remove?, weighting?} (a member change rebalances); rebalance {name} (fresh share counts, new weights, same level); delete {name}; open {name or \"compare\", view?: table|map, metric?} shows it on the Indices tab and the chart. create, edit and rebalance answer with the board once the members' data is in.",
             json!({
@@ -517,6 +529,7 @@ impl App {
             "open_panel" => self.tool_open_panel(a),
             "seasonality" => return self.tool_seasonality((chat, request, id), a),
             "custom_index" => return self.tool_custom_index((chat, request, id), a),
+            "market_overview" => return self.tool_overview((chat, request, id), a),
             other => error(format!("Opentern has no tool called {other}.")),
         })
     }

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Market overview**: a button beside the layout grid button (or `Alt M`) swaps the charts for a heatmap of the S&P 500, the NIFTY 500 or the 150 largest coins. Tiles are sized by market cap, grouped by sector and coloured by the change over 1D, 1W, 1M, 3M, YTD or 1Y. Hover a tile for its price, change and market cap, click a sector to zoom in, click a tile to open its chart, and press Esc to go back. Watchlists and the agent stay on the right.
+- **The agent can use the market overview**: ask it to show a market, or which sectors and stocks led over a period.
+
+### Fixed
+- **New coins show up in search the day they list.** Exchange coin lists now refresh daily instead of weekly, and a search that finds no coin asks Binance about it right away.
+
 ## 0.2.6 (2026-11-05)
 
 Move your Opentern to another computer, as a file or straight over your network.

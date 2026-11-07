@@ -1116,6 +1116,17 @@ trademarks of their owners and are shown only to identify the symbols.
 
 
 ------------------------------------------------------------------------------
+Index member lists (crates/data/assets/overview)
+------------------------------------------------------------------------------
+
+sp500.csv: datasets/s-and-p-500-companies, Open Data Commons Public Domain
+Dedication and License 1.0, https://github.com/datasets/s-and-p-500-companies
+(exchange column added). nifty500.csv: NSE Indices' NIFTY 500 constituent list,
+https://niftyindices.com. Both are refreshed from their sources at run time.
+S&P 500 is a trademark of S&P Dow Jones Indices; NIFTY 500 of NSE Indices.
+
+
+------------------------------------------------------------------------------
 Claude mark (crates/app/assets/claude.svg)
 ------------------------------------------------------------------------------
 

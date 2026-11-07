@@ -469,3 +469,159 @@ pub(crate) fn seasonal_answer(r: Result<Value, String>) -> Value {
 
 /// How long an index's board may take before the agent gets what's there.
 pub const INDEX_WAIT: Duration = Duration::from_secs(90);
+
+// ------------------------------------------------------ market overview
+
+impl App {
+    pub(crate) fn tool_overview(&mut self, (chat, request, id): (u64, &str, &Value), a: &Value) -> Option<Value> {
+        use opentern_data::overview::{Market, Period};
+        let market = match st(a, "market") {
+            "" => self.overview.market,
+            m => match Market::from_key(&norm(m).replace("stocks", "")) {
+                Some(m) => m,
+                None => return Some(error("market is us, india or crypto.")),
+            },
+        };
+        let period = match st(a, "period") {
+            "" => self.overview.period,
+            p => match Period::from_label(p) {
+                Some(p) => p,
+                None => return Some(error("period is 1D, 1W, 1M, 3M, YTD or 1Y.")),
+            },
+        };
+        let mut a = a.clone();
+        a["market"] = json!(market.key());
+        a["period"] = json!(period.label());
+        match norm(st(&a, "action")).as_str() {
+            "close" => {
+                self.set_overview(false);
+                Some(text("The charts are showing again."))
+            }
+            "open" => {
+                self.overview.market = market;
+                self.overview.period = period;
+                self.overview.sector = match st(&a, "sector") {
+                    "" => None,
+                    s => Some(self.overview_sector(market, s).unwrap_or_else(|| s.to_string())),
+                };
+                self.save_overview();
+                self.set_overview(true);
+                Some(text(format!(
+                    "The overview shows {} ({}), {}{}.",
+                    market.label(),
+                    market.universe(),
+                    period.label(),
+                    self.overview
+                        .sector
+                        .as_ref()
+                        .map(|s| format!(", zoomed into {s}"))
+                        .unwrap_or_default()
+                )))
+            }
+            "get" => {
+                if self.overview.boards.contains_key(&market) {
+                    return Some(self.overview_answer(&a));
+                }
+                self.overview_fetch(market);
+                self.claude.waiting.push(Waiting {
+                    chat,
+                    request: request.to_string(),
+                    id: id.clone(),
+                    wait: Wait::Overview { market, args: a },
+                    since: Instant::now(),
+                });
+                None
+            }
+            _ => Some(error("action is open, close or get.")),
+        }
+    }
+
+    /// A sector's name as the board spells it.
+    fn overview_sector(&self, market: opentern_data::overview::Market, s: &str) -> Option<String> {
+        let b = self.overview.boards.get(&market)?;
+        let n = norm(s);
+        b.members
+            .iter()
+            .map(|m| &m.sector)
+            .find(|x| norm(x) == n || norm(x).starts_with(&n))
+            .cloned()
+    }
+
+    pub(crate) fn overview_answer(&self, a: &Value) -> Value {
+        use crate::overview::{sectors, weighted};
+        use opentern_data::overview::{Market, Period, Sizing};
+        let market = Market::from_key(st(a, "market")).unwrap_or_default();
+        let period = Period::from_label(st(a, "period")).unwrap_or_default();
+        let Some(b) = self.overview.boards.get(&market) else {
+            return error(
+                self.overview
+                    .errors
+                    .get(&market)
+                    .cloned()
+                    .unwrap_or_else(|| format!("{} is still loading. Try again in a moment.", market.label())),
+            );
+        };
+        let sector = match st(a, "sector") {
+            "" => None,
+            s => match self.overview_sector(market, s) {
+                Some(s) => Some(s),
+                None => {
+                    let names: Vec<String> = sectors(b, None).into_iter().map(|g| g.0).collect();
+                    return error(format!("No sector called \"{s}\". Sectors: {}.", names.join(", ")));
+                }
+            },
+        };
+        let top = a.get("top").and_then(Value::as_u64).unwrap_or(10).clamp(1, 50) as usize;
+        let groups = sectors(b, sector.as_deref());
+        let total: f64 = groups.iter().map(|g| g.1).sum();
+        let row = |m: &opentern_data::overview::Member| {
+            json!({
+                "symbol": m.symbol.id,
+                "name": m.name,
+                "sector": m.sector,
+                "price": round(m.price),
+                "change_pct": round(m.change(period)),
+                "market_cap": if m.cap.is_finite() { json!(m.cap.round()) } else { Value::Null },
+            })
+        };
+        let mut all: Vec<&opentern_data::overview::Member> =
+            groups.iter().flat_map(|g| g.2.iter().map(|(m, _)| *m)).collect();
+        all.sort_by(|x, y| y.cap.total_cmp(&x.cap));
+        let largest: Vec<Value> = all.iter().take(top).map(|m| row(m)).collect();
+        let mut moved: Vec<&&opentern_data::overview::Member> =
+            all.iter().filter(|m| m.change(period).is_finite()).collect();
+        moved.sort_by(|x, y| y.change(period).total_cmp(&x.change(period)));
+        let gainers: Vec<Value> = moved.iter().take(top).map(|m| row(m)).collect();
+        let losers: Vec<Value> = moved.iter().rev().take(top).map(|m| row(m)).collect();
+        let sectors_json: Vec<Value> = groups
+            .iter()
+            .map(|(name, w, members)| {
+                json!({
+                    "sector": name,
+                    "members": members.len(),
+                    "share_pct": round(w / total * 100.0),
+                    "change_pct": round(weighted(members, period)),
+                })
+            })
+            .collect();
+        pretty(&json!({
+            "market": market.label(),
+            "universe": market.universe(),
+            "period": period.label(),
+            "sector": sector,
+            "sized_by": match b.sizing {
+                Sizing::MarketCap => "market cap",
+                Sizing::Volume => "24h volume (market caps didn't load)",
+                Sizing::Equal => "equal (market caps didn't load)",
+            },
+            "currency": b.currency,
+            "members": all.len(),
+            "market_change_pct": round(weighted(&groups.iter().flat_map(|g| g.2.iter().copied()).collect::<Vec<_>>(), period)),
+            "sectors": sectors_json,
+            "largest": largest,
+            "gainers": gainers,
+            "losers": losers,
+            "units": "change_pct is a percentage (1.5 means 1.5%); share_pct is the sector's share of the map's total size.",
+        }))
+    }
+}
