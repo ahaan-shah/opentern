@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8 (2026-11-08)
+
+Clearer wording for when a custom index starts.
+
+### Changed
+- **Clearer wording for when an index starts.** On an index's board, the "Counts from" column is now "Index starts": **Without it** (the default) starts the index with the older stocks and adds a newer one the day after it lists, keeping their full history; **With it** makes the index wait until that stock has prices, so it's in every day of the index.
+
 ## 0.2.7 (2026-11-08)
 
 A heatmap of the whole market, custom indices that reach back as far as

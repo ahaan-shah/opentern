@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.7):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.8):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -563,8 +563,9 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
-indices with tick boxes / "Counts from" / History, split and bonus
+**0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
+Without it / With it). **0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
+indices with tick boxes / "Index starts" / History, split and bonus
 adjustment, the index math audit; see "Market overview" and "Splits in
 cached prices" below).
 **0.2.6 released 5 Nov 2026** (Export and import, see its section). **0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
@@ -630,7 +631,7 @@ in iteratively. Phase 14 has started (item 3).
    31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
    2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
    5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
-   index history, splits). Website shots
+   index history, splits). v0.2.8 the same day (Index starts wording). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
@@ -1532,7 +1533,7 @@ every data change (scripts re-run on it).
 - **Custom indices chain-link** (`indices::chain`, `IndexDef::chain` =
   `CHAIN`; older saves are rebuilt on load): the first segment holds the
   members whose prices start by t0 (the latest first bar of members in
-  `IndexDef::start`, "Counts from: Index start"; else the oldest first
+  `IndexDef::start`, "Index starts: With it"; else the oldest first
   bar), and each other member joins in a new segment from the first
   common day after its first close (weights set at that close, level
   kept). `IndexDef::off` (tick box) leaves a member out. Any toggle =
@@ -1540,8 +1541,10 @@ every data change (scripts re-run on it).
   rebalances are rebuilt with today's shares. While any index has no
   segments, `poll` fetches members even with the tab shut (else its chart
   says "no longer exists"). Board: History (`span_label`, "+" when
-  `BARS` = 10,000 cut it short) and Counts from columns. Agent:
-  `custom_index` `include`/`exclude`/`counts_from`.
+  `BARS` = 10,000 cut it short) and "Index starts" (Without it / With
+  it; renamed from "Counts from" in 0.2.8, the maintainer found it
+  unclear) columns. Agent: `custom_index` `include`/`exclude`/
+  `index_starts` (old `counts_from` still accepted).
 - **Index math (audited Nov 2026):** new weights start on `start` and
   are set at `link`'s anchor = the last day before it the old weights
   valued (never a day lost or doubled); a member with no bar on a day

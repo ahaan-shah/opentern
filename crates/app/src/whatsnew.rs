@@ -31,6 +31,16 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.8",
+        items: &[Item {
+            icon: ph::CHART_PIE_SLICE,
+            title: "Clearer choice of when an index starts",
+            body: "For each stock in a custom index, \"Index starts\" is Without it (added the day after it \
+                   lists, keeping the older stocks' full history) or With it (the index waits for it).",
+            image: None,
+        }],
+    },
+    Notes {
         version: "0.2.7",
         items: &[
             Item {
