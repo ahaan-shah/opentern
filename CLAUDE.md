@@ -1487,9 +1487,10 @@ every data change (scripts re-run on it).
   calendar months, YTD vs the last close of the previous year (UTC); too
   little history = NaN (grey tile). Colour scale per period (±3% 1D … ±30%).
 - UI (`app/src/overview.rs`): sectors squarified by total size, then members
-  (reuses `indices::squarify`); `fit_height` grows the map (up to 4 views,
-  in a ScrollArea) until every sector has room for its title and tiles;
-  sector titles zoom (`Overview::sector`), Esc
+  (reuses `indices::squarify`); `plan` keeps the map filling the view as
+  before; sectors too small there for their name (the maintainer: don't
+  change the layout) move to a strip below it, scrolled to (floating
+  scrollbar; no ScrollArea when all fit); sector titles zoom (`Overview::sector`), Esc
   unzooms then closes; tile labels by size (logo + ticker + %, ticker + %,
   one line for wide-short, logo only); hover card on the Tooltip layer;
   refresh every 3 min while open, 30 s after a failure. `Overview::drawn`

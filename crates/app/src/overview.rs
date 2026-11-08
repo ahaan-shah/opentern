@@ -155,24 +155,37 @@ fn price(v: f64) -> String {
     crate::format::grouped(v, d)
 }
 
-/// Smallest room a sector needs: its title and a row of small tiles.
-const SECTOR_MIN_W: f32 = 96.0;
-const SECTOR_MIN_H: f32 = SECTOR_H + 44.0;
+/// Least room a sector needs for its name over its tiles.
+const SECTOR_MIN_W: f32 = 64.0;
+const SECTOR_MIN_H: f32 = SECTOR_H + 24.0;
 
-/// How tall the map has to be for every sector to get `SECTOR_MIN_W` ×
-/// `SECTOR_MIN_H`: the view's height when they fit, else taller (up to
-/// four views) so it scrolls.
-pub fn fit_height(weights: &[f64], w: f32, h: f32) -> f32 {
-    let fits = |hh: f32| {
-        crate::indices::squarify(weights, Rect::from_min_size(Pos2::ZERO, vec2(w, hh)))
-            .iter()
-            .all(|r| r.width() - 3.0 >= SECTOR_MIN_W && r.height() - 3.0 >= SECTOR_MIN_H)
-    };
-    let mut hh = h;
-    while hh < h * 4.0 && !fits(hh) {
-        hh *= 1.08;
+/// Where each sector goes (relative to the map's top left) for a view
+/// `w` × `view_h`, and the map's full height. The map fills the view as
+/// always; sectors too small there for their name move to a strip below
+/// it (scrolled to), laid out the same way.
+pub fn plan(weights: &[f64], w: f32, view_h: f32) -> (Vec<Rect>, f32) {
+    let fits = |r: &Rect| r.width() - 3.0 >= SECTOR_MIN_W && r.height() - 3.0 >= SECTOR_MIN_H;
+    let view = Rect::from_min_size(Pos2::ZERO, vec2(w, view_h));
+    // Biggest first: drop the smallest until the rest all fit.
+    let mut n = weights.len();
+    let mut main = crate::indices::squarify(&weights[..n], view);
+    while n > 1 && !main.iter().all(fits) {
+        n -= 1;
+        main = crate::indices::squarify(&weights[..n], view);
     }
-    hh.min(h * 4.0).round()
+    let rest = &weights[n..];
+    if rest.is_empty() {
+        return (main, view_h);
+    }
+    let mut h = (view_h * 0.25).max(SECTOR_MIN_H * 2.0);
+    let strip = |h: f32| crate::indices::squarify(rest, Rect::from_min_size(pos2(0.0, view_h), vec2(w, h)));
+    let mut below = strip(h);
+    while h < view_h * 2.0 && !below.iter().all(fits) {
+        h *= 1.1;
+        below = strip(h);
+    }
+    main.extend(below);
+    (main, view_h + h)
 }
 
 /// A sector: its name, total size, and members with their sizes.
@@ -359,27 +372,34 @@ impl App {
             }
             return;
         };
-        // Every sector gets room for its name and a few tiles; when they
-        // can't all fit, the map grows downwards and scrolls.
+        let view_h = map.height();
         let full = if self.overview.sector.is_none() {
-            let groups = sectors(&board, None);
-            let weights: Vec<f64> = groups.iter().map(|g| g.1).collect();
-            fit_height(&weights, map.width(), map.height())
+            let weights: Vec<f64> = sectors(&board, None).iter().map(|g| g.1).collect();
+            plan(&weights, map.width(), view_h).1
         } else {
-            map.height()
+            view_h
         };
-        let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
-        c.set_clip_rect(map.intersect(ui.clip_rect()));
-        let key = (m.key(), self.overview.sector.clone());
-        let out = egui::ScrollArea::vertical()
-            .id_salt(("overview-scroll", key))
-            .scroll_source(egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR)
-            .auto_shrink([false, false])
-            .show(&mut c, |ui| {
-                let (r, _) = ui.allocate_exact_size(vec2(map.width(), full), Sense::hover());
-                self.overview_map(ui, t, &board, r)
-            });
-        if let Some(click) = out.inner {
+        let out = if full <= view_h {
+            self.overview_map(ui, t, &board, map, view_h)
+        } else {
+            // Sectors that didn't fit sit below: scroll down to them.
+            let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
+            c.set_clip_rect(map.intersect(ui.clip_rect()));
+            c.style_mut().spacing.scroll = egui::style::ScrollStyle::floating();
+            egui::ScrollArea::vertical()
+                .id_salt(("overview-scroll", m.key()))
+                .scroll_source(
+                    egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR,
+                )
+                .auto_shrink([false, false])
+                .show(&mut c, |ui| {
+                    let w = ui.available_width().min(map.width());
+                    let (r, _) = ui.allocate_exact_size(vec2(w, full), Sense::hover());
+                    self.overview_map(ui, t, &board, r, view_h)
+                })
+                .inner
+        };
+        if let Some(click) = out {
             match click {
                 Click::Tile(sym) => self.open_symbol_synced(sym),
                 Click::Sector(s) => self.overview.sector = Some(s),
@@ -455,7 +475,7 @@ impl App {
     }
 
     /// The map. Returns what was clicked.
-    fn overview_map(&self, ui: &mut Ui, t: &Theme, board: &Board, area: Rect) -> Option<Click> {
+    fn overview_map(&self, ui: &mut Ui, t: &Theme, board: &Board, area: Rect, view_h: f32) -> Option<Click> {
         let resp = ui.interact(area, Id::new("overview-map"), Sense::click());
         // What shows of the map (it may scroll).
         let seen = area.intersect(ui.clip_rect());
@@ -474,7 +494,16 @@ impl App {
         }
         let weights: Vec<f64> = groups.iter().map(|g| g.1).collect();
         let gap = 3.0;
-        for ((name, _, members), r) in groups.iter().zip(crate::indices::squarify(&weights, area)) {
+        let rects: Vec<Rect> = if only.is_some() {
+            crate::indices::squarify(&weights, area)
+        } else {
+            plan(&weights, area.width(), view_h)
+                .0
+                .into_iter()
+                .map(|r| r.translate(area.min.to_vec2()))
+                .collect()
+        };
+        for ((name, _, members), r) in groups.iter().zip(rects) {
             let r = r.shrink(gap / 2.0);
             if r.width() < 2.0 || r.height() < 2.0 {
                 continue;
@@ -757,5 +786,39 @@ fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
             Sizing::Equal => "Market caps didn't load, so every tile is the same size".into(),
         };
         resp.on_hover_text(sized);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn small_sectors_move_below_the_map() {
+        // Sectors that fit: the map is the view, laid out as ever.
+        let even = [5.0, 4.0, 3.0, 2.0];
+        let (rects, h) = plan(&even, 1000.0, 600.0);
+        assert_eq!(h, 600.0);
+        let view = Rect::from_min_size(Pos2::ZERO, vec2(1000.0, 600.0));
+        assert_eq!(rects, crate::indices::squarify(&even, view));
+        // Tiny ones go to a strip below, and every sector has room for
+        // its name.
+        let mut w = vec![400.0, 300.0, 200.0, 100.0];
+        w.extend([0.3, 0.2, 0.2, 0.1]);
+        let (rects, h) = plan(&w, 1000.0, 600.0);
+        assert!(h > 600.0);
+        assert_eq!(rects.len(), w.len());
+        for r in &rects[..4] {
+            assert!(r.bottom() <= 600.5);
+        }
+        for r in &rects {
+            assert!(
+                r.width() - 3.0 >= SECTOR_MIN_W && r.height() - 3.0 >= SECTOR_MIN_H,
+                "{r:?}"
+            );
+        }
+        for r in &rects[4..] {
+            assert!(r.top() >= 599.5 && r.bottom() <= h + 0.5);
+        }
     }
 }
