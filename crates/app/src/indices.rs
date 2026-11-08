@@ -876,7 +876,7 @@ pub struct BoardRow {
     pub symbol: Symbol,
     /// Ticked: counts in the index.
     pub included: bool,
-    /// Counts from the index's start, not from its listing.
+    /// "Index starts: With it": the index waits for this member.
     pub from_start: bool,
     /// Its prices: first and last bar, and whether there may be older
     /// ones than were fetched.
@@ -1072,7 +1072,7 @@ enum Click {
     Index(String),
     /// A member's tick box (its id).
     Toggle(String),
-    /// A member's "Counts from" (its id).
+    /// A member's "Index starts" (its id).
     Counts(String),
 }
 
@@ -1081,7 +1081,7 @@ struct TRow {
     label: String,
     /// A member's tick box: `Some(ticked)`; `None` for no box.
     included: Option<bool>,
-    /// A member's "Counts from": `Some(from the start)`.
+    /// A member's "Index starts": `Some(with it)`.
     from_start: Option<bool>,
     history: Option<(i64, i64, bool)>,
     symbol: Option<Symbol>,
@@ -1932,7 +1932,7 @@ fn metric_table(
     }
     if boxes {
         fixed.push(("History", 86.0));
-        fixed.push(("Counts from", 112.0));
+        fixed.push(("Index starts", 112.0));
     }
     fixed.push((if weights { "Price" } else { "Value" }, 92.0));
     fixed.push(("1D", 78.0));
@@ -2043,7 +2043,7 @@ fn metric_table(
             let tip = match *name {
                 "Weight" => "Today's weight in the index",
                 "History" => "How far back its prices go",
-                "Counts from" => "Its listing: it joins the index the day after its first close, so the index reaches back as far as its oldest members. Index start: the index begins only once it has prices. Click a row's to switch.",
+                "Index starts" => "Without it: the index starts with the older stocks and adds this one the day after it lists, keeping their full history. With it: the index waits until this stock has prices, so it's in every day of the index. Click a row's to switch.",
                 "1D" => "Change since the last close",
                 _ => "",
             };
@@ -2193,13 +2193,13 @@ fn metric_table(
                                         .on_hover_text(format!("Prices since {}", day_label(a)));
                                 }
                             }
-                            "Counts from" => {
+                            "Index starts" => {
                                 if let (Some(start), Some(s)) = (row.from_start, &row.symbol) {
                                     let hit = ui
                                         .interact(cell, ui.id().with((salt, "counts", &s.id)), Sense::click())
                                         .on_hover_cursor(egui::CursorIcon::PointingHand);
                                     let c = if hit.hovered() { t.text } else { t.text2 };
-                                    let text = if start { "Index start" } else { "Its listing" };
+                                    let text = if start { "With it" } else { "Without it" };
                                     let font = theme::regular(12.5);
                                     let tw = p.layout_no_wrap(text.into(), font.clone(), c).size().x;
                                     p.text(right, Align2::RIGHT_CENTER, text, font, c);
@@ -2208,9 +2208,9 @@ fn metric_table(
                                         p.hline(right.x - tw..=right.x, y, Stroke::new(1.0, c.gamma_multiply(0.5)));
                                     }
                                     let hit = hit.on_hover_text(if start {
-                                        "Counted from the index's start. Click to count it from its listing."
+                                        "The index waits for this stock, so it's in every day of the index. Click to start without it."
                                     } else {
-                                        "Joins the index the day after its first close. Click to count it from the index's start."
+                                        "The index starts without this stock and adds it the day after it lists. Click to start with it."
                                     });
                                     if hit.clicked() {
                                         click = Some(Click::Counts(s.id.clone()));
@@ -2898,7 +2898,7 @@ mod tests {
                 .map(|b| b.close)
                 .collect::<Vec<_>>()
         };
-        // Its listing (the default): the old member alone until the young
+        // Without it (the default): the old member alone until the young
         // one's first close (day 2), then both, equal again, level kept.
         let mut d = def(&["OLD", "NEW"], Weighting::Equal);
         assert!(settle(&mut d, &map, &funds, &none, 0));
@@ -2912,7 +2912,7 @@ mod tests {
             assert!((a - b).abs() < 1e-9, "{c:?}");
         }
         assert!(!settle(&mut d, &map, &funds, &none, 0));
-        // Index start: the index waits for it.
+        // With it: the index waits for it.
         d.start = vec!["NEW".into()];
         d.rebuild();
         assert!(settle(&mut d, &map, &funds, &none, 0));

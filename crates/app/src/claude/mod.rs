@@ -2921,9 +2921,9 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
                 format!("Ticked members of {}", s("name")),
                 format!("Tick members of {}", s("name")),
             ),
-            "counts_from" => (
-                format!("Set when members of {} count from", s("name")),
-                format!("Set when members of {} count from", s("name")),
+            "index_starts" | "counts_from" => (
+                format!("Set when {} starts", s("name")),
+                format!("Set when {} starts", s("name")),
             ),
             "exclude" => (
                 format!("Left members out of {}", s("name")),

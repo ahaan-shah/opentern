@@ -135,7 +135,7 @@ impl App {
                 if !r.included {
                     m["left_out"] = json!(true);
                 }
-                m["counts_from"] = json!(if r.from_start { "index start" } else { "its listing" });
+                m["index_starts"] = json!(if r.from_start { "with it" } else { "without it" });
                 if let Some((a, b, capped)) = r.history {
                     m["prices_since"] = json!(crate::indices::day_label(a));
                     m["history_years"] = json!(round((b - a) as f64 / 86_400_000.0 / 365.25));
@@ -359,14 +359,20 @@ impl App {
                 }
                 return self.wait_index(ctx, &d.ticker, false);
             }
-            "countsfrom" => {
+            "indexstarts" | "countsfrom" => {
                 let Some(d) = def else {
                     return Some(self.no_index(name));
                 };
-                let start = match norm(st(a, "from")).as_str() {
-                    "listing" | "itslisting" => false,
-                    "start" | "indexstart" => true,
-                    _ => return Some(error("from is listing or start.")),
+                // `starts`: with or without it (older chats: `from` listing|start).
+                let says = if st(a, "starts").is_empty() {
+                    st(a, "from")
+                } else {
+                    st(a, "starts")
+                };
+                let start = match norm(says).as_str() {
+                    "without" | "withoutit" | "listing" | "itslisting" => false,
+                    "with" | "withit" | "start" | "indexstart" => true,
+                    _ => return Some(error("starts is with or without.")),
                 };
                 let mut missing = Vec::new();
                 for x in strings(a, "symbols") {
