@@ -395,6 +395,6 @@ pub fn paint_measure(painter: &egui::Painter, chart: &Chart, du: &DrawUi, x: XMa
     if let Some(m) = du.measure {
         let g = geo(chart, x, y, rect);
         let p = painter.with_clip_rect(rect);
-        draw::paint_measure(&p, &chart.bars, chart.symbol.tick_size, &g, m.a, m.b);
+        draw::paint_measure(&p, &chart.symbol, &chart.bars, &g, m.a, m.b);
     }
 }

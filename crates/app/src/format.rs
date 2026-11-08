@@ -1,6 +1,7 @@
 //! Number and time formatting for scales, legends and the watchlist.
 
-use opentern_core::Timeframe;
+use opentern_core::{Symbol, Timeframe};
+use opentern_data::overview::Market;
 
 /// A price with fixed decimals and no thousands separators (as on
 /// TradingView's price scale).
@@ -38,13 +39,163 @@ pub fn grouped(v: f64, decimals: usize) -> String {
     out
 }
 
-/// Volume-style compact numbers: 950, 1.25K, 3.4M, 2.1B.
+/// How big numbers read for a market: millions, billions and trillions,
+/// or lakhs and crores. Set per market in Settings → General.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Numbers {
+    Intl,
+    Indian,
+}
+
+impl Numbers {
+    pub fn key(self) -> &'static str {
+        match self {
+            Numbers::Intl => "intl",
+            Numbers::Indian => "indian",
+        }
+    }
+
+    pub fn from_key(s: &str) -> Option<Numbers> {
+        match s {
+            "intl" => Some(Numbers::Intl),
+            "indian" => Some(Numbers::Indian),
+            _ => None,
+        }
+    }
+
+    /// Indian stocks in crores, the rest in billions.
+    pub fn default_for(m: Market) -> Numbers {
+        match m {
+            Market::India => Numbers::Indian,
+            _ => Numbers::Intl,
+        }
+    }
+}
+
+/// The settings key holding each market's style.
+pub const NUMBERS_KEY: &str = "number_style";
+
+static STYLES: std::sync::Mutex<[Option<Numbers>; 3]> = std::sync::Mutex::new([None; 3]);
+
+fn slot(m: Market) -> usize {
+    match m {
+        Market::Us => 0,
+        Market::India => 1,
+        Market::Crypto => 2,
+    }
+}
+
+/// The style a market's numbers use.
+pub fn numbers(m: Market) -> Numbers {
+    STYLES
+        .lock()
+        .ok()
+        .and_then(|s| s[slot(m)])
+        .unwrap_or_else(|| Numbers::default_for(m))
+}
+
+pub fn set_numbers(m: Market, n: Numbers) {
+    if let Ok(mut s) = STYLES.lock() {
+        s[slot(m)] = Some(n);
+    }
+}
+
+/// Loads the styles saved as `{"us":"intl","india":"indian",...}`.
+pub fn load_numbers(json: Option<&str>) {
+    let v: serde_json::Value = json.and_then(|s| serde_json::from_str(s).ok()).unwrap_or_default();
+    for m in Market::ALL {
+        let n = v[m.key()]
+            .as_str()
+            .and_then(Numbers::from_key)
+            .unwrap_or_else(|| Numbers::default_for(m));
+        set_numbers(m, n);
+    }
+}
+
+pub fn numbers_json() -> String {
+    let mut o = serde_json::Map::new();
+    for m in Market::ALL {
+        o.insert(m.key().into(), numbers(m).key().into());
+    }
+    serde_json::Value::Object(o).to_string()
+}
+
+/// Which market's style a symbol's numbers follow: NSE/BSE are India,
+/// coins are crypto, everything else reads like US stocks.
+pub fn market_of(s: &Symbol) -> Market {
+    if s.kind == opentern_core::AssetKind::Crypto {
+        Market::Crypto
+    } else if matches!(s.exchange(), "NSE" | "BSE") || s.id.ends_with(".NS") || s.id.ends_with(".BO") {
+        Market::India
+    } else {
+        Market::Us
+    }
+}
+
+/// A big number in a market's style: 1.25K, 3.4M, 2.1B, 4.51T; or
+/// 1.25K, 3.4L, 2.1Cr, and grouped crores past a thousand crore
+/// (9,04,393Cr).
+pub fn big(v: f64, m: Market) -> String {
+    match numbers(m) {
+        Numbers::Intl => compact(v),
+        Numbers::Indian => indian(v),
+    }
+}
+
+/// Volumes and other counts for a symbol, in its market's style.
+pub fn compact_for(v: f64, s: &Symbol) -> String {
+    big(v, market_of(s))
+}
+
+/// Lakhs and crores.
+pub fn indian(v: f64) -> String {
+    if !v.is_finite() {
+        return "—".into();
+    }
+    let a = v.abs();
+    if a >= 1e10 {
+        // A thousand crore and up: whole crores, grouped the Indian way.
+        let sign = if v < 0.0 { "−" } else { "" };
+        return format!("{sign}{}Cr", indian_grouped((a / 1e7).round() as u64));
+    }
+    let (d, s) = if a >= 1e7 {
+        (1e7, "Cr")
+    } else if a >= 1e5 {
+        (1e5, "L")
+    } else if a >= 1e3 {
+        (1e3, "K")
+    } else {
+        return trim(format!("{v:.2}"));
+    };
+    format!("{}{s}", trim(format!("{:.2}", v / d)))
+}
+
+/// 9043930 → "90,43,930".
+pub fn indian_grouped(n: u64) -> String {
+    let s = n.to_string();
+    if s.len() <= 3 {
+        return s;
+    }
+    let (head, last3) = s.split_at(s.len() - 3);
+    let mut out = String::new();
+    for (k, ch) in head.chars().enumerate() {
+        if k > 0 && (head.len() - k) % 2 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    format!("{out},{last3}")
+}
+
+/// Volume-style compact numbers: 950, 1.25K, 3.4M, 2.1B, 4.51T.
 pub fn compact(v: f64) -> String {
     if !v.is_finite() {
         return "—".into();
     }
     let a = v.abs();
-    let (d, s) = if a >= 1e9 {
+    let (d, s) = if a >= 1e12 {
+        (1e12, "T")
+    } else if a >= 1e9 {
         (1e9, "B")
     } else if a >= 1e6 {
         (1e6, "M")
@@ -142,6 +293,26 @@ pub fn elide_to(p: &egui::Painter, text: &str, font: &egui::FontId, max_w: f32) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lakhs_and_crores() {
+        assert_eq!(compact(4.51e12), "4.51T");
+        assert_eq!(indian(950.0), "950");
+        assert_eq!(indian(250_000.0), "2.5L");
+        assert_eq!(indian(31_200_000.0), "3.12Cr");
+        assert_eq!(indian(9_000_000_000.0), "900Cr");
+        assert_eq!(indian(9.04393e12), "9,04,393Cr");
+        assert_eq!(indian_grouped(1_234_567_890), "1,23,45,67,890");
+        assert_eq!(indian_grouped(999), "999");
+        let sym = |id: &str, kind| Symbol {
+            kind,
+            ..Symbol::bare(id)
+        };
+        use opentern_core::AssetKind;
+        assert_eq!(market_of(&sym("NSE:TCS", AssetKind::Stock)), Market::India);
+        assert_eq!(market_of(&sym("BINANCE:BTCUSDT", AssetKind::Crypto)), Market::Crypto);
+        assert_eq!(market_of(&sym("NASDAQ:AAPL", AssetKind::Stock)), Market::Us);
+    }
 
     #[test]
     fn numbers() {

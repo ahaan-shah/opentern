@@ -89,10 +89,11 @@ struct PaneGeo {
 
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
     let p = chart.precision();
+    let market = format::market_of(&chart.symbol);
     move |v: f64| match f {
         Format::Price => format::price(v, p),
         Format::Fixed(d) => format::price(v, d as usize),
-        Format::Volume => format::compact(v),
+        Format::Volume => format::big(v, market),
     }
 }
 
@@ -810,7 +811,7 @@ pub fn show(
                         // No "-0" labels.
                         let v = if v.abs() < step * 1e-6 { 0.0 } else { v };
                         let s = match g.format {
-                            Format::Volume => format::compact(v),
+                            Format::Volume => format::compact_for(v, &chart.symbol),
                             Format::Price => format::price(v, d.max(chart.precision().min(d))),
                             Format::Fixed(_) => format::price(v, d),
                         };
@@ -2702,7 +2703,7 @@ fn legend(
                     let r = painter.text(
                         pos2(xx, pos.y + 1.0),
                         Align2::LEFT_TOP,
-                        format!("Vol {}", format::compact(b.volume)),
+                        format!("Vol {}", format::compact_for(b.volume, &chart.symbol)),
                         font.clone(),
                         pal.text2,
                     );

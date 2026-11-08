@@ -450,14 +450,17 @@ pub(crate) fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>
     let back = |span: jiff::Span| zone.checked_sub(span).map(|z| z.timestamp().as_second()).unwrap_or(0);
     out[Period::Day.index()] = match day {
         Some(d) => d,
+        // The last close of an earlier day than the latest bar's: the
+        // previous session's close, as the watchlist and charts use.
         None => {
-            // The close before the latest one.
-            let valid: Vec<f64> = closes.iter().copied().filter(|c| c.is_finite()).collect();
-            if valid.len() >= 2 {
-                pct(valid[valid.len() - 2])
-            } else {
-                f64::NAN
-            }
+            let latest = (0..closes.len()).rev().find(|&i| closes[i].is_finite());
+            latest.map_or(f64::NAN, |i| {
+                let today = times[i].div_euclid(86_400);
+                (0..i)
+                    .rev()
+                    .find(|&j| closes[j].is_finite() && times[j].div_euclid(86_400) < today)
+                    .map_or(f64::NAN, |j| pct(closes[j]))
+            })
         }
     };
     out[Period::Week.index()] = pct(at(back(jiff::Span::new().days(7))));
@@ -492,11 +495,12 @@ fn tail(closes: &[f64]) -> Vec<f32> {
     v[v.len().saturating_sub(66)..].to_vec()
 }
 
-/// One stock's spark: price, 1D change, closes and times.
+/// One stock's spark: price, closes and times. Yahoo's
+/// `fulldayChangePercent` isn't used: it isn't measured from the previous
+/// close (NVDA +3.91% when the move was 181.60 → 186.64, +2.78%).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Spark {
     pub price: f64,
-    pub day: Option<f64>,
     pub times: Vec<i64>,
     pub closes: Vec<f64>,
 }
@@ -520,15 +524,7 @@ pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
             let price = q["fulldayPrice"]
                 .as_f64()
                 .or_else(|| closes.iter().rev().copied().find(|c| c.is_finite()))?;
-            Some((
-                k.clone(),
-                Spark {
-                    price,
-                    day: q["fulldayChangePercent"].as_f64(),
-                    times,
-                    closes,
-                },
-            ))
+            Some((k.clone(), Spark { price, times, closes }))
         })
         .collect()
 }
@@ -547,7 +543,7 @@ fn sparks(tickers: &[String]) -> HashMap<String, Spark> {
                     let Some(chunk) = chunks.get(i) else { break };
                     let list: Vec<String> = chunk.iter().map(|t| crate::yahoo::urlencode(t)).collect();
                     let url = format!(
-                        "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=1y&interval=1d",
+                        "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=2y&interval=1d",
                         list.join(",")
                     );
                     if let Ok(v) = provider::get_json(&agent, &url)
@@ -749,7 +745,7 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 industry: x.industry.clone(),
                 cap: shares.get(y).map_or(f64::NAN, |n| n * s.price),
                 price: s.price,
-                change: changes(&s.times, &s.closes, s.price, s.day, now_s),
+                change: changes(&s.times, &s.closes, s.price, None, now_s),
                 closes: tail(&s.closes),
             })
         })
@@ -1048,6 +1044,33 @@ fn binance_closes(pairs: &[String]) -> HashMap<String, (Vec<i64>, Vec<f64>)> {
     out
 }
 
+/// Binance's current UTC day per pair: (open, last), as the watchlist's
+/// daily change uses. A hundred pairs a request.
+fn binance_days(pairs: &[String]) -> HashMap<String, (f64, f64)> {
+    let agent = provider::agent();
+    let mut out = HashMap::new();
+    for chunk in pairs.chunks(100) {
+        let list: Vec<String> = chunk.iter().map(|p| format!("%22{p}%22")).collect();
+        let path = format!("/api/v3/ticker/tradingDay?type=MINI&symbols=%5B{}%5D", list.join(","));
+        if let Ok(v) = crate::binance::get(&agent, &path) {
+            out.extend(parse_days(&v));
+        }
+    }
+    out
+}
+
+pub(crate) fn parse_days(v: &serde_json::Value) -> HashMap<String, (f64, f64)> {
+    v.as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|r| {
+            let open = provider::num(&r["openPrice"]).filter(|o| *o > 0.0)?;
+            let last = provider::num(&r["lastPrice"]).filter(|l| *l > 0.0)?;
+            Some((r["symbol"].as_str()?.to_string(), (open, last)))
+        })
+        .collect()
+}
+
 /// How many coins the map shows.
 const COINS: usize = 150;
 
@@ -1140,25 +1163,37 @@ fn crypto_board(dir: &Path) -> Result<Board> {
             (members, Sizing::Volume, "Binance 24h volume".to_string())
         }
     };
-    // History from Binance: the periods CoinGecko doesn't give, and the
-    // hover card's line.
+    // Binance wherever a coin trades there, so every period is measured
+    // like the charts and watchlist: 1D from today's UTC open, the rest
+    // from daily closes, all to the live price. CoinGecko's rolling
+    // figures only fill in where Binance has too little history.
     let binance: Vec<String> = members
         .iter()
         .filter_map(|m| m.symbol.id.strip_prefix("BINANCE:").map(str::to_string))
         .collect();
-    let closes = binance_closes(&binance);
+    let (closes, days) = std::thread::scope(|s| {
+        let days = s.spawn(|| binance_days(&binance));
+        (binance_closes(&binance), days.join().unwrap_or_default())
+    });
     for m in &mut members {
-        let Some((t, c)) = m.symbol.id.strip_prefix("BINANCE:").and_then(|p| closes.get(p)) else {
+        let Some(pair) = m.symbol.id.strip_prefix("BINANCE:") else {
             continue;
         };
-        let last = c.iter().rev().copied().find(|x| x.is_finite()).unwrap_or(m.price);
-        let from = changes(t, c, last, None, now_s);
-        for (i, v) in from.iter().enumerate() {
-            if !m.change[i].is_finite() {
-                m.change[i] = *v;
-            }
+        let day = days.get(pair).copied();
+        if let Some((_, last)) = day {
+            m.price = last;
         }
-        m.closes = tail(c);
+        if let Some((t, c)) = closes.get(pair) {
+            for (i, v) in changes(t, c, m.price, None, now_s).iter().enumerate() {
+                if v.is_finite() {
+                    m.change[i] = *v;
+                }
+            }
+            m.closes = tail(c);
+        }
+        if let Some((open, last)) = day {
+            m.change[Period::Day.index()] = (last / open - 1.0) * 100.0;
+        }
     }
     if members.is_empty() {
         return Err(Error::Bad(
@@ -1388,7 +1423,7 @@ mod tests {
         )
         .unwrap();
         let s = &parse_spark(&v)["AAPL"];
-        assert_eq!((s.price, s.day), (3.1, Some(-0.4)));
+        assert_eq!(s.price, 3.1);
         assert!(s.closes[1].is_nan());
         let v: serde_json::Value = serde_json::from_str(
             r#"{"finance":{"result":[{"quotes":[{"symbol":"NVDA","marketCap":4.5e12,"regularMarketPrice":186.6,"exchange":"NMS"},{"symbol":"GS-PD","regularMarketPrice":20}]}]}}"#,

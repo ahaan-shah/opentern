@@ -1042,7 +1042,15 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
 /// The quick measure, as on TradingView: a blue (up) or red (down) box
 /// with arrows, and a label with the change, its percent and ticks, the
 /// bars and time between, and the volume traded.
-pub fn paint_measure(p: &Painter, bars: &[opentern_core::Bar], tick: f64, g: &Geo, a: Anchor, b: Anchor) {
+pub fn paint_measure(
+    p: &Painter,
+    sym: &opentern_core::Symbol,
+    bars: &[opentern_core::Bar],
+    g: &Geo,
+    a: Anchor,
+    b: Anchor,
+) {
+    let tick = sym.tick_size;
     let (pa, pb) = (pos2(g.tm.x(a.t), g.y.y(a.p)), pos2(g.tm.x(b.t), g.y.y(b.p)));
     let up = b.p >= a.p;
     let col = measure_color(up);
@@ -1095,7 +1103,7 @@ pub fn paint_measure(p: &Painter, bars: &[opentern_core::Bar], tick: f64, g: &Ge
         format::grouped(ticks.abs(), 0),
     );
     if vol > 0.0 {
-        text.push_str(&format!("\nVol {}", format::compact(vol)));
+        text.push_str(&format!("\nVol {}", format::compact_for(vol, sym)));
     }
     let mut job = egui::text::LayoutJob::simple(text, theme::medium(12.0), Color32::WHITE, f32::INFINITY);
     job.halign = egui::Align::Center;

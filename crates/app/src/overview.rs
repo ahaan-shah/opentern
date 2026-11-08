@@ -125,7 +125,8 @@ pub fn short(m: &Member) -> String {
     t.to_string()
 }
 
-pub fn money(v: f64, currency: &str) -> String {
+/// A market cap or volume in the market's style (Settings → General).
+pub fn money(v: f64, currency: &str, market: Market) -> String {
     if !v.is_finite() {
         return "—".into();
     }
@@ -134,17 +135,13 @@ pub fn money(v: f64, currency: &str) -> String {
         "USD" => "$",
         _ => "",
     };
-    let a = v.abs();
-    let (d, s) = if a >= 1e12 {
-        (1e12, "T")
-    } else if a >= 1e9 {
-        (1e9, "B")
-    } else if a >= 1e6 {
-        (1e6, "M")
-    } else {
-        (1.0, "")
+    let n = crate::format::big(v, market);
+    // Crores read with a space: ₹9,04,393 Cr.
+    let n = match n.strip_suffix("Cr") {
+        Some(x) => format!("{x} Cr"),
+        None => n,
     };
-    format!("{sign}{:.2}{s}", v / d)
+    format!("{sign}{n}")
 }
 
 fn price(v: f64) -> String {
@@ -156,6 +153,26 @@ fn price(v: f64) -> String {
         8
     };
     crate::format::grouped(v, d)
+}
+
+/// Smallest room a sector needs: its title and a row of small tiles.
+const SECTOR_MIN_W: f32 = 96.0;
+const SECTOR_MIN_H: f32 = SECTOR_H + 44.0;
+
+/// How tall the map has to be for every sector to get `SECTOR_MIN_W` ×
+/// `SECTOR_MIN_H`: the view's height when they fit, else taller (up to
+/// four views) so it scrolls.
+pub fn fit_height(weights: &[f64], w: f32, h: f32) -> f32 {
+    let fits = |hh: f32| {
+        crate::indices::squarify(weights, Rect::from_min_size(Pos2::ZERO, vec2(w, hh)))
+            .iter()
+            .all(|r| r.width() - 3.0 >= SECTOR_MIN_W && r.height() - 3.0 >= SECTOR_MIN_H)
+    };
+    let mut hh = h;
+    while hh < h * 4.0 && !fits(hh) {
+        hh *= 1.08;
+    }
+    hh.min(h * 4.0).round()
 }
 
 /// A sector: its name, total size, and members with their sizes.
@@ -218,9 +235,10 @@ pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
         } else {
             lerp_color(t.text2, t.text, hover.max(0.35))
         };
-        let r = Rect::from_center_size(rect.center(), vec2(15.0, 15.0));
-        let s = Stroke::new(1.3, c);
-        p.rect_stroke(r, CornerRadius::same(2), s, egui::StrokeKind::Middle);
+        // The size and weight of the Phosphor icons beside it (13 pt).
+        let r = Rect::from_center_size(rect.center(), vec2(11.0, 11.0));
+        let s = Stroke::new(1.0, c);
+        p.rect_stroke(r, CornerRadius::same(1), s, egui::StrokeKind::Middle);
         let x = r.left() + r.width() * 0.55;
         p.vline(x, r.y_range(), s);
         p.hline(x..=r.right(), r.top() + r.height() * 0.48, s);
@@ -341,7 +359,27 @@ impl App {
             }
             return;
         };
-        if let Some(click) = self.overview_map(ui, t, &board, map) {
+        // Every sector gets room for its name and a few tiles; when they
+        // can't all fit, the map grows downwards and scrolls.
+        let full = if self.overview.sector.is_none() {
+            let groups = sectors(&board, None);
+            let weights: Vec<f64> = groups.iter().map(|g| g.1).collect();
+            fit_height(&weights, map.width(), map.height())
+        } else {
+            map.height()
+        };
+        let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
+        c.set_clip_rect(map.intersect(ui.clip_rect()));
+        let key = (m.key(), self.overview.sector.clone());
+        let out = egui::ScrollArea::vertical()
+            .id_salt(("overview-scroll", key))
+            .scroll_source(egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR)
+            .auto_shrink([false, false])
+            .show(&mut c, |ui| {
+                let (r, _) = ui.allocate_exact_size(vec2(map.width(), full), Sense::hover());
+                self.overview_map(ui, t, &board, r)
+            });
+        if let Some(click) = out.inner {
             match click {
                 Click::Tile(sym) => self.open_symbol_synced(sym),
                 Click::Sector(s) => self.overview.sector = Some(s),
@@ -419,6 +457,8 @@ impl App {
     /// The map. Returns what was clicked.
     fn overview_map(&self, ui: &mut Ui, t: &Theme, board: &Board, area: Rect) -> Option<Click> {
         let resp = ui.interact(area, Id::new("overview-map"), Sense::click());
+        // What shows of the map (it may scroll).
+        let seen = area.intersect(ui.clip_rect());
         let hover = resp.hover_pos();
         let p = ui.painter_at(area);
         let period = self.overview.period;
@@ -511,7 +551,7 @@ impl App {
             }
             let still = self.overview.still_hover.as_ref().map(|_| r.center());
             if let Some(h) = hover.or(still) {
-                self.hover_card(ui, t, board, m, h, area);
+                self.hover_card(ui, t, board, m, h, seen);
             }
         }
         click
@@ -589,7 +629,7 @@ impl App {
             ),
         ];
         if board.sizing != Sizing::Equal {
-            rows.push((size_label.into(), money(m.cap, &board.currency), t.text));
+            rows.push((size_label.into(), money(m.cap, &board.currency, board.market), t.text));
         }
         let line_h = if m.closes.len() > 2 { 40.0 } else { 0.0 };
         let h = 16.0 + 34.0 + 8.0 + line_h + rows.len() as f32 * 21.0 + 10.0;

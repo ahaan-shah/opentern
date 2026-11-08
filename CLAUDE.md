@@ -94,7 +94,7 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
   500 list (niftyindices.com, else archives.nseindia.com) at most weekly, Yahoo's
   screener, spark and batch quotes, and CoinGecko's free markets API (one request
-  per refresh, no key) plus Binance daily bars for coins. The agent
+  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
   nothing starts at launch.
@@ -1461,7 +1461,10 @@ every data change (scripts re-run on it).
   with an Exchange column, refreshed weekly from the PDDL dataset on jsDelivr;
   the live file has no exchange, so it comes from the bundled one or the
   screener), India = NIFTY 500 (bundled NSE file, refreshed weekly). Prices,
-  1D and history: Yahoo spark (20 a request, 4 threads, range 1y). **Caps:
+  1D and history: Yahoo spark (20 a request, 4 threads, range 2y so 1Y
+  always reaches back). **1D is from the previous session's close, like
+  the watchlist; spark's `fulldayChangePercent` is wrong** (NVDA +3.91%
+  for a 181.60 → 186.64 day). **Caps:
   US from Yahoo's `largest_market_cap` predefined screener** (no crumb; ~10
   pages reach every member but about 9 small ones, which go to batch quotes);
   **India from v7 batch quotes** (needs the crumb session fundamentals use).
@@ -1472,7 +1475,10 @@ every data change (scripts re-run on it).
   stablecoins, wrapped/staked, tokenized funds and stocks; `excluded`), kept to
   coins with a pair in the cached exchange lists (`crypto_pairs`: Binance USDT
   first), top 150; categories from the `CATEGORIES` table, else "Other";
-  3M/YTD and the hover line from Binance daily klines (kept an hour). No
+  For coins on Binance every period comes from Binance like the charts:
+  1D from the UTC day's open (`ticker/tradingDay`, 100 a request; the
+  watchlist's daily change), the rest from daily klines (kept an hour) to
+  the live price; CoinGecko's rolling 24h/7d/30d/1y only fill gaps. No
   CoinGecko → Binance 24h tickers sized by volume (`Sizing::Volume`).
 - **Yahoo's crumb endpoint answered 429 for a while on 8 Nov 2026** (then
   worked again). Don't try to get around a limit; the design above keeps
@@ -1481,7 +1487,9 @@ every data change (scripts re-run on it).
   calendar months, YTD vs the last close of the previous year (UTC); too
   little history = NaN (grey tile). Colour scale per period (±3% 1D … ±30%).
 - UI (`app/src/overview.rs`): sectors squarified by total size, then members
-  (reuses `indices::squarify`); sector titles zoom (`Overview::sector`), Esc
+  (reuses `indices::squarify`); `fit_height` grows the map (up to 4 views,
+  in a ScrollArea) until every sector has room for its title and tiles;
+  sector titles zoom (`Overview::sector`), Esc
   unzooms then closes; tile labels by size (logo + ticker + %, ticker + %,
   one line for wide-short, logo only); hover card on the Tooltip layer;
   refresh every 3 min while open, 30 s after a failure. `Overview::drawn`
@@ -1489,6 +1497,11 @@ every data change (scripts re-run on it).
   settings key `overview`. CoinGecko's free API asks for attribution: the
   legend's tooltip names the source. Stills: `overview[:market[:period[:sector]]]`,
   `overview-hover:<ticker>`.
+- **Large numbers** (Settings → General): per market, millions/billions or
+  lakhs/crores (`format::Numbers`, settings key `number_style`, a global
+  read by `format::big`/`compact_for`; Indian stocks default to crores).
+  Used for overview caps and every volume (legend, data window, measure,
+  screener, volume scales). Not in Export and import (no preferences item).
 - Agent tool `market_overview` (open/close/get; `claude/markets.rs`,
   `Wait::Overview`). Tests: `drive::tests::market_overview_…`,
   `control::drive_tests::the_agent_reads_and_opens_the_market_overview`,

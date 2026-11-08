@@ -444,13 +444,18 @@ fn overview_boards() {
                 );
                 for x in top.iter().take(6) {
                     println!(
-                        "  {} {} {} cap {:.0}B 1D {:+.2}% 1M {:+.2}% closes {}",
+                        "  {} {} {} cap {:.0}B price {} 1D {:+.2}% 1W {:+.2}% 1M {:+.2}% 3M {:+.2}% YTD {:+.2}% 1Y {:+.2}% closes {}",
                         x.symbol.id,
                         x.name,
                         x.sector,
                         x.cap / 1e9,
+                        x.price,
                         x.change(Period::Day),
+                        x.change(Period::Week),
                         x.change(Period::Month),
+                        x.change(Period::Quarter),
+                        x.change(Period::Ytd),
+                        x.change(Period::Year),
                         x.closes.len()
                     );
                 }

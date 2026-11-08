@@ -266,6 +266,10 @@ impl App {
         ui.add_space(4.0);
         self.logo_settings(ui);
         ui.add_space(22.0);
+        crate::dialogs::section(ui, t, "Large numbers");
+        ui.add_space(4.0);
+        self.number_settings(ui, t);
+        ui.add_space(22.0);
         crate::dialogs::section(ui, t, "Alerts");
         ui.add_space(4.0);
         self.alert_settings(ui, t);
@@ -511,6 +515,44 @@ impl App {
         }
         if let Some(name) = pick {
             self.set_theme(ui.ctx(), name);
+        }
+    }
+
+    /// Per market: millions and billions, or lakhs and crores (market
+    /// caps, volumes).
+    fn number_settings(&mut self, ui: &mut Ui, t: &Theme) {
+        use crate::format::Numbers;
+        use opentern_data::overview::Market;
+        let opts = [
+            (Numbers::Intl, "Millions, billions"),
+            (Numbers::Indian, "Lakhs, crores"),
+        ];
+        let mut changed = false;
+        for m in Market::ALL {
+            ui.horizontal(|ui| {
+                ui.set_min_height(34.0);
+                let (r, _) = ui.allocate_exact_size(vec2(140.0, 30.0), Sense::hover());
+                ui.painter().text(
+                    r.left_center(),
+                    Align2::LEFT_CENTER,
+                    match m {
+                        Market::India => "Indian stocks",
+                        _ => m.label(),
+                    },
+                    theme::regular(13.0),
+                    t.text,
+                );
+                let mut n = crate::format::numbers(m);
+                if crate::widgets::segmented(ui, t, &mut n, &opts) {
+                    crate::format::set_numbers(m, n);
+                    changed = true;
+                }
+            });
+        }
+        if changed {
+            let _ = self
+                .store
+                .set_value(crate::format::NUMBERS_KEY, &crate::format::numbers_json());
         }
     }
 

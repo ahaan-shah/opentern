@@ -177,6 +177,7 @@ impl App {
         // Before any chart opens: a saved chart may be on a custom index.
         let indices = crate::indices::Indices::load(&store);
         let overview = crate::overview::Overview::load(&store);
+        crate::format::load_numbers(store.value(crate::format::NUMBERS_KEY).as_deref());
         let mut app = App {
             store,
             theme,

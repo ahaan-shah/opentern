@@ -156,7 +156,7 @@ impl App {
                 ),
             );
         }
-        row(ui, "Volume", format::compact(b.volume));
+        row(ui, "Volume", format::compact_for(b.volume, &c.symbol));
         for s in &c.studies {
             ui.add_space(4.0);
             let title = s.title(true);
@@ -173,7 +173,7 @@ impl App {
                 let text = match s.meta().format {
                     Format::Price => format::price(v, prec),
                     Format::Fixed(d) => format::price(v, d as usize),
-                    Format::Volume => format::compact(v),
+                    Format::Volume => format::compact_for(v, &c.symbol),
                 };
                 row(ui, spec.title, text);
             }
