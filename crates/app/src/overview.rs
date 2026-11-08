@@ -21,6 +21,8 @@ const REFRESH: Duration = Duration::from_secs(180);
 const RETRY: Duration = Duration::from_secs(30);
 const HEADER_H: f32 = 44.0;
 const SECTOR_H: f32 = 18.0;
+/// Space kept for the scrollbar when the map scrolls.
+const SCROLL_GAP: f32 = 14.0;
 
 #[derive(Default)]
 pub struct Overview {
@@ -375,7 +377,12 @@ impl App {
         let view_h = map.height();
         let full = if self.overview.sector.is_none() {
             let weights: Vec<f64> = sectors(&board, None).iter().map(|g| g.1).collect();
-            plan(&weights, map.width(), view_h).1
+            let (_, h) = plan(&weights, map.width(), view_h);
+            if h > view_h {
+                plan(&weights, map.width() - SCROLL_GAP, view_h).1
+            } else {
+                h
+            }
         } else {
             view_h
         };
@@ -393,7 +400,8 @@ impl App {
                 )
                 .auto_shrink([false, false])
                 .show(&mut c, |ui| {
-                    let w = ui.available_width().min(map.width());
+                    // Room on the right for the scrollbar, clear of the tiles.
+                    let w = ui.available_width().min(map.width()) - SCROLL_GAP;
                     let (r, _) = ui.allocate_exact_size(vec2(w, full), Sense::hover());
                     self.overview_map(ui, t, &board, r, view_h)
                 })

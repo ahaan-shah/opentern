@@ -376,19 +376,19 @@ mod tests {
         d.app.overview_fetch(Market::Crypto);
         d.wait(|a| a.overview.boards.contains_key(&Market::Crypto));
         d.frame(vec![]);
-        // India's twenty-odd sectors: every one is named and holds its
-        // tiles, the map scrolling when they don't fit.
-        d.app.overview.market = Market::India;
-        d.app.overview_fetch(Market::India);
-        d.wait(|a| a.overview.boards.contains_key(&Market::India));
-        d.frame(vec![]);
-        d.frame(vec![]);
-        let groups = crate::overview::sectors(&d.app.overview.boards[&Market::India], None).len();
-        {
+        // Every market: each sector is named and holds its tiles (small
+        // ones in the strip below the map).
+        for market in Market::ALL {
+            d.app.overview.market = market;
+            d.app.overview_fetch(market);
+            d.wait(|a| a.overview.boards.contains_key(&market));
+            d.frame(vec![]);
+            d.frame(vec![]);
+            let groups = crate::overview::sectors(&d.app.overview.boards[&market], None).len();
             let drawn = d.app.overview.drawn.borrow();
             let names: Vec<&str> = drawn.sectors.iter().map(|s| s.0.as_str()).collect();
-            assert_eq!(drawn.sectors.len(), groups, "{names:?}");
-            let board = &d.app.overview.boards[&Market::India];
+            assert_eq!(drawn.sectors.len(), groups, "{market:?} {names:?}");
+            let board = &d.app.overview.boards[&market];
             for (id, r) in &drawn.tiles {
                 let m = board.members.iter().find(|m| &m.symbol.id == id).unwrap();
                 let (_, title) = drawn.sectors.iter().find(|s| s.0 == m.sector).unwrap();
