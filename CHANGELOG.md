@@ -1,13 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.2.7 (2026-11-08)
+
+A heatmap of the whole market, custom indices that reach back as far as
+their oldest stocks, and splits that no longer read as crashes.
 
 ### New
 - **Market overview**: a button beside the layout grid button (or `Alt M`) swaps the charts for a heatmap of the S&P 500, the NIFTY 500 or the 150 largest coins. Tiles are sized by market cap, grouped by sector and coloured by the change over 1D, 1W, 1M, 3M, YTD or 1Y. Hover a tile for its price, change and market cap, click a sector to zoom in, click a tile to open its chart, and press Esc to go back. Watchlists and the agent stay on the right.
 - **The agent can use the market overview**: ask it to show a market, or which sectors and stocks led over a period.
+- **Custom indices reach back as far as their oldest stocks.** A stock now joins an index the day after it lists, the way NSE adds stocks, with the level carried on unbroken, so one young stock no longer cuts ten years of history down to one. Indices you've made are rebuilt this way once.
+- **Choose when each stock counts.** On an index's board, "Counts from" switches a stock between its listing and the index's start (the index then begins only once that stock has prices), and a tick box leaves a stock out altogether. The agent can do both.
+- **See how much history each stock has.** A History column shows how far back each stock's prices go, and the index row shows the index's own.
 - **Lakhs and crores, or millions and billions, per market**: Settings → General → Large numbers sets how market caps and volumes read for US stocks, Indian stocks and crypto. Indian stocks start in crores.
 
 ### Fixed
+- **Splits and bonus issues no longer read as a crash.** Charts, custom indices, the screener and Seasonality kept prices saved from before a split, so a 2-for-1 split showed as a 50% fall in 1M and 3M returns. Saved prices are now checked against the source each time and downloaded again when the source has adjusted them. Prices a source hasn't adjusted yet are adjusted on the split's date, including Yahoo's hourly bars when a split and a bonus land on one day (an index holding Bajaj Finance broke in two on hourly charts). The S marker under the chart reads "Split or bonus" for Indian stocks. Saved prices are downloaded once more after updating.
+- **Custom index P/E, EV/EBITDA, margins and growth are right for companies that report in another currency.** Yahoo gives Infosys's earnings in dollars and its market cap in rupees; they're now in one currency, so an index holding it no longer shows a negative or far-off P/E.
+- **An index's P/E and other ratios count what the index holds.** Each company counts for the slice the index owns (its free float, or its share in an equal-weight index), as NSE works out its indices' P/E, and a one-stock index reads its stock's own P/E.
+- **No index day lost or counted twice.** A stock that doesn't trade on a day (a suspension, or a gap in the data) counts at its last price instead of dropping the day, and new weights take over exactly where the old ones left off.
+- **1M and 3M returns on the Indices board are calendar months,** as in the market overview.
+- **Sector changes in the market overview add up.** A sector's change was its stocks' changes weighted by today's market caps, which overstated winners over longer periods; it's now how much the sector's total market cap moved.
 - **New coins show up in search the day they list.** Exchange coin lists now refresh daily instead of weekly, and a search that finds no coin asks Binance about it right away.
 
 ## 0.2.6 (2026-11-05)

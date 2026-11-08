@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.6):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.7):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -563,10 +563,10 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**Unreleased (8 Nov 2026): the market overview and the new-coin search fix**
-(see "Market overview" below), committed locally, not pushed. **The
-maintainer said not to release yet** (more features first): no tag, no push
-until they say so.
+**0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
+indices with tick boxes / "Counts from" / History, split and bonus
+adjustment, the index math audit; see "Market overview" and "Splits in
+cached prices" below).
 **0.2.6 released 5 Nov 2026** (Export and import, see its section). **0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
 --daemon`, off-chart alerts, earnings markers, EXT, clock timezone
 picker; see "Background alerts" below). Before that, 0.2.4 on 31 Oct
@@ -628,7 +628,9 @@ in iteratively. Phase 14 has started (item 3).
    (news from many outlets, Calendar redesign, index change % fix). v0.2.3 on
    30 Oct 2026 (custom indices, Seasonality, agent accounts). v0.2.4 on
    31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
-   2 Nov 2026 (background alerts, earnings, EXT, timezone picker). Website shots
+   2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
+   5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
+   index history, splits). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
@@ -1449,7 +1451,7 @@ every data change (scripts re-run on it).
   review:<path>|import-now:<path>|sending:<pct>|sent|send-failed|receiving:<pct>|notfound|wrong`.
   Two windows with `send:` and `receive:` of one code run a real transfer.
 
-### Market overview (Nov 2026, unreleased)
+### Market overview (0.2.7, Nov 2026)
 - **Top-bar button** (a drawn treemap, left of the grid button; `Alt M`;
   `Arrangement::overview`, saved). Open, it takes the chart area *and* the
   bottom panel's place (no drawing toolbar, range bar or bottom panel); the
@@ -1507,6 +1509,54 @@ every data change (scripts re-run on it).
   `Wait::Overview`). Tests: `drive::tests::market_overview_…`,
   `control::drive_tests::the_agent_reads_and_opens_the_market_overview`,
   data unit tests, and `live::overview_boards` (ignored, real services).
+
+### Splits in cached prices, index tick boxes (0.2.7, Nov 2026)
+- **The cache kept pre-split prices** (it only ever appended), so a split
+  read as a crash in 1M/3M returns. Every top-up now asks from three bars
+  back (`hub::overlap_start`); if a closed cached bar's close moved > 2%
+  (`history_changed`), the series is cleared and downloaded again. Both
+  chart sessions and `fetch_once` (screener, indices, Seasonality, feeds).
+  `yahoo::split_adjust` (applied in `Session::series` once corporate
+  events are in) adjusts splits a source hasn't yet: only when the price gap
+  across the date matches the ratio and the ratio is ≥ 1.2 (or ≤ 1/1.2).
+  **Yahoo lists Indian bonuses as splits, and not always the whole action**
+  (Bajaj Finance's June 2025 1:2 split + 4:1 bonus shows as 2:1, prices
+  adjusted ×10), so never adjust by ratio alone. Markers read "Split or
+  bonus" on NSE/BSE.
+- **Yahoo's hourly bars are adjusted by the listed split ratio only**:
+  Bajaj Finance's 16 Jun 2025 hourly bars jump ×5 (daily ones are fine).
+  `Yahoo::chart` asks `events=split` and runs `split_adjust`, which takes
+  the listed ratio when the gap matches it, else a clean gap (a whole
+  number or half, ≥ 2×, within 3%) on the split date. Cache meta
+  `bars_version` 2 cleared every cached bar once.
+- **Custom indices chain-link** (`indices::chain`, `IndexDef::chain` =
+  `CHAIN`; older saves are rebuilt on load): the first segment holds the
+  members whose prices start by t0 (the latest first bar of members in
+  `IndexDef::start`, "Counts from: Index start"; else the oldest first
+  bar), and each other member joins in a new segment from the first
+  common day after its first close (weights set at that close, level
+  kept). `IndexDef::off` (tick box) leaves a member out. Any toggle =
+  `IndexDef::rebuild` (segments cleared, rebuilt by `settle`), so past
+  rebalances are rebuilt with today's shares. While any index has no
+  segments, `poll` fetches members even with the tab shut (else its chart
+  says "no longer exists"). Board: History (`span_label`, "+" when
+  `BARS` = 10,000 cut it short) and Counts from columns. Agent:
+  `custom_index` `include`/`exclude`/`counts_from`.
+- **Index math (audited Nov 2026):** new weights start on `start` and
+  are set at `link`'s anchor = the last day before it the old weights
+  valued (never a day lost or doubled); a member with no bar on a day
+  another traded counts at its last close (`index_series` and the hub's
+  `expr::combine_segs` alike; plain formulas still join strictly); index
+  ratios weight each company by the slice held (`units ÷ shares`), with
+  earnings = cap ÷ P/E (net income for loss-makers); 1M/3M are calendar
+  months back from the last close.
+- **Yahoo statement figures are in `financialCurrency`** (Infosys: USD)
+  while caps are in the listing's; `fundamentals::parse` converts at the
+  rate the P/E implies (no positive P/E: left out) and recomputes
+  EV/EBITDA (Yahoo's mixes the two: 976 for Infosys).
+- **Market overview sector change** = change of the sector's total cap:
+  weights are caps at the period's start (cap ÷ (1 + change)),
+  `overview::weighted`.
 
 ### Website
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in

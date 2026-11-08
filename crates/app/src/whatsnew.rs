@@ -31,6 +31,31 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.7",
+        items: &[
+            Item {
+                icon: ph::SQUARES_FOUR,
+                title: "A heatmap of the whole market",
+                body: "The new button beside the layout grid (or Alt M) shows the S&P 500, the NIFTY 500 \
+                       or the top coins, sized by market cap and grouped by sector. Click a tile to open its chart.",
+                image: None,
+            },
+            Item {
+                icon: ph::CHART_PIE_SLICE,
+                title: "Custom indices reach back further",
+                body: "A stock now joins an index the day after it lists, so one young stock no longer \
+                       cuts years of history short. Choose when each stock counts, or leave it out with its tick box.",
+                image: None,
+            },
+            Item {
+                icon: ph::SCISSORS,
+                title: "Splits and bonus issues read right",
+                body: "A 2-for-1 split no longer shows as a 50% fall in returns, charts or indices.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.6",
         items: &[
             Item {
