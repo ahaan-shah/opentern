@@ -370,20 +370,23 @@ fn news_for_each_market() {
 #[test]
 #[ignore]
 fn nse_fundamentals() {
-    for t in ["RELIANCE", "MARUTI", "HDFCBANK", "M&M", "BAJAJ-AUTO", "TATAMOTORS"] {
+    for t in ["RELIANCE", "MARUTI", "HDFCBANK", "M&M", "INFY", "SWIGGY", "WIPRO"] {
         let s = opentern_core::Symbol {
             timezone: "Asia/Kolkata".into(),
             ..opentern_core::Symbol::bare(&format!("NSE:{t}"))
         };
         match opentern_data::fundamentals::fetch(&s, false) {
             Ok(f) => println!(
-                "{t:12} shares {:>14.0} float {:>14.0} ({:>5.1}%)  cap {:>16.0}  P/E {:>6.1}  EV/EBITDA {:>6.1}  gross {:>5.3} ebitda {:>5.3}",
+                "{t:12} shares {:>14.0} float {:>14.0} ({:>5.1}%)  cap {:>16.0}  P/E {:>6.1} (cap/net {:>6.1})  EV/EBITDA {:>6.1} (ev/ebitda {:>6.1})  revenue {:>16.0}  gross {:>5.3} ebitda {:>5.3}",
                 f.shares,
                 f.float_shares,
                 f.float_shares / f.shares * 100.0,
                 f.market_cap,
                 f.pe,
+                f.market_cap / f.net_income,
                 f.ev_ebitda,
+                f.enterprise_value / f.ebitda,
+                f.revenue,
                 f.gross_margin,
                 f.ebitda_margin
             ),

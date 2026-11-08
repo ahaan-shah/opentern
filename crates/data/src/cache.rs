@@ -78,7 +78,15 @@ impl Cache {
         if !has_lot {
             conn.execute_batch("ALTER TABLE symbols ADD COLUMN lot REAL NOT NULL DEFAULT 0")?;
         }
-        Ok(Cache { conn })
+        // Bars cached before splits were checked for (Nov 2026) may hold
+        // unadjusted prices: download them once more.
+        const BARS_VERSION: &str = "2";
+        let c = Cache { conn };
+        if c.meta("bars_version").as_deref() != Some(BARS_VERSION) {
+            c.conn.execute("DELETE FROM bars", [])?;
+            c.set_meta("bars_version", BARS_VERSION)?;
+        }
+        Ok(c)
     }
 
     /// The newest `limit` bars, oldest first.

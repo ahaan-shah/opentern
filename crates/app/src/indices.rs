@@ -40,12 +40,15 @@ use std::time::{Duration, Instant};
 
 /// Fetch seqs for members' bars: `SEQ_BASE + n`.
 pub const SEQ_BASE: u64 = 1 << 46;
-/// Daily bars per member: enough to warm up a 200-day average and to see
-/// the prices each recent segment was set at.
-const BARS: usize = 1500;
+/// Daily bars per member: enough to warm up a 200-day average, to see the
+/// prices each recent segment was set at, and for the whole history of
+/// almost any stock (about 40 years).
+const BARS: usize = 10_000;
 /// Members' data is fetched again when it's older than this.
 const STALE: Duration = Duration::from_secs(15 * 60);
 const SETTINGS_KEY: &str = "custom_indices";
+/// The current way of building an index's segments (`IndexDef::chain`).
+const CHAIN: u32 = 1;
 /// A past price that moved more than this since a segment was set means
 /// a split (or similar) was adjusted in.
 const SPLIT_TOLERANCE: f64 = 0.02;
@@ -115,11 +118,16 @@ pub struct IndexDef {
     pub pending: bool,
     /// Cap weighting was asked for but some member had no share count.
     pub equal_fallback: bool,
-    /// Before segments (0.2.2's test builds): one set of units.
-    #[serde(skip_serializing)]
-    units: Vec<f64>,
-    #[serde(skip_serializing)]
-    base_time: i64,
+    /// Members unticked on the board: kept in the list, left out of the
+    /// index (ids).
+    pub off: Vec<String>,
+    /// Members counted from the index's start (the index begins only once
+    /// they have prices); the rest join the day after they list (ids).
+    pub start: Vec<String>,
+    /// How the segments were built: older saves (0) had every member from
+    /// the first common day and are built again.
+    #[serde(default)]
+    pub chain: u32,
 }
 
 impl Default for IndexDef {
@@ -133,8 +141,9 @@ impl Default for IndexDef {
             segments: Vec::new(),
             pending: false,
             equal_fallback: false,
-            units: Vec::new(),
-            base_time: 0,
+            off: Vec::new(),
+            start: Vec::new(),
+            chain: CHAIN,
         }
     }
 }
@@ -147,6 +156,26 @@ impl IndexDef {
     /// It can be charted (it has weights, maybe not yet for new members).
     pub fn ready(&self) -> bool {
         !self.segments.is_empty()
+    }
+
+    /// Whether a member counts (ticked on the board).
+    pub fn includes(&self, id: &str) -> bool {
+        !self.off.iter().any(|x| x == id)
+    }
+
+    /// Whether a member counts from the index's start rather than from
+    /// its listing.
+    pub fn counts_from_start(&self, id: &str) -> bool {
+        self.start.iter().any(|x| x == id)
+    }
+
+    /// Weights from scratch, over the whole history (after a member is
+    /// ticked, unticked or set to count from its listing or the start).
+    fn rebuild(&mut self) {
+        self.segments.clear();
+        self.pending = false;
+        self.equal_fallback = false;
+        self.chain = CHAIN;
     }
 
     /// The hub's segments.
@@ -186,17 +215,11 @@ impl IndexDef {
         }
     }
 
-    /// Older saves had one set of units: that's the first segment.
+    /// Saves from before members joined on listing (including 0.2.2's
+    /// test builds, with one set of units) are built again.
     fn migrate(&mut self) {
-        if self.segments.is_empty() && self.units.len() == self.members.len() && !self.units.is_empty() {
-            self.segments.push(Segment {
-                from: i64::MIN,
-                members: self.members.iter().map(|m| m.id.clone()).collect(),
-                units: std::mem::take(&mut self.units),
-                anchor_time: self.base_time,
-                anchors: Vec::new(),
-                made: 0,
-            });
+        if self.chain < CHAIN {
+            self.rebuild();
         }
     }
 }
@@ -502,7 +525,9 @@ fn adjust_for_splits(seg: &mut Segment, bars: &HashMap<String, &[Bar]>) -> bool 
 }
 
 /// The index's daily bars from its members' bars, each day on the segment
-/// in force (days some member of that segment didn't trade are skipped).
+/// in force. A member with no bar on a day another member traded counts at
+/// its last close (as the hub's chart of it); a day comes in once every
+/// member of its segment has a first price.
 fn index_series(segs: &[Segment], bars: &HashMap<String, &[Bar]>) -> Vec<Bar> {
     let mut times = BTreeSet::new();
     for s in segs {
@@ -517,21 +542,34 @@ fn index_series(segs: &[Segment], bars: &HashMap<String, &[Bar]>) -> Vec<Bar> {
         let Some(s) = seg_at(segs, t) else { continue };
         let (mut o, mut h, mut l, mut c) = (0.0, 0.0, 0.0, 0.0);
         let mut all = true;
+        let mut traded = false;
         for (id, u) in s.members.iter().zip(&s.units) {
-            match bars.get(id).and_then(|b| bar_at(b, t)) {
+            let Some(b) = bars.get(id) else {
+                all = false;
+                break;
+            };
+            match bar_at(b, t) {
                 Some(b) => {
+                    traded = true;
                     o += u * b.open;
                     h += u * b.high;
                     l += u * b.low;
                     c += u * b.close;
                 }
                 None => {
-                    all = false;
-                    break;
+                    let p = close_at(b, t);
+                    if !p.is_finite() {
+                        all = false;
+                        break;
+                    }
+                    o += u * p;
+                    h += u * p;
+                    l += u * p;
+                    c += u * p;
                 }
             }
         }
-        if all {
+        if all && traded {
             out.push(Bar {
                 time: t,
                 open: o,
@@ -555,6 +593,109 @@ fn level_at(segs: &[Segment], bars: &HashMap<String, &[Bar]>, t: i64) -> f64 {
         .sum()
 }
 
+/// Where new weights take over from `segs`' last ones: they start on
+/// `start` (the first day after `after` that every one of `next` has a
+/// bar) and are set at `anchor`, the last day before `start` that the old
+/// weights gave the index a value, so no day's move is dropped or counted
+/// twice. Also the level there and `next`'s closes then. `None` until
+/// there's such a day with a price for every one of `next`.
+fn link(
+    segs: &[Segment],
+    bars: &HashMap<String, &[Bar]>,
+    next: &[String],
+    after: i64,
+) -> Option<(i64, i64, f64, Vec<f64>)> {
+    let old = &segs.last()?.members;
+    let old_days = common_times(old, bars);
+    for start in common_times(next, bars).into_iter().filter(|t| *t > after) {
+        let k = old_days.partition_point(|t| *t < start);
+        let Some(&anchor) = k.checked_sub(1).and_then(|k| old_days.get(k)) else {
+            continue;
+        };
+        let level = level_at(segs, bars, anchor);
+        let prices: Vec<f64> = next.iter().map(|id| close_at(bars[id], anchor)).collect();
+        if level.is_finite() && level > 0.0 && prices.iter().all(|p| p.is_finite() && *p > 0.0) {
+            return Some((start, anchor, level, prices));
+        }
+    }
+    None
+}
+
+/// An index's segments from scratch, chain-linked as NSE adds a stock:
+/// it starts on the first day every member counted from the start has a
+/// price (else on the oldest member's first day), and each other member
+/// joins the day after its first close, weights worked out again so the
+/// level carries on unbroken. Also says whether cap weights fell back to
+/// equal. `None` until the numbers are there.
+fn chain(
+    def: &IndexDef,
+    ids: &[String],
+    bars: &HashMap<String, &[Bar]>,
+    shares: &HashMap<String, f64>,
+    now: i64,
+) -> Option<(Vec<Segment>, bool)> {
+    let first = |id: &String| bars.get(id).and_then(|b| b.first()).map(|b| b.time);
+    let firsts: Vec<i64> = ids.iter().map(first).collect::<Option<_>>()?;
+    let pinned: Vec<i64> = ids
+        .iter()
+        .zip(&firsts)
+        .filter(|(id, _)| def.counts_from_start(id))
+        .map(|(_, t)| *t)
+        .collect();
+    let t0 = match pinned.iter().max() {
+        Some(t) => *t,
+        None => *firsts.iter().min()?,
+    };
+    let mut members: Vec<String> = ids
+        .iter()
+        .zip(&firsts)
+        .filter(|(_, t)| **t <= t0)
+        .map(|(id, _)| id.clone())
+        .collect();
+    let share_of = |ms: &[String]| -> Vec<f64> { ms.iter().map(|id| shares[id]).collect() };
+    let base_time = *common_times(&members, bars).first()?;
+    let p0: Vec<f64> = members.iter().map(|id| close_at(bars[id], base_time)).collect();
+    let (units, mut fb) = units_for(&p0, &share_of(&members), def.weighting, def.base)?;
+    let mut segs = vec![Segment {
+        from: i64::MIN,
+        members: members.clone(),
+        units,
+        anchor_time: base_time,
+        anchors: p0,
+        made: now,
+    }];
+    // Later listings, oldest first; stocks that list on one day join together.
+    let mut joins: Vec<i64> = firsts.iter().copied().filter(|t| *t > t0).collect();
+    joins.sort_unstable();
+    joins.dedup();
+    for at in joins {
+        let joining: Vec<String> = ids
+            .iter()
+            .zip(&firsts)
+            .filter(|(_, t)| **t == at)
+            .map(|(id, _)| id.clone())
+            .collect();
+        let next: Vec<String> = members.iter().chain(&joining).cloned().collect();
+        // Their first close sets the weights; they count from the day after.
+        let Some((start, anchor, level, prices)) = link(&segs, bars, &next, at) else {
+            // Listed today: the next day's data adds it (a regroup).
+            break;
+        };
+        let (units, f) = units_for(&prices, &share_of(&next), def.weighting, level)?;
+        fb |= f;
+        segs.push(Segment {
+            from: start,
+            members: next.clone(),
+            units,
+            anchor_time: anchor,
+            anchors: prices,
+            made: now,
+        });
+        members = next;
+    }
+    Some((segs, fb))
+}
+
 /// Works out an index's weights as far as its data allows: the first
 /// segment (base 1000), a due rebalance or pending edit (a new segment,
 /// level kept), and split rescaling. True if `def` changed.
@@ -576,7 +717,7 @@ fn settle(
         .members
         .iter()
         .map(|m| m.id.clone())
-        .filter(|id| !failed.contains(id))
+        .filter(|id| !failed.contains(id) && def.includes(id))
         .collect();
     if ids.is_empty() || ids.iter().any(|id| !bars.contains_key(id)) {
         return changed;
@@ -592,17 +733,11 @@ fn settle(
     let times = common_times(&ids, bars);
     let Some(&first) = times.first() else { return changed };
     let due = def.segments.last().and_then(|s| rebalance_due(s.made, now));
+    let _ = first;
     if def.segments.is_empty() {
-        let p0: Vec<f64> = ids.iter().map(|id| close_at(bars[id], first)).collect();
-        if let Some((units, fb)) = units_for(&p0, &shares, def.weighting, def.base) {
-            def.segments.push(Segment {
-                from: i64::MIN,
-                members: ids,
-                units,
-                anchor_time: first,
-                anchors: p0,
-                made: now,
-            });
+        let share: HashMap<String, f64> = ids.iter().cloned().zip(shares.iter().copied()).collect();
+        if let Some((segs, fb)) = chain(def, &ids, bars, &share, now) {
+            def.segments = segs;
             def.equal_fallback = fb;
             def.pending = false;
             changed = true;
@@ -620,8 +755,8 @@ fn settle(
     if !(def.pending || regrouped || due.is_some()) {
         return changed;
     }
-    // The new weights start on `start`; they're set at the close before it,
-    // where the old weights' level is kept.
+    // The new weights start on `start`; they're set at the last close the
+    // old weights valued, where their level is kept (`link`).
     let start = match due {
         Some(d) if !def.pending => times.iter().copied().find(|t| *t >= d),
         _ => times.last().copied(),
@@ -631,16 +766,9 @@ fn settle(
     while def.segments.len() > 1 && def.segments.last().is_some_and(|s| s.from >= start) {
         def.segments.pop();
     }
-    let old: Vec<String> = def.segments.last().map(|s| s.members.clone()).unwrap_or_default();
-    let both: Vec<String> = ids.iter().chain(&old).cloned().collect();
-    let Some(&prev) = common_times(&both, bars).iter().rev().find(|t| **t < start) else {
+    let Some((start, anchor, level, prices)) = link(&def.segments, bars, &ids, start - 1) else {
         return changed;
     };
-    let level = level_at(&def.segments, bars, prev);
-    let prices: Vec<f64> = ids.iter().map(|id| close_at(bars[id], prev)).collect();
-    if !level.is_finite() || level <= 0.0 {
-        return changed;
-    }
     let Some((units, fb)) = units_for(&prices, &shares, def.weighting, level) else {
         return changed;
     };
@@ -648,7 +776,7 @@ fn settle(
         from: start,
         members: ids,
         units,
-        anchor_time: prev,
+        anchor_time: anchor,
         anchors: prices,
         made: now,
     });
@@ -689,20 +817,33 @@ fn clean(f: &Fundamentals) -> Fundamentals {
 
 /// The index's fundamentals from its members': totals over totals, and
 /// margins weighted by revenue.
-fn index_fundamentals(funds: &[Fundamentals], out: &mut HashMap<Metric, f64>) {
+/// Each company counts for the part of it the index holds (`h`: units ÷
+/// shares outstanding), as NSE works out an index's P/E from free-float
+/// caps and earnings; an equal-weight index holds a different slice of
+/// each.
+fn index_fundamentals(funds: &[(Fundamentals, f64)], out: &mut HashMap<Metric, f64>) {
     let sum = |f: &dyn Fn(&Fundamentals) -> (f64, f64)| {
         let (mut a, mut b, mut n) = (0.0, 0.0, 0);
-        for x in funds {
+        for (x, h) in funds {
             let (p, q) = f(x);
-            if p.is_finite() && q.is_finite() {
-                a += p;
-                b += q;
+            if p.is_finite() && q.is_finite() && h.is_finite() && *h > 0.0 {
+                a += p * h;
+                b += q * h;
                 n += 1;
             }
         }
         if n > 0 && b != 0.0 { a / b } else { f64::NAN }
     };
-    out.insert(Metric::Pe, sum(&|f| (f.market_cap, f.net_income)));
+    // Earnings as the members' own P/E has them (so a one-stock index reads
+    // its stock's P/E); net income for loss-makers, which have no P/E.
+    let earnings = |f: &Fundamentals| {
+        if f.pe.is_finite() && f.pe != 0.0 {
+            f.market_cap / f.pe
+        } else {
+            f.net_income
+        }
+    };
+    out.insert(Metric::Pe, sum(&|f| (f.market_cap, earnings(f))));
     out.insert(Metric::EvEbitda, sum(&|f| (f.enterprise_value, f.ebitda)));
     let g = sum(&|f| (f.revenue, f.revenue / (1.0 + f.revenue_growth)));
     out.insert(Metric::RevGrowth, (g - 1.0) * 100.0);
@@ -733,6 +874,13 @@ fn member_fundamentals(f: &Fundamentals, out: &mut HashMap<Metric, f64>) {
 #[derive(Clone, Debug)]
 pub struct BoardRow {
     pub symbol: Symbol,
+    /// Ticked: counts in the index.
+    pub included: bool,
+    /// Counts from the index's start, not from its listing.
+    pub from_start: bool,
+    /// Its prices: first and last bar, and whether there may be older
+    /// ones than were fetched.
+    pub history: Option<(i64, i64, bool)>,
     pub weight: f64,
     pub price: f64,
     pub change: f64,
@@ -752,6 +900,8 @@ pub struct Board {
     pub total_cap: f64,
     /// Members still loading.
     pub waiting: usize,
+    /// The index's own first and last day.
+    pub history: Option<(i64, i64, bool)>,
 }
 
 fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
@@ -761,14 +911,18 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
         change: f64::NAN,
         ..Default::default()
     };
-    let mut funds: Vec<Fundamentals> = Vec::new();
+    let mut funds: Vec<(Fundamentals, f64)> = Vec::new();
     let bars = bars_of(data);
     let current = def.segments.last();
     let mut caps = Vec::new();
     for m in &def.members {
         let d = data.get(&m.id);
+        let included = def.includes(&m.id);
         let mut row = BoardRow {
             symbol: m.clone(),
+            included,
+            from_start: def.counts_from_start(&m.id),
+            history: None,
             weight: f64::NAN,
             price: f64::NAN,
             change: f64::NAN,
@@ -779,6 +933,7 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
         match d.and_then(|d| d.bars.as_ref()) {
             Some(Ok(b)) if !b.is_empty() => {
                 let n = b.len();
+                row.history = Some((b[0].time, b[n - 1].time, n >= BARS));
                 row.price = b[n - 1].close;
                 if n >= 2 && b[n - 2].close != 0.0 {
                     row.change = (b[n - 1].close / b[n - 2].close - 1.0) * 100.0;
@@ -805,7 +960,13 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
                 let f = clean(f);
                 member_fundamentals(&f, &mut row.values);
                 row.market_cap = f.market_cap;
-                funds.push(f);
+                // The part of the company the index holds today.
+                let held = current
+                    .and_then(|s| s.members.iter().position(|x| *x == m.id).map(|k| s.units[k]))
+                    .map_or(f64::NAN, |u| u / f.shares);
+                if included && current.is_some_and(|s| s.members.contains(&m.id)) {
+                    funds.push((f, held));
+                }
             }
             Some(Err(e)) if row.error.is_none() => row.error = Some(format!("Fundamentals: {e}")),
             None if d.and_then(|d| d.bars.as_ref()).is_some() => board.waiting += 1,
@@ -820,9 +981,23 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
             board.rows[k].weight = c / total * 100.0;
         }
     }
-    board.total_cap = funds.iter().map(|f| f.market_cap).filter(|c| c.is_finite()).sum();
+    board.total_cap = funds.iter().map(|f| f.0.market_cap).filter(|c| c.is_finite()).sum();
+    // A member with no share count: whole companies for all, rather than
+    // leaving it out.
+    if funds.iter().any(|(_, h)| !(h.is_finite() && *h > 0.0)) {
+        for f in &mut funds {
+            f.1 = 1.0;
+        }
+    }
     if def.ready() {
         let series = index_series(&def.segments, &bars);
+        if let (Some(a), Some(b)) = (series.first(), series.last()) {
+            let capped = board
+                .rows
+                .iter()
+                .any(|r| r.history.is_some_and(|h| h.2 && h.0 >= a.time));
+            board.history = Some((a.time, b.time, capped));
+        }
         if let Some(last) = series.last() {
             board.value = last.close;
             let n = series.len();
@@ -849,9 +1024,15 @@ fn bars_of(data: &HashMap<String, MemberData>) -> HashMap<String, &[Bar]> {
 /// Price-based measures of one series.
 fn price_measures(bars: &[Bar], tz: &jiff::tz::TimeZone, out: &mut HashMap<Metric, f64>) {
     let Some(last) = bars.last() else { return };
-    let day = 86_400_000;
-    for (m, days) in [(Metric::Ret1M, 30), (Metric::Ret3M, 91)] {
-        let c = close_at(bars, last.time - days * day);
+    // Calendar months back from the latest close, as the market overview.
+    let then = jiff::Timestamp::from_millisecond(last.time)
+        .unwrap_or(jiff::Timestamp::UNIX_EPOCH)
+        .to_zoned(jiff::tz::TimeZone::UTC);
+    for (m, months) in [(Metric::Ret1M, 1), (Metric::Ret3M, 3)] {
+        let Ok(cut) = then.checked_sub(jiff::Span::new().months(months)) else {
+            continue;
+        };
+        let c = close_at(bars, cut.timestamp().as_millisecond());
         if c.is_finite() && c != 0.0 {
             out.insert(m, (last.close / c - 1.0) * 100.0);
         }
@@ -889,11 +1070,20 @@ pub enum View {
 enum Click {
     Symbol(Symbol),
     Index(String),
+    /// A member's tick box (its id).
+    Toggle(String),
+    /// A member's "Counts from" (its id).
+    Counts(String),
 }
 
 /// One row of a metrics table: a member, or an index (Compare).
 struct TRow {
     label: String,
+    /// A member's tick box: `Some(ticked)`; `None` for no box.
+    included: Option<bool>,
+    /// A member's "Counts from": `Some(from the start)`.
+    from_start: Option<bool>,
+    history: Option<(i64, i64, bool)>,
     symbol: Option<Symbol>,
     click: Option<Click>,
     weight: f64,
@@ -911,6 +1101,9 @@ impl TRow {
     fn of(r: &BoardRow) -> TRow {
         TRow {
             label: r.symbol.ticker().to_string(),
+            included: Some(r.included),
+            from_start: Some(r.from_start),
+            history: r.history,
             symbol: Some(r.symbol.clone()),
             click: Some(Click::Symbol(r.symbol.clone())),
             weight: r.weight,
@@ -1324,6 +1517,9 @@ impl App {
         let rows: Vec<TRow> = board.rows.iter().map(TRow::of).collect();
         let pinned = TRow {
             label: "Index".into(),
+            included: None,
+            from_start: None,
+            history: board.history,
             symbol: None,
             click: def.ready().then(|| Click::Index(def.ticker.clone())),
             weight: f64::NAN,
@@ -1373,6 +1569,9 @@ impl App {
             waiting |= b.waiting > 0;
             caps.push(b.total_cap);
             rows.push(TRow {
+                included: None,
+                from_start: None,
+                history: None,
                 label: d.name.clone(),
                 symbol: None,
                 click: d.ready().then(|| Click::Index(d.ticker.clone())),
@@ -1471,8 +1670,69 @@ impl App {
                     self.open_symbol_synced(d.symbol());
                 }
             }
+            Some(Click::Toggle(id)) => {
+                if let Some(t) = self.indices.open.clone() {
+                    self.toggle_member(&t, &id);
+                }
+            }
+            Some(Click::Counts(id)) => {
+                if let Some(t) = self.indices.open.clone() {
+                    let start = self.indices.by_ticker(&t).is_some_and(|d| d.counts_from_start(&id));
+                    self.set_counts_from(&t, &id, !start);
+                }
+            }
             None => {}
         }
+    }
+
+    /// Counts a member from the index's start (`start`), or from the day
+    /// after its listing, and builds the index again over its history.
+    pub(crate) fn set_counts_from(&mut self, ticker: &str, id: &str, start: bool) -> bool {
+        let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == ticker) else {
+            return false;
+        };
+        if !d.members.iter().any(|m| m.id == id) {
+            return false;
+        }
+        if d.counts_from_start(id) == start {
+            return true;
+        }
+        if start {
+            d.start.push(id.to_string());
+        } else {
+            d.start.retain(|x| x != id);
+        }
+        d.rebuild();
+        self.save_indices();
+        self.indices_want();
+        self.indices_settle();
+        true
+    }
+
+    /// Ticks or unticks a member, and builds the index again over its
+    /// whole history from the ticked members: leaving out a young stock
+    /// lets the index reach back as far as the others do. False when it
+    /// would leave nothing ticked.
+    pub(crate) fn toggle_member(&mut self, ticker: &str, id: &str) -> bool {
+        let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == ticker) else {
+            return false;
+        };
+        if !d.members.iter().any(|m| m.id == id) {
+            return false;
+        }
+        if d.includes(id) {
+            if d.members.iter().filter(|m| d.includes(&m.id)).count() <= 1 {
+                return false;
+            }
+            d.off.push(id.to_string());
+        } else {
+            d.off.retain(|x| x != id);
+        }
+        d.rebuild();
+        self.save_indices();
+        self.indices_want();
+        self.indices_settle();
+        true
     }
 }
 
@@ -1663,10 +1923,16 @@ fn metric_table(
             .size()
             .x
     };
-    let lead_w = 170.0;
+    // Members get a tick box before the logo.
+    let boxes = rows.iter().any(|r| r.included.is_some());
+    let lead_w = if boxes { 196.0 } else { 170.0 };
     let mut fixed: Vec<(&str, f32)> = Vec::new();
     if weights {
-        fixed.push(("Weight", 96.0));
+        fixed.push(("Weight", 112.0));
+    }
+    if boxes {
+        fixed.push(("History", 86.0));
+        fixed.push(("Counts from", 112.0));
     }
     fixed.push((if weights { "Price" } else { "Value" }, 92.0));
     fixed.push(("1D", 78.0));
@@ -1776,6 +2042,8 @@ fn metric_table(
             let r = Rect::from_min_size(head.min + vec2(x, 0.0), vec2(*wd, row_h));
             let tip = match *name {
                 "Weight" => "Today's weight in the index",
+                "History" => "How far back its prices go",
+                "Counts from" => "Its listing: it joins the index the day after its first close, so the index reaches back as far as its oldest members. Index start: the index begins only once it has prices. Click a row's to switch.",
                 "1D" => "Change since the last close",
                 _ => "",
             };
@@ -1822,21 +2090,50 @@ fn metric_table(
                         Sense::hover()
                     };
                     let (r, resp) = ui.allocate_exact_size(vec2(total, row_h), sense);
-                    let p = ui.painter();
+                    // Not `hovered()`: the tick box takes the hover.
+                    let hovered = !pin && ui.rect_contains_pointer(r);
                     if pin {
-                        p.rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
-                    } else if resp.hovered() {
-                        p.rect_filled(r, 6, t.hover_wash());
+                        ui.painter().rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
+                    } else if hovered {
+                        // A soft rounded card inside the row's rules, which
+                        // step aside for it.
+                        ui.painter().rect_filled(r.shrink2(vec2(2.0, 2.0)), 7, t.hover_wash());
                     }
-                    for b in &bounds {
-                        p.vline(r.left() + b, r.y_range(), hair);
+                    if let Some(on) = row.included {
+                        let b = Rect::from_center_size(pos2(r.left() + 19.0, r.center().y), vec2(17.0, 24.0));
+                        let mut v = on;
+                        let tip = if on {
+                            "Leave out of the index"
+                        } else {
+                            "Count in the index"
+                        };
+                        if ui
+                            .put(b, |ui: &mut Ui| w::checkbox(ui, &mut v, ""))
+                            .on_hover_text(tip)
+                            .clicked()
+                            && let Some(s) = &row.symbol
+                        {
+                            click = Some(Click::Toggle(s.id.clone()));
+                        }
+                    }
+                    // A member left out reads quieter.
+                    let mut painter = ui.painter().clone();
+                    if row.included == Some(false) {
+                        painter.multiply_opacity(0.45);
+                    }
+                    let p = &painter;
+                    if !hovered {
+                        for b in &bounds {
+                            p.vline(r.left() + b, r.y_range(), hair);
+                        }
                     }
                     let strong = pin;
                     // Lead: logo and ticker, or the name.
-                    let mut tx = r.left() + 10.0;
+                    let lead = if row.included.is_some() { 30.0 } else { 0.0 };
+                    let mut tx = r.left() + 10.0 + lead;
                     if let Some(s) = &row.symbol {
-                        logos.paint(p, t, s, pos2(r.left() + 19.0, r.center().y), 9.0);
-                        tx = r.left() + 36.0;
+                        logos.paint(p, t, s, pos2(r.left() + 19.0 + lead, r.center().y), 9.0);
+                        tx = r.left() + 36.0 + lead;
                     }
                     let lead_font = if strong || row.symbol.is_none() {
                         theme::semibold(12.5)
@@ -1851,23 +2148,27 @@ fn metric_table(
                         let right = cell.right_center() - vec2(10.0, 0.0);
                         match *name {
                             "Weight" if row.weight.is_finite() => {
-                                // A small bar beside the number.
-                                let track = Rect::from_min_size(cell.left_center() + vec2(10.0, -2.0), vec2(30.0, 4.0));
-                                p.rect_filled(track, 2, t.hover_wash());
-                                if max_weight > 0.0 {
-                                    let fill = Rect::from_min_size(
-                                        track.min,
-                                        vec2(track.width() * (row.weight / max_weight) as f32, 4.0),
-                                    );
-                                    p.rect_filled(fill, 2, t.accent.gamma_multiply(0.7));
-                                }
-                                p.text(
+                                // A small bar left of the number, never under it.
+                                let text = p.text(
                                     right,
                                     Align2::RIGHT_CENTER,
                                     format!("{:.1}%", row.weight),
                                     cell_font.clone(),
                                     t.text2,
                                 );
+                                let end = text.left() - 8.0;
+                                let w = (end - (cell.left() + 10.0)).min(30.0);
+                                if w >= 12.0 {
+                                    let track = Rect::from_min_size(pos2(end - w, cell.center().y - 2.0), vec2(w, 4.0));
+                                    p.rect_filled(track, 2, t.hover_wash());
+                                    if max_weight > 0.0 {
+                                        let fill = Rect::from_min_size(
+                                            track.min,
+                                            vec2(track.width() * (row.weight / max_weight) as f32, 4.0),
+                                        );
+                                        p.rect_filled(fill, 2, t.accent.gamma_multiply(0.7));
+                                    }
+                                }
                             }
                             "Price" | "Value" if row.price.is_finite() && row.price > 0.0 => {
                                 let d = row.symbol.as_ref().map_or(2, |s| s.precision().max(2));
@@ -1878,6 +2179,43 @@ fn metric_table(
                                     cell_font.clone(),
                                     t.text,
                                 );
+                            }
+                            "History" => {
+                                if let Some((a, b, capped)) = row.history {
+                                    p.text(
+                                        right,
+                                        Align2::RIGHT_CENTER,
+                                        span_label(a, b, capped),
+                                        cell_font.clone(),
+                                        t.text2,
+                                    );
+                                    ui.interact(cell, ui.id().with((salt, "hist", &row.label)), Sense::hover())
+                                        .on_hover_text(format!("Prices since {}", day_label(a)));
+                                }
+                            }
+                            "Counts from" => {
+                                if let (Some(start), Some(s)) = (row.from_start, &row.symbol) {
+                                    let hit = ui
+                                        .interact(cell, ui.id().with((salt, "counts", &s.id)), Sense::click())
+                                        .on_hover_cursor(egui::CursorIcon::PointingHand);
+                                    let c = if hit.hovered() { t.text } else { t.text2 };
+                                    let text = if start { "Index start" } else { "Its listing" };
+                                    let font = theme::regular(12.5);
+                                    let tw = p.layout_no_wrap(text.into(), font.clone(), c).size().x;
+                                    p.text(right, Align2::RIGHT_CENTER, text, font, c);
+                                    if hit.hovered() {
+                                        let y = cell.center().y + 8.0;
+                                        p.hline(right.x - tw..=right.x, y, Stroke::new(1.0, c.gamma_multiply(0.5)));
+                                    }
+                                    let hit = hit.on_hover_text(if start {
+                                        "Counted from the index's start. Click to count it from its listing."
+                                    } else {
+                                        "Joins the index the day after its first close. Click to count it from the index's start."
+                                    });
+                                    if hit.clicked() {
+                                        click = Some(Click::Counts(s.id.clone()));
+                                    }
+                                }
                             }
                             "1D" if row.change.is_finite() => {
                                 let c = if row.change >= 0.0 { t.pos } else { t.neg };
@@ -1924,7 +2262,7 @@ fn metric_table(
                             );
                         }
                     }
-                    if !pin {
+                    if !pin && !hovered {
                         p.hline(r.x_range(), r.bottom(), hair);
                     }
                     let tip = match (&row.error, &row.symbol) {
@@ -1943,6 +2281,36 @@ fn metric_table(
             });
     });
     click
+}
+
+/// How long a stretch of prices runs: "8 mo", "7.5 yrs", "12 yrs";
+/// "40+ yrs" when older prices weren't fetched.
+fn span_label(first: i64, last: i64, capped: bool) -> String {
+    let days = (last - first) as f64 / 86_400_000.0;
+    let plus = if capped { "+" } else { "" };
+    if days < 365.0 {
+        return format!("{}{plus} mo", (days / 30.44).round().max(1.0));
+    }
+    let y = days / 365.25;
+    let n = if y < 10.0 {
+        let r = (y * 10.0).round() / 10.0;
+        if r.fract() == 0.0 {
+            format!("{r:.0}")
+        } else {
+            format!("{r:.1}")
+        }
+    } else {
+        format!("{:.0}", y.round())
+    };
+    let unit = if n == "1" { "yr" } else { "yrs" };
+    format!("{n}{plus} {unit}")
+}
+
+/// "3 Jan 2006".
+pub(crate) fn day_label(ms: i64) -> String {
+    jiff::Timestamp::from_millisecond(ms)
+        .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
+        .unwrap_or_default()
 }
 
 /// Squarified treemap: rectangles for `areas` (largest first) in `r`.
@@ -2404,6 +2772,8 @@ impl App {
             def.ticker = ticker_for(&def.name, &taken);
         }
         if !same {
+            def.off.retain(|id| members.iter().any(|m| m.id == *id));
+            def.start.retain(|id| members.iter().any(|m| m.id == *id));
             def.members = members;
             def.weighting = weighting;
             // A new segment from today keeps the level (the divisor).
@@ -2508,6 +2878,104 @@ mod tests {
         let s = index_series(&d.segments, &map);
         let wc = 50.0 * 10.0 / (10.0 * 121.0 + 20.0 * 25.0 + 50.0 * 10.0);
         assert!((s[3].close / s[2].close - (1.0 + wc)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_young_member_joins_after_it_lists_or_can_hold_the_start() {
+        let old = bars(&[100.0, 110.0, 120.0, 130.0]);
+        let young: Vec<Bar> = bars(&[0.0, 0.0, 50.0, 55.0]).split_off(2);
+        let map: HashMap<String, &[Bar]> = [
+            ("OLD".to_string(), old.as_slice()),
+            ("NEW".to_string(), young.as_slice()),
+        ]
+        .into_iter()
+        .collect();
+        let funds = HashMap::new();
+        let none = BTreeSet::new();
+        let closes = |d: &IndexDef| {
+            index_series(&d.segments, &map)
+                .iter()
+                .map(|b| b.close)
+                .collect::<Vec<_>>()
+        };
+        // Its listing (the default): the old member alone until the young
+        // one's first close (day 2), then both, equal again, level kept.
+        let mut d = def(&["OLD", "NEW"], Weighting::Equal);
+        assert!(settle(&mut d, &map, &funds, &none, 0));
+        assert_eq!(d.segments.len(), 2);
+        assert_eq!(d.segments[1].from, 3 * DAY);
+        let c = closes(&d);
+        assert_eq!(c.len(), 4);
+        // Day 3: 600 in each at day 2's close; old +8.33%, young +10%.
+        let want = [1000.0, 1100.0, 1200.0, 600.0 * 130.0 / 120.0 + 600.0 * 55.0 / 50.0];
+        for (a, b) in c.iter().zip(want) {
+            assert!((a - b).abs() < 1e-9, "{c:?}");
+        }
+        assert!(!settle(&mut d, &map, &funds, &none, 0));
+        // Index start: the index waits for it.
+        d.start = vec!["NEW".into()];
+        d.rebuild();
+        assert!(settle(&mut d, &map, &funds, &none, 0));
+        assert_eq!(d.segments.len(), 1);
+        assert_eq!(closes(&d).len(), 2);
+        // Left out: the old member's whole history alone.
+        d.off = vec!["NEW".into()];
+        d.rebuild();
+        assert!(settle(&mut d, &map, &funds, &none, 0));
+        assert_eq!(d.segments[0].members, ["OLD"]);
+        assert_eq!(closes(&d), vec![1000.0, 1100.0, 1200.0, 1300.0]);
+    }
+
+    #[test]
+    fn a_day_only_the_old_members_traded_is_kept() {
+        // NEW lists on day 2 and doesn't trade on day 3; OLD rises on day 3.
+        let old = bars(&[100.0, 110.0, 120.0, 130.0, 130.0, 130.0]);
+        let mut young = bars(&[0.0, 0.0, 50.0, 0.0, 50.0, 50.0]);
+        young.retain(|b| b.time == 2 * DAY || b.time >= 4 * DAY);
+        let map: HashMap<String, &[Bar]> = [
+            ("OLD".to_string(), old.as_slice()),
+            ("NEW".to_string(), young.as_slice()),
+        ]
+        .into_iter()
+        .collect();
+        let mut d = def(&["OLD", "NEW"], Weighting::Equal);
+        assert!(settle(&mut d, &map, &HashMap::new(), &BTreeSet::new(), 0));
+        assert_eq!((d.segments[1].from, d.segments[1].anchor_time), (4 * DAY, 3 * DAY));
+        let c: Vec<f64> = index_series(&d.segments, &map).iter().map(|b| b.close).collect();
+        // Day 3's rise stays; nothing moved after it.
+        assert_eq!(c.len(), 6);
+        for (a, b) in c.iter().zip([1000.0, 1100.0, 1200.0, 1300.0, 1300.0, 1300.0]) {
+            assert!((a - b).abs() < 1e-9, "{c:?}");
+        }
+    }
+
+    #[test]
+    fn the_index_p_e_counts_what_it_holds() {
+        let f = |cap: f64, earn: f64| Fundamentals {
+            market_cap: cap,
+            pe: cap / earn,
+            ..Default::default()
+        };
+        // Equal weight holds ten times the share of the small company.
+        let mut out = HashMap::new();
+        index_fundamentals(&[(f(1000.0, 100.0), 1.0), (f(100.0, 1.0), 10.0)], &mut out);
+        assert!((out[&Metric::Pe] - 2000.0 / 110.0).abs() < 1e-9);
+        // One stock: its own P/E.
+        index_fundamentals(&[(f(1000.0, 40.0), 0.3)], &mut out);
+        assert!((out[&Metric::Pe] - 25.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn older_saves_are_built_again_and_spans_read_plainly() {
+        let mut d: IndexDef =
+            serde_json::from_str(r#"{"ticker":"T","segments":[{"from":0,"members":["A"],"units":[1.0]}]}"#).unwrap();
+        d.migrate();
+        assert!(d.segments.is_empty() && d.chain == CHAIN);
+        let y = (365.25 * 86_400_000.0) as i64;
+        assert_eq!(span_label(0, y * 15 / 2, false), "7.5 yrs");
+        assert_eq!(span_label(0, y, false), "1 yr");
+        assert_eq!(span_label(0, y * 12, true), "12+ yrs");
+        assert_eq!(span_label(0, 240 * 86_400_000, false), "8 mo");
     }
 
     #[test]

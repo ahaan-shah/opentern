@@ -225,15 +225,25 @@ pub fn sectors<'a>(b: &'a Board, only: Option<&str>) -> Vec<Group<'a>> {
     groups
 }
 
-/// A sector's change: its members' changes weighted by size.
-pub fn weighted(members: &[(&Member, f64)], p: Period) -> f64 {
+/// A sector's change over a period. Sized by market cap, it's how much
+/// the members' total cap moved: each member weighted by its cap at the
+/// start of the period (today's ÷ (1 + its change)), not today's, which
+/// would count the winners for more than they were worth then. Otherwise
+/// (equal or volume sizing) the plain weighted average.
+pub fn weighted(members: &[(&Member, f64)], p: Period, sizing: Sizing) -> f64 {
     let (mut s, mut w) = (0.0, 0.0);
     for (m, wt) in members {
         let c = m.change(p);
-        if c.is_finite() {
-            s += c * wt;
-            w += wt;
+        if !c.is_finite() || c <= -100.0 {
+            continue;
         }
+        let wt = if sizing == Sizing::MarketCap {
+            wt / (1.0 + c / 100.0)
+        } else {
+            *wt
+        };
+        s += c * wt;
+        w += wt;
     }
     if w > 0.0 { s / w } else { f64::NAN }
 }
@@ -523,7 +533,7 @@ impl App {
                 drawn.sectors.push((name.clone(), bar));
                 let hovered = hover.is_some_and(|h| bar.contains(h));
                 let font = theme::medium(11.5);
-                let ch = weighted(members, period);
+                let ch = weighted(members, period, board.sizing);
                 let title = format!("{name} ›");
                 let text = crate::format::elide_to(&p, &title, &font, r.width() - 8.0);
                 let color = if hovered { t.text } else { t.text2 };
@@ -800,6 +810,27 @@ fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_sectors_change_is_its_total_caps() {
+        let m = |cap: f64, ch: f64| Member {
+            symbol: opentern_core::Symbol::bare("X"),
+            name: String::new(),
+            sector: "S".into(),
+            industry: String::new(),
+            cap,
+            price: 1.0,
+            change: [ch; 6],
+            closes: Vec::new(),
+        };
+        // Worth 100 and 100 a year ago; 200 and 100 now: the sector is up
+        // 50% (not 66.7%, today's caps as weights).
+        let (a, b) = (m(200.0, 100.0), m(100.0, 0.0));
+        let ch = weighted(&[(&a, 200.0), (&b, 100.0)], Period::Year, Sizing::MarketCap);
+        assert!((ch - 50.0).abs() < 1e-9, "{ch}");
+        let eq = weighted(&[(&a, 1.0), (&b, 1.0)], Period::Year, Sizing::Equal);
+        assert!((eq - 50.0).abs() < 1e-9);
+    }
 
     #[test]
     fn small_sectors_move_below_the_map() {

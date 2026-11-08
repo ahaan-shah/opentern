@@ -1344,6 +1344,12 @@ impl App {
         self.poll_paper();
         self.poll_other_charts();
         self.poll_screener();
+        // An index whose weights are being built again (after an edit or
+        // an upgrade) fetches its members' data even with its tab shut, so
+        // its chart comes back.
+        if self.indices.defs.iter().any(|d| !d.ready() && !d.members.is_empty()) {
+            self.indices_want();
+        }
         self.poll_lab();
         self.poll_alerts();
         self.poll_claude();

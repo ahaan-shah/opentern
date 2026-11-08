@@ -336,6 +336,12 @@ impl App {
                     ev.sort_by_key(|e| std::cmp::Reverse(e.0));
                     section_head(ui, t, "Dividends and splits", self.chart.symbol.ticker());
                     let cur = currency_prefix(&self.chart.symbol);
+                    // Yahoo lists Indian bonus issues as splits too.
+                    let split = if matches!(self.chart.symbol.exchange(), "NSE" | "BSE") {
+                        "Split or bonus"
+                    } else {
+                        "Split"
+                    };
                     let mut year = None;
                     for (ts, dividend, v) in ev.iter().take(12) {
                         let Ok(z) =
@@ -359,7 +365,7 @@ impl App {
                         let (what, amount) = if *dividend {
                             ("Dividend", format!("{cur}{}", amount(*v)))
                         } else {
-                            ("Split", format!("{}:1", amount(*v)))
+                            (split, format!("{}:1", amount(*v)))
                         };
                         let upcoming = z.date() >= today;
                         corporate_row(ui, t, &z.strftime("%d %b").to_string(), what, &amount, upcoming);

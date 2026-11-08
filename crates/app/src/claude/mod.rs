@@ -2917,6 +2917,18 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
             ),
             "edit" => (format!("Edited {}", s("name")), format!("Edit {}", s("name"))),
             "rebalance" => (format!("Rebalanced {}", s("name")), format!("Rebalance {}", s("name"))),
+            "include" => (
+                format!("Ticked members of {}", s("name")),
+                format!("Tick members of {}", s("name")),
+            ),
+            "counts_from" => (
+                format!("Set when members of {} count from", s("name")),
+                format!("Set when members of {} count from", s("name")),
+            ),
+            "exclude" => (
+                format!("Left members out of {}", s("name")),
+                format!("Leave members out of {}", s("name")),
+            ),
             "delete" => (format!("Deleted {}", s("name")), format!("Delete {}", s("name"))),
             "compare" => ("Compared the indices".into(), "Compare the indices".into()),
             "list" => ("Listed the indices".into(), "List the indices".into()),

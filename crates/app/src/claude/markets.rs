@@ -132,6 +132,17 @@ impl App {
                 if let Some(e) = &r.error {
                     m["problem"] = json!(e);
                 }
+                if !r.included {
+                    m["left_out"] = json!(true);
+                }
+                m["counts_from"] = json!(if r.from_start { "index start" } else { "its listing" });
+                if let Some((a, b, capped)) = r.history {
+                    m["prices_since"] = json!(crate::indices::day_label(a));
+                    m["history_years"] = json!(round((b - a) as f64 / 86_400_000.0 / 365.25));
+                    if capped {
+                        m["older_prices_not_fetched"] = json!(true);
+                    }
+                }
                 m
             })
             .collect();
@@ -144,6 +155,9 @@ impl App {
             "metrics": metrics_json(&board.index),
             "members": members,
         });
+        if let Some((a, _, _)) = board.history {
+            out["starts"] = json!(crate::indices::day_label(a));
+        }
         if board.waiting > 0 || def.pending || !def.ready() {
             out["still_loading"] = json!(format!(
                 "{} of {} members' data is still coming in; weights and numbers may change.",
@@ -201,6 +215,7 @@ impl App {
                             "symbol": d.id(),
                             "weighting": d.weighting.name(),
                             "members": d.members.iter().map(|m| m.id.clone()).collect::<Vec<_>>(),
+                            "left_out": d.off,
                             "value": round(now.map_or(f64::NAN, |n| n.0)),
                             "day_change_pct": round(now.map_or(f64::NAN, |n| n.1)),
                         })
@@ -320,6 +335,54 @@ impl App {
                     msg.push_str(&format!(" Not a member: {}.", missing.join(", ")));
                 }
                 text(msg)
+            }
+            "include" | "exclude" => {
+                let Some(d) = def else {
+                    return Some(self.no_index(name));
+                };
+                let want = action == "include";
+                let mut missing = Vec::new();
+                for x in strings(a, "symbols") {
+                    let n = norm(&x);
+                    let Some(m) = d.members.iter().find(|m| norm(&m.id) == n || norm(m.ticker()) == n) else {
+                        missing.push(x);
+                        continue;
+                    };
+                    let id = m.id.clone();
+                    let on = self.indices.by_ticker(&d.ticker).is_some_and(|d| d.includes(&id));
+                    if on != want && !self.toggle_member(&d.ticker, &id) {
+                        return Some(error("At least one member has to stay in the index."));
+                    }
+                }
+                if !missing.is_empty() {
+                    return Some(error(format!("Not a member: {}.", missing.join(", "))));
+                }
+                return self.wait_index(ctx, &d.ticker, false);
+            }
+            "countsfrom" => {
+                let Some(d) = def else {
+                    return Some(self.no_index(name));
+                };
+                let start = match norm(st(a, "from")).as_str() {
+                    "listing" | "itslisting" => false,
+                    "start" | "indexstart" => true,
+                    _ => return Some(error("from is listing or start.")),
+                };
+                let mut missing = Vec::new();
+                for x in strings(a, "symbols") {
+                    let n = norm(&x);
+                    match d.members.iter().find(|m| norm(&m.id) == n || norm(m.ticker()) == n) {
+                        Some(m) => {
+                            let id = m.id.clone();
+                            self.set_counts_from(&d.ticker, &id, start);
+                        }
+                        None => missing.push(x),
+                    }
+                }
+                if !missing.is_empty() {
+                    return Some(error(format!("Not a member: {}.", missing.join(", "))));
+                }
+                return self.wait_index(ctx, &d.ticker, false);
             }
             "rebalance" => match def {
                 Some(d) => {
@@ -600,7 +663,7 @@ impl App {
                     "sector": name,
                     "members": members.len(),
                     "share_pct": round(w / total * 100.0),
-                    "change_pct": round(weighted(members, period)),
+                    "change_pct": round(weighted(members, period, b.sizing)),
                 })
             })
             .collect();
@@ -616,7 +679,7 @@ impl App {
             },
             "currency": b.currency,
             "members": all.len(),
-            "market_change_pct": round(weighted(&groups.iter().flat_map(|g| g.2.iter().copied()).collect::<Vec<_>>(), period)),
+            "market_change_pct": round(weighted(&groups.iter().flat_map(|g| g.2.iter().copied()).collect::<Vec<_>>(), period, b.sizing)),
             "sectors": sectors_json,
             "largest": largest,
             "gainers": gainers,

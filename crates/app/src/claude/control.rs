@@ -1951,6 +1951,38 @@ mod drive_tests {
             json!({"action": "get", "name": "BIGTECH"}),
         ));
         assert!(r.contains("\"P/E\""), "{r}");
+        // Untick a member: still listed, left out, the index rebuilt.
+        let r = ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "exclude", "name": "Big Tech", "symbols": ["NVDA"]}),
+        ));
+        assert!(r.contains("\"left_out\": true"), "{r}");
+        assert!(d.app.indices.defs[0].ready());
+        assert_eq!(d.app.indices.defs[0].segments[0].members.len(), 1);
+        let r = call(
+            &mut d,
+            "custom_index",
+            json!({"action": "exclude", "name": "Big Tech", "symbols": ["AAPL"]}),
+        );
+        assert!(r["isError"].as_bool().unwrap_or(false), "the last member stays");
+        ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "include", "name": "Big Tech", "symbols": ["NVDA"]}),
+        ));
+        assert_eq!(d.app.indices.defs[0].segments[0].members.len(), 2);
+        let r = ok(&call(
+            &mut d,
+            "custom_index",
+            json!({"action": "counts_from", "name": "Big Tech", "symbols": ["NVDA"], "from": "start"}),
+        ));
+        assert!(r.contains("\"index start\"") && r.contains("history_years"), "{r}");
+        assert!(
+            d.app.indices.defs[0].counts_from_start("NASDAQ:NVDA"),
+            "{:?}",
+            d.app.indices.defs[0].start
+        );
         ok(&call(
             &mut d,
             "custom_index",

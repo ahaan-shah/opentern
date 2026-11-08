@@ -244,6 +244,70 @@ pub fn dividend_adjust(bars: &[Bar], dividends: &[(i64, f64)], tz: &jiff::tz::Ti
         .collect()
 }
 
+/// Adjusts for splits (and bonus issues, which Yahoo lists as splits) that
+/// the prices don't reflect yet: a source that serves raw prices, or one
+/// that hasn't caught up. Bars before it are divided by the factor and
+/// their volume multiplied, so a 2-for-1 split doesn't read as a 50% fall;
+/// prices already adjusted show no gap and are left alone. The factor is
+/// the listed ratio when the price gap across the date matches it, else
+/// the gap itself when it's large and a clean ratio (5, 5/2, 1/10): Yahoo
+/// lists a split plus a bonus on one day as the split alone (Bajaj
+/// Finance, June 2025: "2:1" for ×10 the shares), and its intraday bars
+/// are adjusted by the listed part only. `tz` dates intraday bars.
+pub fn split_adjust(bars: &[Bar], splits: &[(i64, f64)], tz: &jiff::tz::TimeZone) -> Option<Vec<Bar>> {
+    let day = |t: i64| to_utc_midnight(t, tz);
+    let mut factor = vec![1.0f64; bars.len()];
+    let mut any = false;
+    for &(date, ratio) in splits {
+        if !ratio.is_finite() || ratio <= 0.0 {
+            continue;
+        }
+        let k = bars.partition_point(|b| day(b.time) < date);
+        if k == 0 || k >= bars.len() || day(bars[k].time) - date > 7 * 86_400_000 {
+            continue;
+        }
+        let (before, after) = (bars[k - 1].close, bars[k].open);
+        if before <= 0.0 || after <= 0.0 {
+            continue;
+        }
+        let gap = (before / after).ln();
+        // Small ratios can't be told apart from an ordinary day's move.
+        let listed = ratio.ln().abs() >= 1.2f64.ln() && (gap - ratio.ln()).abs() < 0.4 * ratio.ln().abs();
+        let f = if listed { Some(ratio) } else { clean_ratio(gap) };
+        if let Some(f) = f {
+            for x in factor.iter_mut().take(k) {
+                *x /= f;
+            }
+            any = true;
+        }
+    }
+    any.then(|| {
+        bars.iter()
+            .zip(factor)
+            .map(|(b, f)| Bar {
+                open: b.open * f,
+                high: b.high * f,
+                low: b.low * f,
+                close: b.close * f,
+                volume: if f > 0.0 { b.volume / f } else { b.volume },
+                ..*b
+            })
+            .collect()
+    })
+}
+
+/// A gap (log of before ÷ after) that is a split's or bonus's factor
+/// within 3%: a whole number or a half (2, 2.5, 3, 5, 10, …; inverted for
+/// a reverse split). Nothing under 2×, which a day's move could be.
+fn clean_ratio(gap: f64) -> Option<f64> {
+    if !gap.is_finite() || gap.abs() < 1.9f64.ln() {
+        return None;
+    }
+    let g = gap.abs().exp();
+    let r = (g * 2.0).round() / 2.0;
+    (r >= 2.0 && (r.ln() - g.ln()).abs() < 0.03).then(|| if gap > 0.0 { r } else { 1.0 / r })
+}
+
 impl Yahoo {
     /// The symbol's whole dividend and split history.
     pub fn corporate(&self, sym: &Symbol) -> Result<Corporate> {
@@ -265,11 +329,23 @@ impl Yahoo {
             format!("range={range}")
         };
         let url = format!(
-            "{CHART}/{}?interval={iv}&{span}&includePrePost={}",
+            "{CHART}/{}?interval={iv}&{span}&includePrePost={}&events=split",
             urlencode(&ticker(&sym.id)),
             self.prepost
         );
-        let (bars, meta) = parse_chart(&provider::get_json(&self.agent, &url)?, !tf.is_intraday())?;
+        let v = provider::get_json(&self.agent, &url)?;
+        let (mut bars, meta) = parse_chart(&v, !tf.is_intraday())?;
+        // Splits Yahoo hasn't (fully) adjusted these bars for.
+        let splits = parse_events(&v).splits;
+        if !splits.is_empty() {
+            let tz = meta["exchangeTimezoneName"]
+                .as_str()
+                .and_then(|n| jiff::tz::TimeZone::get(n).ok())
+                .unwrap_or(jiff::tz::TimeZone::UTC);
+            if let Some(adj) = split_adjust(&bars, &splits, &tz) {
+                bars = adj;
+            }
+        }
         // Never pass off bars of another length as the ones asked for.
         if let Some(g) = meta["dataGranularity"].as_str()
             && g != iv
@@ -392,6 +468,47 @@ pub(crate) fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn missing_splits_are_adjusted_and_adjusted_ones_left_alone() {
+        let day = 86_400_000;
+        let mk = |closes: &[f64]| -> Vec<Bar> {
+            closes
+                .iter()
+                .enumerate()
+                .map(|(i, c)| Bar {
+                    time: i as i64 * day,
+                    open: *c,
+                    high: *c,
+                    low: *c,
+                    close: *c,
+                    volume: 100.0,
+                })
+                .collect()
+        };
+        let utc = jiff::tz::TimeZone::UTC;
+        // Raw prices: 2-for-1 on day 2.
+        let raw = mk(&[200.0, 202.0, 101.0, 100.0]);
+        let adj = split_adjust(&raw, &[(2 * day, 2.0)], &utc).expect("adjusted");
+        assert_eq!(
+            adj.iter().map(|b| b.close).collect::<Vec<_>>(),
+            vec![100.0, 101.0, 101.0, 100.0]
+        );
+        assert_eq!(adj[0].volume, 200.0);
+        assert_eq!(adj[3].volume, 100.0);
+        // Already adjusted: nothing to do.
+        assert!(split_adjust(&adj, &[(2 * day, 2.0)], &utc).is_none());
+        // Yahoo lists a split plus a bonus as the split alone: a clean gap
+        // on the date is taken instead (Bajaj Finance's hourly bars).
+        let both = split_adjust(&mk(&[4665.5, 931.5]), &[(day, 2.0)], &utc).expect("adjusted");
+        assert!((both[0].close - 933.1).abs() < 1e-9);
+        // An ordinary or untidy move on the date is left alone.
+        assert!(split_adjust(&mk(&[100.0, 97.0]), &[(day, 2.0)], &utc).is_none());
+        assert!(split_adjust(&mk(&[100.0, 70.0]), &[(day, 2.0)], &utc).is_none());
+        // Reverse split 1-for-5.
+        let rev = split_adjust(&mk(&[2.0, 2.1, 10.4]), &[(2 * day, 0.2)], &utc).expect("adjusted");
+        assert!((rev[0].close - 10.0).abs() < 1e-9);
+    }
 
     #[test]
     fn dividends_splits_and_adjustment() {

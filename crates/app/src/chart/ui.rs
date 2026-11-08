@@ -2317,12 +2317,18 @@ fn draw_corporate(
             )
         })
         .chain(c.splits.iter().map(|(d, ratio)| {
+            // Yahoo lists Indian bonus issues as splits too.
+            let what = if matches!(chart.symbol.exchange(), "NSE" | "BSE") {
+                "Split or bonus"
+            } else {
+                "Split"
+            };
             let text = if *ratio >= 1.0 {
-                format!("Split {}:1", trim_num(*ratio))
+                format!("{what} {}:1", trim_num(*ratio))
             } else {
                 format!("Reverse split 1:{}", trim_num(1.0 / ratio))
             };
-            (*d, 'S', format!("{text}\n{}", fmt_day(*d)))
+            (*d, 'S', format!("{text}\n{}\nEarlier prices adjusted", fmt_day(*d)))
         }));
     // Earnings: green when they beat the estimate, red when they missed,
     // grey when still to come.

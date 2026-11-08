@@ -148,6 +148,24 @@ pub(crate) fn parse(v: &serde_json::Value) -> Result<Fundamentals> {
         pe = raw(&ks["trailingPE"]);
     }
     let float_shares = raw(&ks["floatShares"]);
+    // Statement figures come in the currency the company reports in
+    // (Infosys: dollars), the market cap in the listing's (rupees). Turn
+    // them into the listing's at the rate Yahoo's own ratios imply, so an
+    // index can add them up; with no ratio to go by, leave them out.
+    let currency = price["currency"].as_str().unwrap_or_default().to_string();
+    let reported = fd["financialCurrency"].as_str().unwrap_or_default();
+    let (net, ebitda) = (raw(&ks["netIncomeToCommon"]), raw(&fd["ebitda"]));
+    let ev = raw(&ks["enterpriseValue"]);
+    let ev_ebitda = raw(&ks["enterpriseToEbitda"]);
+    let fx = if reported.is_empty() || currency.is_empty() || reported == currency {
+        1.0
+    } else if pe.is_finite() && pe > 0.0 && net.is_finite() && net > 0.0 && market_cap > 0.0 {
+        market_cap / pe / net
+    } else {
+        f64::NAN
+    };
+    // Yahoo's EV/EBITDA mixes the two currencies too (Infosys: 976).
+    let ev_ebitda = if fx == 1.0 { ev_ebitda } else { ev / (ebitda * fx) };
     Ok(Fundamentals {
         market_cap,
         shares,
@@ -158,17 +176,17 @@ pub(crate) fn parse(v: &serde_json::Value) -> Result<Fundamentals> {
             f64::NAN
         },
         pe,
-        ev_ebitda: raw(&ks["enterpriseToEbitda"]),
+        ev_ebitda,
         enterprise_value: raw(&ks["enterpriseValue"]),
-        ebitda: raw(&fd["ebitda"]),
-        revenue: raw(&fd["totalRevenue"]),
+        ebitda: ebitda * fx,
+        revenue: raw(&fd["totalRevenue"]) * fx,
         revenue_growth: raw(&fd["revenueGrowth"]),
         gross_margin: raw(&fd["grossMargins"]),
         ebitda_margin: raw(&fd["ebitdaMargins"]),
         ebit_margin: raw(&fd["operatingMargins"]),
         pat_margin: raw(&fd["profitMargins"]),
-        net_income: raw(&ks["netIncomeToCommon"]),
-        currency: price["currency"].as_str().unwrap_or_default().to_string(),
+        net_income: net * fx,
+        currency,
     })
 }
 
@@ -281,6 +299,19 @@ mod tests {
         assert_eq!(f.pe, 27.5);
         assert_eq!(f.ebit_margin, 0.11);
         assert_eq!(f.currency, "INR");
+        // Reported in dollars (Infosys): statement figures in rupees at the
+        // rate the P/E implies, EV/EBITDA worked out again.
+        let mut usd = v.clone();
+        let r = &mut usd["quoteSummary"]["result"][0];
+        r["financialData"]["financialCurrency"] = "USD".into();
+        r["financialData"]["ebitda"]["raw"] = (2.1e11 / 80.0).into();
+        r["financialData"]["totalRevenue"]["raw"] = (1.5e12 / 80.0).into();
+        r["defaultKeyStatistics"]["netIncomeToCommon"]["raw"] = (4.0e12 / 27.5 / 80.0).into();
+        r["defaultKeyStatistics"]["enterpriseToEbitda"]["raw"] = (18.2 * 80.0).into();
+        let g = parse(&usd).unwrap();
+        assert!((g.market_cap / g.net_income - 27.5).abs() < 1e-9);
+        assert!((g.revenue / 1.5e12 - 1.0).abs() < 1e-9);
+        assert!((g.ev_ebitda - 3.9e12 / 2.1e11).abs() < 1e-6);
         let none: serde_json::Value =
             serde_json::from_str(r#"{"quoteSummary":{"result":null,"error":{"description":"Quote not found"}}}"#)
                 .unwrap();

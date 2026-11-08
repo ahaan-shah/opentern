@@ -378,7 +378,11 @@ fn combine_at(s: &Seg, row: &[Option<Bar>], time: i64) -> Option<Bar> {
     combine_one(&s.expr, &full).map(|b| Bar { time, ..b })
 }
 
-/// Joins legs' bars on time and applies each time's segment.
+/// Joins legs' bars on time and applies each time's segment (a custom
+/// index). A member with no bar at a time some other member traded (a
+/// suspension, a gap in the source's data) counts at its last close, as
+/// an exchange's index does; the time is skipped only until every member
+/// has a first price.
 fn combine_segs(segs: &[Seg], legs: &[Vec<Bar>]) -> Vec<Bar> {
     let mut by_time: BTreeMap<i64, Vec<Option<Bar>>> = BTreeMap::new();
     for (k, bars) in legs.iter().enumerate() {
@@ -386,10 +390,31 @@ fn combine_segs(segs: &[Seg], legs: &[Vec<Bar>]) -> Vec<Bar> {
             by_time.entry(b.time).or_insert_with(|| vec![None; legs.len()])[k] = Some(*b);
         }
     }
-    by_time
-        .into_iter()
-        .filter_map(|(t, row)| combine_at(seg_at(segs, t), &row, t))
-        .collect()
+    let mut last: Vec<Option<f64>> = vec![None; legs.len()];
+    let mut out = Vec::new();
+    for (t, mut row) in by_time {
+        let s = seg_at(segs, t);
+        let traded = s.used.iter().any(|&i| row[i].is_some());
+        for (i, b) in row.iter_mut().enumerate() {
+            match b {
+                Some(b) => last[i] = Some(b.close),
+                None => {
+                    *b = last[i].map(|c| Bar {
+                        time: t,
+                        open: c,
+                        high: c,
+                        low: c,
+                        close: c,
+                        volume: 0.0,
+                    })
+                }
+            }
+        }
+        if traded && let Some(b) = combine_at(s, &row, t) {
+            out.push(b);
+        }
+    }
+    out
 }
 
 /// A provider for a formula (or a custom index's segments): runs the
@@ -541,6 +566,27 @@ impl Provider for ExprProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_index_member_missing_a_day_counts_at_its_last_close() {
+        let p = ExprProvider::from_segments(&[(i64::MIN, "1*A + 2*B".into())], false).unwrap();
+        let flat = |t: i64, c: f64| Bar {
+            time: t,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
+            volume: 1.0,
+        };
+        let a = vec![flat(1, 10.0), flat(2, 11.0), flat(3, 12.0)];
+        let b = vec![flat(1, 5.0), flat(3, 6.0)];
+        let out = combine_segs(&p.segs, &[a, b]);
+        assert_eq!(out.iter().map(|b| b.close).collect::<Vec<_>>(), vec![20.0, 21.0, 24.0]);
+        // Before B's first price there's no index.
+        let late = vec![flat(2, 5.0)];
+        let out = combine_segs(&p.segs, &[vec![flat(1, 10.0), flat(2, 11.0)], late]);
+        assert_eq!(out.len(), 1);
+    }
 
     fn bar(t: i64, o: f64, h: f64, l: f64, c: f64) -> Bar {
         Bar {

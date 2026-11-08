@@ -384,6 +384,31 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
     }
 }
 
+/// Where to top cached bars up from: a few bars before the newest, so the
+/// answer overlaps bars the cache holds as final (see `history_changed`).
+fn overlap_start(cached: &[Bar]) -> i64 {
+    cached[cached.len().saturating_sub(3)].time
+}
+
+/// A closed bar's close that moved by more than this between the cache and
+/// the provider means the provider re-adjusted its history.
+const READJUSTED: f64 = 0.02;
+
+/// True when the provider's copy of bars the cache holds as final differs:
+/// it adjusted a split or bonus into its history since they were cached,
+/// so everything cached is in the old units (a 2-for-1 split would read
+/// as a 50% fall). The newest cached bar may have been saved while it was
+/// still forming, so it doesn't count.
+pub(crate) fn history_changed(cached: &[Bar], fresh: &[Bar]) -> bool {
+    let settled = &cached[..cached.len().saturating_sub(1)];
+    fresh.iter().any(|f| {
+        settled.binary_search_by_key(&f.time, |b| b.time).is_ok_and(|i| {
+            let c = settled[i].close;
+            c > 0.0 && f.close > 0.0 && (f.close / c - 1.0).abs() > READJUSTED
+        })
+    })
+}
+
 /// The latest `count` bars of a symbol: from the cache, topped up from
 /// the network (and saved back), resampled to `tf`.
 pub(crate) fn fetch_once(
@@ -417,7 +442,17 @@ pub(crate) fn fetch_once(
                 bars.clear();
                 provider.latest(symbol, base, wanted)
             } else {
-                provider.since(symbol, base, last.time)
+                match provider.since(symbol, base, overlap_start(&bars)) {
+                    // A split or bonus adjusted in since the bars were cached.
+                    Ok(f) if history_changed(&bars, &f) => {
+                        if let Some(c) = &cache {
+                            let _ = c.clear(&symbol.id, base);
+                        }
+                        bars.clear();
+                        provider.latest(symbol, base, wanted)
+                    }
+                    other => other,
+                }
             }
         }
         _ => {
@@ -586,6 +621,9 @@ struct Session {
     cache: Option<Cache>,
     bars: Vec<Bar>,
     complete: bool,
+    /// Splits and bonus issues (date, ratio), for prices that don't
+    /// reflect them yet (`yahoo::split_adjust`).
+    splits: Vec<(i64, f64)>,
     cmds: Receiver<Cmd>,
     out: Out,
 }
@@ -645,6 +683,7 @@ impl Session {
             cache,
             bars: Vec::new(),
             complete: false,
+            splits: Vec::new(),
             cmds,
             out,
         };
@@ -672,10 +711,12 @@ impl Session {
     }
 
     fn series(&self) -> Vec<Bar> {
+        let adjusted = crate::yahoo::split_adjust(&self.bars, &self.splits, &self.tz);
+        let bars = adjusted.as_deref().unwrap_or(&self.bars);
         if self.base == self.tf {
-            self.bars.clone()
+            bars.to_vec()
         } else {
-            resample::resample(&self.bars, self.tf, &self.tz)
+            resample::resample(bars, self.tf, &self.tz)
         }
     }
 
@@ -716,7 +757,21 @@ impl Session {
                     self.bars.clear();
                     self.provider.latest(&self.symbol, self.base, wanted)?
                 } else {
-                    self.provider.since(&self.symbol, self.base, last.time)?
+                    let fresh = self
+                        .provider
+                        .since(&self.symbol, self.base, overlap_start(&self.bars))?;
+                    if history_changed(&self.bars, &fresh) {
+                        // A split or bonus was adjusted into the provider's
+                        // history: the cached bars are in old units.
+                        if let Some(c) = &self.cache {
+                            let _ = c.clear(&self.cache_id, self.base);
+                        }
+                        self.bars.clear();
+                        self.complete = false;
+                        self.provider.latest(&self.symbol, self.base, wanted)?
+                    } else {
+                        fresh
+                    }
                 }
             }
             None => self.provider.latest(&self.symbol, self.base, wanted)?,
@@ -799,7 +854,7 @@ impl Session {
     /// Dividends, splits and earnings, for stocks and funds (from Yahoo
     /// and Nasdaq, whichever source serves the prices). Demo stocks get
     /// made-up earnings.
-    fn corporate(&self, demo: bool) {
+    fn corporate(&mut self, demo: bool) {
         use opentern_core::AssetKind;
         let stocky = matches!(self.symbol.kind, AssetKind::Stock | AssetKind::Fund)
             && matches!(
@@ -826,6 +881,12 @@ impl Session {
             }
             c
         };
+        if !c.splits.is_empty() {
+            self.splits = c.splits.clone();
+            if crate::yahoo::split_adjust(&self.bars, &self.splits, &self.tz).is_some() {
+                self.publish();
+            }
+        }
         if !c.dividends.is_empty() || !c.splits.is_empty() || !c.earnings.is_empty() {
             self.out.send(Event::Corporate {
                 chart: self.chart,
@@ -1324,6 +1385,76 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Real Yahoo: a cache holding pre-split prices (HDFC Bank's 1:1 bonus,
+    /// Aug 2025, undone by doubling what's cached) is replaced.
+    #[test]
+    #[ignore]
+    fn live_cache_from_before_a_bonus_is_replaced() {
+        let dir = tempfile::tempdir().unwrap();
+        let sym = Symbol {
+            timezone: "Asia/Kolkata".into(),
+            ..Symbol::bare("NSE:HDFCBANK")
+        };
+        let tf = Timeframe::parse("1D").unwrap();
+        let first = fetch_once(dir.path(), false, &sym, tf, 300).unwrap();
+        let c = Cache::open(dir.path()).unwrap();
+        let mut stale = c.last(&sym.id, tf, 10_000).unwrap();
+        stale.pop();
+        for b in &mut stale {
+            b.close *= 2.0;
+        }
+        c.save(&sym.id, tf, &stale).unwrap();
+        let again = fetch_once(dir.path(), false, &sym, tf, 300).unwrap();
+        let (a, b) = (first[first.len() - 30].close, again[again.len() - 30].close);
+        assert!((a / b - 1.0).abs() < 0.01, "{a} vs {b}");
+    }
+
+    /// Real Yahoo: Bajaj Finance's hourly bars jump ×5 on 16 Jun 2025 (a
+    /// split plus a bonus listed as "2:1"); they come out continuous.
+    #[test]
+    #[ignore]
+    fn live_intraday_split_and_bonus_is_adjusted() {
+        let dir = tempfile::tempdir().unwrap();
+        let sym = Symbol {
+            timezone: "Asia/Kolkata".into(),
+            ..Symbol::bare("NSE:BAJFINANCE")
+        };
+        let bars = fetch_once(dir.path(), false, &sym, Timeframe::parse("1h").unwrap(), 5000).unwrap();
+        let worst = bars
+            .windows(2)
+            .map(|w| (w[1].open / w[0].close).ln().abs())
+            .fold(0.0, f64::max);
+        assert!(
+            bars.len() > 3000 && worst < 0.2,
+            "{} bars, worst gap {worst}",
+            bars.len()
+        );
+    }
+
+    #[test]
+    fn a_split_adjusted_in_after_caching_is_noticed() {
+        let bar = |t: i64, c: f64| Bar {
+            time: t,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
+            volume: 1.0,
+        };
+        let cached = vec![bar(1, 200.0), bar(2, 202.0), bar(3, 204.0), bar(4, 206.0)];
+        assert_eq!(overlap_start(&cached), 2);
+        // Same history: the newest bar was still forming when cached.
+        assert!(!history_changed(
+            &cached,
+            &[bar(2, 202.0), bar(3, 204.0), bar(4, 230.0), bar(5, 210.0)]
+        ));
+        // The provider halved its history for a 2-for-1 split.
+        assert!(history_changed(
+            &cached,
+            &[bar(2, 101.0), bar(3, 102.0), bar(4, 103.0), bar(5, 104.0)]
+        ));
+    }
 
     #[test]
     fn a_coin_search_with_no_match_asks_binance() {
