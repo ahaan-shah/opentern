@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.9 (2026-11-09)
+
+Custom indices always reach back to their oldest stock, and scrollbars that
+stay out of the way.
+
+### Changed
+- **Scrollbars stay out of the way.** They no longer appear just because the pointer is over a list or table (on the Indices board they covered the tickers); they show while you scroll and fade out a moment later. Pointing right at the edge still shows a bar to drag.
+- **Custom indices always reach back to their oldest stock.** The "Index starts" column is gone: each stock joins the day after it lists, the way NSE adds stocks, with the level carried on unbroken. Indices with a stock set to "With it" are rebuilt this way once.
 ## 0.2.8 (2026-11-08)
 
 Clearer wording for when a custom index starts.

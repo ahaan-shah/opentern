@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.9",
+        items: &[
+            Item {
+                icon: ph::CHART_PIE_SLICE,
+                title: "Custom indices reach back to their oldest stock",
+                body: "Each stock joins the day after it lists, the way NSE adds stocks, so an index keeps \
+                       its full history. The \"Index starts\" column is gone.",
+                image: None,
+            },
+            Item {
+                icon: ph::MOUSE_SCROLL,
+                title: "Scrollbars stay out of the way",
+                body: "They show while you scroll and fade out after, instead of covering lists whenever \
+                       the mouse is over them.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.8",
         items: &[Item {
             icon: ph::CHART_PIE_SLICE,

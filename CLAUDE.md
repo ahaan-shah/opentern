@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.8):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.9):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -563,7 +563,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
+**0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
 Without it / With it). **0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
 indices with tick boxes / "Index starts" / History, split and bonus
 adjustment, the index math audit; see "Market overview" and "Splits in
@@ -631,7 +631,7 @@ in iteratively. Phase 14 has started (item 3).
    31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
    2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
    5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
-   index history, splits). v0.2.8 the same day (Index starts wording). Website shots
+   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
@@ -1253,6 +1253,13 @@ every data change (scripts re-run on it).
   outline, deeper popup shadow, 32 px menu rows.
 
 ### Gotchas so far
+- **Scrollbars show only while scrolling** (the maintainer, Nov 2026: a bar
+  appearing because the pointer rests on a list covers its content).
+  egui's floating style shows the bar whenever the pointer is over the
+  area ("active" opacities); `theme::tick_scrollbars` (each frame) keeps
+  those at 0 and raises them for ~1 s after a wheel/trackpad scroll.
+  A panel that sets its own `spacing.scroll` must pass it through
+  `theme::quieten(.., theme::scroll_shown(ctx))` (agent panel, overview).
 - **Bars lay out their right-hand group first** (`right_to_left`, then a nested
   `left_to_right` with a clip rect). Check layouts at 1000×640.
 - **Never `ui.separator()` or a `right_to_left` layout directly in a modal's body**: they
@@ -1532,19 +1539,20 @@ every data change (scripts re-run on it).
   `bars_version` 2 cleared every cached bar once.
 - **Custom indices chain-link** (`indices::chain`, `IndexDef::chain` =
   `CHAIN`; older saves are rebuilt on load): the first segment holds the
-  members whose prices start by t0 (the latest first bar of members in
-  `IndexDef::start`, "Index starts: With it"; else the oldest first
-  bar), and each other member joins in a new segment from the first
+  members whose prices start by t0 (the oldest first bar), and each
+  other member joins in a new segment from the first
   common day after its first close (weights set at that close, level
   kept). `IndexDef::off` (tick box) leaves a member out. Any toggle =
   `IndexDef::rebuild` (segments cleared, rebuilt by `settle`), so past
   rebalances are rebuilt with today's shares. While any index has no
   segments, `poll` fetches members even with the tab shut (else its chart
-  says "no longer exists"). Board: History (`span_label`, "+" when
-  `BARS` = 10,000 cut it short) and "Index starts" (Without it / With
-  it; renamed from "Counts from" in 0.2.8, the maintainer found it
-  unclear) columns. Agent: `custom_index` `include`/`exclude`/
-  `index_starts` (old `counts_from` still accepted).
+  says "no longer exists"). Board: History column (`span_label`, "+"
+  when `BARS` = 10,000 cut it short). Agent: `custom_index`
+  `include`/`exclude`. **The per-member "Index starts" choice is gone**
+  (Nov 2026, after 0.2.8; the maintainer disliked every label for it):
+  every index reaches back to its oldest member, as NSE's do. Saves with
+  the old `start` list are read once, cleared and rebuilt (`migrate`);
+  `start` is never written. Don't bring the choice back unless asked.
 - **Index math (audited Nov 2026):** new weights start on `start` and
   are set at `link`'s anchor = the last day before it the old weights
   valued (never a day lost or doubled); a member with no bar on a day

@@ -403,6 +403,7 @@ impl App {
             let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
             c.set_clip_rect(map.intersect(ui.clip_rect()));
             c.style_mut().spacing.scroll = egui::style::ScrollStyle::floating();
+            theme::quieten(&mut c.style_mut().spacing.scroll, theme::scroll_shown(ui.ctx()));
             egui::ScrollArea::vertical()
                 .id_salt(("overview-scroll", m.key()))
                 .scroll_source(

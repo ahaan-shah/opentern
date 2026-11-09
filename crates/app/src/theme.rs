@@ -578,6 +578,53 @@ pub fn apply(ctx: &egui::Context, t: &Theme) {
     ctx.all_styles_mut(|s| style(s, t));
 }
 
+/// Scrollbars stay hidden while the pointer merely rests on a scroll
+/// area: they show while the wheel or trackpad scrolls and fade
+/// out shortly after. Pointing right at a bar still shows it, so it can be
+/// grabbed. Call once a frame, after the theme is applied.
+pub fn tick_scrollbars(ctx: &egui::Context) {
+    let id = egui::Id::new("opentern-scrollbars");
+    let (now, moved) = ctx.input(|i| (i.time, i.smooth_scroll_delta() != egui::Vec2::ZERO));
+    // (last scroll time, shown factor applied last frame)
+    let (mut last, applied) = ctx
+        .data(|d| d.get_temp::<(f64, f32)>(id))
+        .unwrap_or((f64::NEG_INFINITY, 0.0));
+    if moved {
+        last = now;
+    }
+    let shown = scroll_shown_at(now - last);
+    if shown > 0.0 {
+        ctx.request_repaint();
+    }
+    // The theme's crossfade rewrites the style, so a showing bar is set
+    // again every frame; a hidden one only once.
+    if shown > 0.0 || applied > 0.0 {
+        ctx.all_styles_mut(|s| quieten(&mut s.spacing.scroll, shown));
+    }
+    ctx.data_mut(|d| d.insert_temp(id, (last, shown)));
+}
+
+/// How visible scrollbars are now (0 hidden … 1 shown), for areas that set
+/// their own scroll style: pass it to [`quieten`].
+pub fn scroll_shown(ctx: &egui::Context) -> f32 {
+    ctx.data(|d| d.get_temp::<(f64, f32)>(egui::Id::new("opentern-scrollbars")))
+        .map_or(0.0, |(_, v)| v)
+}
+
+/// Scales a style's "pointer over the area" opacities by `shown`.
+pub fn quieten(s: &mut egui::style::ScrollStyle, shown: f32) {
+    let base = egui::style::ScrollStyle::floating();
+    s.active_handle_opacity = base.active_handle_opacity * shown;
+    s.active_background_opacity = base.active_background_opacity * shown;
+}
+
+/// Shown for a moment after the last scroll, then a short fade.
+fn scroll_shown_at(since: f64) -> f32 {
+    const HOLD: f64 = 0.8;
+    const FADE: f64 = 0.3;
+    (1.0 - ((since - HOLD) / FADE).clamp(0.0, 1.0)) as f32
+}
+
 fn style(s: &mut Style, t: &Theme) {
     use egui::TextStyle::*;
     s.text_styles = [
@@ -600,6 +647,7 @@ fn style(s: &mut Style, t: &Theme) {
     // taken when there is something to scroll).
     s.spacing.scroll.floating_allocated_width = 12.0;
     s.spacing.scroll.bar_outer_margin = 2.0;
+    quieten(&mut s.spacing.scroll, 0.0);
     s.animation_time = 0.18;
     s.interaction.selectable_labels = false;
     s.visuals = visuals(t);

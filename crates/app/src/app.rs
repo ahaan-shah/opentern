@@ -1290,6 +1290,7 @@ impl App {
     pub(crate) fn frame(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
+        theme::tick_scrollbars(&ctx);
         self.logos.poll(&ctx);
         let now = ctx.input(|i| i.time);
         if self.onboarding.as_ref().is_some_and(|o| o.covers(now)) {

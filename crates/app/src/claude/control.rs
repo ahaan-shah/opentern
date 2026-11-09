@@ -1975,14 +1975,9 @@ mod drive_tests {
         let r = ok(&call(
             &mut d,
             "custom_index",
-            json!({"action": "index_starts", "name": "Big Tech", "symbols": ["NVDA"], "starts": "with"}),
+            json!({"action": "get", "name": "Big Tech"}),
         ));
-        assert!(r.contains("\"with it\"") && r.contains("history_years"), "{r}");
-        assert!(
-            d.app.indices.defs[0].counts_from_start("NASDAQ:NVDA"),
-            "{:?}",
-            d.app.indices.defs[0].start
-        );
+        assert!(r.contains("history_years") && !r.contains("index_starts"), "{r}");
         ok(&call(
             &mut d,
             "custom_index",

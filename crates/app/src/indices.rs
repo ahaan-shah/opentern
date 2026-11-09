@@ -121,9 +121,11 @@ pub struct IndexDef {
     /// Members unticked on the board: kept in the list, left out of the
     /// index (ids).
     pub off: Vec<String>,
-    /// Members counted from the index's start (the index begins only once
-    /// they have prices); the rest join the day after they list (ids).
-    pub start: Vec<String>,
+    /// Read from 0.2.7/0.2.8 saves only ("Index starts: With it", since
+    /// removed): an index that had any is built again with every member
+    /// joining the day after it lists.
+    #[serde(skip_serializing)]
+    start: Vec<String>,
     /// How the segments were built: older saves (0) had every member from
     /// the first common day and are built again.
     #[serde(default)]
@@ -163,14 +165,8 @@ impl IndexDef {
         !self.off.iter().any(|x| x == id)
     }
 
-    /// Whether a member counts from the index's start rather than from
-    /// its listing.
-    pub fn counts_from_start(&self, id: &str) -> bool {
-        self.start.iter().any(|x| x == id)
-    }
-
     /// Weights from scratch, over the whole history (after a member is
-    /// ticked, unticked or set to count from its listing or the start).
+    /// ticked or unticked).
     fn rebuild(&mut self) {
         self.segments.clear();
         self.pending = false;
@@ -218,7 +214,8 @@ impl IndexDef {
     /// Saves from before members joined on listing (including 0.2.2's
     /// test builds, with one set of units) are built again.
     fn migrate(&mut self) {
-        if self.chain < CHAIN {
+        if self.chain < CHAIN || !self.start.is_empty() {
+            self.start.clear();
             self.rebuild();
         }
     }
@@ -622,8 +619,7 @@ fn link(
 }
 
 /// An index's segments from scratch, chain-linked as NSE adds a stock:
-/// it starts on the first day every member counted from the start has a
-/// price (else on the oldest member's first day), and each other member
+/// it starts on the oldest member's first day, and each other member
 /// joins the day after its first close, weights worked out again so the
 /// level carries on unbroken. Also says whether cap weights fell back to
 /// equal. `None` until the numbers are there.
@@ -636,16 +632,7 @@ fn chain(
 ) -> Option<(Vec<Segment>, bool)> {
     let first = |id: &String| bars.get(id).and_then(|b| b.first()).map(|b| b.time);
     let firsts: Vec<i64> = ids.iter().map(first).collect::<Option<_>>()?;
-    let pinned: Vec<i64> = ids
-        .iter()
-        .zip(&firsts)
-        .filter(|(id, _)| def.counts_from_start(id))
-        .map(|(_, t)| *t)
-        .collect();
-    let t0 = match pinned.iter().max() {
-        Some(t) => *t,
-        None => *firsts.iter().min()?,
-    };
+    let t0 = *firsts.iter().min()?;
     let mut members: Vec<String> = ids
         .iter()
         .zip(&firsts)
@@ -876,8 +863,6 @@ pub struct BoardRow {
     pub symbol: Symbol,
     /// Ticked: counts in the index.
     pub included: bool,
-    /// "Index starts: With it": the index waits for this member.
-    pub from_start: bool,
     /// Its prices: first and last bar, and whether there may be older
     /// ones than were fetched.
     pub history: Option<(i64, i64, bool)>,
@@ -921,7 +906,6 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
         let mut row = BoardRow {
             symbol: m.clone(),
             included,
-            from_start: def.counts_from_start(&m.id),
             history: None,
             weight: f64::NAN,
             price: f64::NAN,
@@ -1072,8 +1056,6 @@ enum Click {
     Index(String),
     /// A member's tick box (its id).
     Toggle(String),
-    /// A member's "Index starts" (its id).
-    Counts(String),
 }
 
 /// One row of a metrics table: a member, or an index (Compare).
@@ -1081,8 +1063,6 @@ struct TRow {
     label: String,
     /// A member's tick box: `Some(ticked)`; `None` for no box.
     included: Option<bool>,
-    /// A member's "Index starts": `Some(with it)`.
-    from_start: Option<bool>,
     history: Option<(i64, i64, bool)>,
     symbol: Option<Symbol>,
     click: Option<Click>,
@@ -1102,7 +1082,6 @@ impl TRow {
         TRow {
             label: r.symbol.ticker().to_string(),
             included: Some(r.included),
-            from_start: Some(r.from_start),
             history: r.history,
             symbol: Some(r.symbol.clone()),
             click: Some(Click::Symbol(r.symbol.clone())),
@@ -1518,7 +1497,6 @@ impl App {
         let pinned = TRow {
             label: "Index".into(),
             included: None,
-            from_start: None,
             history: board.history,
             symbol: None,
             click: def.ready().then(|| Click::Index(def.ticker.clone())),
@@ -1570,7 +1548,6 @@ impl App {
             caps.push(b.total_cap);
             rows.push(TRow {
                 included: None,
-                from_start: None,
                 history: None,
                 label: d.name.clone(),
                 symbol: None,
@@ -1675,38 +1652,8 @@ impl App {
                     self.toggle_member(&t, &id);
                 }
             }
-            Some(Click::Counts(id)) => {
-                if let Some(t) = self.indices.open.clone() {
-                    let start = self.indices.by_ticker(&t).is_some_and(|d| d.counts_from_start(&id));
-                    self.set_counts_from(&t, &id, !start);
-                }
-            }
             None => {}
         }
-    }
-
-    /// Counts a member from the index's start (`start`), or from the day
-    /// after its listing, and builds the index again over its history.
-    pub(crate) fn set_counts_from(&mut self, ticker: &str, id: &str, start: bool) -> bool {
-        let Some(d) = self.indices.defs.iter_mut().find(|d| d.ticker == ticker) else {
-            return false;
-        };
-        if !d.members.iter().any(|m| m.id == id) {
-            return false;
-        }
-        if d.counts_from_start(id) == start {
-            return true;
-        }
-        if start {
-            d.start.push(id.to_string());
-        } else {
-            d.start.retain(|x| x != id);
-        }
-        d.rebuild();
-        self.save_indices();
-        self.indices_want();
-        self.indices_settle();
-        true
     }
 
     /// Ticks or unticks a member, and builds the index again over its
@@ -1932,7 +1879,6 @@ fn metric_table(
     }
     if boxes {
         fixed.push(("History", 86.0));
-        fixed.push(("Index starts", 112.0));
     }
     fixed.push((if weights { "Price" } else { "Value" }, 92.0));
     fixed.push(("1D", 78.0));
@@ -2043,7 +1989,6 @@ fn metric_table(
             let tip = match *name {
                 "Weight" => "Today's weight in the index",
                 "History" => "How far back its prices go",
-                "Index starts" => "Without it: the index starts with the older stocks and adds this one the day after it lists, keeping their full history. With it: the index waits until this stock has prices, so it's in every day of the index. Click a row's to switch.",
                 "1D" => "Change since the last close",
                 _ => "",
             };
@@ -2191,30 +2136,6 @@ fn metric_table(
                                     );
                                     ui.interact(cell, ui.id().with((salt, "hist", &row.label)), Sense::hover())
                                         .on_hover_text(format!("Prices since {}", day_label(a)));
-                                }
-                            }
-                            "Index starts" => {
-                                if let (Some(start), Some(s)) = (row.from_start, &row.symbol) {
-                                    let hit = ui
-                                        .interact(cell, ui.id().with((salt, "counts", &s.id)), Sense::click())
-                                        .on_hover_cursor(egui::CursorIcon::PointingHand);
-                                    let c = if hit.hovered() { t.text } else { t.text2 };
-                                    let text = if start { "With it" } else { "Without it" };
-                                    let font = theme::regular(12.5);
-                                    let tw = p.layout_no_wrap(text.into(), font.clone(), c).size().x;
-                                    p.text(right, Align2::RIGHT_CENTER, text, font, c);
-                                    if hit.hovered() {
-                                        let y = cell.center().y + 8.0;
-                                        p.hline(right.x - tw..=right.x, y, Stroke::new(1.0, c.gamma_multiply(0.5)));
-                                    }
-                                    let hit = hit.on_hover_text(if start {
-                                        "The index waits for this stock, so it's in every day of the index. Click to start without it."
-                                    } else {
-                                        "The index starts without this stock and adds it the day after it lists. Click to start with it."
-                                    });
-                                    if hit.clicked() {
-                                        click = Some(Click::Counts(s.id.clone()));
-                                    }
                                 }
                             }
                             "1D" if row.change.is_finite() => {
@@ -2773,7 +2694,6 @@ impl App {
         }
         if !same {
             def.off.retain(|id| members.iter().any(|m| m.id == *id));
-            def.start.retain(|id| members.iter().any(|m| m.id == *id));
             def.members = members;
             def.weighting = weighting;
             // A new segment from today keeps the level (the divisor).
@@ -2881,7 +2801,7 @@ mod tests {
     }
 
     #[test]
-    fn a_young_member_joins_after_it_lists_or_can_hold_the_start() {
+    fn a_young_member_joins_after_it_lists() {
         let old = bars(&[100.0, 110.0, 120.0, 130.0]);
         let young: Vec<Bar> = bars(&[0.0, 0.0, 50.0, 55.0]).split_off(2);
         let map: HashMap<String, &[Bar]> = [
@@ -2898,7 +2818,7 @@ mod tests {
                 .map(|b| b.close)
                 .collect::<Vec<_>>()
         };
-        // Without it (the default): the old member alone until the young
+        // The old member alone until the young
         // one's first close (day 2), then both, equal again, level kept.
         let mut d = def(&["OLD", "NEW"], Weighting::Equal);
         assert!(settle(&mut d, &map, &funds, &none, 0));
@@ -2912,12 +2832,16 @@ mod tests {
             assert!((a - b).abs() < 1e-9, "{c:?}");
         }
         assert!(!settle(&mut d, &map, &funds, &none, 0));
-        // With it: the index waits for it.
-        d.start = vec!["NEW".into()];
-        d.rebuild();
-        assert!(settle(&mut d, &map, &funds, &none, 0));
-        assert_eq!(d.segments.len(), 1);
-        assert_eq!(closes(&d).len(), 2);
+        // A save from 0.2.8 that had it hold the start is built again
+        // the same way.
+        let mut j = serde_json::to_value(&d).unwrap();
+        assert!(j.get("start").is_none());
+        j["start"] = serde_json::json!(["NEW"]);
+        let mut old: IndexDef = serde_json::from_value(j).unwrap();
+        old.migrate();
+        assert!(!old.ready());
+        assert!(settle(&mut old, &map, &funds, &none, 0));
+        assert_eq!(closes(&old), c);
         // Left out: the old member's whole history alone.
         d.off = vec!["NEW".into()];
         d.rebuild();

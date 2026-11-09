@@ -1042,12 +1042,13 @@ impl App {
     pub(crate) fn claude_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.claude_load();
         // Thin, quiet scrollbars: hidden until you scroll or point at them.
+        let shown = theme::scroll_shown(ui.ctx());
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle {
             bar_width: 6.0,
             floating_width: 3.0,
             dormant_handle_opacity: 0.0,
             dormant_background_opacity: 0.0,
-            active_handle_opacity: 0.25,
+            active_handle_opacity: 0.25 * shown,
             active_background_opacity: 0.0,
             interact_handle_opacity: 0.45,
             interact_background_opacity: 0.0,
@@ -2920,10 +2921,6 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
             "include" => (
                 format!("Ticked members of {}", s("name")),
                 format!("Tick members of {}", s("name")),
-            ),
-            "index_starts" | "counts_from" => (
-                format!("Set when {} starts", s("name")),
-                format!("Set when {} starts", s("name")),
             ),
             "exclude" => (
                 format!("Left members out of {}", s("name")),
