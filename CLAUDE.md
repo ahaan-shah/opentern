@@ -1472,6 +1472,8 @@ every data change (scripts re-run on it).
 - Stills: `settings:transfer` plus `transfer:import|saved|send:<code>|receive:<code>|
   review:<path>|import-now:<path>|sending:<pct>|sent|send-failed|receiving:<pct>|notfound|wrong`.
   Two windows with `send:` and `receive:` of one code run a real transfer.
+- **Future idea (not started):** AirDrop-style "nearby devices" radar instead of the
+  code; design and security notes in `docs/ideas.md`.
 
 ### Market overview (0.2.7, Nov 2026)
 - **Top-bar button** (a drawn treemap, left of the grid button; `Alt M`;
