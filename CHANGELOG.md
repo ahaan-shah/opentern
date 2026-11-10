@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Send messages while the agent works.** Press Enter mid-task and your message waits under the reply, dimmed (× takes it back); the agent gets everything you queued as soon as it finishes, as in Claude Code. Stop puts them back in the box.
+
+### Changed
+- **Ctrl+V pastes an image in the agent panel** (Cmd+V on macOS), instead of Alt+V. Copied text and files paste as before.
+
+### Fixed
+- **Shift+Enter starts a new line** in the agent's message box; it used to send.
+
 ## 0.2.9 (2026-11-09)
 
 Custom indices always reach back to their oldest stock, and scrollbars that

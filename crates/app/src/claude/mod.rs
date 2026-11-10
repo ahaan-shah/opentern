@@ -105,6 +105,17 @@ pub struct Chat {
     pub busy: bool,
     #[serde(skip)]
     pub thinking: bool,
+    /// Messages sent while it was busy: they go together, as one message,
+    /// once the turn ends (as in Claude Code).
+    #[serde(skip)]
+    pub queued: Vec<Queued>,
+}
+
+/// A message waiting for the agent to finish its turn.
+#[derive(Clone, Debug, Default)]
+pub struct Queued {
+    pub text: String,
+    pub files: Vec<String>,
 }
 
 impl Chat {
@@ -128,6 +139,7 @@ impl Chat {
             folder: None,
             busy: false,
             thinking: false,
+            queued: Vec::new(),
         }
     }
 }
@@ -222,6 +234,12 @@ pub struct Claude {
     pub attached: Vec<String>,
     /// The file picker, while it's open.
     picker: Option<crossbeam_channel::Receiver<Vec<PathBuf>>>,
+    /// When text last arrived as a paste, and whether a V key is down
+    /// (Ctrl+V with an image, see the composer).
+    pasted_at: f64,
+    v_down: bool,
+    #[cfg(test)]
+    pub image_pastes: u32,
     /// A short note under the composer (a paste that found nothing).
     attach_note: Option<(String, f64)>,
     pub chats: Vec<Chat>,
@@ -673,7 +691,8 @@ impl App {
     }
 
     /// Sends the input box's text in the active chat (starting one, and
-    /// Claude Code, as needed).
+    /// Claude Code, as needed). While the agent is busy it waits in the
+    /// chat's queue and goes when the turn ends.
     pub(crate) fn claude_send(&mut self) {
         self.claude_load();
         let text = self.claude.input.trim().to_string();
@@ -685,21 +704,87 @@ impl App {
             _ => self.new_chat(),
         };
         let agent = self.claude.chat().map(|c| c.agent).unwrap_or_default();
-        let Some(exe) = self.claude.cli_for(agent) else {
-            return;
-        };
-        if self.claude.chat().is_some_and(|c| c.busy) {
+        if self.claude.cli_for(agent).is_none() {
             return;
         }
+        let files = std::mem::take(&mut self.claude.attached);
+        self.claude.input.clear();
+        self.claude.dirty = true;
+        let chat = self.claude.chat_mut(id).expect("active chat");
+        chat.queued.push(Queued { text, files });
+        if !chat.busy {
+            self.claude_send_queued(id);
+        }
+    }
+
+    /// Sends everything queued in a chat as one message.
+    fn claude_send_queued(&mut self, id: u64) {
+        let Some(chat) = self.claude.chat_mut(id) else { return };
+        if chat.busy || chat.queued.is_empty() {
+            return;
+        }
+        let queued = std::mem::take(&mut chat.queued);
+        let text = queued
+            .iter()
+            .map(|q| q.text.as_str())
+            .filter(|t| !t.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        let files: Vec<String> = queued.iter().flat_map(|q| q.files.clone()).collect();
+        if !self.claude_dispatch(id, text, files) {
+            // Not sent (no CLI, or it couldn't start): keep it.
+            if let Some(chat) = self.claude.chat_mut(id) {
+                chat.queued = queued;
+            }
+            self.claude_unqueue(id);
+        }
+    }
+
+    /// Back into the input box (Stop, or the agent quit): queued messages
+    /// are the user's to send again.
+    fn claude_unqueue(&mut self, id: u64) {
+        if self.claude.active != Some(id) {
+            return;
+        }
+        let Some(chat) = self.claude.chat_mut(id) else { return };
+        let queued = std::mem::take(&mut chat.queued);
+        if queued.is_empty() {
+            return;
+        }
+        let mut parts: Vec<String> = queued
+            .iter()
+            .map(|q| q.text.clone())
+            .filter(|t| !t.is_empty())
+            .collect();
+        if !self.claude.input.trim().is_empty() {
+            parts.push(std::mem::take(&mut self.claude.input));
+        }
+        self.claude.input = parts.join("\n\n");
+        for f in queued.into_iter().flat_map(|q| q.files) {
+            if !self.claude.attached.contains(&f) {
+                self.claude.attached.push(f);
+            }
+        }
+    }
+
+    /// Sends one message in a chat (starting its CLI as needed); false when
+    /// it couldn't.
+    fn claude_dispatch(&mut self, id: u64, text: String, files: Vec<String>) -> bool {
+        let Some(agent) = self.claude.chat_mut(id).map(|c| c.agent) else {
+            return false;
+        };
+        let Some(exe) = self.claude.cli_for(agent) else {
+            return false;
+        };
         if !self.claude.clients.contains_key(&id) {
             if crate::app::headless() && std::env::var_os(agent.env()).is_none() {
-                return;
+                return false;
             }
             let scripts = self.scripts_dir();
             // Claude Code finds a session only from the folder it started
             // in, so a resumed chat starts there and gets the scripts folder
             // added when that has moved since. Codex resumes anywhere.
-            let cwd = match self.claude.chat() {
+            let cwd = match self.claude.chat_mut(id) {
                 Some(c) if agent == Agent::Claude && c.session.is_some() => {
                     c.folder.clone().unwrap_or_else(|| self.store.dir().join("scripts"))
                 }
@@ -708,7 +793,8 @@ impl App {
             if let Some(c) = self.claude.chat_mut(id) {
                 c.folder = Some(cwd.clone());
             }
-            let chat = self.claude.chat().expect("active chat");
+            let system = self.claude_system(agent);
+            let chat = self.claude.chat_mut(id).expect("chat");
             let launch = Launch {
                 agent,
                 exe,
@@ -717,7 +803,7 @@ impl App {
                 mode: chat.mode,
                 model: (!chat.model.is_empty()).then(|| chat.model.clone()),
                 resume: chat.session.clone(),
-                system: self.claude_system(agent),
+                system,
                 account: chat.account.clone().unwrap_or_else(|| accounts::launched(agent)),
             };
             let _ = std::fs::create_dir_all(&launch.cwd);
@@ -733,12 +819,11 @@ impl App {
                             error: true,
                         });
                     }
-                    return;
+                    return false;
                 }
             }
         }
         let context = self.claude_context();
-        let files = std::mem::take(&mut self.claude.attached);
         if let Some(c) = self.claude.clients.get(&id) {
             c.send(&context, &files, &text);
         }
@@ -759,8 +844,8 @@ impl App {
         chat.busy = true;
         chat.thinking = true;
         chat.updated = now_ms();
-        self.claude.input.clear();
         self.claude.dirty = true;
+        true
     }
 
     /// Reads every running chat's events; answers the app's tool calls.
@@ -828,6 +913,7 @@ impl App {
             return;
         }
         let mut exited = false;
+        let mut done = false;
         let Some(chat) = self.claude.chat_mut(id) else { return };
         match e {
             Event::Init { session, model } => {
@@ -902,6 +988,7 @@ impl App {
                 }
                 expire_asks(chat);
                 drop_empty(chat);
+                done = true;
             }
             Event::Permission {
                 request,
@@ -949,7 +1036,12 @@ impl App {
             Event::Mcp { .. } | Event::Limits(_) | Event::Models(_) => {}
         }
         self.claude.dirty = true;
+        if done {
+            // What came in meanwhile goes now, as Claude Code does.
+            self.claude_send_queued(id);
+        }
         if exited {
+            self.claude_unqueue(id);
             self.claude.clients.remove(&id);
             // It may have stopped because the user signed out: ask again.
             self.claude.auth.remove(&agent);
@@ -986,10 +1078,12 @@ impl App {
     }
 
     fn claude_stop(&mut self) {
-        if let Some(id) = self.claude.active
-            && let Some(c) = self.claude.clients.get_mut(&id)
-        {
-            c.interrupt();
+        if let Some(id) = self.claude.active {
+            // Stopping holds back what was queued: it goes back in the box.
+            self.claude_unqueue(id);
+            if let Some(c) = self.claude.clients.get_mut(&id) {
+                c.interrupt();
+            }
         }
     }
 
@@ -1858,6 +1952,7 @@ impl App {
         let scripts = self.claude_scripts();
         let mut open_file: Option<String> = None;
         let mut open_attachment: Option<String> = None;
+        let mut unqueue = None;
         // Keys 1-3 answer a waiting prompt (when no text field has focus).
         let waiting = chat.items.iter().rposition(is_waiting);
         if let Some(i) = waiting
@@ -1981,8 +2076,20 @@ impl App {
                         }
                     });
                 }
+                // Sent while it works: they wait, dimmed, until the turn ends.
+                for (k, q) in chat.queued.iter().enumerate() {
+                    if queued_bubble(ui, t, q, width, (chat.id, k)) {
+                        unqueue = Some(k);
+                    }
+                }
                 ui.add_space(6.0);
             });
+        if let Some(k) = unqueue
+            && let Some(c) = self.claude.chat_mut(chat.id)
+            && k < c.queued.len()
+        {
+            c.queued.remove(k);
+        }
         if let Some(k) = toggle
             && !self.claude.expanded.remove(&k)
         {
@@ -2167,36 +2274,56 @@ impl App {
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 let now = ui.input(|i| i.time);
-                // Pasted files (a file manager copies them as paths) attach;
-                // Alt+V attaches the clipboard's image (egui's Ctrl+V only
-                // carries text).
+                // Pasted files (a file manager copies them as paths) attach.
+                // Ctrl+V with an image: egui-winit takes the key press and
+                // only passes text on, so an image-only clipboard sends
+                // nothing; but the V's release still arrives, with no press
+                // before it. Such a release with no text pasted just before
+                // means the clipboard held something else: look for an image.
                 if focused {
                     let mut files = None;
+                    let mut image = false;
+                    let c = &mut self.claude;
                     ui.input_mut(|i| {
                         i.events.retain(|e| match e {
-                            egui::Event::Paste(text) => match attach::pasted_files(text) {
-                                Some(f) => {
-                                    files = Some(f);
-                                    false
+                            egui::Event::Paste(text) => {
+                                c.pasted_at = now;
+                                match attach::pasted_files(text) {
+                                    Some(f) => {
+                                        files = Some(f);
+                                        false
+                                    }
+                                    None => true,
                                 }
-                                None => true,
-                            },
+                            }
+                            egui::Event::Key {
+                                key: egui::Key::V,
+                                pressed,
+                                repeat: false,
+                                ..
+                            } => {
+                                if *pressed {
+                                    c.v_down = true;
+                                } else if c.v_down {
+                                    c.v_down = false;
+                                } else {
+                                    image = now - c.pasted_at > 1.0;
+                                }
+                                true
+                            }
                             _ => true,
                         })
                     });
                     if let Some(f) = files {
                         self.claude_attach(f);
                     }
-                    // Alt+V also arrives as typed text ("v"): drop it, or
-                    // the paste types a letter too.
-                    let alt_v = ui.input_mut(|i| {
-                        let hit = i.consume_key(egui::Modifiers::ALT, egui::Key::V);
-                        if hit {
-                            i.events.retain(|e| !matches!(e, egui::Event::Text(_)));
+                    if image {
+                        // Tests count it rather than read the real clipboard.
+                        #[cfg(test)]
+                        {
+                            self.claude.image_pastes += 1;
                         }
-                        hit
-                    });
-                    if alt_v {
+                        #[cfg(not(test))]
                         self.claude_paste(now);
                     }
                 }
@@ -2211,8 +2338,17 @@ impl App {
                     }
                     ui.add_space(4.0);
                 }
-                // Enter sends; Shift+Enter is a new line.
-                let enter = focused && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
+                // Enter sends; Shift+Enter is a new line. (`consume_key`
+                // matches loosely, ignoring Shift, so match exactly.)
+                let enter = focused
+                    && ui.input_mut(|i| {
+                        let before = i.events.len();
+                        i.events.retain(|e| {
+                            !matches!(e, egui::Event::Key { key: egui::Key::Enter, pressed: true, modifiers, .. }
+                                if modifiers.matches_exact(egui::Modifiers::NONE))
+                        });
+                        i.events.len() != before
+                    });
                 // A softer cursor than the app's fields.
                 let cursor = &mut ui.visuals_mut().text_cursor.stroke;
                 cursor.color = crate::motion::with_alpha(t.text, 0.45);
@@ -2235,7 +2371,8 @@ impl App {
                                 .desired_width(ui.available_width()),
                         );
                     });
-                if enter && !busy {
+                // While the agent works, Enter queues the message.
+                if enter {
                     send = true;
                 }
                 ui.add_space(4.0);
@@ -2252,7 +2389,7 @@ impl App {
                     // model drops its version. The send button and the ring
                     // always keep their room.
                     let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false)
-                        .on_hover_text("Attach files (or drop them here; Alt+V pastes an image)");
+                        .on_hover_text(format!("Attach files (or drop them here; {PASTE} pastes an image)"));
                     egui::Popup::menu(&clip)
                         .anchor(above(&clip, top))
                         .align(egui::RectAlign::TOP_START)
@@ -2266,7 +2403,7 @@ impl App {
                                 }
                                 ui.close();
                             }
-                            if menu_pick(ui, t, &format!("{}  Paste image", ph::CLIPBOARD_TEXT), "Alt+V", false)
+                            if menu_pick(ui, t, &format!("{}  Paste image", ph::CLIPBOARD_TEXT), PASTE, false)
                                 .clicked()
                             {
                                 self.claude_paste(now);
@@ -3373,6 +3510,55 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
     });
 }
 
+/// The image-paste shortcut, as the platform writes it.
+const PASTE: &str = if cfg!(target_os = "macos") { "Cmd+V" } else { "Ctrl+V" };
+
+/// A message waiting for the turn to end: a dimmed, outlined bubble with an
+/// × on hover that takes it back out. True when it was removed.
+fn queued_bubble(ui: &mut Ui, t: &Theme, q: &Queued, width: f32, key: (u64, usize)) -> bool {
+    let pad = vec2(14.0, 10.0);
+    let max_text = (width * 0.82 - pad.x * 2.0).max(60.0);
+    let mut text = q.text.trim().to_string();
+    for f in &q.files {
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(&format!("{}  {}", ph::PAPERCLIP, file_name(f)));
+    }
+    let mut job = LayoutJob::single_section(
+        text,
+        TextFormat {
+            font_id: theme::regular(13.0),
+            color: t.text3,
+            line_height: Some(19.0),
+            ..Default::default()
+        },
+    );
+    job.wrap.max_width = max_text;
+    let galley = ui.fonts_mut(|f| f.layout_job(job));
+    let size = galley.size() + pad * 2.0;
+    let (row, _) = ui.allocate_exact_size(vec2(width, size.y), Sense::hover());
+    let r = egui::Rect::from_min_size(egui::pos2(row.right() - size.x, row.top()), size);
+    let p = ui.painter();
+    p.rect_stroke(r, 14, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
+    p.galley(r.min + pad, galley, t.text3);
+    // Tested on the row, not the button (see "hover flicker" in CLAUDE.md).
+    if !ui.rect_contains_pointer(row) {
+        return false;
+    }
+    let x = egui::Rect::from_center_size(egui::pos2(r.left() - 16.0, r.center().y), vec2(22.0, 22.0));
+    let resp = ui
+        .interact(x, ui.id().with(("unqueue", key)), Sense::click())
+        .on_hover_text("Remove");
+    let c = if resp.hovered() { t.text } else { t.text3 };
+    if resp.hovered() {
+        ui.painter().rect_filled(x, 6, t.hover);
+    }
+    ui.painter()
+        .text(x.center(), egui::Align2::CENTER_CENTER, ph::X, theme::regular(13.0), c);
+    resp.clicked()
+}
+
 /// A permission prompt, Claude Code style: what it wants to do, the change,
 /// and numbered choices (1-3 on the keyboard). Returns (allow, always).
 #[allow(clippy::too_many_arguments)]
@@ -4288,7 +4474,40 @@ mod tests {
             .iter()
             .position(|i| matches!(i, Item::Ask { .. }))
             .unwrap();
+        // Two messages sent while it works wait for the turn to end, then
+        // go together as one.
+        d.app.claude.input = "Then this".into();
+        d.app.claude_send();
+        d.app.claude.input = "And that".into();
+        d.app.claude_send();
+        assert!(d.app.claude.input.is_empty());
+        assert_eq!(d.app.claude.chat().unwrap().queued.len(), 2);
         d.app.claude_answer(id, i, true, false);
+        // The second turn asks again.
+        let asked = |a: &crate::app::App| {
+            a.claude.chat().is_some_and(|c| {
+                c.items
+                    .iter()
+                    .rposition(|i| matches!(i, Item::Ask { .. }))
+                    .is_some_and(|k| k > i)
+            })
+        };
+        d.wait(asked);
+        let c = d.app.claude.chat().unwrap();
+        assert!(c.queued.is_empty());
+        assert_eq!(
+            c.items.iter().filter(|i| matches!(i, Item::User(_))).count(),
+            2,
+            "{:?}",
+            c.items
+        );
+        assert!(
+            c.items
+                .iter()
+                .any(|i| matches!(i, Item::User(t) if t == "Then this\n\nAnd that"))
+        );
+        let j = c.items.iter().rposition(|i| matches!(i, Item::Ask { .. })).unwrap();
+        d.app.claude_answer(id, j, true, false);
         d.wait(|a| a.claude.chat().is_some_and(|c| !c.busy));
         let c = d.app.claude.chat().unwrap().clone();
         let reply: String = c
@@ -4311,7 +4530,7 @@ mod tests {
         assert_eq!(c.title, "What's on my chart?");
         assert_eq!(c.session.as_deref(), Some("fake-session"));
         assert_eq!(c.context, 1003);
-        assert_eq!(c.usage.cache_read, 1000);
+        assert_eq!(c.usage.cache_read, 2000);
         assert!(
             matches!(&c.items[2], Item::Tool { label, result: Some(r), .. } if label == "Looked at the chart" && *r == before)
         );
@@ -4562,10 +4781,12 @@ mod tests {
         );
     }
 
-    /// Alt+V pastes and doesn't also type a "v".
+    /// Ctrl+V with no text to paste looks for an image (egui-winit eats
+    /// the press, so only the V's release arrives); a typed "v" or a text
+    /// paste doesn't. Shift+Enter is a new line, not a send.
     #[test]
-    fn alt_v_types_nothing() {
-        let mut d = crate::drive::Driver::new("claude-altv");
+    fn ctrl_v_and_shift_enter() {
+        let mut d = crate::drive::Driver::new("claude-ctrlv");
         d.app.layout.widget = Some(crate::shell::Widget::Claude);
         d.app.claude_load();
         d.app.claude.agent = Some(Agent::Claude);
@@ -4577,23 +4798,45 @@ mod tests {
         }
         d.ctx.memory_mut(|m| m.request_focus(egui::Id::new("claude-input")));
         d.frame(vec![]);
-        // The box has focus: plain typing lands in it.
-        d.frame(vec![egui::Event::Text("x".into())]);
-        assert_eq!(d.app.claude.input, "x");
-        let alt = egui::Modifiers::ALT;
+        let key = |key, pressed, modifiers| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers,
+        };
+        let none = egui::Modifiers::NONE;
+        let ctrl = egui::Modifiers::COMMAND;
+        let tried = |a: &crate::app::App| a.claude.image_pastes > 0;
+        // A typed "v" lands in the box and pastes nothing.
+        d.frame(vec![key(egui::Key::V, true, none), egui::Event::Text("v".into())]);
+        d.frame(vec![key(egui::Key::V, false, none)]);
+        assert_eq!(d.app.claude.input, "v");
+        assert!(!tried(&d.app));
+        // Ctrl+V of text: the text, no image.
         d.frame(vec![
-            egui::Event::ModifiersChanged(alt),
-            egui::Event::Key {
-                key: egui::Key::V,
-                physical_key: None,
-                pressed: true,
-                repeat: false,
-                modifiers: alt,
-            },
-            egui::Event::Text("v".into()),
+            egui::Event::ModifiersChanged(ctrl),
+            egui::Event::Paste("x".into()),
         ]);
-        d.frame(vec![egui::Event::ModifiersChanged(egui::Modifiers::NONE)]);
-        assert_eq!(d.app.claude.input, "x");
+        d.frame(vec![key(egui::Key::V, false, ctrl)]);
+        assert_eq!(d.app.claude.input, "vx");
+        assert!(!tried(&d.app));
+        // Ctrl+V of an image: only the release, so it looks for one.
+        d.frame(vec![]);
+        d.app.claude.pasted_at = -10.0;
+        d.frame(vec![key(egui::Key::V, false, ctrl)]);
+        d.frame(vec![egui::Event::ModifiersChanged(none)]);
+        assert!(tried(&d.app));
+        assert_eq!(d.app.claude.input, "vx");
+        // Shift+Enter: a new line, nothing sent.
+        let shift = egui::Modifiers::SHIFT;
+        d.frame(vec![
+            egui::Event::ModifiersChanged(shift),
+            key(egui::Key::Enter, true, shift),
+        ]);
+        d.frame(vec![egui::Event::ModifiersChanged(none), egui::Event::Text("y".into())]);
+        assert_eq!(d.app.claude.input, "vx\ny");
+        assert!(d.app.claude.chat().is_none_or(|c| c.items.is_empty()));
     }
 
     /// Live, against the real Codex CLI (uses the account; run by hand):

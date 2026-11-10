@@ -233,7 +233,8 @@ switch).
 | `Ctrl Z` / `Ctrl Y` | Undo / redo |
 | `←` `→` | Step one bar |
 | `Delete` · `Esc` | Delete the selected drawing · cancel |
-| `Alt V` (agent panel) | Paste an image from the clipboard |
+| `Ctrl V` (agent panel) | Paste an image from the clipboard |
+| `Shift Enter` (agent panel) | New line in a message |
 
 On macOS, use `Cmd` instead of `Ctrl`.
 

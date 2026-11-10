@@ -701,7 +701,10 @@ fn shortcuts(ui: &mut Ui, t: &Theme) {
     let agent: &[(&str, &str)] = &[
         ("Send", "Enter"),
         ("New line", "Shift Enter"),
-        ("Paste an image", "Alt V"),
+        (
+            "Paste an image",
+            if cfg!(target_os = "macos") { "Cmd V" } else { "Ctrl V" },
+        ),
         ("Answer a prompt", "1 2 3"),
     ];
     crate::dialogs::section(ui, t, "General");

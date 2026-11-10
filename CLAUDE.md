@@ -1088,7 +1088,18 @@ workspace.
   in OpenAI's compliance logs. Opentern must stay free and local for this.
   `live_codex` (ignored, uses the account): `CODEX_MODEL=<id> cargo test -p
   opentern --bin opentern live_codex -- --ignored --nocapture`.
-- Alt+V also arrives as typed text; the composer drops that frame's text events.
+- **Queued messages** (Nov 2026): Enter while the agent works puts the message
+  in `Chat::queued` (dimmed bubbles under the spinner, × removes one); when the
+  turn's `Done` arrives they all go as one message (`claude_send_queued`), as in
+  Claude Code. Stop, or the CLI exiting, puts them back in the input box
+  (`claude_unqueue`). Queued in the app, not written to the CLI mid-turn, so
+  Claude and Codex behave the same. Not saved.
+- **Enter / Shift+Enter:** `consume_key(NONE, Enter)` ignores Shift (egui's
+  `matches_logically`), so the composer removes only exact plain-Enter events;
+  Shift+Enter reaches the TextEdit as a new line.
+- **Emoji** are pasted (no picker; the maintainer didn't want a button). egui
+  draws them with its bundled monochrome Noto Emoji: no colour, and newer ones
+  it lacks (🤣 🙂 🤔 🥳 🟢) show as boxes.
 - Never read `ctx.data` (e.g. `code_color`) inside `ui.fonts_mut(|…|)`: the
   context is locked there and the frame deadlocks (the stall watchdog fires).
 - Stills: `agent:claude|codex` picks an agent (skips the picker).
@@ -1201,8 +1212,11 @@ workspace.
   dialog on a thread with pollster, as in Magpie; Paste image), drag and drop onto
   the window while the panel is open (overlay), Ctrl+V of copied files (egui gives
   file-manager copies as text: `file://` URIs or paths, intercepted before the text
-  box), and **Alt+V for a clipboard image**: egui-winit eats Ctrl+V and only
-  forwards text, so an image-only clipboard never reaches the app; `arboard`
+  box), and **Ctrl+V for a clipboard image** (Alt+V until Nov 2026; Alt V is
+  also the vertical line): egui-winit eats Ctrl+V's press and only forwards
+  text, so an image-only clipboard sends nothing, but the V's *release* still
+  arrives with no press before it; such a release with no `Paste` in the last
+  second means "look for an image" (`Claude::v_down`, `pasted_at`); `arboard`
   (Wayland data-control on Linux) reads it, saved as PNG under
   `<workspace>/claude/attachments/`. Sent as content blocks before the text: images
   (≤ 4.5 MB) as image blocks (checked against the real CLI), UTF-8 files ≤ 256 KB
