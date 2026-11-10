@@ -316,12 +316,6 @@ fn india_hotlist() {
         assert_eq!(rows.len(), 30, "the top 30 of the NIFTY 50");
         let top = &rows[0];
         println!("{kind:?}: {} {:.2} {:+.2}%", top.symbol.id, top.last, top.change_pct);
-        for r in rows
-            .iter()
-            .filter(|r| ["NSE:SBIN", "NSE:MARUTI", "NSE:LT"].contains(&r.symbol.id.as_str()))
-        {
-            println!("  {} {:.2} {:+.2}%", r.symbol.id, r.last, r.change_pct);
-        }
     }
 }
 
