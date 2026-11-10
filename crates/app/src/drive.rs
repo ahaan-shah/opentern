@@ -602,6 +602,55 @@ mod tests {
         assert_eq!(d.app.panics, 0);
     }
 
+    /// A script with so many inputs that its legend title is wider than
+    /// the chart (side panel open): the title is cut short and its buttons
+    /// still work.
+    #[test]
+    fn a_long_legend_title_keeps_its_buttons() {
+        let mut d = Driver::new("long-legend");
+        d.app.layout.widget = Some(crate::shell::Widget::Watchlist);
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut src = String::from("//@version=6\nindicator(\"A strategy with a rather long name\", overlay = true)\n");
+        for k in 0..40 {
+            src.push_str(&format!("i{k} = input.float({}.5, \"Input {k}\")\n", 100 + k));
+        }
+        src.push_str("plot(close + i0 * 0)\n");
+        std::fs::write(dir.join("long.pine"), src).unwrap();
+        d.app.add_script("long.pine");
+        d.wait(|a| a.chart.studies.iter().any(|s| s.meta().id.contains("long.pine")));
+        let uid = d
+            .app
+            .chart
+            .studies
+            .iter()
+            .find(|s| s.meta().id.contains("long.pine"))
+            .unwrap()
+            .uid;
+        for _ in 0..10 {
+            d.frame(vec![]);
+        }
+        let cid = d.app.chart.id;
+        let title = d
+            .ctx
+            .read_response(egui::Id::new(("legend-title", cid, uid)))
+            .expect("legend title")
+            .rect;
+        d.move_to(title.left_center() + egui::vec2(20.0, 0.0));
+        d.frame(vec![]);
+        d.frame(vec![]);
+        let remove = d
+            .ctx
+            .read_response(egui::Id::new(("legend", cid, uid, "remove")))
+            .expect("a remove button")
+            .rect;
+        let plot = d.app.chart_ui.main_rect;
+        assert!(remove.right() <= plot.right(), "{remove:?} outside {plot:?}");
+        // The pointer can travel along the row to the button.
+        d.click(remove.center());
+        d.wait(|a| !a.chart.studies.iter().any(|s| s.uid == uid));
+    }
+
     #[test]
     fn luau_javascript_and_typescript_scripts_on_the_chart() {
         let mut d = Driver::new("langs");

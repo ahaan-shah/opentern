@@ -10,6 +10,7 @@
 
 ### Fixed
 - **Shift+Enter starts a new line** in the agent's message box; it used to send.
+- **A strategy with many inputs can be hidden or removed again.** Its name on the chart used to run past the edge (with the side panel open), taking its buttons with it; a long name is now cut short with "…" (the full one shows on hover) so the buttons always fit.
 
 ## 0.2.9 (2026-11-09)
 

@@ -2615,6 +2615,9 @@ fn draw_shape(
 /// The status line of each pane: symbol and OHLC on the main pane, one row
 /// per study with its values, and the eye / settings / remove buttons on
 /// hover.
+/// Room for a study row's buttons (eye, settings, source, remove, more).
+const LEGEND_BUTTONS: f32 = 5.0 * 22.0;
+
 #[allow(clippy::too_many_arguments)]
 fn legend(
     ui: &mut Ui,
@@ -2830,19 +2833,31 @@ fn legend(
             };
             let title = s.title(st.show_study_inputs);
             let dim = if s.visible { 1.0 } else { 0.45 };
-            let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(g.rect.width() * 0.75, LEGEND_ROW));
+            // A long title (a strategy with many inputs) is cut short so its
+            // buttons always fit inside the pane.
+            let max_title = (g.rect.right() - pos.x - LEGEND_BUTTONS - 16.0).max(60.0);
+            let galley = st.show_study_titles.then(|| {
+                let mut job = egui::text::LayoutJob::single_section(
+                    title.clone(),
+                    egui::TextFormat::simple(font.clone(), motion::with_alpha(pal.text, dim)),
+                );
+                job.wrap = egui::text::TextWrapping::truncate_at_width(max_title);
+                ui.fonts_mut(|f| f.layout_job(job))
+            });
+            let cut = galley.as_ref().is_some_and(|g| g.elided);
+            let title_w = galley.as_ref().map_or(0.0, |g| g.size().x);
+            // Hover covers the title and its buttons, however wide.
+            let row_w = (g.rect.width() * 0.75).max(title_w + 12.0 + LEGEND_BUTTONS);
+            let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(row_w, LEGEND_ROW));
             let hovered = ui.rect_contains_pointer(row_rect);
             let slot = painter.add(egui::Shape::Noop);
-            let tr = if st.show_study_titles {
-                painter.text(
-                    pos,
-                    Align2::LEFT_TOP,
-                    &title,
-                    font.clone(),
-                    motion::with_alpha(pal.text, dim),
-                )
-            } else {
-                Rect::from_min_size(pos, vec2(0.0, 14.0))
+            let tr = match galley {
+                Some(gal) => {
+                    let r = Rect::from_min_size(pos, gal.size());
+                    painter.galley(pos, gal, pal.text);
+                    r
+                }
+                None => Rect::from_min_size(pos, vec2(0.0, 14.0)),
             };
             let mut xx = tr.right() + 8.0;
             // Buttons sit right after the title while hovered.
@@ -2927,7 +2942,10 @@ fn legend(
             }
             legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
             // Double-click the title for settings, as on TradingView.
-            let title_resp = ui.interact(tr, Id::new(("legend-title", chart.id, uid)), Sense::click());
+            let mut title_resp = ui.interact(tr, Id::new(("legend-title", chart.id, uid)), Sense::click());
+            if cut {
+                title_resp = title_resp.on_hover_text(&title);
+            }
             if title_resp.double_clicked() {
                 actions.push(Action::StudySettings(uid));
             }
