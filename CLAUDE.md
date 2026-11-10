@@ -1490,7 +1490,8 @@ every data change (scripts re-run on it).
   1D and history: Yahoo spark (20 a request, 4 threads, range 2y so 1Y
   always reaches back). **1D is from the previous session's close, like
   the watchlist; spark's `fulldayChangePercent` is wrong** (NVDA +3.91%
-  for a 181.60 → 186.64 day). **Caps:
+  for a 181.60 → 186.64 day). The India hotlist had the same bug until Nov 2026
+  (`feeds::parse_spark` now reuses `overview::changes`; spark range 5d). **Caps:
   US from Yahoo's `largest_market_cap` predefined screener** (no crumb; ~10
   pages reach every member but about 9 small ones, which go to batch quotes);
   **India from v7 batch quotes** (needs the crumb session fundamentals use).

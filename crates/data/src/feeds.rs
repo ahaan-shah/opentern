@@ -83,17 +83,21 @@ fn india_symbol(t: &str) -> Symbol {
     }
 }
 
-/// Parses Yahoo's spark reply (`{"TCS.NS": {"fulldayPrice": …, "fulldayChangePercent": …}}`).
-pub(crate) fn parse_spark(v: &serde_json::Value) -> Vec<HotRow> {
-    v.as_object()
+/// Parses Yahoo's spark reply (a few days of daily closes per `TCS.NS`).
+/// The change is from the previous session's close, as the chart, the
+/// watchlist and the screener measure it: spark's own
+/// `fulldayChangePercent` isn't (SBIN +2.56% for a 1018.50 → 1042 day).
+pub(crate) fn parse_spark(v: &serde_json::Value, now_s: i64) -> Vec<HotRow> {
+    crate::overview::parse_spark(v)
         .into_iter()
-        .flatten()
         .filter_map(|(k, q)| {
             let t = k.strip_suffix(".NS")?;
-            Some(HotRow {
+            let day = crate::overview::changes(&q.times, &q.closes, q.price, None, now_s)
+                [crate::overview::Period::Day.index()];
+            day.is_finite().then(|| HotRow {
                 symbol: india_symbol(t),
-                last: q["fulldayPrice"].as_f64()?,
-                change_pct: q["fulldayChangePercent"].as_f64()?,
+                last: q.price,
+                change_pct: day,
                 volume: 0.0,
             })
         })
@@ -265,10 +269,11 @@ pub fn hotlist(market: HotMarket, kind: HotKind, demo: bool) -> Result<Vec<HotRo
                     .map(|t| crate::yahoo::urlencode(&format!("{t}.NS")))
                     .collect();
                 let url = format!(
-                    "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=1d&interval=1d",
+                    "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=5d&interval=1d",
                     list.join(",")
                 );
-                rows.extend(parse_spark(&provider::get_json(&agent, &url)?));
+                let now = jiff::Timestamp::now().as_second();
+                rows.extend(parse_spark(&provider::get_json(&agent, &url)?, now));
             }
             if rows.is_empty() {
                 return Err(Error::Bad(
@@ -642,18 +647,31 @@ mod tests {
 
     #[test]
     fn parses_spark_quotes() {
-        let v: serde_json::Value = serde_json::from_str(
-            r#"{"TCS.NS":{"symbol":"TCS.NS","fulldayChangePercent":2.767,"fulldayPrice":2529.0},
-                "M&M.NS":{"symbol":"M&M.NS","fulldayChangePercent":-1.2,"fulldayPrice":3000.5},
-                "BAD.NS":{"symbol":"BAD.NS","fulldayPrice":null}}"#,
-        )
+        // SBIN on 10 Nov 2026: 1018.50 → 1042.00 is +2.31%; Yahoo's
+        // fulldayChangePercent said +2.559, and it must not be used.
+        let d = 86_400;
+        let t0 = 1_762_400_000 / d * d + 13_500; // 09:15 IST
+        let v: serde_json::Value = serde_json::from_str(&format!(
+            r#"{{"SBIN.NS":{{"timestamp":[{},{},{}],"close":[1006.4,1018.5,1042.0],
+                    "fulldayPrice":1042.0,"fulldayChangePercent":2.559}},
+                "M&M.NS":{{"timestamp":[{},{}],"close":[3020.0,3000.5],"fulldayPrice":3000.5}},
+                "BAD.NS":{{"timestamp":[{}],"close":[null],"fulldayPrice":null}}}}"#,
+            t0,
+            t0 + d,
+            t0 + 2 * d,
+            t0 + d,
+            t0 + 2 * d,
+            t0 + 2 * d,
+        ))
         .unwrap();
-        let mut rows = parse_spark(&v);
+        let mut rows = parse_spark(&v, t0 + 2 * d + 3600);
         sort_rows(&mut rows, HotKind::Gainers, 30);
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].symbol.id, "NSE:TCS");
+        assert_eq!(rows[0].symbol.id, "NSE:SBIN");
+        assert_eq!(rows[0].last, 1042.0);
+        assert!((rows[0].change_pct - (1042.0 / 1018.5 - 1.0) * 100.0).abs() < 1e-9);
         assert_eq!(rows[1].symbol.id, "NSE:M&M");
-        assert_eq!(rows[0].last, 2529.0);
+        assert!(rows[1].change_pct < 0.0);
     }
 
     use super::*;

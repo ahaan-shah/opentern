@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **India hotlists show the same change as the chart, watchlist and screener.** They used Yahoo's own daily change, which is sometimes measured from the wrong close (SBIN +2.56% instead of +2.31%, Divi's Labs +4.22% instead of +12.06%); they now count from the previous session's close.
+
 ## 0.2.10 (2026-11-10)
 
 Send messages to the agent while it works, paste images with Ctrl+V, and
