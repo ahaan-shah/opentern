@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.11",
+        items: &[
+            Item {
+                icon: ph::CHART_LINE_UP,
+                title: "Muhurat trading counts",
+                body: "The day after Diwali's Muhurat session or a special Saturday session now shows the \
+                       right change in your watchlist and the market overview.",
+                image: None,
+            },
+            Item {
+                icon: ph::CALENDAR_DOTS,
+                title: "Special sessions update live",
+                body: "While one runs, charts move with it like any trading day, and the Calendar lists the \
+                       next ones with their times.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.10",
         items: &[
             Item {

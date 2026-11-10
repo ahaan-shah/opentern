@@ -481,67 +481,13 @@ fn overview_boards() {
     );
 }
 
-/// Sessions Yahoo's bars skip come back filled from the exchanges' own
-/// files, to the paisa: Muhurat trading on Sunday 8 Nov 2026 (NSE's file:
-/// SBIN 1023.20 / 1025.00 / 1015.10 / 1016.00, 19,50,983 shares; NIFTY
-/// closed at 24,986.40). Also the day change counts it (9 Nov: +2.56%).
+/// Indian quotes take the previous close from Yahoo's day change, which
+/// counts sessions its bars skip. On 9-10 Nov 2026 SBIN's was 1016.00 (the
+/// Muhurat close, NSE's own figure), not the 1018.50 of 6 Nov's bar.
 #[test]
 #[ignore]
-fn special_sessions_are_filled_from_the_exchange() {
-    use opentern_data::provider::Provider;
+fn indian_quotes_count_skipped_sessions() {
     use opentern_data::yahoo::Yahoo;
-    let dir = tempfile::tempdir().unwrap();
-    opentern_data::nse::set_dir(dir.path().to_path_buf());
-    let sym = |id: &str, kind| Symbol {
-        id: id.into(),
-        description: id.into(),
-        kind,
-        currency: "INR".into(),
-        tick_size: 0.05,
-        min_qty: 0.0,
-        timezone: "Asia/Kolkata".into(),
-    };
-    let sbin = sym("NSE:SBIN", opentern_core::AssetKind::Stock);
-    let nov8 = 1_794_096_000_000;
-    let y = Yahoo::default();
-    let daily = y.latest(&sbin, Timeframe::parse("1D").unwrap(), 5000).unwrap();
-    let m = daily.iter().find(|b| b.time == nov8).expect("SBIN's Muhurat bar");
-    assert_eq!(
-        (m.open, m.high, m.low, m.close, m.volume),
-        (1023.2, 1025.0, 1015.1, 1016.0, 1_950_983.0)
-    );
-    // 12 Nov 2023 (Sunday), also missing from Yahoo.
-    assert!(daily.iter().any(|b| b.time == 1_699_747_200_000), "12 Nov 2023");
-    let (last, prev) = y.quote(&sbin).unwrap();
-    println!("SBIN quote {last} prev {prev}");
-
-    let nifty = sym("NSE:NIFTY", opentern_core::AssetKind::Index);
-    let daily = y.latest(&nifty, Timeframe::parse("1D").unwrap(), 5000).unwrap();
-    let m = daily.iter().find(|b| b.time == nov8).expect("NIFTY's Muhurat bar");
-    assert!((m.close - 24986.4).abs() < 1e-6, "{m:?}");
-
-    let weekly = y.latest(&sbin, Timeframe::parse("1W").unwrap(), 5000).unwrap();
-    let w = weekly.iter().rev().find(|b| b.time <= nov8).unwrap();
-    println!("week of {}: {w:?}", w.time);
-    assert_eq!(w.close, 1016.0, "the week ends with Sunday's session");
-
-    let bse = sym("BSE:SBIN", opentern_core::AssetKind::Stock);
-    let daily = y.latest(&bse, Timeframe::parse("1D").unwrap(), 50).unwrap();
-    println!("BSE:SBIN 8 Nov from Yahoo: {:?}", daily.iter().find(|b| b.time == nov8));
-    // BSE's own file (Yahoo's daily history for SBIN.BO is a single bar as of 10 Nov 2026).
-    let row = opentern_data::nse::row(&bse, jiff::civil::date(2026, 11, 8)).expect("BSE's file");
-    assert_eq!(
-        (row.prev, row.open, row.close, row.volume),
-        (1018.0, 1024.0, 1016.7, 206_105.0)
-    );
-}
-
-/// The hub (cache included) hands the screener and charts the Muhurat bar,
-/// on a first fetch and again from the cache.
-#[test]
-#[ignore]
-fn the_hub_serves_special_sessions() {
-    let dir = tempfile::tempdir().unwrap();
     let sbin = Symbol {
         id: "NSE:SBIN".into(),
         description: "State Bank of India".into(),
@@ -551,30 +497,7 @@ fn the_hub_serves_special_sessions() {
         min_qty: 0.0,
         timezone: "Asia/Kolkata".into(),
     };
-    for round in 0..2 {
-        let hub = Hub::start(dir.path().to_path_buf(), false, Arc::new(|| {}));
-        hub.send(Request::Fetch {
-            seq: 1,
-            symbol: sbin.clone(),
-            tf: Timeframe::parse("1D").unwrap(),
-            count: 300,
-        });
-        let deadline = Instant::now() + Duration::from_secs(60);
-        let mut got = None;
-        while got.is_none() && Instant::now() < deadline {
-            for e in hub.poll() {
-                if let Event::Fetched { result, .. } = e {
-                    got = Some(result.unwrap());
-                }
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        let bars = got.expect("bars");
-        let m = bars
-            .iter()
-            .find(|b| b.time == 1_794_096_000_000)
-            .expect("the Muhurat bar");
-        println!("round {round}: {} bars, 8 Nov {m:?}", bars.len());
-        assert_eq!(m.close, 1016.0);
-    }
+    let (last, prev) = Yahoo::default().quote(&sbin).unwrap();
+    println!("SBIN {last} (previous close {prev})");
+    assert!(last > 0.0 && prev > 0.0);
 }

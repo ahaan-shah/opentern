@@ -157,8 +157,19 @@ pub(crate) fn parse_chart(v: &serde_json::Value, daily: bool) -> Result<(Vec<Bar
 /// `regularMarketTime`): with `range=1d`, Yahoo's `chartPreviousClose` is
 /// two sessions old (NIFTY showed -0.24% for -0.22%), and during a session
 /// Yahoo's bars skip (Muhurat trading) the latest bar is the day before's.
-fn quote_from(bars: &[Bar], meta: &serde_json::Value) -> Result<(f64, f64)> {
+///
+/// Indian stocks take the previous close from Yahoo's own day change
+/// (`fulldayChange`): it matched NSE's figures for all NIFTY 50 stocks (10
+/// Nov 2026) and counts sessions Yahoo's bars skip, which the bars can't.
+fn quote_from(bars: &[Bar], meta: &serde_json::Value, indian: bool) -> Result<(f64, f64)> {
     let last = meta["regularMarketPrice"].as_f64().or(bars.last().map(|b| b.close));
+    if indian
+        && let Some(l) = last
+        && let Some(change) = meta["fulldayChange"].as_f64()
+        && l - change > 0.0
+    {
+        return Ok((l, l - change));
+    }
     let tz = meta["exchangeTimezoneName"]
         .as_str()
         .and_then(|n| jiff::tz::TimeZone::get(n).ok())
@@ -332,8 +343,8 @@ impl Yahoo {
 
     fn chart(&self, sym: &Symbol, tf: Timeframe, range: &str) -> Result<(Vec<Bar>, serde_json::Value)> {
         // Indian weeks and months are built from the daily bars, which get
-        // the special sessions Yahoo leaves out (its 1wk/1mo bars lack them).
-        if !tf.is_intraday() && tf.unit != opentern_core::Unit::Day && crate::nse::covers(sym) {
+        // a special session Yahoo's bars leave out (from the quote, below).
+        if !tf.is_intraday() && tf.unit != opentern_core::Unit::Day && indian(sym) {
             let day = Timeframe::parse("1D").ok_or_else(|| Error::Bad("No daily interval".into()))?;
             let whole = range == "max";
             let (daily, meta) = self.chart(sym, day, if whole { "max" } else { "2y" })?;
@@ -370,12 +381,11 @@ impl Yahoo {
                 bars = adj;
             }
         }
-        // Sessions the exchange held that Yahoo's bars skip (Muhurat trading).
-        if !tf.is_intraday() {
-            crate::nse::fill_daily(sym, &mut bars);
-            if let Some(b) = skipped_day(sym, &meta, &bars) {
-                bars.push(b);
-            }
+        // A session the exchange held that Yahoo's bars skip (Muhurat trading).
+        if !tf.is_intraday()
+            && let Some(b) = skipped_day(sym, &meta, &bars)
+        {
+            bars.push(b);
         }
         // Never pass off bars of another length as the ones asked for.
         if let Some(g) = meta["dataGranularity"].as_str()
@@ -442,7 +452,7 @@ impl Yahoo {
     pub fn quote(&self, sym: &Symbol) -> Result<(f64, f64)> {
         let day = Timeframe::parse("1D").ok_or_else(|| Error::Bad("No daily interval".into()))?;
         let (bars, meta) = self.chart(sym, day, "5d")?;
-        quote_from(&bars, &meta)
+        quote_from(&bars, &meta, indian(sym))
     }
 }
 
@@ -500,14 +510,21 @@ impl Provider for Yahoo {
     }
 }
 
-/// Today's bar from Yahoo's quote, when its bars skip a session that's
-/// running or ended today (Muhurat trading) and the exchange's file isn't
-/// out yet: high, low, close and volume are the quote's; the open is the
-/// previous official close (price − Yahoo's day change), as Yahoo gives no
-/// open. The exchange's file replaces it that evening (same time).
+/// NSE and BSE symbols.
+fn indian(sym: &Symbol) -> bool {
+    matches!(sym.exchange(), "NSE" | "BSE")
+}
+
+/// The day's bar from Yahoo's quote, when its bars skip a session that's
+/// running or is the latest one (Muhurat trading): high, low, close and
+/// volume are the quote's; the open is the previous official close (price
+/// − Yahoo's day change), as Yahoo gives no open. Yahoo's history never
+/// gets these days, so the bar lasts only as long as the cache keeps it
+/// (the exchanges' own files would have the exact bar, but NSE's terms
+/// forbid automated collection: §9, checked 10 Nov 2026).
 pub(crate) fn skipped_day(sym: &Symbol, meta: &serde_json::Value, bars: &[Bar]) -> Option<Bar> {
     use opentern_core::calendar::{self, Market};
-    if !crate::nse::covers(sym) {
+    if !indian(sym) {
         return None;
     }
     let price = meta["regularMarketPrice"]
@@ -558,8 +575,7 @@ pub(crate) fn skipped_day(sym: &Symbol, meta: &serde_json::Value, bars: &[Bar]) 
 /// Indian symbols, only while the quote is fresh (≤ 10 minutes old) and
 /// the exchange is in a session at the quote's time, or it's a day with
 /// no regular session (a special session not yet listed in the
-/// calendar). Once the exchange's file or Yahoo's own bar has the period,
-/// that replaces this one (same time).
+/// calendar). Once Yahoo's own bar has the period, that replaces this one.
 #[derive(Default)]
 pub(crate) struct OwnBar {
     bar: Option<Bar>,
@@ -577,7 +593,7 @@ impl OwnBar {
         now: i64,
     ) -> Option<Bar> {
         use opentern_core::calendar::{self, Market, State};
-        if !crate::nse::covers(sym) {
+        if !indian(sym) {
             return None;
         }
         let price = meta["regularMarketPrice"]
@@ -752,12 +768,15 @@ mod tests {
         assert_eq!(bars[1].close, 2.2);
         assert_eq!(meta["regularMarketPrice"].as_f64(), Some(3.0));
         // The previous close is the bar before the latest, not chartPreviousClose.
-        assert_eq!(quote_from(&bars, &meta).unwrap(), (3.0, 1.2));
+        assert_eq!(quote_from(&bars, &meta, false).unwrap(), (3.0, 1.2));
         // Trading on a day Yahoo has no bar for yet (a Muhurat session): the
         // latest bar is the previous close.
         let mut live = meta.clone();
         live["regularMarketTime"] = serde_json::json!(1_705_100_000); // 12 Jan, no bar yet
-        assert_eq!(quote_from(&bars, &live).unwrap(), (3.0, 2.2));
+        assert_eq!(quote_from(&bars, &live, false).unwrap(), (3.0, 2.2));
+        // Indian stocks: Yahoo's day change, which counts a skipped session.
+        live["fulldayChange"] = serde_json::json!(0.5);
+        assert_eq!(quote_from(&bars, &live, true).unwrap(), (3.0, 2.5));
         let none: serde_json::Value =
             serde_json::from_str(r#"{"chart":{"result":null,"error":{"description":"No data found"}}}"#).unwrap();
         assert!(parse_chart(&none, true).is_err());
@@ -813,7 +832,7 @@ mod tests {
             (b.open, b.high, b.low, b.close, b.volume),
             (1018.5, 1025.0, 1015.1, 1016.0, 1_950_983.0)
         );
-        // Once the day has a bar (the exchange's file), nothing is added.
+        // Once the day has a bar (Yahoo's own, or cached), nothing is added.
         assert!(skipped_day(&sbin(), &meta, &[bars[0], b]).is_none());
         // A regular weekday is Yahoo's own business.
         let monday = quote(muhurat(14, 50) + 86_400, 1042.0, 1.0);

@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.10):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.11):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -92,12 +92,9 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   ones and fetches nothing), off in
   Settings → Symbol logos. Indices and commodities get drawn badges. The market
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
-  500 list (niftyindices.com, else archives.nseindia.com) at most weekly, Yahoo's
+  500 list (niftyindices.com) at most weekly, Yahoo's
   screener, spark and batch quotes, and CoinGecko's free markets API (one request
-  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. Indian
-  daily bars fetch NSE's (and for `BSE:` stocks BSE's) end-of-day file for each
-  special session listed in the calendar, once per file, kept under
-  `<workspace>/nse/` (see "Special sessions" below). The agent
+  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
   nothing starts at launch.
@@ -566,7 +563,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.10 released 10 Nov 2026** (queued agent messages, Ctrl+V images, Shift+Enter, legend titles cut short). **0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
+**0.2.11 released 10 Nov 2026** (special sessions: calendar, live bars from Yahoo's quote, Indian previous close from Yahoo's day change). **0.2.10 released 10 Nov 2026** (queued agent messages, Ctrl+V images, Shift+Enter, legend titles cut short). **0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
 Without it / With it). **0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
 indices with tick boxes / "Index starts" / History, split and bonus
 adjustment, the index math audit; see "Market overview" and "Splits in
@@ -634,7 +631,7 @@ in iteratively. Phase 14 has started (item 3).
    31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
    2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
    5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
-   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). v0.2.10 on 10 Nov 2026 (agent queue, Ctrl+V images). Website shots
+   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). v0.2.10 on 10 Nov 2026 (agent queue, Ctrl+V images). v0.2.11 the same day (special sessions). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
@@ -1539,55 +1536,50 @@ every data change (scripts re-run on it).
   `control::drive_tests::the_agent_reads_and_opens_the_market_overview`,
   data unit tests, and `live::overview_boards` (ignored, real services).
 
-### Special sessions: Muhurat trading and Saturdays (Nov 2026)
+### Special sessions: Muhurat trading and Saturdays (0.2.11, Nov 2026)
 - **Yahoo's bars skip some sessions NSE and BSE hold on holidays and
   weekends** (Muhurat trading on Sunday 8 Nov 2026 is missing from its
   daily *and* intraday bars; also 2010–2016's Muhurat sessions, 12 Nov 2023,
   the 1 Feb 2020 budget Saturday and the three 2024 disaster-recovery
-  Saturdays). Its *quotes* count them (`fulldayChange`, the hotlist), so
-  the chart, screener and watchlist disagreed with the hotlist. **Yahoo's
-  figure was right; I first "fixed" the hotlist the wrong way** (reverted).
-  NSE's own files are the ground truth: check them before calling a
-  reputable source wrong.
+  Saturdays; it has the others). Its *quotes* count them (`fulldayChange`,
+  the hotlist; matched NSE for all NIFTY 50 stocks), so bar-based numbers
+  disagreed with the hotlist. **Yahoo's figure was right; I first "fixed"
+  the hotlist the wrong way** (reverted). Check the exchange's own data
+  (by hand) before calling a reputable source wrong.
+- **NSE's terms forbid fetching its files from the app** (Terms of Use,
+  updated 29/10/2025, §9: no "systematic or automated data collection";
+  §8: no storing without written permission, and no use "for any gaming,
+  virtual trading or simulation activities", which paper trading and
+  backtests are). A fill from NSE's and BSE's end-of-day files was built,
+  verified to the paisa, and removed before release for this reason (the
+  maintainer's call). Don't add automated NSE/BSE downloads back; a
+  licensed source (a broker API the user signs up for, e.g. Upstox) is the
+  way to get the missing sessions. BSE's terms weren't found. The
+  overview's NIFTY 500 list fallback to `archives.nseindia.com` went with
+  it; niftyindices.com (NSE Indices, own terms, not checked) and the
+  bundled `nifty500.csv` remain: check their terms.
 - `calendar::NSE_SPECIAL` lists every special session (date, trading
   windows, name; windows empty for old ones whose times aren't on record).
-  `session`/`state`/`last_close_in` use it (breaks between windows count as
-  closed); the Calendar widget shows them. **Add each new one when the
-  exchange announces it** (with `NSE_HOLIDAYS`).
-- `opentern_data::nse`: the exchanges' end-of-day files (NSE
-  `sec_bhavdata_full` since late 2019, else the zipped `cm…bhav.csv`; NSE
-  `ind_close_all` for NIFTY and Bank Nifty; BSE's UDiFF file for `BSE:`
-  stocks; SENSEX not covered). `fill_daily` adds a listed session a series
-  lacks, scaled by the bar before's close over the file's previous close
-  (follows later splits). **Each file's own date is checked**: NSE serves
-  some non-trading days as a copy of the day before. Parsed files are kept
-  as JSON under `<workspace>/nse/`; downloads run one at a time; a failure
-  waits an hour; a 404 more than a month old is final. **NSE rate-limits
-  hard** (a 2,000-request scan got everything 403'd for hours): never scan
-  its archives fast, and HEAD requests always answer 503.
-- Where it's applied: `Yahoo::chart` (daily bars, so the chart, screener,
-  custom indices, Seasonality, feeds and quotes all get it; Indian weeks
-  and months are resampled from those days, not Yahoo's 1wk/1mo),
-  Upstox's daily bars, and the overview's spark closes (`fill_closes`).
-  `Session::upsert` now inserts an older bar it lacked instead of dropping
-  it; cache `bars_version` 3 cleared cached bars once.
-- **While a skipped session runs:** `yahoo::skipped_day` adds today's bar
-  from the quote (high, low, close, volume; the open is the previous
-  official close as Yahoo gives none) until the file replaces it that
-  evening; `yahoo::OwnBar` builds intraday bars from the quote in
-  `stream` while it's fresh and the exchange is in a session (or it's a
-  weekend or holiday: an unlisted special session). Yahoo's own bar for a
-  period always wins. Never seen live yet: the next Muhurat session is the
-  first real test.
-- Not covered: intraday bars of *past* skipped sessions (the exchanges
-  publish only daily files); SENSEX and other BSE indices.
-- Verified 10 Nov 2026: every listed date against NSE's files (the 4 Nov
-  2021 file is a copy of 3 Nov's; Yahoo has that session; 16 May 2010
-  traded gold ETFs only); `live::special_sessions_are_filled_from_the_exchange`
-  and `live::the_hub_serves_special_sessions` (SBIN's 8 Nov bar to the
-  paisa, NIFTY, the week's close, BSE's file). **Yahoo's daily history for
-  some BSE tickers is a single bar** (SBIN.BO, RELIANCE.BO; TCS.BO fine),
-  whatever the period asked: a Yahoo problem, not fixed here.
+  Every date was confirmed by hand in NSE's files. `session`/`state`/
+  `last_close_in` use it (breaks between windows count as closed); the
+  Calendar widget shows them. **Add each new one when the exchange
+  announces it** (with `NSE_HOLIDAYS`).
+- **While a skipped session runs, and until the next one:**
+  `yahoo::skipped_day` adds the day's bar from the quote (high, low,
+  close, volume right; open = previous official close, as Yahoo gives
+  none); `yahoo::OwnBar` builds intraday bars from the quote in `stream`
+  while it's fresh and the exchange is in a session (or it's a weekend or
+  holiday: an unlisted special session). Yahoo's own bar always wins. The
+  cache keeps what it saw; Yahoo's history never gets these days, so a
+  machine that wasn't running then has a gap. Indian weeks and months are
+  resampled from daily bars. Indian quotes' previous close is Yahoo's
+  `fulldayChange` (`quote_from`); the overview's India 1D is spark's
+  `fulldayChangePercent`. `Session::upsert` inserts an older bar it lacked
+  instead of dropping it. Never seen live yet: the next Muhurat session is
+  the first real test.
+- **Yahoo's daily history for some BSE tickers is a single bar** (SBIN.BO,
+  RELIANCE.BO; TCS.BO fine), whatever the period asked: a Yahoo problem,
+  not fixed.
 
 ### Splits in cached prices, index tick boxes (0.2.7, Nov 2026)
 - **The cache kept pre-split prices** (it only ever appended), so a split

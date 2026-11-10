@@ -231,16 +231,6 @@ impl Upstox {
     }
 }
 
-/// Daily bars with any special session the source lacks (Muhurat trading)
-/// added from the exchange's own file. Upstox likely has them already;
-/// never checked against a real account.
-fn filled(sym: &Symbol, tf: Timeframe, mut bars: Vec<Bar>) -> Vec<Bar> {
-    if tf.unit == opentern_core::Unit::Day && tf.count == 1 {
-        crate::nse::fill_daily(sym, &mut bars);
-    }
-    bars
-}
-
 impl Provider for Upstox {
     fn natives(&self) -> Vec<Timeframe> {
         ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "1D", "1W", "1M"]
@@ -255,7 +245,7 @@ impl Provider for Upstox {
         let start = today.first().map(|b| b.time).unwrap_or(provider::now_ms() + 1);
         let mut older = self.back(&key, tf, start, n.saturating_sub(today.len()).max(1))?;
         older.append(&mut today);
-        Ok(filled(sym, tf, older))
+        Ok(older)
     }
 
     fn since(&self, sym: &Symbol, tf: Timeframe, start: i64) -> Result<Vec<Bar>> {
@@ -268,12 +258,12 @@ impl Provider for Upstox {
             }
         }
         out.retain(|b| b.time >= start);
-        Ok(filled(sym, tf, out))
+        Ok(out)
     }
 
     fn before(&self, sym: &Symbol, tf: Timeframe, end: i64, n: usize) -> Result<Vec<Bar>> {
         let key = self.key(sym)?;
-        Ok(filled(sym, tf, self.back(&key, tf, end, n)?))
+        self.back(&key, tf, end, n)
     }
 
     fn stream(&self, sym: &Symbol, tf: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {

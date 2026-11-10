@@ -175,10 +175,7 @@ pub fn board(market: Market, dir: &Path, demo: bool) -> Result<Board> {
 const SP500: &str = include_str!("../assets/overview/sp500.csv");
 const NIFTY500: &str = include_str!("../assets/overview/nifty500.csv");
 const SP500_URL: &str = "https://cdn.jsdelivr.net/gh/datasets/s-and-p-500-companies@main/data/constituents.csv";
-const NIFTY500_URLS: [&str; 2] = [
-    "https://niftyindices.com/IndexConstituent/ind_nifty500list.csv",
-    "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
-];
+const NIFTY500_URLS: [&str; 1] = ["https://niftyindices.com/IndexConstituent/ind_nifty500list.csv"];
 const WEEK_MS: i64 = 7 * 86_400_000;
 
 /// Splits CSV text into rows of fields (quotes and doubled quotes
@@ -751,13 +748,10 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 Market::India => india_symbol(x),
                 _ => us_symbol(x, exchanges.get(y).map(String::as_str).unwrap_or(&x.exchange)),
             };
-            // Sessions the exchange held that Yahoo's bars skip.
-            let (mut times, mut closes) = (s.times.clone(), s.closes.clone());
+            // Yahoo's own day change counts sessions its bars skip.
+            let (times, closes) = (&s.times, &s.closes);
             let day = match market {
-                Market::India => {
-                    crate::nse::fill_closes(&symbol, &mut times, &mut closes);
-                    s.day
-                }
+                Market::India => s.day,
                 _ => None,
             };
             Some(Member {
@@ -767,8 +761,8 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 industry: x.industry.clone(),
                 cap: shares.get(y).map_or(f64::NAN, |n| n * s.price),
                 price: s.price,
-                change: changes(&times, &closes, s.price, day, now_s),
-                closes: tail(&closes),
+                change: changes(times, closes, s.price, day, now_s),
+                closes: tail(closes),
             })
         })
         .collect();

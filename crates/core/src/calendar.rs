@@ -4,8 +4,8 @@
 //! they're listed (update `NSE_HOLIDAYS` when the exchange publishes the
 //! next year's). Sessions outside the usual days or hours (Diwali's
 //! Muhurat trading, special Saturday sessions) are in `NSE_SPECIAL`: add
-//! each as the exchange announces it, or its prices go missing from
-//! sources that skip it (Yahoo's bars do; `opentern_data::nse` fills them).
+//! each as the exchange announces it: Yahoo's bars skip some, and the app
+//! builds their bars from its quote while they run (`opentern_data::yahoo`).
 //! Forex trades Sunday 17:00 to Friday 17:00 New York time; crypto never
 //! closes.
 
@@ -212,9 +212,9 @@ const SATURDAY: &str = "Special session";
 /// Diwali's Muhurat trading and special Saturday sessions (budget days,
 /// disaster-recovery drills). Yahoo's daily bars lack many of them
 /// (checked 10 Nov 2026: 2010–2016, 2020-02-01, 2023-11-12, the three 2024
-/// drills, 2026-11-08). Every date was confirmed in NSE's own end-of-day
-/// file (10 Nov 2026); times from the exchanges' circulars and their
-/// reporting. Add each new one when the exchange announces it.
+/// drills, 2026-11-08). Every date was confirmed by hand in NSE's own
+/// end-of-day file (10 Nov 2026); times from the exchanges' circulars and
+/// their reporting. Add each new one when the exchange announces it.
 const NSE_SPECIAL: &[Extra] = &[
     Extra {
         date: (2010, 11, 5),
