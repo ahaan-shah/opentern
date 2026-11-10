@@ -317,6 +317,11 @@ impl App {
                                 format!("Closes {}", at.strftime("%H:%M")),
                                 t.warn,
                             ),
+                            Special::Session(n, open, close) => (
+                                n.clone(),
+                                format!("{}–{}", open.strftime("%H:%M"), close.strftime("%H:%M")),
+                                t.accent,
+                            ),
                         };
                         let sub = format!("{} · {}", d.strftime("%A"), relative_days((*d - today).get_days()));
                         holiday_row(ui, t, *d, *d == today, &title, &sub, &pill, tone);

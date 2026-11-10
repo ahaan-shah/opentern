@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Indian prices include every session the exchange held.** Diwali's Muhurat trading (Sunday 8 Nov 2026 and earlier years) and special Saturday sessions were missing from charts, so the day after one showed the wrong change (SBIN +2.31% instead of +2.56% on 9 Nov) and the screener, watchlist and market overview disagreed with the hotlists. These sessions now come from NSE's and BSE's own end-of-day files, to the paisa, on daily, weekly and monthly charts, in indicators and strategies, the screener, custom indices, Seasonality and the watchlist.
+- **Special sessions update live while they run**, like a normal trading day, and the market dot shows them as open. The Calendar lists upcoming ones with their times.
+
 ## 0.2.10 (2026-11-10)
 
 Send messages to the agent while it works, paste images with Ctrl+V, and

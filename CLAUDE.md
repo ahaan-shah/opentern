@@ -94,7 +94,10 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
   500 list (niftyindices.com, else archives.nseindia.com) at most weekly, Yahoo's
   screener, spark and batch quotes, and CoinGecko's free markets API (one request
-  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. The agent
+  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. Indian
+  daily bars fetch NSE's (and for `BSE:` stocks BSE's) end-of-day file for each
+  special session listed in the calendar, once per file, kept under
+  `<workspace>/nse/` (see "Special sessions" below). The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
   nothing starts at launch.
@@ -1489,8 +1492,10 @@ every data change (scripts re-run on it).
   screener), India = NIFTY 500 (bundled NSE file, refreshed weekly). Prices,
   1D and history: Yahoo spark (20 a request, 4 threads, range 2y so 1Y
   always reaches back). **1D is from the previous session's close, like
-  the watchlist; spark's `fulldayChangePercent` is wrong** (NVDA +3.91%
-  for a 181.60 → 186.64 day). **Caps:
+  the watchlist.** For US stocks spark's `fulldayChangePercent` isn't used
+  (it once read NVDA +3.91% for a 181.60 → 186.64 day; not rechecked). For
+  Indian stocks it *is* used: it matched NSE's own figures for all NIFTY 50
+  stocks and counts sessions Yahoo's bars skip (see "Special sessions"). **Caps:
   US from Yahoo's `largest_market_cap` predefined screener** (no crumb; ~10
   pages reach every member but about 9 small ones, which go to batch quotes);
   **India from v7 batch quotes** (needs the crumb session fundamentals use).
@@ -1533,6 +1538,56 @@ every data change (scripts re-run on it).
   `Wait::Overview`). Tests: `drive::tests::market_overview_…`,
   `control::drive_tests::the_agent_reads_and_opens_the_market_overview`,
   data unit tests, and `live::overview_boards` (ignored, real services).
+
+### Special sessions: Muhurat trading and Saturdays (Nov 2026)
+- **Yahoo's bars skip some sessions NSE and BSE hold on holidays and
+  weekends** (Muhurat trading on Sunday 8 Nov 2026 is missing from its
+  daily *and* intraday bars; also 2010–2016's Muhurat sessions, 12 Nov 2023,
+  the 1 Feb 2020 budget Saturday and the three 2024 disaster-recovery
+  Saturdays). Its *quotes* count them (`fulldayChange`, the hotlist), so
+  the chart, screener and watchlist disagreed with the hotlist. **Yahoo's
+  figure was right; I first "fixed" the hotlist the wrong way** (reverted).
+  NSE's own files are the ground truth: check them before calling a
+  reputable source wrong.
+- `calendar::NSE_SPECIAL` lists every special session (date, trading
+  windows, name; windows empty for old ones whose times aren't on record).
+  `session`/`state`/`last_close_in` use it (breaks between windows count as
+  closed); the Calendar widget shows them. **Add each new one when the
+  exchange announces it** (with `NSE_HOLIDAYS`).
+- `opentern_data::nse`: the exchanges' end-of-day files (NSE
+  `sec_bhavdata_full` since late 2019, else the zipped `cm…bhav.csv`; NSE
+  `ind_close_all` for NIFTY and Bank Nifty; BSE's UDiFF file for `BSE:`
+  stocks; SENSEX not covered). `fill_daily` adds a listed session a series
+  lacks, scaled by the bar before's close over the file's previous close
+  (follows later splits). **Each file's own date is checked**: NSE serves
+  some non-trading days as a copy of the day before. Parsed files are kept
+  as JSON under `<workspace>/nse/`; downloads run one at a time; a failure
+  waits an hour; a 404 more than a month old is final. **NSE rate-limits
+  hard** (a 2,000-request scan got everything 403'd for hours): never scan
+  its archives fast, and HEAD requests always answer 503.
+- Where it's applied: `Yahoo::chart` (daily bars, so the chart, screener,
+  custom indices, Seasonality, feeds and quotes all get it; Indian weeks
+  and months are resampled from those days, not Yahoo's 1wk/1mo),
+  Upstox's daily bars, and the overview's spark closes (`fill_closes`).
+  `Session::upsert` now inserts an older bar it lacked instead of dropping
+  it; cache `bars_version` 3 cleared cached bars once.
+- **While a skipped session runs:** `yahoo::skipped_day` adds today's bar
+  from the quote (high, low, close, volume; the open is the previous
+  official close as Yahoo gives none) until the file replaces it that
+  evening; `yahoo::OwnBar` builds intraday bars from the quote in
+  `stream` while it's fresh and the exchange is in a session (or it's a
+  weekend or holiday: an unlisted special session). Yahoo's own bar for a
+  period always wins. Never seen live yet: the next Muhurat session is the
+  first real test.
+- Not covered: intraday bars of *past* skipped sessions (the exchanges
+  publish only daily files); SENSEX and other BSE indices.
+- Verified 10 Nov 2026: every listed date against NSE's files (the 4 Nov
+  2021 file is a copy of 3 Nov's; Yahoo has that session; 16 May 2010
+  traded gold ETFs only); `live::special_sessions_are_filled_from_the_exchange`
+  and `live::the_hub_serves_special_sessions` (SBIN's 8 Nov bar to the
+  paisa, NIFTY, the week's close, BSE's file). **Yahoo's daily history for
+  some BSE tickers is a single bar** (SBIN.BO, RELIANCE.BO; TCS.BO fine),
+  whatever the period asked: a Yahoo problem, not fixed here.
 
 ### Splits in cached prices, index tick boxes (0.2.7, Nov 2026)
 - **The cache kept pre-split prices** (it only ever appended), so a split

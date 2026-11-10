@@ -3218,6 +3218,7 @@ dependencies = [
  "tempfile",
  "tungstenite",
  "ureq",
+ "zip",
 ]
 
 [[package]]

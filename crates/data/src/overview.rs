@@ -495,14 +495,18 @@ fn tail(closes: &[f64]) -> Vec<f32> {
     v[v.len().saturating_sub(66)..].to_vec()
 }
 
-/// One stock's spark: price, closes and times. Yahoo's
-/// `fulldayChangePercent` isn't used: it isn't measured from the previous
-/// close (NVDA +3.91% when the move was 181.60 → 186.64, +2.78%).
+/// One stock's spark: price, closes and times, and Yahoo's own day change.
+/// That day change is used for Indian stocks only: it matched NSE's own
+/// figures for every NIFTY 50 stock (checked 10 Nov 2026) and, unlike
+/// spark's bars, counts sessions Yahoo's bars skip (Muhurat trading). For
+/// US stocks it once read NVDA +3.91% for a 181.60 → 186.64 day (+2.78%);
+/// not rechecked since.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Spark {
     pub price: f64,
     pub times: Vec<i64>,
     pub closes: Vec<f64>,
+    pub day: Option<f64>,
 }
 
 /// Parses Yahoo's spark reply, keyed by Yahoo ticker.
@@ -524,7 +528,16 @@ pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
             let price = q["fulldayPrice"]
                 .as_f64()
                 .or_else(|| closes.iter().rev().copied().find(|c| c.is_finite()))?;
-            Some((k.clone(), Spark { price, times, closes }))
+            let day = q["fulldayChangePercent"].as_f64().filter(|d| d.is_finite());
+            Some((
+                k.clone(),
+                Spark {
+                    price,
+                    times,
+                    closes,
+                    day,
+                },
+            ))
         })
         .collect()
 }
@@ -738,6 +751,15 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 Market::India => india_symbol(x),
                 _ => us_symbol(x, exchanges.get(y).map(String::as_str).unwrap_or(&x.exchange)),
             };
+            // Sessions the exchange held that Yahoo's bars skip.
+            let (mut times, mut closes) = (s.times.clone(), s.closes.clone());
+            let day = match market {
+                Market::India => {
+                    crate::nse::fill_closes(&symbol, &mut times, &mut closes);
+                    s.day
+                }
+                _ => None,
+            };
             Some(Member {
                 symbol,
                 name: x.name.clone(),
@@ -745,8 +767,8 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 industry: x.industry.clone(),
                 cap: shares.get(y).map_or(f64::NAN, |n| n * s.price),
                 price: s.price,
-                change: changes(&s.times, &s.closes, s.price, None, now_s),
-                closes: tail(&s.closes),
+                change: changes(&times, &closes, s.price, day, now_s),
+                closes: tail(&closes),
             })
         })
         .collect();

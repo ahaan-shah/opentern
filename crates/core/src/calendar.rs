@@ -2,8 +2,12 @@
 //! closes. US holidays follow the NYSE's published rules (so they're right
 //! for any year); Indian holidays are lunar and announced each year, so
 //! they're listed (update `NSE_HOLIDAYS` when the exchange publishes the
-//! next year's). Forex trades Sunday 17:00 to Friday 17:00 New York time;
-//! crypto never closes.
+//! next year's). Sessions outside the usual days or hours (Diwali's
+//! Muhurat trading, special Saturday sessions) are in `NSE_SPECIAL`: add
+//! each as the exchange announces it, or its prices go missing from
+//! sources that skip it (Yahoo's bars do; `opentern_data::nse` fills them).
+//! Forex trades Sunday 17:00 to Friday 17:00 New York time; crypto never
+//! closes.
 
 use crate::{AssetKind, Symbol};
 use jiff::civil::{Date, Time, Weekday, date};
@@ -188,6 +192,201 @@ const NSE_HOLIDAYS: &[(i16, i8, i8, &str)] = &[
     (2026, 12, 25, "Christmas"),
 ];
 
+/// Hours and minutes, local time.
+type Hm = (i8, i8);
+
+/// A session NSE and BSE hold outside their usual days or hours.
+struct Extra {
+    date: (i16, i8, i8),
+    /// Trading windows (local open, close) of the normal market, after the
+    /// pre-open; a closing auction may run a little later. Empty when the
+    /// times aren't on record (old sessions: only the day's prices are
+    /// used, and the regular hours stand in).
+    windows: &'static [(Hm, Hm)],
+    name: &'static str,
+}
+
+const MUHURAT: &str = "Muhurat trading";
+const SATURDAY: &str = "Special session";
+
+/// Diwali's Muhurat trading and special Saturday sessions (budget days,
+/// disaster-recovery drills). Yahoo's daily bars lack many of them
+/// (checked 10 Nov 2026: 2010–2016, 2020-02-01, 2023-11-12, the three 2024
+/// drills, 2026-11-08). Every date was confirmed in NSE's own end-of-day
+/// file (10 Nov 2026); times from the exchanges' circulars and their
+/// reporting. Add each new one when the exchange announces it.
+const NSE_SPECIAL: &[Extra] = &[
+    Extra {
+        date: (2010, 11, 5),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2011, 10, 26),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2012, 11, 13),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2013, 11, 3),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2014, 10, 23),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2015, 2, 28),
+        windows: &[((9, 15), (15, 30))],
+        name: "Union Budget session",
+    },
+    Extra {
+        date: (2015, 11, 11),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2016, 10, 30),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2017, 10, 19),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2018, 11, 7),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2019, 10, 27),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2020, 2, 1),
+        windows: &[((9, 15), (15, 30))],
+        name: "Union Budget session",
+    },
+    Extra {
+        date: (2020, 11, 14),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2021, 11, 4),
+        windows: &[],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2022, 10, 24),
+        windows: &[((18, 15), (19, 15))],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2023, 11, 12),
+        windows: &[((18, 15), (19, 15))],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2024, 1, 20),
+        windows: &[((9, 15), (10, 0)), ((11, 30), (12, 30))],
+        name: SATURDAY,
+    },
+    Extra {
+        date: (2024, 3, 2),
+        windows: &[((9, 15), (10, 0)), ((11, 30), (12, 30))],
+        name: SATURDAY,
+    },
+    Extra {
+        date: (2024, 5, 18),
+        windows: &[((9, 15), (10, 0)), ((11, 45), (12, 40))],
+        name: SATURDAY,
+    },
+    Extra {
+        date: (2024, 11, 1),
+        windows: &[((18, 0), (19, 0))],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2025, 2, 1),
+        windows: &[((9, 15), (15, 30))],
+        name: "Union Budget session",
+    },
+    Extra {
+        date: (2025, 10, 21),
+        windows: &[((13, 45), (14, 45))],
+        name: MUHURAT,
+    },
+    Extra {
+        date: (2026, 11, 8),
+        windows: &[((14, 20), (15, 30))],
+        name: MUHURAT,
+    },
+];
+
+fn extra(m: Market, d: Date) -> Option<&'static Extra> {
+    if m != Market::India {
+        return None;
+    }
+    NSE_SPECIAL.iter().find(|e| date(e.date.0, e.date.1, e.date.2) == d)
+}
+
+fn hm((h, m): Hm) -> Time {
+    Time::constant(h, m, 0, 0)
+}
+
+/// The special session on local date `d`: first open, last close (the
+/// regular hours when its times aren't on record) and its name.
+pub fn special(m: Market, d: Date) -> Option<(Time, Time, &'static str)> {
+    let e = extra(m, d)?;
+    let (open, close) = match (e.windows.first(), e.windows.last()) {
+        (Some(first), Some(last)) => (hm(first.0), hm(last.1)),
+        _ => m.hours()?,
+    };
+    Some((open, close, e.name))
+}
+
+/// Every special session: local date, first open and last close (UTC ms).
+pub fn special_sessions(m: Market) -> Vec<(Date, i64, i64)> {
+    if m != Market::India {
+        return Vec::new();
+    }
+    NSE_SPECIAL
+        .iter()
+        .filter_map(|e| {
+            let d = date(e.date.0, e.date.1, e.date.2);
+            let (o, c) = session(m, d)?;
+            Some((d, o, c))
+        })
+        .collect()
+}
+
+/// A special session's trading windows on `d` (UTC ms), when it has more
+/// than one (a break between them).
+fn windows(m: Market, d: Date) -> Vec<(i64, i64)> {
+    let Some(e) = extra(m, d) else { return Vec::new() };
+    let tz = m.tz();
+    let at = |t: Time| {
+        d.to_datetime(t)
+            .to_zoned(tz.clone())
+            .ok()
+            .map(|z| z.timestamp().as_millisecond())
+    };
+    e.windows
+        .iter()
+        .filter_map(|(o, c)| Some((at(hm(*o))?, at(hm(*c))?)))
+        .collect()
+}
+
 /// Why the market is closed on a local date, if it's a holiday.
 pub fn holiday(m: Market, d: Date) -> Option<&'static str> {
     match m {
@@ -207,6 +406,9 @@ pub enum Special {
     Holiday(String),
     /// Closes early at this exchange-local time.
     EarlyClose(Time),
+    /// A special session (Muhurat trading, a Saturday session): its name,
+    /// open and close, local time.
+    Session(String, Time, Time),
 }
 
 /// Holidays and early closes from `from` for `days` days, for the
@@ -215,7 +417,9 @@ pub fn upcoming(m: Market, from: Date, days: i64) -> Vec<(Date, Special)> {
     let mut out = Vec::new();
     let mut d = from;
     for _ in 0..days.max(0) {
-        if let Some(name) = holiday(m, d) {
+        if let Some((open, close, name)) = special(m, d) {
+            out.push((d, Special::Session(name.to_string(), open, close)));
+        } else if let Some(name) = holiday(m, d) {
             out.push((d, Special::Holiday(name.to_string())));
         } else if m == Market::Us && us_early_closes(d.year()).contains(&d) {
             out.push((d, Special::EarlyClose(Time::constant(13, 0, 0, 0))));
@@ -238,8 +442,10 @@ pub enum State {
 
 /// Today's (local date `d`) regular session as UTC ms, if it trades.
 fn session(m: Market, d: Date) -> Option<(i64, i64)> {
-    let (open, mut close) = m.hours()?;
-    if matches!(d.weekday(), Weekday::Saturday | Weekday::Sunday) || holiday(m, d).is_some() {
+    let (mut open, mut close) = m.hours()?;
+    if let Some((o, c, _)) = special(m, d) {
+        (open, close) = (o, c);
+    } else if matches!(d.weekday(), Weekday::Saturday | Weekday::Sunday) || holiday(m, d).is_some() {
         return None;
     }
     if m == Market::Us && us_early_closes(d.year()).contains(&d) {
@@ -327,6 +533,11 @@ pub fn state(m: Market, t: i64) -> State {
                 && t >= o
                 && t < c
             {
+                // A break between a special session's windows.
+                let w = windows(m, d);
+                if w.len() > 1 && !w.iter().any(|(a, b)| t >= *a && t < *b) {
+                    return State::Closed(w.iter().map(|(a, _)| *a).find(|a| *a > t));
+                }
                 return State::Open;
             }
             // The next session that hasn't ended.
@@ -411,6 +622,37 @@ mod tests {
             us_early_closes(2025),
             vec![date(2025, 7, 3), date(2025, 11, 28), date(2025, 12, 24)]
         );
+    }
+
+    #[test]
+    fn special_sessions_open_and_close() {
+        // Muhurat trading, Sunday 8 Nov 2026, 14:20–15:30 IST.
+        assert_eq!(state(Market::India, ms("2026-11-08T09:00:00Z")), State::Open);
+        assert_eq!(
+            state(Market::India, ms("2026-11-08T08:00:00Z")),
+            State::Closed(Some(ms("2026-11-08T08:50:00Z")))
+        );
+        assert!(matches!(
+            state(Market::India, ms("2026-11-08T10:05:00Z")),
+            State::Closed(_)
+        ));
+        // A drill Saturday's break between its two windows.
+        assert_eq!(
+            state(Market::India, ms("2024-01-20T05:00:00Z")),
+            State::Closed(Some(ms("2024-01-20T06:00:00Z")))
+        );
+        assert_eq!(state(Market::India, ms("2024-01-20T06:30:00Z")), State::Open);
+        // The daily bar of a Sunday session ends at its close.
+        assert_eq!(
+            last_close_in(Market::India, ms("2026-11-08T00:00:00Z"), ms("2026-11-09T00:00:00Z")),
+            Some(ms("2026-11-08T10:00:00Z"))
+        );
+        let up = upcoming(Market::India, date(2026, 11, 1), 10);
+        assert!(up.contains(&(
+            date(2026, 11, 8),
+            Special::Session(MUHURAT.into(), hm((14, 20)), hm((15, 30)))
+        )));
+        assert!(special(Market::Us, date(2026, 11, 8)).is_none());
     }
 
     #[test]

@@ -18,6 +18,7 @@ pub mod fundamentals;
 pub mod hub;
 pub mod ibkr;
 pub mod kraken;
+pub mod nse;
 pub mod oanda;
 pub mod okx;
 pub mod overview;

@@ -181,6 +181,7 @@ impl Hub {
         let (tx, req_rx) = unbounded();
         let (ev_tx, rx) = unbounded();
         let out = Out { tx: ev_tx, wake };
+        crate::nse::set_dir(dir.clone());
         std::thread::Builder::new()
             .name("data-hub".into())
             .spawn(move || manager(dir, demo, req_rx, out))
@@ -792,8 +793,11 @@ impl Session {
                 false
             }
             Some(last) if last.time > b.time => {
-                if let Ok(i) = self.bars.binary_search_by_key(&b.time, |x| x.time) {
-                    self.bars[i] = b;
+                // An older bar the series lacked (a special session filled
+                // in from the exchange's file) goes in its place.
+                match self.bars.binary_search_by_key(&b.time, |x| x.time) {
+                    Ok(i) => self.bars[i] = b,
+                    Err(i) => self.bars.insert(i, b),
                 }
                 false
             }
