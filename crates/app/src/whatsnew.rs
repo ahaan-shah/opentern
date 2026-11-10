@@ -31,6 +31,24 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.10",
+        items: &[
+            Item {
+                icon: ph::CHATS_CIRCLE,
+                title: "Send messages while the agent works",
+                body: "Press Enter mid-task and your message waits below the reply. The agent gets it as \
+                       soon as it finishes. Shift+Enter now starts a new line.",
+                image: None,
+            },
+            Item {
+                icon: ph::IMAGE,
+                title: "Ctrl+V pastes an image for the agent",
+                body: "Copy a screenshot and paste it straight into the agent's message box.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.9",
         items: &[
             Item {

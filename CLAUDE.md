@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.9):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.10):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -563,7 +563,7 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
+**0.2.10 released 10 Nov 2026** (queued agent messages, Ctrl+V images, Shift+Enter, legend titles cut short). **0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
 Without it / With it). **0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
 indices with tick boxes / "Index starts" / History, split and bonus
 adjustment, the index math audit; see "Market overview" and "Splits in
@@ -631,7 +631,7 @@ in iteratively. Phase 14 has started (item 3).
    31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
    2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
    5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
-   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). Website shots
+   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). v0.2.10 on 10 Nov 2026 (agent queue, Ctrl+V images). Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
