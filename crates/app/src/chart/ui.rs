@@ -312,8 +312,8 @@ pub fn show(
                 .iter()
                 .filter(|c| c.visible && c.mode == CompareMode::Pane && c.pane == pane.id)
             {
-                for j in first.min(n - 1)..=last {
-                    if let Some(b) = c.bar_at(chart.bars[j].time) {
+                for bar in chart.bars.iter().take(last + 1).skip(first.min(n - 1)) {
+                    if let Some(b) = c.bar_at(bar.time) {
                         grow(b.high);
                         grow(b.low);
                     }
@@ -1567,8 +1567,8 @@ fn draw_compare_candles(p: &Painter, chart: &Chart, c: &super::Compare, y: &YMap
     let down_c = c32(chart.style.down_body);
     let mut mesh = egui::Mesh::default();
     let mut prev = None;
-    for j in first..=last.min(n - 1) {
-        let Some(b) = c.bar_at(chart.bars[j].time) else {
+    for (j, bar) in chart.bars.iter().enumerate().take(last.min(n - 1) + 1).skip(first) {
+        let Some(b) = c.bar_at(bar.time) else {
             continue;
         };
         // Each of its bars once (a daily stock bar under hourly crypto).
@@ -1618,8 +1618,8 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
     match st.kind {
         SeriesKind::Line | SeriesKind::LineMarkers | SeriesKind::StepLine | SeriesKind::Area => {
             let mut pts: Vec<Pos2> = Vec::with_capacity((last - first + 1) * 2);
-            for i in first..=last {
-                let q = pos2(x.x(i as f64), y.y(chart.bars[i].close));
+            for (i, bar) in chart.bars.iter().enumerate().take(last + 1).skip(first) {
+                let q = pos2(x.x(i as f64), y.y(bar.close));
                 if st.kind == SeriesKind::StepLine
                     && let Some(prev) = pts.last().copied()
                 {
@@ -1661,8 +1661,8 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
             let mut cur: Vec<Pos2> = Vec::new();
             let mut cur_up = true;
             let mut prev: Option<Pos2> = None;
-            for i in first..=last {
-                let q = pos2(x.x(i as f64), y.y(chart.bars[i].close));
+            for (i, bar) in chart.bars.iter().enumerate().take(last + 1).skip(first) {
+                let q = pos2(x.x(i as f64), y.y(bar.close));
                 let q_up = q.y <= base_y;
                 if let Some(a) = prev {
                     let a_up = a.y <= base_y;
@@ -1749,8 +1749,8 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
                 bw.max(px)
             };
             let c = c32(st.line_color);
-            for i in first..=last {
-                let b = &chart.bars[i];
+            for (i, bar) in chart.bars.iter().enumerate().take(last + 1).skip(first) {
+                let b = bar;
                 let cx = snap(x.x(i as f64), ppp);
                 let (yh, yl) = (y.y(b.high), y.y(b.low));
                 rect_mesh(
@@ -1791,8 +1791,8 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
             let mut yang = chart.bars.first().is_some_and(|b| b.close >= b.open);
             let (mut shoulder, mut waist) = (f64::NAN, f64::NAN);
             let thick = (st.line_width as f32 + 1.0).max(2.0);
-            for i in 0..=last {
-                let b = &chart.bars[i];
+            for (i, bar) in chart.bars.iter().enumerate().take(last + 1) {
+                let b = bar;
                 let up = b.close >= b.open;
                 // Where the stroke changes thickness, if it does.
                 let flip = if up && !yang && shoulder.is_finite() && b.close > shoulder {
@@ -1838,8 +1838,8 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
             let cell = (bw * 0.8).min(box_h.max(2.0) * 1.2).max(2.0);
             let (up_c, down_c) = (c32(st.up_body), c32(st.down_body));
             let sw = if cell > 8.0 { 1.5 } else { 1.0 };
-            for i in first..=last {
-                let b = &chart.bars[i];
+            for (i, bar) in chart.bars.iter().enumerate().take(last + 1).skip(first) {
+                let b = bar;
                 let up = b.close >= b.open;
                 let cx = x.x(i as f64);
                 let (lo, hi) = ((b.low / size).round() as i64, (b.high / size).round() as i64);
@@ -2454,8 +2454,14 @@ fn draw_ext_hours(p: &Painter, chart: &Chart, x: &XMap, first: usize, last: usiz
             p.rect_filled(r.intersect(rect), 0.0, c);
         }
     };
-    for i in first..=last.min(chart.bars.len() - 1) {
-        let Ok(t) = jiff::Timestamp::from_millisecond(chart.bars[i].time) else {
+    for (i, bar) in chart
+        .bars
+        .iter()
+        .enumerate()
+        .take(last.min(chart.bars.len() - 1) + 1)
+        .skip(first)
+    {
+        let Ok(t) = jiff::Timestamp::from_millisecond(bar.time) else {
             continue;
         };
         let z = t.to_zoned(tz.clone());
