@@ -36,6 +36,8 @@ pub enum Modal {
     StrategyProps(Box<strategy_props::StrategyProps>),
     WhatsNew(Box<crate::whatsnew::Card>),
     Index(Box<crate::indices::IndexEditor>),
+    /// "Clear the price cache?" (Settings → General).
+    ClearCache,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -108,6 +110,7 @@ impl App {
                 Modal::Providers(p) => p.show(ui, self, &t),
                 Modal::StrategyProps(p) => p.show(ui, self, &t),
                 Modal::Index(e) => e.show(ui, self, &t),
+                Modal::ClearCache => clear_cache(ui, self, &t),
                 Modal::WhatsNew(c) => {
                     if crate::whatsnew::card(c, ui, &t) {
                         Done::Close
@@ -256,6 +259,30 @@ pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnO
     });
 }
 
+/// A section title with a "Beta" pill: for providers written from their
+/// documentation that nobody has yet run against a real account.
+pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
+    ui.add_space(6.0);
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(title.to_uppercase())
+                .font(theme::semibold(11.0))
+                .color(t.text3),
+        );
+        let text = egui::RichText::new("Beta").font(theme::medium(10.5)).color(t.warn);
+        egui::Frame::new()
+            .inner_margin(egui::Margin::symmetric(6, 1))
+            .corner_radius(egui::CornerRadius::same(8))
+            .stroke(egui::Stroke::new(1.0, t.warn.gamma_multiply(0.5)))
+            .show(ui, |ui| ui.label(text))
+            .response
+            .on_hover_text(
+                "Not yet tried with a real account. Compare its prices with another source before relying on them.",
+            );
+    });
+    ui.add_space(2.0);
+}
+
 pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
     ui.add_space(6.0);
     ui.label(
@@ -264,4 +291,43 @@ pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
             .color(t.text3),
     );
     ui.add_space(2.0);
+}
+
+/// Asks before clearing the price cache: some of what it holds can't be
+/// downloaded again (sources keep only recent minute and hour bars, and
+/// Yahoo never has the special sessions built from live prices).
+fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+    let mut done = Done::Keep;
+    if frame(ui, t, "Clear the price cache?", 400.0, |ui| {
+        ui.label(
+            egui::RichText::new(
+                "Charts download their prices again when you open them. Older minute and hour bars may \
+                 not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, \
+                 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back \
+                 either.",
+            )
+            .color(t.text2),
+        );
+        ui.add_space(4.0);
+        ui.label(egui::RichText::new("Your watchlists, layouts, drawings, alerts and scripts stay.").color(t.text2));
+        ui.add_space(16.0);
+        // A fixed-size row: a bare right-to-left layout takes the whole
+        // modal's height.
+        ui.allocate_ui_with_layout(
+            vec2(ui.available_width(), 32.0),
+            Layout::right_to_left(Align::Center),
+            |ui| {
+                if crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, "Clear cache").clicked() {
+                    app.clear_price_cache(ui.ctx());
+                    done = Done::Close;
+                }
+                if crate::widgets::secondary(ui, "Cancel").clicked() {
+                    done = Done::Close;
+                }
+            },
+        );
+    }) {
+        done = Done::Close;
+    }
+    done
 }

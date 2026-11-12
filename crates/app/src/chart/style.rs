@@ -166,6 +166,9 @@ pub struct ChartStyle {
     pub last_price_line: bool,
     pub last_price_label: bool,
     pub countdown: bool,
+    /// US stocks' pre-market and after-hours price on the scale.
+    pub ext_price_label: bool,
+    pub ext_price_line: bool,
     pub study_labels: bool,
     pub high_low_labels: bool,
     // Canvas
@@ -224,6 +227,8 @@ impl Default for ChartStyle {
             last_price_line: true,
             last_price_label: true,
             countdown: true,
+            ext_price_label: true,
+            ext_price_line: true,
             study_labels: true,
             high_low_labels: false,
             background: None,

@@ -149,10 +149,29 @@ fn main() -> eframe::Result<()> {
     let store = match Store::open(&dir) {
         Ok(s) => s,
         Err(e) => fatal(&format!(
-            "Couldn't open your Opentern workspace in {}:\n{e}\n\nNothing in it has been changed.",
-            dir.display()
+            "Couldn't open your Opentern workspace in {}:\n{e}\n\nNothing in it has been changed.{}",
+            dir.display(),
+            if dir.join("backups").is_dir() {
+                format!(
+                    "\n\nThe last week's backups are in {}. To start from one, move opentern.db out of the \
+                     workspace folder, open Opentern, then Settings → Export and import → From a file.",
+                    dir.join("backups").display()
+                )
+            } else {
+                String::new()
+            }
         )),
     };
+    // The day's backup of the workspace, off the UI thread (a database
+    // that goes bad, or a change regretted, can be undone from it).
+    if !demo && !app::headless() {
+        let dir = dir.clone();
+        std::thread::spawn(move || {
+            if let Err(e) = opentern_core::transfer::daily_backup(&dir) {
+                diag::note("Daily backup failed", &e.to_string());
+            }
+        });
+    }
     // If a renderer fails to start and we retry with another, the first
     // attempt may already have taken the store; reopen it from disk then.
     let slot = std::rc::Rc::new(std::cell::RefCell::new(Some(store)));

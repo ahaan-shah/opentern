@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Pre-market and after-hours prices for US stocks, as on TradingView.** While they trade, the chart's legend shows a sun (pre-market) or moon (after hours) with the price and change on hover, and the price scale gets its own label and dotted line (Chart settings → Scales and lines). The market overview says when extended hours are on, and each tile's card shows the extended-hours price. Candles and the day's change stay on the regular session.
+
+- **Says when prices stop updating.** If a live chart's prices haven't moved for 5 minutes while its market is open, the legend says "No new prices for 7 min". The watchlist dims such a price (hover says how long), and the market overview's header shows a warning.
+- **Says when Yahoo is missing prices.** A BSE stock whose daily history Yahoo lacks (most of them) says so and points to its NSE listing. An Indian chart missing a recent special session (Muhurat trading) says that session isn't on it.
+- **A daily backup of your workspace.** Opentern saves your watchlists, layouts, drawings, alerts, templates and paper accounts to `backups/` once a day and keeps the last week. Restore one from Settings → Export and import → From a file.
+- **The price cache's size, and a button to clear it** (Settings → General → Price cache). It asks first and says what may not come back: sources keep only recent minute and hour bars, and special sessions recorded live are never downloadable.
+- **Untested data providers are marked Beta.** Alpaca, OANDA, Upstox and Interactive Brokers haven't yet been tried with a real account.
+
+### Changed
+- **The market overview keeps up while markets trade.** Prices refresh every 30 seconds while the market is open (crypto always), instead of every 3 minutes.
+
+### Fixed
+- **US stocks' 1D change in the market overview is right before the open and after the close.** It compared the extended-hours price with the close two sessions back (NVDA showed −6.18% before the open on 12 Nov when it had closed +2.87%). It now shows the regular session, like the chart and watchlist.
+- **No more flat extra bar at the close on intraday stock charts.** Opened outside market hours, a 15m or 1h chart ended with a flat, volume-less bar at the closing price (Yahoo's latest-price point). The last bar now ends at the official close instead, and those bars are removed from the cache once.
+- **Weekly and monthly stock charts include today.** The current week (month) ended at yesterday, and today showed as a separate bar dated today (NVDA's weekly chart had a "week" starting on Thursday). Weeks and months are now built from daily bars, as Indian stocks' already were.
+- **A live chart no longer freezes after the computer sleeps or changes network.** A connection that died without closing kept the chart showing "live" on old prices for good. Quiet connections are now pinged, and one that doesn't answer is reconnected (within about a minute).
+- **Watchlist stock prices keep updating while Binance is unreachable.** They used to stop until Binance answered again.
+- **Live hourly bars from Upstox, IBKR and Alpaca line up with their history.** They were placed on the clock hour (09:00) while history starts at the session open (09:30, or 09:15 for NSE).
+- **A damaged price cache is set aside and downloaded again** instead of being half-read.
+- **The diagnostics log stays under about 2 MB.**
+- **Charts build bars for sessions Yahoo skips.** During trading Yahoo's bars leave out (Muhurat trading), its latest-price point could keep the chart from building bars from the live quote.
+
 ## 0.2.11 (2026-11-10)
 
 Diwali's Muhurat trading and special Saturday sessions now count in Indian

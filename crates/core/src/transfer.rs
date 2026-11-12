@@ -1105,10 +1105,28 @@ pub fn pending(dir: &Path) -> bool {
 /// Saves everything here to a new file in `<workspace>/backups`, keeping
 /// the latest few. Importing that file puts it all back.
 pub fn backup(dir: &Path) -> Result<PathBuf> {
+    let stamp = jiff::Zoned::now().strftime("%Y-%m-%d-%H%M%S%.3f").to_string();
+    backup_named(dir, "before-import-", &stamp, KEEP_BACKUPS)
+}
+
+/// The day's automatic backup in `<workspace>/backups` (`daily-<date>`),
+/// unless today's is there already; the latest week's are kept. Restored
+/// like any export (Settings → Export and import → From a file).
+pub fn daily_backup(dir: &Path) -> Result<Option<PathBuf>> {
+    let day = jiff::Zoned::now().strftime("%Y-%m-%d").to_string();
+    if dir.join("backups").join(format!("daily-{day}.{EXTENSION}")).exists() || !dir.join("opentern.db").exists() {
+        return Ok(None);
+    }
+    backup_named(dir, "daily-", &day, KEEP_DAILY).map(Some)
+}
+
+/// How many daily backups are kept.
+const KEEP_DAILY: usize = 7;
+
+fn backup_named(dir: &Path, prefix: &str, stamp: &str, keep: usize) -> Result<PathBuf> {
     let backups = dir.join("backups");
     std::fs::create_dir_all(&backups)?;
-    let stamp = jiff::Zoned::now().strftime("%Y-%m-%d-%H%M%S%.3f").to_string();
-    let path = backups.join(format!("before-import-{stamp}.{EXTENSION}"));
+    let path = backups.join(format!("{prefix}{stamp}.{EXTENSION}"));
     export(dir, &Item::ALL, &path)?;
     let mut old: Vec<PathBuf> = std::fs::read_dir(&backups)?
         .flatten()
@@ -1117,11 +1135,11 @@ pub fn backup(dir: &Path) -> Result<PathBuf> {
             p.extension().is_some_and(|e| e == EXTENSION)
                 && p.file_name()
                     .and_then(|n| n.to_str())
-                    .is_some_and(|n| n.starts_with("before-import-"))
+                    .is_some_and(|n| n.starts_with(prefix))
         })
         .collect();
     old.sort();
-    let extra = old.len().saturating_sub(KEEP_BACKUPS);
+    let extra = old.len().saturating_sub(keep);
     for p in old.into_iter().take(extra) {
         let _ = std::fs::remove_file(p);
     }
@@ -1228,6 +1246,31 @@ mod tests {
 
     fn file_in(dir: &Path) -> PathBuf {
         dir.join(format!("export.{EXTENSION}"))
+    }
+
+    #[test]
+    fn one_daily_backup_a_day_and_a_week_kept() {
+        let d = tempfile::tempdir().unwrap();
+        assert!(daily_backup(d.path()).unwrap().is_none(), "nothing to back up yet");
+        seeded(d.path());
+        let first = daily_backup(d.path()).unwrap().expect("today's backup");
+        verify(&first).unwrap();
+        assert!(daily_backup(d.path()).unwrap().is_none(), "only one a day");
+        // Older days' files: only the latest week stays.
+        let backups = d.path().join("backups");
+        for day in 1..=9 {
+            std::fs::copy(&first, backups.join(format!("daily-2020-01-{day:02}.{EXTENSION}"))).unwrap();
+        }
+        std::fs::remove_file(&first).unwrap();
+        daily_backup(d.path()).unwrap().expect("today's again");
+        let mut left: Vec<String> = std::fs::read_dir(&backups)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        assert_eq!(left.len(), KEEP_DAILY);
+        assert_eq!(left[0], format!("daily-2020-01-04.{EXTENSION}"));
     }
 
     #[test]

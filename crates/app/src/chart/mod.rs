@@ -22,6 +22,35 @@ pub use style::{ChartStyle, StudyLook};
 
 /// Bars of empty space kept right of the last bar by default.
 pub const RIGHT_MARGIN: f64 = 6.0;
+/// How long prices may go without moving, while the market is open, before
+/// the chart (`Chart::stale_for`) and the watchlist say so.
+pub const STALE_AFTER: std::time::Duration = std::time::Duration::from_secs(5 * 60);
+
+/// 00:00 UTC of a date, where daily bars are stamped.
+pub fn utc_midnight(d: jiff::civil::Date) -> i64 {
+    d.to_zoned(TimeZone::UTC)
+        .map(|z| z.timestamp().as_millisecond())
+        .unwrap_or(0)
+}
+
+/// The symbol's market is open now and was `STALE_AFTER` ago, so the
+/// night's quiet doesn't count in the minute before the open's first trade.
+pub fn steadily_open(symbol: &Symbol, now_ms: i64) -> bool {
+    use opentern_core::calendar;
+    let market = calendar::Market::of(symbol);
+    let since = now_ms - STALE_AFTER.as_millis() as i64;
+    market == calendar::Market::Crypto
+        || (calendar::state(market, now_ms) == calendar::State::Open
+            && calendar::state(market, since) == calendar::State::Open)
+}
+
+/// Pre-market amber, after-hours blue (as TradingView's sun and moon).
+pub fn extended_color(t: &crate::theme::Theme, e: opentern_core::calendar::Extended) -> egui::Color32 {
+    match e {
+        opentern_core::calendar::Extended::Pre => t.warn,
+        opentern_core::calendar::Extended::Post => egui::Color32::from_rgb(0x4C, 0x8D, 0xF6),
+    }
+}
 
 /// A fresh id for a data session (charts and compared symbols), unique
 /// for the life of the process, so late events from a closed one are
@@ -199,6 +228,11 @@ pub struct Chart {
     pub bars: Vec<Bar>,
     sessions: Vec<bool>,
     pub status: Status,
+    /// When the newest bar last changed (or a new one began): the legend
+    /// warns when a live chart's prices stop moving while its market is
+    /// open (`stale_for`).
+    moved: Option<std::time::Instant>,
+    newest: Option<Bar>,
     pub complete: bool,
     pub studies: Vec<StudyView>,
     pub panes: Vec<Pane>,
@@ -239,6 +273,9 @@ pub struct Chart {
     pub adj: bool,
     /// Pre- and after-hours bars (US stocks, intraday), as TradingView's EXT.
     pub ext: bool,
+    /// The symbol's pre-market or after-hours price (US stocks and funds),
+    /// shown beside the regular one; it never moves the bars.
+    pub extended: Option<opentern_data::yahoo::Ext>,
     raw: Vec<Bar>,
     /// The box size (Renko, Kagi, Point & figure) the bars were built with.
     pub brick: f64,
@@ -344,6 +381,7 @@ impl Chart {
             marks: None,
             paper: Vec::new(),
             corporate: None,
+            extended: None,
             adj: false,
             ext: false,
             raw: Vec::new(),
@@ -356,6 +394,8 @@ impl Chart {
             bars: Vec::new(),
             sessions: Vec::new(),
             status: Status::Loading,
+            moved: None,
+            newest: None,
             complete: false,
             studies: Vec::new(),
             panes: vec![Pane {
@@ -621,6 +661,8 @@ impl Chart {
         self.corporate = None;
         self.sessions.clear();
         self.status = Status::Loading;
+        self.moved = None;
+        self.newest = None;
         self.complete = false;
         self.asked_more = false;
         self.replay = None;
@@ -832,6 +874,11 @@ impl Chart {
     }
 
     /// The newest price on the chart, unless it's replaying the past.
+    /// How long ago the newest bar last changed (None before any data).
+    pub fn moved_ago(&self) -> Option<std::time::Duration> {
+        self.moved.map(|m| m.elapsed())
+    }
+
     pub fn last_price(&self) -> Option<f64> {
         (!self.replaying()).then(|| self.raw.last().map(|b| b.close)).flatten()
     }
@@ -855,8 +902,79 @@ impl Chart {
         self.apply(Event::Tick { chart: self.id, bar });
     }
 
+    /// How long a live chart's prices have gone without moving while its
+    /// market is open, once that's long enough to mention (5 minutes).
+    /// Quiet symbols can go that long without a trade, so it's said as a
+    /// fact, not an error.
+    pub fn stale_for(&self, now_ms: i64) -> Option<std::time::Duration> {
+        let quiet = self.moved?.elapsed();
+        (self.status == Status::Live
+            && !self.replaying()
+            && quiet >= STALE_AFTER
+            && steadily_open(&self.symbol, now_ms))
+        .then_some(quiet)
+    }
+
+    /// Prices Yahoo is known to lack, said under the legend: BSE listings
+    /// whose daily history is a single bar (most of them, Nov 2026), and
+    /// an Indian special session (Muhurat trading) its bars skip, for a
+    /// month after it, when this chart has no bars from it.
+    pub fn data_gap(&self, now_ms: i64) -> Option<String> {
+        use opentern_core::calendar::{self, Market};
+        // Not waiting for `Live`: Yahoo's charts say Loading until the
+        // first poll, 30 s after the history is already showing.
+        if self.raw.is_empty() {
+            return None;
+        }
+        let exchange = self.symbol.exchange();
+        if !matches!(exchange, "NSE" | "BSE") || self.symbol.kind != opentern_core::AssetKind::Stock {
+            return None;
+        }
+        if exchange == "BSE" && !self.tf.is_intraday() && self.raw.len() <= 2 {
+            return Some(format!(
+                "Yahoo has no daily history for this BSE listing. NSE:{} has it.",
+                self.symbol.ticker()
+            ));
+        }
+        if !(self.tf.is_intraday() || self.tf.unit == opentern_core::Unit::Day) {
+            return None;
+        }
+        let first = self.raw.first()?.time;
+        let (day, open, close) = calendar::special_sessions(Market::India)
+            .into_iter()
+            .rfind(|(_, open, _)| *open <= now_ms)
+            .filter(|(_, open, _)| now_ms - open < 30 * 86_400_000 && *open >= first)?;
+        let midnight = crate::chart::utc_midnight(day);
+        let has = if self.tf.is_intraday() {
+            self.raw.iter().any(|b| b.time >= open && b.time < close)
+        } else {
+            self.raw.iter().any(|b| b.time == midnight)
+        };
+        if has {
+            return None;
+        }
+        let name = calendar::special(Market::India, day).map_or("A special session", |s| s.2);
+        Some(format!(
+            "Yahoo's prices skip {name} on {}: it isn't on this chart.",
+            day.strftime("%-d %b %Y")
+        ))
+    }
+
     /// Applies a data event meant for this chart.
     pub fn apply(&mut self, e: Event) {
+        let newest = match &e {
+            Event::Bars { bars, .. } => bars.last(),
+            Event::Tick { bar, .. } => Some(bar),
+            _ => None,
+        };
+        if let Some(b) = newest
+            && self
+                .newest
+                .is_none_or(|n| b.time > n.time || (b.time == n.time && *b != n))
+        {
+            self.newest = Some(*b);
+            self.moved = Some(std::time::Instant::now());
+        }
         if self.replay_absorb(&e) {
             return;
         }
@@ -1017,6 +1135,13 @@ impl Chart {
         self.ext && self.can_ext()
     }
 
+    /// The pre-market or after-hours price while those hours are on (an
+    /// old one from earlier hours is dropped).
+    pub fn extended_now(&self) -> Option<opentern_data::yahoo::Ext> {
+        let e = self.extended?;
+        (e.fresh(jiff::Timestamp::now().as_millisecond()) && !self.replaying()).then_some(e)
+    }
+
     /// Turns dividend adjustment on or off.
     pub fn set_adj(&mut self, on: bool) {
         if self.adj == on {
@@ -1149,6 +1274,142 @@ mod tests {
     fn chart() -> Chart {
         let sym = opentern_core::starter_watchlist().remove(0);
         Chart::new(1, sym, Timeframe::parse("1h").unwrap())
+    }
+
+    #[test]
+    fn a_live_chart_whose_prices_stop_moving_says_so() {
+        let mut c = chart();
+        assert!(c.symbol.id.starts_with("BINANCE:"), "crypto: always open");
+        let now = jiff::Timestamp::now().as_millisecond();
+        let b = bars(3, 0);
+        c.apply(Event::Bars {
+            chart: 1,
+            bars: b.clone(),
+            complete: false,
+        });
+        c.apply(Event::Status {
+            chart: 1,
+            status: Status::Live,
+        });
+        assert_eq!(c.stale_for(now), None, "just arrived");
+        let long_ago = std::time::Instant::now() - STALE_AFTER - std::time::Duration::from_secs(60);
+        c.moved = Some(long_ago);
+        assert!(c.stale_for(now).is_some_and(|d| d >= STALE_AFTER));
+        // The same bar again is no news.
+        c.apply(Event::Tick { chart: 1, bar: b[2] });
+        assert!(c.stale_for(now).is_some());
+        // A changed price is.
+        c.apply(Event::Tick {
+            chart: 1,
+            bar: Bar {
+                close: b[2].close + 1.0,
+                ..b[2]
+            },
+        });
+        assert_eq!(c.stale_for(now), None);
+        // Offline says so itself.
+        c.moved = Some(long_ago);
+        c.apply(Event::Status {
+            chart: 1,
+            status: Status::Offline("x".into()),
+        });
+        assert_eq!(c.stale_for(now), None);
+    }
+
+    #[test]
+    fn known_gaps_in_yahoos_indian_prices_are_said() {
+        use opentern_core::{AssetKind, Symbol};
+        let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let day = |d: &str| ms(&format!("{d}T00:00:00Z"));
+        let bar = |t: i64| Bar {
+            time: t,
+            open: 1.0,
+            high: 1.0,
+            low: 1.0,
+            close: 1.0,
+            volume: 1.0,
+        };
+        let open = |id: &str, tf: &str, bars: Vec<Bar>| {
+            let sym = Symbol {
+                kind: AssetKind::Stock,
+                timezone: "Asia/Kolkata".into(),
+                ..Symbol::bare(id)
+            };
+            let mut c = Chart::new(1, sym, Timeframe::parse(tf).unwrap());
+            c.apply(Event::Bars {
+                chart: 1,
+                bars,
+                complete: true,
+            });
+            c.apply(Event::Status {
+                chart: 1,
+                status: Status::Live,
+            });
+            c
+        };
+        let now = ms("2026-11-12T06:00:00Z");
+        // BSE daily history that's one bar.
+        let c = open("BSE:INFY", "1D", vec![bar(day("2026-11-12"))]);
+        assert!(c.data_gap(now).unwrap().contains("NSE:INFY"));
+        // Muhurat trading on Sunday 8 Nov 2026, missing between Friday and Monday.
+        let days = vec![bar(day("2026-11-06")), bar(day("2026-11-09")), bar(day("2026-11-10"))];
+        let c = open("NSE:INFY", "1D", days.clone());
+        assert!(c.data_gap(now).unwrap().contains("8 Nov 2026"), "{:?}", c.data_gap(now));
+        let mut with = days.clone();
+        with.insert(1, bar(day("2026-11-08")));
+        assert_eq!(open("NSE:INFY", "1D", with).data_gap(now), None, "built from the quote");
+        // Over a month later, or a chart that starts after it: nothing to say.
+        assert_eq!(c.data_gap(ms("2026-12-20T06:00:00Z")), None);
+        assert_eq!(open("NSE:INFY", "1D", days[1..].to_vec()).data_gap(now), None);
+        // Intraday: no bar within the session's window.
+        let c = open(
+            "NSE:INFY",
+            "15m",
+            vec![bar(ms("2026-11-06T09:00:00Z")), bar(ms("2026-11-09T04:00:00Z"))],
+        );
+        assert!(c.data_gap(now).is_some());
+        let c = open(
+            "NSE:INFY",
+            "15m",
+            vec![bar(ms("2026-11-06T09:00:00Z")), bar(ms("2026-11-08T09:00:00Z"))],
+        );
+        assert_eq!(c.data_gap(now), None);
+        // US stocks and weekly charts: never.
+        assert_eq!(open("NSE:INFY", "1W", days).data_gap(now), None);
+    }
+
+    #[test]
+    fn a_closed_market_is_never_stale() {
+        let sym = opentern_core::Symbol::bare("NASDAQ:AAPL");
+        let mut c = Chart::new(1, sym.clone(), Timeframe::parse("1h").unwrap());
+        c.apply(Event::Bars {
+            chart: 1,
+            bars: bars(3, 0),
+            complete: false,
+        });
+        c.apply(Event::Status {
+            chart: 1,
+            status: Status::Live,
+        });
+        c.moved = Some(std::time::Instant::now() - STALE_AFTER * 3);
+        // Saturday 14 Nov 2026, noon in New York; and Monday 16 Nov at 09:32,
+        // two minutes after the open (the night's quiet doesn't count).
+        let sat = "2026-11-14T17:00:00Z"
+            .parse::<jiff::Timestamp>()
+            .unwrap()
+            .as_millisecond();
+        let open = "2026-11-16T14:32:00Z"
+            .parse::<jiff::Timestamp>()
+            .unwrap()
+            .as_millisecond();
+        let later = "2026-11-16T15:30:00Z"
+            .parse::<jiff::Timestamp>()
+            .unwrap()
+            .as_millisecond();
+        assert_eq!(c.stale_for(sat), None);
+        assert_eq!(c.stale_for(open), None);
+        assert!(c.stale_for(later).is_some());
+        assert!(!steadily_open(&sym, sat));
     }
 
     fn add(c: &mut Chart, id: &str) -> u64 {

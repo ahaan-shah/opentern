@@ -1489,8 +1489,15 @@ every data change (scripts re-run on it).
   screener), India = NIFTY 500 (bundled NSE file, refreshed weekly). Prices,
   1D and history: Yahoo spark (20 a request, 4 threads, range 2y so 1Y
   always reaches back). **1D is from the previous session's close, like
-  the watchlist.** For US stocks spark's `fulldayChangePercent` isn't used
-  (it once read NVDA +3.91% for a 181.60 → 186.64 day; not rechecked). For
+  the watchlist.** **Spark's `fulldayPrice`/`fulldayChangePercent` include
+  pre-market and after-hours trades** (checked 12 Nov 2026 against the
+  1-minute pre-market bars; that's why it once read NVDA +3.91% for a
+  181.60 → 186.64 day). US tiles use the daily bars' last close (the
+  regular session; before the open the latest bar is yesterday's, and
+  mixing the two gave NVDA −6.18% for a +2.87% day); the extended price
+  goes in `Member::ext` (`yahoo::Ext`, only while
+  `calendar::us_extended` says pre-market or after hours) for the hover
+  card and the header's ☀/☾ chip. For
   Indian stocks it *is* used: it matched NSE's own figures for all NIFTY 50
   stocks and counts sessions Yahoo's bars skip (see "Special sessions"). **Caps:
   US from Yahoo's `largest_market_cap` predefined screener** (no crumb; ~10
@@ -1521,7 +1528,13 @@ every data change (scripts re-run on it).
   scrollbar; no ScrollArea when all fit); sector titles zoom (`Overview::sector`), Esc
   unzooms then closes; tile labels by size (logo + ticker + %, ticker + %,
   one line for wide-short, logo only); hover card on the Tooltip layer;
-  refresh every 3 min while open, 30 s after a failure. `Overview::drawn`
+  refresh every 3 min while open, 30 s after a failure; in between,
+  while the market trades (US incl. extended hours, crypto always),
+  `Request::OverviewPrices` every 30 s (`overview::prices`: 5-day spark
+  for stocks, Binance trading-day tickers for coins, keyed by
+  `Member::key`; `Board::reprice` keeps each period's base). A coin gets
+  a key only if Binance answered for its pair (one unknown pair fails a
+  whole batch). `Overview::drawn`
   records tile/sector/button rects for tests. Market and period saved under
   settings key `overview`. CoinGecko's free API asks for attribution: the
   legend's tooltip names the source. Stills: `overview[:market[:period[:sector]]]`,
@@ -1577,9 +1590,48 @@ every data change (scripts re-run on it).
   `fulldayChangePercent`. `Session::upsert` inserts an older bar it lacked
   instead of dropping it. Never seen live yet: the next Muhurat session is
   the first real test.
-- **Yahoo's daily history for some BSE tickers is a single bar** (SBIN.BO,
-  RELIANCE.BO; TCS.BO fine), whatever the period asked: a Yahoo problem,
-  not fixed.
+- **Yahoo's daily history for most BSE tickers is a single bar** (SBIN.BO,
+  RELIANCE.BO, INFY.BO, ITC.BO; TCS.BO fine), whatever the period asked: a
+  Yahoo problem; the chart says so (see "Robustness pass").
+
+### Pre-market and after hours (Unreleased, Nov 2026)
+- As TradingView with EXT off: candles, the watchlist and every 1D stay
+  on the regular session; the extended price is only shown beside it.
+  `calendar::us_extended` (04:00 to the open, the close + 4 h, trading
+  days only). The quote worker sends `Event::Extended` for US stocks and
+  funds in `Request::Quotes` (one spark call per 20; `None` once the
+  hours end); `subscribe_quotes` adds US stocks on any chart
+  (`watchlists::has_extended_hours`). `Chart::extended` /
+  `extended_now()`: the legend's sun/moon (price in the tooltip) and an
+  amber/blue price label and dotted line (Chart settings → Scales and
+  lines, `ext_price_label`/`ext_price_line`), included in auto-scale;
+  hidden with EXT on (the bars show it). After-hours prices from
+  `fulldayPrice` are assumed like pre-market's; not yet seen live.
+
+### Robustness pass (Unreleased, Nov 2026)
+- **Websockets go silent when a network dies without a close** (sleep,
+  Wi-Fi change): reads only time out. `provider::Alive` pings after 30 s
+  of silence and drops the connection when no pong comes within 20 s;
+  every `read_text` takes one. Polling sources rely on HTTP timeouts.
+- **Stale prices are said, never hidden:** `Chart::stale_for` (legend,
+  5 min without the newest bar changing while `chart::steadily_open`),
+  `App::stale_quote` (watchlist, by `quote_at` or a chart of the symbol),
+  the overview header (`Overview::got`). Each requests a repaint every
+  30 s, since a stalled feed sends nothing that would wake the UI.
+- **`BarBuilder` continues the history's grid** (`phase` from the last
+  bar): stocks' hourly history starts at the open, not on the hour.
+- **Yahoo's daily (and weekly) history is one bar for most BSE listings**
+  (INFY.BO, ITC.BO, HDFCBANK.BO, LT.BO; TCS.BO whole; intraday fine;
+  checked 12 Nov 2026). `Chart::data_gap` says so, and says when a recent
+  special session is missing. Don't build BSE days from hourly bars: the
+  official close is the last 30 minutes' VWAP, so they'd be subtly wrong.
+- **Cache:** checked once per run (`PRAGMA quick_check`), a damaged file
+  is moved to `bars.db.broken`; Settings → General shows its size and
+  clears it (`cache::clear`: VACUUM, then checkpoint). The workspace gets
+  `backups/daily-<date>.opentern` once a day (`transfer::daily_backup`,
+  7 kept, off the UI thread); the can't-open error points at them.
+- Live-tested 12 Nov 2026: US closes matched Nasdaq for 33 sessions on 4
+  symbols; Binance vs Coinbase median gap 0.13%.
 
 ### Splits in cached prices, index tick boxes (0.2.7, Nov 2026)
 - **The cache kept pre-split prices** (it only ever appended), so a split
@@ -1594,6 +1646,16 @@ every data change (scripts re-run on it).
   (Bajaj Finance's June 2025 1:2 split + 4:1 bonus shows as 2:1, prices
   adjusted ×10), so never adjust by ratio alone. Markers read "Split or
   bonus" on NSE/BSE.
+- **Yahoo ends intraday replies with a "now" point** (time =
+  `regularMarketTime`, flat, no volume, off the grid). `fold_now_point`
+  moves the last bar with it when it falls inside it, or right at its end
+  outside the session (the closing print: the last bar ends at the
+  official close, like the quote), and drops it anywhere else (kept, it
+  also hid a skipped session from `OwnBar`, which then never built a
+  bar). Yahoo's weekly and monthly bars do the same with today's whole
+  day (a bar of its own, the week ending yesterday), so weeks and months
+  are built from daily bars for every Yahoo symbol. Before Nov 2026 it was kept as a bar; the cache drops those once
+  (meta `yahoo_now_points`).
 - **Yahoo's hourly bars are adjusted by the listed split ratio only**:
   Bajaj Finance's 16 Jun 2025 hourly bars jump ×5 (daily ones are fine).
   `Yahoo::chart` asks `events=split` and runs `split_adjust`, which takes
@@ -1655,6 +1717,11 @@ What's new reopens it. Still: `whatsnew`.
   `logos::render` also strips `\r` now.
 
 ### Releasing (only when asked; same as Magpie and Spotsie)
+0. **Before every release, review the whole app** (the maintainer, Nov 2026:
+   people make large investment decisions with it). Review all of it, not
+   only the diff, and fix what the review finds. Report what was covered and
+   what wasn't, then stop until the maintainer has reviewed the fixes and
+   says go.
 1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
@@ -1667,7 +1734,10 @@ What's new reopens it. Still: `whatsnew`.
    placeholder notes.
 3. If dependencies or bundled assets changed: `python3
    scripts/third-party-licenses.py`. Run `cargo audit` (CI fails on advisories).
-4. fmt / clippy / test / `scripts/check-leaks.sh`, commit, push `main`, and
+4. fmt / clippy / test / `scripts/check-leaks.sh`, plus the cross-checks
+   against second sources (`cargo test -p opentern-data --test crosscheck --
+   --ignored --nocapture --test-threads=1`: US closes = Nasdaq's to the cent,
+   Binance vs Coinbase, NSE vs BSE listings, old prices pinned). Then commit, push `main`, and
    **wait until every CI job is green on that commit** before tagging
    (CI covers Linux, macOS and Windows since 0.2.5). Also look at the
    annotations of the last CI and Release runs (`gh run view <id>`) for

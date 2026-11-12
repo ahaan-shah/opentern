@@ -87,6 +87,12 @@ pub enum Request {
         seq: u64,
         market: crate::overview::Market,
     },
+    /// The latest prices for an open heatmap's members (`Member::key`).
+    OverviewPrices {
+        seq: u64,
+        market: crate::overview::Market,
+        keys: Vec<String>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -120,6 +126,12 @@ pub enum Event {
         last: f64,
         prev: f64,
     },
+    /// A US stock's pre-market or after-hours price (`None` once those
+    /// hours are over), for symbols in `Request::Quotes`.
+    Extended {
+        id: String,
+        ext: Option<crate::yahoo::Ext>,
+    },
     Search {
         seq: u64,
         results: Vec<Symbol>,
@@ -148,6 +160,12 @@ pub enum Event {
         seq: u64,
         market: crate::overview::Market,
         result: Result<crate::overview::Board, String>,
+    },
+    /// The answer to a `Request::OverviewPrices`.
+    OverviewPrices {
+        seq: u64,
+        market: crate::overview::Market,
+        result: Result<HashMap<String, crate::overview::Price>, String>,
     },
     /// The answer to a `Request::Depth`.
     Depth {
@@ -301,6 +319,13 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 let _ = std::thread::Builder::new().name("data-overview".into()).spawn(move || {
                     let result = crate::overview::board(market, &dir, demo).map_err(|e| e.to_string());
                     out.send(Event::Overview { seq, market, result });
+                });
+            }
+            Request::OverviewPrices { seq, market, keys } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new().name("data-overview".into()).spawn(move || {
+                    let result = crate::overview::prices(market, &keys, demo).map_err(|e| e.to_string());
+                    out.send(Event::OverviewPrices { seq, market, result });
                 });
             }
             Request::Depth { seq, symbol, last } => {
@@ -1046,13 +1071,50 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         exprs,
         last: HashMap::new(),
     });
+    // US stocks and funds: pre-market and after-hours prices beside the
+    // regular ones.
+    let us: Vec<(String, String)> = plain
+        .iter()
+        .filter(|s| opentern_core::calendar::has_extended_hours(s))
+        .map(|s| (s.id.clone(), crate::yahoo::ticker(&s.id)))
+        .collect();
     if demo {
+        let now = crate::provider::now_ms();
         for s in &plain {
             let (last, prev) = demo::quote(s);
             q.borrow_mut().send(s.id.clone(), last, prev);
+            if us.iter().any(|(id, _)| *id == s.id) {
+                let ext = crate::yahoo::Ext::at(now, last * (1.0 + (last.fract() - 0.5) * 0.03), last);
+                q.borrow().out.send(Event::Extended { id: s.id.clone(), ext });
+            }
         }
         return;
     }
+    let ext_on = std::cell::Cell::new(false);
+    let extended = || {
+        let now = crate::provider::now_ms();
+        if us.is_empty() || (opentern_core::calendar::us_extended(now).is_none() && !ext_on.get()) {
+            return;
+        }
+        let tickers: Vec<String> = us.iter().map(|(_, t)| t.clone()).collect();
+        let sparks = if opentern_core::calendar::us_extended(now).is_some() {
+            let got = crate::overview::sparks(&tickers, "5d");
+            // A failed poll keeps what was shown.
+            if got.is_empty() {
+                return;
+            }
+            got
+        } else {
+            HashMap::new()
+        };
+        ext_on.set(!sparks.is_empty());
+        for (id, t) in &us {
+            let ext = sparks
+                .get(t)
+                .and_then(|s| crate::yahoo::Ext::at(now, s.price, s.regular));
+            q.borrow().out.send(Event::Extended { id: id.clone(), ext });
+        }
+    };
     let (crypto, others): (Vec<_>, Vec<_>) = plain.into_iter().partition(|s| s.id.starts_with("BINANCE:"));
     let pairs: Vec<String> = crypto.iter().map(|s| s.ticker().to_string()).collect();
     let yahoo = Yahoo::default();
@@ -1063,6 +1125,7 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         let poll_yahoo = |last_poll: &mut Option<Instant>| {
             if last_poll.is_none_or(|t| t.elapsed() > Duration::from_secs(30)) {
                 *last_poll = Some(Instant::now());
+                extended();
                 for s in &others {
                     let quote = if yahoo_routed(s) {
                         yahoo.quote(s).ok()
@@ -1086,6 +1149,7 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
             continue;
         }
         let mut stopped = false;
+        let started = Instant::now();
         let _ = binance::stream_quotes(&pairs, &mut |item| {
             if let Some((pair, last, open)) = item {
                 q.borrow_mut().send(format!("BINANCE:{pair}"), last, open);
@@ -1100,11 +1164,18 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         if stopped {
             return;
         }
+        if started.elapsed() > Duration::from_secs(60) {
+            backoff = Duration::from_secs(1);
+        }
+        // Stocks keep their quotes while Binance is unreachable (they used
+        // to freeze until it answered again).
+        poll_yahoo(&mut last_poll);
         let until = Instant::now() + backoff;
         while Instant::now() < until {
             if stop(&cmds) {
                 return;
             }
+            poll_yahoo(&mut last_poll);
             std::thread::sleep(Duration::from_millis(200));
         }
         backoff = (backoff * 2).min(Duration::from_secs(30));

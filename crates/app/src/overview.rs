@@ -19,6 +19,8 @@ use std::time::{Duration, Instant};
 const REFRESH: Duration = Duration::from_secs(180);
 /// After a failure.
 const RETRY: Duration = Duration::from_secs(30);
+/// Prices between boards, while the market trades (`Request::OverviewPrices`).
+const PRICES: Duration = Duration::from_secs(30);
 const HEADER_H: f32 = 44.0;
 const SECTOR_H: f32 = 18.0;
 /// Space kept for the scrollbar when the map scrolls.
@@ -36,6 +38,13 @@ pub struct Overview {
     failed: HashMap<Market, Instant>,
     /// The request in flight per market, and when it was sent.
     asked: HashMap<Market, (u64, Instant)>,
+    /// The prices request in flight per market, and when each market's
+    /// prices were last asked for.
+    pricing: HashMap<Market, u64>,
+    priced: HashMap<Market, Instant>,
+    /// When each market's prices last arrived (a board or a price round):
+    /// the header warns when they're old while the market trades.
+    got: HashMap<Market, Instant>,
     seq: u64,
     /// Screenshots: the tile to show as hovered (`overview-hover:<ticker>`).
     pub still_hover: Option<String>,
@@ -308,6 +317,24 @@ impl App {
         self.hub.send(opentern_data::Request::Overview { seq, market: m });
     }
 
+    /// Newer prices for a market's tiles. A failure waits for the next
+    /// round (the board's own refresh reports errors).
+    pub(crate) fn overview_prices(
+        &mut self,
+        seq: u64,
+        market: Market,
+        result: Result<HashMap<String, opentern_data::overview::Price>, String>,
+    ) {
+        if self.overview.pricing.get(&market) != Some(&seq) {
+            return;
+        }
+        self.overview.pricing.remove(&market);
+        if let (Ok(prices), Some(b)) = (result, self.overview.boards.get_mut(&market)) {
+            b.reprice(&prices);
+            self.overview.got.insert(market, Instant::now());
+        }
+    }
+
     pub(crate) fn overview_event(&mut self, seq: u64, market: Market, result: Result<Board, String>) {
         if self.overview.asked.get(&market).is_none_or(|(s, _)| *s != seq) {
             return;
@@ -317,6 +344,10 @@ impl App {
             Ok(b) => {
                 self.overview.errors.remove(&market);
                 self.overview.boards.insert(market, b);
+                self.overview.priced.insert(market, Instant::now());
+                self.overview.got.insert(market, Instant::now());
+                // Prices asked before this board are older than it.
+                self.overview.pricing.remove(&market);
             }
             Err(e) => {
                 self.overview.errors.insert(market, e);
@@ -344,7 +375,36 @@ impl App {
         if left.is_zero() && !self.overview.loading(m) {
             self.overview_fetch(m);
         }
-        ctx.request_repaint_after(left.max(Duration::from_secs(1)));
+        // Prices in between, while the market trades.
+        let mut next = left;
+        if trading(m, now)
+            && !self.overview.loading(m)
+            && let Some(b) = self.overview.boards.get(&m)
+        {
+            let wait = self
+                .overview
+                .priced
+                .get(&m)
+                .map_or(Duration::ZERO, |at| PRICES.saturating_sub(at.elapsed()));
+            if wait.is_zero() && !self.overview.pricing.contains_key(&m) {
+                let keys: Vec<String> = b
+                    .members
+                    .iter()
+                    .filter(|x| !x.key.is_empty())
+                    .map(|x| x.key.clone())
+                    .collect();
+                self.overview.priced.insert(m, Instant::now());
+                if !keys.is_empty() {
+                    self.overview.seq += 1;
+                    let seq = self.overview.seq;
+                    self.overview.pricing.insert(m, seq);
+                    self.hub
+                        .send(opentern_data::Request::OverviewPrices { seq, market: m, keys });
+                }
+            }
+            next = next.min(wait.max(Duration::from_secs(1)));
+        }
+        ctx.request_repaint_after(next.max(Duration::from_secs(1)));
     }
 
     /// The page, in the chart area.
@@ -475,20 +535,41 @@ impl App {
         let busy = self.overview.loading(m) && self.overview.boards.contains_key(&m);
         let error = self.overview.errors.get(&m).cloned();
         let board = self.overview.boards.get(&m);
+        let now = jiff::Timestamp::now().as_millisecond();
+        // Prices refresh every 30 s while the market trades; five minutes
+        // without any is worth a word.
+        let stale = self
+            .overview
+            .got
+            .get(&m)
+            .map(|at| at.elapsed())
+            .filter(|d| *d >= crate::chart::STALE_AFTER && trading(m, now) && board.is_some());
+        let extended = (m == Market::Us)
+            .then(|| opentern_core::calendar::us_extended(jiff::Timestamp::now().as_millisecond()))
+            .flatten();
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
             if room > 150.0 {
                 legend(ui, t, self.overview.period, board);
             }
+            if let Some(e) = extended.filter(|_| room > 330.0) {
+                ui.add_space(6.0);
+                extended_chip(ui, t, e);
+            }
+            let old = stale.map(|d| format!("No new prices for {}", crate::format::span(d)));
+            let warning = match (error.filter(|_| board.is_some()), old) {
+                (Some(e), Some(o)) => Some(format!("{e}\n{o}")),
+                (e, o) => e.or(o),
+            };
             if busy {
                 ui.add(egui::Spinner::new().size(13.0).color(t.text3));
-            } else if let Some(e) = error.filter(|_| board.is_some()) {
+            } else if let Some(w) = warning {
                 ui.label(
                     egui::RichText::new(ph::WARNING_CIRCLE)
                         .font(theme::regular(14.0))
                         .color(t.warn),
                 )
-                .on_hover_text(e);
+                .on_hover_text(w);
             }
         });
     }
@@ -676,6 +757,14 @@ impl App {
                 if change >= 0.0 { t.pos } else { t.neg },
             ),
         ];
+        if let Some(e) = m.ext.filter(|e| e.fresh(jiff::Timestamp::now().as_millisecond())) {
+            let ch = e.change();
+            rows.push((
+                e.session.label().into(),
+                format!("{}  {}", price(e.price), crate::format::signed_pct(ch)),
+                if ch >= 0.0 { t.pos } else { t.neg },
+            ));
+        }
         if board.sizing != Sizing::Equal {
             rows.push((size_label.into(), money(m.cap, &board.currency, board.market), t.text));
         }
@@ -771,6 +860,33 @@ pub enum Click {
     Sector(String),
 }
 
+/// Whether a market's prices move now (US stocks include pre-market and
+/// after hours, for the hover card's figure).
+fn trading(m: Market, now_ms: i64) -> bool {
+    use opentern_core::calendar as cal;
+    match m {
+        Market::Crypto => true,
+        Market::Us => cal::state(cal::Market::Us, now_ms) == cal::State::Open || cal::us_extended(now_ms).is_some(),
+        Market::India => cal::state(cal::Market::India, now_ms) == cal::State::Open,
+    }
+}
+
+/// ☀ Pre-market / ☾ After hours, while US stocks trade outside the
+/// regular session.
+fn extended_chip(ui: &mut Ui, t: &Theme, e: opentern_core::calendar::Extended) {
+    let col = crate::chart::extended_color(t, e);
+    let icon = match e {
+        opentern_core::calendar::Extended::Pre => ph::SUN,
+        opentern_core::calendar::Extended::Post => ph::MOON,
+    };
+    ui.label(
+        egui::RichText::new(format!("{icon} {}", e.label()))
+            .font(theme::medium(12.0))
+            .color(col),
+    )
+    .on_hover_text("Tiles show the regular session. Hover one for its extended-hours price.");
+}
+
 /// −3% ▮▮▮▮▮▮▮ +3%, for the period's scale.
 fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
     let s = scale(period);
@@ -823,6 +939,8 @@ mod tests {
             price: 1.0,
             change: [ch; 6],
             closes: Vec::new(),
+            key: String::new(),
+            ext: None,
         };
         // Worth 100 and 100 a year ago; 200 and 100 now: the sector is up
         // 50% (not 66.7%, today's caps as weights).

@@ -112,6 +112,33 @@ mod tests {
     }
 
     #[test]
+    fn every_older_workspace_upgrades_and_keeps_its_settings() {
+        // A workspace left at each earlier version (an old release that was
+        // never updated) opens with the current one, settings intact.
+        for k in 1..MIGRATIONS.len() {
+            let dir = tempfile::tempdir().unwrap();
+            {
+                let c = Connection::open(dir.path().join("opentern.db")).unwrap();
+                for (i, sql) in MIGRATIONS[..k].iter().enumerate() {
+                    c.execute_batch(sql).unwrap();
+                    c.pragma_update(None, "user_version", (i + 1) as i64).unwrap();
+                }
+                c.execute("INSERT INTO settings (key, value) VALUES ('kept', 'yes')", [])
+                    .unwrap();
+            }
+            let c = open(dir.path()).unwrap_or_else(|e| panic!("from v{k}: {e}"));
+            let v: i64 = c.pragma_query_value(None, "user_version", |r| r.get(0)).unwrap();
+            assert_eq!(v as usize, MIGRATIONS.len(), "from v{k}");
+            let kept: String = c
+                .query_row("SELECT value FROM settings WHERE key = 'kept'", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(kept, "yes", "from v{k}");
+            drop(c);
+            crate::Store::open(dir.path()).unwrap_or_else(|e| panic!("store from v{k}: {e}"));
+        }
+    }
+
+    #[test]
     fn refuses_a_newer_workspace() {
         let dir = tempfile::tempdir().unwrap();
         let c = open(dir.path()).unwrap();

@@ -138,14 +138,28 @@ impl App {
         self.subscribe_quotes();
     }
 
-    /// Live prices for every symbol in the active list.
+    /// Live prices for every symbol in the active list, plus US stocks on
+    /// a chart or charted lately (for their pre-market and after-hours
+    /// prices).
     pub(crate) fn subscribe_quotes(&mut self) {
         let mut symbols = self.watchlist();
-        for s in self.paper_symbols().into_iter().chain(self.indices.symbols()) {
+        let charted: Vec<Symbol> = std::iter::once(&self.chart)
+            .chain(self.slots.iter().flatten().map(|s| &s.chart))
+            .map(|c| c.symbol.clone())
+            .chain(self.ext_recent.iter().cloned())
+            .filter(has_extended_hours)
+            .collect();
+        for s in self
+            .paper_symbols()
+            .into_iter()
+            .chain(self.indices.symbols())
+            .chain(charted)
+        {
             if !symbols.iter().any(|x| x.id == s.id) {
                 symbols.push(s);
             }
         }
+        self.quoted = symbols.iter().map(|s| s.id.clone()).collect();
         self.hub.send(Request::Quotes { symbols });
     }
 
@@ -365,8 +379,30 @@ impl App {
         }
     }
 
+    /// How long a symbol's price has gone without an update while its
+    /// market is open, once that's `chart::STALE_AFTER` or more. A chart
+    /// of the symbol counts as an update too (its price is the one shown).
+    pub(crate) fn stale_quote(&self, s: &Symbol, now_ms: i64) -> Option<std::time::Duration> {
+        if self.demo || !self.quotes.contains_key(&s.id) {
+            return None;
+        }
+        let slots = self.slots.iter().flatten().map(|x| &x.chart);
+        let quiet = std::iter::once(&self.chart)
+            .chain(slots)
+            .filter(|c| c.symbol.id == s.id)
+            .filter_map(|c| c.moved_ago())
+            .chain(self.quote_at.get(&s.id).map(|q| q.elapsed()))
+            .min()?;
+        (quiet >= crate::chart::STALE_AFTER && crate::chart::steadily_open(s, now_ms)).then_some(quiet)
+    }
+
     fn watchlist_rows(&mut self, ui: &mut Ui, t: &Theme) {
         let list = self.watchlists[self.active_list].clone();
+        let now_ms = jiff::Timestamp::now().as_millisecond();
+        if !self.demo && !self.quotes.is_empty() {
+            // A stalled feed sends nothing that would repaint.
+            ui.ctx().request_repaint_after(std::time::Duration::from_secs(30));
+        }
         // Prices first, so the columns can be sized to what they hold.
         let quotes = self.quotes.clone();
         let price = |s: &Symbol| match quotes.get(&s.id) {
@@ -506,6 +542,7 @@ impl App {
                             continue;
                         }
                         let (last, chg, col) = price(s);
+                        let stale = self.stale_quote(s, now_ms);
                         let active = self.chart.symbol.id == s.id;
                         let (rect, resp) =
                             ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click_and_drag());
@@ -545,7 +582,7 @@ impl App {
                             Align2::RIGHT_CENTER,
                             &last,
                             theme::regular(13.0),
-                            t.text,
+                            if stale.is_some() { t.text3 } else { t.text },
                         );
                         if inside {
                             let x = Rect::from_center_size(pos2(rect.right() - 12.0, y), vec2(20.0, 20.0));
@@ -569,9 +606,11 @@ impl App {
                         if resp.drag_started() {
                             ui.data_mut(|d| d.insert_temp(drag_id, Some(k)));
                         }
-                        let resp = resp
-                            .on_hover_text(&s.description)
-                            .on_hover_cursor(egui::CursorIcon::PointingHand);
+                        let tip = match stale {
+                            Some(d) => format!("{}\nNo new price for {}", s.description, crate::format::span(d)),
+                            None => s.description.clone(),
+                        };
+                        let resp = resp.on_hover_text(tip).on_hover_cursor(egui::CursorIcon::PointingHand);
                         if resp.clicked() && !active {
                             acts.push(Act::Pick(s.clone()));
                         }
@@ -753,6 +792,11 @@ fn circle(ui: &mut Ui, t: &Theme, text: &str, on: bool) -> egui::Response {
     );
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
+
+/// How many lately charted US stocks keep their quote (`App::ext_recent`).
+pub(crate) const RECENT_EXT: usize = 8;
+
+pub(crate) use opentern_core::calendar::has_extended_hours;
 
 #[cfg(test)]
 mod tests {

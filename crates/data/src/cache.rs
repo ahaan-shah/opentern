@@ -63,9 +63,67 @@ fn kind_from(s: &str) -> AssetKind {
     }
 }
 
+/// Checks a folder's cache file once per run (the first open waits for
+/// it); a damaged one is moved aside to `bars.db.broken` so it's
+/// downloaded again rather than half-read. Returns whether it was.
+fn check_once(dir: &Path) -> bool {
+    use std::sync::{Mutex, OnceLock};
+    static CHECKED: OnceLock<Mutex<std::collections::HashSet<std::path::PathBuf>>> = OnceLock::new();
+    let mut seen = CHECKED
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if !seen.insert(dir.to_path_buf()) {
+        return false;
+    }
+    repair(dir)
+}
+
+/// Moves a damaged cache file aside. Returns whether it was damaged.
+fn repair(dir: &Path) -> bool {
+    let path = dir.join("bars.db");
+    if !path.exists() || healthy(&path) {
+        return false;
+    }
+    let _ = std::fs::rename(&path, dir.join("bars.db.broken"));
+    for side in ["bars.db-wal", "bars.db-shm"] {
+        let _ = std::fs::remove_file(dir.join(side));
+    }
+    true
+}
+
+/// SQLite's own quick check of every page and index.
+fn healthy(path: &Path) -> bool {
+    let Ok(conn) = Connection::open(path) else { return false };
+    conn.query_row("PRAGMA quick_check", [], |r| r.get::<_, String>(0))
+        .is_ok_and(|s| s == "ok")
+}
+
+/// How much room the cache takes on disk, in bytes.
+pub fn size(dir: &Path) -> u64 {
+    ["bars.db", "bars.db-wal", "bars.db-shm"]
+        .iter()
+        .filter_map(|f| std::fs::metadata(dir.join(f)).ok())
+        .map(|m| m.len())
+        .sum()
+}
+
+/// Empties the bar cache and gives the room back (Settings → General).
+/// Open charts keep what they show; prices download again when needed.
+/// Symbol lists stay, so search keeps working offline.
+pub fn clear(dir: &Path) -> Result<()> {
+    let c = Cache::open(dir)?;
+    c.conn.execute("DELETE FROM bars", [])?;
+    // VACUUM writes the smaller file through the WAL; the checkpoint after
+    // it moves that into the file and truncates the WAL.
+    let _ = c.conn.execute_batch("VACUUM; PRAGMA wal_checkpoint(TRUNCATE);");
+    Ok(())
+}
+
 impl Cache {
     pub fn open(dir: &Path) -> Result<Cache> {
         let _ = std::fs::create_dir_all(dir);
+        check_once(dir);
         let conn = Connection::open(dir.join("bars.db"))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
@@ -86,7 +144,56 @@ impl Cache {
             c.conn.execute("DELETE FROM bars", [])?;
             c.set_meta("bars_version", BARS_VERSION)?;
         }
+        // Yahoo's "latest price" point used to be kept as a bar of its own
+        // (Nov 2026): a flat, volume-less intraday bar at the session's
+        // close or off the minute grid (`yahoo::fold_now_point`), and on
+        // weekly and monthly charts a "week" or "month" starting on the day
+        // it was fetched (weeks and months are built from days now, so
+        // Yahoo's are fetched again whole). Remove those once.
+        if c.meta("yahoo_now_points").is_none() {
+            c.drop_yahoo_now_points()?;
+            c.set_meta("yahoo_now_points", "1")?;
+        }
         Ok(c)
+    }
+
+    fn drop_yahoo_now_points(&self) -> Result<()> {
+        use opentern_core::calendar::{Market, closes_at};
+        const NOT_YAHOO: &str = "sym NOT LIKE 'BINANCE:%' AND sym NOT LIKE 'BYBIT:%' AND sym NOT LIKE 'OKX:%'
+            AND sym NOT LIKE 'COINBASE:%' AND sym NOT LIKE 'KRAKEN:%' AND sym NOT LIKE 'OANDA:%'
+            AND sym NOT LIKE 'IBKR:%'";
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute(
+            &format!("DELETE FROM bars WHERE tf IN ('1W', '1M') AND {NOT_YAHOO}"),
+            [],
+        )?;
+        // Stocks only (forex and others have no volume, so flat bars are
+        // real there), and never extended-hours series (#ext), whose bars
+        // run past the close.
+        let stray: Vec<(String, String, i64)> = tx
+            .prepare(
+                "SELECT sym, tf, t FROM bars WHERE v = 0 AND o = h AND h = l AND l = c
+                   AND substr(tf, -1) IN ('s', 'm', 'h') AND sym NOT LIKE '%#%'
+                   AND (sym LIKE 'NASDAQ:%' OR sym LIKE 'NYSE:%' OR sym LIKE 'AMEX:%'
+                     OR sym LIKE 'NSE:%' OR sym LIKE 'BSE:%')",
+            )?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<Result<_>>()?;
+        for (sym, tf, t) in stray {
+            let market = if sym.starts_with("NSE:") || sym.starts_with("BSE:") {
+                Market::India
+            } else {
+                Market::Us
+            };
+            if t % 60_000 != 0 || closes_at(market, t) {
+                tx.execute(
+                    "DELETE FROM bars WHERE sym = ?1 AND tf = ?2 AND t = ?3",
+                    params![sym, tf, t],
+                )?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
     }
 
     /// The newest `limit` bars, oldest first.
@@ -206,6 +313,115 @@ fn row_bar(r: &rusqlite::Row) -> rusqlite::Result<Bar> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clearing_empties_bars_keeps_symbols_and_shrinks_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let tf = Timeframe::parse("1m").unwrap();
+        let bars: Vec<Bar> = (0..20_000)
+            .map(|i| Bar {
+                time: i * 60_000,
+                open: 1.0,
+                high: 2.0,
+                low: 0.5,
+                close: 1.5,
+                volume: 3.0,
+            })
+            .collect();
+        let c = Cache::open(dir.path()).unwrap();
+        c.save("BINANCE:BTCUSDT", tf, &bars).unwrap();
+        c.save_symbols("binance", &[Symbol::bare("BINANCE:BTCUSDT")]).unwrap();
+        let before = size(dir.path());
+        // Another connection stays open meanwhile, as a chart's would.
+        clear(dir.path()).unwrap();
+        assert!(c.last("BINANCE:BTCUSDT", tf, 10).unwrap().is_empty());
+        assert!(size(dir.path()) < before / 4, "{} → {}", before, size(dir.path()));
+        assert_eq!(c.symbols().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_damaged_cache_is_moved_aside_and_started_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let tf = Timeframe::parse("1m").unwrap();
+        let bars: Vec<Bar> = (0..3000)
+            .map(|i| Bar {
+                time: i * 60_000,
+                open: 1.0,
+                high: 2.0,
+                low: 0.5,
+                close: 1.5,
+                volume: 3.0,
+            })
+            .collect();
+        {
+            let c = Cache::open(dir.path()).unwrap();
+            c.save("BINANCE:BTCUSDT", tf, &bars).unwrap();
+        }
+        assert!(!repair(dir.path()), "a sound file stays");
+        // Scribble over a page in the middle (a crash mid-write, a bad disk).
+        let path = dir.path().join("bars.db");
+        let mut bytes = std::fs::read(&path).unwrap();
+        assert!(bytes.len() > 40_000);
+        bytes[16_384..32_768].fill(0xA5);
+        std::fs::write(&path, bytes).unwrap();
+        assert!(repair(dir.path()));
+        assert!(dir.path().join("bars.db.broken").exists());
+        let c = Cache::open(dir.path()).unwrap();
+        assert!(c.last("BINANCE:BTCUSDT", tf, 10).unwrap().is_empty());
+        c.save("BINANCE:BTCUSDT", tf, &bars[..5]).unwrap();
+        assert_eq!(c.last("BINANCE:BTCUSDT", tf, 10).unwrap().len(), 5);
+    }
+
+    #[test]
+    fn yahoos_stray_bars_are_removed_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let tf = |s: &str| Timeframe::parse(s).unwrap();
+        let bar = |t: i64, flat: bool| Bar {
+            time: t,
+            open: 1.0,
+            high: if flat { 1.0 } else { 2.0 },
+            low: if flat { 1.0 } else { 0.5 },
+            close: 1.0,
+            volume: if flat { 0.0 } else { 5.0 },
+        };
+        let close = 1_794_430_800_000; // 11 Nov 2026 21:00 UTC, NYSE's close
+        let quiet = close - 3_600_000; // 15:00 New York: in session
+        {
+            let c = Cache::open(dir.path()).unwrap();
+            let m15 = tf("15m");
+            c.save(
+                "NASDAQ:NVDA",
+                m15,
+                &[bar(quiet, true), bar(close - 900_000, false), bar(close, true)],
+            )
+            .unwrap();
+            c.save(
+                "NASDAQ:NVDA",
+                tf("1m"),
+                &[bar(close - 60_000, false), bar(close + 26_000, true)],
+            )
+            .unwrap();
+            c.save("NASDAQ:NVDA#ext", m15, &[bar(close, true)]).unwrap();
+            c.save("FX:EURUSD", m15, &[bar(close, true)]).unwrap();
+            c.save("BINANCE:BTCUSDT", m15, &[bar(close, true)]).unwrap();
+            c.save("NASDAQ:NVDA", tf("1W"), &[bar(1_794_182_400_000, false)])
+                .unwrap();
+            c.save("BINANCE:BTCUSDT", tf("1W"), &[bar(1_794_182_400_000, false)])
+                .unwrap();
+            c.conn
+                .execute("DELETE FROM meta WHERE key = 'yahoo_now_points'", [])
+                .unwrap();
+        }
+        let c = Cache::open(dir.path()).unwrap();
+        let times = |s: &str, t: &str| c.last(s, tf(t), 10).unwrap().iter().map(|b| b.time).collect::<Vec<_>>();
+        assert_eq!(times("NASDAQ:NVDA", "15m"), vec![quiet, close - 900_000]);
+        assert_eq!(times("NASDAQ:NVDA", "1m"), vec![close - 60_000]);
+        assert_eq!(times("NASDAQ:NVDA#ext", "15m"), vec![close]);
+        assert_eq!(times("FX:EURUSD", "15m"), vec![close]);
+        assert_eq!(times("BINANCE:BTCUSDT", "15m"), vec![close]);
+        assert!(times("NASDAQ:NVDA", "1W").is_empty());
+        assert_eq!(times("BINANCE:BTCUSDT", "1W").len(), 1);
+    }
 
     #[test]
     fn saves_loads_and_pages() {

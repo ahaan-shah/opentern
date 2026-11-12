@@ -76,7 +76,13 @@ pub fn log_path() -> Option<PathBuf> {
 pub fn init(data_dir: &std::path::Path) {
     START.get_or_init(Instant::now);
     let _ = std::fs::create_dir_all(data_dir);
-    let _ = LOG.set(data_dir.join("opentern-diagnostics.log"));
+    let log = data_dir.join("opentern-diagnostics.log");
+    // It only ever grows: past 1 MB the old part moves to `.old.log`
+    // (replacing the one before), so the pair stays under 2 MB.
+    if std::fs::metadata(&log).is_ok_and(|m| m.len() > 1 << 20) {
+        let _ = std::fs::rename(&log, data_dir.join("opentern-diagnostics.old.log"));
+    }
+    let _ = LOG.set(log);
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |info| {
         write_report(

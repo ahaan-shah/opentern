@@ -108,21 +108,73 @@ pub(crate) fn websocket(host: &str, port: u16, path: &str) -> Result<(Socket, Tc
     Ok((ws, handle))
 }
 
-/// Reads one text message, or `None` on a read timeout. Errors mean the
-/// connection is gone.
-pub(crate) fn read_text(ws: &mut Socket) -> Result<Option<String>> {
+/// How long a websocket may stay silent before it's asked for a pong, and
+/// how long that pong may take before the connection counts as dead.
+const QUIET: Duration = Duration::from_secs(30);
+const PONG_WAIT: Duration = Duration::from_secs(20);
+
+/// Notices a connection that died without closing (the laptop slept, the
+/// network changed): reads only time out then, and without this the chart
+/// stayed "live" on frozen prices for good.
+pub(crate) struct Alive {
+    heard: std::time::Instant,
+    pinged: Option<std::time::Instant>,
+    quiet: Duration,
+    pong_wait: Duration,
+}
+
+impl Default for Alive {
+    fn default() -> Alive {
+        Alive::within(QUIET, PONG_WAIT)
+    }
+}
+
+impl Alive {
+    fn within(quiet: Duration, pong_wait: Duration) -> Alive {
+        Alive {
+            heard: std::time::Instant::now(),
+            pinged: None,
+            quiet,
+            pong_wait,
+        }
+    }
+
+    /// After a read timed out: ping a quiet connection, give up on one
+    /// that didn't answer.
+    fn quiet(&mut self, ws: &mut Socket) -> Result<()> {
+        match self.pinged {
+            Some(at) if at.elapsed() >= self.pong_wait => Err(Error::Offline),
+            None if self.heard.elapsed() >= self.quiet => {
+                ws.send(tungstenite::Message::Ping(Vec::new().into()))
+                    .map_err(|_| Error::Offline)?;
+                self.pinged = Some(std::time::Instant::now());
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+}
+
+/// Reads one text message, or `None` on a read timeout or a non-text
+/// frame. Errors mean the connection is gone, including one that went
+/// silent and didn't answer a ping (`Alive`).
+pub(crate) fn read_text(ws: &mut Socket, alive: &mut Alive) -> Result<Option<String>> {
     use tungstenite::Message;
-    match ws.read() {
-        Ok(Message::Text(t)) => Ok(Some(t.to_string())),
-        Ok(Message::Close(_)) => Err(Error::Offline),
-        Ok(_) => Ok(None),
+    let got = match ws.read() {
+        Ok(Message::Text(t)) => Some(t.to_string()),
+        Ok(Message::Close(_)) => return Err(Error::Offline),
+        Ok(_) => None,
         Err(tungstenite::Error::Io(e))
             if matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut) =>
         {
-            Ok(None)
+            alive.quiet(ws)?;
+            return Ok(None);
         }
-        Err(_) => Err(Error::Offline),
-    }
+        Err(_) => return Err(Error::Offline),
+    };
+    alive.heard = std::time::Instant::now();
+    alive.pinged = None;
+    Ok(got)
 }
 
 pub(crate) fn now_ms() -> i64 {
@@ -233,6 +285,7 @@ pub(crate) fn ws_candles(
         send_text(&mut ws, subscribe)?;
     }
     let mut last_ping = std::time::Instant::now();
+    let mut alive = Alive::default();
     loop {
         if let Some((msg, every)) = ping
             && last_ping.elapsed() >= every
@@ -240,7 +293,7 @@ pub(crate) fn ws_candles(
             send_text(&mut ws, msg)?;
             last_ping = std::time::Instant::now();
         }
-        let bars = match read_text(&mut ws)? {
+        let bars = match read_text(&mut ws, &mut alive)? {
             Some(text) => serde_json::from_str::<serde_json::Value>(&text)
                 .map(|v| parse(&v))
                 .unwrap_or_default(),
@@ -325,5 +378,54 @@ mod paging_tests {
         assert_eq!(split_pair("ETHBTC"), Some(("ETH", "BTC")));
         assert_eq!(parse_time("2024-01-02T14:30:00.000000000Z"), Some(1_704_205_800_000));
         assert_eq!(rfc3339(1_704_205_800_000), "2024-01-02T14:30:00Z");
+    }
+}
+
+#[cfg(test)]
+mod alive_tests {
+    use super::*;
+    use std::net::TcpListener;
+    use tungstenite::stream::MaybeTlsStream;
+
+    /// A local server that answers pings only when `answers`, else holds
+    /// the connection open and silent (a dead network looks like that).
+    fn client(answers: bool) -> Socket {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (tcp, _) = listener.accept().unwrap();
+            let mut ws = tungstenite::accept(tcp).unwrap();
+            if answers {
+                // Reading is what makes tungstenite answer a ping.
+                while ws.read().is_ok() {}
+            } else {
+                std::thread::sleep(Duration::from_secs(5));
+            }
+        });
+        let tcp = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        let (ws, _) = tungstenite::client(format!("ws://127.0.0.1:{port}/"), MaybeTlsStream::Plain(tcp)).unwrap();
+        if let MaybeTlsStream::Plain(t) = ws.get_ref() {
+            t.set_read_timeout(Some(Duration::from_millis(20))).unwrap();
+        }
+        ws
+    }
+
+    fn run(ws: &mut Socket, for_ms: u64) -> Result<()> {
+        let mut alive = Alive::within(Duration::from_millis(100), Duration::from_millis(200));
+        let until = std::time::Instant::now() + Duration::from_millis(for_ms);
+        while std::time::Instant::now() < until {
+            read_text(ws, &mut alive)?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn a_silent_connection_that_ignores_pings_counts_as_gone() {
+        assert!(matches!(run(&mut client(false), 2000), Err(Error::Offline)));
+    }
+
+    #[test]
+    fn a_quiet_connection_that_answers_pings_stays() {
+        assert!(run(&mut client(true), 1000).is_ok());
     }
 }

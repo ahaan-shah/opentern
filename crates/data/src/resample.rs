@@ -202,6 +202,52 @@ mod tests {
     }
 
     #[test]
+    fn stock_bars_across_a_clock_change() {
+        // US clocks went forward Sunday 8 Mar 2026. Friday's session is
+        // 14:30-21:00 UTC, Monday's 13:30-20:00: hourly bars start at each
+        // day's open, and each day's bar gets its own New York date.
+        let tz = TimeZone::get("America/New_York").unwrap();
+        let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let session = |open: i64| (0..390).map(move |i| bar(open + i * 60_000, 1.0, 1.0, 1.0, 1.0, 1.0));
+        let base: Vec<Bar> = session(ms("2026-03-06T14:30:00Z"))
+            .chain(session(ms("2026-03-09T13:30:00Z")))
+            .collect();
+        let hours = resample(&base, tf("1h"), &tz);
+        assert_eq!(hours.len(), 14);
+        assert_eq!(hours[0].time, ms("2026-03-06T14:30:00Z"));
+        assert_eq!(hours[6].time, ms("2026-03-06T20:30:00Z"));
+        assert_eq!(hours[6].volume, 30.0);
+        assert_eq!(hours[7].time, ms("2026-03-09T13:30:00Z"));
+        assert_eq!(hours[13].time, ms("2026-03-09T19:30:00Z"));
+        // Following the stream gives the same bars: Friday's 4th hour, Monday's 4th.
+        for (i, n) in [(3, 240), (10, 390 + 240)] {
+            assert_eq!(resample_last(&base[..n], tf("1h"), &tz), Some(hours[i]), "bar {i}");
+        }
+        // Days: one bar per session, stamped at UTC midnight of its date.
+        let days: Vec<Bar> = base
+            .iter()
+            .map(|b| Bar {
+                time: to_utc_midnight(b.time, &tz),
+                ..*b
+            })
+            .collect();
+        let days = resample(&days, tf("1D"), &TimeZone::UTC);
+        assert_eq!(
+            days.iter().map(|b| (b.time, b.volume)).collect::<Vec<_>>(),
+            vec![(ms("2026-03-06T00:00:00Z"), 390.0), (ms("2026-03-09T00:00:00Z"), 390.0)]
+        );
+        // The last after-hours minute (19:59 New York) is still Friday's.
+        assert_eq!(
+            to_utc_midnight(ms("2026-03-07T00:59:00Z"), &tz),
+            ms("2026-03-06T00:00:00Z")
+        );
+        assert_eq!(
+            to_utc_midnight(ms("2026-11-03T00:59:00Z"), &tz),
+            ms("2026-11-02T00:00:00Z")
+        );
+    }
+
+    #[test]
     fn weeks_start_on_monday_and_months_on_the_first() {
         // 2024-01-01 was a Monday.
         let jan1 = days_from_date(Date::constant(2024, 1, 1)) * DAY;

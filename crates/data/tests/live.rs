@@ -65,6 +65,36 @@ fn yahoo_history() {
     open(aapl, "15m", false);
 }
 
+/// Weeks start on Monday and months on the 1st, and the current one runs to
+/// the latest day (Yahoo's own end at yesterday, with today as a bar apart).
+#[test]
+#[ignore]
+fn yahoo_weeks_and_months_reach_today() {
+    use opentern_data::provider::Provider;
+    let y = opentern_data::yahoo::Yahoo::default();
+    let w = opentern_core::starter_watchlist();
+    let tf = |s: &str| opentern_core::Timeframe::parse(s).unwrap();
+    for id in ["NASDAQ:AAPL", "FX:EURUSD", "NSE:RELIANCE"] {
+        let s = w.iter().find(|s| s.id == id).unwrap().clone();
+        let days = y.latest(&s, tf("1D"), 0).unwrap();
+        let today = days.last().unwrap();
+        for (t, check) in [("1W", "%a Mon"), ("1M", "%d 01")] {
+            let bars = y.latest(&s, tf(t), 0).unwrap();
+            let (fmt, want) = check.split_once(' ').unwrap();
+            for b in &bars {
+                let d = jiff::Timestamp::from_millisecond(b.time)
+                    .unwrap()
+                    .to_zoned(jiff::tz::TimeZone::UTC);
+                assert_eq!(d.strftime(fmt).to_string(), want, "{id} {t} bar at {d}");
+            }
+            let last = bars.last().unwrap();
+            assert_eq!(last.close, today.close, "{id} {t} ends at the latest day");
+            assert!(last.high >= today.high && last.low <= today.low, "{id} {t}");
+            println!("{id} {t}: {} bars, last {} close {}", bars.len(), last.time, last.close);
+        }
+    }
+}
+
 #[test]
 #[ignore]
 fn search_and_quotes() {
@@ -465,6 +495,34 @@ fn overview_boards() {
                 assert!(b.members.len() >= 100);
                 if m != Market::India {
                     assert_ne!(b.sizing, Sizing::Equal);
+                }
+                // The light refresh between boards.
+                let keys: Vec<String> = b
+                    .members
+                    .iter()
+                    .map(|x| x.key.clone())
+                    .filter(|k| !k.is_empty())
+                    .collect();
+                let t = std::time::Instant::now();
+                let prices = opentern_data::overview::prices(m, &keys, false).expect("prices");
+                println!(
+                    "  prices: {} of {} in {:.1}s",
+                    prices.len(),
+                    keys.len(),
+                    t.elapsed().as_secs_f32()
+                );
+                for x in top.iter().take(3) {
+                    if let Some(q) = prices.get(&x.key) {
+                        println!("  {} {} 1D {:+.2}% ext {:?}", x.symbol.id, q.price, q.day, q.ext);
+                        assert!((q.day - x.change(Period::Day)).abs() < 1.0, "{} 1D moved", x.symbol.id);
+                    }
+                }
+                assert!(prices.len() * 10 >= keys.len() * 9);
+                if m == Market::Crypto {
+                    let pairs = vec!["BTCUSDT".to_string(), "ETHUSDT".to_string()];
+                    let p = opentern_data::overview::prices(m, &pairs, false).expect("coin prices");
+                    println!("  coins: {:?}", p);
+                    assert_eq!(p.len(), 2);
                 }
             }
             Err(e) => println!("{m:?}: {e}"),

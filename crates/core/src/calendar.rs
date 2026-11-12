@@ -555,9 +555,79 @@ pub fn state(m: Market, t: i64) -> State {
     }
 }
 
+/// US stocks' extended hours: pre-market and after-hours trading.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Extended {
+    /// 04:00 New York until the open.
+    Pre,
+    /// The close until four hours after it (20:00, or 17:00 after an
+    /// early close).
+    Post,
+}
+
+impl Extended {
+    pub fn label(self) -> &'static str {
+        match self {
+            Extended::Pre => "Pre-market",
+            Extended::Post => "After hours",
+        }
+    }
+}
+
+/// Whether US pre-market or after-hours trading is on at `t` (ms). Only on
+/// days with a regular session.
+/// US stocks and funds: they trade before the open and after the close.
+pub fn has_extended_hours(s: &crate::Symbol) -> bool {
+    Market::of(s) == Market::Us && matches!(s.kind, crate::AssetKind::Stock | crate::AssetKind::Fund)
+}
+
+/// Whether `t` is the moment the market's session ends that day.
+pub fn closes_at(m: Market, t: i64) -> bool {
+    let Ok(ts) = jiff::Timestamp::from_millisecond(t) else {
+        return false;
+    };
+    session(m, ts.to_zoned(m.tz()).date()).is_some_and(|(_, close)| close == t)
+}
+
+pub fn us_extended(t: i64) -> Option<Extended> {
+    let ts = jiff::Timestamp::from_millisecond(t).ok()?;
+    let d = ts.to_zoned(Market::Us.tz()).date();
+    let (open, close) = session(Market::Us, d)?;
+    let pre = d
+        .to_datetime(Time::constant(4, 0, 0, 0))
+        .to_zoned(Market::Us.tz())
+        .ok()?
+        .timestamp()
+        .as_millisecond();
+    if t >= pre && t < open {
+        Some(Extended::Pre)
+    } else if t >= close && t < close + 4 * 3_600_000 {
+        Some(Extended::Post)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn us_extended_hours() {
+        // Thursday 12 Nov 2026 (New York is UTC-5).
+        assert_eq!(us_extended(ms("2026-11-12T08:59:00Z")), None);
+        assert_eq!(us_extended(ms("2026-11-12T09:00:00Z")), Some(Extended::Pre));
+        assert_eq!(us_extended(ms("2026-11-12T14:29:00Z")), Some(Extended::Pre));
+        assert_eq!(us_extended(ms("2026-11-12T14:30:00Z")), None);
+        assert_eq!(us_extended(ms("2026-11-12T21:00:00Z")), Some(Extended::Post));
+        assert_eq!(us_extended(ms("2026-11-13T01:00:00Z")), None);
+        // Day after Thanksgiving: closes 13:00, after hours to 17:00.
+        assert_eq!(us_extended(ms("2026-11-27T21:59:00Z")), Some(Extended::Post));
+        assert_eq!(us_extended(ms("2026-11-27T22:00:00Z")), None);
+        // Saturday and Thanksgiving itself.
+        assert_eq!(us_extended(ms("2026-11-14T13:00:00Z")), None);
+        assert_eq!(us_extended(ms("2026-11-26T13:00:00Z")), None);
+    }
 
     fn ms(s: &str) -> i64 {
         s.parse::<jiff::Timestamp>().unwrap().as_millisecond()
@@ -653,6 +723,100 @@ mod tests {
             Special::Session(MUHURAT.into(), hm((14, 20)), hm((15, 30)))
         )));
         assert!(special(Market::Us, date(2026, 11, 8)).is_none());
+    }
+
+    /// New York time on a date as UTC ms.
+    fn ny(d: Date, h: i8, m: i8) -> i64 {
+        d.at(h, m, 0, 0)
+            .to_zoned(Market::Us.tz())
+            .unwrap()
+            .timestamp()
+            .as_millisecond()
+    }
+
+    #[test]
+    fn every_us_session_opens_at_0930_and_closes_at_1600_new_york_time() {
+        // Every weekday 2025-2027, across each clock change: the open and
+        // close are New York times whatever the UTC offset.
+        let early: Vec<Date> = (2025..=2027).flat_map(us_early_closes).collect();
+        let mut d = date(2025, 1, 1);
+        let mut sessions = 0;
+        while d < date(2028, 1, 1) {
+            let weekend = matches!(
+                d.weekday(),
+                jiff::civil::Weekday::Saturday | jiff::civil::Weekday::Sunday
+            );
+            if !weekend && holiday(Market::Us, d).is_none() {
+                let (open, close) = (
+                    ny(d, 9, 30),
+                    if early.contains(&d) { ny(d, 13, 0) } else { ny(d, 16, 0) },
+                );
+                assert!(
+                    matches!(state(Market::Us, open - 60_000), State::Closed(_)),
+                    "{d} before the open"
+                );
+                assert_eq!(state(Market::Us, open), State::Open, "{d} at the open");
+                assert_eq!(state(Market::Us, close - 60_000), State::Open, "{d} before the close");
+                assert!(matches!(state(Market::Us, close), State::Closed(_)), "{d} at the close");
+                assert!(closes_at(Market::Us, close), "{d} close");
+                let midnight = ny(d, 0, 0);
+                assert_eq!(
+                    last_close_in(Market::Us, midnight, midnight + 86_400_000),
+                    Some(close),
+                    "{d}"
+                );
+                assert_eq!(us_extended(open - 60_000), Some(Extended::Pre), "{d} pre-market");
+                assert_eq!(us_extended(close), Some(Extended::Post), "{d} after hours");
+                sessions += 1;
+            }
+            d = d.tomorrow().unwrap();
+        }
+        // 252 or so a year.
+        assert!((740..=770).contains(&sessions), "{sessions} sessions");
+    }
+
+    #[test]
+    fn the_weeks_the_clocks_change() {
+        // US clocks went forward Sunday 8 Mar 2026 and back Sunday 1 Nov 2026.
+        // Friday before (EST): 14:30-21:00 UTC; Monday after (EDT): 13:30-20:00.
+        assert_eq!(state(Market::Us, ms("2026-03-06T14:30:00Z")), State::Open);
+        assert_eq!(
+            state(Market::Us, ms("2026-03-06T21:00:00Z")),
+            State::Closed(Some(ms("2026-03-09T13:30:00Z")))
+        );
+        assert_eq!(state(Market::Us, ms("2026-03-09T19:59:00Z")), State::Open);
+        assert!(matches!(
+            state(Market::Us, ms("2026-03-09T20:00:00Z")),
+            State::Closed(_)
+        ));
+        // And back: Friday 30 Oct at EDT, Monday 2 Nov at EST.
+        assert_eq!(
+            state(Market::Us, ms("2026-10-30T20:00:00Z")),
+            State::Closed(Some(ms("2026-11-02T14:30:00Z")))
+        );
+        assert!(matches!(
+            state(Market::Us, ms("2026-11-02T14:00:00Z")),
+            State::Closed(_)
+        ));
+        assert_eq!(us_extended(ms("2026-11-02T09:00:00Z")), Some(Extended::Pre));
+        assert_eq!(us_extended(ms("2026-11-02T08:30:00Z")), None);
+        // Forex opens Sunday 17:00 New York: 21:00 UTC on the 8 March change day.
+        assert_eq!(
+            state(Market::Forex, ms("2026-03-08T20:00:00Z")),
+            State::Closed(Some(ms("2026-03-08T21:00:00Z")))
+        );
+        assert_eq!(
+            state(Market::Forex, ms("2026-11-01T21:30:00Z")),
+            State::Closed(Some(ms("2026-11-01T22:00:00Z")))
+        );
+        // India has no clock changes: 09:15-15:30 IST = 03:45-10:00 UTC all year.
+        for d in ["2026-03-09", "2026-11-02", "2026-07-01"] {
+            assert_eq!(state(Market::India, ms(&format!("{d}T03:45:00Z"))), State::Open, "{d}");
+            assert!(matches!(
+                state(Market::India, ms(&format!("{d}T10:00:00Z"))),
+                State::Closed(_)
+            ));
+        }
     }
 
     #[test]

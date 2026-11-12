@@ -152,6 +152,47 @@ pub(crate) fn parse_chart(v: &serde_json::Value, daily: bool) -> Result<(Vec<Bar
     Ok((bars, meta))
 }
 
+/// Yahoo ends intraday replies with a point at the latest price's own time
+/// (`regularMarketTime`, open = high = low = close, no volume), off the bar
+/// grid. Left alone it became a flat bar of its own: before the open, the
+/// previous day's closing print at 16:00 showed as an extra 15m bar, and in
+/// a session Yahoo's bars skip it hid the trading from `OwnBar` (it looked
+/// like Yahoo's own bar for the period). It moves the last bar when it falls
+/// inside it, or (outside the session) right at its end: the closing print,
+/// so the last bar ends at the official close like the quote and
+/// TradingView's. Anywhere else it's dropped: in session Yahoo's own bar for
+/// a new period comes with the next poll, and a session its bars skip is
+/// `OwnBar`'s.
+fn fold_now_point(bars: &mut Vec<Bar>, meta: &serde_json::Value, step: i64, prepost: bool) {
+    let n = bars.len();
+    if n < 2 {
+        return;
+    }
+    let (p, prev) = (bars[n - 1], bars[n - 2]);
+    let now = meta["regularMarketTime"].as_i64().map(|t| t * 1000);
+    let flat = p.open == p.high && p.high == p.low && p.low == p.close && p.volume == 0.0;
+    if !flat || now != Some(p.time) {
+        return;
+    }
+    let period = &meta["currentTradingPeriod"];
+    let edge = |k: &str, e: &str| period[k][e].as_i64().map(|t| t * 1000);
+    let (from, to) = if prepost {
+        (edge("pre", "start"), edge("post", "end"))
+    } else {
+        (edge("regular", "start"), edge("regular", "end"))
+    };
+    let in_session = matches!((from, to), (Some(a), Some(b)) if a <= p.time && p.time < b);
+    let end = prev.time + step;
+    let joins = p.time > prev.time && (p.time < end || (!in_session && p.time == end));
+    bars.pop();
+    if joins {
+        let last = bars.last_mut().expect("two bars");
+        last.close = p.close;
+        last.high = last.high.max(p.close);
+        last.low = last.low.min(p.close);
+    }
+}
+
 /// Last price and previous close from a few daily bars. The previous close
 /// is the last bar of a day before the one now trading (the day of
 /// `regularMarketTime`): with `range=1d`, Yahoo's `chartPreviousClose` is
@@ -187,6 +228,45 @@ fn quote_from(bars: &[Bar], meta: &serde_json::Value, indian: bool) -> Result<(f
     match (last, prev) {
         (Some(l), Some(p)) => Ok((l, p)),
         _ => Err(Error::Bad("Yahoo: no quote".into())),
+    }
+}
+
+/// A US stock's pre-market or after-hours price, shown beside the regular
+/// one as TradingView does. It never moves the regular session's bars or
+/// day change. From spark's `fulldayPrice`, which follows extended-hours
+/// trades (it matched the 1-minute pre-market bars, 12 Nov 2026).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Ext {
+    pub session: opentern_core::calendar::Extended,
+    pub price: f64,
+    /// The last regular close it's measured from.
+    pub base: f64,
+    /// When it was fetched (ms).
+    pub at: i64,
+}
+
+impl Ext {
+    pub fn change(&self) -> f64 {
+        (self.price / self.base - 1.0) * 100.0
+    }
+
+    /// From a price and the last regular close, if extended hours are on
+    /// at `now_ms`.
+    pub fn at(now_ms: i64, price: f64, base: f64) -> Option<Ext> {
+        let session = opentern_core::calendar::us_extended(now_ms)?;
+        (price.is_finite() && price > 0.0 && base.is_finite() && base > 0.0).then_some(Ext {
+            session,
+            price,
+            base,
+            at: now_ms,
+        })
+    }
+
+    /// Still worth showing at `now_ms`: the same extended session and
+    /// fetched in the last 10 minutes (polls run every 30 s; a worker
+    /// that stopped or kept failing would leave yesterday's price up).
+    pub fn fresh(&self, now_ms: i64) -> bool {
+        opentern_core::calendar::us_extended(now_ms) == Some(self.session) && now_ms - self.at < 10 * 60_000
     }
 }
 
@@ -342,13 +422,18 @@ impl Yahoo {
     }
 
     fn chart(&self, sym: &Symbol, tf: Timeframe, range: &str) -> Result<(Vec<Bar>, serde_json::Value)> {
-        // Indian weeks and months are built from the daily bars, which get
-        // a special session Yahoo's bars leave out (from the quote, below).
-        if !tf.is_intraday() && tf.unit != opentern_core::Unit::Day && indian(sym) {
+        // Weeks and months are built from the daily bars. Yahoo's own end
+        // the current week (month) at yesterday and send today as a bar of
+        // its own (NVDA, 12 Nov 2026: a week of 9 Nov closing at 173.73 and
+        // a "week" of 12 Nov), and Indian daily bars get a special session
+        // Yahoo's bars leave out (from the quote, below).
+        if !tf.is_intraday() && tf.unit != opentern_core::Unit::Day {
             let day = Timeframe::parse("1D").ok_or_else(|| Error::Bad("No daily interval".into()))?;
             let whole = range == "max";
             let (daily, meta) = self.chart(sym, day, if whole { "max" } else { "2y" })?;
-            let mut out = crate::resample::resample(&daily, tf, &opentern_core::calendar::Market::India.tz());
+            // Daily bars are dated at UTC midnight, which is how weeks and
+            // months are bucketed.
+            let mut out = crate::resample::resample(&daily, tf, &jiff::tz::TimeZone::UTC);
             // A window that starts mid-week or mid-month: its first bar is partial.
             if !whole && !out.is_empty() {
                 out.remove(0);
@@ -370,6 +455,9 @@ impl Yahoo {
         );
         let v = provider::get_json(&self.agent, &url)?;
         let (mut bars, meta) = parse_chart(&v, !tf.is_intraday())?;
+        if let Some(step) = tf.millis().filter(|_| tf.is_intraday()) {
+            fold_now_point(&mut bars, &meta, step, self.prepost);
+        }
         // Splits Yahoo hasn't (fully) adjusted these bars for.
         let splits = parse_events(&v).splits;
         if !splits.is_empty() {
@@ -666,6 +754,55 @@ pub(crate) fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn yahoos_now_point_joins_its_bar() {
+        // NVDA, 11-12 Nov 2026 (seconds): 15m bars, session 14:30-21:00 UTC.
+        let m15 = 900_000;
+        let bar = |t: i64, c: f64, v: f64| Bar {
+            time: t * 1000,
+            open: c,
+            high: c,
+            low: c,
+            close: c,
+            volume: v,
+        };
+        let meta = |now: i64| {
+            serde_json::json!({ "regularMarketTime": now, "currentTradingPeriod": {
+                "regular": { "start": 1794493800, "end": 1794517200 } } })
+        };
+        let base = || vec![bar(1794411000, 174.0, 5.0), bar(1794411900, 173.85, 9.0)];
+        // Before the open: yesterday's 16:00 closing print is the last
+        // bar's close.
+        let mut b = base();
+        b.push(bar(1794412800, 173.73, 0.0));
+        fold_now_point(&mut b, &meta(1794412800), m15, false);
+        assert_eq!(b.len(), 2);
+        assert_eq!((b[1].close, b[1].low, b[1].volume), (173.73, 173.73, 9.0));
+        // Days later (a session Yahoo's bars skip): dropped, for `OwnBar`.
+        let mut b = base();
+        b.push(bar(1794412800 + 4 * 86400, 180.0, 0.0));
+        fold_now_point(&mut b, &meta(1794412800 + 4 * 86400), m15, false);
+        assert_eq!(b, base());
+        // In session, inside the forming bar: it moves that bar.
+        let mut b = vec![bar(1794498300, 165.0, 5.0), bar(1794499200, 166.69, 9.0)];
+        b.push(bar(1794499786, 166.95, 0.0));
+        fold_now_point(&mut b, &meta(1794499786), m15, false);
+        assert_eq!(b.len(), 2);
+        assert_eq!((b[1].close, b[1].high), (166.95, 166.95));
+        // In session, past the last bar: dropped (Yahoo's own bar comes next
+        // poll; a session its bars skip is left to `OwnBar`).
+        let mut b = vec![bar(1794498300, 165.0, 5.0), bar(1794499200, 166.69, 9.0)];
+        b.push(bar(1794500200, 167.1, 0.0));
+        fold_now_point(&mut b, &meta(1794500200), m15, false);
+        assert_eq!(b.len(), 2);
+        assert_eq!(b[1].close, 166.69);
+        // A real bar (volume, on the grid) is left alone.
+        let mut b = base();
+        b.push(bar(1794412800, 173.7, 3.0));
+        fold_now_point(&mut b, &meta(1794412800), m15, false);
+        assert_eq!(b.len(), 3);
+    }
 
     #[test]
     fn missing_splits_are_adjusted_and_adjusted_ones_left_alone() {

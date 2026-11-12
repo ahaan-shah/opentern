@@ -148,8 +148,9 @@ impl Provider for Coinbase {
         let (mut ws, _tcp) = provider::websocket(WS_HOST, 443, "/")?;
         let sub = serde_json::json!({"type": "subscribe", "product_ids": [product(sym)], "channels": ["matches"]});
         provider::send_text(&mut ws, &sub.to_string())?;
+        let mut alive = provider::Alive::default();
         loop {
-            let item = provider::read_text(&mut ws)?
+            let item = provider::read_text(&mut ws, &mut alive)?
                 .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
                 .and_then(|v| parse_match(&v))
                 .map(|(t, p, s)| Live::Bar(builder.trade(t, p, s)))

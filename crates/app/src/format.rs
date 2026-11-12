@@ -256,6 +256,18 @@ pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String 
     }
 }
 
+/// A span in plain words: "6 min", "2 h 10 min", "3 days".
+pub fn span(d: std::time::Duration) -> String {
+    let m = d.as_secs() / 60;
+    match m {
+        0..=59 => format!("{} min", m.max(1)),
+        60..=1439 if m.is_multiple_of(60) => format!("{} h", m / 60),
+        60..=1439 => format!("{} h {} min", m / 60, m % 60),
+        1440..=2879 => "1 day".into(),
+        _ => format!("{} days", m / 1440),
+    }
+}
+
 /// "12:04:31" or "3d 04:12" until the forming bar closes.
 pub fn countdown(ms: i64) -> String {
     let s = (ms / 1000).max(0);

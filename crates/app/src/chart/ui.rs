@@ -295,6 +295,15 @@ pub fn show(
                     grow(b.low);
                 }
             }
+            // The pre-market or after-hours price, while the latest bar
+            // shows, so its label stays on the scale.
+            if last + 1 >= n
+                && chart.style.ext_price_label
+                && !chart.shows_ext()
+                && let Some(e) = chart.extended_now()
+            {
+                grow(e.price);
+            }
         }
         // A compared symbol in this pane: its highs and lows.
         if n > 0 {
@@ -1031,6 +1040,28 @@ pub fn show(
                         .flatten()
                         .map(|len| format::countdown(b.time + len - jiff::Timestamp::now().as_millisecond()));
                 tags.push((yy, text, col, countdown));
+            }
+            // The pre-market or after-hours price, unless those bars show.
+            if let Some(e) = chart.extended_now().filter(|_| !chart.shows_ext()) {
+                let col = crate::chart::extended_color(t, e.session);
+                let yy = g.y.y(e.price);
+                if chart.style.ext_price_line && yy >= g.rect.top() && yy <= g.rect.bottom() {
+                    styled_hline(
+                        &clip_painter(g.rect),
+                        g.rect.left(),
+                        g.rect.right(),
+                        snap(yy, ppp),
+                        Stroke::new(1.0, col),
+                        opentern_series::study::LineStyle::Dotted,
+                    );
+                }
+                if chart.style.ext_price_label {
+                    let text = match g.pct_base {
+                        Some(base) if base > 0.0 => format::signed_pct((e.price / base - 1.0) * 100.0),
+                        _ => format::price(e.price, prec),
+                    };
+                    tags.push((yy, text, col, None));
+                }
             }
         }
         if chart.style.study_labels {
@@ -2673,11 +2704,41 @@ fn legend(
                     }
                 };
                 let c = pos2(xx + 3.0, pos.y + 9.0);
-                painter.circle_filled(c, 3.5, col);
-                let hit = Rect::from_center_size(c, vec2(14.0, 14.0));
+                // Pre-market or after hours: TradingView's sun or moon, with
+                // the price in the tooltip.
+                let (tip, w) = match chart.extended_now() {
+                    Some(e) => {
+                        let icon = match e.session {
+                            opentern_core::calendar::Extended::Pre => ph::SUN,
+                            opentern_core::calendar::Extended::Post => ph::MOON,
+                        };
+                        painter.text(
+                            c + vec2(3.0, 0.0),
+                            Align2::CENTER_CENTER,
+                            icon,
+                            theme::regular(13.0),
+                            crate::chart::extended_color(t, e.session),
+                        );
+                        let ch = e.price - e.base;
+                        let tip = format!(
+                            "{} {} {}{} ({})\n{tip}",
+                            e.session.label(),
+                            format::price(e.price, prec),
+                            if ch >= 0.0 { "+" } else { "" },
+                            format::price(ch, prec),
+                            format::signed_pct(e.change()),
+                        );
+                        (tip, 20.0)
+                    }
+                    None => {
+                        painter.circle_filled(c, 3.5, col);
+                        (tip, 14.0)
+                    }
+                };
+                let hit = Rect::from_center_size(c + vec2((w - 14.0) / 2.0, 0.0), vec2(w, 14.0));
                 ui.interact(hit, ui.id().with("market-state"), Sense::hover())
                     .on_hover_text(tip);
-                xx += 16.0;
+                xx += w + 2.0;
             }
             if let (true, Some(i)) = (st.show_ohlc, idx) {
                 let b = chart.bars[i];
@@ -2724,8 +2785,15 @@ fn legend(
             let note = match &chart.status {
                 Status::Offline(m) => Some(m.clone()),
                 Status::Error(m) if n > 0 => Some(m.clone()),
-                _ => None,
+                _ => chart
+                    .stale_for(jiff::Timestamp::now().as_millisecond())
+                    .map(|d| format!("No new prices for {}", format::span(d))),
             };
+            // Nothing arrives on a stalled chart to wake the UI, so look
+            // again now and then (a live chart repaints more often anyway).
+            if chart.status == Status::Live {
+                ui.ctx().request_repaint_after(std::time::Duration::from_secs(30));
+            }
             if let Some(m) = note {
                 painter.text(
                     pos,
@@ -2733,6 +2801,16 @@ fn legend(
                     format!("{}  {m}", ph::WIFI_SLASH),
                     theme::regular(12.0),
                     t.warn,
+                );
+                pos.y += LEGEND_ROW;
+            }
+            if let Some(m) = chart.data_gap(jiff::Timestamp::now().as_millisecond()) {
+                painter.text(
+                    pos,
+                    Align2::LEFT_TOP,
+                    format!("{}  {m}", ph::INFO),
+                    theme::regular(12.0),
+                    t.text2,
                 );
                 pos.y += LEGEND_ROW;
             }

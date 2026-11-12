@@ -126,12 +126,51 @@ pub struct Member {
     /// Daily closes, oldest first (the last three months or so), for the
     /// hover card's line.
     pub closes: Vec<f32>,
+    /// What `prices` looks the member up by (a Yahoo ticker or a Binance
+    /// pair); empty when it isn't refreshed between boards.
+    pub key: String,
+    /// US stocks during pre-market or after hours: that price, beside the
+    /// regular one (which `price` and `change` stay on).
+    pub ext: Option<crate::yahoo::Ext>,
 }
 
 impl Member {
     pub fn change(&self, p: Period) -> f64 {
         self.change[p.index()]
     }
+
+    /// A newer price: 1D as given, the longer periods against the same
+    /// bases as before, the cap with the price.
+    fn reprice(&mut self, q: &Price, sizing: Sizing) {
+        if !(q.price.is_finite() && q.price > 0.0 && self.price > 0.0) {
+            return;
+        }
+        let ratio = q.price / self.price;
+        for p in Period::ALL {
+            let c = &mut self.change[p.index()];
+            if p == Period::Day {
+                if q.day.is_finite() {
+                    *c = q.day;
+                }
+            } else if c.is_finite() {
+                *c = ((1.0 + *c / 100.0) * ratio - 1.0) * 100.0;
+            }
+        }
+        if sizing == Sizing::MarketCap && self.cap.is_finite() {
+            self.cap *= ratio;
+        }
+        self.price = q.price;
+        self.ext = q.ext;
+    }
+}
+
+/// A member's latest price between boards (`prices`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Price {
+    pub price: f64,
+    /// The 1D change, worked out as the board does.
+    pub day: f64,
+    pub ext: Option<crate::yahoo::Ext>,
 }
 
 /// What tiles are sized by.
@@ -154,6 +193,18 @@ pub struct Board {
     pub currency: String,
     /// Unix ms.
     pub at: i64,
+}
+
+impl Board {
+    /// Puts newer prices (`prices`, keyed by `Member::key`) on the tiles.
+    pub fn reprice(&mut self, prices: &HashMap<String, Price>) {
+        let sizing = self.sizing;
+        for m in &mut self.members {
+            if let Some(q) = prices.get(&m.key) {
+                m.reprice(q, sizing);
+            }
+        }
+    }
 }
 
 // ------------------------------------------------------------ entry
@@ -492,6 +543,59 @@ fn tail(closes: &[f64]) -> Vec<f32> {
     v[v.len().saturating_sub(66)..].to_vec()
 }
 
+/// A stock's price and changes from its spark. US stocks stay on the
+/// regular session, as the chart and watchlist do: before the open the
+/// latest daily bar is yesterday's, and `fulldayPrice` is a pre-market
+/// trade, so measuring that from the bar before (as this once did) gave a
+/// change of neither day. The pre-market or after-hours price goes in
+/// `ext` instead. Indian stocks take Yahoo's own day change (it counts
+/// sessions Yahoo's bars skip).
+fn stock_price(market: Market, s: &Spark, now_s: i64) -> (Price, [f64; 6]) {
+    let (price, day, ext) = match market {
+        Market::India => (s.price, s.day, None),
+        _ => (s.regular, None, crate::yahoo::Ext::at(now_s * 1000, s.price, s.regular)),
+    };
+    let change = changes(&s.times, &s.closes, price, day, now_s);
+    let q = Price {
+        price,
+        day: change[Period::Day.index()],
+        ext,
+    };
+    (q, change)
+}
+
+/// The latest prices for a board's members, by `Member::key`: a light
+/// request (stocks: five days of spark, twenty a request; coins:
+/// Binance's trading-day tickers) for refreshing an open map between
+/// boards.
+pub fn prices(market: Market, keys: &[String], demo: bool) -> Result<HashMap<String, Price>> {
+    if demo || keys.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let now_s = provider::now_ms() / 1000;
+    let out: HashMap<String, Price> = match market {
+        Market::Crypto => binance_days(keys)
+            .into_iter()
+            .map(|(k, (open, last))| {
+                let q = Price {
+                    price: last,
+                    day: (last / open - 1.0) * 100.0,
+                    ext: None,
+                };
+                (k, q)
+            })
+            .collect(),
+        _ => sparks(keys, "5d")
+            .iter()
+            .map(|(k, s)| (k.clone(), stock_price(market, s, now_s).0))
+            .collect(),
+    };
+    if out.is_empty() {
+        return Err(Error::Bad("No prices came this time.".into()));
+    }
+    Ok(out)
+}
+
 /// One stock's spark: price, closes and times, and Yahoo's own day change.
 /// That day change is used for Indian stocks only: it matched NSE's own
 /// figures for every NIFTY 50 stock (checked 10 Nov 2026) and, unlike
@@ -500,7 +604,10 @@ fn tail(closes: &[f64]) -> Vec<f32> {
 /// not rechecked since.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Spark {
+    /// `fulldayPrice`: the latest trade, extended hours included.
     pub price: f64,
+    /// The last regular-session close (the daily bars' last).
+    pub regular: f64,
     pub times: Vec<i64>,
     pub closes: Vec<f64>,
     pub day: Option<f64>,
@@ -522,14 +629,17 @@ pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
                 .iter()
                 .map(|c| c.as_f64().unwrap_or(f64::NAN))
                 .collect();
-            let price = q["fulldayPrice"]
-                .as_f64()
-                .or_else(|| closes.iter().rev().copied().find(|c| c.is_finite()))?;
+            let last = closes.iter().rev().copied().find(|c| c.is_finite());
+            let price = q["fulldayPrice"].as_f64().or(last)?;
             let day = q["fulldayChangePercent"].as_f64().filter(|d| d.is_finite());
             Some((
                 k.clone(),
                 Spark {
                     price,
+                    // The newest bar's close; with none yet (today's bar
+                    // just after the open), `fulldayPrice`, which in the
+                    // session is the regular price.
+                    regular: closes.last().copied().filter(|c| c.is_finite()).unwrap_or(price),
                     times,
                     closes,
                     day,
@@ -539,8 +649,9 @@ pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
         .collect()
 }
 
-/// Spark for many Yahoo tickers: twenty a request, a few at once.
-fn sparks(tickers: &[String]) -> HashMap<String, Spark> {
+/// Spark for many Yahoo tickers, daily bars over `range` (`2y`, `5d`):
+/// twenty a request, a few at once.
+pub(crate) fn sparks(tickers: &[String], range: &str) -> HashMap<String, Spark> {
     let chunks: Vec<Vec<String>> = tickers.chunks(20).map(|c| c.to_vec()).collect();
     let out = Mutex::new(HashMap::new());
     let next = std::sync::atomic::AtomicUsize::new(0);
@@ -553,7 +664,7 @@ fn sparks(tickers: &[String]) -> HashMap<String, Spark> {
                     let Some(chunk) = chunks.get(i) else { break };
                     let list: Vec<String> = chunk.iter().map(|t| crate::yahoo::urlencode(t)).collect();
                     let url = format!(
-                        "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=2y&interval=1d",
+                        "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range={range}&interval=1d",
                         list.join(",")
                     );
                     if let Ok(v) = provider::get_json(&agent, &url)
@@ -719,7 +830,7 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
             _ => x.ticker.clone(),
         })
         .collect();
-    let spark = sparks(&yahoo);
+    let spark = sparks(&yahoo, "2y");
     if spark.is_empty() {
         return Err(Error::Bad(
             "Yahoo didn't send prices this time. Try again in a minute.".into(),
@@ -748,21 +859,18 @@ fn stock_board(market: Market, listed: Vec<Listed>, dir: &Path) -> Result<Board>
                 Market::India => india_symbol(x),
                 _ => us_symbol(x, exchanges.get(y).map(String::as_str).unwrap_or(&x.exchange)),
             };
-            // Yahoo's own day change counts sessions its bars skip.
-            let (times, closes) = (&s.times, &s.closes);
-            let day = match market {
-                Market::India => s.day,
-                _ => None,
-            };
+            let (q, change) = stock_price(market, s, now_s);
             Some(Member {
                 symbol,
                 name: x.name.clone(),
                 sector: x.sector.clone(),
                 industry: x.industry.clone(),
-                cap: shares.get(y).map_or(f64::NAN, |n| n * s.price),
-                price: s.price,
-                change: changes(times, closes, s.price, day, now_s),
-                closes: tail(closes),
+                cap: shares.get(y).map_or(f64::NAN, |n| n * q.price),
+                price: q.price,
+                change,
+                closes: tail(&s.closes),
+                key: y.clone(),
+                ext: q.ext,
             })
         })
         .collect();
@@ -1130,6 +1238,8 @@ fn crypto_board(dir: &Path) -> Result<Board> {
                         price: c.price,
                         change,
                         closes: Vec::new(),
+                        key: String::new(),
+                        ext: None,
                     })
                 })
                 .take(COINS)
@@ -1173,6 +1283,8 @@ fn crypto_board(dir: &Path) -> Result<Board> {
                         price,
                         change,
                         closes: Vec::new(),
+                        key: String::new(),
+                        ext: None,
                     }
                 })
                 .collect();
@@ -1197,6 +1309,9 @@ fn crypto_board(dir: &Path) -> Result<Board> {
         };
         let day = days.get(pair).copied();
         if let Some((_, last)) = day {
+            // Refreshed between boards only when Binance knows the pair (a
+            // batch with an unknown one fails whole).
+            m.key = pair.to_string();
             m.price = last;
         }
         if let Some((t, c)) = closes.get(pair) {
@@ -1353,6 +1468,14 @@ fn made_up(market: Market) -> Board {
                 .map(|i| now_s - (n as i64 - 1 - i) * 86_400 * 7 / 5)
                 .collect();
             let day = mood + (unit(&x.ticker, 4) - 0.5) * 3.0;
+            // US stocks before the open or after the close: a made-up
+            // extended-hours move.
+            let ext = (market == Market::Us)
+                .then(|| {
+                    let move_ = (unit(&x.ticker, 5) - 0.5) * 0.04 + mood * 0.004;
+                    crate::yahoo::Ext::at(now_s * 1000, price * (1.0 + move_), price)
+                })
+                .flatten();
             Member {
                 symbol,
                 name: x.name,
@@ -1362,6 +1485,8 @@ fn made_up(market: Market) -> Board {
                 price,
                 change: changes(&times, &closes, price, Some(day), now_s),
                 closes: tail(&closes),
+                key: String::new(),
+                ext,
             }
         })
         .collect();
@@ -1432,6 +1557,68 @@ mod tests {
         assert!(short[Period::Month.index()].is_finite());
     }
 
+    /// NVDA before the open on 12 Nov 2026: yesterday +2.87% at the close,
+    /// −8.78% in pre-market. The map used to show −6.18% (the pre-market
+    /// price against the close the day before yesterday).
+    #[test]
+    fn us_stocks_stay_on_the_regular_session() {
+        let at = |h: i8, m: i8| {
+            jiff::civil::date(2026, 11, 12)
+                .at(h, m, 0, 0)
+                .to_zoned(jiff::tz::TimeZone::UTC)
+                .unwrap()
+                .timestamp()
+                .as_second()
+        };
+        // Daily bars stamped at the session's open (14:30 UTC).
+        let day = |d: i64| at(14, 30) - d * 86_400;
+        let s = Spark {
+            price: 158.47,
+            regular: 173.73,
+            times: vec![day(3), day(2), day(1)],
+            closes: vec![178.67, 168.89, 173.73],
+            day: Some(-8.78),
+        };
+        let pre = at(13, 43);
+        let (q, change) = stock_price(Market::Us, &s, pre);
+        assert_eq!(q.price, 173.73);
+        assert!((change[Period::Day.index()] - (173.73 / 168.89 - 1.0) * 100.0).abs() < 1e-9);
+        assert_eq!(q.day, change[Period::Day.index()]);
+        let ext = q.ext.expect("pre-market");
+        assert_eq!(ext.session, opentern_core::calendar::Extended::Pre);
+        assert!((ext.change() - (158.47 / 173.73 - 1.0) * 100.0).abs() < 1e-9);
+        // In the session there's no extended price.
+        assert!(stock_price(Market::Us, &s, at(16, 0)).0.ext.is_none());
+        // Indian stocks keep Yahoo's day change and price.
+        let (q, _) = stock_price(Market::India, &s, pre);
+        assert_eq!((q.price, q.day, q.ext), (158.47, -8.78, None));
+    }
+
+    #[test]
+    fn newer_prices_keep_each_periods_base() {
+        let mut b = made_up(Market::Us);
+        b.members.truncate(1);
+        let m = &mut b.members[0];
+        m.key = "X".into();
+        m.price = 100.0;
+        m.cap = 1000.0;
+        m.change = [1.0, 10.0, -20.0, f64::NAN, 0.0, 5.0];
+        let base_week = 100.0 / 1.10;
+        let q = Price {
+            price: 110.0,
+            day: 2.5,
+            ext: None,
+        };
+        b.reprice(&HashMap::from([("X".to_string(), q)]));
+        let m = &b.members[0];
+        assert_eq!((m.price, m.cap, m.ext), (110.0, 1100.0, None));
+        assert_eq!(m.change(Period::Day), 2.5);
+        assert!((m.change(Period::Week) - (110.0 / base_week - 1.0) * 100.0).abs() < 1e-9);
+        assert!((m.change(Period::Month) - (110.0 / 125.0 - 1.0) * 100.0).abs() < 1e-9);
+        assert!(m.change[3].is_nan());
+        assert!((m.change[4] - 10.0).abs() < 1e-9);
+    }
+
     #[test]
     fn spark_screener_and_coingecko_replies_parse() {
         let v: serde_json::Value = serde_json::from_str(
@@ -1439,8 +1626,12 @@ mod tests {
         )
         .unwrap();
         let s = &parse_spark(&v)["AAPL"];
-        assert_eq!(s.price, 3.1);
+        assert_eq!((s.price, s.regular), (3.1, 3.0));
         assert!(s.closes[1].is_nan());
+        // Today's bar with no close yet: not yesterday's close.
+        let v: serde_json::Value =
+            serde_json::from_str(r#"{"AAPL":{"timestamp":[1,2],"close":[3.0,null],"fulldayPrice":3.2}}"#).unwrap();
+        assert_eq!(parse_spark(&v)["AAPL"].regular, 3.2);
         let v: serde_json::Value = serde_json::from_str(
             r#"{"finance":{"result":[{"quotes":[{"symbol":"NVDA","marketCap":4.5e12,"regularMarketPrice":186.6,"exchange":"NMS"},{"symbol":"GS-PD","regularMarketPrice":20}]}]}}"#,
         )

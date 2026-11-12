@@ -260,8 +260,9 @@ impl Provider for Binance {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Binance has no {} bars", tf.label())))?;
         let path = format!("/ws/{}@kline_{iv}", pair(sym).to_lowercase());
         let (mut ws, _tcp) = websocket(&path)?;
+        let mut alive = provider::Alive::default();
         loop {
-            let item = match provider::read_text(&mut ws)? {
+            let item = match provider::read_text(&mut ws, &mut alive)? {
                 Some(text) => serde_json::from_str::<serde_json::Value>(&text)
                     .ok()
                     .as_ref()
@@ -284,8 +285,9 @@ pub(crate) fn stream_quotes(pairs: &[String], sink: &mut dyn FnMut(Option<(Strin
     let streams: Vec<String> = pairs.iter().map(|p| format!("{}@kline_1d", p.to_lowercase())).collect();
     let path = format!("/stream?streams={}", streams.join("/"));
     let (mut ws, _tcp) = websocket(&path)?;
+    let mut alive = provider::Alive::default();
     loop {
-        let item = provider::read_text(&mut ws)?.and_then(|text| {
+        let item = provider::read_text(&mut ws, &mut alive)?.and_then(|text| {
             let v: serde_json::Value = serde_json::from_str(&text).ok()?;
             let k = &v["data"]["k"];
             Some((k["s"].as_str()?.to_string(), num(&k["c"])?, num(&k["o"])?))

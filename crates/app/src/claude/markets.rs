@@ -619,6 +619,14 @@ impl App {
                 "price": round(m.price),
                 "change_pct": round(m.change(period)),
                 "market_cap": if m.cap.is_finite() { json!(m.cap.round()) } else { Value::Null },
+                // Pre-market or after hours (US): the price and change
+                // from the last regular close; price and change_pct stay
+                // on the regular session.
+                "extended_hours": m.ext.filter(|e| e.fresh(jiff::Timestamp::now().as_millisecond())).map_or(Value::Null, |e| json!({
+                    "session": e.session.label(),
+                    "price": round(e.price),
+                    "change_pct": round(e.change()),
+                })),
             })
         };
         let mut all: Vec<&opentern_data::overview::Member> =

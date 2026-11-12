@@ -422,6 +422,8 @@ fn scales_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         (&mut s.last_price_label, "Symbol last price label"),
         (&mut s.last_price_line, "Symbol last price line"),
         (&mut s.countdown, "Countdown to bar close"),
+        (&mut s.ext_price_label, "Pre/post market price label"),
+        (&mut s.ext_price_line, "Pre/post market price line"),
         (&mut s.study_labels, "Indicator value labels"),
     ] {
         changed |= crate::widgets::checkbox(ui, v, label).changed();

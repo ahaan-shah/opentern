@@ -2,7 +2,7 @@
 //! Secrets go to the OS keychain; the rest (account ids, URLs, flags) to
 //! the workspace settings. Each section says where to get its key.
 
-use super::{Done, frame, section};
+use super::{Done, frame};
 use crate::app::App;
 use crate::theme::Theme;
 use egui::Ui;
@@ -172,7 +172,7 @@ impl Providers {
         let form_row = |ui: &mut Ui, t: &Theme, label: &str, control: &mut dyn FnMut(&mut Ui)| {
             super::form_row_w(ui, t, lw, label, |ui| control(ui))
         };
-        section(ui, t, "Alpaca · US stocks");
+        super::section_beta(ui, t, "Alpaca · US stocks");
         note(
             ui,
             t,
@@ -188,7 +188,7 @@ impl Providers {
             crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP")
                 .on_hover_text("SIP: prices from all US exchanges, not just IEX");
         });
-        section(ui, t, "OANDA · forex and CFDs");
+        super::section_beta(ui, t, "OANDA · forex and CFDs");
         note(
             ui,
             t,
@@ -208,7 +208,7 @@ impl Providers {
             crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
             crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
         });
-        section(ui, t, "Upstox · NSE and BSE");
+        super::section_beta(ui, t, "Upstox · NSE and BSE");
         note(
             ui,
             t,
@@ -218,7 +218,7 @@ impl Providers {
         form_row(ui, t, "Access token", &mut |ui| {
             secret_field(ui, &mut self.upstox_token, self.have[3], "")
         });
-        section(ui, t, "Interactive Brokers");
+        super::section_beta(ui, t, "Interactive Brokers");
         note(
             ui,
             t,

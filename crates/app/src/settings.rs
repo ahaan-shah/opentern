@@ -135,6 +135,10 @@ impl SettingsPage {
     }
 }
 
+/// Set while the price cache is being cleared.
+static CLEARING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+const CACHE_SIZE_ID: &str = "settings-cache-size";
+
 impl App {
     /// Opens Settings at `cat` (or closes it if it's already showing that).
     pub(crate) fn open_settings(&mut self, cat: Cat) {
@@ -269,6 +273,10 @@ impl App {
         crate::dialogs::section(ui, t, "Large numbers");
         ui.add_space(4.0);
         self.number_settings(ui, t);
+        ui.add_space(22.0);
+        crate::dialogs::section(ui, t, "Price cache");
+        ui.add_space(4.0);
+        self.cache_settings(ui, t);
         ui.add_space(22.0);
         crate::dialogs::section(ui, t, "Alerts");
         ui.add_space(4.0);
@@ -554,6 +562,54 @@ impl App {
                 .store
                 .set_value(crate::format::NUMBERS_KEY, &crate::format::numbers_json());
         }
+    }
+
+    /// The bar cache's size, and Clear (which asks first: `Modal::ClearCache`).
+    /// The size is looked up every few seconds while shown.
+    fn cache_settings(&mut self, ui: &mut Ui, t: &Theme) {
+        let id = egui::Id::new(CACHE_SIZE_ID);
+        let now = ui.input(|i| i.time);
+        let size = match ui.data(|d| d.get_temp::<(f64, u64)>(id)) {
+            Some((at, size)) if now - at < 3.0 => size,
+            _ => {
+                let size = opentern_data::cache::size(&self.store.dir().join("cache"));
+                ui.data_mut(|d| d.insert_temp(id, (now, size)));
+                size
+            }
+        };
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs(3));
+        let clearing = CLEARING.load(std::sync::atomic::Ordering::Relaxed);
+        ui.label(
+            egui::RichText::new(if clearing {
+                "Clearing…".to_string()
+            } else {
+                format!("{:.0} MB of prices on this computer", size as f64 / 1e6)
+            })
+            .color(t.text2),
+        );
+        ui.add_space(10.0);
+        let clear = ui
+            .add_enabled_ui(!clearing && !self.demo, |ui| {
+                crate::widgets::secondary(ui, "Clear price cache")
+            })
+            .inner;
+        if clear.clicked() {
+            self.modal = Some(crate::dialogs::Modal::ClearCache);
+        }
+    }
+
+    /// Empties the price cache off the UI thread (after the warning).
+    pub(crate) fn clear_price_cache(&self, ctx: &egui::Context) {
+        use std::sync::atomic::Ordering;
+        CLEARING.store(true, Ordering::Relaxed);
+        let dir = self.store.dir().join("cache");
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let _ = opentern_data::cache::clear(&dir);
+            CLEARING.store(false, Ordering::Relaxed);
+            ctx.data_mut(|d| d.remove::<(f64, u64)>(egui::Id::new(CACHE_SIZE_ID)));
+            ctx.request_repaint();
+        });
     }
 
     fn logo_settings(&mut self, ui: &mut Ui) {
@@ -864,6 +920,57 @@ fn elide_middle(ui: &Ui, text: &str, width: f32) -> String {
 mod tests {
     use super::*;
     use crate::drive::Driver;
+
+    #[test]
+    fn clearing_the_price_cache_asks_first() {
+        let mut d = Driver::new("clear-cache");
+        let cache = d.dir.join("cache");
+        let tf = opentern_core::Timeframe::parse("1D").unwrap();
+        let bar = opentern_core::Bar {
+            time: 0,
+            open: 1.0,
+            high: 1.0,
+            low: 1.0,
+            close: 1.0,
+            volume: 1.0,
+        };
+        opentern_data::cache::Cache::open(&cache)
+            .unwrap()
+            .save("NASDAQ:AAPL", tf, &[bar])
+            .unwrap();
+        let held = |c: &std::path::Path| {
+            opentern_data::cache::Cache::open(c)
+                .unwrap()
+                .last("NASDAQ:AAPL", tf, 5)
+                .unwrap()
+                .len()
+        };
+        // Cancel keeps it.
+        d.app.modal = Some(crate::dialogs::Modal::ClearCache);
+        d.frame(vec![]);
+        let texts = d.texts();
+        assert!(
+            texts.iter().any(|t| t == "Clear the price cache?"),
+            "{:?}",
+            texts.iter().filter(|t| t.contains("lear")).collect::<Vec<_>>()
+        );
+        let cancel = d.text_rect("Cancel").expect("Cancel");
+        d.click(cancel.center());
+        d.frame(vec![]);
+        assert!(d.app.modal.is_none());
+        assert_eq!(held(&cache), 1);
+        // The dialog stays a dialog's size (a bare right-to-left row in a
+        // modal once took the whole window's height).
+        d.app.modal = Some(crate::dialogs::Modal::ClearCache);
+        let title = d.text_rect("Clear the price cache?").unwrap();
+        let clear = d.text_rect("Clear cache").expect("Clear cache");
+        assert!(clear.top() - title.top() < 300.0, "{title:?} {clear:?}");
+        d.click(clear.center());
+        d.frame(vec![]);
+        assert!(d.app.modal.is_none());
+        d.wait(|_| !CLEARING.load(std::sync::atomic::Ordering::Relaxed));
+        assert_eq!(held(&cache), 0);
+    }
 
     #[test]
     fn folders_move_scripts_and_snapshots_and_stay_moved() {

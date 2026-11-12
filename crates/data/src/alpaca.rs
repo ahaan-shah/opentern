@@ -162,8 +162,9 @@ impl Provider for Alpaca {
         provider::send_text(&mut ws, &auth.to_string())?;
         let sub = serde_json::json!({"action": "subscribe", "trades": [sym.ticker()]});
         provider::send_text(&mut ws, &sub.to_string())?;
+        let mut alive = provider::Alive::default();
         loop {
-            let msg = provider::read_text(&mut ws)?;
+            let msg = provider::read_text(&mut ws, &mut alive)?;
             let v = msg.and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok());
             if let Some(v) = &v
                 && let Some(err) = v.as_array().and_then(|a| a.iter().find(|m| m["T"] == "error"))

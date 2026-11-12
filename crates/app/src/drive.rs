@@ -80,6 +80,34 @@ impl Driver {
         texts
     }
 
+    /// Runs a frame and returns where text that is exactly `text` was
+    /// painted (the last such, so the topmost layer's).
+    pub fn text_rect(&mut self, text: &str) -> Option<Rect> {
+        fn walk(shape: &egui::Shape, text: &str, out: &mut Option<Rect>) {
+            match shape {
+                egui::Shape::Text(t) if t.galley.text() == text => {
+                    *out = Some(t.galley.rect.translate(t.pos.to_vec2()))
+                }
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, text, out)),
+                _ => {}
+            }
+        }
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
+        let mut found = None;
+        for c in &out.shapes {
+            walk(&c.shape, text, &mut found);
+        }
+        found
+    }
+
     /// Runs frames until `f` holds (data arrives on other threads). A time
     /// limit, not a frame count: shared CI runners are several times slower
     /// than a desktop.

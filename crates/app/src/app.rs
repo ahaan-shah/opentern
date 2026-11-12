@@ -27,6 +27,20 @@ pub struct App {
     pub active_list: usize,
     /// Last price and previous close per symbol id.
     pub quotes: HashMap<String, (f64, f64)>,
+    /// When each symbol's quote last arrived (`watchlists::stale_quote`).
+    pub quote_at: HashMap<String, std::time::Instant>,
+    /// US stocks' pre-market or after-hours prices, per symbol id.
+    pub extended: HashMap<String, opentern_data::yahoo::Ext>,
+    /// The symbols last sent in `Request::Quotes`.
+    pub quoted: Vec<String>,
+    /// US stocks charted lately (newest last, at most `RECENT_EXT`): kept
+    /// in the quotes for their extended-hours price, so going back to one
+    /// doesn't restart the quote worker.
+    pub ext_recent: Vec<opentern_core::Symbol>,
+    /// A charted US stock isn't in the quotes yet: subscribe on the next
+    /// frame (`open_chart` can run inside `with_slot`, where the active
+    /// chart is swapped out).
+    pub quotes_due: bool,
     /// Made-up data (`--demo`): each timeframe is its own path, so charts
     /// and quotes aren't synced.
     pub demo: bool,
@@ -188,6 +202,11 @@ impl App {
             watchlists,
             active_list,
             quotes: HashMap::new(),
+            quote_at: HashMap::new(),
+            extended: HashMap::new(),
+            quoted: Vec::new(),
+            ext_recent: Vec::new(),
+            quotes_due: false,
             demo,
             hub,
             saved: u64::MAX,
@@ -549,6 +568,18 @@ impl App {
     /// (Re)opens the chart's data. Each opening gets a new session id, so
     /// late events from the previous symbol or interval are ignored.
     fn open_chart(&mut self) {
+        self.chart.extended = self.extended.get(&self.chart.symbol.id).copied();
+        let sym = &self.chart.symbol;
+        if crate::watchlists::has_extended_hours(sym) {
+            self.ext_recent.retain(|s| s.id != sym.id);
+            self.ext_recent.push(sym.clone());
+            if self.ext_recent.len() > crate::watchlists::RECENT_EXT {
+                self.ext_recent.remove(0);
+            }
+            if !self.quoted.contains(&sym.id) {
+                self.quotes_due = true;
+            }
+        }
         self.hub.send(Request::Close { chart: self.chart.id });
         self.chart.id = crate::chart::new_session_id();
         self.hub.send(Request::Open {
@@ -1022,13 +1053,29 @@ impl App {
     }
 
     fn poll_events(&mut self) {
+        if std::mem::take(&mut self.quotes_due) {
+            self.subscribe_quotes();
+        }
         for e in self.hub.poll() {
             // Sessions the alert watcher opened for itself.
             let Some(e) = self.alerts.watcher.apply(e) else {
                 continue;
             };
             match e {
+                Event::Extended { id, ext } => {
+                    let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
+                    for c in std::iter::once(&mut self.chart).chain(slots) {
+                        if c.symbol.id == id {
+                            c.extended = ext;
+                        }
+                    }
+                    match ext {
+                        Some(e) => self.extended.insert(id, e),
+                        None => self.extended.remove(&id),
+                    };
+                }
                 Event::Quote { id, last, prev } if self.demo => {
+                    self.quote_at.insert(id.clone(), std::time::Instant::now());
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Quote { id, last, prev } => {
@@ -1039,6 +1086,7 @@ impl App {
                             c.take_quote(last, now);
                         }
                     }
+                    self.quote_at.insert(id.clone(), std::time::Instant::now());
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Fetched {
@@ -1050,6 +1098,7 @@ impl App {
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Depth { seq, result } => self.dom_event(seq, result),
                 Event::Overview { seq, market, result } => self.overview_event(seq, market, result),
+                Event::OverviewPrices { seq, market, result } => self.overview_prices(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
                 Event::Search { seq, results } if seq >= crate::claude::tools::SEARCH_BASE => {
                     self.claude_search_done(seq, results)
