@@ -1,6 +1,6 @@
 # Opentern — briefing for Claude sessions
 
-This file is the shared memory of every session that works on the repo. Read all of it before touching anything. It holds the
+This file is the shared memory of every session that works on the repo. It holds the
 research, the decisions and the A–Z roadmap. If you learn something the next session needs,
 or a decision changes, update this file in the same commit. Keep it a briefing, not a diary.
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
@@ -36,7 +36,7 @@ here" at the end first.
   open-source community scripts. They're ported from Pine to Rust with exact numerical
   parity (§6a).
 
-## How the maintainer works (inherited from Magpie, read this twice)
+## How the maintainer works (inherited from Magpie)
 
 - **Nothing outward-facing without an explicit go.** That covers releases, making the repo
   public, publishing packages and force-pushes. Approval for one doesn't carry to the next.
@@ -123,7 +123,7 @@ crates/core      opentern-core    Bar/Tick/Symbol/Timeframe models, SQLite store
 crates/data      opentern-data    provider traits + adapters, tokio network thread, bar builder/resampler, cache
 crates/series    opentern-series  series runtime: bar-by-bar execution model, StudyOutput protocol, built-in indicators
 crates/pine      opentern-pine    native Pine v5/v6 engine: lexer → parser → type check → bytecode VM on opentern-series
-crates/script    opentern-script  language hosts: Python (subprocess), Luau (mlua), JS/TS later (WASM skipped for now)
+crates/script    opentern-script  language hosts: Python (subprocess), Luau (mlua), JS/TS (rquickjs); WASM skipped for now
 crates/engine    opentern-engine  backtester, paper broker, optimizer, alert evaluator
 crates/app       opentern         egui app: chart engine, panels, editor, strategy tester
 python/opentern  pip SDK          the Python side of the script protocol (vectorized + on_bar APIs)
@@ -563,24 +563,18 @@ real-time feed. Rust TA crates: wickra, mantis-ta, kand.
 ## Where things stand
 
 ### Resume here (next session)
-**0.2.11 released 10 Nov 2026** (special sessions: calendar, live bars from Yahoo's quote, Indian previous close from Yahoo's day change). **0.2.10 released 10 Nov 2026** (queued agent messages, Ctrl+V images, Shift+Enter, legend titles cut short). **0.2.9 released 9 Nov 2026** (scrollbars only while scrolling; the "Index starts" choice removed, indices always reach back to their oldest stock). **0.2.8 released 8 Nov 2026** ("Counts from" renamed "Index starts":
-Without it / With it). **0.2.7 released 8 Nov 2026** (the market overview, chain-linked custom
-indices with tick boxes / "Index starts" / History, split and bonus
-adjustment, the index math audit; see "Market overview" and "Splits in
-cached prices" below).
-**0.2.6 released 5 Nov 2026** (Export and import, see its section). **0.2.5 released 2 Nov 2026** (alerts while closed via `opentern
---daemon`, off-chart alerts, earnings markers, EXT, clock timezone
-picker; see "Background alerts" below). Before that, 0.2.4 on 31 Oct
-(Seasonality chart, agent Seasonality/index tools, News refresh). In 0.2.5 too: the Solana logo fix; Settings → General with scripts and snapshots folders (`scripts_dir`/`snapshots_dir` settings, cached in `App::folders`; always go through `App::scripts_dir()`/`snapshots_dir()`). A Claude chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current one; every message's context names the scripts folder. Add new
+Release history is in `CHANGELOG.md`; the sections below cover each feature.
+Scripts and snapshots folders are settings (`scripts_dir`/`snapshots_dir`, cached in
+`App::folders`); always go through `App::scripts_dir()`/`snapshots_dir()`. A Claude
+chat resumes in the folder it started in (`Chat::folder`: Claude Code finds sessions
+per folder) with `--add-dir` for a moved scripts folder; Codex resumes in the current
+one; every message's context names the scripts folder. Add new
 user-facing changes to a fresh `## Unreleased` section at the top of
 `CHANGELOG.md` as they land; at release time rename it and follow
 "Releasing".
 
-**Where we are (14 Oct 2026):** Phases 0–13 and most loose ends are built and
-committed (latest: the DOM widget). Nothing has been pushed or released. The app
-was handed to the maintainer to test (a throwaway data dir, `/tmp/opentern-test`,
-with example scripts in every language); **next is their UI/UX feedback**, folded
-in iteratively. Phase 14 has started (item 3).
+**Next:** the maintainer's UI/UX feedback, folded in iteratively, then the items
+below.
 
 **What's left, in order:**
 1. **The maintainer's UI/UX feedback.** The first UI pass is done (14 Oct 2026,
@@ -615,23 +609,9 @@ in iteratively. Phase 14 has started (item 3).
    and website) are `site/media/*.webp`: demo data, taken with `OPENTERN_STILL`
    plus `OPENTERN_STILL_NOINPUT=1` (ignores mouse and keys, so no stray
    crosshair or typed keys), a fresh `--data-dir` per shot, `theme:<name>` for
-   the theme deck; 2160x1350 grabs scaled to 1880x1175 WebP. **v0.1.0 tagged and
-   released 16 Oct 2026** (the maintainer's go; each later release needs its
-   own). v0.1.1 released 21 Oct 2026 (TradingView strategy parity); v0.1.2 the
-   same day (agent panel with Codex, UI pass 4, first macOS/Windows builds;
-   nobody has run those builds on a real Mac or PC yet). v0.1.3 and v0.1.4 on 22 Oct 2026 (0.1.4: Alt W, update progress bar,
-   Windows npm installs of the agents' CLIs). v0.1.5 on 27 Oct 2026
-   (onboarding, sign-in gate, Tern Dark / greener Opentern Light, price
-   sync, bottom-panel clamp, site recoloured). v0.2.0 on 27 Oct 2026
-   (the agent drives the whole app, What's new card, Windows icon and
-   logo fixes). v0.2.1 on 28 Oct 2026 (Binance through its market-data
-   mirror when blocked, hotlists' change period). v0.2.2 on 28 Oct 2026
-   (news from many outlets, Calendar redesign, index change % fix). v0.2.3 on
-   30 Oct 2026 (custom indices, Seasonality, agent accounts). v0.2.4 on
-   31 Oct 2026 (Seasonality chart, agent Seasonality/index tools, News refresh). v0.2.5 on
-   2 Nov 2026 (background alerts, earnings, EXT, timezone picker). v0.2.6 on
-   5 Nov 2026 (Export and import). v0.2.7 on 8 Nov 2026 (market overview,
-   index history, splits). v0.2.8 the same day (Index starts wording). v0.2.9 on 9 Nov 2026 (quiet scrollbars, Index starts removed). v0.2.10 on 10 Nov 2026 (agent queue, Ctrl+V images). v0.2.11 the same day (special sessions). Website shots
+   the theme deck; 2160x1350 grabs scaled to 1880x1175 WebP. Release history is
+   in `CHANGELOG.md`. The macOS and Windows builds have been tested on a real
+   Mac and PC and work. Website shots
    of a tiled window: a temporary Hyprland rule floats new opentern windows
    at 1080x675 (`hyprctl eval 'otShot = hl.window_rule({ name =
    "opentern-shot", match = { class = "^opentern$" }, float = true, size =
