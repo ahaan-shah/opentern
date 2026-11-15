@@ -1711,11 +1711,6 @@ What's new reopens it. Still: `whatsnew`.
   `logos::render` also strips `\r` now.
 
 ### Releasing (only when asked; same as Magpie and Spotsie)
-0. **Before every release, review the whole app** (the maintainer, Nov 2026:
-   people make large investment decisions with it). Review all of it, not
-   only the diff, and fix what the review finds. Report what was covered and
-   what wasn't, then stop until the maintainer has reviewed the fixes and
-   says go.
 1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
