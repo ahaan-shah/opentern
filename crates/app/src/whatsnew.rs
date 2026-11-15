@@ -31,6 +31,32 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.12",
+        items: &[
+            Item {
+                icon: ph::SQUARES_FOUR,
+                title: "A map of your indices",
+                body: "The map button beside + in Indices shows every custom index's stocks on one heatmap, \
+                       like the market overview. Pick a period, or click an index's name to zoom in.",
+                image: None,
+            },
+            Item {
+                icon: ph::SUN,
+                title: "Pre-market and after hours",
+                body: "US stocks show their extended-hours price beside the chart's price, as on TradingView. \
+                       Candles and the day's change stay on the regular session.",
+                image: None,
+            },
+            Item {
+                icon: ph::WARNING_CIRCLE,
+                title: "Stale prices are pointed out",
+                body: "A chart, watchlist or market overview that stops getting prices now says so instead of \
+                       looking live.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.11",
         items: &[
             Item {

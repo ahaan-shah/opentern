@@ -1918,6 +1918,36 @@ mod drive_tests {
     }
 
     #[test]
+    fn every_index_shows_on_one_map() {
+        let mut d = Driver::new("indices-map");
+        for (name, syms) in [
+            ("Big Tech", json!(["AAPL", "NVDA", "QQQ"])),
+            ("Chips", json!(["NVDA", "SPY"])),
+        ] {
+            ok(&call(
+                &mut d,
+                "custom_index",
+                json!({"action": "create", "name": name, "symbols": syms, "weighting": "equal"}),
+            ));
+        }
+        d.app.layout.tab = Some(crate::shell::Tab::Indices);
+        d.app.indices.map = true;
+        let texts = d.texts();
+        for want in ["Big Tech ›", "Chips ›", "1D", "YTD"] {
+            assert!(texts.iter().any(|t| t == want), "{want} missing: {texts:?}");
+        }
+        let mb = d.app.indices.map_board();
+        // Each index's members, sized by weight within it.
+        assert_eq!(mb.board.members.len(), 5);
+        assert_eq!(mb.board.members.iter().filter(|m| m.sector == "Chips").count(), 2);
+        let w: f64 = mb.weights[3..].iter().sum();
+        assert!((w - 100.0).abs() < 1e-6, "{w}");
+        // An index's own change, not its tiles' average.
+        assert!(mb.changes["Big Tech"][0].is_finite());
+        assert!(mb.board.members.iter().all(|m| m.change[0].is_finite()));
+    }
+
+    #[test]
     fn the_agent_reads_seasonality_and_runs_custom_indices() {
         let mut d = Driver::new("agent-markets");
         let r = ok(&call(&mut d, "seasonality", json!({})));

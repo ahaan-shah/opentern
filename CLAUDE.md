@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.11):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.12):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -1383,6 +1383,20 @@ every data change (scripts re-run on it).
   time; demo makes numbers up). Settings key `custom_indices`. Stills:
   `index-map`, `index-edit`, `index-chart`, `index-compare`.
 - A maximized bottom panel takes the chart's and range bar's place.
+- **Map of every index** (0.2.12): the treemap button beside + in the
+  Indices list (`Indices::map`) shows all indices on the market
+  overview's heatmap (`App::heat_map_scrolled` with a `MapSpec`: the
+  overview passes its own state, the indices theirs). An index = a
+  sector, sized by `Board::total_cap` (equal when one is missing),
+  members by weight; the sector label shows the index's own change
+  (`MapSpec::sector_change`, from `index_series`), hover cards show the
+  weight. `Indices::map_board` builds it, cached on `version`. Period and
+  zoom aren't saved. Still: `index-overview`.
+- **Narrow panes:** the Indices tab lays out with fixed rects (header
+  child, body child). A `horizontal` header wider than the pane grows
+  the ui's rect, and everything after it is laid out past the panel's
+  edge (that's what overlapped when the window was tiled below its
+  1000 px minimum).
 - **Custom indices, still open:** colour against the index's value
   instead of by rank (kept rank for now); caps if ever wanted.
 - Formula lexer accepts `&` in tickers (`NSE:M&M`).
@@ -1574,7 +1588,7 @@ every data change (scripts re-run on it).
   RELIANCE.BO, INFY.BO, ITC.BO; TCS.BO fine), whatever the period asked: a
   Yahoo problem; the chart says so (see "Robustness pass").
 
-### Pre-market and after hours (Unreleased, Nov 2026)
+### Pre-market and after hours (0.2.12, Nov 2026)
 - As TradingView with EXT off: candles, the watchlist and every 1D stay
   on the regular session; the extended price is only shown beside it.
   `calendar::us_extended` (04:00 to the open, the close + 4 h, trading
@@ -1588,7 +1602,7 @@ every data change (scripts re-run on it).
   hidden with EXT on (the bars show it). After-hours prices from
   `fulldayPrice` are assumed like pre-market's; not yet seen live.
 
-### Robustness pass (Unreleased, Nov 2026)
+### Robustness pass (0.2.12, Nov 2026)
 - **Websockets go silent when a network dies without a close** (sleep,
   Wi-Fi change): reads only time out. `provider::Alive` pings after 30 s
   of silence and drops the connection when no pong comes within 20 s;

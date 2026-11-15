@@ -492,6 +492,8 @@ impl App {
                 self.indices.compare = true;
             } else if part == "index-map" {
                 self.indices.view = crate::indices::View::Map;
+            } else if part == "index-overview" {
+                self.indices.map = true;
             } else if part == "index-edit" {
                 let def = self.indices.defs.first().cloned();
                 self.modal = Some(Modal::Index(Box::new(crate::indices::IndexEditor::new(def.as_ref()))));

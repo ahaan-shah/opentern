@@ -259,7 +259,12 @@ pub fn weighted(members: &[(&Member, f64)], p: Period, sizing: Sizing) -> f64 {
 
 /// The overview's top-bar button: a little treemap.
 pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
+    map_button(ui, t, active, 30.0, "Market overview (Alt M)")
+}
+
+/// A button with the overview's little treemap.
+pub fn map_button(ui: &mut Ui, t: &Theme, active: bool, size: f32, tip: &str) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
     let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     if ui.is_rect_visible(rect) {
         let p = ui.painter();
@@ -280,8 +285,7 @@ pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
         let x2 = x + (r.right() - x) * 0.5;
         p.vline(x2, (r.top() + r.height() * 0.48)..=r.bottom(), s);
     }
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text("Market overview (Alt M)")
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip)
 }
 
 impl App {
@@ -444,40 +448,7 @@ impl App {
             }
             return;
         };
-        let view_h = map.height();
-        let full = if self.overview.sector.is_none() {
-            let weights: Vec<f64> = sectors(&board, None).iter().map(|g| g.1).collect();
-            let (_, h) = plan(&weights, map.width(), view_h);
-            if h > view_h {
-                plan(&weights, map.width() - SCROLL_GAP, view_h).1
-            } else {
-                h
-            }
-        } else {
-            view_h
-        };
-        let out = if full <= view_h {
-            self.overview_map(ui, t, &board, map, view_h)
-        } else {
-            // Sectors that didn't fit sit below: scroll down to them.
-            let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
-            c.set_clip_rect(map.intersect(ui.clip_rect()));
-            c.style_mut().spacing.scroll = egui::style::ScrollStyle::floating();
-            theme::quieten(&mut c.style_mut().spacing.scroll, theme::scroll_shown(ui.ctx()));
-            egui::ScrollArea::vertical()
-                .id_salt(("overview-scroll", m.key()))
-                .scroll_source(
-                    egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR,
-                )
-                .auto_shrink([false, false])
-                .show(&mut c, |ui| {
-                    // Room on the right for the scrollbar, clear of the tiles.
-                    let w = ui.available_width().min(map.width()) - SCROLL_GAP;
-                    let (r, _) = ui.allocate_exact_size(vec2(w, full), Sense::hover());
-                    self.overview_map(ui, t, &board, r, view_h)
-                })
-                .inner
-        };
+        let out = self.heat_map_scrolled(ui, t, &board, map, &self.overview_spec(), m.key());
         if let Some(click) = out {
             match click {
                 Click::Tile(sym) => self.open_symbol_synced(sym),
@@ -574,19 +545,83 @@ impl App {
         });
     }
 
+    /// The map in `map`, scrolling down to the sectors too small for it.
+    pub(crate) fn heat_map_scrolled(
+        &self,
+        ui: &mut Ui,
+        t: &Theme,
+        board: &Board,
+        map: Rect,
+        spec: &MapSpec,
+        salt: &str,
+    ) -> Option<Click> {
+        let view_h = map.height();
+        let full = if spec.only.is_none() {
+            let weights: Vec<f64> = sectors(board, None).iter().map(|g| g.1).collect();
+            let (_, h) = plan(&weights, map.width(), view_h);
+            if h > view_h {
+                plan(&weights, map.width() - SCROLL_GAP, view_h).1
+            } else {
+                h
+            }
+        } else {
+            view_h
+        };
+        if full <= view_h {
+            return self.heat_map(ui, t, board, map, view_h, spec);
+        }
+        // Sectors that didn't fit sit below: scroll down to them.
+        let mut c = ui.new_child(egui::UiBuilder::new().max_rect(map));
+        c.set_clip_rect(map.intersect(ui.clip_rect()));
+        c.style_mut().spacing.scroll = egui::style::ScrollStyle::floating();
+        theme::quieten(&mut c.style_mut().spacing.scroll, theme::scroll_shown(ui.ctx()));
+        egui::ScrollArea::vertical()
+            .id_salt((spec.id, salt))
+            .scroll_source(egui::scroll_area::ScrollSource::MOUSE_WHEEL | egui::scroll_area::ScrollSource::SCROLL_BAR)
+            .auto_shrink([false, false])
+            .show(&mut c, |ui| {
+                // Room on the right for the scrollbar, clear of the tiles.
+                let w = ui.available_width().min(map.width()) - SCROLL_GAP;
+                let (r, _) = ui.allocate_exact_size(vec2(w, full), Sense::hover());
+                self.heat_map(ui, t, board, r, view_h, spec)
+            })
+            .inner
+    }
+
+    fn overview_spec(&self) -> MapSpec<'_> {
+        MapSpec {
+            id: "overview-map",
+            period: self.overview.period,
+            only: self.overview.sector.as_deref(),
+            still_hover: self.overview.still_hover.as_deref(),
+            sector_change: None,
+            weights: None,
+            drawn: Some(&self.overview.drawn),
+        }
+    }
+
     /// The map. Returns what was clicked.
-    fn overview_map(&self, ui: &mut Ui, t: &Theme, board: &Board, area: Rect, view_h: f32) -> Option<Click> {
-        let resp = ui.interact(area, Id::new("overview-map"), Sense::click());
+    pub(crate) fn heat_map(
+        &self,
+        ui: &mut Ui,
+        t: &Theme,
+        board: &Board,
+        area: Rect,
+        view_h: f32,
+        spec: &MapSpec,
+    ) -> Option<Click> {
+        let resp = ui.interact(area, Id::new(spec.id), Sense::click());
         // What shows of the map (it may scroll).
         let seen = area.intersect(ui.clip_rect());
         let hover = resp.hover_pos();
         let p = ui.painter_at(area);
-        let period = self.overview.period;
-        let only = self.overview.sector.as_deref();
+        let period = spec.period;
+        let only = spec.only;
         let groups = sectors(board, only);
         let mut click = None;
         let mut hot: Option<(&Member, Rect)> = None;
-        let mut drawn = self.overview.drawn.borrow_mut();
+        let scratch = std::cell::RefCell::new(Drawn::default());
+        let mut drawn = spec.drawn.unwrap_or(&scratch).borrow_mut();
         drawn.tiles.clear();
         drawn.sectors.clear();
         if groups.is_empty() {
@@ -615,7 +650,10 @@ impl App {
                 drawn.sectors.push((name.clone(), bar));
                 let hovered = hover.is_some_and(|h| bar.contains(h));
                 let font = theme::medium(11.5);
-                let ch = weighted(members, period, board.sizing);
+                let ch = match spec.sector_change.and_then(|c| c.get(name)) {
+                    Some(c) => c[period.index()],
+                    None => weighted(members, period, board.sizing),
+                };
                 let title = format!("{name} ›");
                 let text = crate::format::elide_to(&p, &title, &font, r.width() - 8.0);
                 let color = if hovered { t.text } else { t.text2 };
@@ -662,7 +700,7 @@ impl App {
                     f,
                 );
                 self.tile_label(&p, t, m, c, f, tr);
-                if hover.is_some_and(|h| tr.contains(h)) || self.overview.still_hover.as_deref() == Some(&short(m)) {
+                if hover.is_some_and(|h| tr.contains(h)) || spec.still_hover == Some(short(m).as_str()) {
                     hot = Some((m, tr));
                 }
             }
@@ -678,9 +716,9 @@ impl App {
             if resp.clicked() && click.is_none() {
                 click = Some(Click::Tile(m.symbol.clone()));
             }
-            let still = self.overview.still_hover.as_ref().map(|_| r.center());
+            let still = spec.still_hover.map(|_| r.center());
             if let Some(h) = hover.or(still) {
-                self.hover_card(ui, t, board, m, h, seen);
+                self.hover_card(ui, t, board, m, h, seen, spec);
             }
         }
         click
@@ -738,12 +776,13 @@ impl App {
     }
 
     /// The card beside the pointer: name, line, price, change, size.
-    fn hover_card(&self, ui: &Ui, t: &Theme, board: &Board, m: &Member, at: Pos2, area: Rect) {
+    #[allow(clippy::too_many_arguments)]
+    fn hover_card(&self, ui: &Ui, t: &Theme, board: &Board, m: &Member, at: Pos2, area: Rect, spec: &MapSpec) {
         let p = ui
             .ctx()
             .layer_painter(egui::LayerId::new(egui::Order::Tooltip, Id::new("overview-card")));
         let w = 236.0;
-        let period = self.overview.period;
+        let period = spec.period;
         let change = m.change(period);
         let size_label = match board.sizing {
             Sizing::Volume => "24h volume",
@@ -765,7 +804,14 @@ impl App {
                 if ch >= 0.0 { t.pos } else { t.neg },
             ));
         }
-        if board.sizing != Sizing::Equal {
+        // Its weight, for a member of an index.
+        let weight = spec.weights.and_then(|ws| {
+            let k = board.members.iter().position(|x| std::ptr::eq(x, m))?;
+            ws.get(k).copied().filter(|w| w.is_finite())
+        });
+        if let Some(wt) = weight {
+            rows.push(("Weight".into(), format!("{wt:.1}%"), t.text));
+        } else if board.sizing != Sizing::Equal {
             rows.push((size_label.into(), money(m.cap, &board.currency, board.market), t.text));
         }
         let line_h = if m.closes.len() > 2 { 40.0 } else { 0.0 };
@@ -804,7 +850,9 @@ impl App {
             f,
             t.text,
         );
-        let sub = if m.industry.is_empty() || m.industry == m.name {
+        let sub = if m.name.is_empty() {
+            m.sector.clone()
+        } else if m.industry.is_empty() || m.industry == m.name {
             format!("{} · {}", m.name, m.sector)
         } else {
             format!("{} · {}", m.name, m.industry)
@@ -860,6 +908,24 @@ pub enum Click {
     Sector(String),
 }
 
+/// What a heatmap shows besides its board: the market overview's, or the
+/// custom indices' (`indices::indices_map`).
+pub(crate) struct MapSpec<'a> {
+    pub id: &'static str,
+    pub period: Period,
+    /// The sector zoomed into.
+    pub only: Option<&'a str>,
+    /// Screenshots: the tile to show as hovered.
+    pub still_hover: Option<&'a str>,
+    /// Each sector's own change per period (an index's), in place of its
+    /// tiles' weighted average.
+    pub sector_change: Option<&'a HashMap<String, [f64; 6]>>,
+    /// Each member's weight in its sector, in percent (by position in
+    /// `Board::members`): the hover card shows it instead of the size.
+    pub weights: Option<&'a [f64]>,
+    pub drawn: Option<&'a std::cell::RefCell<Drawn>>,
+}
+
 /// Whether a market's prices move now (US stocks include pre-market and
 /// after hours, for the hover card's figure).
 fn trading(m: Market, now_ms: i64) -> bool {
@@ -888,7 +954,7 @@ fn extended_chip(ui: &mut Ui, t: &Theme, e: opentern_core::calendar::Extended) {
 }
 
 /// −3% ▮▮▮▮▮▮▮ +3%, for the period's scale.
-fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
+pub(crate) fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
     let s = scale(period);
     let label = |v: f64| {
         format!(

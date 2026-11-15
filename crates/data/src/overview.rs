@@ -471,7 +471,7 @@ fn india_symbol(x: &Listed) -> Symbol {
 /// Percent changes per period from daily closes (`times` in seconds,
 /// oldest first) up to `last`; `day` is the 1D change when the source
 /// gives one (else from the closes).
-pub(crate) fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s: i64) -> [f64; 6] {
+pub fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s: i64) -> [f64; 6] {
     let mut out = [f64::NAN; 6];
     if !last.is_finite() || times.len() != closes.len() {
         return out;

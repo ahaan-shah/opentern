@@ -1,8 +1,12 @@
 # Changelog
 
-## Unreleased
+## 0.2.12 (2026-11-15)
+
+A heatmap of all your custom indices, pre-market and after-hours prices
+for US stocks, and warnings when prices stop updating.
 
 ### New
+- **A map of all your custom indices.** The new map button beside + in the Indices tab shows every index's stocks on one heatmap, like the market overview: each index is a group sized by its stocks' market caps, each stock sized by its weight in the index, coloured by the change over 1D, 1W, 1M, 3M, YTD or 1Y. An index's name shows its own change for the period; click it to zoom in (Esc zooms out), and click a stock to chart it.
 - **Pre-market and after-hours prices for US stocks, as on TradingView.** While they trade, the chart's legend shows a sun (pre-market) or moon (after hours) with the price and change on hover, and the price scale gets its own label and dotted line (Chart settings → Scales and lines). The market overview says when extended hours are on, and each tile's card shows the extended-hours price. Candles and the day's change stay on the regular session.
 
 - **Says when prices stop updating.** If a live chart's prices haven't moved for 5 minutes while its market is open, the legend says "No new prices for 7 min". The watchlist dims such a price (hover says how long), and the market overview's header shows a warning.
@@ -15,6 +19,8 @@
 - **The market overview keeps up while markets trade.** Prices refresh every 30 seconds while the market is open (crypto always), instead of every 3 minutes.
 
 ### Fixed
+- **Logos no longer cover the names on the Indices map.** A short tile put its logo on top of the ticker (the side panel open leaves less room); the text now moves down out of its way, or the logo is left out.
+- **The Indices tab fits a narrow window.** With the window tiled narrow and the side panel open, the board's header pushed the board past the panel's edge and the index cards' changes ran out of their cards; the header now takes two rows and the cards drop the value before the change.
 - **US stocks' 1D change in the market overview is right before the open and after the close.** It compared the extended-hours price with the close two sessions back (NVDA showed −6.18% before the open on 12 Nov when it had closed +2.87%). It now shows the regular session, like the chart and watchlist.
 - **No more flat extra bar at the close on intraday stock charts.** Opened outside market hours, a 15m or 1h chart ended with a flat, volume-less bar at the closing price (Yahoo's latest-price point). The last bar now ends at the official close instead, and those bars are removed from the cache once.
 - **Weekly and monthly stock charts include today.** The current week (month) ended at yesterday, and today showed as a separate bar dated today (NVDA's weekly chart had a "week" starting on Thursday). Weeks and months are now built from daily bars, as Indian stocks' already were.

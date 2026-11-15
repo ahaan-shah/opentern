@@ -34,6 +34,7 @@ use egui::{Align2, Color32, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
 use opentern_data::Request;
 use opentern_data::fundamentals::Fundamentals;
+use opentern_data::overview::Period;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::time::{Duration, Instant};
@@ -1100,6 +1101,12 @@ pub struct Indices {
     pub open: Option<String>,
     /// Every index side by side instead of one.
     pub compare: bool,
+    /// Every index's members on one heatmap, like the market overview.
+    pub map: bool,
+    /// The map's period, and the index zoomed into.
+    pub period: Period,
+    pub zoom: Option<String>,
+    map_board: Option<(u64, MapBoard)>,
     data: HashMap<String, MemberData>,
     seq: u64,
     pub view: View,
@@ -1127,6 +1134,10 @@ impl Indices {
         let ix = Indices {
             open: defs.first().map(|d| d.ticker.clone()),
             compare: false,
+            map: false,
+            period: Period::Day,
+            zoom: None,
+            map_board: None,
             defs,
             data: HashMap::new(),
             seq: 0,
@@ -1172,6 +1183,114 @@ impl Indices {
         let b = board_for(def, &self.data);
         self.boards.insert(ticker.to_string(), (self.version, b.clone()));
         Some(b)
+    }
+}
+
+/// Every index's members as one market-overview board: an index per
+/// sector, each sized by its members' market caps together (equal when
+/// one is missing), its members by their weight in it.
+#[derive(Clone)]
+pub(crate) struct MapBoard {
+    pub board: opentern_data::overview::Board,
+    /// Each member's weight in its index, in percent.
+    pub weights: Vec<f64>,
+    /// Each index's own change per period, by its name on the map.
+    pub changes: HashMap<String, [f64; 6]>,
+    waiting: bool,
+}
+
+impl Indices {
+    pub(crate) fn map_board(&mut self) -> MapBoard {
+        if let Some((v, b)) = &self.map_board
+            && *v == self.version
+        {
+            return b.clone();
+        }
+        use opentern_data::overview::{self as ov, Member, Sizing};
+        let now_s = jiff::Timestamp::now().as_second();
+        let changes_of = |bars: &[Bar], now_s: i64| {
+            let times: Vec<i64> = bars.iter().map(|b| b.time.div_euclid(1000)).collect();
+            let closes: Vec<f64> = bars.iter().map(|b| b.close).collect();
+            let last = bars.last().map_or(f64::NAN, |b| b.close);
+            ov::changes(&times, &closes, last, None, now_s)
+        };
+        let mut out = MapBoard {
+            board: ov::Board {
+                market: ov::Market::Us,
+                members: Vec::new(),
+                sizing: Sizing::MarketCap,
+                source: String::new(),
+                currency: "USD".into(),
+                at: now_s * 1000,
+            },
+            weights: Vec::new(),
+            changes: HashMap::new(),
+            waiting: false,
+        };
+        let mut groups = Vec::new();
+        let mut names: Vec<String> = Vec::new();
+        let tickers: Vec<String> = self.defs.iter().map(|d| d.ticker.clone()).collect();
+        for tk in tickers {
+            let Some(b) = self.board(&tk) else { continue };
+            let Some(def) = self.by_ticker(&tk).cloned() else {
+                continue;
+            };
+            out.waiting |= b.waiting > 0 || def.pending;
+            // Two indices of one name stay apart.
+            let mut name = def.name.clone();
+            if names.contains(&name) {
+                name = format!("{name} ({})", def.ticker);
+            }
+            names.push(name.clone());
+            groups.push((name, b, def));
+        }
+        let bars = bars_of(&self.data);
+        for (name, _, def) in &groups {
+            if def.ready() {
+                let series = index_series(&def.segments, &bars);
+                if !series.is_empty() {
+                    out.changes.insert(name.clone(), changes_of(&series, now_s));
+                }
+            }
+        }
+        let all_caps = groups.iter().all(|g| g.1.total_cap > 0.0);
+        let mut india = 0;
+        for (name, b, _) in &groups {
+            let size = if all_caps { b.total_cap } else { 1.0 };
+            for r in &b.rows {
+                if !(r.included && r.weight.is_finite() && r.weight > 0.0) {
+                    continue;
+                }
+                let Some(bars) = bars.get(&r.symbol.id).filter(|b| !b.is_empty()) else {
+                    continue;
+                };
+                if r.symbol.id.starts_with("NSE:") || r.symbol.id.starts_with("BSE:") {
+                    india += 1;
+                }
+                let from = bars.len().saturating_sub(66);
+                out.board.members.push(Member {
+                    symbol: r.symbol.clone(),
+                    name: r.symbol.description.clone(),
+                    sector: name.clone(),
+                    industry: String::new(),
+                    cap: size * r.weight / 100.0,
+                    price: r.price,
+                    change: changes_of(bars, now_s),
+                    closes: bars[from..].iter().map(|b| b.close as f32).collect(),
+                    key: String::new(),
+                    ext: None,
+                });
+                out.weights.push(r.weight);
+            }
+        }
+        let n = out.board.members.len();
+        (out.board.market, out.board.currency) = if india * 2 > n {
+            (ov::Market::India, "INR".into())
+        } else {
+            (ov::Market::Us, "USD".into())
+        };
+        self.map_board = Some((self.version, out.clone()));
+        out
     }
 }
 
@@ -1317,7 +1436,9 @@ impl App {
         );
         ui.scope_builder(egui::UiBuilder::new().max_rect(main), |ui| {
             ui.set_clip_rect(main.intersect(ui.clip_rect()));
-            if self.indices.compare && self.indices.defs.len() >= 2 {
+            if self.indices.map && !self.indices.defs.is_empty() {
+                self.indices_map(ui, t);
+            } else if self.indices.compare && self.indices.defs.len() >= 2 {
                 self.indices_compare(ui, t);
             } else if self.index_def().is_some() {
                 self.index_dashboard(ui, t);
@@ -1337,12 +1458,23 @@ impl App {
     /// A card per index (name, value, day change), and Compare on top
     /// once there are two.
     fn indices_list(&mut self, ui: &mut Ui, t: &Theme) {
+        let wide = ui.max_rect().width();
         ui.horizontal(|ui| {
             ui.set_height(28.0);
-            ui.label(egui::RichText::new("Indices").font(theme::semibold(13.5)));
+            // The title gives way to the buttons in a narrow pane.
+            let buttons = if self.indices.defs.is_empty() { 30.0 } else { 62.0 };
+            if wide >= buttons + 64.0 {
+                ui.label(egui::RichText::new("Indices").font(theme::semibold(13.5)));
+            }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if w::tool_button(ui, t, ph::PLUS, "New index", false, 26.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
+                }
+                if !self.indices.defs.is_empty()
+                    && crate::overview::map_button(ui, t, self.indices.map, 26.0, "Map of every index").clicked()
+                {
+                    self.indices.map = true;
+                    self.indices.compare = false;
                 }
             });
         });
@@ -1356,7 +1488,7 @@ impl App {
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 6.0;
                 if defs.len() >= 2 {
-                    let on = self.indices.compare;
+                    let on = self.indices.compare && !self.indices.map;
                     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
                     card(ui, t, r, on, resp.hovered());
                     let p = ui.painter();
@@ -1379,7 +1511,8 @@ impl App {
                     }
                 }
                 for d in &defs {
-                    let on = !self.indices.compare && self.indices.open.as_deref() == Some(&d.ticker);
+                    let on =
+                        !self.indices.compare && !self.indices.map && self.indices.open.as_deref() == Some(&d.ticker);
                     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
                     card(ui, t, r, on, resp.hovered());
                     let now = self.index_now(d);
@@ -1398,8 +1531,14 @@ impl App {
                             let g = p.layout_no_wrap(crate::format::price(v, 2), theme::medium(12.5), t.text2);
                             let x = r.left() + 12.0;
                             let gw = g.size().x;
-                            p.galley(pos2(x, y - g.size().y / 2.0), g, t.text2);
-                            change_pill(p, t, pos2(x + gw + 8.0, y), ch);
+                            let pw = pill_w(p, ch);
+                            // The change alone when both don't fit.
+                            if x + gw + 8.0 + pw <= r.right() - 8.0 {
+                                p.galley(pos2(x, y - g.size().y / 2.0), g, t.text2);
+                                change_pill(p, t, pos2(x + gw + 8.0, y), ch);
+                            } else if x + pw <= r.right() - 6.0 {
+                                change_pill(p, t, pos2(x, y), ch);
+                            }
                         }
                         None => {
                             p.text(
@@ -1418,9 +1557,11 @@ impl App {
             });
         if compare {
             self.indices.compare = true;
+            self.indices.map = false;
         }
         if let Some(d) = pick {
             self.indices.compare = false;
+            self.indices.map = false;
             self.indices.open = Some(d.ticker.clone());
             if d.ready() {
                 self.open_symbol_synced(d.symbol());
@@ -1438,59 +1579,89 @@ impl App {
         let now = self.index_now(&def);
         let mut rebalance = false;
         let spinning = self.rebalance_running(&def);
-        // ---- header: name, value, change; view, rebalance and edit
-        ui.horizontal(|ui| {
-            ui.set_height(32.0);
-            ui.spacing_mut().item_spacing.x = 10.0;
-            let name = ui.add(
-                egui::Label::new(egui::RichText::new(&def.name).font(theme::semibold(16.0))).sense(Sense::click()),
-            );
-            if name
-                .on_hover_text("Open on the chart")
-                .on_hover_cursor(egui::CursorIcon::PointingHand)
-                .clicked()
-                && def.ready()
-            {
-                self.open_symbol_synced(def.symbol());
+        // ---- header: name, value, change; view, rebalance and edit. Fixed
+        // rects, so a header wider than the pane can't push the board
+        // sideways; a narrow pane puts the view switch on a second row.
+        let whole = ui.max_rect();
+        let two_rows = whole.width() < 560.0;
+        let row = |k: f32| Rect::from_min_size(whole.min + vec2(0.0, k * 38.0), vec2(whole.width(), 32.0));
+        let head_h = if two_rows { 70.0 } else { 32.0 };
+        ui.allocate_rect(whole, Sense::hover());
+        let mut hc = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(row(0.0))
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+        );
+        hc.set_clip_rect(row(0.0).intersect(ui.clip_rect()));
+        hc.scope(|ui| {
+            ui.spacing_mut().item_spacing.x = 6.0;
+            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
+                self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
             }
-            match now {
-                Some((v, ch)) => {
-                    ui.label(egui::RichText::new(crate::format::price(v, 2)).font(theme::medium(15.0)));
-                    let (r, _) = ui.allocate_exact_size(vec2(pill_w(ui.painter(), ch), 22.0), Sense::hover());
-                    change_pill(ui.painter(), t, r.left_center(), ch);
-                }
-                None if board.waiting > 0 || def.pending => {
-                    ui.add(egui::Spinner::new().size(13.0).color(t.text3));
-                }
-                None => {}
-            }
-            let (icon, color) = if def.equal_fallback {
-                (ph::WARNING_CIRCLE, t.warn)
+            let tip = if spinning {
+                "Rebalancing…"
             } else {
-                (ph::INFO, t.text3)
+                "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
             };
-            ui.label(egui::RichText::new(icon).color(color))
-                .on_hover_text(method_note(&def));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
-                    self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
-                }
-                let tip = if spinning {
-                    "Rebalancing…"
-                } else {
-                    "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
-                };
-                if w::spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
-                    rebalance = true;
-                }
+            if w::spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
+                rebalance = true;
+            }
+            if !two_rows {
                 view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
+            }
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
+                ui.spacing_mut().item_spacing.x = 10.0;
+                let name = ui.add(
+                    egui::Label::new(egui::RichText::new(&def.name).font(theme::semibold(16.0)))
+                        .truncate()
+                        .sense(Sense::click()),
+                );
+                if name
+                    .on_hover_text("Open on the chart")
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
+                    .clicked()
+                    && def.ready()
+                {
+                    self.open_symbol_synced(def.symbol());
+                }
+                match now {
+                    Some((v, ch)) => {
+                        ui.label(egui::RichText::new(crate::format::price(v, 2)).font(theme::medium(15.0)));
+                        let (r, _) = ui.allocate_exact_size(vec2(pill_w(ui.painter(), ch), 22.0), Sense::hover());
+                        change_pill(ui.painter(), t, r.left_center(), ch);
+                    }
+                    None if board.waiting > 0 || def.pending => {
+                        ui.add(egui::Spinner::new().size(13.0).color(t.text3));
+                    }
+                    None => {}
+                }
+                let (icon, color) = if def.equal_fallback {
+                    (ph::WARNING_CIRCLE, t.warn)
+                } else {
+                    (ph::INFO, t.text3)
+                };
+                ui.label(egui::RichText::new(icon).color(color))
+                    .on_hover_text(method_note(&def));
             });
         });
+        if two_rows {
+            let mut rc = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(row(1.0))
+                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
+            );
+            rc.set_clip_rect(row(1.0).intersect(ui.clip_rect()));
+            rc.spacing_mut().item_spacing.x = 6.0;
+            view_switch(&mut rc, t, &mut self.indices.view, &mut self.indices.metric);
+        }
         if rebalance {
             self.rebalance_index(&def.ticker);
         }
-        ui.add_space(8.0);
+        let body_rect = Rect::from_min_max(pos2(whole.left(), whole.top() + head_h + 8.0), whole.max);
+        let mut body = ui.new_child(egui::UiBuilder::new().max_rect(body_rect));
+        body.set_clip_rect(body_rect.intersect(ui.clip_rect()));
+        let ui = &mut body;
         kpi_strip(ui, t, &board.index);
         ui.add_space(10.0);
         let rows: Vec<TRow> = board.rows.iter().map(TRow::of).collect();
@@ -1533,6 +1704,82 @@ impl App {
         self.index_click(click);
     }
 
+    /// Every index's members on one heatmap, as the market overview: an
+    /// index's name zooms into it, a tile opens the chart.
+    fn indices_map(&mut self, ui: &mut Ui, t: &Theme) {
+        let mb = self.indices.map_board();
+        let names: BTreeSet<&String> = mb.board.members.iter().map(|m| &m.sector).collect();
+        if self.indices.zoom.as_ref().is_some_and(|z| !names.contains(z)) {
+            self.indices.zoom = None;
+        }
+        // Fixed rects: a header wider than the pane must not widen the map
+        // past the panel's edge.
+        let whole = ui.max_rect();
+        let head = Rect::from_min_size(whole.min, vec2(whole.width(), 32.0));
+        let mut hc = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(head)
+                .layout(egui::Layout::left_to_right(egui::Align::Center)),
+        );
+        hc.set_clip_rect(head.intersect(ui.clip_rect()));
+        hc.scope(|ui| {
+            ui.spacing_mut().item_spacing.x = 4.0;
+            for p in Period::ALL {
+                if w::bar_button(ui, t, None, p.label(), "", self.indices.period == p).clicked() {
+                    self.indices.period = p;
+                }
+            }
+            if let Some(z) = self.indices.zoom.clone() {
+                w::vdivider(ui, t);
+                let label = format!("{z}  {}", ph::X);
+                if w::bar_button(ui, t, None, &label, "Every index (Esc)", false).clicked() {
+                    self.indices.zoom = None;
+                }
+            }
+            let room = ui.available_width();
+            if room > 20.0 {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0;
+                    if room > 170.0 {
+                        crate::overview::legend(ui, t, self.indices.period, None);
+                    }
+                    if mb.waiting {
+                        ui.add(egui::Spinner::new().size(13.0).color(t.text3));
+                    }
+                });
+            }
+        });
+        let area = Rect::from_min_max(pos2(whole.left(), head.bottom() + 8.0), whole.max);
+        ui.allocate_rect(whole, Sense::hover());
+        if area.width() < 40.0 || area.height() < 40.0 {
+            return;
+        }
+        if mb.board.members.is_empty() {
+            if mb.waiting {
+                ui.put(area, egui::Spinner::new());
+            }
+            return;
+        }
+        let spec = crate::overview::MapSpec {
+            id: "indices-map",
+            period: self.indices.period,
+            only: self.indices.zoom.as_deref(),
+            still_hover: None,
+            sector_change: Some(&mb.changes),
+            weights: Some(&mb.weights),
+            drawn: None,
+        };
+        let click = self.heat_map_scrolled(ui, t, &mb.board, area, &spec, "indices");
+        match click {
+            Some(crate::overview::Click::Tile(sym)) => self.open_symbol_synced(sym),
+            Some(crate::overview::Click::Sector(s)) => self.indices.zoom = Some(s),
+            None => {}
+        }
+        if self.modal.is_none() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.indices.zoom = None;
+        }
+    }
+
     /// Every index side by side: the same metrics, a row (or tile) each.
     fn indices_compare(&mut self, ui: &mut Ui, t: &Theme) {
         let defs = self.indices.defs.clone();
@@ -1559,15 +1806,27 @@ impl App {
                 error: None,
             });
         }
-        ui.horizontal(|ui| {
-            ui.set_height(32.0);
-            ui.label(egui::RichText::new("Compare indices").font(theme::semibold(16.0)));
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                view_switch(ui, t, &mut self.indices.view, &mut self.indices.metric);
+        // Fixed rects, as the board's: the title gives way in a narrow pane.
+        let whole = ui.max_rect();
+        let head = Rect::from_min_size(whole.min, vec2(whole.width(), 32.0));
+        ui.allocate_rect(whole, Sense::hover());
+        let mut hc = ui.new_child(
+            egui::UiBuilder::new()
+                .max_rect(head)
+                .layout(egui::Layout::right_to_left(egui::Align::Center)),
+        );
+        hc.set_clip_rect(head.intersect(ui.clip_rect()));
+        hc.spacing_mut().item_spacing.x = 6.0;
+        view_switch(&mut hc, t, &mut self.indices.view, &mut self.indices.metric);
+        if hc.available_width() > 150.0 {
+            hc.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.add(egui::Label::new(egui::RichText::new("Compare indices").font(theme::semibold(16.0))).truncate());
             });
-        });
-        ui.add_space(10.0);
+        }
+        let body_rect = Rect::from_min_max(pos2(whole.left(), head.bottom() + 10.0), whole.max);
+        let mut body = ui.new_child(egui::UiBuilder::new().max_rect(body_rect));
+        body.set_clip_rect(body_rect.intersect(ui.clip_rect()));
+        let ui = &mut body;
         let click = match self.indices.view {
             View::Table => metric_table(
                 ui,
@@ -1771,9 +2030,11 @@ fn change_pill(p: &egui::Painter, t: &Theme, at: egui::Pos2, ch: f64) {
 fn view_switch(ui: &mut Ui, t: &Theme, view: &mut View, metric: &mut Metric) {
     w::segmented(ui, t, view, &[(View::Table, "Table"), (View::Map, "Map")]);
     if *view == View::Map {
+        // Narrower in a narrow pane (laid out either way round).
+        let room = ui.available_width() - 4.0;
         w::combo("index-map-metric")
             .selected_text(metric.name())
-            .width(150.0)
+            .width(room.clamp(96.0, 150.0))
             .show_ui(ui, |ui| {
                 for m in Metric::ALL {
                     w::option_value(ui, metric, m, m.name());
@@ -2627,24 +2888,26 @@ fn treemap(
             let big = (r.width().min(r.height() * 2.2) / 7.0).clamp(11.0, 19.0);
             let font = theme::semibold(big);
             let name = crate::format::elide_to(&p, &row.label, &font, r.width() - 14.0);
-            p.text(
-                r.center() - vec2(0.0, big * 0.55),
-                Align2::CENTER_CENTER,
-                name,
-                font,
-                t.text,
-            );
-            p.text(
-                r.center() + vec2(0.0, big * 0.65),
-                Align2::CENTER_CENTER,
-                metric.format(v),
-                theme::regular((big * 0.78).max(10.5)),
-                t.text2,
-            );
-            if let Some(s) = &row.symbol
-                && r.height() > 70.0
-                && r.width() > 70.0
-            {
+            let name = p.layout_no_wrap(name, font, t.text);
+            let value = p.layout_no_wrap(metric.format(v), theme::regular((big * 0.78).max(10.5)), t.text2);
+            let (mut name_c, mut value_c) = (r.center() - vec2(0.0, big * 0.55), r.center() + vec2(0.0, big * 0.65));
+            // The logo in the corner, clear of the text: the text moves
+            // down out of its way when there's room, else the logo goes.
+            let logo = Rect::from_center_size(r.left_top() + vec2(16.0, 16.0), vec2(16.0, 16.0)).expand(3.0);
+            let text = Rect::from_center_size(name_c, name.size()).union(Rect::from_center_size(value_c, value.size()));
+            let mut show_logo = row.symbol.is_some() && r.height() > 46.0 && r.width() > 70.0;
+            if show_logo && logo.intersects(text) {
+                let down = logo.bottom() - text.top();
+                if text.bottom() + down <= r.bottom() - 4.0 {
+                    name_c.y += down;
+                    value_c.y += down;
+                } else {
+                    show_logo = false;
+                }
+            }
+            p.galley(name_c - name.size() / 2.0, name, t.text);
+            p.galley(value_c - value.size() / 2.0, value, t.text2);
+            if let Some(s) = row.symbol.as_ref().filter(|_| show_logo) {
                 logos.paint(&p, t, s, r.left_top() + vec2(16.0, 16.0), 8.0);
             }
         }
