@@ -1016,14 +1016,21 @@ struct Quoter {
 
 impl Quoter {
     fn send(&mut self, id: String, last: f64, prev: f64) {
+        self.set(id.clone(), last, prev);
+        self.formulas(&[id]);
+    }
+
+    /// A symbol's quote, without working out the formulas that use it (a
+    /// batch does that once, at the end).
+    fn set(&mut self, id: String, last: f64, prev: f64) {
         self.last.insert(id.clone(), (last, prev));
-        self.out.send(Event::Quote {
-            id: id.clone(),
-            last,
-            prev,
-        });
+        self.out.send(Event::Quote { id, last, prev });
+    }
+
+    /// Quotes for the formulas (custom indices) using any of `changed`.
+    fn formulas(&self, changed: &[String]) {
         for (eid, e, legs) in &self.exprs {
-            if !legs.contains(&id) {
+            if !legs.iter().any(|l| changed.contains(l)) {
                 continue;
             }
             let qs: Option<Vec<(f64, f64)>> = legs.iter().map(|l| self.last.get(l).copied()).collect();
@@ -1037,6 +1044,82 @@ impl Quoter {
                 });
             }
         }
+    }
+}
+
+/// A Yahoo quote is asked for this often while its market trades (US
+/// stocks: with pre-market and after hours)…
+const QUOTE_EVERY: i64 = 30_000;
+/// …and this often while it's shut, as a safety net (one more look right
+/// after the close catches the final price).
+const QUOTE_SHUT: i64 = 300_000;
+
+/// The quote worker's Yahoo symbols, fetched together: spark answers
+/// twenty a request and shares its replies with the market overview
+/// (`overview::sparks`); a ticker spark leaves out is asked on its own.
+struct YahooQuotes {
+    syms: Vec<Symbol>,
+    /// When each symbol was last asked for (ms).
+    tried: HashMap<String, i64>,
+    round: Option<Instant>,
+}
+
+impl YahooQuotes {
+    fn due(&self, s: &Symbol, now: i64) -> bool {
+        let Some(&at) = self.tried.get(&s.id) else {
+            return true;
+        };
+        let m = opentern_core::calendar::Market::of(s);
+        let age = now - at;
+        age >= QUOTE_SHUT
+            || (age >= QUOTE_EVERY
+                && (opentern_core::calendar::trading(m, now) || opentern_core::calendar::closed_between(m, at, now)))
+    }
+
+    fn poll(&mut self, yahoo: &Yahoo, q: &std::cell::RefCell<Quoter>) {
+        if self.round.is_some_and(|t| t.elapsed() < Duration::from_secs(1)) {
+            return;
+        }
+        self.round = Some(Instant::now());
+        let now = crate::provider::now_ms();
+        // Symbols a keyed provider serves (keys can change while running)
+        // are the worker's other loop's.
+        let due: Vec<Symbol> = self
+            .syms
+            .iter()
+            .filter(|s| yahoo_routed(s) && self.due(s, now))
+            .cloned()
+            .collect();
+        if due.is_empty() {
+            return;
+        }
+        let tickers: Vec<String> = due.iter().map(|s| crate::yahoo::ticker(&s.id)).collect();
+        // Spark rounds currencies to four decimals (EURUSD's 1.099288
+        // came as 1.0993): they're asked on their own.
+        let batched: Vec<String> = tickers.iter().filter(|t| !t.ends_with("=X")).cloned().collect();
+        let sparks = crate::overview::sparks(&batched, "5d");
+        let mut sent = Vec::new();
+        for (s, t) in due.iter().zip(&tickers) {
+            self.tried.insert(s.id.clone(), now);
+            let spark = sparks.get(t);
+            let quote = match spark {
+                Some(sp) => sp.quote(matches!(s.exchange(), "NSE" | "BSE")),
+                // Nothing came back at all: the network, not the ticker.
+                None if sparks.is_empty() && !batched.is_empty() => None,
+                None => yahoo.quote(s).ok(),
+            };
+            if let Some((last, prev)) = quote {
+                q.borrow_mut().set(s.id.clone(), last, prev);
+                sent.push(s.id.clone());
+            }
+            if opentern_core::calendar::has_extended_hours(s)
+                && (spark.is_some() || opentern_core::calendar::us_extended(now).is_none())
+            {
+                let ext = spark.and_then(|sp| crate::yahoo::Ext::at(now, sp.price, sp.regular));
+                q.borrow().out.send(Event::Extended { id: s.id.clone(), ext });
+            }
+        }
+        q.borrow().formulas(&sent);
     }
 }
 
@@ -1090,56 +1173,32 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         }
         return;
     }
-    let ext_on = std::cell::Cell::new(false);
-    let extended = || {
-        let now = crate::provider::now_ms();
-        if us.is_empty() || (opentern_core::calendar::us_extended(now).is_none() && !ext_on.get()) {
-            return;
-        }
-        let tickers: Vec<String> = us.iter().map(|(_, t)| t.clone()).collect();
-        let sparks = if opentern_core::calendar::us_extended(now).is_some() {
-            let got = crate::overview::sparks(&tickers, "5d");
-            // A failed poll keeps what was shown.
-            if got.is_empty() {
-                return;
-            }
-            got
-        } else {
-            HashMap::new()
-        };
-        ext_on.set(!sparks.is_empty());
-        for (id, t) in &us {
-            let ext = sparks
-                .get(t)
-                .and_then(|s| crate::yahoo::Ext::at(now, s.price, s.regular));
-            q.borrow().out.send(Event::Extended { id: id.clone(), ext });
-        }
-    };
     let (crypto, others): (Vec<_>, Vec<_>) = plain.into_iter().partition(|s| s.id.starts_with("BINANCE:"));
     let pairs: Vec<String> = crypto.iter().map(|s| s.ticker().to_string()).collect();
+    let mut yq = YahooQuotes {
+        syms: others.clone(),
+        tried: HashMap::new(),
+        round: None,
+    };
     let yahoo = Yahoo::default();
-    let mut last_poll: Option<Instant> = None;
+    let mut keyed_poll: Option<Instant> = None;
     let mut backoff = Duration::from_secs(1);
     loop {
-        // Yahoo symbols: a poll every 30 seconds.
-        let poll_yahoo = |last_poll: &mut Option<Instant>| {
-            if last_poll.is_none_or(|t| t.elapsed() > Duration::from_secs(30)) {
-                *last_poll = Some(Instant::now());
-                extended();
-                for s in &others {
-                    let quote = if yahoo_routed(s) {
-                        yahoo.quote(s).ok()
-                    } else {
-                        daily_quote(s)
-                    };
-                    if let Some((last, prev)) = quote {
+        let mut poll_yahoo = |keyed_poll: &mut Option<Instant>| {
+            yq.poll(&yahoo, &q);
+            // Keyed providers' symbols (Alpaca, Upstox, …): two daily bars
+            // every 30 seconds.
+            if keyed_poll.is_none_or(|t| t.elapsed() > Duration::from_secs(30)) {
+                *keyed_poll = Some(Instant::now());
+                for s in others.iter().filter(|s| !yahoo_routed(s)) {
+                    if let Some((last, prev)) = daily_quote(s) {
                         q.borrow_mut().send(s.id.clone(), last, prev);
                     }
                 }
             }
         };
         if pairs.is_empty() {
-            poll_yahoo(&mut last_poll);
+            poll_yahoo(&mut keyed_poll);
             for _ in 0..10 {
                 if stop(&cmds) {
                     return;
@@ -1154,7 +1213,7 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
             if let Some((pair, last, open)) = item {
                 q.borrow_mut().send(format!("BINANCE:{pair}"), last, open);
             }
-            poll_yahoo(&mut last_poll);
+            poll_yahoo(&mut keyed_poll);
             if stop(&cmds) {
                 stopped = true;
                 return false;
@@ -1169,13 +1228,13 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         }
         // Stocks keep their quotes while Binance is unreachable (they used
         // to freeze until it answered again).
-        poll_yahoo(&mut last_poll);
+        poll_yahoo(&mut keyed_poll);
         let until = Instant::now() + backoff;
         while Instant::now() < until {
             if stop(&cmds) {
                 return;
             }
-            poll_yahoo(&mut last_poll);
+            poll_yahoo(&mut keyed_poll);
             std::thread::sleep(Duration::from_millis(200));
         }
         backoff = (backoff * 2).min(Duration::from_secs(30));

@@ -559,3 +559,122 @@ fn indian_quotes_count_skipped_sessions() {
     println!("SBIN {last} (previous close {prev})");
     assert!(last > 0.0 && prev > 0.0);
 }
+
+/// Yahoo quotes come in batches (spark, twenty a request), shared with the
+/// market overview, equal Yahoo's own per-symbol quote, and come again
+/// every 30 s while the market trades. Run while US stocks trade.
+#[test]
+#[ignore]
+fn yahoo_quotes_are_batched_shared_and_live() {
+    use opentern_data::overview;
+    use std::collections::HashMap;
+    let dir = tempfile::tempdir().unwrap();
+    let hub = Hub::start(dir.path().to_path_buf(), false, Arc::new(|| {}));
+    let us = [
+        "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA", "AVGO", "JPM", "V", "WMT", "XOM", "UNH", "MA", "COST",
+        "HD", "PG", "NFLX", "JNJ", "BAC", "ORCL", "KO",
+    ];
+    let mut symbols: Vec<Symbol> = us
+        .iter()
+        .map(|t| Symbol {
+            kind: opentern_core::AssetKind::Stock,
+            timezone: "America/New_York".into(),
+            ..Symbol::bare(&format!("NASDAQ:{t}"))
+        })
+        .collect();
+    symbols.extend(
+        opentern_core::starter_watchlist()
+            .into_iter()
+            .filter(|s| !s.id.starts_with("BINANCE:")),
+    );
+    symbols.push(Symbol::bare("NSE:RELIANCE"));
+    let formula = "(NASDAQ:AAPL + NASDAQ:MSFT)/2";
+    symbols.push(Symbol::bare(formula));
+    let mut ids: Vec<String> = symbols.iter().map(|s| s.id.clone()).collect();
+    ids.sort();
+    ids.dedup();
+    let before = overview::spark_requests();
+    hub.send(Request::Quotes {
+        symbols: symbols.clone(),
+    });
+    let mut first: HashMap<String, (f64, f64, Instant)> = HashMap::new();
+    let mut again: HashMap<String, Duration> = HashMap::new();
+    let mut shared = None;
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(75) {
+        for e in hub.poll() {
+            if let Event::Quote { id, last, prev } = e {
+                match first.get(&id) {
+                    None => {
+                        first.insert(id, (last, prev, Instant::now()));
+                    }
+                    Some((_, _, at)) => {
+                        again.entry(id).or_insert(at.elapsed());
+                    }
+                }
+                // Right after a round, the overview asking for the same
+                // tickers is answered from it.
+                if shared.is_none() && first.len() == ids.len() {
+                    let before = overview::spark_requests();
+                    let keys: Vec<String> = us.iter().map(|t| t.to_string()).collect();
+                    let prices = overview::prices(overview::Market::Us, &keys, false).unwrap();
+                    assert_eq!(prices.len(), keys.len());
+                    shared = Some(overview::spark_requests() - before);
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let missing: Vec<&String> = ids.iter().filter(|i| !first.contains_key(*i)).collect();
+    println!("{} symbols, quotes for {}; missing {missing:?}", ids.len(), first.len());
+    assert!(missing.is_empty());
+    // Each stock against Yahoo's own quote for it, asked right now.
+    let yahoo = opentern_data::yahoo::Yahoo::default();
+    for s in &symbols {
+        if s.id == formula {
+            continue;
+        }
+        let (last, prev, _) = first[&s.id];
+        let (yl, yp) = yahoo.quote(s).unwrap();
+        println!(
+            "{:<18} batch {last:>10.4} / {prev:>10.4}   own {yl:>10.4} / {yp:>10.4}",
+            s.id
+        );
+        assert!(
+            (prev / yp - 1.0).abs() < 1e-6,
+            "{}: previous close {prev} vs {yp}",
+            s.id
+        );
+        assert!((last / yl - 1.0).abs() < 0.01, "{}: price {last} vs {yl}", s.id);
+    }
+    let (a, m) = (first["NASDAQ:AAPL"].0, first["NASDAQ:MSFT"].0);
+    let f = first[formula].0;
+    assert!((f - (a + m) / 2.0).abs() < 1e-6 * f, "formula {f} vs {}", (a + m) / 2.0);
+    // Requests: the first round in twenties, then one round per 30 s.
+    let sent = overview::spark_requests() - before;
+    println!("spark requests in 75 s: {sent}");
+    for (id, d) in &again {
+        if id.starts_with("NASDAQ:") {
+            println!("{id} again after {:.1} s", d.as_secs_f64());
+        }
+    }
+    if opentern_core::calendar::trading(
+        opentern_core::calendar::Market::Us,
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64,
+    ) {
+        for t in us {
+            let d = again.get(&format!("NASDAQ:{t}")).copied();
+            assert!(
+                d.is_some_and(|d| d < Duration::from_secs(35)),
+                "NASDAQ:{t} not again: {d:?}"
+            );
+        }
+        let n = symbols.len() - 1;
+        assert!(sent <= 3 * n.div_ceil(20) + 3, "{sent} requests for {n} symbols");
+    }
+    println!("overview right after a round: {shared:?} new requests");
+    assert_eq!(shared, Some(0));
+}

@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.13",
+        items: &[
+            Item {
+                icon: ph::LIGHTNING,
+                title: "Live custom indices",
+                body: "Each stock's price and day change in Indices, and the index's own numbers, now follow \
+                       the market every 30 seconds while it trades.",
+                image: None,
+            },
+            Item {
+                icon: ph::ARROWS_CLOCKWISE,
+                title: "Lighter on Yahoo",
+                body: "The watchlist, indices and market overview share one price check, so prices stay fresh \
+                       with far fewer requests.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.12",
         items: &[
             Item {

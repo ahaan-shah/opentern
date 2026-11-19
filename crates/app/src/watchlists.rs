@@ -153,6 +153,9 @@ impl App {
             .paper_symbols()
             .into_iter()
             .chain(self.indices.symbols())
+            // Members too (the board's prices), ticked or not: one batch
+            // request per twenty, shared with everything else.
+            .chain(self.indices.defs.iter().flat_map(|d| d.members.iter().cloned()))
             .chain(charted)
         {
             if !symbols.iter().any(|x| x.id == s.id) {

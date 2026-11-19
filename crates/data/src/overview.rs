@@ -613,6 +613,43 @@ pub(crate) struct Spark {
     pub day: Option<f64>,
 }
 
+impl Spark {
+    /// The watchlist's quote, (last, previous close), as `Yahoo::quote`
+    /// gives it: the regular session's price against the session before.
+    /// Indian stocks take Yahoo's own day change (see above).
+    pub(crate) fn quote(&self, indian: bool) -> Option<(f64, f64)> {
+        if indian
+            && let Some(d) = self.day
+            && self.price > 0.0
+        {
+            // Yahoo rounds the percentage: the close it was measured from
+            // is the one it's nearest (unless that session is one Yahoo's
+            // bars skip).
+            let prev = self.price / (1.0 + d / 100.0);
+            let prev = self
+                .closes
+                .iter()
+                .rev()
+                .take(3)
+                .copied()
+                .find(|c| c.is_finite() && (c / prev - 1.0).abs() < 2e-4)
+                .unwrap_or(prev);
+            if prev.is_finite() && prev > 0.0 {
+                return Some((self.price, prev));
+            }
+        }
+        let closes: Vec<f64> = self.closes.iter().copied().filter(|c| c.is_finite()).collect();
+        // Today's bar may have no close yet (just after the open): then
+        // `regular` is the price and the newest close is the day before's.
+        let prev = if self.closes.last().is_some_and(|c| c.is_finite()) {
+            closes.len().checked_sub(2).map(|i| closes[i])
+        } else {
+            closes.last().copied()
+        }?;
+        (self.regular.is_finite() && self.regular > 0.0 && prev > 0.0).then_some((self.regular, prev))
+    }
+}
+
 /// Parses Yahoo's spark reply, keyed by Yahoo ticker.
 pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
     v.as_object()
@@ -649,9 +686,62 @@ pub(crate) fn parse_spark(v: &serde_json::Value) -> HashMap<String, Spark> {
         .collect()
 }
 
+/// A spark fetched this recently serves anyone who asks for that ticker
+/// (the watchlist's quotes, index members and the overview's tiles share
+/// one fetch instead of asking Yahoo each).
+const SPARK_FRESH: std::time::Duration = std::time::Duration::from_secs(15);
+
+/// Every spark fetched lately: ticker → (when, a long range, spark).
+type SparkCache = Mutex<HashMap<String, (std::time::Instant, bool, Spark)>>;
+
+fn spark_cache() -> &'static SparkCache {
+    static CACHE: std::sync::OnceLock<SparkCache> = std::sync::OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 /// Spark for many Yahoo tickers, daily bars over `range` (`2y`, `5d`):
-/// twenty a request, a few at once.
+/// twenty a request, a few at once. Tickers fetched in the last few
+/// seconds come from the cache (a `2y` spark also answers `5d`).
 pub(crate) fn sparks(tickers: &[String], range: &str) -> HashMap<String, Spark> {
+    let long = range != "5d";
+    let mut cached = HashMap::new();
+    let mut wanted = Vec::new();
+    {
+        let mut c = spark_cache().lock().unwrap_or_else(|e| e.into_inner());
+        c.retain(|_, (at, _, _)| at.elapsed() < SPARK_FRESH);
+        for t in tickers {
+            match c.get(t) {
+                Some((_, l, s)) if *l || !long => {
+                    cached.insert(t.clone(), s.clone());
+                }
+                _ if !wanted.contains(t) => wanted.push(t.clone()),
+                _ => {}
+            }
+        }
+    }
+    let mut got = fetch_sparks(&wanted, range);
+    {
+        let mut c = spark_cache().lock().unwrap_or_else(|e| e.into_inner());
+        let now = std::time::Instant::now();
+        for (t, s) in &got {
+            c.insert(t.clone(), (now, long, s.clone()));
+        }
+    }
+    got.extend(cached);
+    got
+}
+
+/// Spark requests sent so far (tests check the batching with it).
+static SPARK_REQUESTS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+pub fn spark_requests() -> usize {
+    SPARK_REQUESTS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+fn fetch_sparks(tickers: &[String], range: &str) -> HashMap<String, Spark> {
+    if tickers.is_empty() {
+        return HashMap::new();
+    }
     let chunks: Vec<Vec<String>> = tickers.chunks(20).map(|c| c.to_vec()).collect();
     let out = Mutex::new(HashMap::new());
     let next = std::sync::atomic::AtomicUsize::new(0);
@@ -667,6 +757,7 @@ pub(crate) fn sparks(tickers: &[String], range: &str) -> HashMap<String, Spark> 
                         "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range={range}&interval=1d",
                         list.join(",")
                     );
+                    SPARK_REQUESTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     if let Ok(v) = provider::get_json(&agent, &url)
                         && let Ok(mut o) = out.lock()
                     {
@@ -1617,6 +1708,39 @@ mod tests {
         assert!((m.change(Period::Month) - (110.0 / 125.0 - 1.0) * 100.0).abs() < 1e-9);
         assert!(m.change[3].is_nan());
         assert!((m.change[4] - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_sparks_quote_is_the_regular_price_against_the_session_before() {
+        let sp = |closes: Vec<f64>, price: f64, day: Option<f64>| Spark {
+            price,
+            regular: closes.last().copied().filter(|c| c.is_finite()).unwrap_or(price),
+            times: (0..closes.len() as i64).collect(),
+            closes,
+            day,
+        };
+        // In the session: today's bar is the newest.
+        assert_eq!(
+            sp(vec![10.0, 11.0, 12.0], 12.0, Some(9.0)).quote(false),
+            Some((12.0, 11.0))
+        );
+        // After hours: `price` is an extended trade; the quote stays regular.
+        assert_eq!(sp(vec![10.0, 11.0, 12.0], 12.5, None).quote(false), Some((12.0, 11.0)));
+        // Today's bar has no close yet.
+        assert_eq!(
+            sp(vec![10.0, 11.0, f64::NAN], 11.5, None).quote(false),
+            Some((11.5, 11.0))
+        );
+        // Indian stocks: Yahoo's own day change.
+        let (l, p) = sp(vec![90.0, f64::NAN], 101.0, Some(1.0)).quote(true).unwrap();
+        assert_eq!(l, 101.0);
+        assert!((p - 100.0).abs() < 1e-9);
+        // Its rounded percentage, from a close it has.
+        assert_eq!(
+            sp(vec![1363.0, f64::NAN], 1375.6, Some(0.924)).quote(true),
+            Some((1375.6, 1363.0))
+        );
+        assert_eq!(sp(vec![12.0], 12.0, None).quote(false), None);
     }
 
     #[test]

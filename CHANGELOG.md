@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.13 (2026-11-20)
+
+Custom indices now update live, and Yahoo prices come from one shared batch request.
+
+### Changed
+- **Custom index stocks update live.** Each stock's price and day change in the Indices tab, and the index's own figures, now follow the market every 30 seconds while it trades (they used to wait up to 15 minutes).
+- **Far fewer requests to Yahoo.** The watchlist, custom indices and the market overview now share one batch request per 20 symbols every 30 seconds (it used to be one request per symbol). Symbols whose market is closed are checked once after the close, then every 5 minutes. The market overview's full refresh runs only while its market trades, plus once after the close.
+
+### Fixed
+- **Email alerts are safer.** The mail library is updated to fix six security issues (published 17 Nov 2026), including a hostile mail server forging replies or crashing the app.
+
 ## 0.2.12 (2026-11-15)
 
 A heatmap of all your custom indices, pre-market and after-hours prices

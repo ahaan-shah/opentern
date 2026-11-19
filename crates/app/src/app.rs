@@ -1089,6 +1089,7 @@ impl App {
                         }
                     }
                     self.quote_at.insert(id.clone(), std::time::Instant::now());
+                    self.indices_quote(&id, last);
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Fetched {

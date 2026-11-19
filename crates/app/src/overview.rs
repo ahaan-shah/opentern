@@ -367,8 +367,15 @@ impl App {
         }
         let m = self.overview.market;
         let now = jiff::Timestamp::now().as_millisecond();
+        // A board is rebuilt every few minutes while the market trades, and
+        // once after it closes; a closed market's numbers can't change
+        // (checked again each minute, so the open is noticed).
         let fresh_for = self.overview.boards.get(&m).map_or(Duration::ZERO, |b| {
-            REFRESH.saturating_sub(Duration::from_millis((now - b.at).max(0) as u64))
+            if trading(m, now) || traded_since(m, b.at, now) {
+                REFRESH.saturating_sub(Duration::from_millis((now - b.at).max(0) as u64))
+            } else {
+                Duration::from_secs(60)
+            }
         });
         let retry_in = self
             .overview
@@ -929,11 +936,21 @@ pub(crate) struct MapSpec<'a> {
 /// Whether a market's prices move now (US stocks include pre-market and
 /// after hours, for the hover card's figure).
 fn trading(m: Market, now_ms: i64) -> bool {
+    opentern_core::calendar::trading(cal_market(m), now_ms)
+}
+
+/// Whether the market traded after a board built at `at`: a session (US:
+/// with its after hours) ended in between. Only asked while it's closed.
+fn traded_since(m: Market, at: i64, now_ms: i64) -> bool {
+    opentern_core::calendar::closed_between(cal_market(m), at, now_ms)
+}
+
+fn cal_market(m: Market) -> opentern_core::calendar::Market {
     use opentern_core::calendar as cal;
     match m {
-        Market::Crypto => true,
-        Market::Us => cal::state(cal::Market::Us, now_ms) == cal::State::Open || cal::us_extended(now_ms).is_some(),
-        Market::India => cal::state(cal::Market::India, now_ms) == cal::State::Open,
+        Market::Crypto => cal::Market::Crypto,
+        Market::Us => cal::Market::Us,
+        Market::India => cal::Market::India,
     }
 }
 
@@ -993,6 +1010,39 @@ pub(crate) fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Boar
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_closed_market_is_rebuilt_once_after_its_close() {
+        let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        // Thu 19 Nov 2026. US: regular 14:30–21:00 UTC, after hours to 01:00.
+        let us = Market::Us;
+        assert!(traded_since(us, ms("2026-11-19T20:58:00Z"), ms("2026-11-20T02:00:00Z")));
+        assert!(traded_since(us, ms("2026-11-20T00:59:00Z"), ms("2026-11-20T02:00:00Z")));
+        assert!(!traded_since(
+            us,
+            ms("2026-11-20T01:01:00Z"),
+            ms("2026-11-20T06:00:00Z")
+        ));
+        // Built Friday night, looked at on Sunday: nothing traded.
+        assert!(!traded_since(
+            us,
+            ms("2026-11-21T02:00:00Z"),
+            ms("2026-11-22T18:00:00Z")
+        ));
+        // India: 09:15–15:30 IST = 03:45–10:00 UTC.
+        let india = Market::India;
+        assert!(traded_since(
+            india,
+            ms("2026-11-19T09:58:00Z"),
+            ms("2026-11-19T12:00:00Z")
+        ));
+        assert!(!traded_since(
+            india,
+            ms("2026-11-19T10:02:00Z"),
+            ms("2026-11-19T20:00:00Z")
+        ));
+        assert!(trading(Market::Crypto, ms("2026-11-21T10:00:00Z")));
+    }
 
     #[test]
     fn a_sectors_change_is_its_total_caps() {

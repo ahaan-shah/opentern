@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.12):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.13):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -1626,6 +1626,31 @@ every data change (scripts re-run on it).
   7 kept, off the UI thread); the can't-open error points at them.
 - Live-tested 12 Nov 2026: US closes matched Nasdaq for 33 sessions on 4
   symbols; Binance vs Coinbase median gap 0.13%.
+
+### One Yahoo price feed (0.2.13, Nov 2026)
+- **Quotes** (`hub::YahooQuotes` in the quote worker): every Yahoo-routed
+  symbol (watchlist, paper, charted US stocks, custom indices and **all
+  their members**) goes in one spark batch (20 a request), every 30 s
+  while its market trades (`calendar::trading`, US incl. extended hours),
+  once more after the close (`calendar::closed_between`), else every
+  5 min. `Spark::quote` = regular price vs the session before (Indian:
+  Yahoo's day change, snapped to the close it rounds from). The same
+  spark gives the extended-hours price. **Forex (`=X`) stays on
+  `Yahoo::quote`: spark rounds it to 4 decimals.** A ticker spark leaves
+  out is asked on its own. Formulas/indices are recomputed once per batch.
+- **`overview::sparks` caches each reply for 15 s**, so the overview's
+  30 s prices, its full board (`2y` answers `5d`) and the quote worker share
+  fetches (`overview::spark_requests()` counts them). Charts still poll
+  their own bars (spark has no volume or intraday bars).
+- **Index members are live:** `App::indices_quote` puts each member's quote
+  on its daily bars (`take_quote`: moves today's bar or starts it once
+  `calendar::session_day` says the session opened), so the board, weights
+  and the map follow the market; the 15-min `STALE` download stays for
+  history and fundamentals.
+- The overview's 3-min full rebuild runs only while its market trades, plus
+  once after the close.
+- Live check (ignored; run while US stocks trade): `cargo test -p
+  opentern-data --test live yahoo_quotes_are_batched -- --ignored --nocapture`.
 
 ### Splits in cached prices, index tick boxes (0.2.7, Nov 2026)
 - **The cache kept pre-split prices** (it only ever appended), so a split

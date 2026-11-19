@@ -996,6 +996,35 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
     board
 }
 
+/// A live price on a member's daily bars: it moves today's bar (`today`,
+/// dated like daily bars), or starts it when the bars end before today.
+/// Whether anything changed.
+fn take_quote(bars: &mut Vec<Bar>, today: Option<i64>, last: f64) -> bool {
+    let (Some(today), Some(newest)) = (today, bars.last_mut()) else {
+        return false;
+    };
+    if newest.time == today {
+        if newest.close == last {
+            return false;
+        }
+        newest.close = last;
+        newest.high = newest.high.max(last);
+        newest.low = newest.low.min(last);
+    } else if newest.time < today {
+        bars.push(Bar {
+            time: today,
+            open: last,
+            high: last,
+            low: last,
+            close: last,
+            volume: 0.0,
+        });
+    } else {
+        return false;
+    }
+    true
+}
+
 /// Every member's bars that arrived.
 fn bars_of(data: &HashMap<String, MemberData>) -> HashMap<String, &[Bar]> {
     data.iter()
@@ -1339,8 +1368,44 @@ impl App {
             d.bars = Some(result);
         }
         d.bars_at = Some(Instant::now());
+        // The bars may be minutes old: the live quote goes on top.
+        if let Some((last, _)) = self.quotes.get(id).copied() {
+            self.indices_quote(id, last);
+        }
         self.indices.version += 1;
         self.indices_settle();
+    }
+
+    /// A member's live price (the quote worker's, every 30 s while its
+    /// market trades) moves its newest daily bar, or starts today's once
+    /// the session has opened. So prices, 1D, weights and the index's own
+    /// numbers follow the market between the bars' downloads.
+    pub(crate) fn indices_quote(&mut self, id: &str, last: f64) {
+        if self.demo || !(last.is_finite() && last > 0.0) {
+            return;
+        }
+        let Some(sym) = self
+            .indices
+            .defs
+            .iter()
+            .flat_map(|d| d.members.iter())
+            .find(|m| m.id == id)
+            .cloned()
+        else {
+            return;
+        };
+        let Some(MemberData {
+            bars: Some(Ok(bars)), ..
+        }) = self.indices.data.get_mut(id)
+        else {
+            return;
+        };
+        let now = jiff::Timestamp::now().as_millisecond();
+        let today = opentern_core::calendar::session_day(opentern_core::calendar::Market::of(&sym), now);
+        if !take_quote(bars, today, last) {
+            return;
+        }
+        self.indices.version += 1;
     }
 
     pub(crate) fn indices_fundamentals(&mut self, id: &str, result: Result<Fundamentals, String>) {
@@ -3024,6 +3089,36 @@ mod tests {
             weighting: w,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn a_live_price_moves_todays_bar_or_starts_it() {
+        let mut b = bars(&[100.0, 110.0]);
+        // Before the session: nothing.
+        assert!(!take_quote(&mut b, None, 111.0));
+        // Today's bar is the newest: its close follows.
+        assert!(take_quote(&mut b, Some(DAY), 115.0));
+        assert_eq!((b.len(), b[1].close, b[1].high), (2, 115.0, 115.0));
+        assert!(!take_quote(&mut b, Some(DAY), 115.0));
+        // The download ended yesterday: today's bar starts.
+        assert!(take_quote(&mut b, Some(2 * DAY), 120.0));
+        assert_eq!((b.len(), b[2].time, b[2].close), (3, 2 * DAY, 120.0));
+        // A newer bar than the quote's day is left alone.
+        assert!(!take_quote(&mut b, Some(DAY), 1.0));
+        // The board follows: price and 1D from the moved bar.
+        let d = def(&["A"], Weighting::Equal);
+        let data: HashMap<String, MemberData> = [(
+            "A".to_string(),
+            MemberData {
+                bars: Some(Ok(b)),
+                ..Default::default()
+            },
+        )]
+        .into_iter()
+        .collect();
+        let row = &board_for(&d, &data).rows[0];
+        assert_eq!(row.price, 120.0);
+        assert!((row.change - (120.0 / 115.0 - 1.0) * 100.0).abs() < 1e-9);
     }
 
     #[test]

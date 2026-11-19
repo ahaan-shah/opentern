@@ -608,6 +608,45 @@ pub fn us_extended(t: i64) -> Option<Extended> {
     }
 }
 
+/// The daily bar a price at `t` (ms) belongs to, dated like daily bars
+/// (00:00 UTC of the exchange-local date): today's once its session has
+/// opened, `None` before that or on a day with none. Crypto: the UTC
+/// day. Other markets: `None` (their daily bars' dates vary by source).
+pub fn session_day(m: Market, t: i64) -> Option<i64> {
+    let z = jiff::Timestamp::from_millisecond(t).ok()?.to_zoned(m.tz());
+    let d = z.date();
+    let started = match m {
+        Market::Us | Market::India => session(m, d).is_some_and(|(open, _)| t >= open),
+        Market::Crypto => true,
+        _ => false,
+    };
+    if !started {
+        return None;
+    }
+    Some(d.to_zoned(jiff::tz::TimeZone::UTC).ok()?.timestamp().as_millisecond())
+}
+
+/// Four hours of US after-hours trading after each close.
+const AFTER_HOURS: i64 = 4 * 3_600_000;
+
+/// Whether prices can move at `t` (ms): the market is open, or US stocks
+/// are in pre-market or after hours.
+pub fn trading(m: Market, t: i64) -> bool {
+    state(m, t) == State::Open || (m == Market::Us && us_extended(t).is_some())
+}
+
+/// Whether trading ended for a while somewhere in `(from, to]`: a price
+/// fetched at `from` may have moved before the market shut, so it's worth
+/// one more look. US sessions end with their after hours. Markets with no
+/// set sessions: whether they were trading at `from`.
+pub fn closed_between(m: Market, from: i64, to: i64) -> bool {
+    match m {
+        Market::Us => last_close_in(m, from - AFTER_HOURS, to - AFTER_HOURS).is_some(),
+        Market::India => last_close_in(m, from, to).is_some(),
+        _ => trading(m, from) && !trading(m, to),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -841,5 +880,56 @@ mod tests {
         );
         assert_eq!(state(Market::Forex, ms("2025-07-07T12:00:00Z")), State::Open);
         assert_eq!(state(Market::Crypto, ms("2025-07-05T12:00:00Z")), State::Open);
+    }
+
+    #[test]
+    fn trading_and_closing() {
+        let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        // Thu 19 Nov 2026: US regular 14:30–21:00 UTC, after hours to 01:00.
+        assert!(trading(Market::Us, ms("2026-11-19T10:00:00Z")));
+        assert!(trading(Market::Us, ms("2026-11-20T00:30:00Z")));
+        assert!(!trading(Market::Us, ms("2026-11-20T02:00:00Z")));
+        assert!(closed_between(
+            Market::Us,
+            ms("2026-11-20T00:59:00Z"),
+            ms("2026-11-20T01:05:00Z")
+        ));
+        assert!(!closed_between(
+            Market::Us,
+            ms("2026-11-20T01:01:00Z"),
+            ms("2026-11-20T09:00:00Z")
+        ));
+        // India: 03:45–10:00 UTC.
+        assert!(closed_between(
+            Market::India,
+            ms("2026-11-19T09:59:40Z"),
+            ms("2026-11-19T10:00:10Z")
+        ));
+        assert!(!closed_between(
+            Market::India,
+            ms("2026-11-19T10:00:10Z"),
+            ms("2026-11-19T23:00:00Z")
+        ));
+        assert!(closed_between(
+            Market::Forex,
+            ms("2026-11-20T21:59:00Z"),
+            ms("2026-11-20T22:01:00Z")
+        ));
+    }
+
+    #[test]
+    fn a_price_belongs_to_todays_bar_once_the_session_opens() {
+        let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let day = ms("2026-11-19T00:00:00Z");
+        assert_eq!(session_day(Market::Us, ms("2026-11-19T13:00:00Z")), None);
+        assert_eq!(session_day(Market::Us, ms("2026-11-19T15:00:00Z")), Some(day));
+        assert_eq!(session_day(Market::Us, ms("2026-11-20T00:30:00Z")), Some(day));
+        assert_eq!(session_day(Market::India, ms("2026-11-19T03:00:00Z")), None);
+        assert_eq!(session_day(Market::India, ms("2026-11-19T12:00:00Z")), Some(day));
+        assert_eq!(session_day(Market::Us, ms("2026-11-21T15:00:00Z")), None);
+        assert_eq!(
+            session_day(Market::Crypto, ms("2026-11-21T15:00:00Z")),
+            Some(ms("2026-11-21T00:00:00Z"))
+        );
     }
 }
