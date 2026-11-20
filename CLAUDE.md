@@ -1640,7 +1640,25 @@ every data change (scripts re-run on it).
   out is asked on its own. Formulas/indices are recomputed once per batch.
 - **`overview::sparks` caches each reply for 15 s**, so the overview's
   30 s prices, its full board (`2y` answers `5d`) and the quote worker share
-  fetches (`overview::spark_requests()` counts them). Charts still poll
+  fetches (`overview::spark_requests()` counts them). The quote worker also
+  applies any spark the overview fetched (`overview::cached_sparks`, newer than
+  `YahooQuotes::seen`) at once and counts its next turn from it, so the
+  watchlist and the map change together.
+  In the app, `App::spread_quote` passes every quote (and a chart's newer
+  price) to the overview's tiles (`Board::quote`) and hotlist rows, so a
+  symbol shows one price everywhere. The India hotlist uses `overview::sparks`.
+  The other way: `share_board` (after overview prices or a board) and
+  `share_hotlist` (a new hotlist) write symbols the feed doesn't cover
+  (`!App::quoted`) into `App::quotes` and on to the other view; covered
+  ones take the table's price instead.
+  Crypto hotlists rank by Binance's rolling 24 h change (only the price is
+  shared there).
+  Every charted symbol is in the quote subscription (not only US stocks).
+  Bybit/OKX/Coinbase/Kraken pairs get one stream thread each in the quote
+  worker (`hub::stream_quote`, 1D bars, ≤ 1 update/s; `PairStreams` stops
+  them with the worker). Keyed providers still use `daily_quote` every 30 s:
+  Alpaca's free plan allows one websocket (the chart's), and Upstox/IBKR
+  would need batched quote calls nobody can test without an account. Charts still poll
   their own bars (spark has no volume or intraday bars).
 - **Index members are live:** `App::indices_quote` puts each member's quote
   on its daily bars (`take_quote`: moves today's bar or starts it once

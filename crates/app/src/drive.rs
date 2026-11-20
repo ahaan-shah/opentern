@@ -337,6 +337,66 @@ mod tests {
     }
 
     #[test]
+    fn one_price_per_symbol_across_map_and_hotlist() {
+        use opentern_data::feeds::HotRow;
+        use opentern_data::overview::{Market, Period};
+        let mut d = Driver::new("map-hotlist-price");
+        let button = d.app.overview.drawn.borrow().button.expect("the top-bar button");
+        d.click(button.center());
+        d.wait(|a| a.overview.boards.contains_key(&Market::Us));
+        // Demo boards aren't refreshed between rebuilds, so they have no keys.
+        for m in &mut d.app.overview.boards.get_mut(&Market::Us).unwrap().members {
+            m.key = opentern_data::yahoo::ticker(&m.symbol.id);
+        }
+        let board = &d.app.overview.boards[&Market::Us];
+        // A stock only on the map, and one the quote feed covers.
+        let only = board
+            .members
+            .iter()
+            .find(|m| !m.key.is_empty() && !d.app.quoted.contains(&m.symbol.id))
+            .unwrap()
+            .clone();
+        let fed = board
+            .members
+            .iter()
+            .find(|m| m.key != only.key && !m.key.is_empty())
+            .unwrap()
+            .clone();
+        d.app.quoted.push(fed.symbol.id.clone());
+        d.app
+            .quotes
+            .insert(fed.symbol.id.clone(), (fed.price * 1.05, fed.price));
+        let row = |m: &opentern_data::overview::Member, last: f64| HotRow {
+            symbol: m.symbol.clone(),
+            last,
+            change_pct: 2.0,
+            volume: 0.0,
+        };
+        // The hotlist fetched a newer price for the map-only stock, and an
+        // older one for the fed stock.
+        d.app.side.hot = Some(Ok(vec![row(&only, only.price * 1.1), row(&fed, fed.price)]));
+        d.app.share_hotlist();
+        let tile = |d: &Driver, id: &str| {
+            d.app.overview.boards[&Market::Us]
+                .members
+                .iter()
+                .find(|m| m.symbol.id == id)
+                .unwrap()
+                .clone()
+        };
+        let t = tile(&d, &only.symbol.id);
+        assert!((t.price - only.price * 1.1).abs() < 1e-9);
+        assert!((t.change(Period::Day) - 2.0).abs() < 1e-9);
+        assert_eq!(d.app.quotes[&only.symbol.id].0, only.price * 1.1);
+        // The feed's price wins for the fed stock, on the row and the tile.
+        let Some(Ok(rows)) = &d.app.side.hot else { panic!() };
+        assert_eq!(rows[1].last, fed.price * 1.05);
+        d.app.share_board(Market::Us);
+        assert_eq!(tile(&d, &fed.symbol.id).price, fed.price * 1.05);
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
     fn market_overview_opens_zooms_and_opens_a_chart() {
         use opentern_data::overview::{Market, Period};
         let mut d = Driver::new("overview");

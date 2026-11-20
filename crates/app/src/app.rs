@@ -578,9 +578,11 @@ impl App {
             if self.ext_recent.len() > crate::watchlists::RECENT_EXT {
                 self.ext_recent.remove(0);
             }
-            if !self.quoted.contains(&sym.id) {
-                self.quotes_due = true;
-            }
+        }
+        // Every charted symbol is quoted, so its price reaches the
+        // watchlist, the market overview and the hotlist together.
+        if !self.quoted.contains(&sym.id) {
+            self.quotes_due = true;
         }
         self.hub.send(Request::Close { chart: self.chart.id });
         self.chart.id = crate::chart::new_session_id();
@@ -1046,11 +1048,18 @@ impl App {
         }
         // A symbol on a chart shows the chart's price in the watchlist too
         // (whichever arrived last has already reached the chart).
+        let mut moved = Vec::new();
         let slots = self.slots.iter().flatten().map(|s| &s.chart);
         for c in std::iter::once(&self.chart).chain(slots) {
-            if let (Some(p), Some(q)) = (c.last_price(), self.quotes.get_mut(&c.symbol.id)) {
+            if let (Some(p), Some(q)) = (c.last_price(), self.quotes.get_mut(&c.symbol.id))
+                && q.0 != p
+            {
                 q.0 = p;
+                moved.push((c.symbol.id.clone(), p, q.1));
             }
+        }
+        for (id, last, prev) in moved {
+            self.spread_quote(&id, last, prev);
         }
     }
 
@@ -1090,6 +1099,7 @@ impl App {
                     }
                     self.quote_at.insert(id.clone(), std::time::Instant::now());
                     self.indices_quote(&id, last);
+                    self.spread_quote(&id, last, prev);
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Fetched {

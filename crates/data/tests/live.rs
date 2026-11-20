@@ -678,3 +678,41 @@ fn yahoo_quotes_are_batched_shared_and_live() {
     println!("overview right after a round: {shared:?} new requests");
     assert_eq!(shared, Some(0));
 }
+
+/// Bybit, OKX, Coinbase and Kraken pairs in the watchlist tick live (their
+/// own streams), not every 30 seconds.
+#[test]
+#[ignore]
+fn other_exchanges_quote_live() {
+    let dir = tempfile::tempdir().unwrap();
+    let hub = Hub::start(dir.path().to_path_buf(), false, Arc::new(|| {}));
+    let ids = ["BYBIT:BTCUSDT", "OKX:BTCUSDT", "COINBASE:BTCUSD", "KRAKEN:BTCUSD"];
+    let symbols: Vec<Symbol> = ids.iter().copied().map(crypto).collect();
+    hub.send(Request::Quotes { symbols });
+    let mut seen: std::collections::HashMap<String, Vec<f64>> = Default::default();
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(25) {
+        for e in hub.poll() {
+            if let Event::Quote { id, last, prev } = e {
+                assert!(last > 0.0 && prev > 0.0, "{id}: {last} {prev}");
+                seen.entry(id).or_default().push(last);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    for id in ids {
+        let n = seen.get(id).map_or(0, |v| v.len());
+        println!(
+            "{id}: {n} quotes in 25 s, last {:?}",
+            seen.get(id).and_then(|v| v.last())
+        );
+    }
+    // Each pair updated several times (a 30 s poll would give one).
+    let live = ids
+        .iter()
+        .filter(|id| seen.get(**id).is_some_and(|v| v.len() >= 3))
+        .count();
+    assert!(live >= 3, "{seen:?}");
+    // No faster than once a second each.
+    assert!(seen.values().all(|v| v.len() <= 27), "{seen:?}");
+}

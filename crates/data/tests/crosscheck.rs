@@ -170,6 +170,11 @@ fn indian_closes_agree_across_nse_and_bse() {
         let from = *n.keys().next().unwrap().max(b.keys().next().unwrap());
         let nd: Vec<_> = n.range(from..).map(|(t, _)| *t).collect();
         let bd: Vec<_> = b.range(from..).map(|(t, _)| *t).collect();
+        if nd != bd {
+            let only_n: Vec<_> = nd.iter().filter(|d| !bd.contains(d)).collect();
+            let only_b: Vec<_> = bd.iter().filter(|d| !nd.contains(d)).collect();
+            println!("DIFF {t}: NSE only {only_n:?}, BSE only {only_b:?}");
+        }
         assert_eq!(nd, bd, "{t}: NSE and BSE trading days differ");
         for d in &nd {
             let gap = rel(n[d].close, b[d].close);

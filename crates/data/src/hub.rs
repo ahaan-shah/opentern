@@ -15,6 +15,7 @@ use jiff::tz::TimeZone;
 use opentern_core::{Bar, Symbol, Timeframe};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
@@ -606,6 +607,94 @@ fn yahoo_routed(sym: &Symbol) -> bool {
     }
 }
 
+/// Crypto exchanges other than Binance: their public streams are free and
+/// take many connections, so each watched pair gets its own (Binance's
+/// pairs share one combined stream instead).
+fn streams_quotes(sym: &Symbol) -> bool {
+    matches!(sym.exchange(), "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+}
+
+/// A pair's live price and previous daily close, from the exchange's own
+/// stream of daily bars (as its chart gets them), until `stop` is set.
+/// Reconnects with backoff.
+fn stream_quote(sym: Symbol, tx: Sender<(String, f64, f64)>, stop: Arc<AtomicBool>) {
+    let Some(day) = Timeframe::parse("1D") else { return };
+    let stopped = || stop.load(Ordering::Relaxed);
+    let mut backoff = Duration::from_secs(1);
+    while !stopped() {
+        let started = Instant::now();
+        let p = provider_for(&sym, false);
+        if let Ok(bars) = p.latest(&sym, day, 2)
+            && let Some(&last) = bars.last()
+        {
+            let mut prev = if bars.len() >= 2 {
+                bars[bars.len() - 2].close
+            } else {
+                last.open
+            };
+            let (mut today, mut close) = (last.time, last.close);
+            let _ = tx.send((sym.id.clone(), close, prev));
+            // At most one update a second (Coinbase sends every trade).
+            let (mut sent, mut pending) = (Instant::now(), false);
+            let _ = p.stream(&sym, day, &mut |item| {
+                if let Live::Bar(b) = item {
+                    // A new day: yesterday's last price is the new base.
+                    if b.time > today {
+                        (prev, today) = (close, b.time);
+                    }
+                    if b.time == today && b.close != close {
+                        close = b.close;
+                        pending = true;
+                    }
+                }
+                if pending && sent.elapsed() >= Duration::from_secs(1) {
+                    let _ = tx.send((sym.id.clone(), close, prev));
+                    (sent, pending) = (Instant::now(), false);
+                }
+                !stopped()
+            });
+        }
+        if started.elapsed() > Duration::from_secs(60) {
+            backoff = Duration::from_secs(1);
+        }
+        let until = Instant::now() + backoff;
+        while Instant::now() < until && !stopped() {
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        backoff = (backoff * 2).min(Duration::from_secs(30));
+    }
+}
+
+/// The quote worker's per-pair streams (`stream_quote`), stopped when
+/// dropped (the worker restarts with every new set of symbols).
+#[derive(Default)]
+struct PairStreams {
+    running: HashMap<String, Arc<AtomicBool>>,
+}
+
+impl PairStreams {
+    fn start(&mut self, sym: &Symbol, tx: &Sender<(String, f64, f64)>) {
+        if self.running.contains_key(&sym.id) {
+            return;
+        }
+        let stop = Arc::new(AtomicBool::new(false));
+        self.running.insert(sym.id.clone(), stop.clone());
+        let (sym, tx) = (sym.clone(), tx.clone());
+        std::thread::Builder::new()
+            .name("quote-stream".into())
+            .spawn(move || stream_quote(sym, tx, stop))
+            .ok();
+    }
+}
+
+impl Drop for PairStreams {
+    fn drop(&mut self) {
+        for stop in self.running.values() {
+            stop.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
 /// Last price and previous close from the source's daily bars (for
 /// sources without a quote API).
 fn daily_quote(sym: &Symbol) -> Option<(f64, f64)> {
@@ -1061,6 +1150,8 @@ struct YahooQuotes {
     syms: Vec<Symbol>,
     /// When each symbol was last asked for (ms).
     tried: HashMap<String, i64>,
+    /// The newest spark used per ticker (fetched here or by the overview).
+    seen: HashMap<String, Instant>,
     round: Option<Instant>,
 }
 
@@ -1082,6 +1173,35 @@ impl YahooQuotes {
         }
         self.round = Some(Instant::now());
         let now = crate::provider::now_ms();
+        let mut sent = Vec::new();
+        // Sparks the market overview fetched since: used at once (and the
+        // symbol's next turn counted from them), so the watchlist and the
+        // map change together instead of up to 30 s apart.
+        let routed: Vec<(Symbol, String)> = self
+            .syms
+            .iter()
+            .filter(|s| yahoo_routed(s))
+            .map(|s| (s.clone(), crate::yahoo::ticker(&s.id)))
+            .filter(|(_, t)| !t.ends_with("=X"))
+            .collect();
+        let tickers: Vec<String> = routed.iter().map(|(_, t)| t.clone()).collect();
+        let fresh = crate::overview::cached_sparks(&tickers);
+        for (s, t) in &routed {
+            let Some((at, sp)) = fresh.get(t) else { continue };
+            if self.seen.get(t).is_some_and(|seen| seen >= at) {
+                continue;
+            }
+            self.seen.insert(t.clone(), *at);
+            self.tried.insert(s.id.clone(), now - at.elapsed().as_millis() as i64);
+            if let Some((last, prev)) = sp.quote(matches!(s.exchange(), "NSE" | "BSE")) {
+                q.borrow_mut().set(s.id.clone(), last, prev);
+                sent.push(s.id.clone());
+            }
+            if opentern_core::calendar::has_extended_hours(s) {
+                let ext = crate::yahoo::Ext::at(now, sp.price, sp.regular);
+                q.borrow().out.send(Event::Extended { id: s.id.clone(), ext });
+            }
+        }
         // Symbols a keyed provider serves (keys can change while running)
         // are the worker's other loop's.
         let due: Vec<Symbol> = self
@@ -1091,6 +1211,7 @@ impl YahooQuotes {
             .cloned()
             .collect();
         if due.is_empty() {
+            q.borrow().formulas(&sent);
             return;
         }
         let tickers: Vec<String> = due.iter().map(|s| crate::yahoo::ticker(&s.id)).collect();
@@ -1098,7 +1219,10 @@ impl YahooQuotes {
         // came as 1.0993): they're asked on their own.
         let batched: Vec<String> = tickers.iter().filter(|t| !t.ends_with("=X")).cloned().collect();
         let sparks = crate::overview::sparks(&batched, "5d");
-        let mut sent = Vec::new();
+        let got = Instant::now();
+        for t in sparks.keys() {
+            self.seen.insert(t.clone(), got);
+        }
         for (s, t) in due.iter().zip(&tickers) {
             self.tried.insert(s.id.clone(), now);
             let spark = sparks.get(t);
@@ -1178,19 +1302,36 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
     let mut yq = YahooQuotes {
         syms: others.clone(),
         tried: HashMap::new(),
+        seen: HashMap::new(),
         round: None,
     };
     let yahoo = Yahoo::default();
+    let (pair_tx, pair_rx) = unbounded();
+    let mut pair_streams = PairStreams::default();
     let mut keyed_poll: Option<Instant> = None;
     let mut backoff = Duration::from_secs(1);
     loop {
         let mut poll_yahoo = |keyed_poll: &mut Option<Instant>| {
             yq.poll(&yahoo, &q);
+            // Bybit, OKX, Coinbase and Kraken pairs: live, from their streams.
+            let streamed: Vec<String> = pair_rx
+                .try_iter()
+                .map(|(id, last, prev): (String, f64, f64)| {
+                    q.borrow_mut().set(id.clone(), last, prev);
+                    id
+                })
+                .collect();
+            if !streamed.is_empty() {
+                q.borrow().formulas(&streamed);
+            }
             // Keyed providers' symbols (Alpaca, Upstox, …): two daily bars
             // every 30 seconds.
             if keyed_poll.is_none_or(|t| t.elapsed() > Duration::from_secs(30)) {
                 *keyed_poll = Some(Instant::now());
-                for s in others.iter().filter(|s| !yahoo_routed(s)) {
+                for s in others.iter().filter(|s| streams_quotes(s)) {
+                    pair_streams.start(s, &pair_tx);
+                }
+                for s in others.iter().filter(|s| !yahoo_routed(s) && !streams_quotes(s)) {
                     if let Some((last, prev)) = daily_quote(s) {
                         q.borrow_mut().send(s.id.clone(), last, prev);
                     }

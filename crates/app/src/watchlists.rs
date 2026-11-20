@@ -147,7 +147,6 @@ impl App {
             .chain(self.slots.iter().flatten().map(|s| &s.chart))
             .map(|c| c.symbol.clone())
             .chain(self.ext_recent.iter().cloned())
-            .filter(has_extended_hours)
             .collect();
         for s in self
             .paper_symbols()

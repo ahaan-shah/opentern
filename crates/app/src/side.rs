@@ -55,6 +55,7 @@ impl App {
         match e {
             opentern_data::Event::Hotlist { seq, result } if seq == self.side.hot_seq => {
                 self.side.hot = Some(result);
+                self.share_hotlist();
             }
             opentern_data::Event::News { seq, result } if seq == self.side.news_seq => {
                 self.side.news = Some(result);

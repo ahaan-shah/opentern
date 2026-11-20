@@ -321,6 +321,110 @@ impl App {
         self.hub.send(opentern_data::Request::Overview { seq, market: m });
     }
 
+    /// A quote for `id` (the watchlist's feed, or a chart's newest bar)
+    /// reaches every other place that shows that symbol's price: the
+    /// market overview's tiles and the hotlist. One price per symbol at
+    /// any moment, whichever fetch brought it.
+    pub(crate) fn spread_quote(&mut self, id: &str, last: f64, prev: f64) {
+        self.boards_quote(id, last, prev);
+        self.hot_quote(id, last, prev);
+    }
+
+    fn boards_quote(&mut self, id: &str, last: f64, prev: f64) {
+        if !(last.is_finite() && last > 0.0) {
+            return;
+        }
+        let key = match id.strip_prefix("BINANCE:") {
+            Some(pair) => pair.to_string(),
+            None => opentern_data::yahoo::ticker(id),
+        };
+        for b in self.overview.boards.values_mut() {
+            b.quote(&key, last, prev);
+        }
+    }
+
+    fn hot_quote(&mut self, id: &str, last: f64, prev: f64) {
+        if !(last.is_finite() && last > 0.0) {
+            return;
+        }
+        if let Some(Ok(rows)) = &mut self.side.hot {
+            for r in rows.iter_mut().filter(|r| r.symbol.id == id) {
+                r.last = last;
+                // Crypto hotlists rank by Binance's rolling 24 hours, not
+                // the day's change: only the price is shared there.
+                if !id.starts_with("BINANCE:") && prev.is_finite() && prev > 0.0 {
+                    r.change_pct = (last / prev - 1.0) * 100.0;
+                }
+            }
+        }
+    }
+
+    /// After the overview fetched a market's prices: symbols the quote feed
+    /// covers show the feed's price (the price table is theirs); the rest
+    /// go into the table and on to the hotlist, so a stock only on the map
+    /// and in the hotlist still shows one price.
+    pub(crate) fn share_board(&mut self, market: Market) {
+        let Some(b) = self.overview.boards.get(&market) else {
+            return;
+        };
+        let (mut feed, mut fetched) = (Vec::new(), Vec::new());
+        for m in &b.members {
+            let id = &m.symbol.id;
+            if self.quoted.contains(id) {
+                if let Some(&(last, prev)) = self.quotes.get(id) {
+                    feed.push((m.key.clone(), last, prev));
+                }
+            } else {
+                let prev = m.price / (1.0 + m.change(Period::Day) / 100.0);
+                if m.price > 0.0 && prev.is_finite() && prev > 0.0 {
+                    fetched.push((id.clone(), m.price, prev));
+                }
+            }
+        }
+        if let Some(b) = self.overview.boards.get_mut(&market) {
+            for (key, last, prev) in feed {
+                b.quote(&key, last, prev);
+            }
+        }
+        for (id, last, prev) in fetched {
+            self.hot_quote(&id, last, prev);
+            self.quotes.insert(id, (last, prev));
+        }
+    }
+
+    /// The same for a newly fetched hotlist. Crypto rows' change is
+    /// Binance's rolling 24 hours, so only their price goes in, against
+    /// the day's base the table already has.
+    pub(crate) fn share_hotlist(&mut self) {
+        let Some(Ok(rows)) = &self.side.hot else { return };
+        let (mut feed, mut fetched) = (Vec::new(), Vec::new());
+        for r in rows {
+            let id = &r.symbol.id;
+            let known = self.quotes.get(id).copied();
+            if self.quoted.contains(id) {
+                if let Some((last, prev)) = known {
+                    feed.push((id.clone(), last, prev));
+                }
+            } else if id.starts_with("BINANCE:") {
+                if let Some((_, prev)) = known {
+                    fetched.push((id.clone(), r.last, prev));
+                }
+            } else {
+                let prev = r.last / (1.0 + r.change_pct / 100.0);
+                if r.last > 0.0 && prev.is_finite() && prev > 0.0 {
+                    fetched.push((id.clone(), r.last, prev));
+                }
+            }
+        }
+        for (id, last, prev) in feed {
+            self.hot_quote(&id, last, prev);
+        }
+        for (id, last, prev) in fetched {
+            self.boards_quote(&id, last, prev);
+            self.quotes.insert(id, (last, prev));
+        }
+    }
+
     /// Newer prices for a market's tiles. A failure waits for the next
     /// round (the board's own refresh reports errors).
     pub(crate) fn overview_prices(
@@ -336,6 +440,7 @@ impl App {
         if let (Ok(prices), Some(b)) = (result, self.overview.boards.get_mut(&market)) {
             b.reprice(&prices);
             self.overview.got.insert(market, Instant::now());
+            self.share_board(market);
         }
     }
 
@@ -352,6 +457,7 @@ impl App {
                 self.overview.got.insert(market, Instant::now());
                 // Prices asked before this board are older than it.
                 self.overview.pricing.remove(&market);
+                self.share_board(market);
             }
             Err(e) => {
                 self.overview.errors.insert(market, e);

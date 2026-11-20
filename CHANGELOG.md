@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.2.14 (2026-11-20)
+
+A symbol now shows one price everywhere at once, and pairs on Bybit, OKX, Coinbase and Kraken update live in the watchlist.
+
+### Fixed
+- **The watchlist and the market overview show the same price.** The watchlist takes the overview's prices as they arrive, instead of fetching on its own 30-second cycle and differing by a few paise.
+- **A symbol shows one price everywhere at once.** A new price from the watchlist, a chart, the market overview or a hotlist now moves that symbol's price in all of them together.
+- **Charted symbols are kept in step in every market**, not just US stocks: an Indian stock on a chart and not in the watchlist now moves its map tile and hotlist row too.
+
+### Changed
+- **Bybit, OKX, Coinbase and Kraken pairs update live in the watchlist** (about once a second), instead of every 30 seconds.
+- **The India hotlist shares the watchlist's request** to Yahoo and works out its change the same way.
+
 ## 0.2.13 (2026-11-20)
 
 Custom indices now update live, and Yahoo prices come from one shared batch request.

@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.14",
+        items: &[
+            Item {
+                icon: ph::ARROWS_CLOCKWISE,
+                title: "One price everywhere",
+                body: "The watchlist, charts, the market overview and hotlists now show the same price for a \
+                       symbol at the same moment.",
+                image: None,
+            },
+            Item {
+                icon: ph::LIGHTNING,
+                title: "More live crypto",
+                body: "Pairs on Bybit, OKX, Coinbase and Kraken now update live in the watchlist, not every \
+                       30 seconds.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.13",
         items: &[
             Item {

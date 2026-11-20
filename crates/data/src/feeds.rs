@@ -83,23 +83,6 @@ fn india_symbol(t: &str) -> Symbol {
     }
 }
 
-/// Parses Yahoo's spark reply (`{"TCS.NS": {"fulldayPrice": …, "fulldayChangePercent": …}}`).
-pub(crate) fn parse_spark(v: &serde_json::Value) -> Vec<HotRow> {
-    v.as_object()
-        .into_iter()
-        .flatten()
-        .filter_map(|(k, q)| {
-            let t = k.strip_suffix(".NS")?;
-            Some(HotRow {
-                symbol: india_symbol(t),
-                last: q["fulldayPrice"].as_f64()?,
-                change_pct: q["fulldayChangePercent"].as_f64()?,
-                volume: 0.0,
-            })
-        })
-        .collect()
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HotKind {
     Gainers,
@@ -257,19 +240,23 @@ pub fn hotlist(market: HotMarket, kind: HotKind, demo: bool) -> Result<Vec<HotRo
             Ok(rows)
         }
         HotMarket::India => {
-            // Twenty symbols a request is what spark takes.
-            let mut rows = Vec::new();
-            for chunk in NIFTY50.chunks(20) {
-                let list: Vec<String> = chunk
-                    .iter()
-                    .map(|t| crate::yahoo::urlencode(&format!("{t}.NS")))
-                    .collect();
-                let url = format!(
-                    "https://query1.finance.yahoo.com/v8/finance/spark?symbols={}&range=1d&interval=1d",
-                    list.join(",")
-                );
-                rows.extend(parse_spark(&provider::get_json(&agent, &url)?));
-            }
+            // The shared spark batch: the same fetch (and the same numbers)
+            // as the watchlist's quotes and the market overview.
+            let tickers: Vec<String> = NIFTY50.iter().map(|t| format!("{t}.NS")).collect();
+            let sparks = crate::overview::sparks(&tickers, "5d");
+            let mut rows: Vec<HotRow> = NIFTY50
+                .iter()
+                .zip(&tickers)
+                .filter_map(|(t, k)| {
+                    let (last, prev) = sparks.get(k)?.quote(true)?;
+                    Some(HotRow {
+                        symbol: india_symbol(t),
+                        last,
+                        change_pct: (last / prev - 1.0) * 100.0,
+                        volume: 0.0,
+                    })
+                })
+                .collect();
             if rows.is_empty() {
                 return Err(Error::Bad(
                     "Yahoo didn't send prices this time. Try again later.".into(),
@@ -639,22 +626,6 @@ fn merge(mut items: Vec<NewsItem>, now: i64) -> Vec<NewsItem> {
 
 #[cfg(test)]
 mod tests {
-
-    #[test]
-    fn parses_spark_quotes() {
-        let v: serde_json::Value = serde_json::from_str(
-            r#"{"TCS.NS":{"symbol":"TCS.NS","fulldayChangePercent":2.767,"fulldayPrice":2529.0},
-                "M&M.NS":{"symbol":"M&M.NS","fulldayChangePercent":-1.2,"fulldayPrice":3000.5},
-                "BAD.NS":{"symbol":"BAD.NS","fulldayPrice":null}}"#,
-        )
-        .unwrap();
-        let mut rows = parse_spark(&v);
-        sort_rows(&mut rows, HotKind::Gainers, 30);
-        assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].symbol.id, "NSE:TCS");
-        assert_eq!(rows[1].symbol.id, "NSE:M&M");
-        assert_eq!(rows[0].last, 2529.0);
-    }
 
     use super::*;
 

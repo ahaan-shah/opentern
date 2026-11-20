@@ -197,6 +197,27 @@ pub struct Board {
 
 impl Board {
     /// Puts newer prices (`prices`, keyed by `Member::key`) on the tiles.
+    /// One symbol's quote from elsewhere in the app (the watchlist's
+    /// feed, a chart), so the map shows the same price at the same moment.
+    /// `key` as `Member::key`; the extended-hours price stays.
+    pub fn quote(&mut self, key: &str, last: f64, prev: f64) {
+        if key.is_empty() || !(prev.is_finite() && prev > 0.0) {
+            return;
+        }
+        let sizing = self.sizing;
+        for m in self.members.iter_mut().filter(|m| m.key == key) {
+            if m.price == last {
+                continue;
+            }
+            let q = Price {
+                price: last,
+                day: (last / prev - 1.0) * 100.0,
+                ext: m.ext,
+            };
+            m.reprice(&q, sizing);
+        }
+    }
+
     pub fn reprice(&mut self, prices: &HashMap<String, Price>) {
         let sizing = self.sizing;
         for m in &mut self.members {
@@ -729,6 +750,20 @@ pub(crate) fn sparks(tickers: &[String], range: &str) -> HashMap<String, Spark> 
     }
     got.extend(cached);
     got
+}
+
+/// Sparks in the cache for any of `tickers`, with when each was fetched:
+/// the quote worker takes the overview's as they land, so the watchlist
+/// and the map show the same price.
+pub(crate) fn cached_sparks(tickers: &[String]) -> HashMap<String, (std::time::Instant, Spark)> {
+    let c = spark_cache().lock().unwrap_or_else(|e| e.into_inner());
+    tickers
+        .iter()
+        .filter_map(|t| {
+            let (at, _, s) = c.get(t)?;
+            (at.elapsed() < SPARK_FRESH).then(|| (t.clone(), (*at, s.clone())))
+        })
+        .collect()
 }
 
 /// Spark requests sent so far (tests check the batching with it).
@@ -1594,6 +1629,22 @@ fn made_up(market: Market) -> Board {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_quote_from_elsewhere_moves_its_tile() {
+        let mut b = made_up(Market::India);
+        b.members[0].key = "TATASTEEL.NS".into();
+        let (price, week) = (b.members[0].price, b.members[0].change(Period::Week));
+        let last = price * 1.01;
+        b.quote("TATASTEEL.NS", last, last / 0.98);
+        let m = &b.members[0];
+        assert_eq!(m.price, last);
+        assert!((m.change(Period::Day) + 2.0).abs() < 1e-9);
+        assert!((m.change(Period::Week) - ((1.0 + week / 100.0) * 1.01 - 1.0) * 100.0).abs() < 1e-9);
+        // No key, no change.
+        b.quote("", 1.0, 1.0);
+        assert_eq!(b.members[0].price, last);
+    }
 
     #[test]
     fn bundled_lists_read() {
