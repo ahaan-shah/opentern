@@ -1936,7 +1936,7 @@ mod drive_tests {
         for want in ["Big Tech ›", "Chips ›", "1D", "YTD"] {
             assert!(texts.iter().any(|t| t == want), "{want} missing: {texts:?}");
         }
-        let mb = d.app.indices.map_board();
+        let mb = d.app.indices_map_board();
         // Each index's members, sized by weight within it.
         assert_eq!(mb.board.members.len(), 5);
         assert_eq!(mb.board.members.iter().filter(|m| m.sector == "Chips").count(), 2);

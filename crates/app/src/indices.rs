@@ -37,6 +37,7 @@ use opentern_data::fundamentals::Fundamentals;
 use opentern_data::overview::Period;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Fetch seqs for members' bars: `SEQ_BASE + n`.
@@ -45,8 +46,9 @@ pub const SEQ_BASE: u64 = 1 << 46;
 /// prices each recent segment was set at, and for the whole history of
 /// almost any stock (about 40 years).
 const BARS: usize = 10_000;
-/// Members' data is fetched again when it's older than this.
-const STALE: Duration = Duration::from_secs(15 * 60);
+/// Members' data that failed is asked for again after this (good data:
+/// once a day; the live price keeps today's numbers moving meanwhile).
+const RETRY: Duration = Duration::from_secs(15 * 60);
 const SETTINGS_KEY: &str = "custom_indices";
 /// The current way of building an index's segments (`IndexDef::chain`).
 const CHAIN: u32 = 1;
@@ -173,6 +175,25 @@ impl IndexDef {
         self.pending = false;
         self.equal_fallback = false;
         self.chain = CHAIN;
+    }
+
+    /// What its numbers depend on in the definition itself (members,
+    /// weights, ticks), hashed: a change means working them out afresh.
+    fn fingerprint(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for m in &self.members {
+            m.id.hash(&mut h);
+        }
+        self.off.hash(&mut h);
+        for sg in &self.segments {
+            sg.from.hash(&mut h);
+            sg.members.hash(&mut h);
+            for u in &sg.units {
+                u.to_bits().hash(&mut h);
+            }
+        }
+        h.finish()
     }
 
     /// The hub's segments.
@@ -389,25 +410,78 @@ fn ticker_for(name: &str, taken: &[String]) -> String {
 }
 
 /// What's been fetched for one member.
-#[derive(Default)]
+#[derive(Clone)]
 struct MemberData {
     bars: Option<Result<Vec<Bar>, String>>,
     fund: Option<Result<Fundamentals, String>>,
-    asked: Option<Instant>,
+    /// When the bars and the fundamentals were last asked for, and the
+    /// local day then (both are asked for again once a day).
+    bars_asked: Option<(Instant, jiff::civil::Date)>,
+    fund_asked: Option<(Instant, jiff::civil::Date)>,
     /// When the latest bars and fundamentals answered (a rebalance waits
     /// for answers newer than its press).
     bars_at: Option<Instant>,
     fund_at: Option<Instant>,
+    /// The price when the fundamentals answered: P/E and EV/EBITDA follow
+    /// the live price from there.
+    fund_price: f64,
+    /// Bumped (from `Indices::tick`) when the history is replaced by a
+    /// download: steps worked out from the old one are dropped.
+    hist: u64,
+    /// Bumped on any change: history, a live price, fundamentals.
+    stamp: u64,
+}
+
+impl Default for MemberData {
+    fn default() -> Self {
+        MemberData {
+            bars: None,
+            fund: None,
+            bars_asked: None,
+            fund_asked: None,
+            bars_at: None,
+            fund_at: None,
+            fund_price: f64::NAN,
+            hist: 0,
+            stamp: 0,
+        }
+    }
+}
+
+/// Whether something asked for at `asked` should be asked for again: once
+/// a day when the last answer was good, else after a quarter of an hour.
+fn due(asked: Option<(Instant, jiff::civil::Date)>, ok: bool, today: jiff::civil::Date) -> bool {
+    match asked {
+        None => true,
+        Some((at, day)) if ok => day != today || at.elapsed() >= Duration::from_secs(24 * 3600),
+        Some((at, _)) => at.elapsed() >= RETRY,
+    }
+}
+
+/// One member's price measures, kept until its data changes.
+#[derive(Default)]
+struct MemberCalc {
+    stamp: u64,
+    hist: u64,
+    steps: Option<Steps>,
+    values: HashMap<Metric, f64>,
+}
+
+/// One index's numbers, kept until its definition or a member's data
+/// changes: a live price only redoes today.
+struct IndexCalc {
+    /// `IndexDef::fingerprint`, and the members' newest `hist` and `stamp`.
+    fp: u64,
+    hist: u64,
+    stamp: u64,
+    series: Vec<Bar>,
+    steps: Option<Steps>,
+    board: Arc<Board>,
 }
 
 /// The close at or before `t`.
 fn close_at(bars: &[Bar], t: i64) -> f64 {
     crate::screener::close_at(bars, t).unwrap_or(f64::NAN)
-}
-
-/// The bar at exactly `t`.
-fn bar_at(bars: &[Bar], t: i64) -> Option<&Bar> {
-    bars.binary_search_by_key(&t, |b| b.time).ok().map(|i| &bars[i])
 }
 
 /// The segment in force at `t`.
@@ -527,56 +601,87 @@ fn adjust_for_splits(seg: &mut Segment, bars: &HashMap<String, &[Bar]>) -> bool 
 /// its last close (as the hub's chart of it); a day comes in once every
 /// member of its segment has a first price.
 fn index_series(segs: &[Segment], bars: &HashMap<String, &[Bar]>) -> Vec<Bar> {
-    let mut times = BTreeSet::new();
+    index_series_from(segs, bars, Vec::new(), i64::MIN)
+}
+
+/// [`index_series`] with the days before `from` taken from `kept` (worked
+/// out earlier from closes that haven't changed since): only the rest is
+/// worked out. Each member's bars are walked once, front to back.
+fn index_series_from(segs: &[Segment], bars: &HashMap<String, &[Bar]>, mut kept: Vec<Bar>, from: i64) -> Vec<Bar> {
+    kept.truncate(kept.partition_point(|b| b.time < from));
+    let mut times: Vec<i64> = Vec::new();
     for s in segs {
         for id in &s.members {
             if let Some(b) = bars.get(id) {
-                times.extend(b.iter().map(|x| x.time));
+                let k = b.partition_point(|x| x.time < from);
+                times.extend(b[k..].iter().map(|x| x.time));
             }
         }
     }
-    let mut out = Vec::new();
-    for t in times {
-        let Some(s) = seg_at(segs, t) else { continue };
-        let (mut o, mut h, mut l, mut c) = (0.0, 0.0, 0.0, 0.0);
-        let mut all = true;
-        let mut traded = false;
-        for (id, u) in s.members.iter().zip(&s.units) {
-            let Some(b) = bars.get(id) else {
-                all = false;
-                break;
-            };
-            match bar_at(b, t) {
-                Some(b) => {
-                    traded = true;
-                    o += u * b.open;
-                    h += u * b.high;
-                    l += u * b.low;
-                    c += u * b.close;
+    times.sort_unstable();
+    times.dedup();
+    let mut out = kept;
+    let mut k = 0;
+    while k < times.len() {
+        let t0 = times[k];
+        let si = segs.partition_point(|s| s.from <= t0);
+        let Some(s) = si.checked_sub(1).and_then(|i| segs.get(i)) else {
+            // Before the first segment: nothing to value.
+            k += 1;
+            continue;
+        };
+        // The days this segment covers.
+        let until = segs.get(si).map_or(i64::MAX, |n| n.from);
+        let end = k + times[k..].partition_point(|t| *t < until);
+        let legs: Option<Vec<(&[Bar], f64)>> = s
+            .members
+            .iter()
+            .zip(&s.units)
+            .map(|(id, u)| bars.get(id).map(|b| (*b, *u)))
+            .collect();
+        let Some(legs) = legs else {
+            k = end;
+            continue;
+        };
+        // Each leg's next bar at or after the first day.
+        let mut at: Vec<usize> = legs.iter().map(|(b, _)| b.partition_point(|x| x.time < t0)).collect();
+        for &t in &times[k..end] {
+            let (mut o, mut h, mut l, mut c) = (0.0, 0.0, 0.0, 0.0);
+            let mut all = true;
+            let mut traded = false;
+            for ((b, u), i) in legs.iter().zip(at.iter_mut()) {
+                while *i < b.len() && b[*i].time < t {
+                    *i += 1;
                 }
-                None => {
-                    let p = close_at(b, t);
-                    if !p.is_finite() {
-                        all = false;
-                        break;
-                    }
+                if *i < b.len() && b[*i].time == t {
+                    let x = &b[*i];
+                    traded = true;
+                    o += u * x.open;
+                    h += u * x.high;
+                    l += u * x.low;
+                    c += u * x.close;
+                } else if *i > 0 {
+                    let p = b[*i - 1].close;
                     o += u * p;
                     h += u * p;
                     l += u * p;
                     c += u * p;
+                } else {
+                    all = false;
                 }
             }
+            if all && traded {
+                out.push(Bar {
+                    time: t,
+                    open: o,
+                    high: h.max(o).max(c),
+                    low: l.min(o).min(c),
+                    close: c,
+                    volume: 0.0,
+                });
+            }
         }
-        if all && traded {
-            out.push(Bar {
-                time: t,
-                open: o,
-                high: h.max(o).max(c),
-                low: l.min(o).min(c),
-                close: c,
-                volume: 0.0,
-            });
-        }
+        k = end;
     }
     out
 }
@@ -890,15 +995,42 @@ pub struct Board {
     pub history: Option<(i64, i64, bool)>,
 }
 
-fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
-    let tz = jiff::tz::TimeZone::get(&def.symbol().timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+/// A company's numbers at today's price: market cap, P/E and EV/EBITDA
+/// move with it from the price when they were downloaded (`then`), as
+/// the earnings, EBITDA and debt behind them don't. Left as downloaded
+/// when either price is missing or the move is implausible.
+fn at_price(f: &Fundamentals, then: f64, now: f64) -> Fundamentals {
+    let mut g = f.clone();
+    let k = now / then;
+    if !(k.is_finite() && k > 0.5 && k < 2.0) {
+        return g;
+    }
+    g.market_cap = f.market_cap * k;
+    g.pe = f.pe * k;
+    if f.enterprise_value.is_finite() && f.market_cap.is_finite() && f.enterprise_value != 0.0 {
+        g.enterprise_value = f.enterprise_value + (g.market_cap - f.market_cap);
+        g.ev_ebitda = f.ev_ebitda * g.enterprise_value / f.enterprise_value;
+    }
+    g
+}
+
+/// Everything the board shows for `def`: members' rows from their kept
+/// measures (`calc`), prices and day changes from the live quotes as the
+/// watchlist shows them, and the index's own numbers from `series`.
+fn board_for(
+    def: &IndexDef,
+    data: &HashMap<String, MemberData>,
+    calc: &HashMap<String, MemberCalc>,
+    quotes: &HashMap<String, (f64, f64)>,
+    series: &[Bar],
+    steps: &mut Option<Steps>,
+) -> Board {
     let mut board = Board {
         value: f64::NAN,
         change: f64::NAN,
         ..Default::default()
     };
     let mut funds: Vec<(Fundamentals, f64)> = Vec::new();
-    let bars = bars_of(data);
     let current = def.segments.last();
     let mut caps = Vec::new();
     for m in &def.members {
@@ -920,10 +1052,18 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
                 let n = b.len();
                 row.history = Some((b[0].time, b[n - 1].time, n >= BARS));
                 row.price = b[n - 1].close;
-                if n >= 2 && b[n - 2].close != 0.0 {
-                    row.change = (b[n - 1].close / b[n - 2].close - 1.0) * 100.0;
+                match quotes.get(&m.id) {
+                    // The watchlist's day change (the session before, as
+                    // the exchange counts it).
+                    Some(&(_, prev)) if prev != 0.0 => row.change = (row.price / prev - 1.0) * 100.0,
+                    _ if n >= 2 && b[n - 2].close != 0.0 => {
+                        row.change = (b[n - 1].close / b[n - 2].close - 1.0) * 100.0
+                    }
+                    _ => {}
                 }
-                price_measures(b, &tz, &mut row.values);
+                if let Some(c) = calc.get(&m.id) {
+                    row.values = c.values.clone();
+                }
                 if let Some(s) = current
                     && let Some(k) = s.members.iter().position(|x| *x == m.id)
                 {
@@ -942,7 +1082,7 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
         }
         match d.and_then(|d| d.fund.as_ref()) {
             Some(Ok(f)) => {
-                let f = clean(f);
+                let f = clean(&at_price(f, d.map_or(f64::NAN, |d| d.fund_price), row.price));
                 member_fundamentals(&f, &mut row.values);
                 row.market_cap = f.market_cap;
                 // The part of the company the index holds today.
@@ -975,7 +1115,6 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
         }
     }
     if def.ready() {
-        let series = index_series(&def.segments, &bars);
         if let (Some(a), Some(b)) = (series.first(), series.last()) {
             let capped = board
                 .rows
@@ -990,7 +1129,7 @@ fn board_for(def: &IndexDef, data: &HashMap<String, MemberData>) -> Board {
                 board.change = (last.close / series[n - 2].close - 1.0) * 100.0;
             }
         }
-        price_measures(&series, &tz, &mut board.index);
+        price_measures(series, steps, &mut board.index);
     }
     index_fundamentals(&funds, &mut board.index);
     board
@@ -1035,8 +1174,58 @@ fn bars_of(data: &HashMap<String, MemberData>) -> HashMap<String, &[Bar]> {
         .collect()
 }
 
-/// Price-based measures of one series.
-fn price_measures(bars: &[Bar], tz: &jiff::tz::TimeZone, out: &mut HashMap<Metric, f64>) {
+/// RSI and the averages stepped through a series' closed days (every bar
+/// but the newest), kept so a new live price only adds today's step. Same
+/// primitives as the RSI and SMA built-ins, so the numbers are theirs.
+#[derive(Clone, Debug)]
+struct Steps {
+    /// Bars stepped through, and the time of the last of them.
+    n: usize,
+    last: i64,
+    rsi: opentern_series::ta::Rsi,
+    sma50: opentern_series::ta::Sma,
+    sma200: opentern_series::ta::Sma,
+}
+
+impl Steps {
+    fn new() -> Steps {
+        use opentern_series::ta;
+        Steps {
+            n: 0,
+            last: i64::MIN,
+            rsi: ta::Rsi::new(14),
+            sma50: ta::Sma::new(50),
+            sma200: ta::Sma::new(200),
+        }
+    }
+
+    /// Steps on through `bars`' closed days. Starts over when the days
+    /// already stepped through aren't a prefix of these (new history).
+    fn advance(&mut self, bars: &[Bar]) {
+        let closed = bars.len().saturating_sub(1);
+        let prefix = self.n == 0 || (self.n <= closed && bars[self.n - 1].time == self.last);
+        if !prefix {
+            *self = Steps::new();
+        }
+        // RSI sees every day; an average only needs its window (it sums
+        // the last `len` values, whatever came before).
+        for (i, b) in bars.iter().enumerate().take(closed).skip(self.n) {
+            self.rsi.update(b.close);
+            if i + 50 >= closed {
+                self.sma50.update(b.close);
+            }
+            if i + 200 >= closed {
+                self.sma200.update(b.close);
+            }
+        }
+        self.n = closed;
+        self.last = closed.checked_sub(1).map_or(i64::MIN, |k| bars[k].time);
+    }
+}
+
+/// Price-based measures of one series, its saved steps brought up to date
+/// (`steps`: forget them when past closes may have changed).
+fn price_measures(bars: &[Bar], steps: &mut Option<Steps>, out: &mut HashMap<Metric, f64>) {
     let Some(last) = bars.last() else { return };
     // Calendar months back from the latest close, as the market overview.
     let then = jiff::Timestamp::from_millisecond(last.time)
@@ -1051,13 +1240,14 @@ fn price_measures(bars: &[Bar], tz: &jiff::tz::TimeZone, out: &mut HashMap<Metri
             out.insert(m, (last.close / c - 1.0) * 100.0);
         }
     }
-    let tf = Timeframe::parse("1D").expect("valid");
-    let sess = opentern_series::study::sessions(bars, tf, tz);
-    out.insert(Metric::Rsi, crate::screener::builtin_last("rsi", None, bars, &sess, tf));
-    for (m, len) in [(Metric::Sma50, 50), (Metric::Sma200, 200)] {
-        let sma = crate::screener::builtin_last("sma", Some(len), bars, &sess, tf);
-        if sma.is_finite() && sma != 0.0 {
-            out.insert(m, (last.close / sma - 1.0) * 100.0);
+    let st = steps.get_or_insert_with(Steps::new);
+    st.advance(bars);
+    let mut today = st.clone();
+    out.insert(Metric::Rsi, today.rsi.update(last.close));
+    for (m, sma) in [(Metric::Sma50, &mut today.sma50), (Metric::Sma200, &mut today.sma200)] {
+        let v = sma.update(last.close);
+        if v.is_finite() && v != 0.0 {
+            out.insert(m, (last.close / v - 1.0) * 100.0);
         }
     }
 }
@@ -1143,8 +1333,14 @@ pub struct Indices {
     pub metric: Metric,
     /// The table's order: a metric (or `None` = weight / name), descending?
     sort: (Option<Metric>, bool),
+    /// Bumped on any change (the map of every index is rebuilt on it).
     version: u64,
-    boards: HashMap<String, (u64, Board)>,
+    /// Hands out `MemberData::hist`/`stamp` values.
+    tick: u64,
+    /// `version` when every index was last brought up to date.
+    refreshed: Option<u64>,
+    members: HashMap<String, MemberCalc>,
+    calcs: HashMap<String, IndexCalc>,
     /// Put this index on the chart once its weights are worked out.
     pub(crate) chart_when_ready: Option<String>,
     /// "Rebalance now" pressed: which index, and when.
@@ -1174,7 +1370,10 @@ impl Indices {
             metric: Metric::Ret1M,
             sort: (None, true),
             version: 0,
-            boards: HashMap::new(),
+            tick: 0,
+            refreshed: None,
+            members: HashMap::new(),
+            calcs: HashMap::new(),
             chart_when_ready: None,
             rebalancing: None,
         };
@@ -1201,17 +1400,134 @@ impl Indices {
         self.defs.iter().filter(|d| d.ready()).map(|d| d.symbol()).collect()
     }
 
-    /// An index's board, worked out again only when data changed.
-    pub(crate) fn board(&mut self, ticker: &str) -> Option<Board> {
-        let def = self.defs.iter().find(|d| d.ticker == ticker)?;
-        if let Some((v, b)) = self.boards.get(ticker)
-            && *v == self.version
-        {
-            return Some(b.clone());
+    /// An index's board, brought up to date first (see [`Indices::refresh`]).
+    pub(crate) fn board(&mut self, ticker: &str, quotes: &HashMap<String, (f64, f64)>) -> Option<Arc<Board>> {
+        self.refresh(Some(ticker), quotes);
+        self.calcs.get(ticker).map(|c| c.board.clone())
+    }
+
+    /// Marks a member's data changed; `history` when its bars were
+    /// replaced (its kept steps no longer apply).
+    fn touch(&mut self, id: &str, history: bool) {
+        self.tick += 1;
+        self.version += 1;
+        let d = self.data.entry(id.to_string()).or_default();
+        d.stamp = self.tick;
+        if history {
+            d.hist = self.tick;
         }
-        let b = board_for(def, &self.data);
-        self.boards.insert(ticker.to_string(), (self.version, b.clone()));
-        Some(b)
+    }
+
+    /// Brings the numbers of one index (or all) up to date, doing only
+    /// what changed: a member's measures when its data changed (RSI and
+    /// the averages step on from its closed days), an index's history
+    /// from scratch when its definition or a member's history changed,
+    /// else only from its newest day on. Indices with work to do are
+    /// worked out side by side on every core.
+    fn refresh(&mut self, only: Option<&str>, quotes: &HashMap<String, (f64, f64)>) {
+        use rayon::prelude::*;
+        // Nothing changed since every index was last brought up to date.
+        if only.is_none() && self.refreshed == Some(self.version) {
+            return;
+        }
+        if only.is_none() {
+            self.refreshed = Some(self.version);
+        }
+        let defs: Vec<&IndexDef> = self
+            .defs
+            .iter()
+            .filter(|d| only.is_none_or(|t| d.ticker == t))
+            .collect();
+        // Members whose data moved since their measures were worked out.
+        let mut ids: Vec<&String> = Vec::new();
+        for d in &defs {
+            for m in &d.members {
+                ids.push(&m.id);
+            }
+        }
+        ids.sort_unstable();
+        ids.dedup();
+        let mut stale: Vec<(String, MemberCalc)> = ids
+            .into_iter()
+            .filter_map(|id| {
+                let d = self.data.get(id)?;
+                let fresh = self.members.get(id).is_some_and(|c| c.stamp == d.stamp);
+                (!fresh && matches!(&d.bars, Some(Ok(b)) if !b.is_empty()))
+                    .then(|| (id.clone(), self.members.remove(id).unwrap_or_default()))
+            })
+            .collect();
+        let data = &self.data;
+        stale.par_iter_mut().for_each(|(id, c)| {
+            let d = &data[id.as_str()];
+            if c.hist != d.hist {
+                c.steps = None;
+            }
+            c.values.clear();
+            if let Some(Ok(b)) = &d.bars {
+                price_measures(b, &mut c.steps, &mut c.values);
+            }
+            (c.stamp, c.hist) = (d.stamp, d.hist);
+        });
+        self.members.extend(stale);
+        // Indices whose definition or members changed.
+        let newest = |d: &IndexDef| {
+            let last = d.segments.last().map(|s| s.members.as_slice()).unwrap_or_default();
+            d.members.iter().map(|m| &m.id).chain(last).fold((0, 0), |(h, s), id| {
+                self.data.get(id).map_or((h, s), |x| (h.max(x.hist), s.max(x.stamp)))
+            })
+        };
+        let work: Vec<(&IndexDef, u64, u64, u64)> = defs
+            .iter()
+            .filter_map(|d| {
+                let fp = d.fingerprint();
+                let (h, st) = newest(d);
+                let fresh = self
+                    .calcs
+                    .get(&d.ticker)
+                    .is_some_and(|c| c.fp == fp && c.hist == h && c.stamp == st);
+                (!fresh).then_some((*d, fp, h, st))
+            })
+            .collect();
+        if work.is_empty() {
+            return;
+        }
+        let mut prev: Vec<Option<IndexCalc>> = work.iter().map(|w| self.calcs.remove(&w.0.ticker)).collect();
+        let bars = bars_of(&self.data);
+        let calc = &self.members;
+        let done: Vec<(String, IndexCalc)> = work
+            .par_iter()
+            .zip(prev.par_iter_mut())
+            .map(|(&(def, fp, h, st), old)| {
+                let (series, mut steps) = match old.take() {
+                    // Only live prices moved: closed days stand.
+                    Some(o) if o.fp == fp && o.hist == h => {
+                        let from = o.series.last().map_or(i64::MIN, |b| b.time);
+                        (index_series_from(&def.segments, &bars, o.series, from), o.steps)
+                    }
+                    _ => (
+                        if def.ready() {
+                            index_series(&def.segments, &bars)
+                        } else {
+                            Vec::new()
+                        },
+                        None,
+                    ),
+                };
+                let board = board_for(def, data, calc, quotes, &series, &mut steps);
+                (
+                    def.ticker.clone(),
+                    IndexCalc {
+                        fp,
+                        hist: h,
+                        stamp: st,
+                        series,
+                        steps,
+                        board: Arc::new(board),
+                    },
+                )
+            })
+            .collect();
+        self.calcs.extend(done);
     }
 }
 
@@ -1229,19 +1545,27 @@ pub(crate) struct MapBoard {
 }
 
 impl Indices {
-    pub(crate) fn map_board(&mut self) -> MapBoard {
+    pub(crate) fn map_board(&mut self, quotes: &HashMap<String, (f64, f64)>) -> MapBoard {
         if let Some((v, b)) = &self.map_board
             && *v == self.version
         {
             return b.clone();
         }
         use opentern_data::overview::{self as ov, Member, Sizing};
+        self.refresh(None, quotes);
         let now_s = jiff::Timestamp::now().as_second();
-        let changes_of = |bars: &[Bar], now_s: i64| {
-            let times: Vec<i64> = bars.iter().map(|b| b.time.div_euclid(1000)).collect();
-            let closes: Vec<f64> = bars.iter().map(|b| b.close).collect();
-            let last = bars.last().map_or(f64::NAN, |b| b.close);
-            ov::changes(&times, &closes, last, None, now_s)
+        // Changes per period need about a year back (1Y, YTD), not the
+        // whole history; the day's change is the watchlist's when there's
+        // a quote.
+        let changes_of = |bars: &[Bar], day: Option<f64>| {
+            let from = bars
+                .partition_point(|b| b.time < (now_s - 400 * 86_400) * 1000)
+                .saturating_sub(1);
+            let tail = &bars[from..];
+            let times: Vec<i64> = tail.iter().map(|b| b.time.div_euclid(1000)).collect();
+            let closes: Vec<f64> = tail.iter().map(|b| b.close).collect();
+            let last = tail.last().map_or(f64::NAN, |b| b.close);
+            ov::changes(&times, &closes, last, day, now_s)
         };
         let mut out = MapBoard {
             board: ov::Board {
@@ -1258,45 +1582,42 @@ impl Indices {
         };
         let mut groups = Vec::new();
         let mut names: Vec<String> = Vec::new();
-        let tickers: Vec<String> = self.defs.iter().map(|d| d.ticker.clone()).collect();
-        for tk in tickers {
-            let Some(b) = self.board(&tk) else { continue };
-            let Some(def) = self.by_ticker(&tk).cloned() else {
-                continue;
-            };
-            out.waiting |= b.waiting > 0 || def.pending;
+        for def in &self.defs {
+            let Some(c) = self.calcs.get(&def.ticker) else { continue };
+            out.waiting |= c.board.waiting > 0 || def.pending;
             // Two indices of one name stay apart.
             let mut name = def.name.clone();
             if names.contains(&name) {
                 name = format!("{name} ({})", def.ticker);
             }
             names.push(name.clone());
-            groups.push((name, b, def));
-        }
-        let bars = bars_of(&self.data);
-        for (name, _, def) in &groups {
-            if def.ready() {
-                let series = index_series(&def.segments, &bars);
-                if !series.is_empty() {
-                    out.changes.insert(name.clone(), changes_of(&series, now_s));
-                }
+            if def.ready() && !c.series.is_empty() {
+                out.changes.insert(name.clone(), changes_of(&c.series, None));
             }
+            groups.push((name, c.board.clone()));
         }
         let all_caps = groups.iter().all(|g| g.1.total_cap > 0.0);
         let mut india = 0;
-        for (name, b, _) in &groups {
+        for (name, b) in &groups {
             let size = if all_caps { b.total_cap } else { 1.0 };
             for r in &b.rows {
                 if !(r.included && r.weight.is_finite() && r.weight > 0.0) {
                     continue;
                 }
-                let Some(bars) = bars.get(&r.symbol.id).filter(|b| !b.is_empty()) else {
+                let Some(Some(Ok(bars))) = self.data.get(&r.symbol.id).map(|d| d.bars.as_ref()) else {
                     continue;
                 };
+                if bars.is_empty() {
+                    continue;
+                }
                 if r.symbol.id.starts_with("NSE:") || r.symbol.id.starts_with("BSE:") {
                     india += 1;
                 }
                 let from = bars.len().saturating_sub(66);
+                let day = quotes
+                    .contains_key(&r.symbol.id)
+                    .then_some(r.change)
+                    .filter(|c| c.is_finite());
                 out.board.members.push(Member {
                     symbol: r.symbol.clone(),
                     name: r.symbol.description.clone(),
@@ -1304,7 +1625,7 @@ impl Indices {
                     industry: String::new(),
                     cap: size * r.weight / 100.0,
                     price: r.price,
-                    change: changes_of(bars, now_s),
+                    change: changes_of(bars, day),
                     closes: bars[from..].iter().map(|b| b.close as f32).collect(),
                     key: String::new(),
                     ext: None,
@@ -1320,6 +1641,26 @@ impl Indices {
         };
         self.map_board = Some((self.version, out.clone()));
         out
+    }
+}
+
+/// No quotes, for demo data (its quotes don't add up with its bars).
+static NO_QUOTES: std::sync::LazyLock<HashMap<String, (f64, f64)>> = std::sync::LazyLock::new(HashMap::new);
+
+impl App {
+    /// The live prices the indices go by.
+    pub(crate) fn index_quotes(demo: bool, quotes: &HashMap<String, (f64, f64)>) -> &HashMap<String, (f64, f64)> {
+        if demo { &NO_QUOTES } else { quotes }
+    }
+
+    pub(crate) fn index_board(&mut self, ticker: &str) -> Option<Arc<Board>> {
+        let q = App::index_quotes(self.demo, &self.quotes);
+        self.indices.board(ticker, q)
+    }
+
+    pub(crate) fn indices_map_board(&mut self) -> MapBoard {
+        let q = App::index_quotes(self.demo, &self.quotes);
+        self.indices.map_board(q)
     }
 }
 
@@ -1341,38 +1682,49 @@ impl App {
     /// every index's value, Compare every board).
     pub(crate) fn indices_want(&mut self) {
         let need: Vec<Symbol> = self.indices.defs.iter().flat_map(|d| d.needs()).collect();
+        let today = jiff::Zoned::now().date();
         for m in need {
             let d = self.indices.data.entry(m.id.clone()).or_default();
-            if d.asked.is_some_and(|a| a.elapsed() < STALE) {
+            let bars = due(d.bars_asked, matches!(d.bars, Some(Ok(_))), today);
+            let fund = due(d.fund_asked, matches!(d.fund, Some(Ok(_))), today);
+            if !(bars || fund) {
                 continue;
             }
-            d.asked = Some(Instant::now());
             self.indices.seq += 1;
-            self.hub.send(Request::Fetch {
-                seq: SEQ_BASE + self.indices.seq,
-                symbol: m.clone(),
-                tf: Timeframe::parse("1D").expect("valid"),
-                count: BARS,
-            });
-            self.hub.send(Request::Fundamentals {
-                seq: self.indices.seq,
-                symbol: m,
-            });
+            if bars {
+                d.bars_asked = Some((Instant::now(), today));
+                self.hub.send(Request::Fetch {
+                    seq: SEQ_BASE + self.indices.seq,
+                    symbol: m.clone(),
+                    tf: Timeframe::parse("1D").expect("valid"),
+                    count: BARS,
+                });
+            }
+            if fund {
+                d.fund_asked = Some((Instant::now(), today));
+                self.hub.send(Request::Fundamentals {
+                    seq: self.indices.seq,
+                    symbol: m,
+                });
+            }
         }
     }
 
     pub(crate) fn indices_fetched(&mut self, id: &str, result: Result<Vec<Bar>, String>) {
         let d = self.indices.data.entry(id.to_string()).or_default();
         // Keep what we had if a refresh fails.
-        if result.is_ok() || !matches!(d.bars, Some(Ok(_))) {
+        let replaced = result.is_ok() || !matches!(d.bars, Some(Ok(_)));
+        if replaced {
             d.bars = Some(result);
         }
         d.bars_at = Some(Instant::now());
+        if replaced {
+            self.indices.touch(id, true);
+        }
         // The bars may be minutes old: the live quote goes on top.
         if let Some((last, _)) = self.quotes.get(id).copied() {
             self.indices_quote(id, last);
         }
-        self.indices.version += 1;
         self.indices_settle();
     }
 
@@ -1382,6 +1734,10 @@ impl App {
     /// numbers follow the market between the bars' downloads.
     pub(crate) fn indices_quote(&mut self, id: &str, last: f64) {
         if self.demo || !(last.is_finite() && last > 0.0) {
+            return;
+        }
+        // Only members with bars (most quotes are for other symbols).
+        if !matches!(self.indices.data.get(id), Some(MemberData { bars: Some(Ok(_)), .. })) {
             return;
         }
         let Some(sym) = self
@@ -1405,16 +1761,27 @@ impl App {
         if !take_quote(bars, today, last) {
             return;
         }
-        self.indices.version += 1;
+        self.indices.touch(id, false);
     }
 
     pub(crate) fn indices_fundamentals(&mut self, id: &str, result: Result<Fundamentals, String>) {
         let d = self.indices.data.entry(id.to_string()).or_default();
         if result.is_ok() || !matches!(d.fund, Some(Ok(_))) {
             d.fund = Some(result);
+            // The price these figures were taken at (P/E and EV/EBITDA
+            // follow the live one from here).
+            d.fund_price = self
+                .quotes
+                .get(id)
+                .map(|q| q.0)
+                .or_else(|| match &d.bars {
+                    Some(Ok(b)) => b.last().map(|b| b.close),
+                    _ => None,
+                })
+                .unwrap_or(f64::NAN);
         }
         d.fund_at = Some(Instant::now());
-        self.indices.version += 1;
+        self.indices.touch(id, false);
         self.indices_settle();
     }
 
@@ -1469,7 +1836,7 @@ impl App {
         {
             return Some((l, (l / p - 1.0) * 100.0));
         }
-        let b = self.indices.board(&def.ticker)?;
+        let b = self.index_board(&def.ticker)?;
         (b.value.is_finite() && b.value > 0.0).then_some((b.value, b.change))
     }
 
@@ -1477,6 +1844,10 @@ impl App {
 
     pub(crate) fn indices_tab(&mut self, ui: &mut Ui, t: &Theme) {
         self.indices_want();
+        // Every index at once (the list shows each one's value), so the
+        // ones with work to do share the cores.
+        let q = App::index_quotes(self.demo, &self.quotes);
+        self.indices.refresh(None, q);
         // Waiting to chart an index whose weights are already known.
         if let Some(def) = self
             .indices
@@ -1638,7 +2009,7 @@ impl App {
 
     fn index_dashboard(&mut self, ui: &mut Ui, t: &Theme) {
         let Some(def) = self.index_def().cloned() else { return };
-        let Some(board) = self.indices.board(&def.ticker) else {
+        let Some(board) = self.index_board(&def.ticker) else {
             return;
         };
         let now = self.index_now(&def);
@@ -1772,7 +2143,7 @@ impl App {
     /// Every index's members on one heatmap, as the market overview: an
     /// index's name zooms into it, a tile opens the chart.
     fn indices_map(&mut self, ui: &mut Ui, t: &Theme) {
-        let mb = self.indices.map_board();
+        let mb = self.indices_map_board();
         let names: BTreeSet<&String> = mb.board.members.iter().map(|m| &m.sector).collect();
         if self.indices.zoom.as_ref().is_some_and(|z| !names.contains(z)) {
             self.indices.zoom = None;
@@ -1852,7 +2223,7 @@ impl App {
         let mut caps = Vec::new();
         let mut waiting = false;
         for d in &defs {
-            let Some(b) = self.indices.board(&d.ticker) else {
+            let Some(b) = self.index_board(&d.ticker) else {
                 continue;
             };
             let now = self.index_now(d);
@@ -1954,7 +2325,8 @@ impl App {
         d.pending = true;
         for m in &d.members {
             if let Some(x) = self.indices.data.get_mut(&m.id) {
-                x.asked = None;
+                x.bars_asked = None;
+                x.fund_asked = None;
             }
         }
         self.indices_want();
@@ -3116,7 +3488,7 @@ mod tests {
         )]
         .into_iter()
         .collect();
-        let row = &board_for(&d, &data).rows[0];
+        let row = &board_for(&d, &data, &HashMap::new(), &HashMap::new(), &[], &mut None).rows[0];
         assert_eq!(row.price, 120.0);
         assert!((row.change - (120.0 / 115.0 - 1.0) * 100.0).abs() < 1e-9);
     }
@@ -3351,5 +3723,285 @@ mod tests {
         let area: f32 = tiles.iter().map(|t| t.area()).sum();
         assert!((area - r.area()).abs() < 1.0);
         assert!(tiles.iter().all(|t| r.expand(0.01).contains_rect(*t)));
+    }
+}
+
+#[cfg(test)]
+mod incremental {
+    use super::*;
+
+    const DAY: i64 = 86_400_000;
+
+    /// A made-up random walk of `n` daily bars.
+    fn walk(n: usize, seed: &mut u64) -> Vec<Bar> {
+        let mut p = 100.0;
+        (0..n)
+            .map(|i| {
+                *seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                p *= 1.0 + ((*seed >> 33) as f64 / (1u64 << 31) as f64 - 0.5) * 0.04;
+                Bar {
+                    time: i as i64 * DAY,
+                    open: p,
+                    high: p * 1.01,
+                    low: p * 0.99,
+                    close: p,
+                    volume: 1e5,
+                }
+            })
+            .collect()
+    }
+
+    /// Many indices of many members, settled; the members' data as the app
+    /// keeps it.
+    fn universe(n_idx: usize, per: usize, n_bars: usize) -> (Vec<IndexDef>, HashMap<String, MemberData>) {
+        let mut seed = 7u64;
+        let mut data: HashMap<String, MemberData> = HashMap::new();
+        for k in 0..n_idx * per {
+            // Some members list later, so indices have several segments.
+            let mut b = walk(n_bars, &mut seed);
+            if k % 4 == 1 {
+                b.drain(..n_bars / 3);
+            }
+            let f = Fundamentals {
+                shares: 1e8,
+                float_shares: 5e7,
+                market_cap: 1e10,
+                pe: 20.0,
+                ..Default::default()
+            };
+            data.insert(
+                format!("NSE:S{k}"),
+                MemberData {
+                    bars: Some(Ok(b)),
+                    fund: Some(Ok(f)),
+                    fund_price: 100.0,
+                    hist: 1,
+                    stamp: 1,
+                    ..Default::default()
+                },
+            );
+        }
+        let bars = bars_of(&data);
+        let funds: HashMap<String, Option<&Fundamentals>> = data
+            .iter()
+            .map(|(k, d)| (k.clone(), d.fund.as_ref().and_then(|f| f.as_ref().ok())))
+            .collect();
+        let defs = (0..n_idx)
+            .map(|i| {
+                let mut d = IndexDef {
+                    ticker: format!("T{i}"),
+                    name: format!("T{i}"),
+                    members: (0..per)
+                        .map(|j| Symbol::bare(&format!("NSE:S{}", i * per + j)))
+                        .collect(),
+                    weighting: Weighting::FreeFloat,
+                    ..Default::default()
+                };
+                assert!(settle(&mut d, &bars, &funds, &BTreeSet::new(), 0));
+                d
+            })
+            .collect();
+        (defs, data)
+    }
+
+    fn indices(defs: Vec<IndexDef>, data: HashMap<String, MemberData>) -> Indices {
+        Indices {
+            defs,
+            open: None,
+            compare: true,
+            map: false,
+            period: Period::Day,
+            zoom: None,
+            map_board: None,
+            data,
+            seq: 0,
+            view: View::Table,
+            metric: Metric::Ret1M,
+            sort: (None, true),
+            version: 0,
+            tick: 1,
+            refreshed: None,
+            members: HashMap::new(),
+            calcs: HashMap::new(),
+            chart_when_ready: None,
+            rebalancing: None,
+        }
+    }
+
+    /// Every number on every board, by index and row.
+    fn numbers(ix: &Indices) -> Vec<(String, Vec<f64>)> {
+        let mut out: Vec<(String, Vec<f64>)> = ix
+            .calcs
+            .iter()
+            .map(|(t, c)| {
+                let b = &c.board;
+                let mut v = vec![b.value, b.change, b.total_cap];
+                v.extend(Metric::ALL.iter().map(|m| b.index.get(m).copied().unwrap_or(f64::NAN)));
+                for r in &b.rows {
+                    v.extend([r.price, r.change, r.weight, r.market_cap]);
+                    v.extend(Metric::ALL.iter().map(|m| r.values.get(m).copied().unwrap_or(f64::NAN)));
+                }
+                (t.clone(), v)
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
+    }
+
+    fn same(a: &[(String, Vec<f64>)], b: &[(String, Vec<f64>)]) {
+        assert_eq!(a.len(), b.len());
+        for ((ta, va), (tb, vb)) in a.iter().zip(b) {
+            assert_eq!(ta, tb);
+            for (x, y) in va.iter().zip(vb) {
+                assert!(
+                    (x.is_nan() && y.is_nan()) || x == y || ((x - y) / y).abs() < 1e-12,
+                    "{ta}: {x} vs {y}"
+                );
+            }
+        }
+    }
+
+    /// Live prices step the kept numbers on; the result is the same as
+    /// working everything out from scratch, day after day.
+    #[test]
+    fn live_prices_give_what_a_full_rebuild_gives() {
+        let (defs, data) = universe(4, 5, 600);
+        let mut live = indices(defs.clone(), data.clone());
+        let mut quotes: HashMap<String, (f64, f64)> = HashMap::new();
+        live.refresh(None, &quotes);
+        let mut seed = 99u64;
+        for step in 0..12 {
+            // Every member moves; every third step a new day starts.
+            let ids: Vec<String> = live.data.keys().cloned().collect();
+            for id in &ids {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                let k = 1.0 + ((seed >> 33) as f64 / (1u64 << 31) as f64 - 0.5) * 0.02;
+                let Some(Ok(b)) = &mut live.data.get_mut(id).unwrap().bars else {
+                    unreachable!()
+                };
+                let last = b.last().unwrap().close * k;
+                let today = b.last().unwrap().time + if step % 3 == 2 { DAY } else { 0 };
+                let prev = if step % 3 == 2 {
+                    b.last().unwrap().close
+                } else {
+                    b[b.len() - 2].close
+                };
+                assert!(take_quote(b, Some(today), last));
+                quotes.insert(id.clone(), (last, prev));
+                live.touch(id, false);
+            }
+            live.refresh(None, &quotes);
+            // From scratch: same data, nothing kept.
+            let mut fresh = indices(live.defs.clone(), live.data.clone());
+            fresh.refresh(None, &quotes);
+            same(&numbers(&live), &numbers(&fresh));
+        }
+        // A new history download starts that member's steps over.
+        let id = "NSE:S0".to_string();
+        if let Some(Ok(b)) = &mut live.data.get_mut(&id).unwrap().bars {
+            for x in b.iter_mut().take(10) {
+                x.close *= 2.0;
+            }
+        }
+        live.touch(&id, true);
+        live.refresh(None, &quotes);
+        let mut fresh = indices(live.defs.clone(), live.data.clone());
+        fresh.refresh(None, &quotes);
+        same(&numbers(&live), &numbers(&fresh));
+    }
+
+    /// RSI and the averages from kept steps equal the built-in indicators
+    /// run over the whole history.
+    #[test]
+    fn kept_steps_match_the_built_ins() {
+        let mut seed = 3u64;
+        let mut bars = walk(1500, &mut seed);
+        let mut steps = None;
+        let tf = Timeframe::parse("1D").unwrap();
+        for k in 0..5 {
+            if k > 0 {
+                let t = bars.last().unwrap().time + DAY;
+                let c = bars.last().unwrap().close * 1.01;
+                bars.push(Bar {
+                    time: t,
+                    open: c,
+                    high: c,
+                    low: c,
+                    close: c,
+                    volume: 0.0,
+                });
+            }
+            let mut out = HashMap::new();
+            price_measures(&bars, &mut steps, &mut out);
+            let sess = opentern_series::study::sessions(&bars, tf, &jiff::tz::TimeZone::UTC);
+            let rsi = crate::screener::builtin_last("rsi", None, &bars, &sess, tf);
+            assert!((out[&Metric::Rsi] - rsi).abs() < 1e-9, "{} vs {rsi}", out[&Metric::Rsi]);
+            for (m, len) in [(Metric::Sma50, 50), (Metric::Sma200, 200)] {
+                let sma = crate::screener::builtin_last("sma", Some(len), &bars, &sess, tf);
+                let want = (bars.last().unwrap().close / sma - 1.0) * 100.0;
+                assert!((out[&m] - want).abs() < 1e-9, "{m:?}: {} vs {want}", out[&m]);
+            }
+        }
+    }
+
+    /// The incremental history equals the one worked out in full.
+    #[test]
+    fn index_history_from_a_day_on_equals_the_whole() {
+        let (defs, data) = universe(3, 6, 800);
+        let bars = bars_of(&data);
+        for d in &defs {
+            let whole = index_series(&d.segments, &bars);
+            assert!(!whole.is_empty());
+            let from = whole[whole.len() - 40].time;
+            assert_eq!(index_series_from(&d.segments, &bars, whole.clone(), from), whole);
+        }
+    }
+
+    /// How long Compare's numbers take, as the maintainer's 63 indices of
+    /// 575 stocks: `cargo test --release -p opentern --bin opentern
+    /// indices_timing -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn indices_timing() {
+        let (defs, data) = universe(63, 9, 6000);
+        let quotes: HashMap<String, (f64, f64)> = HashMap::new();
+        for threads in [1, 4, 0] {
+            let pool = rayon::ThreadPoolBuilder::new().num_threads(threads).build().unwrap();
+            let mut ix = indices(defs.clone(), data.clone());
+            let t = Instant::now();
+            pool.install(|| ix.refresh(None, &quotes));
+            let first = t.elapsed();
+            // A 30-second batch: every member gets a live price.
+            let ids: Vec<String> = ix.data.keys().cloned().collect();
+            let t = Instant::now();
+            for id in &ids {
+                let Some(Ok(b)) = &mut ix.data.get_mut(id).unwrap().bars else {
+                    unreachable!()
+                };
+                let last = b.last().unwrap().close * 1.001;
+                let today = b.last().unwrap().time;
+                take_quote(b, Some(today), last);
+                ix.touch(id, false);
+            }
+            pool.install(|| ix.refresh(None, &quotes));
+            let batch = t.elapsed();
+            // One member's price.
+            let t = Instant::now();
+            ix.touch("NSE:S0", false);
+            pool.install(|| ix.refresh(None, &quotes));
+            let one = t.elapsed();
+            // Nothing changed (every frame while the table shows).
+            let t = Instant::now();
+            ix.refresh(None, &quotes);
+            let idle = t.elapsed();
+            println!(
+                "threads {}: first load {first:?}, 30 s batch (all 575 move) {batch:?}, one price {one:?}, nothing new {idle:?}",
+                if threads == 0 {
+                    "all".to_string()
+                } else {
+                    threads.to_string()
+                }
+            );
+        }
     }
 }

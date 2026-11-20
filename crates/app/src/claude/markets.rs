@@ -112,7 +112,7 @@ impl App {
         let Some(def) = self.indices.by_ticker(ticker).cloned() else {
             return error("That index was deleted.");
         };
-        let Some(board) = self.indices.board(ticker) else {
+        let Some(board) = self.index_board(ticker) else {
             return error("That index was deleted.");
         };
         let now = self.index_now(&def);
@@ -176,7 +176,7 @@ impl App {
         if rebalance && self.rebalance_running(&def) {
             return false;
         }
-        let waiting = self.indices.board(ticker).map_or(0, |b| b.waiting);
+        let waiting = self.index_board(ticker).map_or(0, |b| b.waiting);
         waiting == 0 && !def.pending && (def.ready() || def.members.is_empty())
     }
 
@@ -236,7 +236,7 @@ impl App {
                 let rows: Vec<Value> = defs
                     .iter()
                     .filter_map(|d| {
-                        let b = self.indices.board(&d.ticker)?;
+                        let b = self.index_board(&d.ticker)?;
                         let now = self.index_now(d);
                         Some(json!({
                             "name": d.name,

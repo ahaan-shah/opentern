@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.15 (2026-11-20)
+
+Comparing many custom indices no longer freezes the app, and index boards show the watchlist's prices.
+
+### Fixed
+- **Compare indices no longer freezes the app.** With many custom indices, every new price used to redo every index's whole history (about a second each time, and again every 30 seconds while the market traded). Now only today is redone for the indices whose stocks moved, in a few milliseconds.
+
+### Changed
+- **Custom index boards match the watchlist.** Each member's price and day change are the watchlist's.
+- **P/E and EV/EBITDA follow the live price** on index boards and in Compare.
+- **Members' price history and company figures download once a day** instead of every 15 minutes; the live price keeps today's numbers moving in between.
+
 ## 0.2.14 (2026-11-20)
 
 A symbol now shows one price everywhere at once, and pairs on Bybit, OKX, Coinbase and Kraken update live in the watchlist.

@@ -31,6 +31,25 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.2.15",
+        items: &[
+            Item {
+                icon: ph::LIGHTNING,
+                title: "Faster index compare",
+                body: "Comparing many custom indices no longer freezes the app. New prices now update them \
+                       in a few milliseconds.",
+                image: None,
+            },
+            Item {
+                icon: ph::ARROWS_CLOCKWISE,
+                title: "Index boards match the watchlist",
+                body: "Each stock's price and day change on an index board are the watchlist's, and P/E and \
+                       EV/EBITDA follow the live price.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.14",
         items: &[
             Item {

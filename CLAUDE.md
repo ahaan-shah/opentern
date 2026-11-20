@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.13):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.2.15):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -1663,8 +1663,22 @@ every data change (scripts re-run on it).
 - **Index members are live:** `App::indices_quote` puts each member's quote
   on its daily bars (`take_quote`: moves today's bar or starts it once
   `calendar::session_day` says the session opened), so the board, weights
-  and the map follow the market; the 15-min `STALE` download stays for
-  history and fundamentals.
+  and the map follow the market. Members' bars and fundamentals download
+  once a day (`due`: a new local day or 24 h; failures retry after
+  `RETRY`, 15 min).
+- **Index numbers are incremental** (Nov 2026; 63 indices of 575 stocks
+  froze the app ~1 s per price). `Indices::refresh`: each member's
+  `MemberData::{hist, stamp}` (from `Indices::touch`) says what changed;
+  `MemberCalc` keeps its RSI/SMA state over closed days (`Steps`, the
+  built-ins' own `ta::Rsi`/`ta::Sma`, so the numbers are theirs) and only
+  adds today's step; `IndexCalc` keeps the index's series and redoes only
+  from its newest day (`index_series_from`) unless the definition
+  (`IndexDef::fingerprint`) or a member's history changed. Stale indices
+  run side by side on rayon. Boards are `Arc`s (no per-frame copies).
+  Rows' price and 1D come from `App::quotes` (the watchlist's); P/E and
+  EV/EBITDA follow the live price from `MemberData::fund_price`
+  (`at_price`). Tests: `incremental::live_prices_give_what_a_full_rebuild_gives`,
+  timing `indices_timing` (ignored).
 - The overview's 3-min full rebuild runs only while its market trades, plus
   once after the close.
 - Live check (ignored; run while US stocks trade): `cargo test -p
