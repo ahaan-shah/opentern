@@ -137,6 +137,7 @@ pub fn pasted_files(text: &str) -> Option<Vec<PathBuf>> {
 }
 
 /// The clipboard's files, or its image saved as a PNG in `dir`.
+#[cfg_attr(test, allow(dead_code))]
 pub fn from_clipboard(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| format!("Couldn't open the clipboard: {e}"))?;
     if let Ok(files) = cb.get().file_list()

@@ -199,6 +199,12 @@ impl App {
         // on the darker frame, with a small gap between them: the regions
         // read apart at a glance (CLAUDE.md §4a).
         let mut cards: Vec<Rect> = Vec::new();
+        // The market overview takes the charts' place and the bottom
+        // panel's; the side panel stays.
+        let ov = self.overview_open();
+        // Maximized, the bottom panel takes the chart's place too (and the
+        // range bar's): everything under the top bar.
+        let full = self.layout.panel_max && self.layout.tab.is_some();
         let open = self.layout.widget.is_some();
         let k = motion::toggle(ui.ctx(), Id::new("widget-open"), open, motion::STANDARD);
         if k > 0.001 {
@@ -210,7 +216,9 @@ impl App {
                 .frame(egui::Frame::new().fill(t.sidebar).inner_margin(Margin {
                     left: GAP as i8,
                     right: 0,
-                    top: GAP as i8,
+                    // Beside a maximized bottom panel, the card starts
+                    // level with that panel's card, under its tab strip.
+                    top: if full && !ov { TABS_H as i8 } else { GAP as i8 },
                     bottom: GAP as i8,
                 }))
                 .show(ui, |ui| {
@@ -220,9 +228,6 @@ impl App {
                 });
         }
 
-        // The market overview takes the charts' place and the bottom
-        // panel's; the side panel stays.
-        let ov = self.overview_open();
         // Bottom panel: the tab strip always shows; the content slides up
         // when a tab is open.
         let k = motion::toggle(
@@ -232,9 +237,6 @@ impl App {
             motion::STANDARD,
         );
         let most = panel_max_h(ui.ctx().content_rect().height());
-        // Maximized, the panel takes the chart's place too (and the range
-        // bar's): everything under the top bar.
-        let full = self.layout.panel_max && self.layout.tab.is_some();
         let panel_h = if full {
             (ui.ctx().content_rect().height() - TOP_H - TABS_H - GAP).max(140.0)
         } else if self.layout.panel_max {

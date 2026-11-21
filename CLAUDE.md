@@ -32,6 +32,10 @@ here" at the end first.
   indicator templates, defaults, favorites (§4b).
 - **WASM plugins are skipped for now** (the maintainer, 10 Oct 2026). Phase 13 is
   Luau, then JS/TS. Don't add wasmtime unless they ask again.
+- **The agents and Python keep full access** (the maintainer, 21 Nov 2026: "the
+  agent is there to help people"; the editor is like VS Code). No Contained
+  mode for the agents and no OS sandbox for Python; the README's License
+  section carries the disclaimer. Don't add either unless asked.
 - **Every standard TradingView built-in ships by default**, plus licence-checked
   open-source community scripts. They're ported from Pine to Rust with exact numerical
   parity (§6a).
@@ -1169,8 +1173,13 @@ workspace.
   replies are links to the Script Editor (`inline` lays out its own galley only
   when a line has one, so other text stays selectable); menus open upward and fit
   the pane; scrollbars are floating and hidden until used. Models are exact ids
-  shown by name (Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5; `model_name`; old
-  aliases like "haiku" are mapped by `model_id` on load). Third pass: chats rename
+  shown by name. **The list comes from Claude Code** (`process::models`: a
+  short-lived `claude -p` answers a `control_request` `initialize` with its
+  `models`; the alias entries (opus, sonnet, fable, haiku) give each family's
+  latest as `resolvedModel` + `displayName`; no model request is made). Asked
+  once a run when the model menu opens, saved as `claude_models`; `MODELS` is
+  the fallback until then (keep it current). Old aliases like "haiku" are
+  mapped by `model_id` on load. Third pass: chats rename
   (pencil on hover in the list, or double-click the header title; Enter or click
   away keeps it, Esc cancels); composer menus and the usage card anchor to the
   composer's edge (`above`, from last frame's rect) so they never cover it, the
@@ -1188,8 +1197,8 @@ workspace.
   icon); `narrow_pane_fits` checks nothing overlaps at 220-420 px.
   **Mode defaults to Auto** (the maintainer's terminal is set up that way); a mode is
   kept only once picked by hand (`mode_picked`; older saves stored the old default).
-- **Attachments** (`claude/attach.rs`): the paperclip (Add files… via rfd's async
-  dialog on a thread with pollster, as in Magpie; Paste image), drag and drop onto
+- **Attachments** (`claude/attach.rs`): the paperclip (opens the file picker: rfd's async
+  dialog on a thread with pollster, as in Magpie; no menu), drag and drop onto
   the window while the panel is open (overlay), Ctrl+V of copied files (egui gives
   file-manager copies as text: `file://` URIs or paths, intercepted before the text
   box), and **Ctrl+V for a clipboard image** (Alt+V until Nov 2026; Alt V is
@@ -1397,6 +1406,11 @@ every data change (scripts re-run on it).
   the ui's rect, and everything after it is laid out past the panel's
   edge (that's what overlapped when the window was tiled below its
   1000 px minimum).
+- Indices list: a search square beside Compare (`Indices::search`, filters
+  cards by name or ticker; Esc closes); the map button is a toggle (Compare
+  isn't cleared under it). Watchlists: a search button in the header
+  (`watchlist_search`, temp state `("watchlist","search")`) lists matching
+  lists by name in place of the circles and rows.
 - **Custom indices, still open:** colour against the index's value
   instead of by rank (kept rank for now); caps if ever wanted.
 - Formula lexer accepts `&` in tickers (`NSE:M&M`).

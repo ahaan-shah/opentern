@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Search custom indices.** A search button beside Compare filters the list by name.
+- **Search watchlists.** A search button in the Watchlist header finds a list by name; Enter or a click switches to it.
+
+### Fixed
+- **The map of every index closes like the market overview.** Clicking its button again goes back to the index or Compare you were on.
+- **Claude's model menu lists the newest models.** It now asks Claude Code which models are current (Fable 5.2 instead of 5.1), once a run when the menu opens.
+- **The side panel lines up with a maximized bottom panel.** Their cards now start at the same height.
+
+### Changed
+- **The paperclip opens the file picker straight away.** Paste image is gone from it; Ctrl+V still pastes an image.
+
 ## 0.2.15 (2026-11-20)
 
 Comparing many custom indices no longer freezes the app, and index boards show the watchlist's prices.

@@ -108,6 +108,32 @@ impl Driver {
         found
     }
 
+    /// Runs a frame and returns every rect where text that is exactly
+    /// `text` was painted, in paint order.
+    pub fn text_rects(&mut self, text: &str) -> Vec<Rect> {
+        fn walk(shape: &egui::Shape, text: &str, out: &mut Vec<Rect>) {
+            match shape {
+                egui::Shape::Text(t) if t.galley.text() == text => out.push(t.galley.rect.translate(t.pos.to_vec2())),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, text, out)),
+                _ => {}
+            }
+        }
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
+        let mut found = Vec::new();
+        for c in &out.shapes {
+            walk(&c.shape, text, &mut found);
+        }
+        found
+    }
+
     /// Runs frames until `f` holds (data arrives on other threads). A time
     /// limit, not a frame count: shared CI runners are several times slower
     /// than a desktop.
@@ -1287,6 +1313,37 @@ mod formula_tests {
         let r = d.app.chart_ui.main_rect;
         assert!(r.height() > 100.0, "chart squeezed to {r:?}");
         assert!(d.app.layout.panel_h > 400.0, "the drag did nothing");
+    }
+
+    #[test]
+    fn searching_watchlists_switches_by_name() {
+        use crate::watchlists::Watchlist;
+        let mut d = Driver::new("watch-search");
+        for (k, name) in ["Swing", "Semis", "Scalps", "Dividends"].into_iter().enumerate() {
+            d.app.watchlists.push(Watchlist {
+                id: 100 + k as i64,
+                name: name.into(),
+                items: Vec::new(),
+            });
+        }
+        d.frame(vec![]);
+        let title = d.text_rect("Watchlist").expect("watchlist title");
+        let glass = d
+            .text_rects(crate::icons::ph::MAGNIFYING_GLASS)
+            .into_iter()
+            .find(|r| (r.center().y - title.center().y).abs() < 6.0 && r.left() > title.right())
+            .expect("search button");
+        d.click(glass.center());
+        d.frame(vec![Event::Text("semi".into())]);
+        d.frame(vec![]);
+        let texts = d.texts();
+        assert!(texts.iter().any(|t| t == "Semis"), "{texts:?}");
+        assert!(!texts.iter().any(|t| t == "Swing" || t == "Scalps"), "{texts:?}");
+        d.key(Key::Enter, Modifiers::NONE);
+        assert_eq!(d.app.watchlists[d.app.active_list].name, "Semis");
+        // Picking closes the search: the switcher's circles are back.
+        assert!(d.text_rect("Semis").is_some());
+        assert!(d.texts().iter().any(|t| t == "D"));
     }
 
     #[test]

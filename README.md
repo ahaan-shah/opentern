@@ -279,6 +279,18 @@ by file, with their authors credited in [docs/indicators.md](docs/indicators.md)
 The licenses of everything Opentern includes are in
 [THIRD-PARTY-LICENSES.txt](THIRD-PARTY-LICENSES.txt) (`opentern --licenses`).
 
+**Scripts and agents run on your computer.** Python scripts run in your own
+Python interpreter with the same access to your files, network and computer as
+any program you start; Opentern doesn't sandbox them. The agent panel starts
+Claude Code or Codex, which can read and write files, run commands and run
+scripts on your computer, within the permissions you give it (Ask first or
+Auto). Read a script before you run it, and only give an agent the access you'd
+give any program. Opentern holds back Python scripts that arrive in an imported
+workspace until you run them by hand, but it can't tell whether a script is
+safe. As the [license](LICENSE) says, Opentern comes with no warranty, and you
+use scripts, agents and their results at your own risk. Nothing in Opentern is
+financial advice.
+
 Pine Script® and TradingView® are trademarks of TradingView, Inc. Claude is a
 trademark of Anthropic. OpenAI and Codex are trademarks of OpenAI. Opentern is an
 independent project, not affiliated with or endorsed by any of them.

@@ -1948,6 +1948,61 @@ mod drive_tests {
     }
 
     #[test]
+    fn indices_search_and_the_map_toggle() {
+        use egui::{Key, Modifiers};
+        let mut d = Driver::new("indices-search");
+        for (name, syms) in [
+            ("Big Tech", json!(["AAPL", "NVDA"])),
+            ("Chips", json!(["NVDA", "SPY"])),
+            ("Funds", json!(["SPY", "QQQ"])),
+        ] {
+            ok(&call(
+                &mut d,
+                "custom_index",
+                json!({"action": "create", "name": name, "symbols": syms, "weighting": "equal"}),
+            ));
+        }
+        d.app.layout.tab = Some(crate::shell::Tab::Indices);
+        d.app.indices.compare = true;
+        d.frame(vec![]);
+        // The search square sits on Compare's row, to its right.
+        let compare = d.text_rect("Compare").expect("Compare card");
+        let glass = d
+            .text_rects(crate::icons::ph::MAGNIFYING_GLASS)
+            .into_iter()
+            .find(|r| (r.center().y - compare.center().y).abs() < 4.0 && r.left() > compare.right())
+            .expect("search button");
+        d.click(glass.center());
+        assert_eq!(d.app.indices.search.as_deref(), Some(""));
+        d.frame(vec![egui::Event::Text("chi".into())]);
+        d.frame(vec![]);
+        // In the list (left of where the board starts); the board's
+        // Compare table names every index.
+        let list_edge = glass.right() + 20.0;
+        let in_list = |d: &mut Driver, name: &str| d.text_rects(name).iter().any(|r| r.left() < list_edge);
+        assert!(in_list(&mut d, "Chips"));
+        assert!(!in_list(&mut d, "Big Tech"));
+        assert!(!in_list(&mut d, "Funds"));
+        d.key(Key::Escape, Modifiers::NONE);
+        assert!(d.app.indices.search.is_none());
+        assert!(in_list(&mut d, "Big Tech"));
+
+        // The map button toggles, and closing it returns to Compare.
+        let compare = d.text_rect("Compare").unwrap();
+        let plus = d
+            .text_rects(crate::icons::ph::PLUS)
+            .into_iter()
+            .find(|r| r.bottom() < compare.top() && r.left() < 400.0)
+            .expect("new index button");
+        let map = plus.center() - egui::vec2(30.0, 0.0);
+        d.click(map);
+        assert!(d.app.indices.map);
+        d.click(map);
+        assert!(!d.app.indices.map);
+        assert!(d.app.indices.compare);
+    }
+
+    #[test]
     fn the_agent_reads_seasonality_and_runs_custom_indices() {
         let mut d = Driver::new("agent-markets");
         let r = ok(&call(&mut d, "seasonality", json!({})));

@@ -250,6 +250,9 @@ impl App {
     pub(crate) fn watchlist_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.watchlist_header(ui, t);
         ui.add_space(2.0);
+        if self.watchlist_search(ui, t) {
+            return;
+        }
         self.watchlist_switcher(ui, t);
         ui.add_space(6.0);
         self.watchlist_rows(ui, t);
@@ -268,6 +271,17 @@ impl App {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if crate::widgets::tool_button(ui, t, ph::PLUS, "Add symbol", false, 28.0).clicked() {
                     self.modal = Some(crate::dialogs::Modal::Symbol(crate::dialogs::SymbolSearch::adding()));
+                }
+                let id = state_id("search");
+                let open = ui.data(|d| d.get_temp::<Option<String>>(id)).flatten().is_some();
+                if self.watchlists.len() > 1
+                    && crate::widgets::tool_button(ui, t, ph::MAGNIFYING_GLASS, "Search lists", open, 28.0).clicked()
+                {
+                    let next = if open { None } else { Some(String::new()) };
+                    ui.data_mut(|d| {
+                        d.insert_temp(id, next);
+                        d.insert_temp(state_id("search-focus"), true);
+                    });
                 }
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     if let Some(text) = renaming.as_mut() {
@@ -345,6 +359,71 @@ impl App {
             self.active_list = self.active_list.saturating_sub(1);
             self.save_watchlists();
         }
+    }
+
+    /// The lists' search, while open: a field, and the lists whose names
+    /// match (by name, as initials alone don't tell many lists apart).
+    /// Picking one switches to it and closes the search. True while it
+    /// shows matches (they take the rows' place).
+    fn watchlist_search(&mut self, ui: &mut Ui, t: &Theme) -> bool {
+        let id = state_id("search");
+        let Some(mut q) = ui.data(|d| d.get_temp::<Option<String>>(id)).flatten() else {
+            return false;
+        };
+        let resp = crate::widgets::search_field(ui, t, &mut q, "Search lists", ui.available_width());
+        if ui
+            .data_mut(|d| d.remove_temp::<bool>(state_id("search-focus")))
+            .unwrap_or(false)
+        {
+            resp.request_focus();
+        }
+        let mut close = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape));
+        let needle = q.trim().to_lowercase();
+        let hits: Vec<usize> = (0..self.watchlists.len())
+            .filter(|&k| self.watchlists[k].name.to_lowercase().contains(&needle))
+            .collect();
+        let mut switch = None;
+        // Enter takes the first match.
+        if resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) && !needle.is_empty() {
+            switch = hits.first().copied();
+        }
+        if needle.is_empty() {
+            ui.data_mut(|d| d.insert_temp(id, if close { None } else { Some(q) }));
+            return false;
+        }
+        ui.add_space(6.0);
+        egui::ScrollArea::vertical()
+            .id_salt("watchlist-search")
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 2.0;
+                for &k in &hits {
+                    let l = &self.watchlists[k];
+                    let n = l.symbols().len();
+                    let hint = if n == 1 {
+                        "1 symbol".to_string()
+                    } else {
+                        format!("{n} symbols")
+                    };
+                    if crate::widgets::menu_item(ui, t, None, &l.name, &hint, k == self.active_list).clicked() {
+                        switch = Some(k);
+                    }
+                }
+                if hits.is_empty() {
+                    ui.add_space(12.0);
+                    ui.vertical_centered(|ui| {
+                        ui.label(egui::RichText::new("No lists match").color(t.text3));
+                    });
+                }
+            });
+        if let Some(k) = switch {
+            self.active_list = k;
+            ui.data_mut(|d| d.insert_temp::<Option<String>>(state_id("rename"), None));
+            self.save_watchlists();
+            close = true;
+        }
+        ui.data_mut(|d| d.insert_temp(id, if close { None } else { Some(q) }));
+        true
     }
 
     /// A circle per list with its initial, as on TradingView, and a + for a

@@ -30,7 +30,7 @@ use crate::icons::ph;
 use crate::motion::lerp_color;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
-use egui::{Align2, Color32, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align2, Color32, Id, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
 use opentern_data::Request;
 use opentern_data::fundamentals::Fundamentals;
@@ -1345,6 +1345,8 @@ pub struct Indices {
     pub(crate) chart_when_ready: Option<String>,
     /// "Rebalance now" pressed: which index, and when.
     rebalancing: Option<(String, Instant)>,
+    /// The list's search, while it's open (filters the cards by name).
+    pub search: Option<String>,
 }
 
 impl Indices {
@@ -1376,6 +1378,7 @@ impl Indices {
             calcs: HashMap::new(),
             chart_when_ready: None,
             rebalancing: None,
+            search: None,
         };
         ix.register();
         ix
@@ -1906,11 +1909,12 @@ impl App {
                 if w::tool_button(ui, t, ph::PLUS, "New index", false, 26.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                 }
+                // A toggle: off again goes back to the page it covered
+                // (Compare or an index), as the market overview does.
                 if !self.indices.defs.is_empty()
                     && crate::overview::map_button(ui, t, self.indices.map, 26.0, "Map of every index").clicked()
                 {
-                    self.indices.map = true;
-                    self.indices.compare = false;
+                    self.indices.map = !self.indices.map;
                 }
             });
         });
@@ -1923,9 +1927,43 @@ impl App {
             .auto_shrink([false, false])
             .show(ui, |ui| {
                 ui.spacing_mut().item_spacing.y = 6.0;
-                if defs.len() >= 2 {
+                if defs.len() >= 2 && self.indices.search.is_some() {
+                    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::hover());
+                    let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
+                    let text = self.indices.search.get_or_insert_default();
+                    let resp = w::search_field(&mut f, t, text, "Search", r.width());
+                    let id = Id::new("indices-search");
+                    // Focus once, when it opens.
+                    if !f.data(|d| d.get_temp::<bool>(id).unwrap_or(false)) {
+                        resp.request_focus();
+                        f.data_mut(|d| d.insert_temp(id, true));
+                    }
+                    let esc = resp.lost_focus() && f.input(|i| i.key_pressed(egui::Key::Escape));
+                    if esc || (!resp.has_focus() && text.is_empty() && f.input(|i| i.pointer.any_pressed())) {
+                        self.indices.search = None;
+                        f.data_mut(|d| d.remove_temp::<bool>(id));
+                    }
+                } else if defs.len() >= 2 {
                     let on = self.indices.compare && !self.indices.map;
-                    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
+                    let row = ui.available_width();
+                    let (r, resp) = ui.allocate_exact_size(vec2(row - 46.0, 40.0), Sense::click());
+                    let find = Rect::from_min_size(pos2(r.right() + 6.0, r.top()), vec2(40.0, 40.0));
+                    let fr = ui.interact(find, Id::new("indices-find"), Sense::click());
+                    card(ui, t, find, false, fr.hovered());
+                    ui.painter().text(
+                        find.center(),
+                        Align2::CENTER_CENTER,
+                        ph::MAGNIFYING_GLASS,
+                        theme::regular(15.0),
+                        t.text2,
+                    );
+                    if fr
+                        .on_hover_text("Search")
+                        .on_hover_cursor(egui::CursorIcon::PointingHand)
+                        .clicked()
+                    {
+                        self.indices.search = Some(String::new());
+                    }
                     card(ui, t, r, on, resp.hovered());
                     let p = ui.painter();
                     p.text(
@@ -1946,7 +1984,11 @@ impl App {
                         compare = true;
                     }
                 }
+                let q = self.indices.search.as_deref().unwrap_or("").trim().to_lowercase();
                 for d in &defs {
+                    if !q.is_empty() && !d.name.to_lowercase().contains(&q) && !d.ticker.to_lowercase().contains(&q) {
+                        continue;
+                    }
                     let on =
                         !self.indices.compare && !self.indices.map && self.indices.open.as_deref() == Some(&d.ticker);
                     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
@@ -3825,6 +3867,7 @@ mod incremental {
             calcs: HashMap::new(),
             chart_when_ready: None,
             rebalancing: None,
+            search: None,
         }
     }
 

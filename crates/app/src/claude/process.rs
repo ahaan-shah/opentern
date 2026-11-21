@@ -250,15 +250,7 @@ impl ClaudeCode {
             cmd.arg("--add-dir").arg(d);
         }
         super::accounts::apply(&mut cmd, l.agent, &l.account);
-        // A session started from inside Claude Code (a terminal, a test)
-        // would otherwise think it's nested.
-        for (k, _) in std::env::vars_os() {
-            if let Some(k) = k.to_str()
-                && (k == "CLAUDECODE" || k.starts_with("CLAUDE_CODE_"))
-            {
-                cmd.env_remove(k);
-            }
-        }
+        not_nested(&mut cmd);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -375,6 +367,107 @@ impl Drop for ClaudeCode {
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
+}
+
+/// A session started from inside Claude Code (a terminal, a test) would
+/// otherwise think it's nested.
+fn not_nested(cmd: &mut Command) {
+    for (k, _) in std::env::vars_os() {
+        if let Some(k) = k.to_str()
+            && (k == "CLAUDECODE" || k.starts_with("CLAUDE_CODE_"))
+        {
+            cmd.env_remove(k);
+        }
+    }
+}
+
+/// Claude Code's current models, asked of a short-lived `claude -p` (its
+/// `initialize` answer lists them; no request goes to the model). Only the
+/// families' latest (the entries named by alias: opus, sonnet, …), as
+/// (exact id, name), in the CLI's order. Empty on any failure.
+pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
+    let (tx, rx) = unbounded();
+    let _ = std::thread::Builder::new().name("claude-models".into()).spawn(move || {
+        let mut list = Vec::new();
+        // A new workspace has no scripts folder until something is saved.
+        let _ = std::fs::create_dir_all(&cwd);
+        let mut cmd = Command::new(&exe);
+        cmd.args([
+            "-p",
+            "--input-format",
+            "stream-json",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+        ]);
+        super::accounts::apply(
+            &mut cmd,
+            super::Agent::Claude,
+            &super::accounts::current(super::Agent::Claude),
+        );
+        not_nested(&mut cmd);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        }
+        let child = cmd
+            .current_dir(&cwd)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn();
+        if let Ok(mut child) = child
+            && let (Some(mut sin), Some(sout)) = (child.stdin.take(), child.stdout.take())
+        {
+            let _ = writeln!(
+                sin,
+                "{}",
+                json!({"type": "control_request", "request_id": "models", "request": {"subtype": "initialize"}})
+            );
+            let _ = sin.flush();
+            let start = std::time::Instant::now();
+            for line in BufReader::new(sout).lines() {
+                let Ok(line) = line else { break };
+                let Ok(v) = serde_json::from_str::<Value>(&line) else {
+                    continue;
+                };
+                if v["type"] == "control_response" && v["response"]["request_id"] == "models" {
+                    list = latest_models(&v["response"]["response"]["models"]);
+                    break;
+                }
+                if start.elapsed().as_secs() > 20 {
+                    break;
+                }
+            }
+            drop(sin);
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        let _ = tx.send(list);
+    });
+    rx
+}
+
+/// The alias entries of an `initialize` model list as (exact id, name).
+fn latest_models(models: &Value) -> Vec<(String, String)> {
+    models
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| {
+            let alias = m["value"].as_str()?;
+            if alias == "default" || alias.contains('-') {
+                return None;
+            }
+            let id = m["resolvedModel"].as_str().filter(|s| !s.is_empty())?;
+            let name = m["displayName"]
+                .as_str()
+                .map(str::to_string)
+                .unwrap_or_else(|| super::model_name(id));
+            Some((id.to_string(), name))
+        })
+        .collect()
 }
 
 fn read(out: impl Read, tx: Sender<Event>, wake: Arc<dyn Fn() + Send + Sync>, err_text: Arc<Mutex<String>>) {
@@ -573,6 +666,25 @@ mod tests {
 
     fn p(s: &str) -> Vec<Event> {
         parse(&serde_json::from_str(s).unwrap())
+    }
+
+    #[test]
+    fn models_are_the_families_latest() {
+        let v = json!([
+            {"value": "default", "resolvedModel": "claude-opus-5-5", "displayName": "Default (recommended)"},
+            {"value": "opus", "resolvedModel": "claude-opus-5-5", "displayName": "Opus 5.5"},
+            {"value": "fable", "resolvedModel": "claude-fable-5-2", "displayName": "Fable 5.2"},
+            {"value": "haiku", "resolvedModel": "claude-haiku-5-5"},
+            {"value": "claude-fable-5-1", "resolvedModel": "claude-fable-5-1", "displayName": "Fable 5.1"}
+        ]);
+        assert_eq!(
+            latest_models(&v),
+            [
+                ("claude-opus-5-5".to_string(), "Opus 5.5".to_string()),
+                ("claude-fable-5-2".to_string(), "Fable 5.2".to_string()),
+                ("claude-haiku-5-5".to_string(), "Haiku 5.5".to_string()),
+            ]
+        );
     }
 
     #[test]

@@ -167,6 +167,9 @@ struct Saved {
     codex_model: String,
     #[serde(default)]
     codex_models: Vec<(String, String)>,
+    /// Claude Code's models as it last listed them.
+    #[serde(default)]
+    claude_models: Vec<(String, String)>,
     #[serde(default)]
     codex_limits: Vec<Window>,
     /// Each agent's open chat, for switching back.
@@ -210,6 +213,12 @@ pub struct Claude {
     last: HashMap<Agent, u64>,
     pub codex_model: String,
     pub codex_models: Vec<(String, String)>,
+    /// Claude Code's models (`process::models`); `MODELS` until it answers.
+    pub claude_models: Vec<(String, String)>,
+    /// Claude Code was asked for its models this run (new ones come out
+    /// between runs, so once per run, not once ever).
+    claude_models_asked: bool,
+    claude_models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
     pub codex_limits: Vec<Window>,
     codex_cli: Option<Option<PathBuf>>,
     /// When the picker first showed (its entrance).
@@ -284,11 +293,12 @@ pub struct Claude {
     dirty: bool,
 }
 
-/// The models to pick from: (id passed to `--model`, name). Exact ids, so
-/// the names stay true when newer models come out.
+/// The models to pick from until Claude Code lists its own
+/// (`process::models`): (id passed to `--model`, name). Exact ids, so the
+/// names stay true when newer models come out.
 pub const MODELS: [(&str, &str); 5] = [
     ("", "Default"),
-    ("claude-fable-5-1", "Fable 5.1"),
+    ("claude-fable-5-2", "Fable 5.2"),
     ("claude-opus-5-5", "Opus 5.5"),
     ("claude-sonnet-5-5", "Sonnet 5.5"),
     ("claude-haiku-5-5", "Haiku 5.5"),
@@ -383,7 +393,12 @@ impl Claude {
     /// A model id as people say it.
     fn model_label(&self, a: Agent, id: &str) -> String {
         match a {
-            Agent::Claude => model_name(id),
+            Agent::Claude => self
+                .claude_models
+                .iter()
+                .find(|(k, _)| k == id)
+                .map(|(_, n)| n.clone())
+                .unwrap_or_else(|| model_name(id)),
             Agent::Codex => self
                 .codex_models
                 .iter()
@@ -426,6 +441,7 @@ impl Claude {
             v.push((String::new(), "Default".to_string()));
         }
         match a {
+            Agent::Claude if !self.claude_models.is_empty() => v.extend(self.claude_models.iter().cloned()),
             Agent::Claude => v.extend(
                 MODELS
                     .iter()
@@ -510,6 +526,7 @@ impl App {
         c.agent = s.agent;
         c.codex_model = s.codex_model;
         c.codex_models = s.codex_models;
+        c.claude_models = s.claude_models;
         c.codex_limits = s.codex_limits;
         c.last = s.last.into_iter().collect();
         c.defaults = s.defaults.into_iter().collect();
@@ -537,6 +554,7 @@ impl App {
             agent: c.agent,
             codex_model: c.codex_model.clone(),
             codex_models: c.codex_models.clone(),
+            claude_models: c.claude_models.clone(),
             codex_limits: c.codex_limits.clone(),
             last: c.last.iter().map(|(a, id)| (*a, *id)).collect(),
             defaults: c.defaults.iter().map(|(a, m)| (*a, m.clone())).collect(),
@@ -1701,7 +1719,10 @@ impl App {
             None => c.configured.remove(&agent),
         };
         match agent {
-            Agent::Claude => c.limits.clear(),
+            Agent::Claude => {
+                c.limits.clear();
+                c.claude_models_asked = false;
+            }
             Agent::Codex => {
                 c.codex_limits.clear();
                 c.codex_models.clear();
@@ -2163,6 +2184,7 @@ impl App {
     }
 
     /// The clipboard's files, or its image (saved in the workspace).
+    #[cfg_attr(test, allow(dead_code))]
     fn claude_paste(&mut self, now: f64) {
         let dir = self.store.dir().join("claude").join("attachments");
         match attach::from_clipboard(&dir) {
@@ -2388,28 +2410,10 @@ impl App {
                     // A narrow pane: the mode shrinks to its icon, then the
                     // model drops its version. The send button and the ring
                     // always keep their room.
-                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false)
-                        .on_hover_text(format!("Attach files (or drop them here; {PASTE} pastes an image)"));
-                    egui::Popup::menu(&clip)
-                        .anchor(above(&clip, top))
-                        .align(egui::RectAlign::TOP_START)
-                        .gap(6.0)
-                        .width(220.0)
-                        .show(|ui| {
-                            ui.spacing_mut().item_spacing.y = 2.0;
-                            if menu_pick(ui, t, &format!("{}  Add files", ph::FILE_PLUS), "", false).clicked() {
-                                if self.claude.picker.is_none() {
-                                    self.claude.picker = Some(attach::pick());
-                                }
-                                ui.close();
-                            }
-                            if menu_pick(ui, t, &format!("{}  Paste image", ph::CLIPBOARD_TEXT), PASTE, false)
-                                .clicked()
-                            {
-                                self.claude_paste(now);
-                                ui.close();
-                            }
-                        });
+                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false).on_hover_text("Add files");
+                    if clip.clicked() && self.claude.picker.is_none() {
+                        self.claude.picker = Some(attach::pick());
+                    }
                     // The send button (and the ring, while there's room) keep
                     // theirs; the rest gives way in steps.
                     let full_label = label.clone();
@@ -2532,6 +2536,16 @@ impl App {
                         self.claude.models_asked = true;
                         self.claude.models_rx = Some(codex::models(exe, self.scripts_dir()));
                     }
+                    // Claude Code's: once a run, when the menu first opens
+                    // (the last list, or `MODELS`, shows meanwhile).
+                    if agent == Agent::Claude
+                        && open
+                        && !self.claude.claude_models_asked
+                        && let Some(exe) = self.claude.cli_for(agent)
+                    {
+                        self.claude.claude_models_asked = true;
+                        self.claude.claude_models_rx = Some(process::models(exe, self.scripts_dir()));
+                    }
                     if !open {
                         self.claude.models_asked = false;
                     }
@@ -2611,6 +2625,19 @@ impl App {
                     }
                 }
                 Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.models_rx = None,
+                Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
+            }
+        }
+        if let Some(rx) = &self.claude.claude_models_rx {
+            match rx.try_recv() {
+                Ok(list) => {
+                    self.claude.claude_models_rx = None;
+                    if !list.is_empty() && list != self.claude.claude_models {
+                        self.claude.claude_models = list;
+                        self.claude.dirty = true;
+                    }
+                }
+                Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.claude_models_rx = None,
                 Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
             }
         }
@@ -3509,9 +3536,6 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
         }
     });
 }
-
-/// The image-paste shortcut, as the platform writes it.
-const PASTE: &str = if cfg!(target_os = "macos") { "Cmd+V" } else { "Ctrl+V" };
 
 /// A message waiting for the turn to end: a dimmed, outlined bubble with an
 /// × on hover that takes it back out. True when it was removed.
