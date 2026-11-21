@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (2026-11-21)
+
+Paper accounts work like real ones, symbol search keeps up with your typing, data holds steady when Yahoo struggles, and Seasonality is right for US stocks and custom indices.
 
 ### New
 - **A fair warning about Python, once per computer.** The moment a Python script shows up anywhere in your scripts folder (written by you, an agent or copied in), a short note says that Python scripts run with the same access as any program on your computer, and that Pine, Luau and JavaScript are sealed inside Opentern.

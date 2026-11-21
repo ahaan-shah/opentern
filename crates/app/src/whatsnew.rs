@@ -31,6 +31,39 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.0",
+        items: &[
+            Item {
+                icon: ph::WALLET,
+                title: "Paper accounts like real ones",
+                body: "Set each account's starting capital, currency, commission, slippage and leverage. \
+                       Orders need buying power, and other currencies convert at live rates.",
+                image: None,
+            },
+            Item {
+                icon: ph::MAGNIFYING_GLASS,
+                title: "Search that keeps up",
+                body: "Symbol search shows names as you type and remembers your recent picks. Custom \
+                       indices and watchlists have a search of their own.",
+                image: None,
+            },
+            Item {
+                icon: ph::WIFI_HIGH,
+                title: "Steadier data",
+                body: "When Yahoo is slow, Opentern asks its second server. Custom indices keep going when \
+                       one stock fails, and errors say what really went wrong.",
+                image: None,
+            },
+            Item {
+                icon: ph::CALENDAR,
+                title: "Seasonality fixed",
+                body: "US stocks' months now sit in the right column, and custom indices' months are right \
+                       after a rebalance.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.2.15",
         items: &[
             Item {
