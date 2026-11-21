@@ -25,6 +25,7 @@ Paper accounts work like real ones, symbol search keeps up with your typing, dat
 - **Members Yahoo no longer has are flagged.** A renamed or delisted member (Yahoo's 404) gets a warning sign by its name and in the index's header, saying to replace it.
 - **Symbol search answers as you type.** S&P 500 and NIFTY 500 stocks and the exchanges' coins show at once; Yahoo's results join when they arrive, and a slow Yahoo no longer holds the list back.
 - **Watchlist changes line up under Chg%,** with more room after the price.
+- **The price cache opens reliably on a first launch.** Several parts of the app open it at once, and its one-time setup could fail with "database is locked".
 - **Seasonality puts US months in the right column.** Months of symbols whose exchange is behind UTC (US stocks and funds) showed a month early, and each year's January return went under the year before. The Seasonality indicator on daily charts had the same one-day slip.
 - **Custom indices' weekly and monthly bars are right when weights change mid-month.** Seasonality and 1W/1M charts of a custom index now build each week and month from the index's own days, so a member joining or a rebalance no longer throws off that month and the next.
 - **Settings shows over a maximized bottom panel.** It used to open behind it; the panel comes back as it was when Settings closes.

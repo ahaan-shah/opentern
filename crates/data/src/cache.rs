@@ -122,19 +122,33 @@ pub fn clear(dir: &Path) -> Result<()> {
 
 impl Cache {
     pub fn open(dir: &Path) -> Result<Cache> {
+        // One open at a time in this process: threads open the cache at
+        // the same moment at launch, and its one-time upgrades (a column,
+        // clearing old bars) would race ("duplicate column", or "database
+        // is locked" when two upgrade a read to a write at once; SQLite
+        // doesn't wait for that).
+        static OPENING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _one = OPENING.lock().unwrap_or_else(|e| e.into_inner());
         let _ = std::fs::create_dir_all(dir);
         check_once(dir);
         let conn = Connection::open(dir.join("bars.db"))?;
+        // Wait for other connections first: switching to WAL takes a lock,
+        // and threads open the cache at the same moment at launch.
+        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
-        conn.busy_timeout(std::time::Duration::from_secs(5))?;
         conn.execute_batch(SCHEMA)?;
         // Added later: the symbol's minimum quantity (lot step).
         let has_lot: bool = conn
             .prepare("SELECT 1 FROM pragma_table_info('symbols') WHERE name = 'lot'")?
             .exists([])?;
         if !has_lot {
-            conn.execute_batch("ALTER TABLE symbols ADD COLUMN lot REAL NOT NULL DEFAULT 0")?;
+            // Several threads open the cache at once (a new workspace's
+            // first launch): another may have added it since the check.
+            match conn.execute_batch("ALTER TABLE symbols ADD COLUMN lot REAL NOT NULL DEFAULT 0") {
+                Err(e) if e.to_string().contains("duplicate column") => {}
+                r => r?,
+            }
         }
         // Bars cached before splits were checked for (Nov 2026) may hold
         // unadjusted prices: download them once more.
@@ -308,6 +322,28 @@ fn row_bar(r: &rusqlite::Row) -> rusqlite::Result<Bar> {
         close: r.get(4)?,
         volume: r.get(5)?,
     })
+}
+
+#[cfg(test)]
+mod open_race_tests {
+    use super::*;
+
+    #[test]
+    fn many_threads_can_open_a_new_cache_at_once() {
+        for _ in 0..20 {
+            let dir = tempfile::tempdir().unwrap();
+            let p = dir.path().to_path_buf();
+            let hs: Vec<_> = (0..8)
+                .map(|_| {
+                    let p = p.clone();
+                    std::thread::spawn(move || Cache::open(&p).map(|_| ()).map_err(|e| e.to_string()))
+                })
+                .collect();
+            for h in hs {
+                h.join().unwrap().unwrap();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
