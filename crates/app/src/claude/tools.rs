@@ -236,9 +236,11 @@ pub fn specs() -> Value {
         ),
         tool(
             "paper_trading",
-            "The paper trading account (simulated; never real money). Actions: account (balance, positions, orders, fills), order {symbol?, side: buy|sell, qty, type?: market|limit|stop|stop_limit|trailing, price?, limit?, offset?, take_profit?, stop_loss?}, cancel {order_id}, modify {order_id, price}, close {symbol?}. symbol defaults to the chart's.",
+            "The paper trading accounts (simulated; never real money). Actions: account (the one in use: settings, balance, margin, positions, orders, fills; and the others' settings), order {symbol?, side: buy|sell, qty, type?: market|limit|stop|stop_limit|trailing, price?, limit?, offset?, take_profit?, stop_loss?}, cancel {order_id}, modify {order_id, price}, close {symbol?}; create_account {name?, capital?, currency?, commission?, slippage?, leverage?} (becomes the one in use; unset values copy the current account), account_settings {same, for the one in use; capital keeps the P&L made; currency only before it trades}, switch_account {name}, reset_account, delete_account (the one in use). currency: USD, INR, EUR… or \"\" for each symbol's own; commission and slippage in %; leverage 1 = cash. symbol defaults to the chart's.",
             json!({
-                "action": s("account, order, cancel, modify or close."),
+                "action": s("account, order, cancel, modify, close, create_account, account_settings, switch_account, reset_account or delete_account."),
+                "name": t("string"), "capital": t("number"), "currency": t("string"),
+                "commission": t("number"), "slippage": t("number"), "leverage": t("number"),
                 "symbol": t("string"), "side": t("string"), "qty": t("number"), "type": t("string"),
                 "price": t("number"), "limit": t("number"), "offset": t("number"),
                 "take_profit": t("number"), "stop_loss": t("number"), "order_id": t("integer"),

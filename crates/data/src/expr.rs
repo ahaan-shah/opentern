@@ -254,6 +254,24 @@ pub fn symbol(formula: &str, known: &[Symbol]) -> Option<Symbol> {
     })
 }
 
+/// A symbol's currency from its id, for when its details aren't loaded:
+/// "" when the id doesn't say.
+pub fn guess_currency(id: &str) -> String {
+    let (ex, t) = id.split_once(':').unwrap_or(("", id));
+    match ex {
+        "NSE" | "BSE" => "INR".into(),
+        "AMEX" | "NASDAQ" | "NYSE" | "ARCA" | "BATS" | "CBOE" | "COMEX" | "NYMEX" | "CBOT" | "CME" => "USD".into(),
+        "FX" | "OANDA" if t.replace('_', "").len() == 6 => t.replace('_', "")[3..].to_string(),
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => {
+            let t = t.replace(['-', '/'], "");
+            crate::provider::split_pair(&t)
+                .map(|(_, q)| q.to_string())
+                .unwrap_or_default()
+        }
+        _ => String::new(),
+    }
+}
+
 pub fn guess_tz(id: &str) -> String {
     match id.split(':').next() {
         Some("NSE" | "BSE") => "Asia/Kolkata",
@@ -489,9 +507,15 @@ impl Provider for ExprProvider {
         let mut it = self.legs.iter().map(|(_, p)| p.natives());
         let first = it.next().unwrap_or_default();
         let rest: Vec<Vec<Timeframe>> = it.collect();
+        // Weights that change over time (a custom index's segments) apply
+        // from a day on: combining the members' weekly or monthly bars would
+        // value a week or month in which they changed with the weights at
+        // its start. Such weeks and months are built from the index's days.
+        let multi = self.segs.len() > 1;
         first
             .into_iter()
             .filter(|t| rest.iter().all(|r| r.contains(t)))
+            .filter(|t| !multi || t.is_intraday() || t.unit == opentern_core::Unit::Day)
             .collect()
     }
 
@@ -568,6 +592,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn currencies_from_ids() {
+        assert_eq!(guess_currency("NSE:INFY"), "INR");
+        assert_eq!(guess_currency("NASDAQ:AAPL"), "USD");
+        assert_eq!(guess_currency("FX:EURUSD"), "USD");
+        assert_eq!(guess_currency("OANDA:EUR_JPY"), "JPY");
+        assert_eq!(guess_currency("BINANCE:BTCUSDT"), "USDT");
+        assert_eq!(guess_currency("COINBASE:BTC-EUR"), "EUR");
+        assert_eq!(guess_currency("YAHOO:VOD.L"), "");
+    }
+
+    #[test]
     fn an_index_member_missing_a_day_counts_at_its_last_close() {
         let p = ExprProvider::from_segments(&[(i64::MIN, "1*A + 2*B".into())], false).unwrap();
         let flat = |t: i64, c: f64| Bar {
@@ -586,6 +621,73 @@ mod tests {
         let late = vec![flat(2, 5.0)];
         let out = combine_segs(&p.segs, &[vec![flat(1, 10.0), flat(2, 11.0)], late]);
         assert_eq!(out.len(), 1);
+    }
+
+    #[test]
+    fn an_index_whose_weights_change_mid_month_builds_its_months_from_days() {
+        const DAY: i64 = 86_400_000;
+        // 2026-03-01 at 00:00 UTC; A rises 100 → 200 over March and April,
+        // B stays at 50. On 16 March the index moves from A to B, keeping
+        // its level (units = A's close on the 15th ÷ 50).
+        let t0 = 20_513 * DAY;
+        let a: Vec<Bar> = (0..61)
+            .map(|d| {
+                let c = 100.0 + d as f64 * 100.0 / 60.0;
+                Bar {
+                    time: t0 + d * DAY,
+                    open: c,
+                    high: c,
+                    low: c,
+                    close: c,
+                    volume: 1.0,
+                }
+            })
+            .collect();
+        let b: Vec<Bar> = (0..61)
+            .map(|d| Bar {
+                time: t0 + d * DAY,
+                open: 50.0,
+                high: 50.0,
+                low: 50.0,
+                close: 50.0,
+                volume: 1.0,
+            })
+            .collect();
+        let level = a[14].close;
+        let segs = [
+            (i64::MIN, "1*A".to_string()),
+            (t0 + 15 * DAY, format!("{}*B", level / 50.0)),
+        ];
+        let p = ExprProvider::from_segments(&segs, true).unwrap();
+        // Weeks and months aren't taken from the members' own bars.
+        let natives = p.natives();
+        assert!(natives.contains(&Timeframe::parse("1D").unwrap()));
+        assert!(!natives.contains(&Timeframe::parse("1M").unwrap()), "{natives:?}");
+        assert!(!natives.contains(&Timeframe::parse("1W").unwrap()));
+        // A plain formula keeps them (one set of weights throughout).
+        let plain = ExprProvider::from_formula("1*A + 1*B", true).unwrap();
+        assert!(plain.natives().contains(&Timeframe::parse("1M").unwrap()));
+
+        let m = Timeframe::parse("1M").unwrap();
+        let utc = jiff::tz::TimeZone::UTC;
+        // From the index's days: March ends at the level kept since the
+        // 16th, April stays there.
+        let days = combine_segs(&p.segs, &[a.clone(), b.clone()]);
+        let months = crate::resample::resample(&days, m, &utc);
+        assert_eq!(months.len(), 2);
+        assert!((months[0].close - level).abs() < 1e-9, "{months:?}");
+        assert!((months[1].close - level).abs() < 1e-9);
+        // The members' monthly bars, combined, value March with A's weights
+        // at its end: the old way, wrong by the whole rise after the 15th.
+        let by_month = combine_segs(
+            &p.segs,
+            &[
+                crate::resample::resample(&a, m, &utc),
+                crate::resample::resample(&b, m, &utc),
+            ],
+        );
+        assert!((by_month[0].close - a[30].close).abs() < 1e-9);
+        assert!((by_month[0].close - level).abs() > 20.0);
     }
 
     fn bar(t: i64, o: f64, h: f64, l: f64, c: f64) -> Bar {

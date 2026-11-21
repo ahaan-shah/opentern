@@ -4,8 +4,31 @@
 //! take-profit and a stop-loss, which become a one-cancels-the-other pair
 //! once it fills. Positions are per symbol and net (buying against a short
 //! covers it first).
+//!
+//! Costs and limits: commission (% of each fill's value), slippage (market,
+//! stop and trailing fills move against the order by a % of the price;
+//! limits fill at their price), and leverage: an order that would need
+//! more margin (exposure ÷ leverage) than the account's equity is refused,
+//! and when equity falls below half the margin in use every position is
+//! closed at market (a margin call). An account can keep its money in one
+//! currency: each symbol's profit and loss is converted at the rate the
+//! app feeds in (`Account::fx`) when it's realised.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Equity below this share of the margin in use calls the margin.
+pub const MAINTENANCE: f64 = 0.5;
+
+/// Whether two currency codes are the same money (stablecoins count as
+/// the dollar).
+pub fn same_money(a: &str, b: &str) -> bool {
+    let norm = |c: &str| match c {
+        "USDT" | "USDC" | "BUSD" | "FDUSD" | "TUSD" | "DAI" => "USD".to_string(),
+        c => c.to_string(),
+    };
+    norm(&a.to_uppercase()) == norm(&b.to_uppercase())
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Kind {
@@ -62,6 +85,9 @@ pub struct PaperOrder {
     /// Only reduces the position (bracket legs).
     pub reduce_only: bool,
     pub placed: i64,
+    /// The symbol's currency ("" = unknown: the account's own).
+    #[serde(default)]
+    pub currency: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -71,6 +97,9 @@ pub struct Position {
     pub qty: f64,
     pub avg: f64,
     pub opened: i64,
+    /// The symbol's currency ("" = the account's own).
+    #[serde(default)]
+    pub currency: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -81,7 +110,8 @@ pub struct PaperFill {
     pub qty: f64,
     pub price: f64,
     pub time: i64,
-    /// Profit realised by this fill (after commission).
+    /// Profit realised by this fill (after commission), in the account's
+    /// currency.
     pub realized: f64,
     pub commission: f64,
 }
@@ -95,10 +125,29 @@ pub struct Account {
     pub balance: f64,
     /// Commission per fill, percent of the fill's value.
     pub commission_pct: f64,
+    /// How far market, stop and trailing fills move against the order, as
+    /// a percent of the price.
+    pub slippage_pct: f64,
+    /// Exposure allowed per unit of equity (1 = cash only).
+    pub leverage: f64,
+    /// The money the account is kept in ("" = each symbol's own, no
+    /// conversion).
+    pub currency: String,
     pub positions: Vec<Position>,
     pub orders: Vec<PaperOrder>,
     pub fills: Vec<PaperFill>,
     next_id: u64,
+    /// The last price seen per symbol (margin is valued at it).
+    #[serde(skip)]
+    marks: HashMap<String, f64>,
+    /// How much of the account's currency one unit of a currency is worth,
+    /// fed by the app from live exchange rates.
+    #[serde(skip)]
+    pub fx: HashMap<String, f64>,
+    /// Why orders were refused or positions closed since the app last
+    /// looked (it shows and clears them).
+    #[serde(skip)]
+    pub notices: Vec<String>,
 }
 
 impl Default for Account {
@@ -111,6 +160,8 @@ impl Default for Account {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ticket {
     pub symbol: String,
+    /// The symbol's currency ("" = unknown: the account's own).
+    pub currency: String,
     pub buy: bool,
     pub qty: f64,
     pub kind: Kind,
@@ -125,11 +176,87 @@ impl Account {
             initial,
             balance: initial,
             commission_pct: 0.0,
+            slippage_pct: 0.0,
+            leverage: 1.0,
+            currency: String::new(),
             positions: Vec::new(),
             orders: Vec::new(),
             fills: Vec::new(),
             next_id: 1,
+            marks: HashMap::new(),
+            fx: HashMap::new(),
+            notices: Vec::new(),
         }
+    }
+
+    /// The account-currency value of one unit of `ccy`; `None` while its
+    /// rate is unknown.
+    pub fn rate(&self, ccy: &str) -> Option<f64> {
+        if self.currency.is_empty() || ccy.is_empty() || same_money(ccy, &self.currency) {
+            return Some(1.0);
+        }
+        self.fx
+            .get(&ccy.to_uppercase())
+            .copied()
+            .filter(|r| *r > 0.0 && r.is_finite())
+    }
+
+    /// The currencies the account needs rates for.
+    pub fn currencies(&self) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .positions
+            .iter()
+            .map(|p| p.currency.clone())
+            .chain(self.orders.iter().map(|o| o.currency.clone()))
+            .filter(|c| !c.is_empty() && !self.currency.is_empty() && !same_money(c, &self.currency))
+            .map(|c| c.to_uppercase())
+            .collect();
+        v.sort();
+        v.dedup();
+        v
+    }
+
+    /// The margin the open positions take, in the account's currency,
+    /// valued at their last prices (their average where none is known).
+    pub fn margin_used(&self) -> f64 {
+        let lev = self.leverage.max(1.0);
+        self.positions
+            .iter()
+            .map(|p| {
+                let mark = self.marks.get(&p.symbol).copied().unwrap_or(p.avg);
+                p.qty.abs() * mark * self.rate(&p.currency).unwrap_or(1.0) / lev
+            })
+            .sum()
+    }
+
+    /// Equity at the last prices seen.
+    pub fn equity_at_marks(&self) -> f64 {
+        let marks = &self.marks;
+        self.equity(|s| marks.get(s).copied())
+    }
+
+    /// What's left for new positions: equity less the margin in use.
+    pub fn buying_power(&self) -> f64 {
+        (self.equity_at_marks() - self.margin_used()) * self.leverage.max(1.0)
+    }
+
+    /// Clears positions, orders and history and puts the cash back to the
+    /// starting capital; the account's settings stay.
+    pub fn reset(&mut self) {
+        let mut fresh = Account::new(&self.name, self.initial);
+        fresh.commission_pct = self.commission_pct;
+        fresh.slippage_pct = self.slippage_pct;
+        fresh.leverage = self.leverage;
+        fresh.currency = self.currency.clone();
+        fresh.fx = std::mem::take(&mut self.fx);
+        *self = fresh;
+    }
+
+    /// Changes the starting capital, keeping the profit and loss made so
+    /// far: the cash moves by the same amount.
+    pub fn set_initial(&mut self, initial: f64) {
+        self.balance += initial - self.initial;
+        self.initial = initial;
     }
 
     pub fn position(&self, symbol: &str) -> Option<&Position> {
@@ -139,7 +266,10 @@ impl Account {
     pub fn unrealized(&self, price: impl Fn(&str) -> Option<f64>) -> f64 {
         self.positions
             .iter()
-            .filter_map(|p| price(&p.symbol).map(|x| (x - p.avg) * p.qty))
+            .filter_map(|p| {
+                let r = self.rate(&p.currency)?;
+                price(&p.symbol).map(|x| (x - p.avg) * p.qty * r)
+            })
             .sum()
     }
 
@@ -193,6 +323,15 @@ impl Account {
                 ));
             }
         }
+        if self.rate(&t.currency).is_none() {
+            return Err(format!(
+                "No {}/{} exchange rate yet; try again in a moment.",
+                t.currency, self.currency
+            ));
+        }
+        if let Some(l) = last.filter(|l| *l > 0.0 && l.is_finite()) {
+            self.marks.insert(t.symbol.clone(), l);
+        }
         let id = self.next_id.max(1);
         self.next_id = id + 1;
         let mut kind = t.kind;
@@ -213,11 +352,16 @@ impl Account {
             oco: None,
             reduce_only: false,
             placed: now,
+            currency: t.currency,
         };
         if o.kind == Kind::Market {
             let Some(l) = last else {
                 return Err("No price yet for this symbol.".into());
             };
+            if let Err(e) = self.affordable(&o, l) {
+                self.next_id = id;
+                return Err(e);
+            }
             self.fill(o, l, now);
         } else {
             self.orders.push(o);
@@ -276,8 +420,58 @@ impl Account {
             oco: None,
             reduce_only: true,
             placed: now,
+            currency: p.currency.clone(),
         };
+        self.marks.insert(symbol.to_string(), last);
         self.fill(o, last, now);
+    }
+
+    /// Whether filling `o` at `price` stays within the margin the equity
+    /// allows (orders that only shrink a position always do).
+    fn affordable(&self, o: &PaperOrder, price: f64) -> Result<(), String> {
+        let pos = self.position(&o.symbol).map(|p| p.qty).unwrap_or(0.0);
+        let signed = if o.buy { o.qty } else { -o.qty };
+        let after = pos + signed;
+        if o.reduce_only || after.abs() <= pos.abs() + 1e-12 {
+            return Ok(());
+        }
+        let Some(rate) = self.rate(&o.currency) else {
+            return Err(format!("No {}/{} exchange rate yet.", o.currency, self.currency));
+        };
+        let lev = self.leverage.max(1.0);
+        // The margin this symbol would take, in place of what it takes now.
+        let mark = self.marks.get(&o.symbol).copied().unwrap_or(price);
+        let now_margin = pos.abs() * mark * rate / lev;
+        let new_margin = after.abs() * price * rate / lev;
+        let cost = o.qty * price * rate * (self.commission_pct + self.slippage_pct) / 100.0;
+        let need = self.margin_used() - now_margin + new_margin;
+        if need + cost > self.equity_at_marks() + 1e-9 {
+            return Err("Not enough buying power for this order.".into());
+        }
+        Ok(())
+    }
+
+    /// Closes every position at its last price when equity is below
+    /// `MAINTENANCE` of the margin in use.
+    fn margin_call(&mut self, now: i64) -> Vec<PaperFill> {
+        let used = self.margin_used();
+        if self.positions.is_empty() || used <= 0.0 || self.equity_at_marks() >= used * MAINTENANCE {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        let held: Vec<(String, f64)> = self
+            .positions
+            .iter()
+            .map(|p| (p.symbol.clone(), self.marks.get(&p.symbol).copied().unwrap_or(p.avg)))
+            .collect();
+        for (sym, px) in held {
+            let before = self.fills.len();
+            self.close_position(&sym, px, now);
+            out.extend(self.fills[before..].iter().cloned());
+        }
+        self.notices
+            .push("Margin call: equity fell below half the margin in use, so every position was closed.".into());
+        out
     }
 
     /// A new price for `symbol`: triggers what it reaches. Returns the
@@ -286,6 +480,7 @@ impl Account {
         if !(price > 0.0 && price.is_finite()) {
             return Vec::new();
         }
+        self.marks.insert(symbol.to_string(), price);
         let mut out = Vec::new();
         let mut i = 0;
         while i < self.orders.len() {
@@ -319,14 +514,25 @@ impl Account {
             match fill_at {
                 Some(p) => {
                     let o = self.orders.remove(i);
-                    if let Some(f) = self.fill(o, p, now) {
-                        out.push(f);
+                    match self.affordable(&o, p) {
+                        Ok(()) => {
+                            if let Some(f) = self.fill(o, p, now) {
+                                out.push(f);
+                            }
+                        }
+                        Err(e) => self.notices.push(format!(
+                            "{} order {} on {} cancelled: {e}",
+                            o.kind.name(),
+                            o.id,
+                            o.symbol
+                        )),
                     }
                     i = 0;
                 }
                 None => i += 1,
             }
         }
+        out.extend(self.margin_call(now));
         out
     }
 
@@ -347,7 +553,16 @@ impl Account {
             qty = qty.min(pos_qty.abs());
         }
         let signed = if o.buy { qty } else { -qty };
-        let commission = qty * price * self.commission_pct / 100.0;
+        // Market, stop and trailing fills slip against the order.
+        let slips = matches!(o.kind, Kind::Market | Kind::Stop(_) | Kind::Trailing { .. });
+        let price = if slips && self.slippage_pct > 0.0 {
+            let s = self.slippage_pct / 100.0;
+            if o.buy { price * (1.0 + s) } else { price * (1.0 - s) }
+        } else {
+            price
+        };
+        let rate = self.rate(&o.currency).unwrap_or(1.0);
+        let commission = qty * price * rate * self.commission_pct / 100.0;
         let mut realized = -commission;
         match self.positions.iter().position(|p| p.symbol == o.symbol) {
             None => self.positions.push(Position {
@@ -355,6 +570,7 @@ impl Account {
                 qty: signed,
                 avg: price,
                 opened: now,
+                currency: o.currency.clone(),
             }),
             Some(k) => {
                 let p = &mut self.positions[k];
@@ -363,7 +579,7 @@ impl Account {
                     p.qty += signed;
                 } else {
                     let closed = qty.min(p.qty.abs());
-                    realized += (price - p.avg) * closed * p.qty.signum();
+                    realized += (price - p.avg) * closed * p.qty.signum() * rate;
                     let rest = p.qty + signed;
                     if rest.abs() < 1e-12 {
                         self.positions.remove(k);
@@ -401,6 +617,7 @@ impl Account {
                     oco: Some(group),
                     reduce_only: true,
                     placed: now,
+                    currency: o.currency.clone(),
                 });
             }
         }
@@ -426,6 +643,7 @@ mod tests {
     fn ticket(buy: bool, qty: f64, kind: Kind) -> Ticket {
         Ticket {
             symbol: "X".into(),
+            currency: String::new(),
             buy,
             qty,
             kind,
@@ -551,6 +769,94 @@ mod tests {
         assert!((a.balance - (1000.0 + 10.0 - 0.1 - 0.09)).abs() < 1e-9);
         let json = serde_json::to_string(&a).unwrap();
         let back: Account = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, a);
+        // Prices seen and rates are runtime only; the rest round-trips.
+        assert_eq!(serde_json::to_string(&back).unwrap(), json);
+    }
+
+    #[test]
+    fn slippage_moves_market_and_stop_fills_but_not_limits() {
+        let mut a = Account::new("t", 10_000.0);
+        a.slippage_pct = 1.0;
+        a.place(ticket(true, 1.0, Kind::Market), Some(100.0), 0).unwrap();
+        assert!((a.position("X").unwrap().avg - 101.0).abs() < 1e-9);
+        a.place(ticket(false, 1.0, Kind::Stop(95.0)), Some(100.0), 1).unwrap();
+        a.on_price("X", 95.0, 2);
+        assert!((a.fills[1].price - 94.05).abs() < 1e-9);
+        a.place(ticket(true, 1.0, Kind::Limit(90.0)), Some(95.0), 3).unwrap();
+        a.on_price("X", 90.0, 4);
+        assert_eq!(a.fills[2].price, 90.0);
+    }
+
+    #[test]
+    fn orders_beyond_buying_power_are_refused() {
+        let mut a = Account::new("t", 1000.0);
+        assert!(a.place(ticket(true, 11.0, Kind::Market), Some(100.0), 0).is_err());
+        assert!(a.positions.is_empty() && a.fills.is_empty());
+        a.place(ticket(true, 9.0, Kind::Market), Some(100.0), 0).unwrap();
+        // Selling down is always allowed; a short beyond it isn't.
+        assert!(a.place(ticket(false, 9.0, Kind::Market), Some(100.0), 1).is_ok());
+        assert!(a.place(ticket(false, 11.0, Kind::Market), Some(100.0), 2).is_err());
+        // A working order too big when it triggers is cancelled with a note.
+        a.place(ticket(true, 20.0, Kind::Limit(90.0)), Some(100.0), 3).unwrap();
+        assert!(a.on_price("X", 90.0, 4).is_empty());
+        assert!(a.orders.is_empty());
+        assert_eq!(a.notices.len(), 1, "{:?}", a.notices);
+        // Leverage lets the same equity hold more.
+        a.leverage = 4.0;
+        assert!(a.place(ticket(true, 30.0, Kind::Market), Some(100.0), 5).is_ok());
+        assert!((a.margin_used() - 750.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_margin_call_closes_everything() {
+        let mut a = Account::new("t", 1000.0);
+        a.leverage = 10.0;
+        a.place(ticket(true, 90.0, Kind::Market), Some(100.0), 0).unwrap();
+        // Down 5%: equity 550, margin 855 → still above half of it.
+        a.on_price("X", 95.0, 1);
+        assert!(a.position("X").is_some());
+        // Down 8%: equity 280 < half of 828.
+        let fills = a.on_price("X", 92.0, 2);
+        assert_eq!(fills.len(), 1);
+        assert!(a.positions.is_empty());
+        assert!((a.balance - 280.0).abs() < 1e-9);
+        assert!(a.notices.iter().any(|n| n.starts_with("Margin call")));
+    }
+
+    #[test]
+    fn profit_in_another_currency_is_converted() {
+        let mut a = Account::new("t", 1000.0);
+        a.currency = "USD".into();
+        a.leverage = 100.0;
+        let mut t = ticket(true, 10.0, Kind::Market);
+        t.currency = "INR".into();
+        // No rate yet: refused.
+        assert!(a.place(t.clone(), Some(2000.0), 0).is_err());
+        a.fx.insert("INR".into(), 0.012);
+        a.place(t, Some(2000.0), 0).unwrap();
+        // ₹100 a share on 10 shares = ₹1000 = $12.
+        assert!((a.unrealized(|_| Some(2100.0)) - 12.0).abs() < 1e-9);
+        a.close_position("X", 2100.0, 1);
+        assert!((a.balance - 1012.0).abs() < 1e-9);
+        // Stablecoins are dollars.
+        assert_eq!(a.rate("USDT"), Some(1.0));
+    }
+
+    #[test]
+    fn older_accounts_load_as_cash_accounts_in_their_symbols_money() {
+        let old = r#"{"name":"p","initial":5000.0,"balance":5000.0,"commission_pct":0.0,"positions":[],"orders":[],"fills":[],"next_id":1}"#;
+        let a: Account = serde_json::from_str(old).unwrap();
+        assert_eq!((a.leverage, a.slippage_pct, a.currency.as_str()), (1.0, 0.0, ""));
+    }
+
+    #[test]
+    fn new_starting_capital_keeps_the_profit_made() {
+        let mut a = Account::new("t", 1000.0);
+        a.place(ticket(true, 10.0, Kind::Market), Some(10.0), 0).unwrap();
+        a.close_position("X", 12.0, 1);
+        assert!((a.balance - 1020.0).abs() < 1e-9);
+        a.set_initial(5000.0);
+        assert!((a.balance - 5020.0).abs() < 1e-9);
+        assert!((a.balance - a.initial - 20.0).abs() < 1e-9);
     }
 }

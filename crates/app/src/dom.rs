@@ -57,6 +57,7 @@ impl App {
             Kind::Stop(price)
         };
         let ticket = Ticket {
+            currency: self.currency_of(&sym),
             symbol: sym,
             buy,
             qty: self.dom.qty,

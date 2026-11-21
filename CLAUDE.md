@@ -772,7 +772,21 @@ workspace.
   key `paper_account`. Tab: ticket, summary, Positions/Orders/History, Reset account.
   **Since Oct 2026:** several accounts (settings key `paper_accounts` = every
   account + which is in use; the old key migrates); every account's orders keep
-  working; the account menu switches, makes, renames, deletes. Chart trading:
+  working; the account menu switches, makes, deletes, and opens Account
+  settings (`dialogs/paper_account.rs`: name, starting capital, currency,
+  commission %, slippage %, leverage; also used by New account;
+  `Account::set_initial` keeps realised P&L; `reset` keeps settings; still
+  `paper-account`). The engine (`paper.rs` module doc): slippage on market/
+  stop/trailing fills; buying power = (equity − margin) × leverage, orders
+  past it refused (triggered ones cancelled with a note in
+  `Account::notices`, which the app shows); margin call below
+  `MAINTENANCE` (50%) of margin in use. Account currency: positions carry
+  their symbol's currency (`App::currency_of`, else `expr::guess_currency`);
+  `feed_rates` puts `FX:<CCY><ACCT>` quotes into `Account::fx` (stablecoins
+  = USD); P&L converts at fill time; no rate = order refused. The currency
+  is locked once an account has traded. Agent: `paper_trading`
+  create_account / account_settings / switch_account / reset_account /
+  delete_account. Chart trading:
   `PaperLine::order` tags are drag handles (`Action::PaperMove` →
   `Account::modify`), the × beside a tag cancels it or closes the position.
 - **TradingView parity fixes (21 Oct 2026, the maintainer saw different numbers):**
@@ -1288,6 +1302,13 @@ every data change (scripts re-run on it).
 - The demo provider slices one fixed path per series (history, paging and the live bar
   agree) with a gentle pull to its start price.
 - Missing values print as "—" (fonts lack "∅"). Range-bar clock repaints per minute.
+- **Daily-or-longer bars are stamped at 00:00 UTC of their local date**
+  (`resample`), so read their dates in UTC, never the symbol's zone (US
+  months landed a month early in Seasonality until Nov 2026; `scale.rs`
+  and `seasonal.rs` do it right). Intraday bars use the symbol's zone.
+- A custom index with several segments has no native 1W/1M
+  (`ExprProvider::natives`): its weeks and months are resampled from its
+  own days, since weights change on a day, not at a month's start.
 - Formulas: subtraction needs spaces (`AAPL - MSFT`) because `-` can be part of a
   ticker (`BRK-B`); bare tickers resolve via known symbols, crypto quote suffixes →
   Binance, else `YAHOO:`.

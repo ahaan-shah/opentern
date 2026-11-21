@@ -4,10 +4,19 @@
 
 ### New
 - **A fair warning about Python, once per computer.** The moment a Python script shows up anywhere in your scripts folder (written by you, an agent or copied in), a short note says that Python scripts run with the same access as any program on your computer, and that Pine, Luau and JavaScript are sealed inside Opentern.
+- **Set up paper accounts.** New account and the account menu's Account settings open a dialog for the name, starting capital, currency, commission, slippage and leverage. Changing the starting capital later keeps the profit and loss made so far.
+- **Paper trading costs and limits, like a real account.** Slippage moves market, stop and trailing fills against you (limits fill at their price). Orders need buying power: equity times leverage, 1× being cash only, so an order larger than the account is refused. With leverage, falling below half the margin in use closes every position (a margin call, with a notification). Hover the account summary for margin in use and buying power.
+- **Paper accounts in your own currency.** Keep an account in USD, INR, EUR and others: profit and loss on symbols priced in other currencies is converted at live exchange rates.
+- **The agent manages paper accounts.** It can create accounts with these settings, change them, switch, reset and delete.
+
+### Changed
+- **Paper accounts are cash accounts unless you give them leverage.** Existing accounts start at 1×, so orders bigger than their equity are now refused. Reset account keeps all of an account's settings.
 - **Search custom indices.** A search button beside Compare filters the list by name.
 - **Search watchlists.** A search button in the Watchlist header finds a list by name; Enter or a click switches to it.
 
 ### Fixed
+- **Seasonality puts US months in the right column.** Months of symbols whose exchange is behind UTC (US stocks and funds) showed a month early, and each year's January return went under the year before. The Seasonality indicator on daily charts had the same one-day slip.
+- **Custom indices' weekly and monthly bars are right when weights change mid-month.** Seasonality and 1W/1M charts of a custom index now build each week and month from the index's own days, so a member joining or a rebalance no longer throws off that month and the next.
 - **Settings shows over a maximized bottom panel.** It used to open behind it; the panel comes back as it was when Settings closes.
 - **The map of every index closes like the market overview.** Clicking its button again goes back to the index or Compare you were on.
 - **Claude's model menu lists the newest models.** It now asks Claude Code which models are current (Fable 5.2 instead of 5.1), once a run when the menu opens.

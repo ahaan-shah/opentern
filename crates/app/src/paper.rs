@@ -9,7 +9,7 @@ use crate::shell::small_button;
 use crate::theme::{self, Theme};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::Symbol;
-use opentern_engine::paper::{Account, Kind, Ticket};
+use opentern_engine::paper::{Account, Kind, Ticket, same_money};
 use std::collections::HashMap;
 
 /// Before several accounts: one account under this key (migrated).
@@ -66,7 +66,6 @@ pub struct Paper {
     pub account: Account,
     /// The other accounts; their orders keep working.
     pub others: Vec<Account>,
-    rename: Option<String>,
     pub view: View,
     pub buy: bool,
     pub kind: OrderType,
@@ -102,7 +101,6 @@ impl Paper {
         Paper {
             account,
             others,
-            rename: None,
             view: View::Positions,
             buy: true,
             kind: OrderType::Market,
@@ -150,6 +148,63 @@ impl App {
         self.quotes.get(id).map(|q| q.0)
     }
 
+    /// A symbol's currency: from its details when they're loaded (the
+    /// chart's, a watchlist's), else from its id; "" when unknown.
+    pub(crate) fn currency_of(&self, id: &str) -> String {
+        if self.chart.symbol.id == id && !self.chart.symbol.currency.is_empty() {
+            return self.chart.symbol.currency.clone();
+        }
+        self.watchlists
+            .iter()
+            .flat_map(|w| w.symbols())
+            .find(|s| s.id == id && !s.currency.is_empty())
+            .map(|s| s.currency)
+            .unwrap_or_else(|| opentern_data::expr::guess_currency(id))
+    }
+
+    /// Feeds each account the exchange rates it needs (its positions' and
+    /// orders' currencies, and the chart symbol's for the one in use) from
+    /// forex quotes. Returns the forex symbols to keep quoted.
+    fn feed_rates(&mut self) -> Vec<String> {
+        // Stablecoins trade as dollars.
+        let money = |c: &str| {
+            if same_money(c, "USD") {
+                "USD".to_string()
+            } else {
+                c.to_uppercase()
+            }
+        };
+        let chart_ccy = self.currency_of(&self.chart.symbol.id);
+        let mut wanted: Vec<(usize, String, String)> = Vec::new();
+        let paper = &self.paper;
+        for (k, acc) in std::iter::once(&paper.account).chain(&paper.others).enumerate() {
+            if acc.currency.is_empty() {
+                continue;
+            }
+            let mut ccys = acc.currencies();
+            if k == 0 && !chart_ccy.is_empty() && !same_money(&chart_ccy, &acc.currency) {
+                ccys.push(chart_ccy.to_uppercase());
+            }
+            for c in ccys {
+                let pair = format!("FX:{}{}", money(&c), money(&acc.currency));
+                wanted.push((k, c, pair));
+            }
+        }
+        let mut pairs = Vec::new();
+        for (k, c, pair) in wanted {
+            if let Some(r) = self.last_price(&pair) {
+                let acc = if k == 0 {
+                    &mut self.paper.account
+                } else {
+                    &mut self.paper.others[k - 1]
+                };
+                acc.fx.insert(c, r);
+            }
+            pairs.push(pair);
+        }
+        pairs
+    }
+
     /// Every frame: feeds new prices to the account, keeps quotes coming
     /// for its symbols, and puts its lines on the chart.
     pub(crate) fn poll_paper(&mut self) {
@@ -159,6 +214,7 @@ impl App {
         }
         symbols.sort();
         symbols.dedup();
+        let pairs = self.feed_rates();
         let mut changed = false;
         for s in &symbols {
             let Some(p) = self.last_price(s) else { continue };
@@ -184,10 +240,32 @@ impl App {
                 changed |= !fills.is_empty();
             }
         }
+        // Orders refused when they triggered, margin calls.
+        let many = !self.paper.others.is_empty();
+        let mut notes = Vec::new();
+        for acc in std::iter::once(&mut self.paper.account).chain(self.paper.others.iter_mut()) {
+            for n in acc.notices.drain(..) {
+                notes.push(if many { format!("{}: {n}", acc.name) } else { n });
+            }
+        }
+        for n in notes {
+            self.paper.status = n.clone();
+            self.notify(
+                crate::icons::ph::WALLET,
+                "Paper trading",
+                &n,
+                None,
+                n.contains("Margin call"),
+            );
+            changed = true;
+        }
         if changed {
             self.save_paper();
         }
-        let want: Vec<String> = symbols;
+        let mut want: Vec<String> = symbols;
+        want.extend(pairs);
+        want.sort();
+        want.dedup();
         if want != self.paper.subscribed {
             self.paper.subscribed = want;
             self.subscribe_quotes();
@@ -268,7 +346,7 @@ impl App {
     }
 
     /// Makes account `k` of the others the one in use.
-    fn switch_account(&mut self, k: usize) {
+    pub(crate) fn switch_account(&mut self, k: usize) {
         if k < self.paper.others.len() {
             std::mem::swap(&mut self.paper.account, &mut self.paper.others[k]);
             // Keep the others in their order: the previous one goes first.
@@ -279,25 +357,80 @@ impl App {
         }
     }
 
-    fn new_account(&mut self) {
-        let names: Vec<String> = std::iter::once(&self.paper.account)
-            .chain(&self.paper.others)
-            .map(|a| a.name.clone())
-            .collect();
-        let name = (2..)
+    /// A free "Paper account N" name.
+    fn free_account_name(&self) -> String {
+        (2..)
             .map(|k| format!("Paper account {k}"))
-            .find(|n| !names.contains(n))
-            .expect("a free name");
-        let fresh = Account::new(&name, 100_000.0);
-        let prev = std::mem::replace(&mut self.paper.account, fresh);
-        self.paper.others.insert(0, prev);
-        self.paper.status = format!("Made {name}.");
+            .find(|n| !self.paper_name_taken(n, true))
+            .expect("a free name")
+    }
+
+    /// Whether another account has this name (`new`: any account; else any
+    /// but the one in use).
+    pub(crate) fn paper_name_taken(&self, name: &str, new: bool) -> bool {
+        let used = (new && self.paper.account.name == name) || self.paper.others.iter().any(|a| a.name == name);
+        used && !name.is_empty()
+    }
+
+    /// Opens the account dialog: a new account (starting as the one in use
+    /// is set up, under a free name), or the one in use.
+    pub(crate) fn open_paper_account(&mut self, new: bool) {
+        let a = &self.paper.account;
+        let form = crate::dialogs::paper_account::PaperAccountForm {
+            new,
+            name: if new { self.free_account_name() } else { a.name.clone() },
+            capital: a.initial,
+            commission: a.commission_pct,
+            slippage: a.slippage_pct,
+            leverage: a.leverage.max(1.0),
+            currency: a.currency.clone(),
+            // Money already in one currency can't switch to another.
+            currency_locked: !new && !(a.fills.is_empty() && a.positions.is_empty() && a.orders.is_empty()),
+        };
+        self.modal = Some(crate::dialogs::Modal::PaperAccount(Box::new(form)));
+    }
+
+    /// Makes the account the dialog describes, or saves its settings to the
+    /// one in use (commission applies to fills from now on).
+    pub(crate) fn apply_paper_account(&mut self, f: &crate::dialogs::paper_account::PaperAccountForm) {
+        let name = f.name.trim().to_string();
+        let set = |a: &mut Account| {
+            a.commission_pct = f.commission;
+            a.slippage_pct = f.slippage;
+            a.leverage = f.leverage.max(1.0);
+            if !f.currency_locked {
+                a.currency = f.currency.clone();
+                a.fx.clear();
+            }
+        };
+        if f.new {
+            let mut fresh = Account::new(&name, f.capital);
+            set(&mut fresh);
+            let prev = std::mem::replace(&mut self.paper.account, fresh);
+            self.paper.others.insert(0, prev);
+            self.paper.status = format!("Made {name}.");
+        } else {
+            let a = &mut self.paper.account;
+            a.name = name;
+            a.set_initial(f.capital);
+            set(a);
+        }
         self.save_paper();
     }
 
     #[cfg(test)]
     pub(crate) fn new_account_for_test(&mut self) {
-        self.new_account();
+        let form = crate::dialogs::paper_account::PaperAccountForm {
+            new: true,
+            name: self.free_account_name(),
+            capital: 100_000.0,
+            commission: 0.0,
+            slippage: 0.0,
+            leverage: 1.0,
+            currency: String::new(),
+            currency_locked: false,
+        };
+        self.apply_paper_account(&form);
     }
 
     #[cfg(test)]
@@ -305,7 +438,7 @@ impl App {
         self.switch_account(k);
     }
 
-    fn delete_account(&mut self) {
+    pub(crate) fn delete_account(&mut self) {
         if self.paper.others.is_empty() {
             return;
         }
@@ -493,6 +626,7 @@ impl App {
                 },
             };
             let ticket = Ticket {
+                currency: self.currency_of(&sym),
                 symbol: sym.clone(),
                 buy: self.paper.buy,
                 qty: self.paper.qty,
@@ -529,6 +663,16 @@ impl App {
         let equity = acc.equity(price);
         let realized = acc.balance - acc.initial;
         let balance = acc.balance;
+        let unit = if acc.currency.is_empty() {
+            String::new()
+        } else {
+            format!(" {}", acc.currency)
+        };
+        let margin = format!(
+            "Margin in use {}{unit} · Buying power {}{unit}",
+            num(acc.margin_used()),
+            num(acc.buying_power().max(0.0))
+        );
         // The account, and resetting it, on top.
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
@@ -539,10 +683,7 @@ impl App {
                         self.paper.confirm_reset = false;
                     }
                     if small_button(ui, t, "Yes, reset", true).clicked() {
-                        let commission = self.paper.account.commission_pct;
-                        let name = self.paper.account.name.clone();
-                        self.paper.account = Account::new(&name, self.paper.account.initial);
-                        self.paper.account.commission_pct = commission;
+                        self.paper.account.reset();
                         self.paper.confirm_reset = false;
                         self.paper.status = "The account was reset.".into();
                         self.save_paper();
@@ -557,15 +698,16 @@ impl App {
         // Four even columns, or two by two when the panel is narrow; values
         // never get cut off.
         let items = [
-            ("Balance", num(balance), t.text),
-            ("Equity", num(equity), t.text),
+            ("Balance", format!("{}{unit}", num(balance)), t.text),
+            ("Equity", format!("{}{unit}", num(equity)), t.text),
             ("Unrealized", signed(unreal), tone(t, unreal)),
             ("Realized", signed(realized), tone(t, realized)),
         ];
         let w = ui.available_width();
         let per_row = if w / 4.0 >= 120.0 { 4 } else { 2 };
         let rows = items.len() / per_row;
-        let (r, _) = ui.allocate_exact_size(vec2(w, 40.0 * rows as f32), Sense::hover());
+        let (r, resp) = ui.allocate_exact_size(vec2(w, 40.0 * rows as f32), Sense::hover());
+        resp.on_hover_text(margin);
         let cw = w / per_row as f32;
         for (k, (label, value, c)) in items.iter().enumerate() {
             let (col, row) = (k % per_row, k / per_row);
@@ -619,6 +761,7 @@ impl App {
         let current = self.paper.account.name.clone();
         let mut pick = None;
         let mut make = false;
+        let mut settings = false;
         let mut delete = false;
         let resp = crate::widgets::button(
             ui,
@@ -642,20 +785,10 @@ impl App {
                     }
                 }
                 w::menu_rule(ui, t);
-                let mut name = self.paper.rename.clone().unwrap_or_else(|| current.clone());
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 6.0;
-                    ui.add(crate::widgets::field(&mut name).desired_width(ui.available_width() - 100.0));
-                    let ok = !name.trim().is_empty() && name.trim() != current;
-                    if crate::widgets::button(ui, crate::widgets::Kind::Secondary, ok, None, "Rename").clicked() {
-                        self.paper.account.name = name.trim().to_string();
-                        self.paper.rename = None;
-                        self.save_paper();
-                        ui.close();
-                    }
-                });
-                self.paper.rename = Some(name);
-                ui.add_space(4.0);
+                if w::menu_item(ui, t, Some(crate::icons::ph::GEAR_SIX), "Account settings", "", false).clicked() {
+                    settings = true;
+                    ui.close();
+                }
                 if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), "New account", "", false).clicked() {
                     make = true;
                     ui.close();
@@ -684,7 +817,10 @@ impl App {
             self.switch_account(k);
         }
         if make {
-            self.new_account();
+            self.open_paper_account(true);
+        }
+        if settings {
+            self.open_paper_account(false);
         }
         if delete {
             self.delete_account();

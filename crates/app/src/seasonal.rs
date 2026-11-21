@@ -117,7 +117,10 @@ impl App {
 
     pub(crate) fn seasonal_fetched(&mut self, seq: u64, id: &str, result: Result<Vec<Bar>, String>) {
         let s = &mut self.seasonal;
-        let tz = jiff::tz::TimeZone::get(&self.chart.symbol.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+        // Daily and monthly bars are stamped at 00:00 UTC of their local
+        // date (`resample`), so their dates are read in UTC. The symbol's
+        // own zone put US months (UTC−4/5) a month early.
+        let tz = jiff::tz::TimeZone::UTC;
         if seq == SEQ_BASE + s.daily_seq && id == s.daily_for {
             s.daily = Some(match result {
                 Ok(bars) if !bars.is_empty() => Ok(seasonality(&bars, &tz, usize::MAX)),
@@ -881,6 +884,40 @@ fn year_slider(ui: &mut Ui, t: &Theme, lo: i16, hi: i16, range: &mut (i16, i16))
 #[cfg(test)]
 mod tests {
     use super::pct_text;
+
+    #[test]
+    fn us_months_land_in_their_own_month() {
+        use opentern_core::Bar;
+        let mut d = crate::drive::Driver::new("season-tz");
+        // A US stock: its zone is behind UTC, and monthly bars are stamped
+        // at 00:00 UTC of the 1st.
+        d.app.chart.symbol.timezone = "America/New_York".into();
+        d.app.seasonal_want();
+        let seq = super::SEQ_BASE + d.app.seasonal.monthly_seq;
+        let id = d.app.seasonal.symbol.clone();
+        const DAY: i64 = 86_400_000;
+        // 1 Jan, 1 Feb and 1 Mar 2026; up 10% in February only.
+        let bar = |days: i64, o: f64, c: f64| Bar {
+            time: days * DAY,
+            open: o,
+            high: c,
+            low: c,
+            close: c,
+            volume: 1.0,
+        };
+        let bars = vec![
+            bar(20_454, 100.0, 100.0),
+            bar(20_485, 100.0, 110.0),
+            bar(20_513, 110.0, 110.0),
+        ];
+        d.app.seasonal_fetched(seq, &id, Ok(bars));
+        let row = &d.app.seasonal.rows[0];
+        assert_eq!(row.year, 2026);
+        assert!(row.months[0].abs() < 1e-9, "{:?}", row.months);
+        assert!((row.months[1] - 10.0).abs() < 1e-9, "{:?}", row.months);
+        assert!(row.months[2].abs() < 1e-9, "{:?}", row.months);
+        assert_eq!(d.app.seasonal.rows.len(), 1, "no 2025 row from 1 January");
+    }
 
     #[test]
     fn cell_text_drops_decimals_when_asked_and_from_four_digits() {

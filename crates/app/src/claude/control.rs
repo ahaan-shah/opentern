@@ -1462,6 +1462,7 @@ impl App {
                     ));
                 }
                 let ticket = Ticket {
+                    currency: self.currency_of(&symbol),
                     symbol: symbol.clone(),
                     buy,
                     qty,
@@ -1504,11 +1505,101 @@ impl App {
                     }
                 }
             }
+            "create_account" | "account_settings" => {
+                let new = st(a, "action") == "create_account";
+                let acc = &self.paper.account;
+                let name = match st(a, "name") {
+                    "" if new => None,
+                    "" => Some(acc.name.clone()),
+                    n => Some(n.trim().to_string()),
+                };
+                let name = name.unwrap_or_else(|| {
+                    (2..)
+                        .map(|k| format!("Paper account {k}"))
+                        .find(|n| !self.paper_name_taken(n, true))
+                        .expect("a free name")
+                });
+                if self.paper_name_taken(&name, new) {
+                    return error(format!("There's already an account named \"{name}\"."));
+                }
+                let traded = !(acc.fills.is_empty() && acc.positions.is_empty() && acc.orders.is_empty());
+                let currency = match a.get("currency").and_then(Value::as_str) {
+                    Some(c) => {
+                        let c = c.trim().to_uppercase();
+                        if !new && traded && c != acc.currency {
+                            return error(
+                                "This account has traded; reset it (reset_account) before changing its currency.",
+                            );
+                        }
+                        c
+                    }
+                    None => acc.currency.clone(),
+                };
+                let capital = num(a, "capital").unwrap_or(acc.initial);
+                if !(capital > 0.0 && capital.is_finite()) {
+                    return error("capital has to be above zero.");
+                }
+                let form = crate::dialogs::paper_account::PaperAccountForm {
+                    new,
+                    name: name.clone(),
+                    capital,
+                    commission: num(a, "commission").unwrap_or(acc.commission_pct).clamp(0.0, 100.0),
+                    slippage: num(a, "slippage").unwrap_or(acc.slippage_pct).clamp(0.0, 10.0),
+                    leverage: num(a, "leverage").unwrap_or(acc.leverage).clamp(1.0, 100.0),
+                    currency,
+                    currency_locked: !new && traded,
+                };
+                self.apply_paper_account(&form);
+                Ok(if new {
+                    format!("Made {name}; it's the account in use now.")
+                } else {
+                    format!("Saved {name}'s settings.")
+                })
+            }
+            "switch_account" => {
+                let want = st(a, "name").trim();
+                if want == self.paper.account.name {
+                    Ok(format!("{want} is already in use."))
+                } else {
+                    match self.paper.others.iter().position(|x| x.name.eq_ignore_ascii_case(want)) {
+                        Some(k) => {
+                            self.switch_account(k);
+                            Ok(format!("Using {}.", self.paper.account.name))
+                        }
+                        None => Err(format!("No account named \"{want}\".")),
+                    }
+                }
+            }
+            "reset_account" => {
+                self.paper.account.reset();
+                Ok(format!(
+                    "Reset {}: back to its starting capital, nothing held.",
+                    self.paper.account.name
+                ))
+            }
+            "delete_account" => {
+                if self.paper.others.is_empty() {
+                    return error("That's the only account; make another first.");
+                }
+                let name = self.paper.account.name.clone();
+                self.delete_account();
+                Ok(format!("Deleted {name}; using {} now.", self.paper.account.name))
+            }
             _ => {
                 let acc = &self.paper.account;
                 let price = |s: &str| self.last_price(s);
+                let settings = |a: &opentern_engine::paper::Account| {
+                    json!({
+                        "name": a.name, "capital": a.initial,
+                        "currency": if a.currency.is_empty() { "each symbol's own" } else { a.currency.as_str() },
+                        "commission_pct": a.commission_pct, "slippage_pct": a.slippage_pct, "leverage": a.leverage,
+                    })
+                };
                 return pretty(&json!({
                     "account": acc.name,
+                    "settings": settings(acc),
+                    "margin_used": acc.margin_used(),
+                    "buying_power": acc.buying_power().max(0.0),
                     "initial": acc.initial,
                     "balance": acc.balance,
                     "equity": acc.equity(price),
@@ -1525,7 +1616,7 @@ impl App {
                         "symbol": f.symbol, "side": if f.buy { "buy" } else { "sell" }, "qty": f.qty,
                         "price": f.price, "time": iso(f.time), "realized": f.realized,
                     })).collect::<Vec<_>>(),
-                    "other_accounts": self.paper.others.iter().map(|a| a.name.clone()).collect::<Vec<_>>(),
+                    "other_accounts": self.paper.others.iter().map(settings).collect::<Vec<_>>(),
                 }));
             }
         };
@@ -1710,6 +1801,81 @@ mod drive_tests {
     }
 
     #[test]
+    fn the_agent_sets_up_paper_accounts() {
+        let mut d = Driver::new("agent-paper-accounts");
+        let r = ok(&call(
+            &mut d,
+            "paper_trading",
+            json!({"action": "create_account", "name": "Euro swing", "capital": 5000, "currency": "eur", "commission": 0.1, "slippage": 0.05, "leverage": 2}),
+        ));
+        assert!(r.contains("Euro swing"), "{r}");
+        let a = &d.app.paper.account;
+        assert_eq!(
+            (
+                a.name.as_str(),
+                a.initial,
+                a.currency.as_str(),
+                a.commission_pct,
+                a.slippage_pct,
+                a.leverage
+            ),
+            ("Euro swing", 5000.0, "EUR", 0.1, 0.05, 2.0)
+        );
+        // The chart's BTCUSDT is priced in dollars: the account gets a
+        // dollar → euro rate from the forex quote, then can trade.
+        d.wait(|a| a.paper.account.fx.contains_key("USDT"));
+        let rate = d.app.paper.account.fx["USDT"];
+        assert!(rate > 0.0);
+        ok(&call(
+            &mut d,
+            "paper_trading",
+            // Demo rates are made up (hundreds of euros to the dollar).
+            json!({"action": "order", "side": "buy", "qty": 0.0001}),
+        ));
+        let acc: Value =
+            serde_json::from_str(&ok(&call(&mut d, "paper_trading", json!({"action": "account"})))).unwrap();
+        assert_eq!(acc["settings"]["currency"], "EUR");
+        assert!(acc["margin_used"].as_f64().unwrap() > 0.0, "{acc}");
+        // Traded: the currency stays; other settings change.
+        let e = call(
+            &mut d,
+            "paper_trading",
+            json!({"action": "account_settings", "currency": "USD"}),
+        );
+        assert!(e["isError"].as_bool().unwrap_or(false));
+        ok(&call(
+            &mut d,
+            "paper_trading",
+            json!({"action": "account_settings", "capital": 6000, "leverage": 1}),
+        ));
+        assert_eq!(
+            (d.app.paper.account.initial, d.app.paper.account.leverage),
+            (6000.0, 1.0)
+        );
+        // Switch, reset, delete.
+        ok(&call(
+            &mut d,
+            "paper_trading",
+            json!({"action": "switch_account", "name": "Paper account"}),
+        ));
+        assert_eq!(d.app.paper.account.name, "Paper account");
+        ok(&call(
+            &mut d,
+            "paper_trading",
+            json!({"action": "switch_account", "name": "euro swing"}),
+        ));
+        ok(&call(&mut d, "paper_trading", json!({"action": "reset_account"})));
+        let a = &d.app.paper.account;
+        assert!(a.positions.is_empty() && a.fills.is_empty());
+        assert_eq!((a.balance, a.currency.as_str(), a.commission_pct), (6000.0, "EUR", 0.1));
+        ok(&call(&mut d, "paper_trading", json!({"action": "delete_account"})));
+        assert_eq!(d.app.paper.account.name, "Paper account");
+        assert!(d.app.paper.others.is_empty());
+        let e = call(&mut d, "paper_trading", json!({"action": "delete_account"}));
+        assert!(e["isError"].as_bool().unwrap_or(false));
+    }
+
+    #[test]
     fn the_agent_drives_the_app() {
         let mut d = Driver::new("agent-tools");
         let n = d.app.chart.bars.len();
@@ -1817,7 +1983,7 @@ mod drive_tests {
         ok(&call(
             &mut d,
             "paper_trading",
-            json!({"action": "order", "side": "buy", "qty": 2}),
+            json!({"action": "order", "side": "buy", "qty": 1}),
         ));
         assert_eq!(d.app.paper.account.positions.len(), 1);
         ok(&call(&mut d, "paper_trading", json!({"action": "close"})));

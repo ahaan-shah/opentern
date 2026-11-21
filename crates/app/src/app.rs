@@ -540,6 +540,10 @@ impl App {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),
             "python-notice" => Some(Modal::PythonNotice),
+            "paper-account" => {
+                self.open_paper_account(true);
+                self.modal.take()
+            }
             "whatsnew" => Some(Modal::WhatsNew(Box::new(crate::whatsnew::Card::current()))),
             "chart-settings" => Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self))),
             "providers" => {

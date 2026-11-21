@@ -925,9 +925,12 @@ mod tests {
     fn paper_orders_fill_and_survive_a_restart() {
         use opentern_engine::paper::{Kind, Ticket};
         let mut d = Driver::new("paper");
+        // Two demo bitcoins cost more than the $100k a cash account holds.
+        d.app.paper.account.leverage = 4.0;
         let sym = d.app.chart.symbol.id.clone();
         let last = d.app.last_price(&sym).expect("a price");
         let ticket = Ticket {
+            currency: String::new(),
             symbol: sym.clone(),
             buy: true,
             qty: 2.0,
@@ -967,6 +970,7 @@ mod tests {
             .account
             .place(
                 Ticket {
+                    currency: String::new(),
                     symbol: sym.clone(),
                     buy: true,
                     qty: 1.0,
@@ -1006,6 +1010,7 @@ mod tests {
             .account
             .place(
                 Ticket {
+                    currency: String::new(),
                     symbol: sym.clone(),
                     buy: true,
                     qty: 1.0,
@@ -1376,6 +1381,58 @@ mod formula_tests {
         d.frame(vec![]);
         assert!(d.app.layout.panel_max);
         assert!(d.texts().iter().any(|t| t == "Screener"));
+    }
+
+    #[test]
+    fn paper_accounts_are_made_and_set_up_in_their_dialog() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("paper-settings");
+        d.app.layout.tab = Some(crate::shell::Tab::Paper);
+        d.app.open_paper_account(true);
+        if let Some(Modal::PaperAccount(f)) = &mut d.app.modal {
+            assert_eq!(f.name, "Paper account 2");
+            f.capital = 25_000.0;
+            f.commission = 0.1;
+        } else {
+            panic!("no dialog");
+        }
+        d.frame(vec![]);
+        let create = d.text_rect("Create").expect("Create button");
+        d.click(create.center());
+        assert!(d.app.modal.is_none());
+        let a = &d.app.paper.account;
+        assert_eq!(a.name, "Paper account 2");
+        assert_eq!((a.initial, a.balance, a.commission_pct), (25_000.0, 25_000.0, 0.1));
+        assert_eq!(d.app.paper.others.len(), 1);
+
+        // Editing the one in use: a profit made stays when the capital moves.
+        d.app.paper.account.balance += 500.0;
+        d.app.open_paper_account(false);
+        if let Some(Modal::PaperAccount(f)) = &mut d.app.modal {
+            assert!(!f.new);
+            f.name = "Swing".into();
+            f.capital = 40_000.0;
+        }
+        d.frame(vec![]);
+        let save = d.text_rect("Save").expect("Save button");
+        d.click(save.center());
+        let a = &d.app.paper.account;
+        assert_eq!((a.name.as_str(), a.initial, a.balance), ("Swing", 40_000.0, 40_500.0));
+
+        // A name another account has is refused.
+        let other = d.app.paper.others[0].name.clone();
+        d.app.open_paper_account(true);
+        if let Some(Modal::PaperAccount(f)) = &mut d.app.modal {
+            f.name = other;
+        }
+        assert!(
+            d.texts()
+                .iter()
+                .any(|t| t == "There's already an account with this name.")
+        );
+        let create = d.text_rect("Create").unwrap();
+        d.click(create.center());
+        assert_eq!(d.app.paper.others.len(), 1);
     }
 
     #[test]

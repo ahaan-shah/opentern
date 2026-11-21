@@ -219,7 +219,14 @@ impl SeasonCache {
         let key = (chart.data_version, chart.bars.len(), years);
         if self.key != Some(key) {
             self.key = Some(key);
-            self.years = opentern_series::profile::seasonality(&chart.bars, &chart.sym_tz, years);
+            // Daily-or-longer bars are dated in UTC (stamped at 00:00 UTC of
+            // their local date), as the time scale reads them.
+            let tz = if chart.tf.is_intraday() {
+                chart.sym_tz.clone()
+            } else {
+                jiff::tz::TimeZone::UTC
+            };
+            self.years = opentern_series::profile::seasonality(&chart.bars, &tz, years);
         }
         &self.years
     }

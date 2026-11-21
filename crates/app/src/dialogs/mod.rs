@@ -5,6 +5,7 @@ mod alert;
 mod chart_settings;
 pub mod color;
 mod indicators;
+pub mod paper_account;
 pub mod providers;
 pub mod strategy_props;
 mod study;
@@ -34,6 +35,9 @@ pub enum Modal {
     Alert(Box<AlertForm>),
     Providers(Box<providers::Providers>),
     StrategyProps(Box<strategy_props::StrategyProps>),
+    /// A paper account's name, starting capital and commission (new, or
+    /// the one in use).
+    PaperAccount(Box<paper_account::PaperAccountForm>),
     WhatsNew(Box<crate::whatsnew::Card>),
     Index(Box<crate::indices::IndexEditor>),
     /// "Clear the price cache?" (Settings → General).
@@ -111,6 +115,7 @@ impl App {
                 Modal::Alert(f) => f.show(ui, self, &t),
                 Modal::Providers(p) => p.show(ui, self, &t),
                 Modal::StrategyProps(p) => p.show(ui, self, &t),
+                Modal::PaperAccount(f) => f.show(ui, self, &t),
                 Modal::Index(e) => e.show(ui, self, &t),
                 Modal::ClearCache => clear_cache(ui, self, &t),
                 Modal::PythonNotice => python_notice(ui, &t),
