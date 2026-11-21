@@ -99,6 +99,10 @@ pub struct App {
     /// Folders picked in Settings → General (`None` = inside the
     /// workspace), read once so frames never ask the database.
     pub(crate) folders: crate::settings::Folders,
+    /// Watches the scripts folder for a first Python script (the one-time
+    /// notice); `None` once it has shown on this computer, or in headless,
+    /// still and test runs.
+    pub(crate) python_notice: Option<crate::pywatch::PyWatch>,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
     /// The other charts of a multi-chart layout (`None` at the active
@@ -243,6 +247,7 @@ impl App {
             still_claude: None,
             logos,
             folders,
+            python_notice: None,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
             slots: vec![None],
@@ -278,6 +283,7 @@ impl App {
             app.saved = app.layout_version();
         }
         app.onboarding = crate::onboarding::wanted(&mut app.store, fresh);
+        app.python_notice = crate::pywatch::PyWatch::at_launch(app.scripts_dir(), &app.egui_ctx);
         // After an update: what changed (a new workspace has onboarding instead).
         if let Some(c) = crate::whatsnew::at_launch(&mut app.store, demo)
             && app.onboarding.is_none()
@@ -533,6 +539,7 @@ impl App {
         self.modal = match what.as_str() {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),
+            "python-notice" => Some(Modal::PythonNotice),
             "whatsnew" => Some(Modal::WhatsNew(Box::new(crate::whatsnew::Card::current()))),
             "chart-settings" => Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self))),
             "providers" => {
@@ -1403,6 +1410,7 @@ impl App {
         self.updater.launch_check(&ctx, self.store.settings().check_updates);
         self.poll_data();
         self.poll_scripts();
+        self.python_notice();
         self.refresh_strategies();
         self.poll_paper();
         self.poll_other_charts();

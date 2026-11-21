@@ -205,6 +205,11 @@ impl App {
         // Maximized, the bottom panel takes the chart's place too (and the
         // range bar's): everything under the top bar.
         let full = self.layout.panel_max && self.layout.tab.is_some();
+        // What hides the bottom panel (and the range bar) for now, leaving
+        // the layout as it is: the overview, or Settings over a maximized
+        // panel (else Settings would have no room; closing it brings the
+        // panel back as it was).
+        let covered = ov || (full && self.settings.is_some());
         let open = self.layout.widget.is_some();
         let k = motion::toggle(ui.ctx(), Id::new("widget-open"), open, motion::STANDARD);
         if k > 0.001 {
@@ -218,7 +223,7 @@ impl App {
                     right: 0,
                     // Beside a maximized bottom panel, the card starts
                     // level with that panel's card, under its tab strip.
-                    top: if full && !ov { TABS_H as i8 } else { GAP as i8 },
+                    top: if full && !covered { TABS_H as i8 } else { GAP as i8 },
                     bottom: GAP as i8,
                 }))
                 .show(ui, |ui| {
@@ -244,7 +249,7 @@ impl App {
         } else {
             self.layout.panel_h.min(most)
         };
-        if !ov {
+        if !covered {
             egui::Panel::bottom("bottom-panel")
                 .exact_size(TABS_H + panel_h * k)
                 .resizable(false)
@@ -257,7 +262,7 @@ impl App {
                 });
         }
 
-        if !full && !ov {
+        if !full && !covered {
             egui::Panel::bottom("range-bar")
                 .exact_size(RANGE_H)
                 .resizable(false)
@@ -295,7 +300,7 @@ impl App {
                 left: (GAP * (1.0 - tk)).round() as i8,
                 right: if self.layout.widget.is_some() { 0 } else { GAP as i8 },
                 top: GAP as i8,
-                bottom: if ov { GAP as i8 } else { 0 },
+                bottom: if covered { GAP as i8 } else { 0 },
             }))
             .show(ui, |ui| {
                 // A maximized panel leaves no room for the chart.

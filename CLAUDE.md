@@ -35,7 +35,13 @@ here" at the end first.
 - **The agents and Python keep full access** (the maintainer, 21 Nov 2026: "the
   agent is there to help people"; the editor is like VS Code). No Contained
   mode for the agents and no OS sandbox for Python; the README's License
-  section carries the disclaimer. Don't add either unless asked.
+  section carries the disclaimer, and the app shows a one-time notice
+  (`Modal::PythonNotice`; still `python-notice`) the moment a `.py` is
+  anywhere in the scripts folder: `pywatch.rs` watches it recursively with
+  the `notify` crate, and the flag file `python-notice-shown` in
+  `opentern_core::config_dir()` keeps it from showing again on that
+  computer, in any workspace. Don't add
+  either unless asked.
 - **Every standard TradingView built-in ships by default**, plus licence-checked
   open-source community scripts. They're ported from Pine to Rust with exact numerical
   parity (§6a).
@@ -712,7 +718,8 @@ workspace.
   own editor (the chart reloads on save), shows errors and prints. Errors also show in
   the study's legend row.
 - Python runs re-trigger on new data at most twice a second, immediately on new
-  inputs. `notify` crate not used: the worker polls the file's mtime every second.
+  inputs. The worker polls the file's mtime every second (the `notify`
+  crate is only used for the Python notice, `pywatch.rs`).
 - Verified: the SDK's RSI (pure Python) equals the Rust built-in RSI bar for bar on the
   demo chart (`drive::tests::python_script_…`).
 
@@ -1391,7 +1398,9 @@ every data change (scripts re-run on it).
   `Request::Fundamentals` (Yahoo `quoteSummary` + cookie/crumb, one at a
   time; demo makes numbers up). Settings key `custom_indices`. Stills:
   `index-map`, `index-edit`, `index-chart`, `index-compare`.
-- A maximized bottom panel takes the chart's and range bar's place.
+- A maximized bottom panel takes the chart's and range bar's place. Settings
+  hides it while open (`covered` in `shell.rs`, as the overview does; the
+  layout isn't touched, so closing Settings brings it back).
 - **Map of every index** (0.2.12): the treemap button beside + in the
   Indices list (`Indices::map`) shows all indices on the market
   overview's heatmap (`App::heat_map_scrolled` with a `MapSpec`: the

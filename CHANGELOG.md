@@ -3,10 +3,12 @@
 ## Unreleased
 
 ### New
+- **A fair warning about Python, once per computer.** The moment a Python script shows up anywhere in your scripts folder (written by you, an agent or copied in), a short note says that Python scripts run with the same access as any program on your computer, and that Pine, Luau and JavaScript are sealed inside Opentern.
 - **Search custom indices.** A search button beside Compare filters the list by name.
 - **Search watchlists.** A search button in the Watchlist header finds a list by name; Enter or a click switches to it.
 
 ### Fixed
+- **Settings shows over a maximized bottom panel.** It used to open behind it; the panel comes back as it was when Settings closes.
 - **The map of every index closes like the market overview.** Clicking its button again goes back to the index or Compare you were on.
 - **Claude's model menu lists the newest models.** It now asks Claude Code which models are current (Fable 5.2 instead of 5.1), once a run when the menu opens.
 - **The side panel lines up with a maximized bottom panel.** Their cards now start at the same height.

@@ -1316,6 +1316,69 @@ mod formula_tests {
     }
 
     #[test]
+    fn a_python_file_anywhere_in_scripts_brings_the_notice_once() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("python-notice");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(dir.join("ideas/deep")).unwrap();
+        std::fs::write(dir.join("rsi.pine"), "//@version=6\nindicator(\"x\")\nplot(close)\n").unwrap();
+        // Headless runs skip it; start it as a real launch would, with the
+        // per-machine flag in the test's folder.
+        let flag = d.dir.join("config/python-notice-shown");
+        d.app.python_notice = Some(crate::pywatch::PyWatch::start(dir.clone(), flag.clone(), &d.ctx));
+        d.frame(vec![]);
+        assert!(d.app.modal.is_none());
+        // A nested folder counts; the watcher says so without a rescan.
+        std::fs::write(dir.join("ideas/deep/mine.py"), "").unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while d.app.modal.is_none() && std::time::Instant::now() < deadline {
+            d.frame(vec![]);
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(matches!(d.app.modal, Some(Modal::PythonNotice)));
+        assert!(flag.exists());
+        assert!(d.app.python_notice.is_none());
+        let ok = d.text_rect("Got it").expect("Got it button");
+        d.click(ok.center());
+        assert!(d.app.modal.is_none());
+        // A .py already there at start counts at once.
+        let again = crate::pywatch::PyWatch::start(dir, flag.clone(), &d.ctx);
+        assert!(again.found());
+        // A folder moved in whole: the event names the folder, not the file.
+        let fresh = d.dir.join("other-scripts");
+        let w = crate::pywatch::PyWatch::start(fresh.clone(), flag, &d.ctx);
+        assert!(!w.found());
+        let outside = d.dir.join("outside/pack");
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(outside.join("x.py"), "").unwrap();
+        std::fs::rename(&outside, fresh.join("pack")).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+        while !w.found() && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(w.found());
+    }
+
+    #[test]
+    fn settings_shows_over_a_maximized_bottom_panel() {
+        let mut d = Driver::new("settings-over-max");
+        d.app.layout.tab = Some(crate::shell::Tab::Screener);
+        d.app.layout.panel_max = true;
+        d.frame(vec![]);
+        assert!(d.texts().iter().any(|t| t == "Screener"));
+        d.app.open_settings(crate::settings::Cat::General);
+        d.frame(vec![]);
+        let texts = d.texts();
+        // The page's own controls show, and the panel's tabs don't.
+        assert!(texts.iter().any(|t| t == "FOLDERS"), "{texts:?}");
+        assert!(!texts.iter().any(|t| t == "Screener"), "{texts:?}");
+        d.app.settings = None;
+        d.frame(vec![]);
+        assert!(d.app.layout.panel_max);
+        assert!(d.texts().iter().any(|t| t == "Screener"));
+    }
+
+    #[test]
     fn searching_watchlists_switches_by_name() {
         use crate::watchlists::Watchlist;
         let mut d = Driver::new("watch-search");

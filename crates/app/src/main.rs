@@ -43,6 +43,7 @@ mod onboarding;
 mod overview;
 mod paper;
 mod pine_host;
+mod pywatch;
 mod screener;
 mod scripting;
 mod seasonal;

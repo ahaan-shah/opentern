@@ -29,6 +29,13 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Opentern's per-machine config folder (`~/.config/opentern` on Linux,
+/// the Application Support / AppData equivalents elsewhere): for flags
+/// that belong to the computer rather than to one workspace.
+pub fn config_dir() -> Option<std::path::PathBuf> {
+    directories::ProjectDirs::from("dev", "opentern", "opentern").map(|d| d.config_dir().to_path_buf())
+}
+
 /// Where Opentern keeps the workspace of whoever is using it:
 /// `~/.local/share/opentern` on Linux, `~/Library/Application Support/opentern`
 /// on macOS, `%APPDATA%\opentern` on Windows. `OPENTERN_DATA_DIR` overrides it

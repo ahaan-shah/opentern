@@ -38,6 +38,8 @@ pub enum Modal {
     Index(Box<crate::indices::IndexEditor>),
     /// "Clear the price cache?" (Settings → General).
     ClearCache,
+    /// The first Python script in the scripts folder: what Python can do.
+    PythonNotice,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -111,6 +113,7 @@ impl App {
                 Modal::StrategyProps(p) => p.show(ui, self, &t),
                 Modal::Index(e) => e.show(ui, self, &t),
                 Modal::ClearCache => clear_cache(ui, self, &t),
+                Modal::PythonNotice => python_notice(ui, &t),
                 Modal::WhatsNew(c) => {
                     if crate::whatsnew::card(c, ui, &t) {
                         Done::Close
@@ -296,6 +299,42 @@ pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
 /// Asks before clearing the price cache: some of what it holds can't be
 /// downloaded again (sources keep only recent minute and hour bars, and
 /// Yahoo never has the special sessions built from live prices).
+fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
+    let mut done = Done::Keep;
+    if frame(ui, t, "Python scripts run on your computer", 420.0, |ui| {
+        ui.label(
+            egui::RichText::new(
+                "A Python script runs in your own system's Python. Based on the code, it can read and \
+                 change your files and go online, and that includes code an agent writes for you. Only \
+                 run the ones you trust.",
+            )
+            .color(t.text2),
+        );
+        ui.add_space(4.0);
+        ui.label(
+            egui::RichText::new(
+                "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives.",
+            )
+            .color(t.text2),
+        );
+        ui.add_space(16.0);
+        // A fixed-size row: a bare right-to-left layout takes the whole
+        // modal's height.
+        ui.allocate_ui_with_layout(
+            vec2(ui.available_width(), 32.0),
+            Layout::right_to_left(Align::Center),
+            |ui| {
+                if crate::widgets::primary(ui, "Got it").clicked() {
+                    done = Done::Close;
+                }
+            },
+        );
+    }) {
+        done = Done::Close;
+    }
+    done
+}
+
 fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
     let mut done = Done::Keep;
     if frame(ui, t, "Clear the price cache?", 400.0, |ui| {

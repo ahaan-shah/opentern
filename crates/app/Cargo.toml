@@ -22,6 +22,7 @@ egui-phosphor = "0.14.0"
 crossbeam-channel = "0.5.15"
 jiff = "0.2.37"
 lettre = { version = "0.11.23", default-features = false, features = ["smtp-transport", "builder", "rustls-tls", "hostname"] }
+notify = "9.0.0"
 notify-rust = "4"
 opentern-core = { version = "0.2.15", path = "../core" }
 opentern-data = { version = "0.2.15", path = "../data" }
