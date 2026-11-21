@@ -134,6 +134,33 @@ impl Driver {
         found
     }
 
+    /// Runs a frame and returns every painted text with where it went.
+    pub fn all_texts(&mut self) -> Vec<(String, Rect)> {
+        fn walk(shape: &egui::Shape, out: &mut Vec<(String, Rect)>) {
+            match shape {
+                egui::Shape::Text(t) => {
+                    out.push((t.galley.text().to_string(), t.galley.rect.translate(t.pos.to_vec2())))
+                }
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, out)),
+                _ => {}
+            }
+        }
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
+        let mut found = Vec::new();
+        for c in &out.shapes {
+            walk(&c.shape, &mut found);
+        }
+        found
+    }
+
     /// Runs frames until `f` holds (data arrives on other threads). A time
     /// limit, not a frame count: shared CI runners are several times slower
     /// than a desktop.
@@ -1433,6 +1460,98 @@ mod formula_tests {
         let create = d.text_rect("Create").unwrap();
         d.click(create.center());
         assert_eq!(d.app.paper.others.len(), 1);
+    }
+
+    #[test]
+    fn watchlist_changes_line_up_under_their_heading() {
+        let mut d = Driver::new("watch-columns");
+        // Long enough to scroll (the rows then sit narrower than the header).
+        let more: Vec<_> = opentern_core::commodities()
+            .into_iter()
+            .map(crate::watchlists::Item::Symbol)
+            .collect();
+        let k = d.app.active_list;
+        d.app.watchlists[k].items.extend(more);
+        d.app.subscribe_quotes();
+        d.wait(|a| a.quotes.len() >= 3);
+        d.frame(vec![]);
+        let all = d.all_texts();
+        let head = |name: &str| all.iter().find(|(t, _)| t == name).map(|x| x.1).expect(name);
+        let (chg, last) = (head("Chg%"), head("Last"));
+        // Rows: a price, then its change, on one line.
+        let mut rows = 0;
+        for (t, r) in &all {
+            if !(t.ends_with('%') && (t.starts_with('+') || t.starts_with('-'))) || r.left() < last.left() - 60.0 {
+                continue;
+            }
+            assert!(
+                (r.right() - chg.right()).abs() < 1.0,
+                "{t} ends at {} not {}",
+                r.right(),
+                chg.right()
+            );
+            let price = all
+                .iter()
+                .filter(|(_, p)| (p.center().y - r.center().y).abs() < 2.0 && p.right() < r.left())
+                .map(|x| x.1)
+                .max_by(|a, b| a.right().total_cmp(&b.right()))
+                .expect("a price beside it");
+            assert!((price.right() - last.right()).abs() < 1.0);
+            assert!(
+                r.left() - price.right() >= 12.0,
+                "{t}: gap {}",
+                r.left() - price.right()
+            );
+            rows += 1;
+        }
+        assert!(rows >= 3, "{rows}");
+    }
+
+    #[test]
+    fn symbol_search_shows_recent_picks_in_each_tab() {
+        use crate::dialogs::{Modal, SymbolSearch};
+        let mut d = Driver::new("search-recents");
+        let starter = opentern_core::starter_watchlist();
+        let find = |id: &str| starter.iter().find(|s| s.id.ends_with(id)).unwrap().clone();
+        // Nothing picked yet: the starter list.
+        d.app.modal = Some(Modal::Symbol(SymbolSearch::new("")));
+        d.frame(vec![]);
+        let texts = d.texts();
+        assert!(
+            texts[texts.iter().position(|t| t == "Symbol search").unwrap()..]
+                .iter()
+                .any(|t| t == "SPY")
+        );
+        d.app.modal = None;
+        d.app.remember_symbol(&find("RELIANCE"));
+        d.app.remember_symbol(&find("ETHUSDT"));
+        d.app.remember_symbol(&find("RELIANCE"));
+        d.app.modal = Some(Modal::Symbol(SymbolSearch::new("")));
+        d.frame(vec![]);
+        let texts = d.texts();
+        // Only the recent picks, newest first (the dialog paints last, over
+        // the watchlist that lists them too).
+        let rel = d.text_rect("RELIANCE").expect("RELIANCE");
+        let eth = d.text_rect("ETHUSDT").expect("ETHUSDT");
+        assert!(rel.top() < eth.top());
+        let dialog = &texts[texts.iter().position(|t| t == "Symbol search").unwrap()..];
+        assert!(!dialog.iter().any(|t| t == "SPY"), "{dialog:?}");
+        // The Crypto tab: its recent pick only.
+        let tab = d.text_rect("Crypto").unwrap();
+        d.click(tab.center());
+        // In the dialog: ETHUSDT listed, RELIANCE only in the watchlist
+        // behind (to the right of the dialog's rows).
+        let eth = d.text_rect("ETHUSDT").unwrap();
+        let rels = d.text_rects("RELIANCE");
+        assert!(
+            rels.iter().all(|r| (r.left() - eth.left()).abs() > 50.0),
+            "{rels:?} vs {eth:?}"
+        );
+        // Kept across restarts.
+        let path = d.dir.clone();
+        std::mem::forget(d);
+        let mut d = Driver::open(path);
+        assert_eq!(d.app.recent_symbols()[0].ticker(), "RELIANCE");
     }
 
     #[test]

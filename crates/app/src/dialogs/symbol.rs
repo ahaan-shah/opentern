@@ -249,7 +249,19 @@ impl SymbolSearch {
             if let Some(f) = formula {
                 shown.push(Row::Formula(f));
             }
-            for s in self.results.iter().filter(|s| self.filter.is_none_or(|f| s.kind == f)) {
+            // Nothing typed: each tab shows its recent picks (the starter
+            // list until there are some).
+            let recents: Vec<Symbol> = if self.query.trim().is_empty() {
+                app.recent_symbols()
+                    .iter()
+                    .filter(|s| self.filter.is_none_or(|f| s.kind == f))
+                    .cloned()
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let source = if recents.is_empty() { &self.results } else { &recents };
+            for s in source.iter().filter(|s| self.filter.is_none_or(|f| s.kind == f)) {
                 if completing.is_some() && opentern_data::expr::is_expr(&s.id) {
                     continue;
                 }
@@ -383,6 +395,7 @@ impl SymbolSearch {
             done = Done::Close;
         }
         if let Some(s) = pick {
+            app.remember_symbol(&s);
             match self.purpose {
                 Pick::Chart => app.open_symbol_synced(s),
                 Pick::Watchlist => app.add_to_watchlist(s),

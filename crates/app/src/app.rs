@@ -16,6 +16,11 @@ use opentern_series::study::Inputs;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+/// Settings key for the symbols picked in symbol search.
+const RECENTS_KEY: &str = "recent_symbols";
+/// How many recent symbols are kept.
+const RECENTS_MAX: usize = 40;
+
 pub struct App {
     pub store: Store,
     pub theme: ThemeState,
@@ -113,6 +118,9 @@ pub struct App {
     pub(crate) drawings_saved: u64,
     last_style_edit: Option<(u64, Instant)>,
     pub(crate) search_seq: u64,
+    /// Symbols picked in symbol search, newest first (read when the
+    /// dialog first needs them; settings key `recent_symbols`).
+    recents: Option<Vec<Symbol>>,
     saved: u64,
     last_save: Instant,
     last_frame: Option<Instant>,
@@ -256,6 +264,7 @@ impl App {
             drawings_saved: 0,
             last_style_edit: None,
             search_seq: 0,
+            recents: None,
             last_save: Instant::now(),
             last_frame: None,
             panics: 0,
@@ -635,6 +644,29 @@ impl App {
     }
 
     // ------------------------------------------------------------ chart
+
+    /// Symbols picked in symbol search, newest first.
+    pub(crate) fn recent_symbols(&mut self) -> &[Symbol] {
+        let store = &self.store;
+        self.recents.get_or_insert_with(|| {
+            store
+                .value(RECENTS_KEY)
+                .and_then(|j| serde_json::from_str(&j).ok())
+                .unwrap_or_default()
+        })
+    }
+
+    /// Puts `s` first among the recent symbols.
+    pub(crate) fn remember_symbol(&mut self, s: &Symbol) {
+        let mut list = self.recent_symbols().to_vec();
+        list.retain(|x| x.id != s.id);
+        list.insert(0, s.clone());
+        list.truncate(RECENTS_MAX);
+        if let Ok(j) = serde_json::to_string(&list) {
+            let _ = self.store.set_value(RECENTS_KEY, &j);
+        }
+        self.recents = Some(list);
+    }
 
     pub fn search(&mut self, seq: u64, query: &str) {
         self.search_seq = seq;
@@ -1124,13 +1156,19 @@ impl App {
                 Event::Overview { seq, market, result } => self.overview_event(seq, market, result),
                 Event::OverviewPrices { seq, market, result } => self.overview_prices(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
-                Event::Search { seq, results } if seq >= crate::claude::tools::SEARCH_BASE => {
-                    self.claude_search_done(seq, results)
+                Event::Search { seq, results, done } if seq >= crate::claude::tools::SEARCH_BASE => {
+                    if done {
+                        self.claude_search_done(seq, results)
+                    }
                 }
-                Event::Search { seq, results } => match &mut self.modal {
+                // What's known shows at once; the full answer replaces it.
+                // Enter waits for the full one (`got`).
+                Event::Search { seq, results, done } => match &mut self.modal {
                     Some(Modal::Symbol(s)) if seq == self.search_seq => {
                         s.results = results;
-                        s.got = seq;
+                        if done {
+                            s.got = seq;
+                        }
                     }
                     Some(Modal::Index(e)) if seq == self.search_seq => e.results = results,
                     _ => {}

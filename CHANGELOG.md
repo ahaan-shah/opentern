@@ -8,13 +8,21 @@
 - **Paper trading costs and limits, like a real account.** Slippage moves market, stop and trailing fills against you (limits fill at their price). Orders need buying power: equity times leverage, 1× being cash only, so an order larger than the account is refused. With leverage, falling below half the margin in use closes every position (a margin call, with a notification). Hover the account summary for margin in use and buying power.
 - **Paper accounts in your own currency.** Keep an account in USD, INR, EUR and others: profit and loss on symbols priced in other currencies is converted at live exchange rates.
 - **The agent manages paper accounts.** It can create accounts with these settings, change them, switch, reset and delete.
-
-### Changed
-- **Paper accounts are cash accounts unless you give them leverage.** Existing accounts start at 1×, so orders bigger than their equity are now refused. Reset account keeps all of an account's settings.
 - **Search custom indices.** A search button beside Compare filters the list by name.
 - **Search watchlists.** A search button in the Watchlist header finds a list by name; Enter or a click switches to it.
 
+### Changed
+- **Symbol search shows your recent picks.** With nothing typed, each tab lists the symbols you picked lately (the starter list until there are some).
+- **Paper accounts are cash accounts unless you give them leverage.** Existing accounts start at 1×, so orders bigger than their equity are now refused. Reset account keeps all of an account's settings.
+- **The paperclip opens the file picker straight away.** Paste image is gone from it; Ctrl+V still pastes an image.
+
 ### Fixed
+- **"Check your internet connection" only when it's the connection.** When something else answered lately (a crypto stream, another request), a failure names the service instead ("Yahoo isn't answering right now (error 502).", "Couldn't reach Yahoo."), with a warning icon rather than the no-signal one. Messages clear as soon as data arrives.
+- **Yahoo falls back to its second server.** When query1.finance.yahoo.com is slow (5 s) or failing, query2 is asked, and whichever answered goes first next time. Indian charts were getting 502s after 15 s on the first while the second answered at once.
+- **Custom index charts survive a failing member.** One member's failed price update no longer stops the whole index: it's retried on its own and counts at its last price meanwhile. Opening an index reads its members' history from the cache (fetched in parallel) instead of downloading all of it again.
+- **Members Yahoo no longer has are flagged.** A renamed or delisted member (Yahoo's 404) gets a warning sign by its name and in the index's header, saying to replace it.
+- **Symbol search answers as you type.** S&P 500 and NIFTY 500 stocks and the exchanges' coins show at once; Yahoo's results join when they arrive, and a slow Yahoo no longer holds the list back.
+- **Watchlist changes line up under Chg%,** with more room after the price.
 - **Seasonality puts US months in the right column.** Months of symbols whose exchange is behind UTC (US stocks and funds) showed a month early, and each year's January return went under the year before. The Seasonality indicator on daily charts had the same one-day slip.
 - **Custom indices' weekly and monthly bars are right when weights change mid-month.** Seasonality and 1W/1M charts of a custom index now build each week and month from the index's own days, so a member joining or a rebalance no longer throws off that month and the next.
 - **Settings shows over a maximized bottom panel.** It used to open behind it; the panel comes back as it was when Settings closes.
@@ -22,8 +30,6 @@
 - **Claude's model menu lists the newest models.** It now asks Claude Code which models are current (Fable 5.2 instead of 5.1), once a run when the menu opens.
 - **The side panel lines up with a maximized bottom panel.** Their cards now start at the same height.
 
-### Changed
-- **The paperclip opens the file picker straight away.** Paste image is gone from it; Ctrl+V still pastes an image.
 
 ## 0.2.15 (2026-11-20)
 

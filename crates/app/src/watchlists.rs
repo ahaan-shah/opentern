@@ -514,7 +514,15 @@ impl App {
             .fold(width_of("Last", ui), f32::max);
         let w = ui.available_width();
         let (cols, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-        let col_last = cols.right() - 4.0 - chg_w - 14.0;
+        // The rows sit in a scroll area a little narrower than the header:
+        // both columns line up with where the rows ended last frame.
+        let right_id = state_id("row-right");
+        let row_right = ui
+            .data(|d| d.get_temp::<f32>(right_id))
+            .filter(|r| *r <= cols.right() && *r > cols.left())
+            .unwrap_or(cols.right());
+        let col_chg = row_right - 4.0;
+        let col_last = col_chg - chg_w - 20.0;
         let name_right = col_last - last_w - 12.0;
         let header = |ui: &mut Ui, x: f32, align: Align2, text: &str, id: &str| -> bool {
             let r = Rect::from_center_size(pos2(x, cols.center().y), vec2(70.0, 22.0));
@@ -535,7 +543,7 @@ impl App {
         if header(ui, col_last, Align2::RIGHT_CENTER, "Last", "h-last") {
             sort = Some(SortBy::Last);
         }
-        if header(ui, cols.right() - 4.0, Align2::RIGHT_CENTER, "Chg%", "h-chg") {
+        if header(ui, col_chg, Align2::RIGHT_CENTER, "Chg%", "h-chg") {
             sort = Some(SortBy::Change);
         }
         if let Some(by) = sort {
@@ -647,6 +655,7 @@ impl App {
                             );
                         }
                         let y = rect.center().y;
+                        ui.data_mut(|d| d.insert_temp(right_id, rect.right()));
                         let name_font = theme::medium(13.0);
                         self.logos.paint(p, t, s, pos2(rect.left() + 15.0, y), 9.0);
                         let room = name_right - rect.left() - 30.0;
@@ -676,13 +685,7 @@ impl App {
                                 continue;
                             }
                         } else {
-                            p.text(
-                                pos2(rect.right() - 4.0, y),
-                                Align2::RIGHT_CENTER,
-                                &chg,
-                                theme::regular(13.0),
-                                col,
-                            );
+                            p.text(pos2(col_chg, y), Align2::RIGHT_CENTER, &chg, theme::regular(13.0), col);
                         }
                         if resp.drag_started() {
                             ui.data_mut(|d| d.insert_temp(drag_id, Some(k)));

@@ -3,6 +3,7 @@
 
 use opentern_core::{Bar, Symbol, Timeframe};
 use std::net::{TcpStream, ToSocketAddrs};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 #[derive(Debug)]
@@ -11,15 +12,41 @@ pub enum Error {
     Offline,
     /// The service answered with something we can't use.
     Bad(String),
+    /// The service is down or too slow while the internet works; the
+    /// message names it.
+    Down(String),
 }
+
+/// What an `Offline` error says when nothing has answered lately: the
+/// only case that blames the connection.
+pub const NO_INTERNET: &str = "Couldn't connect. Check your internet connection.";
+
+/// The start of what Yahoo's 404 says: a symbol it no longer has.
+pub const GONE: &str = "Yahoo has no data for this symbol";
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Offline => write!(f, "Couldn't connect. Check your internet connection."),
-            Error::Bad(m) => write!(f, "{m}"),
+            // Something else answered lately (a stream, another request):
+            // the internet works, this service doesn't.
+            Error::Offline if net_ok() => write!(f, "Couldn't reach the data service."),
+            Error::Offline => write!(f, "{NO_INTERNET}"),
+            Error::Bad(m) | Error::Down(m) => write!(f, "{m}"),
         }
     }
+}
+
+/// When any service last answered (ms since the epoch).
+static LAST_OK: AtomicI64 = AtomicI64::new(0);
+
+/// Notes that a service answered: the internet works.
+pub(crate) fn mark_ok() {
+    LAST_OK.store(now_ms(), Ordering::Relaxed);
+}
+
+/// Whether anything answered in the last two minutes.
+pub fn net_ok() -> bool {
+    now_ms() - LAST_OK.load(Ordering::Relaxed) < 120_000
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -61,28 +88,102 @@ pub(crate) fn agent() -> ureq::Agent {
         .into()
 }
 
-pub(crate) fn get_json(agent: &ureq::Agent, url: &str) -> Result<serde_json::Value> {
-    let mut resp = agent.get(url).call().map_err(|e| match e {
-        ureq::Error::StatusCode(c) => Error::Bad(format!("The data service answered with an error ({c}).")),
+/// Why a GET failed, before it's put in words.
+#[derive(Debug)]
+enum Fail {
+    Status(u16),
+    /// Connected but no answer in time.
+    Slow,
+    /// No connection (or a network that intercepts the host).
+    Connect,
+    Other(String),
+}
+
+/// A GET with an optional time limit of its own.
+fn fetch_json(agent: &ureq::Agent, url: &str, limit: Option<Duration>) -> std::result::Result<serde_json::Value, Fail> {
+    let mut req = agent.get(url);
+    if let Some(d) = limit {
+        req = req.config().timeout_global(Some(d)).build();
+    }
+    let mut resp = req.call().map_err(|e| match e {
+        ureq::Error::StatusCode(c) => Fail::Status(c),
+        ureq::Error::Timeout(_) | ureq::Error::BodyStalled => Fail::Slow,
         ureq::Error::Io(_)
-        | ureq::Error::Timeout(_)
         | ureq::Error::HostNotFound
         | ureq::Error::ConnectionFailed
-        | ureq::Error::BodyStalled
         // A network that intercepts a blocked host fails the handshake or
         // answers with something that isn't the service.
         | ureq::Error::Tls(_)
         | ureq::Error::Rustls(_)
-        | ureq::Error::Protocol(_) => Error::Offline,
-        e => Error::Bad(e.to_string()),
+        | ureq::Error::Protocol(_) => Fail::Connect,
+        e => Fail::Other(e.to_string()),
     })?;
     let text = resp
         .body_mut()
         .with_config()
         .limit(64 * 1024 * 1024)
         .read_to_string()
-        .map_err(|_| Error::Offline)?;
-    serde_json::from_str(&text).map_err(|e| Error::Bad(format!("Unexpected reply from the data service: {e}")))
+        .map_err(|_| Fail::Slow)?;
+    mark_ok();
+    serde_json::from_str(&text).map_err(|e| Fail::Other(format!("Unexpected reply from the data service: {e}")))
+}
+
+pub(crate) fn get_json(agent: &ureq::Agent, url: &str) -> Result<serde_json::Value> {
+    if let Some(path) = YAHOO.iter().find_map(|h| url.strip_prefix(h)) {
+        return yahoo_get(agent, &YAHOO, &YAHOO_AT, YAHOO_FIRST, path);
+    }
+    fetch_json(agent, url, None).map_err(|f| match f {
+        Fail::Status(c) => Error::Bad(format!("The data service answered with an error ({c}).")),
+        Fail::Slow | Fail::Connect => Error::Offline,
+        Fail::Other(m) => Error::Bad(m),
+    })
+}
+
+/// Yahoo's two API hosts; the same data on each.
+const YAHOO: [&str; 2] = ["https://query1.finance.yahoo.com", "https://query2.finance.yahoo.com"];
+/// Which of them answered last (asked first).
+static YAHOO_AT: AtomicUsize = AtomicUsize::new(0);
+/// How long the first host gets before the other is asked.
+const YAHOO_FIRST: Duration = Duration::from_secs(5);
+
+/// A Yahoo GET on whichever host answers: the one that answered last gets
+/// `YAHOO_FIRST`, then the other is asked (a slow or failing host, seen
+/// for NSE charts in Nov 2026: 502s after 15 s on query1 while query2
+/// answered at once). A 404 or other refusal is the same on both.
+fn yahoo_get(
+    agent: &ureq::Agent,
+    hosts: &[&str],
+    at: &AtomicUsize,
+    first: Duration,
+    path: &str,
+) -> Result<serde_json::Value> {
+    let start = at.load(Ordering::Relaxed);
+    let mut last = Fail::Connect;
+    for k in 0..hosts.len() {
+        let i = (start + k) % hosts.len();
+        let limit = (k == 0).then_some(first);
+        match fetch_json(agent, &format!("{}{path}", hosts[i]), limit) {
+            Ok(v) => {
+                at.store(i, Ordering::Relaxed);
+                return Ok(v);
+            }
+            Err(Fail::Status(404)) => {
+                return Err(Error::Bad(format!("{GONE}. It may have been renamed or delisted.")));
+            }
+            Err(Fail::Status(c)) if c < 500 && c != 429 => {
+                return Err(Error::Bad(format!("Yahoo answered with an error ({c}).")));
+            }
+            Err(f) => last = f,
+        }
+    }
+    Err(match last {
+        Fail::Status(429) => Error::Down("Yahoo is limiting requests right now.".into()),
+        Fail::Status(c) => Error::Down(format!("Yahoo isn't answering right now (error {c}).")),
+        Fail::Slow => Error::Down("Yahoo is too slow to answer right now.".into()),
+        Fail::Connect if net_ok() => Error::Down("Couldn't reach Yahoo.".into()),
+        Fail::Connect => Error::Offline,
+        Fail::Other(m) => Error::Bad(m),
+    })
 }
 
 pub(crate) type Socket = tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>;
@@ -174,6 +275,7 @@ pub(crate) fn read_text(ws: &mut Socket, alive: &mut Alive) -> Result<Option<Str
     };
     alive.heard = std::time::Instant::now();
     alive.pinged = None;
+    mark_ok();
     Ok(got)
 }
 
@@ -219,6 +321,7 @@ pub(crate) fn get_json_with(agent: &ureq::Agent, url: &str, headers: &[(&str, &s
         .limit(64 * 1024 * 1024)
         .read_to_string()
         .map_err(|_| Error::Offline)?;
+    mark_ok();
     serde_json::from_str(&text).map_err(|e| Error::Bad(format!("Unexpected reply from the data service: {e}")))
 }
 
@@ -333,6 +436,86 @@ pub(crate) fn split_pair(t: &str) -> Option<(&str, &str)> {
     QUOTES
         .iter()
         .find_map(|q| t.strip_suffix(q).filter(|b| !b.is_empty()).map(|b| (b, *q)))
+}
+
+#[cfg(test)]
+mod yahoo_host_tests {
+    use super::*;
+    use std::io::{Read, Write};
+
+    /// A local server answering every request with `status` and `body`
+    /// after `wait`.
+    fn serve(status: u16, body: &'static str, wait: Duration) -> String {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for mut c in l.incoming().flatten() {
+                std::thread::spawn(move || {
+                    let mut buf = [0u8; 4096];
+                    let _ = c.read(&mut buf);
+                    std::thread::sleep(wait);
+                    let _ = write!(
+                        c,
+                        "HTTP/1.1 {status} X\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                });
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    #[test]
+    fn a_slow_or_failing_host_falls_back_and_is_remembered() {
+        let agent = agent();
+        let good = serve(200, r#"{"ok":true}"#, Duration::ZERO);
+        let at = AtomicUsize::new(0);
+        // Slow: given up on after the first host's limit.
+        let slow = serve(200, r#"{"ok":false}"#, Duration::from_secs(3));
+        let t = std::time::Instant::now();
+        let v = yahoo_get(&agent, &[&slow, &good], &at, Duration::from_millis(300), "/x").unwrap();
+        assert_eq!(v["ok"], true);
+        assert!(t.elapsed() < Duration::from_secs(2), "{:?}", t.elapsed());
+        assert_eq!(
+            at.load(Ordering::Relaxed),
+            1,
+            "the host that answered goes first next time"
+        );
+        // A server error on one host: the other.
+        let at = AtomicUsize::new(0);
+        let broken = serve(502, "", Duration::ZERO);
+        assert_eq!(
+            yahoo_get(&agent, &[&broken, &good], &at, Duration::from_secs(5), "/x").unwrap()["ok"],
+            true
+        );
+        // A 404 is the same on both: said at once, as a symbol that's gone.
+        let gone = serve(404, "", Duration::ZERO);
+        let e = yahoo_get(
+            &agent,
+            &[&gone, &good],
+            &AtomicUsize::new(0),
+            Duration::from_secs(5),
+            "/x",
+        )
+        .unwrap_err();
+        assert!(e.to_string().starts_with(GONE), "{e}");
+        // Both failing while the internet works: Yahoo is named, not the
+        // connection.
+        mark_ok();
+        let e = yahoo_get(
+            &agent,
+            &[&broken, &broken],
+            &AtomicUsize::new(0),
+            Duration::from_secs(5),
+            "/x",
+        )
+        .unwrap_err();
+        assert_eq!(e.to_string(), "Yahoo isn't answering right now (error 502).");
+        assert!(
+            !Error::Offline.to_string().contains("internet"),
+            "something answered just now"
+        );
+    }
 }
 
 #[cfg(test)]

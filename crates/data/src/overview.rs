@@ -285,6 +285,14 @@ pub(crate) fn csv_rows(text: &str) -> Vec<Vec<String>> {
     rows
 }
 
+/// The S&P 500 and NIFTY 500 stocks in the bundled lists, as symbols:
+/// symbol search finds them by name the moment it's typed.
+pub(crate) fn listed_stocks() -> Vec<Symbol> {
+    let mut v: Vec<Symbol> = parse_sp500(SP500).iter().map(|x| us_symbol(x, &x.exchange)).collect();
+    v.extend(parse_nifty500(NIFTY500).iter().map(india_symbol));
+    v
+}
+
 /// A company from a list.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Listed {

@@ -1072,7 +1072,7 @@ fn board_for(
             }
             Some(Ok(_)) => row.error = Some("No prices came back.".into()),
             Some(Err(e)) => {
-                row.error = Some(if e.contains("(404)") {
+                row.error = Some(if e.contains("(404)") || e.contains(opentern_data::provider::GONE) {
                     "No prices: the ticker may have been renamed or delisted. Left out of the index.".into()
                 } else {
                     format!("{e} Left out of the index.")
@@ -2121,6 +2121,22 @@ impl App {
                 };
                 ui.label(egui::RichText::new(icon).color(color))
                     .on_hover_text(method_note(&def));
+                // Members the source no longer has, flagged for replacing.
+                let gone: Vec<&str> = def
+                    .members
+                    .iter()
+                    .filter(|m| opentern_data::hub::is_gone(&m.id))
+                    .map(|m| m.ticker())
+                    .collect();
+                if !gone.is_empty() {
+                    let what = if gone.len() == 1 { "symbol" } else { "symbols" };
+                    ui.label(egui::RichText::new(ph::WARNING_CIRCLE).color(t.warn))
+                        .on_hover_text(format!(
+                            "Yahoo no longer has {} ({what} renamed or delisted?). They count at their last price. \
+                         Replace them with Edit.",
+                            gone.join(", ")
+                        ));
+                }
             });
         });
         if two_rows {
@@ -2825,8 +2841,20 @@ fn metric_table(
                     } else {
                         theme::medium(12.5)
                     };
-                    let label = crate::format::elide_to(p, &row.label, &lead_font, r.left() + lead_w - tx - 8.0);
-                    p.text(pos2(tx, r.center().y), Align2::LEFT_CENTER, label, lead_font, t.text);
+                    // A member the source no longer has: flagged by its name.
+                    let gone = row.symbol.as_ref().is_some_and(|s| opentern_data::hub::is_gone(&s.id));
+                    let room = r.left() + lead_w - tx - 8.0 - if gone { 20.0 } else { 0.0 };
+                    let label = crate::format::elide_to(p, &row.label, &lead_font, room);
+                    let lr = p.text(pos2(tx, r.center().y), Align2::LEFT_CENTER, label, lead_font, t.text);
+                    if gone {
+                        p.text(
+                            lr.right_center() + vec2(6.0, 0.0),
+                            Align2::LEFT_CENTER,
+                            ph::WARNING_CIRCLE,
+                            theme::regular(13.0),
+                            t.warn,
+                        );
+                    }
                     let mut x = lead_w;
                     for (name, wd) in &fixed {
                         let cell = Rect::from_min_size(r.min + vec2(x, 0.0), vec2(*wd, row_h));
@@ -2928,6 +2956,11 @@ fn metric_table(
                     }
                     let tip = match (&row.error, &row.symbol) {
                         (Some(e), _) => Some(e.clone()),
+                        (None, Some(s)) if opentern_data::hub::is_gone(&s.id) => Some(format!(
+                            "{}: Yahoo no longer has this symbol; it may have been renamed or delisted. \
+                             It counts at its last price. Replace it with Edit.",
+                            s.id
+                        )),
                         (None, Some(s)) => Some(s.id.clone()),
                         _ => None,
                     };

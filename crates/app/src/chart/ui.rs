@@ -2801,10 +2801,16 @@ fn legend(
                 ui.ctx().request_repaint_after(std::time::Duration::from_secs(30));
             }
             if let Some(m) = note {
+                // The no-signal icon only when the connection is what's wrong.
+                let icon = if m.starts_with(opentern_data::provider::NO_INTERNET) {
+                    ph::WIFI_SLASH
+                } else {
+                    ph::WARNING_CIRCLE
+                };
                 painter.text(
                     pos,
                     Align2::LEFT_TOP,
-                    format!("{}  {m}", ph::WIFI_SLASH),
+                    format!("{icon}  {m}"),
                     theme::regular(12.0),
                     t.warn,
                 );

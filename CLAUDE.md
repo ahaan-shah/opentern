@@ -866,6 +866,28 @@ workspace.
   `OANDA:X` / `IBKR:X` are offered as typed.
 - **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
   machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
+- **Yahoo hosts (Nov 2026):** `provider::get_json` sends every
+  `query1`/`query2.finance.yahoo.com` URL through `yahoo_get`: the host
+  that answered last gets 5 s, then the other (502s after 15 s on query1
+  for NSE charts while query2 answered at once); a 404 = `provider::GONE`
+  ("no data for this symbol"), and `hub::is_gone(id)` remembers it so
+  index boards flag members whose cached bars still serve.
+- **Error wording:** `Error::Offline` says "check your internet" only when
+  nothing answered in 2 min (`provider::net_ok`, set by every reply and
+  websocket message); else "Couldn't reach the data service". `Error::Down`
+  names a service that's failing. The chart shows the no-signal icon only
+  for `provider::NO_INTERNET`. A session's status goes `Live` as soon as a
+  load succeeds.
+- **Custom index charts:** `ExprProvider::latest` fetches members through
+  `hub::fetch_cached` (the bar cache, in parallel); each member streams and
+  retries on its own thread, a member behind counts at its last close, and
+  the stream ends (with the named error) only when every member fails.
+- **Symbol search:** known symbols (exchange lists, starter, the bundled
+  S&P 500 and NIFTY 500 via `overview::listed_stocks`) answer at once with
+  `Event::Search { done: false }`; Binance lookups and Yahoo search run on a
+  thread, one typed query at a time (the latest waits), merged answer
+  `done: true` (Enter and the agent wait for it). Empty query: recent picks
+  per tab (`App::recent_symbols`, settings key `recent_symbols`, 40).
 - **Binance gotcha (Oct 2026):** Jio (India) points `api.binance.com` and
   `stream.binance.com` at a dead address, so charts silently stayed on cached
   bars. Binance goes to its public market-data mirrors first

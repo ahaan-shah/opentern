@@ -133,9 +133,12 @@ pub enum Event {
         id: String,
         ext: Option<crate::yahoo::Ext>,
     },
+    /// Symbol search results. Those from the symbols already known come
+    /// first (`done: false`); the full answer follows.
     Search {
         seq: u64,
         results: Vec<Symbol>,
+        done: bool,
     },
     /// The chart symbol's minimum quantity (lot step), when it wasn't
     /// known at open: strategies round their sizes down to it.
@@ -197,6 +200,7 @@ impl Hub {
     /// Starts the hub. `dir` is the cache folder; `demo` serves made-up
     /// prices with no network at all; `wake` asks the UI to repaint.
     pub fn start(dir: PathBuf, demo: bool, wake: Waker) -> Hub {
+        let _ = CACHE_DIR.set(dir.clone());
         let (tx, req_rx) = unbounded();
         let (ev_tx, rx) = unbounded();
         let out = Out { tx: ev_tx, wake };
@@ -437,6 +441,37 @@ pub(crate) fn history_changed(cached: &[Bar], fresh: &[Bar]) -> bool {
 
 /// The latest `count` bars of a symbol: from the cache, topped up from
 /// the network (and saved back), resampled to `tf`.
+/// Symbols the source said it no longer has (Yahoo's 404), since this
+/// run started; cleared when one answers again. Their cached bars still
+/// serve, so this is how they're told apart.
+static GONE_IDS: OnceLock<RwLock<std::collections::HashSet<String>>> = OnceLock::new();
+
+fn gone_ids() -> &'static RwLock<std::collections::HashSet<String>> {
+    GONE_IDS.get_or_init(Default::default)
+}
+
+/// Whether the source said it no longer has `id` (renamed or delisted).
+pub fn is_gone(id: &str) -> bool {
+    gone_ids().read().is_ok_and(|g| g.contains(id))
+}
+
+/// The workspace the hub caches bars in (set when it starts).
+static CACHE_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Bars through the cache when the hub runs (custom index members), else
+/// straight from the source.
+pub(crate) fn fetch_cached(
+    symbol: &Symbol,
+    tf: Timeframe,
+    count: usize,
+    demo: bool,
+) -> crate::provider::Result<Vec<Bar>> {
+    match CACHE_DIR.get() {
+        Some(dir) => fetch_bars(dir, demo, symbol, tf, count),
+        None => provider_for(symbol, demo).latest(symbol, tf, count),
+    }
+}
+
 pub(crate) fn fetch_once(
     dir: &std::path::Path,
     demo: bool,
@@ -444,9 +479,22 @@ pub(crate) fn fetch_once(
     tf: Timeframe,
     count: usize,
 ) -> Result<Vec<Bar>, String> {
+    fetch_bars(dir, demo, symbol, tf, count).map_err(|e| e.to_string())
+}
+
+/// The newest `count` bars of `tf`: the cache first, topped up from the
+/// source (or downloaded again when a split changed the past).
+fn fetch_bars(
+    dir: &std::path::Path,
+    demo: bool,
+    symbol: &Symbol,
+    tf: Timeframe,
+    count: usize,
+) -> crate::provider::Result<Vec<Bar>> {
     let provider = provider_for(symbol, demo);
-    let base = resample::choose_base(tf, &provider.natives())
-        .ok_or_else(|| format!("{} bars aren't available for {}.", tf.label(), symbol.ticker()))?;
+    let base = resample::choose_base(tf, &provider.natives()).ok_or_else(|| {
+        crate::provider::Error::Bad(format!("{} bars aren't available for {}.", tf.label(), symbol.ticker()))
+    })?;
     let ratio = match (tf.millis(), base.millis()) {
         (Some(t), Some(b)) if b > 0 => (t / b).max(1) as usize,
         _ => 22,
@@ -486,11 +534,18 @@ pub(crate) fn fetch_once(
             provider.latest(symbol, base, wanted)
         }
     };
+    if let Ok(mut g) = gone_ids().write() {
+        match &fresh {
+            Err(e) if e.to_string().starts_with(crate::provider::GONE) => g.insert(symbol.id.clone()),
+            Ok(_) => g.remove(&symbol.id),
+            Err(_) => false,
+        };
+    }
     let fresh = match fresh {
         Ok(f) => f,
         // Offline: what the cache has is better than nothing.
         Err(_) if !bars.is_empty() => Vec::new(),
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(e),
     };
     if let Some(c) = &cache {
         let _ = c.save(&symbol.id, base, &fresh);
@@ -1018,6 +1073,9 @@ impl Session {
         loop {
             match self.load() {
                 Ok(()) => {
+                    // The answer came: any earlier error goes away now,
+                    // not when the stream's first price arrives.
+                    self.status(Status::Live);
                     if !asked_corporate {
                         asked_corporate = true;
                         self.corporate(self.cache.is_none());
@@ -1445,7 +1503,6 @@ pub(crate) fn coin_lookups(q: &str, hits: &[&Symbol]) -> Vec<String> {
 
 fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out) {
     let cache = Cache::open(&dir).ok();
-    let yahoo = Yahoo::default();
     // The exchanges' symbol lists refresh daily on their own thread, so a
     // search never waits for five downloads (OKX alone can time out). A
     // search that finds no coin also asks Binance about it right away, so
@@ -1495,6 +1552,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
     let load = |cache: &Option<Cache>| {
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         known.extend(opentern_core::commodities());
+        known.extend(crate::overview::listed_stocks());
         if let Some(c) = cache {
             known.extend(c.symbols().unwrap_or_default());
         }
@@ -1503,12 +1561,105 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         known
     };
     let mut known = load(&cache);
+    // Results from the symbols already known go out at once (`done:
+    // false`); Binance lookups and Yahoo's search run on their own thread
+    // and their merged answer follows (`done: true`). One typed search is
+    // asked of the network at a time; while it runs, only the latest
+    // query waits for its turn, so typing never queues up round trips.
+    struct Job {
+        seq: u64,
+        q: String,
+        hits: Vec<(u32, Symbol)>,
+        coins: Vec<(String, Option<Symbol>)>,
+        found: Option<Vec<Symbol>>,
+    }
+    let (net_tx, net_rx) = crossbeam_channel::unbounded::<Job>();
+    let start = |seq: u64, q: String, want_ex: Option<String>, hits: Vec<(u32, Symbol)>, asks: Vec<String>| {
+        let net_tx = net_tx.clone();
+        let _ = std::thread::Builder::new().name("symbol-search".into()).spawn(move || {
+            let (coins, found) = std::thread::scope(|s| {
+                let coins = (!asks.is_empty()).then(|| {
+                    s.spawn(|| {
+                        asks.iter()
+                            .map(|t| (t.clone(), Binance::default().symbol(t)))
+                            .collect::<Vec<_>>()
+                    })
+                });
+                let found = if !demo && want_ex.is_none() {
+                    Yahoo::default().search(&q).ok()
+                } else {
+                    None
+                };
+                (coins.and_then(|h| h.join().ok()).unwrap_or_default(), found)
+            });
+            let _ = net_tx.send(Job {
+                seq,
+                q,
+                hits,
+                coins,
+                found,
+            });
+        });
+    };
+    let sorted = |mut hits: Vec<(u32, Symbol)>| -> Vec<Symbol> {
+        hits.sort_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then(exchange_rank(a.1.exchange()).cmp(&exchange_rank(b.1.exchange())))
+                .then(a.1.id.len().cmp(&b.1.id.len()))
+        });
+        hits.into_iter().take(60).map(|(_, s)| s).collect()
+    };
+    type Waiting = (u64, String, Option<String>, Vec<(u32, Symbol)>, Vec<String>);
+    // A typed search's network part is running; the latest one waiting.
+    let mut busy = false;
+    let mut waiting: Option<Waiting> = None;
     let mut queue: std::collections::VecDeque<(u64, String)> = Default::default();
     loop {
-        if queue.is_empty() {
-            match rx.recv() {
-                Ok(r) => queue.push_back(r),
-                Err(_) => break,
+        crossbeam_channel::select! {
+            recv(rx) -> r => {
+                let Ok(r) = r else { break };
+                queue.push_back(r);
+            }
+            recv(net_rx) -> j => {
+                let Ok(j) = j else { continue };
+                let Job { seq, q, mut hits, coins, found } = j;
+                let mut new_coin = false;
+                for (t, got) in coins {
+                    match got {
+                        Some(s) => {
+                            new_coin = true;
+                            if let Some(r) = rank(&s, &q) {
+                                hits.push((r, s.clone()));
+                            }
+                            known.push(s);
+                        }
+                        None => {
+                            missed.insert(t, std::time::Instant::now());
+                        }
+                    }
+                }
+                if new_coin {
+                    // The other exchanges may list it too: fetch their lists again.
+                    refresh(&cache, LISTS_SOON);
+                }
+                if let Some(found) = found {
+                    for s in found {
+                        if !hits.iter().any(|(_, h)| h.id == s.id)
+                            && let Some(r) = rank(&s, &q).or(Some(80))
+                        {
+                            hits.push((r, s));
+                        }
+                    }
+                }
+                out.send(Event::Search { seq, results: sorted(hits), done: true });
+                if seq < SEARCH_ALL {
+                    busy = false;
+                    if let Some((seq, q, ex, hits, asks)) = waiting.take() {
+                        busy = true;
+                        start(seq, q, ex, hits, asks);
+                    }
+                }
+                continue;
             }
         }
         // Typing in the search box: only the latest query matters. Lookups
@@ -1521,138 +1672,107 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 *s >= SEARCH_ALL || k - 1 == last
             });
         }
-        let Some(req) = queue.pop_front() else { continue };
-        // A window left open for days still gets each day's lists.
-        if checked.elapsed() > std::time::Duration::from_secs(600) {
-            checked = std::time::Instant::now();
-            refresh(&cache, LISTS_DAY);
-        }
-        if fresh_rx.try_recv().is_ok() {
-            known = load(&cache);
-        }
-        let (seq, query) = req;
-        if crate::expr::is_expr(&query) {
-            // A formula: offer it as the first result.
-            let results = crate::expr::symbol(&query, &known).into_iter().collect();
-            out.send(Event::Search { seq, results });
-            continue;
-        }
-        let q = query.trim().to_uppercase();
-        // "OKX:BTC" searches one exchange.
-        let (want_ex, q) = match q.split_once(':') {
-            Some((e, t)) => (Some(e.to_string()), t.to_string()),
-            None => (None, q),
-        };
-        if q.is_empty() {
+        while let Some(req) = queue.pop_front() {
+            // A window left open for days still gets each day's lists.
+            if checked.elapsed() > std::time::Duration::from_secs(600) {
+                checked = std::time::Instant::now();
+                refresh(&cache, LISTS_DAY);
+            }
+            if fresh_rx.try_recv().is_ok() {
+                known = load(&cache);
+            }
+            let (seq, query) = req;
+            if crate::expr::is_expr(&query) {
+                // A formula: offer it as the first result.
+                let results = crate::expr::symbol(&query, &known).into_iter().collect();
+                out.send(Event::Search {
+                    seq,
+                    results,
+                    done: true,
+                });
+                continue;
+            }
+            let q = query.trim().to_uppercase();
+            // "OKX:BTC" searches one exchange.
+            let (want_ex, q) = match q.split_once(':') {
+                Some((e, t)) => (Some(e.to_string()), t.to_string()),
+                None => (None, q),
+            };
+            if q.is_empty() {
+                out.send(Event::Search {
+                    seq,
+                    results: opentern_core::starter_watchlist(),
+                    done: true,
+                });
+                continue;
+            }
+            let mut hits: Vec<(u32, Symbol)> = known
+                .iter()
+                .filter(|s| want_ex.as_deref().is_none_or(|e| s.exchange() == e))
+                .filter_map(|s| Some((rank(s, &q)?, s.clone())))
+                .collect();
+            // Sources without a symbol list: take "OANDA:EURUSD" as typed.
+            if let Some(e) = want_ex.as_deref()
+                && matches!(e, "OANDA" | "IBKR")
+                && !hits.iter().any(|(_, h)| h.ticker() == q)
+            {
+                let forex = e == "OANDA";
+                hits.push((
+                    0,
+                    Symbol {
+                        id: format!("{e}:{q}"),
+                        description: if forex {
+                            "OANDA".into()
+                        } else {
+                            "Interactive Brokers".into()
+                        },
+                        kind: if forex {
+                            opentern_core::AssetKind::Forex
+                        } else {
+                            opentern_core::AssetKind::Stock
+                        },
+                        currency: if forex {
+                            q.get(3..).unwrap_or("USD").into()
+                        } else {
+                            "USD".into()
+                        },
+                        tick_size: if forex { 0.00001 } else { 0.01 },
+                        min_qty: 0.0,
+                        timezone: if forex { "UTC".into() } else { "America/New_York".into() },
+                    },
+                ));
+            }
+            // No coin by that name yet: perhaps it listed today.
+            let asks: Vec<String> = if !demo && want_ex.as_deref().is_none_or(|e| e == "BINANCE") {
+                coin_lookups(&q, &hits.iter().map(|(_, s)| s).collect::<Vec<_>>())
+                    .into_iter()
+                    .filter(|t| {
+                        missed
+                            .get(t)
+                            .is_none_or(|at| at.elapsed() > std::time::Duration::from_secs(600))
+                    })
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            let network = !asks.is_empty() || (!demo && want_ex.is_none());
             out.send(Event::Search {
                 seq,
-                results: opentern_core::starter_watchlist(),
+                results: sorted(hits.clone()),
+                done: !network,
             });
-            continue;
-        }
-        let mut hits: Vec<(u32, Symbol)> = known
-            .iter()
-            .filter(|s| want_ex.as_deref().is_none_or(|e| s.exchange() == e))
-            .filter_map(|s| Some((rank(s, &q)?, s.clone())))
-            .collect();
-        // Sources without a symbol list: take "OANDA:EURUSD" as typed.
-        if let Some(e) = want_ex.as_deref()
-            && matches!(e, "OANDA" | "IBKR")
-            && !q.is_empty()
-            && !hits.iter().any(|(_, h)| h.ticker() == q)
-        {
-            let forex = e == "OANDA";
-            hits.push((
-                0,
-                Symbol {
-                    id: format!("{e}:{q}"),
-                    description: if forex {
-                        "OANDA".into()
-                    } else {
-                        "Interactive Brokers".into()
-                    },
-                    kind: if forex {
-                        opentern_core::AssetKind::Forex
-                    } else {
-                        opentern_core::AssetKind::Stock
-                    },
-                    currency: if forex {
-                        q.get(3..).unwrap_or("USD").into()
-                    } else {
-                        "USD".into()
-                    },
-                    tick_size: if forex { 0.00001 } else { 0.01 },
-                    min_qty: 0.0,
-                    timezone: if forex { "UTC".into() } else { "America/New_York".into() },
-                },
-            ));
-        }
-        // No coin by that name yet: perhaps it listed today. Binance is
-        // asked while Yahoo searches, so stock searches don't wait longer.
-        let asks: Vec<String> = if !demo && want_ex.as_deref().is_none_or(|e| e == "BINANCE") {
-            coin_lookups(&q, &hits.iter().map(|(_, s)| s).collect::<Vec<_>>())
-                .into_iter()
-                .filter(|t| {
-                    missed
-                        .get(t)
-                        .is_none_or(|at| at.elapsed() > std::time::Duration::from_secs(600))
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let (coins, found) = std::thread::scope(|s| {
-            let coins = (!asks.is_empty()).then(|| {
-                s.spawn(|| {
-                    asks.iter()
-                        .map(|t| (t.clone(), Binance::default().symbol(t)))
-                        .collect::<Vec<_>>()
-                })
-            });
-            let found = if !demo && want_ex.is_none() {
-                yahoo.search(&q).ok()
+            if !network {
+                continue;
+            }
+            if seq >= SEARCH_ALL {
+                start(seq, q, want_ex, hits, asks);
+            } else if busy {
+                waiting = Some((seq, q, want_ex, hits, asks));
             } else {
-                None
-            };
-            (coins.and_then(|h| h.join().ok()).unwrap_or_default(), found)
-        });
-        let mut new_coin = false;
-        for (t, got) in coins {
-            match got {
-                Some(s) => {
-                    new_coin = true;
-                    if let Some(r) = rank(&s, &q) {
-                        hits.push((r, s.clone()));
-                    }
-                    known.push(s);
-                }
-                None => {
-                    missed.insert(t, std::time::Instant::now());
-                }
+                busy = true;
+                start(seq, q, want_ex, hits, asks);
             }
         }
-        if new_coin {
-            // The other exchanges may list it too: fetch their lists again.
-            refresh(&cache, LISTS_SOON);
-        }
-        if let Some(found) = found {
-            for s in found {
-                if !hits.iter().any(|(_, h)| h.id == s.id)
-                    && let Some(r) = rank(&s, &q).or(Some(80))
-                {
-                    hits.push((r, s));
-                }
-            }
-        }
-        hits.sort_by(|a, b| {
-            a.0.cmp(&b.0)
-                .then(exchange_rank(a.1.exchange()).cmp(&exchange_rank(b.1.exchange())))
-                .then(a.1.id.len().cmp(&b.1.id.len()))
-        });
-        out.send(Event::Search {
-            seq,
-            results: hits.into_iter().take(60).map(|(_, s)| s).collect(),
-        });
     }
 }
 

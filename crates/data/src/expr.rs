@@ -440,6 +440,17 @@ fn combine_segs(segs: &[Seg], legs: &[Vec<Bar>]) -> Vec<Bar> {
 pub struct ExprProvider {
     segs: Vec<Seg>,
     legs: Vec<(Symbol, Arc<dyn Provider>)>,
+    demo: bool,
+}
+
+/// A leg's error with the leg's name in front ("NSE:TATAMOTORS: …"); a
+/// lost connection stays as it is.
+fn named(s: &Symbol, e: Error) -> Error {
+    match e {
+        Error::Bad(m) => Error::Bad(format!("{}: {m}", s.id)),
+        Error::Down(m) => Error::Down(format!("{}: {m}", s.id)),
+        Error::Offline => Error::Offline,
+    }
 }
 
 impl ExprProvider {
@@ -490,13 +501,28 @@ impl ExprProvider {
                 (s, p)
             })
             .collect();
-        Some(ExprProvider { segs, legs })
+        Some(ExprProvider { segs, legs, demo })
     }
 
-    fn each(&self, f: impl Fn(&Symbol, &dyn Provider) -> Result<Vec<Bar>>) -> Result<Vec<Bar>> {
+    /// Runs `f` for every leg at once (a custom index can have dozens) and
+    /// combines. A leg's error names it.
+    fn each(&self, f: impl Fn(&Symbol, &dyn Provider) -> Result<Vec<Bar>> + Sync) -> Result<Vec<Bar>> {
+        let results: Vec<Result<Vec<Bar>>> = std::thread::scope(|sc| {
+            let hs: Vec<_> = self
+                .legs
+                .iter()
+                .map(|(s, p)| {
+                    let f = &f;
+                    sc.spawn(move || f(s, p.as_ref()))
+                })
+                .collect();
+            hs.into_iter()
+                .map(|h| h.join().unwrap_or(Err(Error::Offline)))
+                .collect()
+        });
         let mut all = Vec::new();
-        for (s, p) in &self.legs {
-            all.push(f(s, p.as_ref())?);
+        for ((s, _), r) in self.legs.iter().zip(results) {
+            all.push(r.map_err(|e| named(s, e))?);
         }
         Ok(combine_segs(&self.segs, &all))
     }
@@ -520,7 +546,10 @@ impl Provider for ExprProvider {
     }
 
     fn latest(&self, _: &Symbol, tf: Timeframe, n: usize) -> Result<Vec<Bar>> {
-        self.each(|s, p| p.latest(s, tf, n))
+        // Through the bar cache: switching between indices doesn't fetch
+        // every member's whole history again.
+        let demo = self.demo;
+        self.each(|s, _| crate::hub::fetch_cached(s, tf, n, demo))
     }
 
     fn since(&self, _: &Symbol, tf: Timeframe, start: i64) -> Result<Vec<Bar>> {
@@ -531,9 +560,13 @@ impl Provider for ExprProvider {
         self.each(|s, p| p.before(s, tf, end, n))
     }
 
+    /// Each leg streams on its own thread and retries on its own after an
+    /// error (one member's failed poll doesn't stop the index). A leg with
+    /// no new price counts at its last one. The stream ends, with the real
+    /// error, only when every leg is failing at once.
     fn stream(&self, _: &Symbol, tf: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {
         let stop = Arc::new(AtomicBool::new(false));
-        let (tx, rx) = unbounded::<(usize, Option<Bar>)>();
+        let (tx, rx) = unbounded::<(usize, std::result::Result<Bar, Error>)>();
         let mut threads = Vec::new();
         // Only the current segment's legs stream; the live bar uses it.
         let live = self.segs.last().expect("a segment").clone();
@@ -543,34 +576,71 @@ impl Provider for ExprProvider {
             }
             let (s, p, tx, stop) = (s.clone(), p.clone(), tx.clone(), stop.clone());
             threads.push(std::thread::spawn(move || {
-                let r = p.stream(&s, tf, &mut |item| {
-                    if let Live::Bar(b) = item {
-                        let _ = tx.send((k, Some(b)));
+                let mut backoff = Duration::from_secs(2);
+                while !stop.load(Ordering::Relaxed) {
+                    let r = p.stream(&s, tf, &mut |item| {
+                        if let Live::Bar(b) = item {
+                            let _ = tx.send((k, Ok(b)));
+                        }
+                        !stop.load(Ordering::Relaxed)
+                    });
+                    if stop.load(Ordering::Relaxed) {
+                        break;
                     }
-                    !stop.load(Ordering::Relaxed)
-                });
-                // Tell the combiner this leg's stream ended.
-                let _ = tx.send((k, None));
-                r
+                    let e = r.err().unwrap_or(Error::Offline);
+                    let _ = tx.send((k, Err(named(&s, e))));
+                    let until = std::time::Instant::now() + backoff;
+                    while std::time::Instant::now() < until && !stop.load(Ordering::Relaxed) {
+                        std::thread::sleep(Duration::from_millis(200));
+                    }
+                    backoff = (backoff * 2).min(Duration::from_secs(60));
+                }
             }));
         }
         drop(tx);
         let mut last: Vec<Option<Bar>> = vec![None; self.legs.len()];
+        let mut failing: Vec<bool> = vec![false; self.legs.len()];
         let result = loop {
             match rx.recv_timeout(Duration::from_millis(250)) {
-                Ok((k, Some(b))) => {
+                Ok((k, Ok(b))) => {
                     last[k] = Some(b);
-                    // Emit once every leg has a bar at the newest time.
-                    let newest = live.used.iter().filter_map(|&i| last[i]).map(|b| b.time).max();
-                    if let Some(t) = newest
-                        && live.used.iter().all(|&i| last[i].is_some_and(|b| b.time == t))
-                        && let Some(bar) = combine_at(&live, &last, t)
+                    failing[k] = false;
+                    // Once every leg has a price: legs behind the newest
+                    // bar count at their last close.
+                    let Some(t) = live.used.iter().filter_map(|&i| last[i]).map(|b| b.time).max() else {
+                        continue;
+                    };
+                    let row: Vec<Option<Bar>> = last
+                        .iter()
+                        .map(|b| {
+                            b.map(|b| {
+                                if b.time == t {
+                                    b
+                                } else {
+                                    Bar {
+                                        time: t,
+                                        open: b.close,
+                                        high: b.close,
+                                        low: b.close,
+                                        close: b.close,
+                                        volume: 0.0,
+                                    }
+                                }
+                            })
+                        })
+                        .collect();
+                    if let Some(bar) = combine_at(&live, &row, t)
                         && !sink(Live::Bar(bar))
                     {
                         break Ok(());
                     }
                 }
-                Ok((_, None)) => break Err(Error::Offline),
+                Ok((k, Err(e))) => {
+                    failing[k] = true;
+                    if live.used.iter().all(|&i| failing[i]) {
+                        break Err(e);
+                    }
+                }
                 Err(RecvTimeoutError::Timeout) => {
                     if !sink(Live::Idle) {
                         break Ok(());
@@ -590,6 +660,114 @@ impl Provider for ExprProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A member that sends `bars` (one every 20 ms), then fails with
+    /// `fail` (or keeps idling when there's none).
+    struct Fake {
+        bars: Vec<f64>,
+        fail: Option<&'static str>,
+    }
+
+    impl Provider for Fake {
+        fn natives(&self) -> Vec<Timeframe> {
+            vec![Timeframe::parse("1D").unwrap()]
+        }
+        fn latest(&self, _: &Symbol, _: Timeframe, _: usize) -> Result<Vec<Bar>> {
+            Ok(Vec::new())
+        }
+        fn since(&self, _: &Symbol, _: Timeframe, _: i64) -> Result<Vec<Bar>> {
+            Ok(Vec::new())
+        }
+        fn before(&self, _: &Symbol, _: Timeframe, _: i64, _: usize) -> Result<Vec<Bar>> {
+            Ok(Vec::new())
+        }
+        fn stream(&self, _: &Symbol, _: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {
+            for &c in &self.bars {
+                std::thread::sleep(Duration::from_millis(20));
+                let b = Bar {
+                    time: 0,
+                    open: c,
+                    high: c,
+                    low: c,
+                    close: c,
+                    volume: 1.0,
+                };
+                if !sink(Live::Bar(b)) {
+                    return Ok(());
+                }
+            }
+            match self.fail {
+                Some(m) => Err(Error::Down(m.into())),
+                None => loop {
+                    std::thread::sleep(Duration::from_millis(20));
+                    if !sink(Live::Idle) {
+                        return Ok(());
+                    }
+                },
+            }
+        }
+    }
+
+    fn index_of(legs: Vec<(&str, Fake)>) -> ExprProvider {
+        let mut p = ExprProvider::from_segments(&[(i64::MIN, "1*A + 1*B".into())], true).unwrap();
+        p.legs = legs
+            .into_iter()
+            .map(|(id, f)| (Symbol::bare(id), Arc::new(f) as Arc<dyn Provider>))
+            .collect();
+        p
+    }
+
+    #[test]
+    fn one_failing_member_doesnt_stop_the_index() {
+        let tf = Timeframe::parse("1D").unwrap();
+        // B fails after its first price; A keeps going. The index keeps
+        // updating with B at its last price.
+        let p = index_of(vec![
+            (
+                "A",
+                Fake {
+                    bars: vec![10.0, 11.0, 12.0, 13.0, 14.0],
+                    fail: None,
+                },
+            ),
+            (
+                "B",
+                Fake {
+                    bars: vec![5.0],
+                    fail: Some("Yahoo isn't answering right now (error 502)."),
+                },
+            ),
+        ]);
+        let mut closes = Vec::new();
+        let r = p.stream(&Symbol::bare("X"), tf, &mut |item| {
+            if let Live::Bar(b) = item {
+                closes.push(b.close);
+            }
+            closes.last() != Some(&19.0)
+        });
+        assert!(r.is_ok(), "{r:?}");
+        assert_eq!(closes.last(), Some(&19.0), "{closes:?}");
+        // Every member failing: the stream ends with the real error, named.
+        let p = index_of(vec![
+            (
+                "A",
+                Fake {
+                    bars: vec![10.0],
+                    fail: Some("Yahoo is too slow to answer right now."),
+                },
+            ),
+            (
+                "B",
+                Fake {
+                    bars: vec![5.0],
+                    fail: Some("Yahoo is too slow to answer right now."),
+                },
+            ),
+        ]);
+        let e = p.stream(&Symbol::bare("X"), tf, &mut |_| true).unwrap_err().to_string();
+        assert!(e.ends_with(": Yahoo is too slow to answer right now."), "{e}");
+        assert!(e.starts_with('A') || e.starts_with('B'), "{e}");
+    }
 
     #[test]
     fn currencies_from_ids() {
