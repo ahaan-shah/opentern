@@ -697,6 +697,31 @@ fn render(kept: &str) -> Option<Image> {
     Some((SIZE as usize, SIZE as usize, pm.take()))
 }
 
+/// Where a fetched logo (or a miss, as an empty file) is kept.
+/// v3: logoapi.sh added, so misses are tried again (older files are ignored).
+fn kept_path(dir: &Path, key: &str) -> PathBuf {
+    dir.join(format!("{key}.v3.logo"))
+}
+
+/// A logo from the machine: bundled, our drawings, or kept from an earlier
+/// fetch (Some("") = known to have none). None: ask the network.
+fn local(key: &str, dir: &Path) -> Option<String> {
+    // A BSE listing shares its NSE twin's logo.
+    let twin = key.strip_prefix("co-bse-").map(|t| format!("co-nse-{t}"));
+    let ours = |k: &str| k == key || Some(k) == twin.as_deref();
+    if let Some((_, v)) = crate::logos_bundled::BUNDLED.iter().find(|(k, _)| ours(k)) {
+        return Some(v.to_string());
+    }
+    if let Some((_, png)) = crate::logos_bundled::BUNDLED_IMAGES.iter().find(|(k, _)| ours(k)) {
+        use base64::Engine;
+        return Some(format!(
+            "image\nmark\n{}",
+            base64::engine::general_purpose::STANDARD.encode(png)
+        ));
+    }
+    commodity_icon(key).or_else(|| std::fs::read_to_string(kept_path(dir, key)).ok())
+}
+
 impl Logos {
     pub fn new(dir: PathBuf, enabled: bool, offline: bool) -> Logos {
         let (got_tx, got) = unbounded();
@@ -721,57 +746,51 @@ impl Logos {
         self.slots.borrow_mut().clear();
     }
 
-    /// One thread finds, fetches and renders, in order, so a long
-    /// watchlist doesn't fire a burst of requests.
+    /// Two threads: one answers from what's on the machine (bundled logos,
+    /// our drawings, kept files) at once; the other finds and fetches the
+    /// rest, in order, so a long watchlist doesn't fire a burst of
+    /// requests. Split so a bundled logo never waits behind slow lookups
+    /// (150 coins on the market overview queued minutes of them).
     fn ask(&self, ctx: &egui::Context, key: String, sym: Symbol) {
         let mut ask = self.ask.borrow_mut();
         if ask.is_none() {
             let (tx, rx) = unbounded::<(String, Symbol)>();
-            let out = self.got_tx.clone();
+            let (net_tx, net_rx) = unbounded::<(String, Symbol)>();
             let dir = self.dir.clone();
             let offline = self.offline;
+            {
+                let out = self.got_tx.clone();
+                let ctx = ctx.clone();
+                let dir = dir.clone();
+                let _ = std::thread::Builder::new().name("logos".into()).spawn(move || {
+                    while let Ok((key, sym)) = rx.recv() {
+                        let kept = local(&key, &dir);
+                        if kept.is_none() && !offline {
+                            let _ = net_tx.send((key, sym));
+                            continue;
+                        }
+                        let img = kept.filter(|k| !k.is_empty()).and_then(|k| render(&k));
+                        let _ = out.send((key, img));
+                        ctx.request_repaint();
+                    }
+                });
+            }
+            let out = self.got_tx.clone();
             let ctx = ctx.clone();
-            let _ = std::thread::Builder::new().name("logos".into()).spawn(move || {
+            let _ = std::thread::Builder::new().name("logos-net".into()).spawn(move || {
                 let _ = std::fs::create_dir_all(&dir);
                 let agent = agent();
                 let mut slugs = None;
                 let mut mirrors = Mirrors([false; 2]);
-                while let Ok((key, sym)) = rx.recv() {
-                    // v3: logoapi.sh added, so misses are tried again
-                    // (older files are ignored).
-                    let path = dir.join(format!("{key}.v3.logo"));
-                    // A BSE listing shares its NSE twin's logo.
-                    let twin = key.strip_prefix("co-bse-").map(|t| format!("co-nse-{t}"));
-                    let bundled = crate::logos_bundled::BUNDLED
-                        .iter()
-                        .find(|(k, _)| *k == key || Some(*k) == twin.as_deref());
-                    let image = || {
-                        use base64::Engine;
-                        crate::logos_bundled::BUNDLED_IMAGES
-                            .iter()
-                            .find(|(k, _)| *k == key || Some(*k) == twin.as_deref())
-                            .map(|(_, png)| {
-                                format!("image\nmark\n{}", base64::engine::general_purpose::STANDARD.encode(png))
-                            })
-                    };
-                    let kept = match bundled
-                        .map(|(_, v)| v.to_string())
-                        .or_else(image)
-                        .or_else(|| commodity_icon(&key))
-                        .ok_or(())
-                        .or_else(|_| std::fs::read_to_string(&path))
-                    {
-                        Ok(k) => k,
-                        Err(_) if offline => String::new(),
-                        Err(_) => match find(&sym, &agent, &mut mirrors, &mut slugs, &dir) {
-                            // Offline: nothing kept, so it's tried again.
-                            Some(k) if k.is_empty() => k,
-                            found => {
-                                let k = found.unwrap_or_default();
-                                let _ = std::fs::write(&path, &k);
-                                k
-                            }
-                        },
+                while let Ok((key, sym)) = net_rx.recv() {
+                    let kept = match find(&sym, &agent, &mut mirrors, &mut slugs, &dir) {
+                        // Offline: nothing kept, so it's tried again.
+                        Some(k) if k.is_empty() => k,
+                        found => {
+                            let k = found.unwrap_or_default();
+                            let _ = std::fs::write(kept_path(&dir, &key), &k);
+                            k
+                        }
                     };
                     let img = (!kept.is_empty()).then(|| render(&kept)).flatten();
                     let _ = out.send((key, img));
@@ -1058,6 +1077,29 @@ mod tests {
         big[16..20].copy_from_slice(&60_000u32.to_be_bytes());
         big[20..24].copy_from_slice(&60_000u32.to_be_bytes());
         assert!(raster_pixmap(&big).is_none());
+    }
+
+    /// Bundled coins and our drawings are answered by the local thread,
+    /// never queued behind network lookups.
+    #[test]
+    fn bundled_logos_are_local() {
+        let dir = std::env::temp_dir().join("opentern-no-logos-here");
+        for key in [
+            "coin-xrp",
+            "coin-zec",
+            "coin-near",
+            "cmdty-silver",
+            "cmdty-gold",
+            "flag-jp",
+        ] {
+            let kept = local(key, &dir).unwrap_or_else(|| panic!("{key} isn't local"));
+            assert!(render(&kept).is_some(), "{key} doesn't render");
+        }
+        for s in opentern_core::commodities() {
+            let k = key(&s).unwrap_or_else(|| panic!("{} has no key", s.id));
+            assert!(local(&k, &dir).is_some(), "{} isn't local", s.id);
+        }
+        assert!(local("coin-notacoinxyz", &dir).is_none());
     }
 
     #[test]

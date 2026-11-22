@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.2 (2026-11-22)
+
+Logos and commodity icons show up again.
+
+### Fixed
+- **Logos show up again.** Built-in logos (coins like XRP and NEAR, Indian companies like SBI, TCS and Infosys) and commodity icons like silver's showed letter circles for minutes on the market overview, in search and in watchlists. They waited in line behind logos still being looked up online; now they appear at once, and only the rest wait for the network.
+- **Very long custom formulas and Pine expressions no longer overflow on Windows.** A formula of thousands of symbols, or a Pine expression with thousands of terms, gives a plain error or works instead of closing the app.
+
 ## 0.3.1 (2026-11-22)
 
 Markets around the world: indices, Treasury yields, VIX and the dollar index with every exchange's hours and holidays, crypto perpetual futures with their funding rates, commodity icons and spot prices, and more logos. Coins an exchange delists carry on where they still trade, and Opentern is sturdier against damaged or hostile data.

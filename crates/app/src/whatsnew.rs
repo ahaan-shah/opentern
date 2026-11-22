@@ -31,6 +31,16 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.2",
+        items: &[Item {
+            icon: ph::IMAGE,
+            title: "Logos show up again",
+            body: "Built-in logos and commodity icons appear at once in the market overview, search \
+                   and watchlists, instead of waiting behind ones still being downloaded.",
+            image: None,
+        }],
+    },
+    Notes {
         version: "0.3.1",
         items: &[
             Item {
