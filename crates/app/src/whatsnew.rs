@@ -31,6 +31,39 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.1",
+        items: &[
+            Item {
+                icon: ph::GLOBE,
+                title: "Markets around the world",
+                body: "The Nikkei, FTSE, DAX, Hang Seng and more, US Treasury yields, VIX and the dollar \
+                       index, each with its exchange's hours and holidays.",
+                image: None,
+            },
+            Item {
+                icon: ph::CURRENCY_BTC,
+                title: "Crypto perpetuals",
+                body: "Binance, Bybit and OKX perpetual futures chart and stream live, with the funding \
+                       rate in the legend.",
+                image: None,
+            },
+            Item {
+                icon: ph::DIAMOND,
+                title: "Commodities, clearer",
+                body: "Drawn icons for gold, oil and the rest, a note that futures prices run a little \
+                       behind, and spot prices with an OANDA key.",
+                image: None,
+            },
+            Item {
+                icon: ph::SHIELD_CHECK,
+                title: "Sturdier and safer",
+                body: "Coins an exchange delists move to where they still trade, and damaged or hostile \
+                       data can no longer crash Opentern.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.0",
         items: &[
             Item {

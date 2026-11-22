@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 (2026-11-22)
+
+Markets around the world: indices, Treasury yields, VIX and the dollar index with every exchange's hours and holidays, crypto perpetual futures with their funding rates, commodity icons and spot prices, and more logos. Coins an exchange delists carry on where they still trade, and Opentern is sturdier against damaged or hostile data.
 
 ### New
 - **Indices from around the world.** The Nikkei 225, FTSE 100, DAX, CAC 40, Euro Stoxx 50, SMI, Hang Seng, SSE Composite, KOSPI, Taiwan Weighted, Straits Times, ASX 200, TSX and Ibovespa, plus the S&P 500, Nasdaq 100 and Composite, Dow and Russell 2000, each with its exchange's trading hours. They show their country's flag, or TradingView's badge.
@@ -18,6 +20,7 @@
 - **A friendlier installer on Linux and macOS.** `install.sh` shows the Opentern logo, the version it's installing and a progress bar with megabytes, then a tick for each step. Piped into a log, it prints plain lines as before.
 
 ### Fixed
+- **The first launch no longer stumbles over the price cache.** Opening it from several places at once could fail with "database is locked" (or, on Windows, "duplicate column name") on a new install.
 - **A damaged or hostile script, formula or reply can't crash Opentern.** Testing with millions of mangled inputs found ways to: a Pine script nested thousands deep or asking an indicator for an absurd length, a custom formula thousands of brackets deep, or a price feed with impossible dates. Each now gives a plain error instead.
 - **Safer with data from the internet.** The Interactive Brokers gateway's certificate check is only skipped for a gateway on this computer (an address that merely started with "localhost" used to pass). Requests that carry your API keys never follow a redirect to another site. Downloaded logos can't read files from your disk or ask for huge amounts of memory, live data connections cap their message size, and exported trade lists can't carry spreadsheet formulas from a script.
 - **Coins an exchange stops trading carry on elsewhere.** When an exchange drops a pair (Binance still lists Monero's XMRUSDT, frozen since February 2024), watchlists, charts and price alerts move to the same coin where it trades, with a note saying so. The market overview no longer compares today's price with a delisted pair's old closes (it once showed Monero +331% on a new workspace).
