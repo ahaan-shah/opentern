@@ -32,13 +32,21 @@ pub struct Notes {
 pub const RELEASES: &[Notes] = &[
     Notes {
         version: "0.3.2",
-        items: &[Item {
-            icon: ph::IMAGE,
-            title: "Logos show up again",
-            body: "Built-in logos and commodity icons appear at once in the market overview, search \
+        items: &[
+            Item {
+                icon: ph::IMAGE,
+                title: "Logos show up again",
+                body: "Built-in logos and commodity icons appear at once in the market overview, search \
                    and watchlists, instead of waiting behind ones still being downloaded.",
-            image: None,
-        }],
+                image: None,
+            },
+            Item {
+                icon: ph::FLAG,
+                title: "Flags for currency pairs",
+                body: "USD/INR, EUR/USD and other forex pairs show both countries' flags.",
+                image: None,
+            },
+        ],
     },
     Notes {
         version: "0.3.1",

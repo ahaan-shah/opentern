@@ -2,7 +2,10 @@
 
 ## 0.3.2 (2026-11-22)
 
-Logos and commodity icons show up again.
+Logos and commodity icons show up again, and currency pairs show their flags.
+
+### New
+- **Currency pairs show their two flags.** USD/INR, EUR/USD and other forex pairs show both countries' flags overlapping, like TradingView, in place of a letter circle.
 
 ### Fixed
 - **Logos show up again.** Built-in logos (coins like XRP and NEAR, Indian companies like SBI, TCS and Infosys) and commodity icons like silver's showed letter circles for minutes on the market overview, in search and in watchlists. They waited in line behind logos still being looked up online; now they appear at once, and logos that do need downloading come four at a time instead of one by one.
