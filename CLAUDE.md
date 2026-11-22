@@ -6,7 +6,7 @@ or a decision changes, update this file in the same commit. Keep it a briefing, 
 `AGENTS.md` is a symlink to this file. Sibling project and design reference:
 `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused from it, see §3).
 
-**Status (Nov 2026, v0.2.15):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.3.2):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows. Read "Where things stand" → "Resume
 here" at the end first.
@@ -1378,6 +1378,10 @@ every data change (scripts re-run on it).
   watchlists, charts, price alerts, one note). The overview fetches
   Binance's list itself before the lists are in, bisects refused
   `tradingDay` batches, and ignores closes older than 4 days.
+- **Logos resolve on two threads** (0.3.2): `logos` answers bundled,
+  drawn (commodities, flags) and kept logos at once (`local`); only misses
+  go to `NET_WORKERS` (4) `logos-net` threads. With one queue, the crypto map's 150 coins and the
+  world indices' members kept bundled logos as letter circles for minutes.
 - **Logo pictures are binary `.png` files** (`BUNDLED_IMAGES`, `include_bytes!`),
   never base64 in a text `.logo`: long base64 matches the leak check's API-key
   shapes. Runtime sources keep base64 only in `<workspace>/logos/`. logoapi.sh

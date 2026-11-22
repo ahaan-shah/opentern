@@ -5,7 +5,7 @@
 Logos and commodity icons show up again.
 
 ### Fixed
-- **Logos show up again.** Built-in logos (coins like XRP and NEAR, Indian companies like SBI, TCS and Infosys) and commodity icons like silver's showed letter circles for minutes on the market overview, in search and in watchlists. They waited in line behind logos still being looked up online; now they appear at once, and only the rest wait for the network.
+- **Logos show up again.** Built-in logos (coins like XRP and NEAR, Indian companies like SBI, TCS and Infosys) and commodity icons like silver's showed letter circles for minutes on the market overview, in search and in watchlists. They waited in line behind logos still being looked up online; now they appear at once, and logos that do need downloading come four at a time instead of one by one.
 - **Very long custom formulas and Pine expressions no longer overflow on Windows.** A formula of thousands of symbols, or a Pine expression with thousands of terms, gives a plain error or works instead of closing the app.
 
 ## 0.3.1 (2026-11-22)

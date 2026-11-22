@@ -288,15 +288,15 @@ fn agent() -> ureq::Agent {
 
 /// The package mirrors, and which have failed this session (a mirror that
 /// times out once isn't asked again: it can hang on every request).
-struct Mirrors([bool; 2]);
+struct Mirrors([std::sync::atomic::AtomicBool; 2]);
 
 /// GETs a package file from jsDelivr, or unpkg when jsDelivr is down.
-fn fetch(agent: &ureq::Agent, m: &mut Mirrors, path: &str) -> Option<String> {
+fn fetch(agent: &ureq::Agent, m: &Mirrors, path: &str) -> Option<String> {
     for (k, base) in ["https://cdn.jsdelivr.net/npm/", "https://unpkg.com/"]
         .into_iter()
         .enumerate()
     {
-        if m.0[k] {
+        if m.0[k].load(std::sync::atomic::Ordering::Relaxed) {
             continue;
         }
         match agent.get(&format!("{base}{path}")).call() {
@@ -304,7 +304,7 @@ fn fetch(agent: &ureq::Agent, m: &mut Mirrors, path: &str) -> Option<String> {
                 return r.body_mut().with_config().limit(1 << 20).read_to_string().ok();
             }
             Ok(r) if r.status() == 404 => return None,
-            _ => m.0[k] = true,
+            _ => m.0[k].store(true, std::sync::atomic::Ordering::Relaxed),
         }
     }
     None
@@ -353,8 +353,8 @@ fn slug_list(dir: &Path, agent: &ureq::Agent) -> HashSet<String> {
 fn find(
     s: &Symbol,
     agent: &ureq::Agent,
-    m: &mut Mirrors,
-    slugs: &mut Option<HashSet<String>>,
+    m: &Mirrors,
+    slugs: &std::sync::OnceLock<HashSet<String>>,
     dir: &Path,
 ) -> Option<String> {
     if s.kind == AssetKind::Crypto {
@@ -367,7 +367,7 @@ fn find(
             return Some(format!("coin\n{svg}"));
         }
     }
-    let slugs = slugs.get_or_insert_with(|| slug_list(dir, agent));
+    let slugs = slugs.get_or_init(|| slug_list(dir, agent));
     if slugs.is_empty() {
         // No list (offline): try again next time rather than keep a miss.
         return Some(String::new());
@@ -697,6 +697,9 @@ fn render(kept: &str) -> Option<Image> {
     Some((SIZE as usize, SIZE as usize, pm.take()))
 }
 
+/// Logo downloads at once (each is a few small requests to a CDN).
+const NET_WORKERS: usize = 4;
+
 /// Where a fetched logo (or a miss, as an empty file) is kept.
 /// v3: logoapi.sh added, so misses are tried again (older files are ignored).
 fn kept_path(dir: &Path, key: &str) -> PathBuf {
@@ -746,9 +749,9 @@ impl Logos {
         self.slots.borrow_mut().clear();
     }
 
-    /// Two threads: one answers from what's on the machine (bundled logos,
-    /// our drawings, kept files) at once; the other finds and fetches the
-    /// rest, in order, so a long watchlist doesn't fire a burst of
+    /// One thread answers from what's on the machine (bundled logos, our
+    /// drawings, kept files) at once; `NET_WORKERS` find and fetch the
+    /// rest, a few at a time, so a long watchlist doesn't fire a burst of
     /// requests. Split so a bundled logo never waits behind slow lookups
     /// (150 coins on the market overview queued minutes of them).
     fn ask(&self, ctx: &egui::Context, key: String, sym: Symbol) {
@@ -775,28 +778,30 @@ impl Logos {
                     }
                 });
             }
-            let out = self.got_tx.clone();
-            let ctx = ctx.clone();
-            let _ = std::thread::Builder::new().name("logos-net".into()).spawn(move || {
-                let _ = std::fs::create_dir_all(&dir);
-                let agent = agent();
-                let mut slugs = None;
-                let mut mirrors = Mirrors([false; 2]);
-                while let Ok((key, sym)) = net_rx.recv() {
-                    let kept = match find(&sym, &agent, &mut mirrors, &mut slugs, &dir) {
-                        // Offline: nothing kept, so it's tried again.
-                        Some(k) if k.is_empty() => k,
-                        found => {
-                            let k = found.unwrap_or_default();
-                            let _ = std::fs::write(kept_path(&dir, &key), &k);
-                            k
-                        }
-                    };
-                    let img = (!kept.is_empty()).then(|| render(&kept)).flatten();
-                    let _ = out.send((key, img));
-                    ctx.request_repaint();
-                }
-            });
+            let _ = std::fs::create_dir_all(&dir);
+            let agent = agent();
+            let slugs = std::sync::Arc::new(std::sync::OnceLock::new());
+            let mirrors = std::sync::Arc::new(Mirrors(Default::default()));
+            for _ in 0..NET_WORKERS {
+                let (out, ctx, dir, net_rx) = (self.got_tx.clone(), ctx.clone(), dir.clone(), net_rx.clone());
+                let (agent, slugs, mirrors) = (agent.clone(), slugs.clone(), mirrors.clone());
+                let _ = std::thread::Builder::new().name("logos-net".into()).spawn(move || {
+                    while let Ok((key, sym)) = net_rx.recv() {
+                        let kept = match find(&sym, &agent, &mirrors, &slugs, &dir) {
+                            // Offline: nothing kept, so it's tried again.
+                            Some(k) if k.is_empty() => k,
+                            found => {
+                                let k = found.unwrap_or_default();
+                                let _ = std::fs::write(kept_path(&dir, &key), &k);
+                                k
+                            }
+                        };
+                        let img = (!kept.is_empty()).then(|| render(&kept)).flatten();
+                        let _ = out.send((key, img));
+                        ctx.request_repaint();
+                    }
+                });
+            }
             *ask = Some(tx);
         }
         if let Some(tx) = ask.as_ref() {
