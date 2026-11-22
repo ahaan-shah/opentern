@@ -11,10 +11,11 @@ use opentern_series::study::Format;
 
 impl App {
     pub(crate) fn objects_widget(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         egui::ScrollArea::vertical().id_salt("objects").show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.label(
-                egui::RichText::new("OBJECT TREE")
+                egui::RichText::new(lang.text("OBJECT TREE"))
                     .font(theme::semibold(11.0))
                     .color(t.text3),
             );
@@ -26,7 +27,7 @@ impl App {
                 .truncate(),
             );
             if self.chart.studies.is_empty() && self.chart.drawings.is_empty() {
-                crate::widgets::empty_state(ui, t, ph::STACK, "Nothing on the chart yet");
+                crate::widgets::empty_state(ui, t, ph::STACK, lang.text("Nothing on the chart yet"));
             }
             let mut remove_study = None;
             let mut settings = None;
@@ -38,10 +39,14 @@ impl App {
                 // Buttons first (right to left), then the name in what's left.
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
+                        if ui.small_button(ph::X).on_hover_text(lang.text("Remove")).clicked() {
                             remove_study = Some(uid);
                         }
-                        if ui.small_button(ph::GEAR_SIX).on_hover_text("Settings").clicked() {
+                        if ui
+                            .small_button(ph::GEAR_SIX)
+                            .on_hover_text(lang.text("Settings"))
+                            .clicked()
+                        {
                             settings = Some(uid);
                         }
                         let eye = if s.visible { ph::EYE } else { ph::EYE_SLASH };
@@ -49,7 +54,7 @@ impl App {
                             s.visible = !s.visible;
                         }
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                            let title = s.title(true);
+                            let title = s.display_title(true, lang);
                             ui.add(egui::Label::new(format!("{}  {title}", ph::FUNCTION)).truncate())
                                 .on_hover_text(title);
                         });
@@ -69,7 +74,7 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         {
-                            if ui.small_button(ph::X).on_hover_text("Remove").clicked() {
+                            if ui.small_button(ph::X).on_hover_text(lang.text("Remove")).clicked() {
                                 remove = Some(d.id);
                             }
                             let lock = if d.locked {
@@ -89,7 +94,7 @@ impl App {
                         }
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                             let on = self.chart_ui.draw.selected == Some(d.id);
-                            let text = egui::RichText::new(format!("{}  {}", d.tool.icon(), d.tool.name()))
+                            let text = egui::RichText::new(format!("{}  {}", d.tool.icon(), lang.text(d.tool.name())))
                                 .color(if on { t.accent } else { t.text });
                             if ui.add(egui::Button::new(text).frame(false).truncate()).clicked() {
                                 select = Some(d.id);
@@ -111,7 +116,7 @@ impl App {
             }
             ui.add_space(12.0);
             ui.label(
-                egui::RichText::new("DATA WINDOW")
+                egui::RichText::new(lang.text("DATA WINDOW"))
                     .font(theme::semibold(11.0))
                     .color(t.text3),
             );
@@ -120,9 +125,10 @@ impl App {
     }
 
     fn data_window(&self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let c = &self.chart;
         let Some(i) = self.chart_ui.hover_index.filter(|i| *i < c.bars.len()) else {
-            ui.label(egui::RichText::new("Move the pointer over the chart.").color(t.text3));
+            ui.label(egui::RichText::new(lang.text("Move the pointer over the chart.")).color(t.text3));
             return;
         };
         let b = c.bars[i];
@@ -139,16 +145,16 @@ impl App {
                 });
             });
         };
-        row(ui, "Date", format::crosshair_time(b.time, c.tf, &c.tz));
-        row(ui, "Open", format::price(b.open, prec));
-        row(ui, "High", format::price(b.high, prec));
-        row(ui, "Low", format::price(b.low, prec));
-        row(ui, "Close", format::price(b.close, prec));
+        row(ui, lang.text("Date"), format::crosshair_time(b.time, c.tf, &c.tz, lang));
+        row(ui, lang.text("Opening price"), format::price(b.open, prec));
+        row(ui, lang.text("Highest price"), format::price(b.high, prec));
+        row(ui, lang.text("Lowest price"), format::price(b.low, prec));
+        row(ui, lang.text("Closing price"), format::price(b.close, prec));
         if i > 0 {
             let p = c.bars[i - 1].close;
             row(
                 ui,
-                "Change",
+                lang.text("Price change"),
                 format!(
                     "{} ({})",
                     format::price(b.close - p, prec),
@@ -156,10 +162,10 @@ impl App {
                 ),
             );
         }
-        row(ui, "Volume", format::compact_for(b.volume, &c.symbol));
+        row(ui, lang.text("Volume"), format::compact_for(b.volume, &c.symbol));
         for s in &c.studies {
             ui.add_space(4.0);
-            let title = s.title(true);
+            let title = s.display_title(true, lang);
             ui.add(egui::Label::new(egui::RichText::new(&title).font(theme::medium(12.5))).truncate())
                 .on_hover_text(&title);
             for (pi, spec) in s.meta().plots.iter().enumerate() {
@@ -175,7 +181,11 @@ impl App {
                     Format::Fixed(d) => format::price(v, d as usize),
                     Format::Volume => format::compact_for(v, &c.symbol),
                 };
-                row(ui, spec.title, text);
+                row(
+                    ui,
+                    crate::chart::metadata_language(s.meta(), lang).text(spec.title),
+                    text,
+                );
             }
         }
     }

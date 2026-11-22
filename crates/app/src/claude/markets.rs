@@ -130,7 +130,7 @@ impl App {
                     "metrics": metrics_json(&r.values),
                 });
                 if let Some(e) = &r.error {
-                    m["problem"] = json!(e);
+                    m["problem"] = json!(e.text(crate::i18n::Language::English));
                 }
                 if !r.included {
                     m["left_out"] = json!(true);

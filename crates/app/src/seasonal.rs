@@ -228,6 +228,7 @@ impl App {
     }
 
     pub(crate) fn seasonal_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         self.seasonal_want();
         let s = &self.seasonal;
         if s.loading {
@@ -236,11 +237,11 @@ impl App {
             return;
         }
         if let Some(e) = &s.error {
-            crate::widgets::empty_state(ui, t, ph::CALENDAR_X, e);
+            crate::widgets::empty_state(ui, t, ph::CALENDAR_X, &lang.data_error(e));
             return;
         }
         let (Some(newest), Some(oldest)) = (s.rows.first().map(|r| r.year), s.rows.last().map(|r| r.year)) else {
-            crate::widgets::empty_state(ui, t, ph::CALENDAR_BLANK, "No monthly history");
+            crate::widgets::empty_state(ui, t, ph::CALENDAR_BLANK, lang.text("No monthly history"));
             return;
         };
         let span = s.years.unwrap_or(6).max(1) - 1;
@@ -267,7 +268,7 @@ impl App {
                     ui.add_space(40.0);
                     ui.vertical_centered(|ui| ui.spinner());
                 }
-                Some(Err(e)) => crate::widgets::empty_state(ui, t, ph::CALENDAR_X, e),
+                Some(Err(e)) => crate::widgets::empty_state(ui, t, ph::CALENDAR_X, &lang.data_error(e)),
                 Some(Ok(all)) => {
                     let years: Vec<&SeasonYear> =
                         all.iter().filter(|y| y.year >= range.0 && y.year <= range.1).collect();
@@ -332,6 +333,7 @@ fn tint(t: &Theme, v: f64, strong: bool) -> Color32 {
 }
 
 fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
+    let lang = crate::i18n::Language::of(ui);
     // A little room on the right so the Year column doesn't touch the edge.
     let width = ui.available_width() - 4.0;
     let first = 84.0_f32.min(width * 0.1);
@@ -372,18 +374,22 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(head.min, vec2(first, row_h)),
-            "Date",
+            lang.text("Date"),
             true,
             font.clone(),
             t.text3,
         );
         for (k, n) in NAMES.iter().enumerate() {
             let r = Rect::from_min_size(head.min + vec2(x_of(k), 0.0), vec2(col, row_h));
-            let name = if full { n.to_string() } else { n[..3].to_string() };
+            let name = if full {
+                lang.text(n).to_string()
+            } else {
+                lang.text(n).chars().take(3).collect()
+            };
             cell_text(p, r, &name, false, font.clone(), t.text3);
         }
         let yr = Rect::from_min_size(head.min + vec2(x_of(12), 0.0), vec2(col, row_h));
-        cell_text(p, yr, "Year", false, theme::semibold(12.5), t.text2);
+        cell_text(p, yr, lang.text("Year"), false, theme::semibold(12.5), t.text2);
         p.hline(head.x_range(), head.bottom(), border);
         // The footer (average, rises and falls) keeps its place under the years.
         let body_h = (ui.available_height() - 2.0 * row_h - 2.0).max(row_h);
@@ -442,7 +448,7 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(avg_row.min, vec2(first, row_h)),
-            "Average",
+            lang.text("Average"),
             true,
             theme::semibold(12.5),
             t.text2,
@@ -476,7 +482,11 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(foot.min, vec2(first, row_h)),
-            if full { "Rises and falls" } else { "Up / down" },
+            if full {
+                lang.text("Rises and falls")
+            } else {
+                lang.text("Up / down")
+            },
             true,
             theme::semibold(12.5),
             t.text2,
@@ -547,11 +557,11 @@ fn hex(c: u32) -> Color32 {
 }
 
 /// "20 Aug" for a fraction of the year.
-fn day_label(f: f64) -> String {
+fn day_label(f: f64, lang: crate::i18n::Language) -> String {
     let d = (f * (DAYS_X - 1) as f64).round() as i16;
     jiff::civil::date(2024, 1, 1)
         .checked_add(jiff::Span::new().days(d))
-        .map(|x| x.strftime("%-d %b").to_string())
+        .map(|x| lang.date(&x.to_zoned(jiff::tz::TimeZone::UTC).expect("valid UTC date"), "%-d %b"))
         .unwrap_or_default()
 }
 
@@ -560,6 +570,7 @@ fn day_label(f: f64) -> String {
 /// end; the average dashed; tags with each year's latest change on the
 /// right; and a readout of every year at the pointer's day.
 fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
+    let lang = crate::i18n::Language::of(ui);
     use crate::chart::profile::SEASON_COLORS;
     let rect = ui.available_rect_before_wrap();
     let resp = ui.allocate_rect(rect, Sense::hover());
@@ -614,7 +625,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
                 rect.bottom() - 4.0,
             ),
             Align2::CENTER_BOTTOM,
-            &name[..3],
+            lang.text(name).chars().take(3).collect::<String>(),
             axis_font.clone(),
             t.text3,
         );
@@ -663,7 +674,12 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
         })
         .collect();
     if let Some((_, v)) = avg.last() {
-        tags.push((y_of(*v), "Avg".into(), crate::format::signed_pct(*v), t.text2));
+        tags.push((
+            y_of(*v),
+            lang.text("Avg").into(),
+            crate::format::signed_pct(*v),
+            t.text2,
+        ));
     }
     tags.sort_by(|a, b| a.0.total_cmp(&b.0));
     let (top, bottom) = (rect.top() + tag_h / 2.0, plot.bottom() + month_h - tag_h / 2.0);
@@ -722,7 +738,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
         }
     }
     if let Some(v) = avg.iter().find(|(a, _)| (a - f).abs() < 1e-9).map(|(_, v)| *v) {
-        lines.push(("Avg".into(), v, t.text2));
+        lines.push((lang.text("Avg").into(), v, t.text2));
     }
     if lines.is_empty() {
         return;
@@ -772,7 +788,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
     p.text(
         pos2(card.center().x, card.bottom() - 11.0),
         Align2::CENTER_BOTTOM,
-        day_label(f),
+        day_label(f, lang),
         theme::regular(11.5),
         t.text3,
     );

@@ -43,10 +43,11 @@ impl App {
 
     /// A paper order from a click on the ladder.
     fn dom_order(&mut self, buy: bool, price: f64) {
+        let lang = self.language;
         let sym = self.chart.symbol.id.clone();
         let last = self.last_price(&sym);
         let Some(last) = last else {
-            self.paper.status = "No price yet for this symbol.".into();
+            self.paper.status = lang.text("No price yet for this symbol.").into();
             return;
         };
         // Below the market a buy is a limit, above it a stop (and the other
@@ -65,12 +66,14 @@ impl App {
             take_profit: None,
             stop_loss: None,
         };
-        let what = format!(
-            "{} {} {} at {}",
-            if buy { "Buy" } else { "Sell" },
-            kind.name().to_lowercase(),
-            self.dom.qty,
-            crate::format::price(price, self.chart.symbol.precision())
+        let what = lang.format(
+            "{side} {kind} {qty} at {price}",
+            &[
+                ("side", lang.text(if buy { "Buy" } else { "Sell" })),
+                ("kind", &crate::paper::order_kind(lang, kind.name()).to_lowercase()),
+                ("qty", &self.dom.qty.to_string()),
+                ("price", &crate::format::price(price, self.chart.symbol.precision())),
+            ],
         );
         match self
             .paper
@@ -78,14 +81,15 @@ impl App {
             .place(ticket, Some(last), jiff::Timestamp::now().as_millisecond())
         {
             Ok(_) => {
-                self.paper.status = format!("{what} placed.");
+                self.paper.status = lang.format("{order} placed.", &[("order", &what)]);
                 self.save_paper_now();
             }
-            Err(e) => self.paper.status = e,
+            Err(e) => self.paper.status = crate::paper::order_error(lang, &e),
         }
     }
 
     pub(crate) fn dom_widget(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let sym = self.chart.symbol.clone();
         let last = self.last_price(&sym.id).unwrap_or(f64::NAN);
         // Ask while open: on a new symbol at once, then once a second.
@@ -115,17 +119,17 @@ impl App {
                         .speed(0.1)
                         .max_decimals(6),
                 );
-                ui.label(egui::RichText::new("Qty").color(t.text3));
+                ui.label(egui::RichText::new(lang.text("Qty")).color(t.text3));
             });
         });
         ui.add_space(4.0);
         let book = match &self.dom.book {
             None => {
-                ui.label(egui::RichText::new("Loading…").color(t.text3));
+                ui.label(egui::RichText::new(lang.text("Loading…")).color(t.text3));
                 return;
             }
             Some(Err(e)) => {
-                ui.label(egui::RichText::new(e).color(t.text3));
+                ui.label(egui::RichText::new(lang.data_error(e)).color(t.text3));
                 return;
             }
             Some(Ok(b)) => b.clone(),
@@ -148,7 +152,13 @@ impl App {
                 Some(a)
             })
             .collect();
-        let head = ["Buy", "Bid", "Price", "Ask", "Sell"];
+        let head = [
+            lang.text("Buy"),
+            lang.text("Bid"),
+            lang.text("Price"),
+            lang.text("Ask"),
+            lang.text("Sell"),
+        ];
         let (hr, _) = ui.allocate_exact_size(vec2(w, ROW_H), Sense::hover());
         for (k, h) in head.iter().enumerate() {
             ui.painter().text(
@@ -257,12 +267,15 @@ impl App {
                         egui::StrokeKind::Inside,
                     );
                 }
-                let tip = if buy { "Buy" } else { "Sell" };
+                let tip = if buy { lang.text("Buy") } else { lang.text("Sell") };
                 if resp
-                    .on_hover_text(format!(
-                        "{tip} {} at {}",
-                        self.dom.qty,
-                        crate::format::price(price, prec)
+                    .on_hover_text(lang.format(
+                        "{side} {qty} at {price}",
+                        &[
+                            ("side", tip),
+                            ("qty", &self.dom.qty.to_string()),
+                            ("price", &crate::format::price(price, prec)),
+                        ],
                     ))
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .clicked()

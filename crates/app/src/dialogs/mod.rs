@@ -70,7 +70,7 @@ pub enum Done {
 /// The frame every dialog sits in: elevated card, rounded, with a title
 /// row and a close button.
 pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(&mut Ui)) -> bool {
-    localized_frame(ui, t, crate::i18n::Language::English, title, width, body)
+    localized_frame(ui, t, crate::i18n::Language::of(ui), title, width, body)
 }
 
 fn localized_frame(
@@ -84,7 +84,7 @@ fn localized_frame(
     let mut close = false;
     ui.set_width(width);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(lang.text(title)).font(theme::semibold(16.0)));
+        ui.label(egui::RichText::new(title).font(theme::semibold(16.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if crate::widgets::tool_button(ui, t, crate::icons::ph::X, lang.text("Close (Esc)"), false, 28.0).clicked()
             {
@@ -166,12 +166,12 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         TemplateKind::Indicators => "Save indicator template",
     };
     let mut done = Done::Keep;
-    if localized_frame(ui, t, lang, title, 380.0, |ui| {
+    if localized_frame(ui, t, lang, lang.text(title), 380.0, |ui| {
         if kind == TemplateKind::Indicators && !app.chart.studies.is_empty() {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
                 for s in &app.chart.studies {
-                    let name = s.meta().short;
+                    let name = crate::chart::metadata_language(s.meta(), lang).text(s.meta().short);
                     egui::Frame::new()
                         .fill(t.hover)
                         .corner_radius(CornerRadius::same(6))
@@ -237,8 +237,9 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
 }
 
 fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
+    let lang = app.language;
     let mut done = Done::Keep;
-    if frame(ui, t, "Change interval", 300.0, |ui| {
+    if frame(ui, t, lang.text("Change interval"), 300.0, |ui| {
         let r = ui.add(
             crate::widgets::field(text)
                 .font(theme::regular(15.0))
@@ -254,8 +255,8 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
         }
         let parsed = opentern_core::Timeframe::parse(text);
         let hint = match parsed {
-            Some(tf) => format!("Press Enter for {}", tf.label()),
-            None => "Like 15, 4h, D, W or 3M".into(),
+            Some(tf) => lang.format("Press Enter for {interval}", &[("interval", &tf.label())]),
+            None => lang.text("Like 15, 4h, D, W or 3M").into(),
         };
         ui.label(egui::RichText::new(hint).color(t.text3));
         if ui.input(|i| i.key_pressed(egui::Key::Enter))
@@ -329,20 +330,23 @@ pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
 /// downloaded again (sources keep only recent minute and hour bars, and
 /// Yahoo never has the special sessions built from live prices).
 fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
+    let lang = crate::i18n::Language::of(ui);
     let mut done = Done::Keep;
-    if frame(ui, t, "Python scripts run on your computer", 420.0, |ui| {
+    if frame(ui, t, lang.text("Python scripts run on your computer"), 420.0, |ui| {
         ui.label(
-            egui::RichText::new(
+            egui::RichText::new(lang.text(
                 "A Python script runs in your own system's Python. Based on the code, it can read and \
                  change your files and go online, and that includes code an agent writes for you. Only \
                  run the ones you trust.",
-            )
+            ))
             .color(t.text2),
         );
         ui.add_space(4.0);
         ui.label(
             egui::RichText::new(
-                "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives.",
+                lang.text(
+                    "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives.",
+                ),
             )
             .color(t.text2),
         );
@@ -353,7 +357,7 @@ fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
             vec2(ui.available_width(), 32.0),
             Layout::right_to_left(Align::Center),
             |ui| {
-                if crate::widgets::primary(ui, "Got it").clicked() {
+                if crate::widgets::primary(ui, lang.text("Got it")).clicked() {
                     done = Done::Close;
                 }
             },
@@ -367,7 +371,7 @@ fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
 fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
     let lang = app.language;
     let mut done = Done::Keep;
-    if localized_frame(ui, t, lang, "Clear the price cache?", 400.0, |ui| {
+    if localized_frame(ui, t, lang, lang.text("Clear the price cache?"), 400.0, |ui| {
         ui.label(
             egui::RichText::new(lang.text(
                 "Charts download their prices again when you open them. Older minute and hour bars may \

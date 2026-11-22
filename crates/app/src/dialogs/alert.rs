@@ -45,7 +45,9 @@ impl App {
     pub(crate) fn open_alert_dialog(&mut self, edit: Option<Alert>) {
         let price = self.last_price(&self.chart.symbol.id).unwrap_or(0.0);
         let mut sources = vec![Source {
-            label: format!("Price: {}", self.chart.symbol.ticker()),
+            label: self
+                .language
+                .format("Price: {ticker}", &[("ticker", self.chart.symbol.ticker())]),
             cond: Condition::Price {
                 op: Op::Crossing,
                 value: price,
@@ -58,7 +60,10 @@ impl App {
                     continue;
                 }
                 sources.push(Source {
-                    label: format!("{}: {}", m.short, p.title),
+                    label: {
+                        let lang = crate::chart::metadata_language(m, self.language);
+                        format!("{}: {}", lang.text(m.short), lang.text(p.title))
+                    },
                     cond: Condition::Plot {
                         uid: s.uid,
                         study: m.short.to_string(),
@@ -82,7 +87,7 @@ impl App {
                     });
                 }
                 sources.push(Source {
-                    label: format!("{}: any alert() call", m.short),
+                    label: self.language.format("{study}: any alert() call", &[("study", m.short)]),
                     cond: Condition::Script {
                         uid: s.uid,
                         study: m.short.to_string(),
@@ -92,7 +97,7 @@ impl App {
             } else if run.is_some_and(|r| r.lang.in_process()) {
                 // Luau and JavaScript have alert() but no alertcondition.
                 sources.push(Source {
-                    label: format!("{}: any alert() call", m.short),
+                    label: self.language.format("{study}: any alert() call", &[("study", m.short)]),
                     cond: Condition::Script {
                         uid: s.uid,
                         study: m.short.to_string(),
@@ -104,7 +109,10 @@ impl App {
         for d in &self.chart.drawings {
             if let Some(cond) = line_condition(d, Op::Crossing) {
                 sources.push(Source {
-                    label: format!("Drawing: {} #{}", d.tool.name(), d.id),
+                    label: self.language.format(
+                        "Drawing: {tool} #{id}",
+                        &[("tool", self.language.text(d.tool.name())), ("id", &d.id.to_string())],
+                    ),
                     cond,
                 });
             }
@@ -151,7 +159,7 @@ impl App {
                 Some(k) => k,
                 None => {
                     form.sources.push(Source {
-                        label: a.condition.summary(),
+                        label: crate::alerts::condition_summary(&a.condition, self.language),
                         cond: a.condition.clone(),
                     });
                     form.sources.len() - 1
@@ -191,9 +199,14 @@ fn same_source(a: &Condition, b: &Condition) -> bool {
 
 impl AlertForm {
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+        let lang = app.language;
         let editing = self.alert.id != 0;
         let mut done = Done::Keep;
-        let title = if editing { "Edit alert" } else { "Create alert" };
+        let title = if editing {
+            lang.text("Edit alert")
+        } else {
+            lang.text("Create alert")
+        };
         // Room for the buttons; the form scrolls on short windows.
         let max_h = (ui.ctx().content_rect().height() - 190.0).max(200.0);
         let close = frame(ui, t, title, 460.0, |ui| {
@@ -209,10 +222,11 @@ impl AlertForm {
     }
 
     fn form(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        let lang = app.language;
         {
-            section(ui, t, "Condition");
+            section(ui, t, lang.text("Condition"));
             let labels: Vec<String> = self.sources.iter().map(|s| s.label.clone()).collect();
-            form_row(ui, t, "Watch", |ui| {
+            form_row(ui, t, lang.text("Watch"), |ui| {
                 crate::widgets::combo("alert-source")
                     .width(250.0)
                     .selected_text(labels.get(self.sel).cloned().unwrap_or_default())
@@ -224,83 +238,83 @@ impl AlertForm {
             });
             let src = self.sources[self.sel].cond.clone();
             if !matches!(src, Condition::Script { .. }) {
-                form_row(ui, t, "When it's", |ui| {
+                form_row(ui, t, lang.text("When it's"), |ui| {
                     crate::widgets::combo("alert-op")
                         .width(250.0)
-                        .selected_text(self.op.name())
+                        .selected_text(lang.text(self.op.name()))
                         .show_ui(ui, |ui| {
                             for o in Op::ALL {
-                                crate::widgets::option_value(ui, &mut self.op, o, o.name());
+                                crate::widgets::option_value(ui, &mut self.op, o, lang.text(o.name()));
                             }
                         });
                 });
             }
             match &src {
                 Condition::Price { .. } => {
-                    form_row(ui, t, "Value", |ui| {
+                    form_row(ui, t, lang.text("Value"), |ui| {
                         ui.add(egui::DragValue::new(&mut self.value).speed(0.01).max_decimals(8));
                     });
                 }
                 Condition::Plot { .. } => {
-                    form_row(ui, t, "Compared with", |ui| {
-                        crate::widgets::radio(ui, &mut self.vs_price, true, "Price");
-                        crate::widgets::radio(ui, &mut self.vs_price, false, "Value");
+                    form_row(ui, t, lang.text("Compared with"), |ui| {
+                        crate::widgets::radio(ui, &mut self.vs_price, true, lang.text("Price"));
+                        crate::widgets::radio(ui, &mut self.vs_price, false, lang.text("Value"));
                         if !self.vs_price {
                             ui.add(egui::DragValue::new(&mut self.value).speed(0.01).max_decimals(8));
                         }
                     });
                 }
                 Condition::Line { .. } => {
-                    form_row(ui, t, "Compared with", |ui| {
-                        ui.label("the price, against the line");
+                    form_row(ui, t, lang.text("Compared with"), |ui| {
+                        ui.label(lang.text("the price, against the line"));
                     });
                 }
                 Condition::Script { .. } => {}
             }
-            form_row(ui, t, "Trigger", |ui| {
+            form_row(ui, t, lang.text("Trigger"), |ui| {
                 crate::widgets::combo("alert-freq")
                     .width(250.0)
-                    .selected_text(self.alert.freq.name())
+                    .selected_text(lang.text(self.alert.freq.name()))
                     .show_ui(ui, |ui| {
                         for f in Freq::ALL {
-                            crate::widgets::option_value(ui, &mut self.alert.freq, f, f.name());
+                            crate::widgets::option_value(ui, &mut self.alert.freq, f, lang.text(f.name()));
                         }
                     });
             });
-            form_row(ui, t, "Expires", |ui| {
+            form_row(ui, t, lang.text("Expires"), |ui| {
                 crate::widgets::checkbox(ui, &mut self.expire, "");
                 if self.expire {
                     ui.add(
                         egui::DragValue::new(&mut self.expire_days)
                             .range(1..=365)
-                            .suffix(" days"),
+                            .suffix(lang.text(" days")),
                     );
                 } else {
-                    ui.label(egui::RichText::new("Never").color(t.text2));
+                    ui.label(egui::RichText::new(lang.text("Never")).color(t.text2));
                 }
             });
-            section(ui, t, "Message");
-            form_row(ui, t, "Name", |ui| {
+            section(ui, t, lang.text("Message"));
+            form_row(ui, t, lang.text("Name"), |ui| {
                 ui.add(
                     crate::widgets::field(&mut self.alert.name)
                         .hint_text(app.chart.symbol.ticker())
                         .desired_width(250.0),
                 );
             });
-            form_row(ui, t, "Message", |ui| {
+            form_row(ui, t, lang.text("Message"), |ui| {
                 ui.add(
                     egui::TextEdit::multiline(&mut self.alert.message)
-                        .hint_text("e.g. {{ticker}} crossed at {{close}}")
+                        .hint_text(lang.text("e.g. {{ticker}} crossed at {{close}}"))
                         .desired_rows(2)
                         .desired_width(250.0),
                 );
             });
-            section(ui, t, "Notify me");
-            form_row(ui, t, "Desktop", |ui| {
-                crate::widgets::checkbox(ui, &mut self.alert.notify, "Notification");
-                crate::widgets::checkbox(ui, &mut self.alert.sound, "Sound");
+            section(ui, t, lang.text("Notify me"));
+            form_row(ui, t, lang.text("Desktop"), |ui| {
+                crate::widgets::checkbox(ui, &mut self.alert.notify, lang.text("Notification"));
+                crate::widgets::checkbox(ui, &mut self.alert.sound, lang.text("Sound"));
             });
-            form_row(ui, t, "Webhook URL", |ui| {
+            form_row(ui, t, lang.text("Webhook URL"), |ui| {
                 ui.add(
                     crate::widgets::field(&mut self.alert.webhook)
                         .hint_text("https://…")
@@ -311,11 +325,11 @@ impl AlertForm {
                 crate::widgets::checkbox(ui, &mut self.alert.telegram, "");
             });
             if self.alert.telegram {
-                form_row(ui, t, "Bot token", |ui| {
+                form_row(ui, t, lang.text("Bot token"), |ui| {
                     let hint = if self.has_token {
-                        "Saved in your keychain (paste to replace)"
+                        lang.text("Saved in your keychain (paste to replace)")
                     } else {
-                        "From @BotFather"
+                        lang.text("From @BotFather")
                     };
                     ui.add(
                         crate::widgets::field(&mut self.token)
@@ -324,23 +338,23 @@ impl AlertForm {
                             .desired_width(250.0),
                     );
                 });
-                form_row(ui, t, "Chat id", |ui| {
+                form_row(ui, t, lang.text("Chat id"), |ui| {
                     ui.add(
                         crate::widgets::field(&mut self.chat)
-                            .hint_text("Your chat id (e.g. from @userinfobot)")
+                            .hint_text(lang.text("Your chat id (e.g. from @userinfobot)"))
                             .desired_width(250.0),
                     );
                 });
             }
-            form_row(ui, t, "Email", |ui| {
+            form_row(ui, t, lang.text("Email"), |ui| {
                 crate::widgets::checkbox(ui, &mut self.alert.email, "");
             });
             if self.alert.email {
                 let hints = [
-                    ("SMTP server", "smtp.gmail.com"),
-                    ("Port", "587"),
-                    ("Your address", "you@example.com"),
-                    ("Send to", "you@example.com"),
+                    (lang.text("SMTP server"), "smtp.gmail.com"),
+                    (lang.text("Port"), "587"),
+                    (lang.text("Your address"), "you@example.com"),
+                    (lang.text("Send to"), "you@example.com"),
                 ];
                 for (k, (label, hint)) in hints.iter().enumerate() {
                     form_row(ui, t, label, |ui| {
@@ -351,11 +365,11 @@ impl AlertForm {
                         );
                     });
                 }
-                form_row(ui, t, "Password", |ui| {
+                form_row(ui, t, lang.text("Password"), |ui| {
                     let hint = if self.has_password {
-                        "Saved in your keychain (paste to replace)"
+                        lang.text("Saved in your keychain (paste to replace)")
                     } else {
-                        "An app password, not your login"
+                        lang.text("An app password, not your login")
                     };
                     ui.add(
                         crate::widgets::field(&mut self.email_password)
@@ -365,7 +379,7 @@ impl AlertForm {
                     );
                 });
                 form_row(ui, t, "", |ui| {
-                    if ui.button("Send a test email").clicked() {
+                    if ui.button(lang.text("Send a test email")).clicked() {
                         let status = self.email_status.clone();
                         let set = move |s: String| {
                             if let Ok(mut m) = status.lock() {
@@ -378,19 +392,23 @@ impl AlertForm {
                                 opentern_core::secrets::get(crate::alerts::EMAIL_PASSWORD),
                             ) {
                                 (Some(to), Some(pw)) => {
-                                    set("Sending…".into());
+                                    set(lang.text("Sending…").into());
                                     let ctx = ui.ctx().clone();
                                     let _ = std::thread::Builder::new().name("test-email".into()).spawn(move || {
-                                        let r =
-                                            crate::alerts::send_email(&to, &pw, "Opentern test", "Email alerts work.");
+                                        let r = crate::alerts::send_email(
+                                            &to,
+                                            &pw,
+                                            lang.text("Opentern test"),
+                                            lang.text("Email alerts work."),
+                                        );
                                         set(match r {
-                                            Ok(()) => "Sent. Check your inbox.".into(),
+                                            Ok(()) => lang.text("Sent. Check your inbox.").into(),
                                             Err(e) => e.replace(&pw, "…"),
                                         });
                                         ctx.request_repaint();
                                     });
                                 }
-                                _ => set("Fill in every field first.".into()),
+                                _ => set(lang.text("Fill in every field first.").into()),
                             },
                             Err(e) => set(e),
                         }
@@ -402,7 +420,7 @@ impl AlertForm {
                 });
                 ui.label(
                     egui::RichText::new(
-                        "Gmail, Outlook and most providers need an app password: make one in your account's security settings.",
+                        lang.text("Gmail, Outlook and most providers need an app password: make one in your account's security settings."),
                     )
                     .color(t.text3)
                     .size(11.5),
@@ -412,6 +430,7 @@ impl AlertForm {
     }
 
     fn buttons(&mut self, ui: &mut Ui, app: &mut App, editing: bool, done: &mut Done) {
+        let lang = app.language;
         let t = app.t();
         let src = self.sources[self.sel].cond.clone();
         {
@@ -421,14 +440,21 @@ impl AlertForm {
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if editing && crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, "Delete").clicked() {
+                if editing
+                    && crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, lang.text("Delete"))
+                        .clicked()
+                {
                     app.delete_alert(self.alert.id);
                     *done = Done::Close;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let label = if editing { "  Save  " } else { "  Create  " };
+                    let label = if editing {
+                        lang.text("Save")
+                    } else {
+                        lang.text("Create")
+                    };
                     if crate::widgets::primary(ui, label).clicked() {
-                        match self.build(&src) {
+                        match self.build(&src, lang) {
                             Ok(a) => {
                                 if self.alert.telegram
                                     && let Err(e) = self.save_telegram(app)
@@ -448,7 +474,7 @@ impl AlertForm {
                             Err(e) => self.error = e,
                         }
                     }
-                    if crate::widgets::secondary(ui, "Cancel").clicked() {
+                    if crate::widgets::secondary(ui, lang.text("Cancel")).clicked() {
                         *done = Done::Close;
                     }
                 });
@@ -456,12 +482,12 @@ impl AlertForm {
         }
     }
 
-    fn build(&self, src: &Condition) -> Result<Alert, String> {
+    fn build(&self, src: &Condition, lang: crate::i18n::Language) -> Result<Alert, String> {
         let mut a = self.alert.clone();
         a.condition = match src.clone() {
             Condition::Price { .. } => {
                 if !(self.value.is_finite()) {
-                    return Err("Enter a price.".into());
+                    return Err(lang.text("Enter a price.").into());
                 }
                 Condition::Price {
                     op: self.op,
@@ -503,7 +529,7 @@ impl AlertForm {
         };
         a.expires = self.expire.then(|| now_ms() + self.expire_days as i64 * 86_400_000);
         if !a.webhook.trim().is_empty() && !a.webhook.trim().starts_with("http") {
-            return Err("The webhook URL should start with https://".into());
+            return Err(lang.text("The webhook URL should start with https://").into());
         }
         a.active = true;
         Ok(a)
@@ -511,21 +537,30 @@ impl AlertForm {
 
     /// Keeps the SMTP password in the OS keychain, the rest in settings.
     fn save_email(&mut self, app: &mut App) -> Result<(), String> {
+        let lang = app.language;
         let [host, port, user, to] = self.email.clone().map(|s| s.trim().to_string());
         if host.is_empty() || user.is_empty() || to.is_empty() {
-            return Err("Fill in the SMTP server, your address and where to send, or turn email off.".into());
+            return Err(lang
+                .text("Fill in the SMTP server, your address and where to send, or turn email off.")
+                .into());
         }
         if port.parse::<u16>().is_err() {
-            return Err("The port should be a number, usually 587 or 465.".into());
+            return Err(lang.text("The port should be a number, usually 587 or 465.").into());
         }
         let pw = self.email_password.trim();
         if !pw.is_empty() {
-            opentern_core::secrets::set(crate::alerts::EMAIL_PASSWORD, pw)
-                .map_err(|e| format!("Couldn't save the password in your keychain: {e}"))?;
+            opentern_core::secrets::set(crate::alerts::EMAIL_PASSWORD, pw).map_err(|e| {
+                lang.format(
+                    "Couldn't save the password in your keychain: {error}",
+                    &[("error", &e.to_string())],
+                )
+            })?;
             self.has_password = true;
             self.email_password.clear();
         } else if !self.has_password {
-            return Err("Paste the email password (an app password), or turn email off.".into());
+            return Err(lang
+                .text("Paste the email password (an app password), or turn email off.")
+                .into());
         }
         for (k, v) in [
             (crate::alerts::EMAIL_HOST, host),
@@ -533,29 +568,37 @@ impl AlertForm {
             (crate::alerts::EMAIL_USER, user),
             (crate::alerts::EMAIL_TO, to),
         ] {
-            app.store
-                .set_value(k, &v)
-                .map_err(|e| format!("Couldn't save the email settings: {e}"))?;
+            app.store.set_value(k, &v).map_err(|e| {
+                lang.format(
+                    "Couldn't save the email settings: {error}",
+                    &[("error", &e.to_string())],
+                )
+            })?;
         }
         Ok(())
     }
 
     /// Keeps the bot token in the OS keychain and the chat id in settings.
     fn save_telegram(&mut self, app: &mut App) -> Result<(), String> {
+        let lang = app.language;
         let token = self.token.trim();
         if !token.is_empty() {
-            opentern_core::secrets::set(TELEGRAM_TOKEN, token)
-                .map_err(|e| format!("Couldn't save the token in your keychain: {e}"))?;
+            opentern_core::secrets::set(TELEGRAM_TOKEN, token).map_err(|e| {
+                lang.format(
+                    "Couldn't save the token in your keychain: {error}",
+                    &[("error", &e.to_string())],
+                )
+            })?;
             self.has_token = true;
             self.token.clear();
         } else if !self.has_token {
-            return Err("Paste your Telegram bot token, or turn Telegram off.".into());
+            return Err(lang.text("Paste your Telegram bot token, or turn Telegram off.").into());
         }
         if self.chat.trim().is_empty() {
-            return Err("Enter the Telegram chat id to send alerts to.".into());
+            return Err(lang.text("Enter the Telegram chat id to send alerts to.").into());
         }
         app.store
             .set_value(TELEGRAM_CHAT, self.chat.trim())
-            .map_err(|e| format!("Couldn't save the chat id: {e}"))
+            .map_err(|e| lang.format("Couldn't save the chat id: {error}", &[("error", &e.to_string())]))
     }
 }

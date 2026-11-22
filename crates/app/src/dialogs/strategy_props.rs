@@ -87,43 +87,49 @@ fn number(ui: &mut Ui, v: &mut f64, speed: f64, min: f64, max: f64, suffix: &str
 
 impl StrategyProps {
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+        let lang = app.language;
         let mut done = Done::Keep;
-        let title = format!("{} — properties", self.name);
+        let title = lang.format("{strategy} — properties", &[("strategy", &self.name)]);
         if frame(ui, t, &title, 440.0, |ui| {
             let p = &mut self.p;
-            section(ui, t, "Capital and size");
-            form_row(ui, t, "Initial capital", |ui| {
+            section(ui, t, lang.text("Capital and size"));
+            form_row(ui, t, lang.text("Initial capital"), |ui| {
                 number(ui, &mut p.initial_capital, 100.0, 0.01, 1e15, "");
             });
-            form_row(ui, t, "Order size", |ui| {
+            form_row(ui, t, lang.text("Order size"), |ui| {
                 let step = if p.qty_type == QtyType::Fixed { 0.1 } else { 1.0 };
                 number(ui, &mut p.qty_value, step, 0.0, 1e12, "");
                 crate::widgets::combo("props-qty")
                     .selected_text(match p.qty_type {
-                        QtyType::Fixed => "Contracts",
-                        QtyType::Cash => "Cash",
-                        QtyType::PercentOfEquity => "% of equity",
+                        QtyType::Fixed => lang.text("Contracts"),
+                        QtyType::Cash => lang.text("Cash"),
+                        QtyType::PercentOfEquity => lang.text("% of equity"),
                     })
                     .width(110.0)
                     .show_ui(ui, |ui| {
-                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Fixed, "Contracts");
-                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Cash, "Cash");
-                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::PercentOfEquity, "% of equity");
+                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Fixed, lang.text("Contracts"));
+                        crate::widgets::option_value(ui, &mut p.qty_type, QtyType::Cash, lang.text("Cash"));
+                        crate::widgets::option_value(
+                            ui,
+                            &mut p.qty_type,
+                            QtyType::PercentOfEquity,
+                            lang.text("% of equity"),
+                        );
                     });
             });
-            form_row(ui, t, "Pyramiding", |ui| {
+            form_row(ui, t, lang.text("Pyramiding"), |ui| {
                 let mut v = p.pyramiding.max(1) as f64;
-                number(ui, &mut v, 0.1, 1.0, 100.0, " orders");
+                number(ui, &mut v, 0.1, 1.0, 100.0, lang.text(" orders"));
                 p.pyramiding = v as u32;
             });
-            section(ui, t, "Costs");
-            form_row(ui, t, "Commission", |ui| {
+            section(ui, t, lang.text("Costs"));
+            form_row(ui, t, lang.text("Commission"), |ui| {
                 number(ui, &mut p.commission_value, 0.01, 0.0, 1e9, "");
                 crate::widgets::combo("props-comm")
                     .selected_text(match p.commission {
                         Commission::Percent => "%",
-                        Commission::CashPerContract => "Per contract",
-                        Commission::CashPerOrder => "Per order",
+                        Commission::CashPerContract => lang.text("Per contract"),
+                        Commission::CashPerOrder => lang.text("Per order"),
                     })
                     .width(110.0)
                     .show_ui(ui, |ui| {
@@ -132,38 +138,45 @@ impl StrategyProps {
                             ui,
                             &mut p.commission,
                             Commission::CashPerContract,
-                            "Per contract",
+                            lang.text("Per contract"),
                         );
-                        crate::widgets::option_value(ui, &mut p.commission, Commission::CashPerOrder, "Per order");
+                        crate::widgets::option_value(
+                            ui,
+                            &mut p.commission,
+                            Commission::CashPerOrder,
+                            lang.text("Per order"),
+                        );
                     });
             });
-            form_row(ui, t, "Slippage", |ui| {
+            form_row(ui, t, lang.text("Slippage"), |ui| {
                 let mut v = p.slippage as f64;
-                number(ui, &mut v, 0.1, 0.0, 10_000.0, " ticks");
+                number(ui, &mut v, 0.1, 0.0, 10_000.0, lang.text(" ticks"));
                 p.slippage = v as u32;
             });
-            section(ui, t, "Margin");
-            form_row(ui, t, "Margin for long positions", |ui| {
+            section(ui, t, lang.text("Margin"));
+            form_row(ui, t, lang.text("Margin for long positions"), |ui| {
                 number(ui, &mut p.margin_long, 1.0, 0.0, 100.0, " %");
             });
-            form_row(ui, t, "Margin for short positions", |ui| {
+            form_row(ui, t, lang.text("Margin for short positions"), |ui| {
                 number(ui, &mut p.margin_short, 1.0, 0.0, 100.0, " %");
             });
-            section(ui, t, "Fills");
-            form_row(ui, t, "Fill orders on bar close", |ui| {
+            section(ui, t, lang.text("Fills"));
+            form_row(ui, t, lang.text("Fill orders on bar close"), |ui| {
                 crate::widgets::checkbox(ui, &mut p.process_orders_on_close, "");
             });
             let changed = p.diff_json(&self.base).as_object().is_some_and(|o| !o.is_empty());
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                if crate::widgets::button(ui, crate::widgets::Kind::Secondary, changed, None, "Reset").clicked() {
+                if crate::widgets::button(ui, crate::widgets::Kind::Secondary, changed, None, lang.text("Reset"))
+                    .clicked()
+                {
                     self.p = self.base.clone();
                 }
                 ui.add_space(ui.available_width() - 120.0);
-                if crate::widgets::secondary(ui, "Cancel").clicked() {
+                if crate::widgets::secondary(ui, lang.text("Cancel")).clicked() {
                     done = Done::Close;
                 }
-                if crate::widgets::primary(ui, "Ok").clicked() {
+                if crate::widgets::primary(ui, lang.text("Ok")).clicked() {
                     let over = self.p.diff_json(&self.base);
                     app.set_strategy_overrides(&self.file, over);
                     done = Done::Close;

@@ -378,8 +378,11 @@ impl App {
         if held {
             self.notify(
                 crate::icons::ph::WARNING,
-                "Python script not started",
-                &format!("{file} was imported. To run it, open it in the Script Editor and press Run."),
+                self.language.text("Python script not started"),
+                &self.language.format(
+                    "{file} was imported. To run it, open it in the Script Editor and press Run.",
+                    &[("file", file)],
+                ),
                 None,
                 true,
             );
@@ -404,7 +407,11 @@ impl App {
             restore,
             desc: None,
             signature: String::new(),
-            error: held.then(|| "Imported. Press Run in the Script Editor to start it.".to_string()),
+            error: held.then(|| {
+                self.language
+                    .text("Imported. Press Run in the Script Editor to start it.")
+                    .to_string()
+            }),
             log: String::new(),
             sent_version: u64::MAX,
             sent_inputs: None,

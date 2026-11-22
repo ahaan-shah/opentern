@@ -5,6 +5,7 @@
 //!
 //! Every release adds its notes to [`RELEASES`] (see CLAUDE.md → Releasing).
 
+use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::theme::{self, Theme};
 use egui::{Align2, CornerRadius, Rect, Sense, Ui, pos2, vec2};
@@ -513,7 +514,7 @@ pub fn card(c: &mut Card, ui: &mut Ui, t: &Theme) -> bool {
         ui.vertical(|ui| {
             ui.add_space(1.0);
             ui.label(
-                egui::RichText::new("What's new")
+                egui::RichText::new(tr(ui, "What's new"))
                     .font(theme::display(23.0))
                     .color(t.text),
             );
@@ -541,7 +542,7 @@ pub fn card(c: &mut Card, ui: &mut Ui, t: &Theme) -> bool {
                         ui.add_space(6.0);
                     }
                     ui.label(
-                        egui::RichText::new(format!("IN {}", n.version))
+                        egui::RichText::new(trf(ui, "IN {version}", &[("version", n.version)]))
                             .font(theme::semibold(10.5))
                             .color(t.text3),
                     );
@@ -562,14 +563,14 @@ pub fn card(c: &mut Card, ui: &mut Ui, t: &Theme) -> bool {
             crate::widgets::Kind::Secondary,
             true,
             Some(ph::ARROW_SQUARE_OUT),
-            "Full release notes",
+            tr(ui, "Full release notes"),
         )
         .clicked()
         {
             crate::app::open_url(&release_url(version));
         }
         ui.add_space((ui.available_width() - 76.0).max(0.0));
-        if crate::widgets::primary(ui, "Got it").clicked() {
+        if crate::widgets::primary(ui, tr(ui, "Got it")).clicked() {
             close = true;
         }
     });
@@ -602,12 +603,16 @@ fn point(c: &mut Card, ui: &mut Ui, t: &Theme, key: (usize, usize), item: &Item,
             ui.set_width(width - text_x);
             ui.add_space(1.0);
             ui.label(
-                egui::RichText::new(item.title)
+                egui::RichText::new(tr(ui, item.title))
                     .font(theme::semibold(15.0))
                     .color(t.text),
             );
             ui.add_space(2.0);
-            ui.label(egui::RichText::new(item.body).font(theme::regular(13.5)).color(t.text2));
+            ui.label(
+                egui::RichText::new(tr(ui, item.body))
+                    .font(theme::regular(13.5))
+                    .color(t.text2),
+            );
         });
     });
     let Some(bytes) = item.image else { return };

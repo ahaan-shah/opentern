@@ -269,7 +269,7 @@ pub fn paint_seasonality(p: &Painter, years: &[SeasonYear], y: &YMap, rect: Rect
         p.text(
             pos2(xx, rect.bottom() - 4.0),
             Align2::CENTER_BOTTOM,
-            *name,
+            crate::i18n::Language::from_context(p.ctx()).text(name),
             theme::regular(10.5),
             text,
         );

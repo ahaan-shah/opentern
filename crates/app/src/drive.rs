@@ -13,6 +13,7 @@ pub struct Driver {
     pub app: App,
     time: f64,
     pointer: Pos2,
+    viewport: egui::Vec2,
     pub dir: std::path::PathBuf,
 }
 
@@ -36,6 +37,7 @@ impl Driver {
             app,
             time: 0.0,
             pointer: pos2(10.0, 10.0),
+            viewport: vec2(1400.0, 900.0),
             dir,
         };
         d.wait(|a| !a.chart.bars.is_empty());
@@ -45,7 +47,7 @@ impl Driver {
     pub fn frame(&mut self, events: Vec<Event>) {
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.viewport)),
             time: Some(self.time),
             events,
             ..Default::default()
@@ -66,7 +68,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.viewport)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -94,7 +96,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.viewport)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -120,7 +122,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.viewport)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -147,7 +149,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.viewport)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -256,6 +258,40 @@ impl Drop for Driver {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn welcome_language_choice_carries_into_the_terminal() {
+        use crate::i18n::Language;
+        use crate::shell::Widget;
+
+        let mut d = Driver::new("welcome-language");
+        d.app.onboarding = Some(Default::default());
+        // Let the welcome screen fade in before interacting with its controls.
+        for _ in 0..100 {
+            d.frame(vec![]);
+        }
+        let english = d.text_rect("English").expect("language picker on welcome screen");
+        d.click(english.center());
+        let swedish = d.text_rect("Svenska").expect("Swedish option");
+        d.click(swedish.center());
+        assert_eq!(d.app.language, Language::Swedish);
+        assert!(d.texts().iter().any(|s| s == "Börja"));
+        assert_eq!(d.app.layout_name, "Namnlöst");
+        assert_eq!(d.app.paper.account.name, "Demokonto");
+        assert_eq!(d.app.watchlists[0].name, "Bevakningslista");
+        d.app.onboarding = None;
+
+        // A user-chosen name that happens to match a catalog key stays literal.
+        d.app.rename_layout("Calendar");
+        d.app.layout.widget = Some(Widget::Calendar);
+        let texts = d.texts();
+        for label in ["Kalender", "Instrumentfilter", "Skriptredigerare", "Simulerad handel"] {
+            assert!(texts.iter().any(|s| s == label), "missing {label}");
+        }
+        assert!(texts.iter().any(|s| s.starts_with("Calendar  ")));
+        d.app.set_language(Language::English);
+        assert!(d.texts().iter().any(|s| s == "Script Editor"));
+    }
 
     #[test]
     fn hotlists_say_what_period_the_change_covers() {
@@ -1328,6 +1364,57 @@ mod formula_tests {
         assert!(d.app.chart.drawings.is_empty(), "a measure isn't a drawing");
         d.click(d.at(0.5, 0.5));
         assert!(d.app.chart_ui.draw.measure().is_none());
+    }
+
+    #[test]
+    fn swedish_panel_tabs_and_window_controls_fit_beside_the_sidebar() {
+        use crate::i18n::Language;
+        use crate::icons::ph;
+        use crate::shell::Tab;
+        let mut d = Driver::new("swedish-narrow-tabs");
+        d.viewport = vec2(1150.0, 700.0);
+        d.app.set_language(Language::Swedish);
+        let picker = d.text_rect("Panelflikar").expect("compact tab picker in Swedish");
+        d.click(picker.center());
+        let last = d.text_rect("Larmlogg").expect("last tab can be selected");
+        d.click(last.center());
+        assert_eq!(d.app.layout.tab, Some(Tab::AlertLog));
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        let active = d.text_rect("Larmlogg").expect("selected tab");
+        let on_strip = |r: &Rect| (r.center().y - active.center().y).abs() < 8.0;
+        let maximize = d
+            .text_rects(ph::ARROWS_OUT_SIMPLE)
+            .into_iter()
+            .find(on_strip)
+            .expect("maximize button");
+        let collapse = d
+            .text_rects(ph::CARET_DOWN)
+            .into_iter()
+            .filter(on_strip)
+            .max_by(|a, b| a.center().x.total_cmp(&b.center().x))
+            .expect("collapse button");
+        assert!(active.right() < maximize.left() && maximize.right() < collapse.left());
+        d.click(maximize.center());
+        assert!(d.app.layout.panel_max);
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        let active = d.text_rect("Larmlogg").expect("maximized tab strip");
+        let collapse = d
+            .text_rects(ph::CARET_DOWN)
+            .into_iter()
+            .filter(|r| (r.center().y - active.center().y).abs() < 8.0)
+            .max_by(|a, b| a.center().x.total_cmp(&b.center().x))
+            .expect("collapse button");
+        d.click(collapse.center());
+        assert_eq!(d.app.layout.tab, None);
+
+        d.viewport = vec2(1400.0, 900.0);
+        d.app.set_language(Language::English);
+        assert!(d.text_rect("Script Editor").is_some());
+        assert!(d.text_rect("Panel tabs").is_none());
     }
 
     #[test]

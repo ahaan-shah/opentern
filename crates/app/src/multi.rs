@@ -10,6 +10,7 @@
 use crate::app::App;
 use crate::chart::ui::ChartUi;
 use crate::chart::{Chart, ChartState};
+use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::theme::Theme;
 use egui::{CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -489,7 +490,7 @@ impl App {
     /// what to sync.
     pub(crate) fn grid_menu(&mut self, ui: &mut Ui, t: &Theme) {
         ui.set_min_width(250.0);
-        crate::widgets::menu_heading(ui, t, "CHARTS IN THIS WINDOW");
+        crate::widgets::menu_heading(ui, t, tr(ui, "CHARTS IN THIS WINDOW"));
         let per_row = 5;
         for row in Grid::ALL.chunks(per_row) {
             ui.horizontal(|ui| {
@@ -514,8 +515,15 @@ impl App {
                             egui::StrokeKind::Inside,
                         );
                     }
-                    let resp =
-                        resp.on_hover_text(format!("{} chart{}", g.count(), if g.count() == 1 { "" } else { "s" }));
+                    let resp = resp.on_hover_text(trf(
+                        ui,
+                        if g.count() == 1 {
+                            "{count} chart"
+                        } else {
+                            "{count} charts"
+                        },
+                        &[("count", &g.count().to_string())],
+                    ));
                     if resp.clicked() {
                         self.set_grid(*g);
                     }
@@ -523,13 +531,13 @@ impl App {
             });
         }
         crate::widgets::menu_rule(ui, t);
-        crate::widgets::menu_heading(ui, t, "KEEP IN SYNC");
+        crate::widgets::menu_heading(ui, t, tr(ui, "KEEP IN SYNC"));
         let mut s = self.multi.sync;
-        crate::widgets::checkbox(ui, &mut s.symbol, "Symbol");
-        crate::widgets::checkbox(ui, &mut s.interval, "Interval");
-        crate::widgets::checkbox(ui, &mut s.crosshair, "Crosshair");
-        crate::widgets::checkbox(ui, &mut s.time, "Time");
-        crate::widgets::checkbox(ui, &mut s.date_range, "Date range");
+        crate::widgets::checkbox(ui, &mut s.symbol, tr(ui, "Symbol"));
+        crate::widgets::checkbox(ui, &mut s.interval, tr(ui, "Interval"));
+        crate::widgets::checkbox(ui, &mut s.crosshair, tr(ui, "Crosshair"));
+        crate::widgets::checkbox(ui, &mut s.time, tr(ui, "Time"));
+        crate::widgets::checkbox(ui, &mut s.date_range, tr(ui, "Date range"));
         if s != self.multi.sync {
             // Turning symbol or interval sync on brings the others in line.
             let was = self.multi.sync;

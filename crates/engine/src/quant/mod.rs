@@ -18,6 +18,47 @@ use crate::{Broker, Report};
 use opentern_core::Bar;
 use serde::{Deserialize, Serialize};
 
+/// A validation failure shared by the optimizer and walk-forward analysis.
+#[derive(Debug)]
+pub enum SearchError {
+    NoParameters,
+    NoBars,
+    EmptyRange(String),
+    GridTooLarge { combinations: usize, per_window: bool },
+    ShortWindow { required: usize, available: usize },
+}
+
+impl std::fmt::Display for SearchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NoParameters => f.write_str("Pick at least one input to optimize."),
+            Self::NoBars => f.write_str("There are no bars to test on yet."),
+            Self::EmptyRange(name) => write!(f, "{name} has no values to try."),
+            Self::GridTooLarge {
+                combinations,
+                per_window,
+            } => {
+                let unit = if *per_window {
+                    " combinations per window"
+                } else {
+                    " combinations"
+                };
+                write!(
+                    f,
+                    "That's {combinations}{unit}, more than the grid's {}. Narrow the ranges or use Random or Bayesian.",
+                    optimize::MAX_GRID
+                )
+            }
+            Self::ShortWindow { required, available } => write!(
+                f,
+                "Not enough bars: each step needs {required} in-sample bars and some after them, and there are {available}."
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SearchError {}
+
 /// One parameter's value in a trial.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PValue {

@@ -149,7 +149,7 @@ impl Providers {
         let lang = app.language;
         let mut done = Done::Keep;
         let max_h = (ui.ctx().content_rect().height() - 190.0).max(200.0);
-        let close = localized_frame(ui, t, lang, "Data providers", 480.0, |ui| {
+        let close = localized_frame(ui, t, lang, lang.text("Data providers"), 480.0, |ui| {
             note(
                 ui,
                 t,

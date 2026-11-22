@@ -99,7 +99,9 @@ impl App {
         if lists.is_empty() {
             lists.push(Watchlist {
                 id: 1,
-                name: "Watchlist".into(),
+                name: crate::i18n::Language::from_code(store.value("language").as_deref())
+                    .text("Watchlist")
+                    .into(),
                 items: opentern_core::starter_watchlist()
                     .into_iter()
                     .map(Item::Symbol)
@@ -233,8 +235,9 @@ impl App {
     }
 
     fn new_watchlist(&mut self, ctx: &egui::Context) {
+        let lang = self.language;
         let id = self.watchlists.iter().map(|w| w.id).max().unwrap_or(0) + 1;
-        let name = format!("List {}", self.watchlists.len() + 1);
+        let name = lang.format("List {number}", &[("number", &(self.watchlists.len() + 1).to_string())]);
         self.watchlists.push(Watchlist {
             id,
             name: name.clone(),
@@ -261,6 +264,7 @@ impl App {
     /// The list's name: a button with its menu (double-click renames), and
     /// the add button.
     fn watchlist_header(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let rename_id = state_id("rename");
         let mut renaming: Option<String> = ui.data(|d| d.get_temp(rename_id)).flatten();
         let mut open_rename = false;
@@ -269,13 +273,14 @@ impl App {
         ui.horizontal(|ui| {
             ui.set_height(30.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if crate::widgets::tool_button(ui, t, ph::PLUS, "Add symbol", false, 28.0).clicked() {
+                if crate::widgets::tool_button(ui, t, ph::PLUS, lang.text("Add symbol"), false, 28.0).clicked() {
                     self.modal = Some(crate::dialogs::Modal::Symbol(crate::dialogs::SymbolSearch::adding()));
                 }
                 let id = state_id("search");
                 let open = ui.data(|d| d.get_temp::<Option<String>>(id)).flatten().is_some();
                 if self.watchlists.len() > 1
-                    && crate::widgets::tool_button(ui, t, ph::MAGNIFYING_GLASS, "Search lists", open, 28.0).clicked()
+                    && crate::widgets::tool_button(ui, t, ph::MAGNIFYING_GLASS, lang.text("Search lists"), open, 28.0)
+                        .clicked()
                 {
                     let next = if open { None } else { Some(String::new()) };
                     ui.data_mut(|d| {
@@ -317,21 +322,23 @@ impl App {
                             ui.set_width(210.0);
                             ui.spacing_mut().item_spacing.y = 1.0;
                             let w = crate::widgets::menu_item;
-                            if w(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked() {
+                            if w(ui, t, Some(ph::PENCIL_SIMPLE), lang.text("Rename"), "", false).clicked() {
                                 open_rename = true;
                                 ui.close();
                             }
-                            if w(ui, t, Some(ph::ROWS), "Add section", "", false).clicked() {
+                            if w(ui, t, Some(ph::ROWS), lang.text("Add section"), "", false).clicked() {
                                 add_section = true;
                                 ui.close();
                             }
-                            if w(ui, t, Some(ph::PLUS), "New list", "", false).clicked() {
+                            if w(ui, t, Some(ph::PLUS), lang.text("New list"), "", false).clicked() {
                                 self.new_watchlist(ui.ctx());
                                 ui.close();
                             }
                             if self.watchlists.len() > 1 {
                                 crate::widgets::menu_rule(ui, t);
-                                if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), "Delete list").clicked() {
+                                if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), lang.text("Delete list"))
+                                    .clicked()
+                                {
                                     delete = true;
                                     ui.close();
                                 }
@@ -347,12 +354,17 @@ impl App {
         if add_section {
             let list = &mut self.watchlists[self.active_list];
             list.items.push(Item::Section {
-                section: "New section".into(),
+                section: lang.text("New section").into(),
                 collapsed: false,
             });
             let at = list.items.len() - 1;
             self.save_watchlists();
-            ui.data_mut(|d| d.insert_temp(state_id("section-rename"), Some((at, "New section".to_string()))));
+            ui.data_mut(|d| {
+                d.insert_temp(
+                    state_id("section-rename"),
+                    Some((at, lang.text("New section").to_string())),
+                )
+            });
         }
         if delete && self.watchlists.len() > 1 {
             self.watchlists.remove(self.active_list);
@@ -366,11 +378,12 @@ impl App {
     /// Picking one switches to it and closes the search. True while it
     /// shows matches (they take the rows' place).
     fn watchlist_search(&mut self, ui: &mut Ui, t: &Theme) -> bool {
+        let lang = self.language;
         let id = state_id("search");
         let Some(mut q) = ui.data(|d| d.get_temp::<Option<String>>(id)).flatten() else {
             return false;
         };
-        let resp = crate::widgets::search_field(ui, t, &mut q, "Search lists", ui.available_width());
+        let resp = crate::widgets::search_field(ui, t, &mut q, lang.text("Search lists"), ui.available_width());
         if ui
             .data_mut(|d| d.remove_temp::<bool>(state_id("search-focus")))
             .unwrap_or(false)
@@ -401,9 +414,9 @@ impl App {
                     let l = &self.watchlists[k];
                     let n = l.symbols().len();
                     let hint = if n == 1 {
-                        "1 symbol".to_string()
+                        lang.text("1 symbol").to_string()
                     } else {
-                        format!("{n} symbols")
+                        lang.format("{n} symbols", &[("n", &n.to_string())])
                     };
                     if crate::widgets::menu_item(ui, t, None, &l.name, &hint, k == self.active_list).clicked() {
                         switch = Some(k);
@@ -412,7 +425,7 @@ impl App {
                 if hits.is_empty() {
                     ui.add_space(12.0);
                     ui.vertical_centered(|ui| {
-                        ui.label(egui::RichText::new("No lists match").color(t.text3));
+                        ui.label(egui::RichText::new(lang.text("No lists match")).color(t.text3));
                     });
                 }
             });
@@ -429,6 +442,7 @@ impl App {
     /// A circle per list with its initial, as on TradingView, and a + for a
     /// new one.
     fn watchlist_switcher(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let mut switch = None;
         let mut new = false;
         ui.horizontal_wrapped(|ui| {
@@ -441,12 +455,19 @@ impl App {
                     .find(|c| c.is_alphanumeric())
                     .map(|c| c.to_uppercase().collect())
                     .unwrap_or_else(|| "·".into());
-                let tip = format!("{} · {} symbols", l.name, l.symbols().len());
+                let tip = format!(
+                    "{} · {}",
+                    l.name,
+                    lang.format("{n} symbols", &[("n", &l.symbols().len().to_string())])
+                );
                 if circle(ui, t, &initial, on).on_hover_text(tip).clicked() && !on {
                     switch = Some(k);
                 }
             }
-            if circle(ui, t, ph::PLUS, false).on_hover_text("New list").clicked() {
+            if circle(ui, t, ph::PLUS, false)
+                .on_hover_text(lang.text("New list"))
+                .clicked()
+            {
                 new = true;
             }
         });
@@ -478,6 +499,7 @@ impl App {
     }
 
     fn watchlist_rows(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let list = self.watchlists[self.active_list].clone();
         let now_ms = jiff::Timestamp::now().as_millisecond();
         if !self.demo && !self.quotes.is_empty() {
@@ -507,11 +529,11 @@ impl App {
         let chg_w = symbols
             .iter()
             .map(|s| width_of(&price(s).1, ui))
-            .fold(width_of("Chg%", ui), f32::max);
+            .fold(width_of(lang.text("Chg%"), ui), f32::max);
         let last_w = symbols
             .iter()
             .map(|s| width_of(&price(s).0, ui))
-            .fold(width_of("Last", ui), f32::max);
+            .fold(width_of(lang.text("Last"), ui), f32::max);
         let w = ui.available_width();
         let (cols, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
         // The rows sit in a scroll area a little narrower than the header:
@@ -534,16 +556,16 @@ impl App {
             let col = if resp.hovered() { t.text2 } else { t.text3 };
             ui.painter()
                 .text(pos2(x, cols.center().y), align, text, theme::medium(11.5), col);
-            resp.on_hover_text("Sort").clicked()
+            resp.on_hover_text(lang.text("Sort")).clicked()
         };
         let mut sort = None;
-        if header(ui, cols.left() + 4.0, Align2::LEFT_CENTER, "Symbol", "h-sym") {
+        if header(ui, cols.left() + 4.0, Align2::LEFT_CENTER, lang.text("Symbol"), "h-sym") {
             sort = Some(SortBy::Symbol);
         }
-        if header(ui, col_last, Align2::RIGHT_CENTER, "Last", "h-last") {
+        if header(ui, col_last, Align2::RIGHT_CENTER, lang.text("Last"), "h-last") {
             sort = Some(SortBy::Last);
         }
-        if header(ui, col_chg, Align2::RIGHT_CENTER, "Chg%", "h-chg") {
+        if header(ui, col_chg, Align2::RIGHT_CENTER, lang.text("Chg%"), "h-chg") {
             sort = Some(SortBy::Change);
         }
         if let Some(by) = sort {
@@ -551,7 +573,7 @@ impl App {
         }
 
         if list.items.is_empty() {
-            crate::widgets::empty_state(ui, t, ph::LIST_PLUS, "An empty list");
+            crate::widgets::empty_state(ui, t, ph::LIST_PLUS, lang.text("An empty list"));
         }
         let sections = list.sections();
         let drag_id = state_id("drag");
@@ -615,12 +637,15 @@ impl App {
                         resp.on_hover_cursor(egui::CursorIcon::PointingHand).context_menu(|ui| {
                             ui.set_width(200.0);
                             ui.spacing_mut().item_spacing.y = 1.0;
-                            if crate::widgets::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked()
+                            if crate::widgets::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), lang.text("Rename"), "", false)
+                                .clicked()
                             {
                                 section_edit = Some((k, section.clone()));
                                 ui.close();
                             }
-                            if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), "Remove section").clicked() {
+                            if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), lang.text("Remove section"))
+                                .clicked()
+                            {
                                 acts.push(Act::RemoveSection(k));
                                 ui.close();
                             }
@@ -680,7 +705,7 @@ impl App {
                             let c = if xr.hovered() { t.neg } else { t.text3 };
                             ui.painter()
                                 .text(x.center(), Align2::CENTER_CENTER, ph::X, theme::regular(12.0), c);
-                            if xr.on_hover_text("Remove from watchlist").clicked() {
+                            if xr.on_hover_text(lang.text("Remove from watchlist")).clicked() {
                                 acts.push(Act::Remove(k));
                                 continue;
                             }
@@ -691,7 +716,10 @@ impl App {
                             ui.data_mut(|d| d.insert_temp(drag_id, Some(k)));
                         }
                         let tip = match stale {
-                            Some(d) => format!("{}\nNo new price for {}", s.description, crate::format::span(d)),
+                            Some(d) => lang.format(
+                                "{description}\nNo new price for {time}",
+                                &[("description", &s.description), ("time", &crate::format::span(d, lang))],
+                            ),
                             None => s.description.clone(),
                         };
                         let resp = resp.on_hover_text(tip).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -702,17 +730,18 @@ impl App {
                             ui.set_width(220.0);
                             ui.spacing_mut().item_spacing.y = 1.0;
                             let w = crate::widgets::menu_item;
-                            if w(ui, t, Some(ph::CHART_LINE), "Open chart", "", false).clicked() {
+                            if w(ui, t, Some(ph::CHART_LINE), lang.text("Open chart"), "", false).clicked() {
                                 acts.push(Act::Pick(s.clone()));
                                 ui.close();
                             }
-                            if w(ui, t, Some(ph::ARROW_LINE_UP), "Move to top", "", false).clicked() {
+                            if w(ui, t, Some(ph::ARROW_LINE_UP), lang.text("Move to top"), "", false).clicked() {
                                 acts.push(Act::ToTop(k));
                                 ui.close();
                             }
                             if !sections.is_empty() {
                                 ui.menu_button(
-                                    egui::RichText::new(format!("{}   Move to section", ph::ROWS)).size(13.5),
+                                    egui::RichText::new(format!("{}   {}", ph::ROWS, lang.text("Move to section")))
+                                        .size(13.5),
                                     |ui| {
                                         ui.set_min_width(180.0);
                                         for (at, name) in &sections {
@@ -721,14 +750,18 @@ impl App {
                                                 ui.close();
                                             }
                                         }
-                                        if crate::widgets::menu_item(ui, t, None, "No section", "", false).clicked() {
+                                        if crate::widgets::menu_item(ui, t, None, lang.text("No section"), "", false)
+                                            .clicked()
+                                        {
                                             acts.push(Act::ToSection(k, None));
                                             ui.close();
                                         }
                                     },
                                 );
                             }
-                            if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), "Remove from watchlist").clicked() {
+                            if crate::widgets::menu_danger(ui, t, Some(ph::TRASH), lang.text("Remove from watchlist"))
+                                .clicked()
+                            {
                                 acts.push(Act::Remove(k));
                                 ui.close();
                             }
@@ -828,6 +861,7 @@ impl App {
 /// The list's name as a button: a soft wash on hover and while its menu is
 /// open, and a caret that turns.
 fn title_button(ui: &mut Ui, t: &Theme, name: &str) -> egui::Response {
+    let lang = crate::i18n::Language::of(ui);
     let font = theme::semibold(14.0);
     let g = ui.painter().layout_no_wrap(name.to_string(), font, t.text);
     let width = (g.size().x + 40.0).min(ui.available_width());
@@ -853,7 +887,7 @@ fn title_button(ui: &mut Ui, t: &Theme, name: &str) -> egui::Response {
     let at = caret - egui::emath::Rot2::from_angle(angle) * (galley.size() / 2.0);
     p.add(egui::epaint::TextShape::new(at, galley, t.text2).with_angle(angle));
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text("List menu (double-click to rename)")
+        .on_hover_text(lang.text("List menu (double-click to rename)"))
 }
 
 /// A round switcher button: the list's initial, filled when it's the one on

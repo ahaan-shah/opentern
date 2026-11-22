@@ -11,7 +11,7 @@
 //! counts, and the trade counts there when it closes.
 
 use super::optimize::{self, Setup};
-use super::{PValue, Progress, Runner, Summary};
+use super::{PValue, Progress, Runner, SearchError, Summary};
 use crate::Trade;
 use opentern_core::Bar;
 use serde::{Deserialize, Serialize};
@@ -92,23 +92,29 @@ fn max_dd(curve: &[f64]) -> f64 {
 }
 
 pub fn walk_forward(w: &WalkSetup, bars: &[Bar], run: &impl Runner, progress: &Progress) -> Result<WalkResult, String> {
+    walk_forward_checked(w, bars, run, progress).map_err(|e| e.to_string())
+}
+
+/// Runs the same analysis with structured errors for localized interfaces.
+pub fn walk_forward_checked(
+    w: &WalkSetup,
+    bars: &[Bar],
+    run: &impl Runner,
+    progress: &Progress,
+) -> Result<WalkResult, SearchError> {
     let wins = windows(bars.len(), w);
     if wins.is_empty() {
-        return Err(format!(
-            "Not enough bars: each step needs {} in-sample bars and some after them, and there are {}.",
-            w.in_sample,
-            bars.len()
-        ));
+        return Err(SearchError::ShortWindow {
+            required: w.in_sample,
+            available: bars.len(),
+        });
     }
     if w.optimize.params.is_empty() {
-        return Err("Pick at least one input to optimize.".into());
+        return Err(SearchError::NoParameters);
     }
-    let per = optimize::planned(&w.optimize).ok_or_else(|| {
-        format!(
-            "That's {} combinations per window, more than the grid's {}. Narrow the ranges or use Random or Bayesian.",
-            optimize::combinations(&w.optimize.params),
-            optimize::MAX_GRID
-        )
+    let per = optimize::planned(&w.optimize).ok_or_else(|| SearchError::GridTooLarge {
+        combinations: optimize::combinations(&w.optimize.params),
+        per_window: true,
     })?;
     progress.add_total(per * wins.len());
     let mut res = WalkResult::default();

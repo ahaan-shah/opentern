@@ -180,6 +180,38 @@ fn deliver(d: &Delivery) {
     }
 }
 
+pub(crate) fn condition_summary(condition: &Condition, lang: crate::i18n::Language) -> String {
+    let op = |op: opentern_engine::alerts::Op| lang.text(&op.name().to_lowercase()).to_owned();
+    let value = |v: f64| {
+        let s = format!("{v:.8}");
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
+    };
+    match condition {
+        Condition::Price { op: o, value: v } => {
+            lang.format("Price {op} {value}", &[("op", &op(*o)), ("value", &value(*v))])
+        }
+        Condition::Line { op: o, .. } => lang.format("Price {op} the line", &[("op", &op(*o))]),
+        Condition::Plot {
+            title,
+            op: o,
+            value: Some(v),
+            ..
+        } => format!("{title} {} {}", op(*o), value(*v)),
+        Condition::Plot {
+            title,
+            op: o,
+            value: None,
+            ..
+        } => lang.format("{title} {op} the price", &[("title", title), ("op", &op(*o))]),
+        Condition::Script { study, title: None, .. } => lang.format("{study}: any alert() call", &[("study", study)]),
+        Condition::Script {
+            study,
+            title: Some(title),
+            ..
+        } => format!("{study}: {title}"),
+    }
+}
+
 impl Alerts {
     pub fn load(store: &opentern_core::Store, scripts: std::path::PathBuf) -> Alerts {
         let list = store
@@ -330,7 +362,14 @@ impl Alerts {
         let message = if !script_message.is_empty() {
             script_message
         } else if a.message.trim().is_empty() {
-            format!("{} — {}", ticker, a.condition.summary())
+            format!(
+                "{} — {}",
+                ticker,
+                condition_summary(
+                    &a.condition,
+                    crate::i18n::Language::from_code(store.value("language").as_deref())
+                )
+            )
         } else {
             opentern_engine::alerts::fill_message(&a.message, &ticker, &exchange, &a.tf, price, &time)
         };
@@ -572,6 +611,7 @@ impl App {
 
     /// Alerts that fired while the app was closed: one notification.
     pub(crate) fn alerts_fired_away(&mut self) {
+        let lang = self.language;
         let key = crate::daemon::FIRED_AWAY;
         let n: u64 = self.store.value(key).and_then(|v| v.parse().ok()).unwrap_or(0);
         if n == 0 {
@@ -579,9 +619,9 @@ impl App {
         }
         let _ = self.store.set_value(key, "0");
         let title = if n == 1 {
-            "An alert fired while Opentern was closed".to_string()
+            lang.text("An alert fired while Opentern was closed").to_string()
         } else {
-            format!("{n} alerts fired while Opentern was closed")
+            lang.format("{n} alerts fired while Opentern was closed", &[("n", &n.to_string())])
         };
         self.notify(crate::icons::ph::ALARM, &title, "", None, true);
     }
@@ -652,11 +692,19 @@ impl App {
 
     /// The Alerts widget: every alert, its state, and what it does.
     pub(crate) fn alerts_widget(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Alerts").font(theme::semibold(14.0)));
+            ui.label(egui::RichText::new(lang.text("Alerts")).font(theme::semibold(14.0)));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if crate::widgets::tool_button(ui, t, crate::icons::ph::PLUS, "Create alert (Alt+A)", false, 26.0)
-                    .clicked()
+                if crate::widgets::tool_button(
+                    ui,
+                    t,
+                    crate::icons::ph::PLUS,
+                    lang.text("Create alert (Alt+A)"),
+                    false,
+                    26.0,
+                )
+                .clicked()
                 {
                     self.open_alert_dialog(None);
                 }
@@ -664,7 +712,7 @@ impl App {
         });
         ui.add_space(6.0);
         if self.alerts.list.is_empty() {
-            crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, "No alerts yet");
+            crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, lang.text("No alerts yet"));
             return;
         }
         let mut edit = None;
@@ -681,13 +729,13 @@ impl App {
                     p.rect_filled(r, CornerRadius::same(6), t.hover_wash());
                 }
                 let (state, c) = if a.expired(now) {
-                    ("Expired", t.text3)
+                    (lang.text("Expired"), t.text3)
                 } else if a.active {
-                    ("Active", t.pos)
+                    (lang.text("Active"), t.pos)
                 } else if a.fired > 0 && a.freq == Freq::Once {
-                    ("Triggered", t.warn)
+                    (lang.text("Triggered"), t.warn)
                 } else {
-                    ("Stopped", t.text3)
+                    (lang.text("Stopped"), t.text3)
                 };
                 p.circle_filled(pos2(r.left() + 10.0, r.top() + 15.0), 4.0, c);
                 let name = if a.name.is_empty() {
@@ -705,13 +753,23 @@ impl App {
                 p.text(
                     pos2(r.left() + 22.0, r.top() + 33.0),
                     Align2::LEFT_CENTER,
-                    a.condition.summary(),
+                    condition_summary(&a.condition, lang),
                     theme::regular(12.0),
                     t.text2,
                 );
                 let (line, c) = match self.alerts.watcher.error(a.id) {
                     Some(e) if a.active => (e.to_string(), t.warn),
-                    _ => (format!("{state} · {} · fired {}×", a.freq.name(), a.fired), t.text3),
+                    _ => (
+                        lang.format(
+                            "{state} · {frequency} · fired {count}×",
+                            &[
+                                ("state", state),
+                                ("frequency", lang.text(a.freq.name())),
+                                ("count", &a.fired.to_string()),
+                            ],
+                        ),
+                        t.text3,
+                    ),
                 };
                 p.text(
                     pos2(r.left() + 22.0, r.top() + 48.0),
@@ -724,15 +782,19 @@ impl App {
                     // Pause/resume, edit and delete, on hover.
                     let mut x = r.right() - 4.0;
                     for (glyph, tip, what) in [
-                        (crate::icons::ph::TRASH, "Delete", 2),
-                        (crate::icons::ph::PENCIL_SIMPLE, "Edit", 1),
+                        (crate::icons::ph::TRASH, lang.text("Delete"), 2),
+                        (crate::icons::ph::PENCIL_SIMPLE, lang.text("Edit"), 1),
                         (
                             if a.active {
                                 crate::icons::ph::PAUSE
                             } else {
                                 crate::icons::ph::PLAY
                             },
-                            if a.active { "Stop" } else { "Restart" },
+                            if a.active {
+                                lang.text("Stop alert")
+                            } else {
+                                lang.text("Restart")
+                            },
                             0,
                         ),
                     ] {
@@ -780,10 +842,16 @@ impl App {
 
     /// The Alerts log tab.
     pub(crate) fn alert_log_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("{} alerts fired", self.alerts.log.len())).color(t.text2));
+            ui.label(
+                egui::RichText::new(
+                    lang.format("{count} alerts fired", &[("count", &self.alerts.log.len().to_string())]),
+                )
+                .color(t.text2),
+            );
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if !self.alerts.log.is_empty() && small_button(ui, t, "Clear log", false).clicked() {
+                if !self.alerts.log.is_empty() && small_button(ui, t, lang.text("Clear log"), false).clicked() {
                     if let Err(e) = self.store.clear_alert_log() {
                         crate::diag::crumb(format!("couldn't clear the alert log: {e}"));
                     }
@@ -797,11 +865,16 @@ impl App {
                 ui,
                 t,
                 crate::icons::ph::CLOCK_COUNTER_CLOCKWISE,
-                "Nothing has fired yet",
+                lang.text("Nothing has fired yet"),
             );
             return;
         }
-        let cols = [("Time", 150.0), ("Alert", 160.0), ("Symbol", 120.0), ("Message", 480.0)];
+        let cols = [
+            (lang.text("Time"), 150.0),
+            (lang.text("Alert"), 160.0),
+            (lang.text("Symbol"), 120.0),
+            (lang.text("Message"), 480.0),
+        ];
         let w: f32 = cols.iter().map(|c| c.1).sum();
         let (hr, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
         let mut x = hr.left();
@@ -880,6 +953,26 @@ pub fn line_condition(d: &crate::chart::draw::Drawing, op: opentern_engine::aler
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn swedish_alert_summary_preserves_plot_title() {
+        let condition = Condition::Plot {
+            uid: 1,
+            study: "Script".into(),
+            plot: 0,
+            title: "Price {op}".to_string(),
+            op: opentern_engine::alerts::Op::GreaterThan,
+            value: None,
+        };
+        assert_eq!(
+            condition_summary(&condition, crate::i18n::Language::English),
+            condition.summary()
+        );
+        assert_eq!(
+            condition_summary(&condition, crate::i18n::Language::Swedish),
+            "Price {op} är högre än priset"
+        );
+    }
 
     #[test]
     fn email_errors_are_plain() {

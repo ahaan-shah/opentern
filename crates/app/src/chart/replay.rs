@@ -168,6 +168,7 @@ impl Chart {
 
 /// The replay's floating controls at the bottom of the main pane.
 pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
+    let lang = crate::i18n::Language::of(ui);
     let Some(r) = chart.replay.as_ref() else { return };
     let selecting = r.selecting;
     let playing = r.playing;
@@ -186,18 +187,21 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         measure(text, theme::medium(12.5)) + 18.0
     };
     let w = if selecting && !has_full {
-        8.0 + btn(ph::SCISSORS, "Select bar")
+        8.0 + btn(ph::SCISSORS, lang.text("Select bar"))
             + 8.0
-            + measure("Click a bar to start from it".into(), theme::regular(12.5))
+            + measure(lang.text("Click a bar to start from it").into(), theme::regular(12.5))
             + 44.0
     } else {
-        8.0 + btn(ph::SCISSORS, "Select bar")
+        8.0 + btn(ph::SCISSORS, lang.text("Select bar"))
             + btn(ph::PAUSE, "")
             + btn(ph::SKIP_FORWARD, "")
             + btn(ph::GAUGE, speed_label)
-            + btn(ph::FAST_FORWARD, "Real time")
+            + btn(ph::FAST_FORWARD, lang.text("Real time"))
             + 6.0
-            + measure(format!("{left} left"), theme::regular(11.5))
+            + measure(
+                lang.format("{left} left", &[("left", &left.to_string())]),
+                theme::regular(11.5),
+            )
             + 44.0
     };
     let bar = Rect::from_center_size(pos2(pane.center().x, pane.bottom() - 30.0), vec2(w, 36.0));
@@ -246,8 +250,8 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
     if button(
         ui,
         ph::SCISSORS,
-        "Select bar",
-        "Pick a new starting bar",
+        lang.text("Select bar"),
+        lang.text("Pick a new starting bar"),
         selecting,
         "select",
     ) && let Some(r) = chart.replay.as_mut()
@@ -259,7 +263,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         ui.painter().text(
             pos2(x + 8.0, bar.center().y),
             Align2::LEFT_CENTER,
-            "Click a bar to start from it",
+            lang.text("Click a bar to start from it"),
             theme::regular(12.5),
             t.text2,
         );
@@ -272,15 +276,15 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
             theme::regular(14.0),
             t.text2,
         );
-        if resp.on_hover_text("Close replay").clicked() {
+        if resp.on_hover_text(lang.text("Close replay")).clicked() {
             chart.replay = None;
         }
         return;
     }
     let (glyph, tip) = if playing {
-        (ph::PAUSE, "Pause")
+        (ph::PAUSE, lang.text("Pause"))
     } else {
-        (ph::PLAY, "Play")
+        (ph::PLAY, lang.text("Play"))
     };
     if button(ui, glyph, "", tip, false, "play")
         && let Some(r) = chart.replay.as_mut()
@@ -288,7 +292,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         r.playing = !r.playing && r.cut < r.full.len();
         r.selecting = false;
     }
-    if button(ui, ph::SKIP_FORWARD, "", "Forward one bar", false, "step") {
+    if button(ui, ph::SKIP_FORWARD, "", lang.text("Forward one bar"), false, "step") {
         if let Some(r) = chart.replay.as_mut() {
             r.selecting = false;
         }
@@ -298,21 +302,28 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         ui,
         ph::GAUGE,
         speed_label,
-        "Speed: time per bar (click to change)",
+        lang.text("Speed: time per bar (click to change)"),
         false,
         "speed",
     ) && let Some(r) = chart.replay.as_mut()
     {
         r.speed = (r.speed + 1) % SPEEDS.len();
     }
-    if button(ui, ph::FAST_FORWARD, "Real time", "Jump to real time", false, "live") {
+    if button(
+        ui,
+        ph::FAST_FORWARD,
+        lang.text("Real time"),
+        lang.text("Jump to real time"),
+        false,
+        "live",
+    ) {
         chart.exit_replay();
         return;
     }
     ui.painter().text(
         pos2(x + 6.0, bar.center().y),
         Align2::LEFT_CENTER,
-        format!("{left} left"),
+        lang.format("{left} left", &[("left", &left.to_string())]),
         theme::regular(11.5),
         t.text3,
     );
@@ -325,7 +336,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         theme::regular(14.0),
         t.text2,
     );
-    if resp.on_hover_text("Close replay").clicked() {
+    if resp.on_hover_text(lang.text("Close replay")).clicked() {
         chart.exit_replay();
     }
 }

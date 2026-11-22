@@ -5,6 +5,7 @@
 //! logo's greens whatever the theme.
 
 use crate::app::App;
+use crate::i18n::tr;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -255,6 +256,7 @@ impl App {
             ctx.request_repaint();
         }
         let mut act = Act::None;
+        let mut language = self.language;
         egui::CentralPanel::no_frame()
             .frame(egui::Frame::new().fill(t.bg))
             .show(ui, |ui| {
@@ -293,7 +295,27 @@ impl App {
                         act = a;
                     }
                 }
+                if st.step == 0 {
+                    let rect = full.shrink(16.0);
+                    ui.scope_builder(
+                        egui::UiBuilder::new()
+                            .max_rect(rect)
+                            .layout(egui::Layout::right_to_left(egui::Align::Min)),
+                        |ui| {
+                            crate::widgets::combo("welcome-language")
+                                .selected_text(language.name())
+                                .show_ui(ui, |ui| {
+                                    for lang in crate::i18n::Language::ALL {
+                                        crate::widgets::option_value(ui, &mut language, lang, lang.name());
+                                    }
+                                });
+                        },
+                    );
+                }
             });
+        if language != self.language {
+            self.set_language(language);
+        }
         if let Some(st) = &self.onboarding
             && st.leaving_at.is_some()
             && let (Some(s), Some(r)) = (&st.pick, st.pick_rect)
@@ -364,7 +386,7 @@ impl App {
             .enumerate()
             .map(|(k, m)| Watchlist {
                 id: k as i64 + 1,
-                name: m.name().into(),
+                name: self.language.text(m.name()).into(),
                 items: m.symbols().into_iter().map(Item::Symbol).collect(),
             })
             .collect();
@@ -621,7 +643,7 @@ fn welcome(ui: &mut Ui, t: &Theme, shown: f64) -> Act {
     p.text(
         pos2(c.x, y + 56.0),
         Align2::CENTER_TOP,
-        "Charts, scripts and backtests. All on your own machine.",
+        tr(ui, "Charts, scripts and backtests. All on your own machine."),
         theme::regular(16.0),
         motion::with_alpha(t.text2, words),
     );
@@ -651,7 +673,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
     p.text(
         pos2(full.center().x, top),
         Align2::CENTER_TOP,
-        "What do you trade?",
+        tr(ui, "What do you trade?"),
         theme::display(30.0),
         t.text,
     );
@@ -679,7 +701,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
         p.text(
             pos2(r.center().x, r.top() + 100.0),
             Align2::CENTER_TOP,
-            m.name(),
+            tr(ui, m.name()),
             theme::semibold(15.0),
             t.text,
         );
@@ -737,7 +759,7 @@ fn first_chart(
     p.text(
         pos2(full.center().x, full.top() + 48.0),
         Align2::CENTER_TOP,
-        "Pick your first chart",
+        tr(ui, "Pick your first chart"),
         theme::display(30.0),
         t.text,
     );
@@ -763,7 +785,7 @@ fn first_chart(
                 ui.painter().text(
                     pos2(head.left() + 8.0, head.center().y),
                     Align2::LEFT_CENTER,
-                    format!("{}  {}", m.glyph(), m.name()),
+                    format!("{}  {}", m.glyph(), tr(ui, m.name())),
                     theme::medium(13.0),
                     t.text2,
                 );
@@ -896,6 +918,7 @@ fn check(p: &egui::Painter, c: Pos2, on: f32) {
 /// The main button, in the logo's green. Hovered, it brightens, lifts a
 /// little with a green glow, and an arrow slides in after the label.
 fn cta(ui: &mut Ui, id: &str, r: Rect, label: &str, enabled: bool) -> bool {
+    let label = tr(ui, label);
     let sense = if enabled { Sense::click() } else { Sense::hover() };
     let resp = ui.interact(r, Id::new(id), sense);
     let h = motion::toggle(ui.ctx(), resp.id.with("h"), enabled && resp.hovered(), motion::STANDARD);
@@ -961,7 +984,7 @@ fn back(ui: &mut Ui, t: &Theme, r: Rect) -> bool {
     p.text(
         r.center(),
         Align2::CENTER_CENTER,
-        format!("{}  Back", ph::ARROW_LEFT),
+        format!("{}  {}", ph::ARROW_LEFT, tr(ui, "Back")),
         theme::medium(14.0),
         motion::lerp_color(t.text2, t.text, h),
     );

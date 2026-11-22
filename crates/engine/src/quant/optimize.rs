@@ -8,7 +8,7 @@
 //!   batch at a time (one per core, spread out with the "believer" trick).
 
 use super::gp::Gp;
-use super::{Objective, PValue, Param, Progress, Rng, Runner, Summary};
+use super::{Objective, PValue, Param, Progress, Rng, Runner, SearchError, Summary};
 use opentern_core::Bar;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -149,6 +149,16 @@ fn run_batch(
 
 /// Runs the search. Errors are plain sentences for the UI.
 pub fn optimize(setup: &Setup, bars: &[Bar], run: &impl Runner, progress: &Progress) -> Result<Outcome, String> {
+    optimize_checked(setup, bars, run, progress).map_err(|e| e.to_string())
+}
+
+/// Runs the same search with structured errors for localized interfaces.
+pub fn optimize_checked(
+    setup: &Setup,
+    bars: &[Bar],
+    run: &impl Runner,
+    progress: &Progress,
+) -> Result<Outcome, SearchError> {
     if let Some(n) = planned(setup) {
         progress.add_total(n);
     }
@@ -166,16 +176,21 @@ pub fn planned(setup: &Setup) -> Option<usize> {
 }
 
 /// [`optimize`] without adding to the progress total (the caller has).
-pub(crate) fn search(setup: &Setup, bars: &[Bar], run: &impl Runner, progress: &Progress) -> Result<Outcome, String> {
+pub(crate) fn search(
+    setup: &Setup,
+    bars: &[Bar],
+    run: &impl Runner,
+    progress: &Progress,
+) -> Result<Outcome, SearchError> {
     if setup.params.is_empty() {
-        return Err("Pick at least one input to optimize.".into());
+        return Err(SearchError::NoParameters);
     }
     if bars.is_empty() {
-        return Err("There are no bars to test on yet.".into());
+        return Err(SearchError::NoBars);
     }
     let axes = axes(&setup.params);
     if let Some(p) = setup.params.iter().zip(&axes).find(|(_, a)| a.is_empty()) {
-        return Err(format!("{} has no values to try.", p.0.title));
+        return Err(SearchError::EmptyRange(p.0.title.clone()));
     }
     let combos = combinations(&setup.params);
     let method = match setup.method {
@@ -185,9 +200,10 @@ pub(crate) fn search(setup: &Setup, bars: &[Bar], run: &impl Runner, progress: &
     let mut trials = match method {
         Method::Grid => {
             if combos > MAX_GRID {
-                return Err(format!(
-                    "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
-                ));
+                return Err(SearchError::GridTooLarge {
+                    combinations: combos,
+                    per_window: false,
+                });
             }
             let all: Vec<Vec<PValue>> = (0..combos)
                 .map(|mut k| {

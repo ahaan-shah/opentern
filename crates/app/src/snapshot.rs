@@ -23,6 +23,7 @@ impl App {
     }
 
     pub(crate) fn poll_snapshot(&mut self, ctx: &egui::Context) {
+        let lang = self.language;
         let Some(kind) = self.snap else { return };
         let image = ctx.input(|i| {
             i.events.iter().find_map(|e| match e {
@@ -57,7 +58,13 @@ impl App {
             }
             Snap::Copy => {
                 ctx.copy_image(crop);
-                self.notify(ph::CAMERA, "Snapshot copied", "Paste it anywhere.", None, true);
+                self.notify(
+                    ph::CAMERA,
+                    lang.text("Snapshot copied"),
+                    lang.text("Paste it anywhere."),
+                    None,
+                    true,
+                );
             }
             Snap::Save => match self.save_png(&crop) {
                 Ok(path) => {
@@ -65,9 +72,9 @@ impl App {
                         .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
-                    self.notify(ph::CAMERA, "Snapshot saved", &name, Some(path), true);
+                    self.notify(ph::CAMERA, lang.text("Snapshot saved"), &name, Some(path), true);
                 }
-                Err(e) => self.notify(ph::CAMERA, "Couldn't save the snapshot", &e, None, true),
+                Err(e) => self.notify(ph::CAMERA, lang.text("Couldn't save the snapshot"), &e, None, true),
             },
         }
     }

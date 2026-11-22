@@ -9,6 +9,7 @@
 //! their own process and aren't rerun here.
 
 use crate::app::App;
+use crate::i18n::Language;
 use crate::icons::ph;
 use crate::shell::small_button;
 use crate::strategy::{Fmt, closed_broker, kpi, num, pct, table, time_text, tone};
@@ -20,7 +21,7 @@ use opentern_engine::quant::montecarlo::{McResult, McSetup, Resample};
 use opentern_engine::quant::optimize::{self, Method, Outcome, Setup};
 use opentern_engine::quant::portfolio::{self, PortfolioResult};
 use opentern_engine::quant::walkforward::{self, WalkResult, WalkSetup};
-use opentern_engine::quant::{Objective, PValue, Param, Progress, Range, export};
+use opentern_engine::quant::{Objective, PValue, Param, Progress, Range, SearchError, export};
 use opentern_series::study::{Factory, InputKind, Inputs, Instance, Meta, Source, Value, sessions};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -112,6 +113,32 @@ impl Default for LabSetup {
             port_bars: 2000,
             params: HashMap::new(),
         }
+    }
+}
+
+fn search_error(language: Language, error: SearchError) -> String {
+    match error {
+        SearchError::NoParameters | SearchError::NoBars => language.text(&error.to_string()).to_owned(),
+        SearchError::EmptyRange(input) => language.format("{input} has no values to try.", &[("input", &input)]),
+        SearchError::GridTooLarge { combinations, per_window } => language.format(
+            if per_window {
+                "That's {combinations} combinations per window, more than the grid's {limit}. Narrow the ranges or use Random or Bayesian."
+            } else {
+                "That's {combinations} combinations, more than the grid's {limit}. Narrow the ranges or use Random or Bayesian."
+            },
+            &[("combinations", &combinations.to_string()), ("limit", &optimize::MAX_GRID.to_string())],
+        ),
+        SearchError::ShortWindow { required, available } => language.format(
+            "Not enough bars: each step needs {required} in-sample bars and some after them, and there are {available}.",
+            &[("required", &required.to_string()), ("available", &available.to_string())],
+        ),
+    }
+}
+
+fn parameter_value(language: Language, value: &PValue) -> String {
+    match value {
+        PValue::Bool(on) => language.text(if *on { "on" } else { "off" }).into(),
+        _ => value.to_string(),
     }
 }
 
@@ -310,20 +337,21 @@ impl App {
 
     /// The strategy the lab works on: the one picked in the report.
     fn lab_target(&self) -> Result<Target, String> {
+        let language = self.language;
         let Some(run) = self.strategies.current() else {
-            return Err(
-                "Add a strategy to the chart first. A strategy is a script that starts with strategy(…).".into(),
-            );
+            return Err(language
+                .text("Add a strategy to the chart first. A strategy is a script that starts with strategy(…).")
+                .into());
         };
         let study = self
             .chart
             .studies
             .iter()
             .find(|s| s.uid == run.uid)
-            .ok_or("The strategy isn't on the chart any more.")?;
+            .ok_or(language.text("The strategy isn't on the chart any more."))?;
         let Some(factory) = study.inst.factory() else {
             return Err(
-                "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+                language.text("Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work.")
                     .into(),
             );
         };
@@ -416,18 +444,19 @@ impl App {
     }
 
     fn lab_start(&mut self, f: impl FnOnce(Arc<Progress>) -> Done + Send + 'static) {
+        let language = self.language;
         let progress = Arc::new(Progress::default());
         let (tx, rx) = channel();
         let p = progress.clone();
         let ctx = self.egui_ctx.clone();
         let spawned = std::thread::Builder::new().name("lab".into()).spawn(move || {
             let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(p)));
-            let done = r.unwrap_or_else(|_| Done::Opt(Err("Something went wrong in the run.".into())));
+            let done = r.unwrap_or_else(|_| Done::Opt(Err(language.text("Something went wrong in the run.").into())));
             let _ = tx.send(done);
             ctx.request_repaint();
         });
         if spawned.is_err() {
-            self.lab.status = "Couldn't start the run.".into();
+            self.lab.status = self.language.text("Couldn't start the run.").into();
             return;
         }
         self.lab.job = Some(Job {
@@ -435,7 +464,7 @@ impl App {
             rx,
             started: Instant::now(),
         });
-        self.lab.status = "Running…".into();
+        self.lab.status = self.language.text("Running…").into();
     }
 
     pub(crate) fn lab_run(&mut self) {
@@ -451,6 +480,7 @@ impl App {
             }
         };
         let bars = Arc::new(self.chart.bars.clone());
+        let language = self.language;
         match self.lab.setup.mode {
             Mode::Optimize => {
                 let setup = self.lab_opt_setup(target.meta);
@@ -458,7 +488,11 @@ impl App {
                 self.lab.pending_uid = target.uid;
                 self.lab_start(move |p| {
                     let run = runner(&target, &setup.params);
-                    Done::Opt(optimize::optimize(&setup, &bars, &run, &p).map(|o| (setup, o)))
+                    Done::Opt(
+                        optimize::optimize_checked(&setup, &bars, &run, &p)
+                            .map(|o| (setup, o))
+                            .map_err(|e| search_error(language, e)),
+                    )
                 });
             }
             Mode::WalkForward => {
@@ -470,7 +504,11 @@ impl App {
                 };
                 self.lab_start(move |p| {
                     let run = runner(&target, &w.optimize.params);
-                    Done::Walk(walkforward::walk_forward(&w, &bars, &run, &p).map(|r| (w.optimize, r)))
+                    Done::Walk(
+                        walkforward::walk_forward_checked(&w, &bars, &run, &p)
+                            .map(|r| (w.optimize, r))
+                            .map_err(|e| search_error(language, e)),
+                    )
                 });
             }
             Mode::MonteCarlo => {
@@ -478,7 +516,12 @@ impl App {
                 let trades = run.broker.trades.clone();
                 let cap = run.broker.props.initial_capital;
                 let s = self.lab.setup.mc.clone();
-                self.lab_start(move |_| Done::Mc(opentern_engine::quant::montecarlo::monte_carlo(&trades, cap, &s)));
+                self.lab_start(move |_| {
+                    Done::Mc(
+                        opentern_engine::quant::montecarlo::monte_carlo(&trades, cap, &s)
+                            .map_err(|e| language.text(&e).to_owned()),
+                    )
+                });
             }
             Mode::Portfolio => self.lab_portfolio(target),
         }
@@ -486,7 +529,10 @@ impl App {
 
     fn lab_portfolio(&mut self, target: Target) {
         if target.build.is_none() {
-            self.lab.status = "This strategy can't be compiled for other symbols.".into();
+            self.lab.status = self
+                .language
+                .text("This strategy can't be compiled for other symbols.")
+                .into();
             return;
         }
         let symbols = match &self.lab.setup.universe {
@@ -503,7 +549,7 @@ impl App {
                 .unwrap_or_default(),
         };
         if symbols.is_empty() {
-            self.lab.status = "That list has no symbols.".into();
+            self.lab.status = self.language.text("That list has no symbols.").into();
             return;
         }
         let capital = self
@@ -522,7 +568,9 @@ impl App {
                 count: self.lab.setup.port_bars.clamp(100, 20_000),
             });
         }
-        self.lab.status = format!("Loading {} symbols…", symbols.len());
+        self.lab.status = self
+            .language
+            .format("Loading {count} symbols…", &[("count", &symbols.len().to_string())]);
         self.lab.fetch = Some(PortFetch {
             seq_base,
             tf,
@@ -535,6 +583,7 @@ impl App {
 
     /// Bars for a portfolio run arrived.
     pub(crate) fn lab_fetched(&mut self, seq: u64, id: &str, result: Result<Vec<Bar>, String>) {
+        let language = self.language;
         let Some(f) = &mut self.lab.fetch else { return };
         if seq < f.seq_base || seq >= f.seq_base + 10_000 {
             return;
@@ -546,7 +595,10 @@ impl App {
             return;
         }
         f.got.push((sym, result));
-        self.lab.status = format!("Loaded {} of {}…", f.got.len(), f.want.len());
+        self.lab.status = self.language.format(
+            "Loaded {done} of {total}…",
+            &[("done", &f.got.len().to_string()), ("total", &f.want.len().to_string())],
+        );
         if f.got.len() < f.want.len() {
             return;
         }
@@ -564,13 +616,13 @@ impl App {
                 .map(|(sym, bars)| {
                     let r = bars.and_then(|bars| {
                         if p.cancelled() {
-                            return Err("Stopped.".into());
+                            return Err(language.text("Stopped.").into());
                         }
                         let (meta, factory) = build(&sym, &extra)?;
                         let tz = jiff::tz::TimeZone::get(&sym.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
                         let ins = f.target.inputs.normalized(meta);
                         let b = run_study(meta, &ins, &factory, &bars, f.tf, &tz, None)
-                            .ok_or("The script failed on this symbol.")?;
+                            .ok_or(language.text("The script failed on this symbol."))?;
                         Ok((bars, b))
                     });
                     p.tick();
@@ -589,7 +641,7 @@ impl App {
                 })
                 .collect();
             if ok.is_empty() {
-                return Done::Port(Err("No symbol could be tested.".into()));
+                return Done::Port(Err(language.text("No symbol could be tested.").into()));
             }
             let legs: Vec<portfolio::Leg> = ok
                 .iter()
@@ -645,10 +697,17 @@ impl App {
         } else {
             format!("{secs:.0} s")
         };
-        let stopped = if cancelled { "Stopped. " } else { "" };
+        let stopped = if cancelled { self.language.text("Stopped. ") } else { "" };
         self.lab.status = match done {
             Done::Opt(Ok((s, o))) => {
-                let msg = format!("{stopped}{} runs in {took}.", o.trials.len());
+                let msg = self.language.format(
+                    "{stopped}{count} runs in {took}.",
+                    &[
+                        ("stopped", stopped),
+                        ("count", &o.trials.len().to_string()),
+                        ("took", &took),
+                    ],
+                );
                 let uid = self.lab.pending_uid;
                 if s.params.len() >= 2 {
                     self.lab.heat = (0, 1);
@@ -657,20 +716,40 @@ impl App {
                 msg
             }
             Done::Walk(Ok((s, r))) => {
-                let msg = format!("{stopped}{} windows in {took}.", r.windows.len());
+                let msg = self.language.format(
+                    "{stopped}{count} windows in {took}.",
+                    &[
+                        ("stopped", stopped),
+                        ("count", &r.windows.len().to_string()),
+                        ("took", &took),
+                    ],
+                );
                 self.lab.walk = Some((s, r));
                 msg
             }
             Done::Mc(Ok(r)) => {
-                let msg = format!("{} runs in {took}.", r.runs);
+                let msg = self.language.format(
+                    "{count} runs in {took}.",
+                    &[("count", &r.runs.to_string()), ("took", &took)],
+                );
                 self.lab.mc = Some(r);
                 msg
             }
             Done::Port(Ok((r, errors))) => {
                 let msg = if errors.is_empty() {
-                    format!("{} symbols in {took}.", r.legs.len())
+                    self.language.format(
+                        "{count} symbols in {took}.",
+                        &[("count", &r.legs.len().to_string()), ("took", &took)],
+                    )
                 } else {
-                    format!("{} symbols in {took}; {} couldn't run.", r.legs.len(), errors.len())
+                    self.language.format(
+                        "{count} symbols in {took}; {failed} couldn't run.",
+                        &[
+                            ("count", &r.legs.len().to_string()),
+                            ("took", &took),
+                            ("failed", &errors.len().to_string()),
+                        ],
+                    )
                 };
                 self.lab.port = Some(r);
                 self.lab.port_errors = errors;
@@ -684,13 +763,13 @@ impl App {
     fn lab_apply(&mut self, values: &[PValue]) {
         let Some((setup, _, uid)) = &self.lab.opt else { return };
         let Some(s) = self.chart.studies.iter().find(|s| s.uid == *uid) else {
-            self.lab.status = "The strategy isn't on the chart any more.".into();
+            self.lab.status = self.language.text("The strategy isn't on the chart any more.").into();
             return;
         };
         let ins = inputs_with(s.inst.meta, &s.inst.inputs, &setup.params, values);
         let uid = *uid;
         self.chart.set_inputs(uid, &ins);
-        self.lab.status = "Applied to the chart.".into();
+        self.lab.status = self.language.text("Applied to the chart.").into();
     }
 
     fn lab_export(&mut self, json: bool) {
@@ -721,8 +800,10 @@ impl App {
         let path = dir.join(format!("{} {}.{ext}", safe_name(&name), mode.file()));
         let r = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&path, text));
         self.lab.status = match r {
-            Ok(()) => format!("Saved to {}", path.display()),
-            Err(e) => format!("Couldn't save: {e}"),
+            Ok(()) => self
+                .language
+                .format("Saved to {path}", &[("path", &path.display().to_string())]),
+            Err(e) => self.language.format("Couldn't save: {e}", &[("e", &e.to_string())]),
         };
     }
 
@@ -737,7 +818,7 @@ impl App {
             j.progress.cancel.store(true, Ordering::Relaxed);
         }
         if self.lab.fetch.take().is_some() {
-            self.lab.status = "Stopped.".into();
+            self.lab.status = self.language.text("Stopped.").into();
         }
     }
 
@@ -983,7 +1064,7 @@ impl App {
             (t.values.clone(), title.join(", "))
         };
         self.lab_apply(&values);
-        if self.lab.status == "Applied to the chart." {
+        if self.lab.status == self.language.text("Applied to the chart.") {
             Ok(format!("Applied {title} to the strategy on the chart."))
         } else {
             Err(self.lab.status.clone())
@@ -993,12 +1074,13 @@ impl App {
     // ---------------------------------------------------------------- UI
 
     pub(crate) fn lab_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         self.lab_load();
         let running = self.lab.job.is_some() || self.lab.fetch.is_some();
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             for m in Mode::ALL {
-                if small_button(ui, t, m.title(), self.lab.setup.mode == m).clicked() {
+                if small_button(ui, t, language.text(m.title()), self.lab.setup.mode == m).clicked() {
                     self.lab.setup.mode = m;
                 }
             }
@@ -1011,12 +1093,12 @@ impl App {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
                 if running {
-                    if small_button(ui, t, "Stop", false).clicked() {
+                    if small_button(ui, t, language.text("Stop"), false).clicked() {
                         if let Some(j) = &self.lab.job {
                             j.progress.cancel.store(true, Ordering::Relaxed);
                         }
                         if self.lab.fetch.take().is_some() {
-                            self.lab.status = "Stopped.".into();
+                            self.lab.status = language.text("Stopped.").into();
                         }
                     }
                     let frac = self.lab.job.as_ref().map(|j| j.progress.fraction()).unwrap_or(0.0);
@@ -1030,7 +1112,14 @@ impl App {
                     );
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
                 } else {
-                    if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), "Run").clicked()
+                    if crate::widgets::button(
+                        ui,
+                        crate::widgets::Kind::Primary,
+                        true,
+                        Some(ph::PLAY),
+                        language.text("Run"),
+                    )
+                    .clicked()
                     {
                         self.lab_run();
                     }
@@ -1042,13 +1131,13 @@ impl App {
                     };
                     if has {
                         if small_button(ui, t, "JSON", false)
-                            .on_hover_text("Save the results as JSON")
+                            .on_hover_text(language.text("Save the results as JSON"))
                             .clicked()
                         {
                             self.lab_export(true);
                         }
                         if small_button(ui, t, "CSV", false)
-                            .on_hover_text("Save the results as CSV")
+                            .on_hover_text(language.text("Save the results as CSV"))
                             .clicked()
                         {
                             self.lab_export(false);
@@ -1062,7 +1151,7 @@ impl App {
         let target = self.lab_target();
         let meta = target.as_ref().ok().map(|t| t.meta);
         if self.strategies.runs.is_empty() {
-            crate::widgets::empty_state(ui, t, ph::FLASK, "No strategy on the chart");
+            crate::widgets::empty_state(ui, t, ph::FLASK, language.text("No strategy on the chart"));
             return;
         }
         let full = ui.available_rect_before_wrap();
@@ -1114,6 +1203,7 @@ impl App {
     }
 
     fn lab_setup_ui(&mut self, ui: &mut Ui, t: &Theme, meta: Option<&'static Meta>, target: &Result<Target, String>) {
+        let language = Language::of(ui);
         let mode = self.lab.setup.mode;
         if let Err(e) = target
             && mode != Mode::MonteCarlo
@@ -1127,48 +1217,63 @@ impl App {
                 self.param_table(ui, t, meta);
                 ui.add_space(8.0);
                 let s = &mut self.lab.setup;
-                row(ui, t, "Maximize", |ui| {
+                row(ui, t, language.text("Maximize"), |ui| {
                     crate::widgets::combo("lab-objective")
-                        .selected_text(s.objective.name())
+                        .selected_text(language.text(s.objective.name()))
                         .width(150.0)
                         .show_ui(ui, |ui| {
                             for o in Objective::ALL {
-                                crate::widgets::option_value(ui, &mut s.objective, o, o.name());
+                                crate::widgets::option_value(ui, &mut s.objective, o, language.text(o.name()));
                             }
                         });
                 });
-                row(ui, t, "Search", |ui| {
+                row(ui, t, language.text("Search"), |ui| {
                     crate::widgets::combo("lab-method")
                         .selected_text(match s.method {
-                            MethodKind::Grid => "Every combination",
-                            MethodKind::Random => "Random",
-                            MethodKind::Bayesian => "Bayesian",
+                            MethodKind::Grid => language.text("Every combination"),
+                            MethodKind::Random => language.text("Random"),
+                            MethodKind::Bayesian => language.text("Bayesian"),
                         })
                         .width(150.0)
                         .show_ui(ui, |ui| {
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Grid, "Every combination");
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Random, "Random");
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Bayesian, "Bayesian");
+                            crate::widgets::option_value(
+                                ui,
+                                &mut s.method,
+                                MethodKind::Grid,
+                                language.text("Every combination"),
+                            );
+                            crate::widgets::option_value(
+                                ui,
+                                &mut s.method,
+                                MethodKind::Random,
+                                language.text("Random"),
+                            );
+                            crate::widgets::option_value(
+                                ui,
+                                &mut s.method,
+                                MethodKind::Bayesian,
+                                language.text("Bayesian"),
+                            );
                         });
                 });
                 if s.method != MethodKind::Grid {
-                    row(ui, t, "Runs", |ui| {
+                    row(ui, t, language.text("Runs"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.trials).range(10..=5000));
                     });
                 }
-                row(ui, t, "Fewest trades", |ui| {
+                row(ui, t, language.text("Fewest trades"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.min_trades).range(0..=10_000));
                 });
                 if mode == Mode::WalkForward {
-                    row(ui, t, "In-sample bars", |ui| {
+                    row(ui, t, language.text("In-sample bars"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.in_sample).range(20..=1_000_000).speed(5));
                     });
-                    row(ui, t, "Out-of-sample bars", |ui| {
+                    row(ui, t, language.text("Out-of-sample bars"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.out_sample).range(5..=1_000_000).speed(2));
                     });
-                    row(ui, t, "Anchored", |ui| {
+                    row(ui, t, language.text("Anchored"), |ui| {
                         crate::widgets::checkbox(ui, &mut s.anchored, "")
-                            .on_hover_text("Every in-sample window starts at the first bar");
+                            .on_hover_text(language.text("Every in-sample window starts at the first bar"));
                     });
                 }
                 let setup = self.lab_opt_setup(meta);
@@ -1176,10 +1281,11 @@ impl App {
                 let per = optimize::planned(&setup);
                 let n = self.chart.bars.len();
                 let text = match (setup.params.len(), per) {
-                    (0, _) => "Tick the inputs to vary.".to_string(),
-                    (_, None) => {
-                        format!("{combos} combinations: too many for every combination. Use Random or Bayesian.")
-                    }
+                    (0, _) => language.text("Tick the inputs to vary.").to_string(),
+                    (_, None) => language.format(
+                        "{combos} combinations: too many for every combination. Use Random or Bayesian.",
+                        &[("combos", &combos.to_string())],
+                    ),
                     (_, Some(p)) if mode == Mode::WalkForward => {
                         let w = walkforward::windows(
                             n,
@@ -1191,36 +1297,51 @@ impl App {
                             },
                         )
                         .len();
-                        format!("{w} windows × {p} runs on the chart's {n} bars.")
+                        language.format(
+                            "{w} windows × {p} runs on the chart's {n} bars.",
+                            &[("w", &w.to_string()), ("p", &p.to_string()), ("n", &n.to_string())],
+                        )
                     }
-                    (_, Some(p)) => format!("{p} runs of {combos} combinations on the chart's {n} bars."),
+                    (_, Some(p)) => language.format(
+                        "{p} runs of {combos} combinations on the chart's {n} bars.",
+                        &[
+                            ("p", &p.to_string()),
+                            ("combos", &combos.to_string()),
+                            ("n", &n.to_string()),
+                        ],
+                    ),
                 };
                 ui.add_space(6.0);
                 ui.label(egui::RichText::new(text).color(t.text3).size(11.5));
             }
             Mode::MonteCarlo => {
                 let s = &mut self.lab.setup.mc;
-                row(ui, t, "Runs", |ui| {
+                row(ui, t, language.text("Runs"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.runs).range(100..=100_000).speed(10));
                 });
-                row(ui, t, "Method", |ui| {
+                row(ui, t, language.text("Method"), |ui| {
                     crate::widgets::combo("lab-mc")
                         .selected_text(match s.method {
-                            Resample::Shuffle => "Shuffle the order",
-                            Resample::Bootstrap => "Draw with replacement",
+                            Resample::Shuffle => language.text("Shuffle the order"),
+                            Resample::Bootstrap => language.text("Draw with replacement"),
                         })
                         .width(150.0)
                         .show_ui(ui, |ui| {
-                            crate::widgets::option_value(ui, &mut s.method, Resample::Shuffle, "Shuffle the order");
+                            crate::widgets::option_value(
+                                ui,
+                                &mut s.method,
+                                Resample::Shuffle,
+                                language.text("Shuffle the order"),
+                            );
                             crate::widgets::option_value(
                                 ui,
                                 &mut s.method,
                                 Resample::Bootstrap,
-                                "Draw with replacement",
+                                language.text("Draw with replacement"),
                             );
                         });
                 });
-                row(ui, t, "Ruin at drawdown", |ui| {
+                row(ui, t, language.text("Ruin at drawdown"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.ruin_pct).range(1.0..=100.0).suffix(" %"));
                 });
             }
@@ -1231,19 +1352,19 @@ impl App {
                         .iter()
                         .find(|w| w.id == *id)
                         .map(|w| w.name.clone())
-                        .unwrap_or_else(|| "Watchlist".into()),
-                    crate::screener::Universe::Preset(n) => n.clone(),
+                        .unwrap_or_else(|| language.text("Watchlist").into()),
+                    crate::screener::Universe::Preset(n) => language.text(n).to_string(),
                 };
                 let lists = self.watchlists.clone();
                 let s = &mut self.lab.setup;
-                row(ui, t, "Symbols", |ui| {
+                row(ui, t, language.text("Symbols"), |ui| {
                     crate::widgets::combo("lab-universe")
                         .selected_text(current)
                         .width(150.0)
                         .show_ui(ui, |ui| {
                             for (name, _) in crate::screener::presets() {
                                 let u = crate::screener::Universe::Preset(name.into());
-                                if crate::widgets::option(ui, s.universe == u, name).clicked() {
+                                if crate::widgets::option(ui, s.universe == u, language.text(name)).clicked() {
                                     s.universe = u;
                                 }
                             }
@@ -1262,7 +1383,7 @@ impl App {
                             }
                         });
                 });
-                row(ui, t, "Bars per symbol", |ui| {
+                row(ui, t, language.text("Bars per symbol"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.port_bars).range(100..=20_000).speed(10));
                 });
                 ui.add_space(6.0);
@@ -1271,15 +1392,16 @@ impl App {
     }
 
     fn param_table(&mut self, ui: &mut Ui, t: &Theme, meta: &'static Meta) {
+        let language = Language::of(ui);
         ui.label(
-            egui::RichText::new("INPUTS TO VARY")
+            egui::RichText::new(language.text("INPUTS TO VARY"))
                 .font(theme::semibold(11.0))
                 .color(t.text3),
         );
         ui.add_space(2.0);
         let rows = self.lab_params(meta);
         if rows.is_empty() {
-            ui.label(egui::RichText::new("This strategy has no inputs to vary.").color(t.text3));
+            ui.label(egui::RichText::new(language.text("This strategy has no inputs to vary.")).color(t.text3));
             return;
         }
         for r in rows.iter_mut() {
@@ -1297,19 +1419,19 @@ impl App {
                 };
                 match &mut r.range {
                     Range::Int { from, to, step } => {
-                        word(ui, "from");
+                        word(ui, language.text("from"));
                         ui.add(egui::DragValue::new(from).speed(0.2));
-                        word(ui, "to");
+                        word(ui, language.text("to"));
                         ui.add(egui::DragValue::new(to).speed(0.2));
-                        word(ui, "by");
+                        word(ui, language.text("by"));
                         ui.add(egui::DragValue::new(step).range(1..=1_000_000).speed(0.1));
                     }
                     Range::Float { from, to, step } => {
-                        word(ui, "from");
+                        word(ui, language.text("from"));
                         ui.add(egui::DragValue::new(from).speed(0.01).max_decimals(6));
-                        word(ui, "to");
+                        word(ui, language.text("to"));
                         ui.add(egui::DragValue::new(to).speed(0.01).max_decimals(6));
-                        word(ui, "by");
+                        word(ui, language.text("by"));
                         ui.add(
                             egui::DragValue::new(step)
                                 .range(1e-9..=1e9)
@@ -1317,8 +1439,11 @@ impl App {
                                 .max_decimals(6),
                         );
                     }
-                    Range::Bool => word(ui, "Tries on and off"),
-                    Range::Choice(c) => word(ui, &format!("Tries all {} choices", c.len())),
+                    Range::Bool => word(ui, language.text("Tries on and off")),
+                    Range::Choice(c) => word(
+                        ui,
+                        &language.format("Tries all {count} choices", &[("count", &c.len().to_string())]),
+                    ),
                 }
             });
             ui.add_space(2.0);
@@ -1328,6 +1453,7 @@ impl App {
     // ---- results
 
     fn lab_opt_results(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         let Some((setup, outcome, _)) = &self.lab.opt else {
             return;
         };
@@ -1337,10 +1463,10 @@ impl App {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             if setup.params.len() >= 2 {
-                if small_button(ui, t, "List", self.lab.view == OptView::List).clicked() {
+                if small_button(ui, t, language.text("List"), self.lab.view == OptView::List).clicked() {
                     self.lab.view = OptView::List;
                 }
-                if small_button(ui, t, "Heatmap", self.lab.view == OptView::Heatmap).clicked() {
+                if small_button(ui, t, language.text("Heatmap"), self.lab.view == OptView::Heatmap).clicked() {
                     self.lab.view = OptView::Heatmap;
                 }
                 ui.add_space(8.0);
@@ -1351,22 +1477,24 @@ impl App {
                         .params
                         .iter()
                         .zip(&b.values)
-                        .map(|(p, v)| format!("{} {v}", p.title))
+                        .map(|(p, v)| format!("{} {}", p.title, parameter_value(language, v)))
                         .collect();
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if small_button(ui, t, "Apply best", false)
-                            .on_hover_text("Put the best inputs on the chart's strategy")
+                        if small_button(ui, t, language.text("Apply best"), false)
+                            .on_hover_text(language.text("Put the best inputs on the chart's strategy"))
                             .clicked()
                         {
                             apply = Some(b.values.clone());
                         }
                         ui.add_space(6.0);
-                        let text = format!(
-                            "Best: {}  →  {} ({}), {} trades",
-                            vals.join(" · "),
-                            crate::strategy::grouped(b.summary.net_profit, 2),
-                            pct(b.summary.net_profit_pct),
-                            b.summary.total_trades
+                        let text = language.format(
+                            "Best: {inputs}  →  {net} ({percent}), {trades} trades",
+                            &[
+                                ("inputs", &vals.join(" · ")),
+                                ("net", &crate::strategy::grouped(b.summary.net_profit, 2)),
+                                ("percent", &pct(b.summary.net_profit_pct)),
+                                ("trades", &b.summary.total_trades.to_string()),
+                            ],
                         );
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                             ui.add(egui::Label::new(egui::RichText::new(&text).color(t.text2)).truncate())
@@ -1376,8 +1504,10 @@ impl App {
                 }
                 None => {
                     ui.label(
-                        egui::RichText::new("No run met the conditions (too few trades, or the script failed).")
-                            .color(t.text3),
+                        egui::RichText::new(
+                            language.text("No run met the conditions (too few trades, or the script failed)."),
+                        )
+                        .color(t.text3),
                     );
                 }
             }
@@ -1407,16 +1537,23 @@ impl App {
 
     /// The trials as a table; a click selects, a double-click applies.
     fn opt_list(&mut self, ui: &mut Ui, t: &Theme, setup: &Setup) -> Option<Vec<PValue>> {
+        let language = Language::of(ui);
         let (_, outcome, _) = self.lab.opt.as_ref()?;
         let mut apply = None;
         let score_col = setup.objective != Objective::NetProfit;
         let heads: Vec<String> = std::iter::once("#".to_string())
             .chain(setup.params.iter().map(|p| p.title.clone()))
-            .chain(score_col.then(|| setup.objective.name().to_string()))
+            .chain(score_col.then(|| language.text(setup.objective.name()).to_string()))
             .chain(
-                ["Net P&L", "Trades", "Win %", "Profit factor", "Max DD"]
-                    .iter()
-                    .map(|s| s.to_string()),
+                [
+                    language.text("Net P&L"),
+                    language.text("Trades"),
+                    language.text("Win %"),
+                    language.text("Profit factor"),
+                    language.text("Max DD"),
+                ]
+                .iter()
+                .map(|s| s.to_string()),
             )
             .collect();
         let w = ui.available_width();
@@ -1471,9 +1608,9 @@ impl App {
                         }
                         let s = &tr.summary;
                         let mut cells: Vec<(String, Color32)> = vec![((i + 1).to_string(), t.text3)];
-                        cells.extend(tr.values.iter().map(|v| (v.to_string(), t.text)));
+                        cells.extend(tr.values.iter().map(|v| (parameter_value(language, v), t.text)));
                         if tr.failed {
-                            cells.push(("Script failed".into(), t.text3));
+                            cells.push((language.text("Script failed").into(), t.text3));
                         } else {
                             if score_col {
                                 cells.push((num(tr.score, 2), t.text));
@@ -1500,7 +1637,7 @@ impl App {
                         } else if resp.clicked() {
                             self.lab.selected = Some(i);
                         }
-                        resp.on_hover_text("Double-click to put these inputs on the chart");
+                        resp.on_hover_text(language.text("Double-click to put these inputs on the chart"));
                     }
                 });
         });
@@ -1508,12 +1645,13 @@ impl App {
     }
 
     fn opt_heatmap(&mut self, ui: &mut Ui, t: &Theme, setup: &Setup) -> Option<Vec<PValue>> {
+        let language = Language::of(ui);
         let n = setup.params.len();
         let (mut px, mut py) = self.lab.heat;
         px = px.min(n - 1);
         py = py.min(n - 1);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Across").color(t.text3));
+            ui.label(egui::RichText::new(language.text("Across")).color(t.text3));
             crate::widgets::combo("heat-x")
                 .selected_text(&setup.params[px].title)
                 .show_ui(ui, |ui| {
@@ -1521,7 +1659,7 @@ impl App {
                         crate::widgets::option_value(ui, &mut px, k, &p.title);
                     }
                 });
-            ui.label(egui::RichText::new("down").color(t.text3));
+            ui.label(egui::RichText::new(language.text("down")).color(t.text3));
             crate::widgets::combo("heat-y")
                 .selected_text(&setup.params[py].title)
                 .show_ui(ui, |ui| {
@@ -1532,7 +1670,7 @@ impl App {
         });
         self.lab.heat = (px, py);
         if px == py {
-            ui.label(egui::RichText::new("Pick two different inputs.").color(t.text3));
+            ui.label(egui::RichText::new(language.text("Pick two different inputs.")).color(t.text3));
             return None;
         }
         let (_, outcome, _) = self.lab.opt.as_ref()?;
@@ -1598,7 +1736,7 @@ impl App {
             p.text(
                 pos2(grid.left() + cw * (x as f32 + 0.5), grid.bottom() + 4.0),
                 Align2::CENTER_TOP,
-                v.to_string(),
+                parameter_value(language, v),
                 theme::regular(11.0),
                 t.text3,
             );
@@ -1608,7 +1746,7 @@ impl App {
             p.text(
                 pos2(grid.left() - 6.0, grid.bottom() - ch * (y as f32 + 0.5)),
                 Align2::RIGHT_CENTER,
-                v.to_string(),
+                parameter_value(language, v),
                 theme::regular(11.0),
                 t.text3,
             );
@@ -1618,13 +1756,18 @@ impl App {
             let tip = format!(
                 "{} {} · {} {}\n{}: {}",
                 setup.params[px].title,
-                heat.xs[x],
+                parameter_value(language, &heat.xs[x]),
                 setup.params[py].title,
-                heat.ys[y],
-                setup.objective.name(),
-                if v.is_nan() { "not run".into() } else { num(v, 2) }
+                parameter_value(language, &heat.ys[y]),
+                language.text(setup.objective.name()),
+                if v.is_nan() {
+                    language.text("not run").into()
+                } else {
+                    num(v, 2)
+                }
             );
-            let resp = resp.on_hover_text(format!("{tip}\nClick to put the best of these on the chart"));
+            let resp = resp
+                .on_hover_text(language.format("{tip}\nClick to put the best of these on the chart", &[("tip", &tip)]));
             if resp.clicked() && !v.is_nan() {
                 apply = outcome
                     .trials
@@ -1637,19 +1780,24 @@ impl App {
     }
 
     fn lab_walk_results(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         let Some((setup, r)) = &self.lab.walk else {
             return;
         };
         let f = self.fmt();
         let cards = [
-            ("Out-of-sample P&L", f.money(r.out_net), tone(t, r.out_net)),
-            ("Efficiency", pct(r.efficiency), t.text),
-            ("Profitable windows", pct(r.profitable_windows), t.text),
-            ("Trades", r.out_trades.to_string(), t.text),
-            ("Max drawdown", f.money(r.out_max_drawdown), t.text),
+            (
+                language.text("Out-of-sample P&L"),
+                f.money(r.out_net),
+                tone(t, r.out_net),
+            ),
+            (language.text("Efficiency"), pct(r.efficiency), t.text),
+            (language.text("Profitable windows"), pct(r.profitable_windows), t.text),
+            (language.text("Trades"), r.out_trades.to_string(), t.text),
+            (language.text("Max drawdown"), f.money(r.out_max_drawdown), t.text),
         ];
         cards_row(ui, t, &cards);
-        let tips = "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust.";
+        let tips = language.text("Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust.");
         ui.label(egui::RichText::new(tips).color(t.text3).size(11.5));
         ui.add_space(4.0);
         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), self.chart_h()), Sense::hover());
@@ -1667,9 +1815,16 @@ impl App {
             &|x| time_text(x as i64, &f.tz),
         );
         ui.add_space(6.0);
-        let mut heads = vec!["Out of sample".to_string()];
+        let mut heads = vec![language.text("Out of sample").to_string()];
         heads.extend(setup.params.iter().map(|p| p.title.clone()));
-        heads.extend(["In-sample P&L", "Out-of-sample P&L", "Trades"].map(String::from));
+        heads.extend(
+            [
+                language.text("In-sample P&L"),
+                language.text("Out-of-sample P&L"),
+                language.text("Trades"),
+            ]
+            .map(String::from),
+        );
         let rows: Vec<Vec<(String, Color32)>> = r
             .windows
             .iter()
@@ -1679,7 +1834,11 @@ impl App {
                     t.text2,
                 )];
                 for i in 0..setup.params.len() {
-                    let s = w.values.as_ref().and_then(|v| v.get(i)).map(|v| v.to_string());
+                    let s = w
+                        .values
+                        .as_ref()
+                        .and_then(|v| v.get(i))
+                        .map(|v| parameter_value(language, v));
                     v.push((s.unwrap_or_else(|| "—".into()), t.text));
                 }
                 v.push((f.money(w.in_sample.net_profit), tone(t, w.in_sample.net_profit)));
@@ -1692,6 +1851,7 @@ impl App {
     }
 
     fn lab_mc_results(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         let Some(r) = &self.lab.mc else {
             return;
         };
@@ -1700,24 +1860,56 @@ impl App {
         let cards = if self.lab.setup.mc.method == Resample::Shuffle {
             vec![
                 (
-                    "Net P&L (every run)",
+                    language.text("Net P&L (every run)"),
                     f.money(r.net_profit.p50),
                     tone(t, r.net_profit.p50),
                 ),
-                ("Backtest's max drawdown", f.money(r.actual_max_drawdown), t.text),
-                ("Median max drawdown", pct(r.max_drawdown_pct.p50), t.text),
-                ("Max drawdown, worst 5%", pct(r.max_drawdown_pct.p95), t.text),
-                ("Losing streak, worst 5%", num(r.longest_losing_streak.p95, 0), t.text),
-                ("Chance of ruin", pct(r.prob_ruin), t.text),
+                (
+                    language.text("Backtest's max drawdown"),
+                    f.money(r.actual_max_drawdown),
+                    t.text,
+                ),
+                (
+                    language.text("Median max drawdown"),
+                    pct(r.max_drawdown_pct.p50),
+                    t.text,
+                ),
+                (
+                    language.text("Max drawdown, worst 5%"),
+                    pct(r.max_drawdown_pct.p95),
+                    t.text,
+                ),
+                (
+                    language.text("Losing streak, worst 5%"),
+                    num(r.longest_losing_streak.p95, 0),
+                    t.text,
+                ),
+                (language.text("Chance of ruin"), pct(r.prob_ruin), t.text),
             ]
         } else {
             vec![
-                ("Median P&L", f.money(r.net_profit.p50), tone(t, r.net_profit.p50)),
-                ("P&L, worst 5%", f.money(r.net_profit.p5), tone(t, r.net_profit.p5)),
-                ("Median max drawdown", pct(r.max_drawdown_pct.p50), t.text),
-                ("Max drawdown, worst 5%", pct(r.max_drawdown_pct.p95), t.text),
-                ("Chance of a loss", pct(r.prob_loss), t.text),
-                ("Chance of ruin", pct(r.prob_ruin), t.text),
+                (
+                    language.text("Median P&L"),
+                    f.money(r.net_profit.p50),
+                    tone(t, r.net_profit.p50),
+                ),
+                (
+                    language.text("P&L, worst 5%"),
+                    f.money(r.net_profit.p5),
+                    tone(t, r.net_profit.p5),
+                ),
+                (
+                    language.text("Median max drawdown"),
+                    pct(r.max_drawdown_pct.p50),
+                    t.text,
+                ),
+                (
+                    language.text("Max drawdown, worst 5%"),
+                    pct(r.max_drawdown_pct.p95),
+                    t.text,
+                ),
+                (language.text("Chance of a loss"), pct(r.prob_loss), t.text),
+                (language.text("Chance of ruin"), pct(r.prob_ruin), t.text),
             ]
         };
         cards_row(ui, t, &cards);
@@ -1740,7 +1932,7 @@ impl App {
             Some((&lo, &hi)),
             r.initial_capital,
             resp.hover_pos(),
-            &|x| format!("After trade {}", x as usize),
+            &|x| language.format("After trade {number}", &[("number", &(x as usize).to_string())]),
         );
         let right = if side {
             Rect::from_min_max(
@@ -1754,10 +1946,10 @@ impl App {
         };
         let mut cu = ui.new_child(egui::UiBuilder::new().max_rect(right));
         let rows = [
-            ("Net profit", &r.net_profit, true),
-            ("Max drawdown", &r.max_drawdown, true),
-            ("Max drawdown %", &r.max_drawdown_pct, false),
-            ("Losing streak", &r.longest_losing_streak, false),
+            (language.text("Net profit"), &r.net_profit, true),
+            (language.text("Max drawdown"), &r.max_drawdown, true),
+            (language.text("Max drawdown %"), &r.max_drawdown_pct, false),
+            (language.text("Losing streak"), &r.longest_losing_streak, false),
         ];
         let rows: Vec<(&str, Vec<(String, Color32)>)> = rows
             .iter()
@@ -1774,21 +1966,36 @@ impl App {
                 (*name, vec![v(s.p5), v(s.p50), v(s.p95)])
             })
             .collect();
-        table(&mut cu, t, "lab-mc", &["5th", "Median", "95th"], &rows);
+        table(
+            &mut cu,
+            t,
+            "lab-mc",
+            &[language.text("5th"), language.text("Median"), language.text("95th")],
+            &rows,
+        );
     }
 
     fn lab_port_results(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         let Some(r) = &self.lab.port else {
             return;
         };
         let f = self.fmt();
         let cards = [
-            ("Total P&L", f.money(r.net_profit), tone(t, r.net_profit)),
-            ("Return", pct(r.net_profit_pct), tone(t, r.net_profit_pct)),
-            ("Max drawdown", pct(r.max_drawdown_pct), t.text),
-            ("Trades", r.total_trades.to_string(), t.text),
+            (language.text("Total P&L"), f.money(r.net_profit), tone(t, r.net_profit)),
+            (
+                language.text("Return"),
+                pct(r.net_profit_pct),
+                tone(t, r.net_profit_pct),
+            ),
+            (language.text("Max drawdown"), pct(r.max_drawdown_pct), t.text),
+            (language.text("Trades"), r.total_trades.to_string(), t.text),
             ("Sharpe", num(r.sharpe, 3), t.text),
-            ("Buy & hold", pct(r.buy_hold_pct), tone(t, r.buy_hold_pct)),
+            (
+                language.text("Buy & hold"),
+                pct(r.buy_hold_pct),
+                tone(t, r.buy_hold_pct),
+            ),
         ];
         cards_row(ui, t, &cards);
         if !self.lab.port_errors.is_empty() {
@@ -1816,13 +2023,13 @@ impl App {
         );
         ui.add_space(6.0);
         let heads: Vec<String> = [
-            "Symbol",
-            "Net profit",
-            "Return",
-            "Trades",
-            "Profitable",
-            "Max drawdown",
-            "Buy & hold",
+            language.text("Symbol"),
+            language.text("Net profit"),
+            language.text("Return"),
+            language.text("Trades"),
+            language.text("Profitable"),
+            language.text("Max drawdown"),
+            language.text("Buy & hold"),
         ]
         .map(String::from)
         .to_vec();
@@ -2096,6 +2303,37 @@ fn curve_chart(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lab_translates_diagnostics_and_boolean_values_but_preserves_script_text() {
+        let title = "Length {input}";
+        assert_eq!(
+            search_error(Language::Swedish, SearchError::EmptyRange(title.into())),
+            "Det finns inga värden att testa för Length {input}."
+        );
+        for error in [
+            SearchError::NoParameters,
+            SearchError::NoBars,
+            SearchError::EmptyRange(title.into()),
+            SearchError::GridTooLarge {
+                combinations: 50001,
+                per_window: false,
+            },
+            SearchError::GridTooLarge {
+                combinations: 50001,
+                per_window: true,
+            },
+            SearchError::ShortWindow {
+                required: 100,
+                available: 15,
+            },
+        ] {
+            let english = error.to_string();
+            assert_eq!(search_error(Language::English, error), english);
+        }
+        assert_eq!(parameter_value(Language::Swedish, &PValue::Bool(true)), "på");
+        assert_eq!(parameter_value(Language::Swedish, &PValue::Text("on".into())), "on");
+    }
 
     #[test]
     fn default_ranges_bracket_the_default() {

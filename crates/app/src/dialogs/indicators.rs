@@ -34,11 +34,12 @@ impl Indicators {
     }
 
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+        let lang = app.language;
         let mut done = Done::Keep;
         let mut add: Option<&'static Meta> = None;
         let mut star: Option<&'static str> = None;
-        if frame(ui, t, "Indicators", 720.0, |ui| {
-            let r = crate::widgets::search_field(ui, t, &mut self.query, "Search", ui.available_width());
+        if frame(ui, t, lang.text("Indicators"), 720.0, |ui| {
+            let r = crate::widgets::search_field(ui, t, &mut self.query, lang.text("Search"), ui.available_width());
             if !self.focused {
                 r.request_focus();
                 self.focused = true;
@@ -80,17 +81,17 @@ impl Indicators {
                             self.query.clear();
                         }
                     };
-                    item(ui, Tab::Favorites, ph::STAR, "Favorites");
-                    item(ui, Tab::All, ph::FUNCTION, "Built-ins");
+                    item(ui, Tab::Favorites, ph::STAR, lang.text("Favorites"));
+                    item(ui, Tab::All, ph::FUNCTION, lang.text("Built-ins"));
                     ui.add_space(6.0);
                     ui.label(
-                        egui::RichText::new("CATEGORIES")
+                        egui::RichText::new(lang.text("CATEGORIES"))
                             .font(theme::semibold(10.5))
                             .color(t.text3),
                     );
                     ui.add_space(2.0);
                     for c in Category::ALL {
-                        item(ui, Tab::Cat(c), category_icon(c), c.name());
+                        item(ui, Tab::Cat(c), category_icon(c), lang.text(c.name()));
                     }
                 });
                 let (line, _) = ui.allocate_exact_size(vec2(17.0, height), Sense::hover());
@@ -104,7 +105,9 @@ impl Indicators {
                         .iter()
                         .filter(|m| {
                             if !q.is_empty() {
-                                return m.name.to_lowercase().contains(&q) || m.short.to_lowercase().contains(&q);
+                                return lang.text(m.name).to_lowercase().contains(&q)
+                                    || m.name.to_lowercase().contains(&q)
+                                    || m.short.to_lowercase().contains(&q);
                             }
                             match self.tab {
                                 Tab::Favorites => app.store.is_favorite("indicator", m.id),
@@ -121,9 +124,14 @@ impl Indicators {
                             ui.set_width(w - 16.0);
                             if list.is_empty() {
                                 if self.tab == Tab::Favorites && q.is_empty() {
-                                    crate::widgets::empty_state(ui, t, ph::STAR, "No favorites yet");
+                                    crate::widgets::empty_state(ui, t, ph::STAR, lang.text("No favorites yet"));
                                 } else {
-                                    crate::widgets::empty_state(ui, t, ph::MAGNIFYING_GLASS, "Nothing matches");
+                                    crate::widgets::empty_state(
+                                        ui,
+                                        t,
+                                        ph::MAGNIFYING_GLASS,
+                                        lang.text("Nothing matches"),
+                                    );
                                 }
                             }
                             for m in list {
@@ -159,22 +167,22 @@ impl Indicators {
                                 ui.painter().text(
                                     pos2(rect.left() + 36.0, rect.center().y),
                                     Align2::LEFT_CENTER,
-                                    m.name,
+                                    lang.text(m.name),
                                     theme::regular(13.5),
                                     t.text,
                                 );
                                 ui.painter().text(
                                     pos2(rect.right() - 12.0, rect.center().y),
                                     Align2::RIGHT_CENTER,
-                                    m.category.name(),
+                                    lang.text(m.category.name()),
                                     theme::regular(12.0),
                                     t.text3,
                                 );
                                 if star_resp
                                     .on_hover_text(if fav {
-                                        "Remove from favorites"
+                                        lang.text("Remove from favorites")
                                     } else {
-                                        "Add to favorites"
+                                        lang.text("Add to favorites")
                                     })
                                     .clicked()
                                 {

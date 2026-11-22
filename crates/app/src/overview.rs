@@ -259,7 +259,8 @@ pub fn weighted(members: &[(&Member, f64)], p: Period, sizing: Sizing) -> f64 {
 
 /// The overview's top-bar button: a little treemap.
 pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
-    map_button(ui, t, active, 30.0, "Market overview (Alt M)")
+    let lang = crate::i18n::Language::of(ui);
+    map_button(ui, t, active, 30.0, lang.text("Market overview (Alt M)"))
 }
 
 /// A button with the overview's little treemap.
@@ -526,6 +527,7 @@ impl App {
 
     /// The page, in the chart area.
     pub(crate) fn overview_page(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let area = ui.max_rect();
         ui.painter().rect_filled(area, 0, t.bg);
         let head = Rect::from_min_size(area.min, vec2(area.width(), HEADER_H));
@@ -546,9 +548,9 @@ impl App {
             c.add_space((map.height() * 0.35).max(0.0));
             match self.overview.errors.get(&m).cloned() {
                 Some(e) if !self.overview.loading(m) => {
-                    w::empty_state(&mut c, t, ph::CLOUD_SLASH, &e);
+                    w::empty_state(&mut c, t, ph::CLOUD_SLASH, &lang.data_error(&e));
                     c.vertical_centered(|ui| {
-                        if w::secondary(ui, "Try again").clicked() {
+                        if w::secondary(ui, lang.text("Try again")).clicked() {
                             self.overview.errors.remove(&m);
                             self.overview.failed.remove(&m);
                             self.overview_fetch(m);
@@ -578,9 +580,10 @@ impl App {
     }
 
     fn overview_header(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         ui.spacing_mut().item_spacing.x = 4.0;
         let mut market = self.overview.market;
-        let opts: Vec<(Market, &str)> = Market::ALL.iter().map(|m| (*m, m.label())).collect();
+        let opts: Vec<(Market, &str)> = Market::ALL.iter().map(|m| (*m, lang.text(m.label()))).collect();
         if w::segmented(ui, t, &mut market, &opts) {
             self.overview.market = market;
             self.overview.sector = None;
@@ -593,7 +596,7 @@ impl App {
         let narrow = ui.max_rect().width() < 640.0;
         if !narrow {
             ui.label(
-                egui::RichText::new(self.overview.market.universe())
+                egui::RichText::new(lang.text(self.overview.market.universe()))
                     .font(theme::medium(12.5))
                     .color(t.text3),
             );
@@ -601,15 +604,15 @@ impl App {
         }
         w::vdivider(ui, t);
         for p in Period::ALL {
-            if w::bar_button(ui, t, None, p.label(), "", self.overview.period == p).clicked() {
+            if w::bar_button(ui, t, None, lang.text(p.label()), "", self.overview.period == p).clicked() {
                 self.overview.period = p;
                 self.save_overview();
             }
         }
         if let Some(s) = self.overview.sector.clone() {
             w::vdivider(ui, t);
-            let label = format!("{s}  {}", ph::X);
-            if w::bar_button(ui, t, None, &label, "All sectors (Esc)", false).clicked() {
+            let label = format!("{}  {}", lang.text(&s), ph::X);
+            if w::bar_button(ui, t, None, &label, lang.text("All sectors (Esc)"), false).clicked() {
                 self.overview.sector = None;
             }
         }
@@ -617,7 +620,7 @@ impl App {
         let room = ui.available_width();
         let m = self.overview.market;
         let busy = self.overview.loading(m) && self.overview.boards.contains_key(&m);
-        let error = self.overview.errors.get(&m).cloned();
+        let error = self.overview.errors.get(&m).map(|e| lang.data_error(e));
         let board = self.overview.boards.get(&m);
         let now = jiff::Timestamp::now().as_millisecond();
         // Prices refresh every 30 s while the market trades; five minutes
@@ -640,7 +643,8 @@ impl App {
                 ui.add_space(6.0);
                 extended_chip(ui, t, e);
             }
-            let old = stale.map(|d| format!("No new prices for {}", crate::format::span(d)));
+            let old =
+                stale.map(|d| lang.format("No new prices for {time}", &[("time", &crate::format::span(d, lang))]));
             let warning = match (error.filter(|_| board.is_some()), old) {
                 (Some(e), Some(o)) => Some(format!("{e}\n{o}")),
                 (e, o) => e.or(o),
@@ -767,7 +771,7 @@ impl App {
                     Some(c) => c[period.index()],
                     None => weighted(members, period, board.sizing),
                 };
-                let title = format!("{name} ›");
+                let title = format!("{} ›", spec.sector_label(self.language, name));
                 let text = crate::format::elide_to(&p, &title, &font, r.width() - 8.0);
                 let color = if hovered { t.text } else { t.text2 };
                 p.text(
@@ -891,6 +895,7 @@ impl App {
     /// The card beside the pointer: name, line, price, change, size.
     #[allow(clippy::too_many_arguments)]
     fn hover_card(&self, ui: &Ui, t: &Theme, board: &Board, m: &Member, at: Pos2, area: Rect, spec: &MapSpec) {
+        let lang = self.language;
         let p = ui
             .ctx()
             .layer_painter(egui::LayerId::new(egui::Order::Tooltip, Id::new("overview-card")));
@@ -898,13 +903,13 @@ impl App {
         let period = spec.period;
         let change = m.change(period);
         let size_label = match board.sizing {
-            Sizing::Volume => "24h volume",
-            _ => "Market cap",
+            Sizing::Volume => lang.text("24h volume"),
+            _ => lang.text("Market cap"),
         };
         let mut rows: Vec<(String, String, Color32)> = vec![
-            ("Price".into(), price(m.price), t.text),
+            (lang.text("Price").into(), price(m.price), t.text),
             (
-                format!("Change {}", period.label()),
+                lang.format("Change {period}", &[("period", lang.text(period.label()))]),
                 crate::format::signed_pct(change),
                 if change >= 0.0 { t.pos } else { t.neg },
             ),
@@ -912,7 +917,7 @@ impl App {
         if let Some(e) = m.ext.filter(|e| e.fresh(jiff::Timestamp::now().as_millisecond())) {
             let ch = e.change();
             rows.push((
-                e.session.label().into(),
+                lang.text(e.session.label()).into(),
                 format!("{}  {}", price(e.price), crate::format::signed_pct(ch)),
                 if ch >= 0.0 { t.pos } else { t.neg },
             ));
@@ -923,7 +928,7 @@ impl App {
             ws.get(k).copied().filter(|w| w.is_finite())
         });
         if let Some(wt) = weight {
-            rows.push(("Weight".into(), format!("{wt:.1}%"), t.text));
+            rows.push((lang.text("Weight").into(), format!("{wt:.1}%"), t.text));
         } else if board.sizing != Sizing::Equal {
             rows.push((size_label.into(), money(m.cap, &board.currency, board.market), t.text));
         }
@@ -964,9 +969,9 @@ impl App {
             t.text,
         );
         let sub = if m.name.is_empty() {
-            m.sector.clone()
+            spec.sector_label(lang, &m.sector).to_owned()
         } else if m.industry.is_empty() || m.industry == m.name {
-            format!("{} · {}", m.name, m.sector)
+            format!("{} · {}", m.name, spec.sector_label(lang, &m.sector))
         } else {
             format!("{} · {}", m.name, m.industry)
         };
@@ -1038,6 +1043,16 @@ pub(crate) struct MapSpec<'a> {
     pub weights: Option<&'a [f64]>,
     pub drawn: Option<&'a std::cell::RefCell<Drawn>>,
 }
+impl MapSpec<'_> {
+    // Index maps group companies by the user's index names.
+    fn sector_label<'a>(&self, lang: crate::i18n::Language, sector: &'a str) -> &'a str {
+        if self.weights.is_some() {
+            sector
+        } else {
+            lang.text(sector)
+        }
+    }
+}
 
 /// Whether a market's prices move now (US stocks include pre-market and
 /// after hours, for the hover card's figure).
@@ -1063,21 +1078,23 @@ fn cal_market(m: Market) -> opentern_core::calendar::Market {
 /// ☀ Pre-market / ☾ After hours, while US stocks trade outside the
 /// regular session.
 fn extended_chip(ui: &mut Ui, t: &Theme, e: opentern_core::calendar::Extended) {
+    let lang = crate::i18n::Language::of(ui);
     let col = crate::chart::extended_color(t, e);
     let icon = match e {
         opentern_core::calendar::Extended::Pre => ph::SUN,
         opentern_core::calendar::Extended::Post => ph::MOON,
     };
     ui.label(
-        egui::RichText::new(format!("{icon} {}", e.label()))
+        egui::RichText::new(format!("{icon} {}", lang.text(e.label())))
             .font(theme::medium(12.0))
             .color(col),
     )
-    .on_hover_text("Tiles show the regular session. Hover one for its extended-hours price.");
+    .on_hover_text(lang.text("Tiles show the regular session. Hover one for its extended-hours price."));
 }
 
 /// −3% ▮▮▮▮▮▮▮ +3%, for the period's scale.
 pub(crate) fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Board>) {
+    let lang = crate::i18n::Language::of(ui);
     let s = scale(period);
     let label = |v: f64| {
         format!(
@@ -1105,9 +1122,11 @@ pub(crate) fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Boar
     ui.label(egui::RichText::new(label(-s)).font(f).color(t.text3));
     if let Some(b) = board {
         let sized = match b.sizing {
-            Sizing::MarketCap => format!("Sized by market cap, from {}", b.source),
-            Sizing::Volume => format!("Sized by 24h volume, from {}", b.source),
-            Sizing::Equal => "Market caps didn't load, so every tile is the same size".into(),
+            Sizing::MarketCap => lang.format("Sized by market cap, from {source}", &[("source", &b.source)]),
+            Sizing::Volume => lang.format("Sized by 24h volume, from {source}", &[("source", &b.source)]),
+            Sizing::Equal => lang
+                .text("Market caps didn't load, so every tile is the same size")
+                .into(),
         };
         resp.on_hover_text(sized);
     }

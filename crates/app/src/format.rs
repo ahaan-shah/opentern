@@ -238,7 +238,7 @@ pub fn signed_pct(v: f64) -> String {
 
 /// The time under the crosshair: "Tue 09 Oct '26 14:35" for intraday,
 /// "Tue 09 Oct '26" for daily, "Oct '26" for monthly.
-pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String {
+pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone, lang: crate::i18n::Language) -> String {
     let Ok(ts) = jiff::Timestamp::from_millisecond(t) else {
         return String::new();
     };
@@ -249,22 +249,22 @@ pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String 
         ts.to_zoned(jiff::tz::TimeZone::UTC)
     };
     match tf.unit {
-        opentern_core::Unit::Month => z.strftime("%b '%y").to_string(),
-        opentern_core::Unit::Day | opentern_core::Unit::Week => z.strftime("%a %d %b '%y").to_string(),
-        opentern_core::Unit::Second => z.strftime("%a %d %b '%y %H:%M:%S").to_string(),
-        _ => z.strftime("%a %d %b '%y %H:%M").to_string(),
+        opentern_core::Unit::Month => lang.date(&z, "%b '%y"),
+        opentern_core::Unit::Day | opentern_core::Unit::Week => lang.date(&z, "%a %d %b '%y"),
+        opentern_core::Unit::Second => lang.date(&z, "%a %d %b '%y %H:%M:%S"),
+        _ => lang.date(&z, "%a %d %b '%y %H:%M"),
     }
 }
 
 /// A span in plain words: "6 min", "2 h 10 min", "3 days".
-pub fn span(d: std::time::Duration) -> String {
+pub fn span(d: std::time::Duration, lang: crate::i18n::Language) -> String {
     let m = d.as_secs() / 60;
     match m {
         0..=59 => format!("{} min", m.max(1)),
         60..=1439 if m.is_multiple_of(60) => format!("{} h", m / 60),
         60..=1439 => format!("{} h {} min", m / 60, m % 60),
-        1440..=2879 => "1 day".into(),
-        _ => format!("{} days", m / 1440),
+        1440..=2879 => lang.format("{count} day", &[("count", "1")]),
+        _ => lang.format("{count} days", &[("count", &(m / 1440).to_string())]),
     }
 }
 

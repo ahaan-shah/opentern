@@ -963,6 +963,31 @@ fn member_fundamentals(f: &Fundamentals, out: &mut HashMap<Metric, f64>) {
     out.insert(Metric::PatMargin, f.pat_margin * 100.0);
 }
 
+/// A source problem for an index member. Keep the source's detail separate
+/// so both the UI and the agent can present it in their own language.
+#[derive(Clone, Debug)]
+pub enum MemberError {
+    Empty,
+    Gone,
+    Price(String),
+    Fundamentals(String),
+}
+
+impl MemberError {
+    pub(crate) fn text(&self, lang: crate::i18n::Language) -> String {
+        match self {
+            Self::Empty => lang.text("No prices came back.").into(),
+            Self::Gone => lang
+                .text("No prices: the ticker may have been renamed or delisted. Left out of the index.")
+                .into(),
+            Self::Price(reason) => {
+                lang.format("{error} Left out of the index.", &[("error", &lang.data_error(reason))])
+            }
+            Self::Fundamentals(reason) => lang.format("Fundamentals: {error}", &[("error", &lang.data_error(reason))]),
+        }
+    }
+}
+
 /// One row of the board.
 #[derive(Clone, Debug)]
 pub struct BoardRow {
@@ -977,7 +1002,7 @@ pub struct BoardRow {
     pub change: f64,
     pub market_cap: f64,
     pub values: HashMap<Metric, f64>,
-    pub error: Option<String>,
+    pub error: Option<MemberError>,
 }
 
 /// Everything the board shows for one index, worked out when data changes.
@@ -1070,12 +1095,12 @@ fn board_for(
                     caps.push((board.rows.len(), s.units[k] * row.price));
                 }
             }
-            Some(Ok(_)) => row.error = Some("No prices came back.".into()),
+            Some(Ok(_)) => row.error = Some(MemberError::Empty),
             Some(Err(e)) => {
                 row.error = Some(if e.contains("(404)") || e.contains(opentern_data::provider::GONE) {
-                    "No prices: the ticker may have been renamed or delisted. Left out of the index.".into()
+                    MemberError::Gone
                 } else {
-                    format!("{e} Left out of the index.")
+                    MemberError::Price(e.clone())
                 })
             }
             None => board.waiting += 1,
@@ -1093,7 +1118,7 @@ fn board_for(
                     funds.push((f, held));
                 }
             }
-            Some(Err(e)) if row.error.is_none() => row.error = Some(format!("Fundamentals: {e}")),
+            Some(Err(e)) if row.error.is_none() => row.error = Some(MemberError::Fundamentals(e.clone())),
             None if d.and_then(|d| d.bars.as_ref()).is_some() => board.waiting += 1,
             _ => {}
         }
@@ -1290,7 +1315,7 @@ struct TRow {
     price: f64,
     change: f64,
     values: HashMap<Metric, f64>,
-    error: Option<String>,
+    error: Option<MemberError>,
 }
 
 impl TRow {
@@ -1846,6 +1871,7 @@ impl App {
     // ------------------------------------------------------------- tab
 
     pub(crate) fn indices_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         self.indices_want();
         // Every index at once (the list shows each one's value), so the
         // ones with work to do share the cores.
@@ -1883,9 +1909,9 @@ impl App {
                 self.index_dashboard(ui, t);
             } else {
                 ui.add_space(20.0);
-                w::empty_state(ui, t, ph::CHART_PIE_SLICE, "No indices yet");
+                w::empty_state(ui, t, ph::CHART_PIE_SLICE, lang.text("No indices yet"));
                 ui.vertical_centered(|ui| {
-                    if w::button(ui, w::Kind::Primary, true, Some(ph::PLUS), "New index").clicked() {
+                    if w::button(ui, w::Kind::Primary, true, Some(ph::PLUS), lang.text("New index")).clicked() {
                         self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                     }
                 });
@@ -1897,22 +1923,24 @@ impl App {
     /// A card per index (name, value, day change), and Compare on top
     /// once there are two.
     fn indices_list(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let wide = ui.max_rect().width();
         ui.horizontal(|ui| {
             ui.set_height(28.0);
             // The title gives way to the buttons in a narrow pane.
             let buttons = if self.indices.defs.is_empty() { 30.0 } else { 62.0 };
             if wide >= buttons + 64.0 {
-                ui.label(egui::RichText::new("Indices").font(theme::semibold(13.5)));
+                ui.label(egui::RichText::new(lang.text("Indices")).font(theme::semibold(13.5)));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if w::tool_button(ui, t, ph::PLUS, "New index", false, 26.0).clicked() {
+                if w::tool_button(ui, t, ph::PLUS, lang.text("New index"), false, 26.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                 }
                 // A toggle: off again goes back to the page it covered
                 // (Compare or an index), as the market overview does.
                 if !self.indices.defs.is_empty()
-                    && crate::overview::map_button(ui, t, self.indices.map, 26.0, "Map of every index").clicked()
+                    && crate::overview::map_button(ui, t, self.indices.map, 26.0, lang.text("Map of every index"))
+                        .clicked()
                 {
                     self.indices.map = !self.indices.map;
                 }
@@ -1931,7 +1959,7 @@ impl App {
                     let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::hover());
                     let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
                     let text = self.indices.search.get_or_insert_default();
-                    let resp = w::search_field(&mut f, t, text, "Search", r.width());
+                    let resp = w::search_field(&mut f, t, text, lang.text("Search"), r.width());
                     let id = Id::new("indices-search");
                     // Focus once, when it opens.
                     if !f.data(|d| d.get_temp::<bool>(id).unwrap_or(false)) {
@@ -1958,7 +1986,7 @@ impl App {
                         t.text2,
                     );
                     if fr
-                        .on_hover_text("Search")
+                        .on_hover_text(lang.text("Search"))
                         .on_hover_cursor(egui::CursorIcon::PointingHand)
                         .clicked()
                     {
@@ -1976,7 +2004,7 @@ impl App {
                     p.text(
                         r.left_center() + vec2(34.0, 0.0),
                         Align2::LEFT_CENTER,
-                        "Compare",
+                        lang.text("Compare"),
                         theme::medium(13.0),
                         t.text,
                     );
@@ -2022,7 +2050,7 @@ impl App {
                             p.text(
                                 pos2(r.left() + 12.0, y),
                                 Align2::LEFT_CENTER,
-                                format!("{} symbols", d.members.len()),
+                                lang.format("{n} symbols", &[("n", &d.members.len().to_string())]),
                                 theme::regular(12.0),
                                 t.text3,
                             );
@@ -2050,6 +2078,7 @@ impl App {
     }
 
     fn index_dashboard(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let Some(def) = self.index_def().cloned() else { return };
         let Some(board) = self.index_board(&def.ticker) else {
             return;
@@ -2073,13 +2102,13 @@ impl App {
         hc.set_clip_rect(row(0.0).intersect(ui.clip_rect()));
         hc.scope(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
+            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, lang.text("Edit index"), false, 28.0).clicked() {
                 self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
             }
             let tip = if spinning {
-                "Rebalancing…"
+                lang.text("Rebalancing…")
             } else {
-                "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+                lang.text("Rebalance now: fetch today's share counts and set the weights from them, keeping the level")
             };
             if w::spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
                 rebalance = true;
@@ -2096,7 +2125,7 @@ impl App {
                         .sense(Sense::click()),
                 );
                 if name
-                    .on_hover_text("Open on the chart")
+                    .on_hover_text(lang.text("Open on the chart"))
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .clicked()
                     && def.ready()
@@ -2120,7 +2149,7 @@ impl App {
                     (ph::INFO, t.text3)
                 };
                 ui.label(egui::RichText::new(icon).color(color))
-                    .on_hover_text(method_note(&def));
+                    .on_hover_text(method_note_in(&def, lang));
                 // Members the source no longer has, flagged for replacing.
                 let gone: Vec<&str> = def
                     .members
@@ -2129,13 +2158,9 @@ impl App {
                     .map(|m| m.ticker())
                     .collect();
                 if !gone.is_empty() {
-                    let what = if gone.len() == 1 { "symbol" } else { "symbols" };
+                    let what = if gone.len() == 1 { lang.text("symbol") } else { lang.text("symbols") };
                     ui.label(egui::RichText::new(ph::WARNING_CIRCLE).color(t.warn))
-                        .on_hover_text(format!(
-                            "Yahoo no longer has {} ({what} renamed or delisted?). They count at their last price. \
-                         Replace them with Edit.",
-                            gone.join(", ")
-                        ));
+                        .on_hover_text(lang.format("Yahoo no longer has {symbols} ({what} renamed or delisted?). They count at their last price. Replace them with Edit.", &[("symbols", &gone.join(", ")), ("what", what)]));
                 }
             });
         });
@@ -2160,7 +2185,7 @@ impl App {
         ui.add_space(10.0);
         let rows: Vec<TRow> = board.rows.iter().map(TRow::of).collect();
         let pinned = TRow {
-            label: "Index".into(),
+            label: lang.text("Index").into(),
             included: None,
             history: board.history,
             symbol: None,
@@ -2201,6 +2226,7 @@ impl App {
     /// Every index's members on one heatmap, as the market overview: an
     /// index's name zooms into it, a tile opens the chart.
     fn indices_map(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let mb = self.indices_map_board();
         let names: BTreeSet<&String> = mb.board.members.iter().map(|m| &m.sector).collect();
         if self.indices.zoom.as_ref().is_some_and(|z| !names.contains(z)) {
@@ -2219,14 +2245,14 @@ impl App {
         hc.scope(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             for p in Period::ALL {
-                if w::bar_button(ui, t, None, p.label(), "", self.indices.period == p).clicked() {
+                if w::bar_button(ui, t, None, lang.text(p.label()), "", self.indices.period == p).clicked() {
                     self.indices.period = p;
                 }
             }
             if let Some(z) = self.indices.zoom.clone() {
                 w::vdivider(ui, t);
                 let label = format!("{z}  {}", ph::X);
-                if w::bar_button(ui, t, None, &label, "Every index (Esc)", false).clicked() {
+                if w::bar_button(ui, t, None, &label, lang.text("Every index (Esc)"), false).clicked() {
                     self.indices.zoom = None;
                 }
             }
@@ -2276,6 +2302,7 @@ impl App {
 
     /// Every index side by side: the same metrics, a row (or tile) each.
     fn indices_compare(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let defs = self.indices.defs.clone();
         let mut rows = Vec::new();
         let mut caps = Vec::new();
@@ -2314,7 +2341,10 @@ impl App {
         view_switch(&mut hc, t, &mut self.indices.view, &mut self.indices.metric);
         if hc.available_width() > 150.0 {
             hc.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.add(egui::Label::new(egui::RichText::new("Compare indices").font(theme::semibold(16.0))).truncate());
+                ui.add(
+                    egui::Label::new(egui::RichText::new(lang.text("Compare indices")).font(theme::semibold(16.0)))
+                        .truncate(),
+                );
             });
         }
         let body_rect = Rect::from_min_max(pos2(whole.left(), head.bottom() + 10.0), whole.max);
@@ -2439,15 +2469,22 @@ impl App {
 
 /// The weighting choices, explained (the editor's info icon).
 fn weighting_help(ui: &mut Ui, t: &Theme) {
+    let lang = crate::i18n::Language::of(ui);
     ui.set_max_width(270.0);
     ui.spacing_mut().item_spacing.y = 2.0;
     let items = [
         (
-            "Free float",
-            "Counts only the shares the public can trade, as NSE does.",
+            lang.text("Free float"),
+            lang.text("Counts only the shares the public can trade, as NSE does."),
         ),
-        ("Full market cap", "Counts all of a company's shares."),
-        ("Equal", "Every stock starts with the same weight."),
+        (
+            lang.text("Full market cap"),
+            lang.text("Counts all of a company's shares."),
+        ),
+        (
+            lang.text("Equal"),
+            lang.text("Every stock starts with the same weight."),
+        ),
     ];
     for (k, (name, what)) in items.iter().enumerate() {
         if k > 0 {
@@ -2460,25 +2497,37 @@ fn weighting_help(ui: &mut Ui, t: &Theme) {
 
 /// How the index is built, for the info icon.
 pub(crate) fn method_note(def: &IndexDef) -> String {
-    let date = |ms: i64| {
-        jiff::Timestamp::from_millisecond(ms)
-            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
-            .unwrap_or_default()
-    };
-    let mut s = format!("{}, base {}.", def.weighting.name(), def.base);
+    method_note_in(def, crate::i18n::Language::English)
+}
+
+fn method_note_in(def: &IndexDef, lang: crate::i18n::Language) -> String {
+    let date = |ms| day_label_in(ms, lang);
+    let mut s = lang.format(
+        "{method}, base {base}.",
+        &[
+            ("method", lang.text(def.weighting.name())),
+            ("base", &def.base.to_string()),
+        ],
+    );
     if def.equal_fallback {
-        s.push_str("\nWeighted equally for now: a member has no share count.");
+        s.push('\n');
+        s.push_str(lang.text("Weighted equally for now: a member has no share count."));
     }
     if let Some(last) = def.segments.last() {
         if last.from != i64::MIN {
-            s.push_str(&format!("\nLast rebalanced {}.", date(last.from)));
+            s.push('\n');
+            s.push_str(&lang.format("Last rebalanced {date}.", &[("date", &date(last.from))]));
         }
         let now = jiff::Timestamp::now().as_millisecond();
         if let Some(next) = (1..=8)
             .map(|k| now + k * 46 * 86_400_000)
             .find_map(|t| rebalance_due(now, t))
         {
-            s.push_str(&format!("\nNext rebalance {} (1 April and 1 October).", date(next)));
+            s.push('\n');
+            s.push_str(&lang.format(
+                "Next rebalance {date} (1 April and 1 October).",
+                &[("date", &date(next))],
+            ));
         }
     }
     s
@@ -2523,16 +2572,22 @@ fn change_pill(p: &egui::Painter, t: &Theme, at: egui::Pos2, ch: f64) {
 
 /// Table | Map, and the metric the map colours by.
 fn view_switch(ui: &mut Ui, t: &Theme, view: &mut View, metric: &mut Metric) {
-    w::segmented(ui, t, view, &[(View::Table, "Table"), (View::Map, "Map")]);
+    let lang = crate::i18n::Language::of(ui);
+    w::segmented(
+        ui,
+        t,
+        view,
+        &[(View::Table, lang.text("Table")), (View::Map, lang.text("Map"))],
+    );
     if *view == View::Map {
         // Narrower in a narrow pane (laid out either way round).
         let room = ui.available_width() - 4.0;
         w::combo("index-map-metric")
-            .selected_text(metric.name())
+            .selected_text(lang.text(metric.name()))
             .width(room.clamp(96.0, 150.0))
             .show_ui(ui, |ui| {
                 for m in Metric::ALL {
-                    w::option_value(ui, metric, m, m.name());
+                    w::option_value(ui, metric, m, lang.text(m.name()));
                 }
             });
     }
@@ -2541,13 +2596,14 @@ fn view_switch(ui: &mut Ui, t: &Theme, view: &mut View, metric: &mut Metric) {
 /// The index's metrics as tiles: one row when they fit with their names
 /// whole, else two.
 fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
+    let lang = crate::i18n::Language::of(ui);
     let gap = 8.0;
     let label_font = theme::regular(11.5);
     let widest = Metric::ALL
         .iter()
         .map(|m| {
             ui.painter()
-                .layout_no_wrap(m.name().to_string(), label_font.clone(), t.text)
+                .layout_no_wrap(lang.text(m.name()).to_string(), label_font.clone(), t.text)
                 .size()
                 .x
         })
@@ -2570,7 +2626,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
                     Stroke::new(1.0, t.border.gamma_multiply(0.6)),
                     egui::StrokeKind::Inside,
                 );
-                let label = crate::format::elide_to(p, m.name(), &label_font, r.width() - 22.0);
+                let label = crate::format::elide_to(p, lang.text(m.name()), &label_font, r.width() - 22.0);
                 p.text(
                     r.left_top() + vec2(11.0, 10.0),
                     Align2::LEFT_TOP,
@@ -2596,7 +2652,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
                     theme::semibold(15.0),
                     c,
                 );
-                resp.on_hover_text(m.tip());
+                resp.on_hover_text(lang.text(m.tip()));
             }
         });
         ui.add_space(gap - ui.spacing().item_spacing.y);
@@ -2617,6 +2673,7 @@ fn metric_table(
     sort: &mut (Option<Metric>, bool),
     weights: bool,
 ) -> Option<Click> {
+    let lang = crate::i18n::Language::of(ui);
     let mut click = None;
     let head_font = theme::medium(12.0);
     let cell_font = theme::regular(12.5);
@@ -2640,7 +2697,7 @@ fn metric_table(
     fixed.push(("1D", 78.0));
     let mut widths: Vec<f32> = Metric::ALL
         .iter()
-        .map(|m| (measure(m.short()) + 26.0).max(76.0))
+        .map(|m| (measure(lang.text(m.short())) + 26.0).max(76.0))
         .collect();
     let used: f32 = lead_w + fixed.iter().map(|f| f.1).sum::<f32>() + widths.iter().sum::<f32>();
     let spare = (ui.available_width() - used).max(0.0) / widths.len() as f32;
@@ -2703,7 +2760,7 @@ fn metric_table(
             let w: f32 = widths[k..k + n].iter().sum();
             let r = Rect::from_min_size(band.min + vec2(xs[k] + 3.0, 0.0), vec2(w - 6.0, 22.0));
             p.rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
-            let label = crate::format::elide_to(p, g, &theme::medium(11.5), r.width() - 12.0);
+            let label = crate::format::elide_to(p, lang.text(g), &theme::medium(11.5), r.width() - 12.0);
             p.text(r.center(), Align2::CENTER_CENTER, label, theme::medium(11.5), t.text2);
             k += n;
         }
@@ -2729,8 +2786,8 @@ fn metric_table(
                 sorted = Some(key);
             }
         };
-        let lead_title = if weights { "Symbol" } else { "Index" };
-        let lead_tip = if weights { "Sort by weight" } else { "Sort by name" };
+        let lead_title = if weights { lang.text("Symbol") } else { lang.text("Index") };
+        let lead_tip = if weights { lang.text("Sort by weight") } else { lang.text("Sort by name") };
         title(
             ui,
             Rect::from_min_size(head.min, vec2(lead_w, row_h)),
@@ -2743,18 +2800,18 @@ fn metric_table(
         for (name, wd) in &fixed {
             let r = Rect::from_min_size(head.min + vec2(x, 0.0), vec2(*wd, row_h));
             let tip = match *name {
-                "Weight" => "Today's weight in the index",
-                "History" => "How far back its prices go",
-                "1D" => "Change since the last close",
+                "Weight" => lang.text("Today's weight in the index"),
+                "History" => lang.text("How far back its prices go"),
+                "1D" => lang.text("Change since the last close"),
                 _ => "",
             };
             if *name == "Weight" {
-                title(ui, r, name, None, tip, false);
+                title(ui, r, lang.text(name), None, tip, false);
             } else {
                 ui.painter().text(
                     r.right_center() - vec2(10.0, 0.0),
                     Align2::RIGHT_CENTER,
-                    *name,
+                    lang.text(name),
                     head_font.clone(),
                     t.text3,
                 );
@@ -2767,7 +2824,7 @@ fn metric_table(
         }
         for (k, m) in Metric::ALL.iter().enumerate() {
             let r = Rect::from_min_size(head.min + vec2(xs[k], 0.0), vec2(widths[k], row_h));
-            title(ui, r, m.short(), Some(*m), &format!("{}: {}", m.name(), m.tip()), false);
+            title(ui, r, lang.text(m.short()), Some(*m), &format!("{}: {}", lang.text(m.name()), lang.text(m.tip())), false);
         }
         if let Some(key) = sorted {
             *sort = (key, if sort.0 == key { !sort.1 } else { true });
@@ -2804,9 +2861,9 @@ fn metric_table(
                         let b = Rect::from_center_size(pos2(r.left() + 19.0, r.center().y), vec2(17.0, 24.0));
                         let mut v = on;
                         let tip = if on {
-                            "Leave out of the index"
+                            lang.text("Leave out of the index")
                         } else {
-                            "Count in the index"
+                            lang.text("Count in the index")
                         };
                         if ui
                             .put(b, |ui: &mut Ui| w::checkbox(ui, &mut v, ""))
@@ -2898,12 +2955,12 @@ fn metric_table(
                                     p.text(
                                         right,
                                         Align2::RIGHT_CENTER,
-                                        span_label(a, b, capped),
+                                        span_label(a, b, capped, lang),
                                         cell_font.clone(),
                                         t.text2,
                                     );
                                     ui.interact(cell, ui.id().with((salt, "hist", &row.label)), Sense::hover())
-                                        .on_hover_text(format!("Prices since {}", day_label(a)));
+                                        .on_hover_text(lang.format("Prices since {date}", &[("date", &day_label_in(a, lang))]));
                                 }
                             }
                             "1D" if row.change.is_finite() => {
@@ -2920,11 +2977,11 @@ fn metric_table(
                         }
                         x += wd;
                     }
-                    if row.error.is_some() && row.values.is_empty() {
+                    if let Some(error) = &row.error && row.values.is_empty() {
                         p.text(
                             r.left_center() + vec2(x0 + 10.0, 0.0),
                             Align2::LEFT_CENTER,
-                            row.error.as_deref().unwrap_or_default(),
+                            error.text(lang),
                             theme::regular(12.0),
                             t.text3,
                         );
@@ -2955,12 +3012,8 @@ fn metric_table(
                         p.hline(r.x_range(), r.bottom(), hair);
                     }
                     let tip = match (&row.error, &row.symbol) {
-                        (Some(e), _) => Some(e.clone()),
-                        (None, Some(s)) if opentern_data::hub::is_gone(&s.id) => Some(format!(
-                            "{}: Yahoo no longer has this symbol; it may have been renamed or delisted. \
-                             It counts at its last price. Replace it with Edit.",
-                            s.id
-                        )),
+                        (Some(e), _) => Some(e.text(lang)),
+                        (None, Some(s)) if opentern_data::hub::is_gone(&s.id) => Some(lang.format("{symbol}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit.", &[("symbol", &s.id)])),
                         (None, Some(s)) => Some(s.id.clone()),
                         _ => None,
                     };
@@ -2979,11 +3032,11 @@ fn metric_table(
 
 /// How long a stretch of prices runs: "8 mo", "7.5 yrs", "12 yrs";
 /// "40+ yrs" when older prices weren't fetched.
-fn span_label(first: i64, last: i64, capped: bool) -> String {
+fn span_label(first: i64, last: i64, capped: bool, lang: crate::i18n::Language) -> String {
     let days = (last - first) as f64 / 86_400_000.0;
     let plus = if capped { "+" } else { "" };
     if days < 365.0 {
-        return format!("{}{plus} mo", (days / 30.44).round().max(1.0));
+        return format!("{}{plus} {}", (days / 30.44).round().max(1.0), lang.text("mo"));
     }
     let y = days / 365.25;
     let n = if y < 10.0 {
@@ -2996,14 +3049,18 @@ fn span_label(first: i64, last: i64, capped: bool) -> String {
     } else {
         format!("{:.0}", y.round())
     };
-    let unit = if n == "1" { "yr" } else { "yrs" };
+    let unit = if n == "1" { lang.text("yr") } else { lang.text("yrs") };
     format!("{n}{plus} {unit}")
 }
 
 /// "3 Jan 2006".
 pub(crate) fn day_label(ms: i64) -> String {
+    day_label_in(ms, crate::i18n::Language::English)
+}
+
+fn day_label_in(ms: i64, lang: crate::i18n::Language) -> String {
     jiff::Timestamp::from_millisecond(ms)
-        .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
+        .map(|t| lang.date(&t.to_zoned(jiff::tz::TimeZone::UTC), "%-d %b %Y"))
         .unwrap_or_default()
 }
 
@@ -3101,20 +3158,21 @@ impl IndexEditor {
     }
 
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+        let lang = app.language;
         let mut done = Done::Keep;
         let title = if self.editing.is_some() {
-            "Edit index"
+            lang.text("Edit index")
         } else {
-            "New index"
+            lang.text("New index")
         };
         if frame(ui, t, title, 520.0, |ui| {
             let label = |ui: &mut Ui, s: &str| {
                 ui.label(egui::RichText::new(s).font(theme::medium(12.0)).color(t.text2));
             };
-            label(ui, "Name");
+            label(ui, lang.text("Name"));
             let name = ui.add(
                 w::field(&mut self.name)
-                    .hint_text("e.g. Nifty Auto")
+                    .hint_text(lang.text("e.g. Nifty Auto"))
                     .desired_width(f32::INFINITY),
             );
             if !self.focused {
@@ -3125,10 +3183,10 @@ impl IndexEditor {
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                label(ui, "Symbols");
+                label(ui, lang.text("Symbols"));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     w::combo("index-from-watchlist")
-                        .selected_text(format!("{}  Add a watchlist", ph::LIST_BULLETS))
+                        .selected_text(format!("{}  {}", ph::LIST_BULLETS, lang.text("Add a watchlist")))
                         .width(170.0)
                         .show_ui(ui, |ui| {
                             for wl in app.watchlists.clone() {
@@ -3151,7 +3209,11 @@ impl IndexEditor {
             });
             let search = ui.add(
                 w::field(&mut self.query)
-                    .hint_text(format!("{}  Search symbols to add", ph::MAGNIFYING_GLASS))
+                    .hint_text(format!(
+                        "{}  {}",
+                        ph::MAGNIFYING_GLASS,
+                        lang.text("Search symbols to add")
+                    ))
                     .desired_width(f32::INFINITY),
             );
             let q = self.query.trim().to_string();
@@ -3227,7 +3289,11 @@ impl IndexEditor {
             ui.add_space(8.0);
             // Members as chips.
             if self.members.is_empty() {
-                ui.label(egui::RichText::new("No symbols yet").color(t.text3).size(12.5));
+                ui.label(
+                    egui::RichText::new(lang.text("No symbols yet"))
+                        .color(t.text3)
+                        .size(12.5),
+                );
             } else {
                 let mut remove = None;
                 // Rows laid out by hand from the chips' widths (the
@@ -3281,7 +3347,7 @@ impl IndexEditor {
                                     let xr = ui
                                         .interact(x, ui.id().with(("index-chip-x", k)), Sense::click())
                                         .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                        .on_hover_text("Remove");
+                                        .on_hover_text(lang.text("Remove"));
                                     if xr.hovered() {
                                         ui.painter().rect_filled(x, 4, t.hover_wash());
                                     }
@@ -3306,7 +3372,7 @@ impl IndexEditor {
             }
             ui.add_space(12.0);
             ui.horizontal(|ui| {
-                label(ui, "Weighting");
+                label(ui, lang.text("Weighting"));
                 ui.label(egui::RichText::new(ph::INFO).color(t.text3))
                     .on_hover_ui(|ui| weighting_help(ui, t));
             });
@@ -3315,18 +3381,18 @@ impl IndexEditor {
                 t,
                 &mut self.weighting,
                 &[
-                    (Weighting::FreeFloat, "Free float"),
-                    (Weighting::MarketCap, "Full market cap"),
-                    (Weighting::Equal, "Equal"),
+                    (Weighting::FreeFloat, lang.text("Free float")),
+                    (Weighting::MarketCap, lang.text("Full market cap")),
+                    (Weighting::Equal, lang.text("Equal")),
                 ],
             );
             ui.add_space(16.0);
             ui.horizontal(|ui| {
                 if let Some(ticker) = self.editing.clone() {
                     let label = if self.confirm_delete {
-                        "Delete for good"
+                        lang.text("Delete for good")
                     } else {
-                        "Delete"
+                        lang.text("Delete")
                     };
                     if w::button(ui, w::Kind::Danger, true, Some(ph::TRASH), label).clicked() {
                         if self.confirm_delete {
@@ -3338,11 +3404,15 @@ impl IndexEditor {
                     }
                 }
                 ui.add_space((ui.available_width() - 154.0).max(0.0));
-                if w::secondary(ui, "Cancel").clicked() {
+                if w::secondary(ui, lang.text("Cancel")).clicked() {
                     done = Done::Close;
                 }
                 let ok = !self.name.trim().is_empty() && !self.members.is_empty();
-                let verb = if self.editing.is_some() { "Save" } else { "Create" };
+                let verb = if self.editing.is_some() {
+                    lang.text("Save")
+                } else {
+                    lang.text("Create")
+                };
                 if w::button(ui, w::Kind::Primary, ok, None, verb).clicked() && ok {
                     app.save_index(self);
                     done = Done::Close;
@@ -3365,6 +3435,7 @@ fn treemap(
     metric: Metric,
     waiting: bool,
 ) -> Option<Click> {
+    let lang = crate::i18n::Language::of(ui);
     let area = ui.available_rect_before_wrap();
     let resp = ui.allocate_rect(area, Sense::click());
     let mut items: Vec<&(&TRow, f64)> = items.iter().filter(|(_, w)| w.is_finite() && *w > 0.0).collect();
@@ -3424,12 +3495,14 @@ fn treemap(
             }
         }
         if hot {
-            let tip = format!(
-                "{}\n{:.1}% of the map\n{}: {}",
-                row.symbol.as_ref().map_or(row.label.clone(), |s| s.id.clone()),
-                wgt / total * 100.0,
-                metric.name(),
-                metric.format(v)
+            let tip = lang.format(
+                "{symbol}\n{share}% of the map\n{metric}: {value}",
+                &[
+                    ("symbol", row.symbol.as_ref().map_or(&row.label, |s| &s.id)),
+                    ("share", &format!("{:.1}", wgt / total * 100.0)),
+                    ("metric", lang.text(metric.name())),
+                    ("value", &metric.format(v)),
+                ],
             );
             if resp.clone().on_hover_text(tip).clicked() {
                 click = row.click.clone();
@@ -3701,10 +3774,16 @@ mod tests {
         d.migrate();
         assert!(d.segments.is_empty() && d.chain == CHAIN);
         let y = (365.25 * 86_400_000.0) as i64;
-        assert_eq!(span_label(0, y * 15 / 2, false), "7.5 yrs");
-        assert_eq!(span_label(0, y, false), "1 yr");
-        assert_eq!(span_label(0, y * 12, true), "12+ yrs");
-        assert_eq!(span_label(0, 240 * 86_400_000, false), "8 mo");
+        assert_eq!(
+            span_label(0, y * 15 / 2, false, crate::i18n::Language::English),
+            "7.5 yrs"
+        );
+        assert_eq!(span_label(0, y, false, crate::i18n::Language::English), "1 yr");
+        assert_eq!(span_label(0, y * 12, true, crate::i18n::Language::English), "12+ yrs");
+        assert_eq!(
+            span_label(0, 240 * 86_400_000, false, crate::i18n::Language::English),
+            "8 mo"
+        );
     }
 
     #[test]

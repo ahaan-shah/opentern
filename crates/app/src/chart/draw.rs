@@ -824,16 +824,19 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 let tc = Color32::from_rgb(8, 153, 129);
                 let sc = Color32::from_rgb(242, 54, 69);
                 let cx = (x0 + x1) / 2.0;
+                let lang = crate::i18n::Language::from_context(p.ctx());
                 let (up_t, up_s) = (yt < ye, ys < ye);
                 let place = |up: bool| if up { Align2::CENTER_BOTTOM } else { Align2::CENTER_TOP };
                 label(
                     p,
                     pos2(cx, yt + if up_t { -4.0 } else { 4.0 }),
                     place(up_t),
-                    &format!(
-                        "Target: {} ({})",
-                        format::price(t, g.decimals),
-                        format::signed_pct(pct(t))
+                    &lang.format(
+                        "Target: {price} ({change})",
+                        &[
+                            ("price", &format::price(t, g.decimals)),
+                            ("change", &format::signed_pct(pct(t))),
+                        ],
                     ),
                     Color32::WHITE,
                     tc,
@@ -842,10 +845,12 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     pos2(cx, ys + if up_s { -4.0 } else { 4.0 }),
                     place(up_s),
-                    &format!(
-                        "Stop: {} ({})",
-                        format::price(st, g.decimals),
-                        format::signed_pct(pct(st))
+                    &lang.format(
+                        "Stop: {price} ({change})",
+                        &[
+                            ("price", &format::price(st, g.decimals)),
+                            ("change", &format::signed_pct(pct(st))),
+                        ],
                     ),
                     Color32::WHITE,
                     sc,
@@ -854,7 +859,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     pos2(x1 + 6.0, ye),
                     Align2::LEFT_CENTER,
-                    &format!("Risk/reward ratio: {rr:.2}"),
+                    &lang.format("Risk/reward ratio: {ratio}", &[("ratio", &format!("{rr:.2}"))]),
                     Color32::WHITE,
                     Color32::from_gray(90),
                 );
@@ -896,7 +901,11 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             }
         }
         Text if !pts.is_empty() => {
-            let text = if d.text.is_empty() { "Text" } else { d.text.as_str() };
+            let text = if d.text.is_empty() {
+                crate::i18n::Language::from_context(p.ctx()).text("Text")
+            } else {
+                d.text.as_str()
+            };
             p.text(
                 pts[0],
                 Align2::LEFT_BOTTOM,
@@ -998,6 +1007,16 @@ fn vwap_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
         .collect()
 }
 
+fn bar_count(painter: &Painter, count: i64, time: &str) -> String {
+    let lang = crate::i18n::Language::from_context(painter.ctx());
+    let message = if count.unsigned_abs() == 1 {
+        "{count} bar, {time}"
+    } else {
+        "{count} bars, {time}"
+    };
+    lang.format(message, &[("count", &count.to_string()), ("time", time)])
+}
+
 /// The measuring tools' labels: price change, bars, time.
 fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
     let (pa, pb) = (d.pts[0].p, d.pts[1].p);
@@ -1017,11 +1036,12 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
     };
     let text = match d.tool {
         Tool::PriceRange => format!("{} ({})", format::price(dp, g.decimals), format::signed_pct(pct)),
-        Tool::DateRange => format!("{bars} bars, {time}"),
+        Tool::DateRange => bar_count(p, bars, &time),
         _ => format!(
-            "{} ({})\n{bars} bars, {time}",
+            "{} ({})\n{}",
             format::price(dp, g.decimals),
-            format::signed_pct(pct)
+            format::signed_pct(pct),
+            bar_count(p, bars, &time)
         ),
     };
     let col = if dp >= 0.0 {
@@ -1097,10 +1117,11 @@ pub fn paint_measure(
         .sum();
     let sign = if dp >= 0.0 { "" } else { "−" };
     let mut text = format!(
-        "{sign}{} ({}) {sign}{}\n{nb} bars, {time}",
+        "{sign}{} ({}) {sign}{}\n{}",
         format::grouped(dp.abs(), g.decimals),
         format::signed_pct(pct),
         format::grouped(ticks.abs(), 0),
+        bar_count(p, nb, &time),
     );
     if vol > 0.0 {
         text.push_str(&format!("\nVol {}", format::compact_for(vol, sym)));

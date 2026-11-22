@@ -6,6 +6,7 @@ use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
 use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
+use crate::i18n::tr;
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
 use crate::updater::{Phase, Updater};
@@ -165,6 +166,7 @@ impl App {
             store.value("symbol_logos").as_deref() != Some("off"),
             demo,
         );
+        let language = crate::i18n::Language::from_code(store.value("language").as_deref());
         // The layout last worked on, else the most recent one.
         let current = store
             .value("layout_id")
@@ -174,7 +176,7 @@ impl App {
         let (layout_id, layout_name) = current
             .as_ref()
             .map(|l| (l.id, l.name.clone()))
-            .unwrap_or((1, "Untitled".to_string()));
+            .unwrap_or_else(|| (1, language.text("Untitled").to_owned()));
         let saved = current
             .and_then(|l| store.layout_json(l.id).ok().flatten())
             .and_then(|j| crate::multi::LayoutState::parse(&j));
@@ -205,8 +207,9 @@ impl App {
         let indices = crate::indices::Indices::load(&store);
         let overview = crate::overview::Overview::load(&store);
         crate::format::load_numbers(store.value(crate::format::NUMBERS_KEY).as_deref());
+        language.set_on(ctx);
         let mut app = App {
-            language: crate::i18n::Language::from_code(store.value("language").as_deref()),
+            language,
             store,
             theme,
             app_lock: None,
@@ -620,7 +623,21 @@ impl App {
     }
 
     pub(crate) fn set_language(&mut self, language: crate::i18n::Language) {
+        // Relabel only the unsaved defaults of a new workspace. A saved name
+        // belongs to the user even when it matches the original default.
+        if self.store.layouts().is_empty() && self.layout_name == self.language.text("Untitled") {
+            self.layout_name = language.text("Untitled").into();
+        }
+        if self.store.watchlists().is_empty()
+            && let [list] = self.watchlists.as_mut_slice()
+            && list.name == self.language.text("Watchlist")
+        {
+            list.name = language.text("Watchlist").into();
+        }
+        self.paper.relabel_default(&self.store, self.language, language);
         self.language = language;
+        language.set_on(&self.egui_ctx);
+        self.egui_ctx.request_repaint();
         if let Err(e) = self.store.set_value("language", language.code()) {
             crate::diag::crumb(format!("couldn't save language: {e}"));
         }
@@ -999,29 +1016,29 @@ impl App {
                     use crate::chart::CompareMode as M;
                     use crate::icons::ph;
                     use crate::widgets as w;
-                    w::menu_heading(ui, &t, "SCALE");
+                    w::menu_heading(ui, &t, tr(ui, "SCALE"));
                     for (m, icon) in [
                         (M::Percent, ph::PERCENT),
                         (M::Scale, ph::ARROWS_DOWN_UP),
                         (M::Pane, ph::ROWS),
                     ] {
-                        if w::menu_item(ui, &t, Some(icon), m.label(), "", mode == m).clicked() {
+                        if w::menu_item(ui, &t, Some(icon), tr(ui, m.label()), "", mode == m).clicked() {
                             self.chart.set_compare_mode(i, m);
                             close = true;
                         }
                     }
                     w::menu_rule(ui, &t);
                     let (icon, label) = if visible {
-                        (ph::EYE_SLASH, "Hide")
+                        (ph::EYE_SLASH, tr(ui, "Hide"))
                     } else {
-                        (ph::EYE, "Show")
+                        (ph::EYE, tr(ui, "Show"))
                     };
                     if w::menu_item(ui, &t, Some(icon), label, "", false).clicked() {
                         self.chart.compares[i].visible = !visible;
                         self.chart.touch();
                         close = true;
                     }
-                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), tr(ui, "Remove")).clicked() {
                         self.remove_compare(i);
                         close = true;
                     }
@@ -1053,18 +1070,27 @@ impl App {
                     ui.spacing_mut().item_spacing.y = 1.0;
                     use crate::icons::ph;
                     use crate::widgets as w;
-                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), "Settings", "", false).clicked() {
+                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), tr(ui, "Settings"), "", false).clicked() {
                         self.chart_actions(vec![Action::StudySettings(uid)]);
                         close = true;
                     }
-                    if w::menu_item(ui, &t, Some(ph::FLOPPY_DISK), "Save as default", "", false).clicked() {
+                    if w::menu_item(ui, &t, Some(ph::FLOPPY_DISK), tr(ui, "Save as default"), "", false).clicked() {
                         if let Some(s) = self.chart.studies.iter().find(|s| s.uid == uid) {
                             let (i, l) = (s.inst.inputs.clone(), s.look.clone());
                             self.save_study_default(meta, &i, &l);
                         }
                         close = true;
                     }
-                    if w::menu_item(ui, &t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Reset settings", "", false).clicked() {
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROW_COUNTER_CLOCKWISE),
+                        tr(ui, "Reset settings"),
+                        "",
+                        false,
+                    )
+                    .clicked()
+                    {
                         let (i, l) = self.study_defaults(meta);
                         self.chart.set_inputs(uid, &i);
                         if let Some(s) = self.chart.study_mut(uid) {
@@ -1073,13 +1099,13 @@ impl App {
                         close = true;
                     }
                     if Self::has_source(meta.id)
-                        && w::menu_item(ui, &t, Some(ph::CODE), "Source code", "", false).clicked()
+                        && w::menu_item(ui, &t, Some(ph::CODE), tr(ui, "Source code"), "", false).clicked()
                     {
                         self.open_study_source(uid);
                         close = true;
                     }
                     w::menu_rule(ui, &t);
-                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), tr(ui, "Remove")).clicked() {
                         self.chart.remove_study(uid);
                         close = true;
                     }
@@ -1443,16 +1469,19 @@ impl App {
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {
             let (title, body) = match note {
-                Ok(m) => ("Update installed", m),
-                Err(m) => ("Update failed", m),
+                Ok(m) => (self.language.text("Update installed"), m),
+                Err(m) => (self.language.text("Update failed"), m),
             };
             self.notify(crate::icons::ph::ARROW_CIRCLE_UP, title, &body, None, false);
         }
         if !was_prompt && let crate::updater::Phase::Available(r) = &self.updater.phase {
-            let body = format!("Opentern {} is ready to install from the rail.", r.version);
+            let body = self.language.format(
+                "Opentern {version} is ready to install from the rail.",
+                &[("version", &r.version)],
+            );
             self.notify(
                 crate::icons::ph::ARROW_CIRCLE_UP,
-                "Update available",
+                self.language.text("Update available"),
                 &body,
                 None,
                 false,

@@ -720,12 +720,7 @@ impl App {
                     {
                         self.update_action(ui.ctx());
                     }
-                    let reason = match why.strip_prefix("Opentern can't write to ") {
-                        Some(path) => self
-                            .language
-                            .format("Opentern can't write to {path}", &[("path", path)]),
-                        None => self.language.text(why).to_owned(),
-                    };
+                    let reason = self.language.update_reason(why);
                     ui.label(subtle(format!("{reason}.")));
                 }
                 Phase::Installing(r) => {

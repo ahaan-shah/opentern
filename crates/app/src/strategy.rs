@@ -5,6 +5,7 @@
 
 use crate::app::App;
 use crate::chart::{MarkFill, TradeMarks};
+use crate::i18n::Language;
 use crate::shell::small_button;
 use crate::theme::{self, Theme};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
@@ -278,8 +279,14 @@ impl App {
     }
 
     pub(crate) fn report_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         if self.strategies.runs.is_empty() {
-            crate::widgets::empty_state(ui, t, crate::icons::ph::CHART_LINE_UP, "No strategy on the chart");
+            crate::widgets::empty_state(
+                ui,
+                t,
+                crate::icons::ph::CHART_LINE_UP,
+                language.text("No strategy on the chart"),
+            );
             return;
         }
         let narrow = ui.available_width() < 980.0;
@@ -308,7 +315,7 @@ impl App {
             }
             for tab in ReportTab::ALL {
                 let title = if narrow { tab.short() } else { tab.title() };
-                if small_button(ui, t, title, self.strategies.tab == tab).clicked() {
+                if small_button(ui, t, language.text(title), self.strategies.tab == tab).clicked() {
                     self.strategies.tab = tab;
                 }
             }
@@ -317,10 +324,12 @@ impl App {
                 let settings = if narrow {
                     crate::widgets::tool_button(ui, t, crate::icons::ph::GEAR_SIX, "", false, 26.0)
                 } else {
-                    small_button(ui, t, "Strategy settings", false)
+                    small_button(ui, t, language.text("Strategy settings"), false)
                 };
                 if settings
-                    .on_hover_text("Strategy settings: capital, order size, commission, slippage and margin")
+                    .on_hover_text(
+                        language.text("Strategy settings: capital, order size, commission, slippage and margin"),
+                    )
                     .clicked()
                     && let Some(uid) = self.strategies.current().map(|r| r.uid)
                 {
@@ -330,11 +339,11 @@ impl App {
                     let export = if narrow {
                         crate::widgets::tool_button(ui, t, crate::icons::ph::DOWNLOAD_SIMPLE, "", false, 26.0)
                     } else {
-                        small_button(ui, t, "Export", false)
+                        small_button(ui, t, language.text("Export"), false)
                     };
                     ui.add_space(4.0);
                     if export
-                        .on_hover_text("Export: save the list of trades as a CSV file")
+                        .on_hover_text(language.text("Export: save the list of trades as a CSV file"))
                         .clicked()
                     {
                         self.export_trades();
@@ -394,8 +403,10 @@ impl App {
         let csv = trades_csv(&run.broker, &self.chart.tz);
         let result = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&path, csv));
         self.strategies.status = match result {
-            Ok(()) => format!("Saved to {}", path.display()),
-            Err(e) => format!("Couldn't save: {e}"),
+            Ok(()) => self
+                .language
+                .format("Saved to {path}", &[("path", &path.display().to_string())]),
+            Err(e) => self.language.format("Couldn't save: {e}", &[("e", &e.to_string())]),
         };
     }
 }
@@ -509,28 +520,49 @@ pub(crate) fn tone(t: &Theme, v: f64) -> Color32 {
 // ------------------------------------------------------------- overview
 
 fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
+    let language = Language::of(ui);
     let r = &run.report;
     let cap = r.initial_capital;
     let net = r.all.net_profit;
     let mut cards: Vec<(&str, String, String, Color32)> = vec![
-        ("Total P&L", f.money(net), pct(net / cap * 100.0), tone(t, net)),
         (
-            "Max drawdown",
+            language.text("Total P&L"),
+            f.money(net),
+            pct(net / cap * 100.0),
+            tone(t, net),
+        ),
+        (
+            language.text("Max drawdown"),
             f.money(r.max_drawdown_intrabar),
             pct(r.max_drawdown_intrabar_pct),
             t.text,
         ),
-        ("Total trades", r.all.total_trades.to_string(), String::new(), t.text),
         (
-            "Profitable trades",
+            language.text("Total trades"),
+            r.all.total_trades.to_string(),
+            String::new(),
+            t.text,
+        ),
+        (
+            language.text("Profitable trades"),
             pct(r.all.percent_profitable),
             format!("{}/{}", r.all.winners, r.all.total_trades),
             t.text,
         ),
-        ("Profit factor", num(r.all.profit_factor, 3), String::new(), t.text),
+        (
+            language.text("Profit factor"),
+            num(r.all.profit_factor, 3),
+            String::new(),
+            t.text,
+        ),
     ];
     if r.open_trades > 0 {
-        cards.push(("Open P&L", f.money(r.open_pnl), String::new(), tone(t, r.open_pnl)));
+        cards.push((
+            language.text("Open P&L"),
+            f.money(r.open_pnl),
+            String::new(),
+            tone(t, r.open_pnl),
+        ));
     }
     // A grid that fits the panel: as many cards per row as there's room for.
     // Short panels get one-line cards so the equity curve keeps its room.
@@ -552,7 +584,7 @@ fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
     ui.add_space(4.0);
     let h = ui.available_height();
     if h < 90.0 {
-        ui.label(egui::RichText::new("Make the panel taller to see the equity curve.").color(t.text3));
+        ui.label(egui::RichText::new(language.text("Make the panel taller to see the equity curve.")).color(t.text3));
         return;
     }
     let size = vec2(ui.available_width(), h);
@@ -632,6 +664,7 @@ pub(crate) fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, va
 /// Equity (accent), buy & hold (muted) and drawdown (under the zero line
 /// of its own strip), with a hover read-out.
 fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover: Option<egui::Pos2>, f: &Fmt) {
+    let language = Language::of(ui);
     let p = ui.painter_at(rect);
     let n = b.equity.len().min(bars.len());
     if n < 2 {
@@ -733,7 +766,11 @@ fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover:
     }
     p.hline(dd_rect.x_range(), dd_rect.top(), Stroke::new(1.0, t.border));
     // Legend.
-    let legend = [("Equity", t.accent), ("Buy & hold", t.text3), ("Drawdown", t.neg)];
+    let legend = [
+        (language.text("Equity"), t.accent),
+        (language.text("Buy & hold"), t.text3),
+        (language.text("Drawdown"), t.neg),
+    ];
     let mut x = eq_rect.left() + 6.0;
     for (name, c) in legend {
         p.rect_filled(
@@ -754,12 +791,14 @@ fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover:
         let xx = xs(i);
         p.vline(xx, plot.y_range(), Stroke::new(1.0, t.text3.gamma_multiply(0.6)));
         p.circle_filled(line[i], 3.5, t.accent);
-        let text = format!(
-            "{}\nEquity  {}\nBuy & hold  {}\nDrawdown  {}",
-            time_text(bars[i].time, &f.tz),
-            f.money(b.equity[i]),
-            f.money(hold[i]),
-            f.money(-dd[i]),
+        let text = language.format(
+            "{date}\nEquity  {equity}\nBuy & hold  {hold}\nDrawdown  {drawdown}",
+            &[
+                ("date", &time_text(bars[i].time, &f.tz)),
+                ("equity", &f.money(b.equity[i])),
+                ("hold", &f.money(hold[i])),
+                ("drawdown", &f.money(-dd[i])),
+            ],
         );
         let g = p.layout(text, font, t.text, 220.0);
         let size = g.size() + vec2(16.0, 12.0);
@@ -829,6 +868,7 @@ pub(crate) fn table(ui: &mut Ui, t: &Theme, id: &str, headers: &[&str], rows: &[
 }
 
 fn performance(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
+    let language = Language::of(ui);
     let cap = r.initial_capital;
     let sides = [&r.all, &r.long, &r.short];
     let three = |g: &dyn Fn(&opentern_engine::report::Side) -> f64, money: bool| -> Vec<(String, Color32)> {
@@ -843,30 +883,33 @@ fn performance(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
     let signed = |v: f64| (f.money(v), tone(t, v));
     let one = |s: String| vec![(s, t.text), (String::new(), t.text), (String::new(), t.text)];
     let rows: Vec<(&str, Vec<(String, Color32)>)> = vec![
-        ("Initial capital", one(f.money(cap))),
+        (language.text("Initial capital"), one(f.money(cap))),
         (
-            "Open P&L",
+            language.text("Open P&L"),
             vec![signed(r.open_pnl), (String::new(), t.text), (String::new(), t.text)],
         ),
-        ("Net P&L", sides.iter().map(|s| signed(s.net_profit)).collect()),
         (
-            "Net P&L %",
+            language.text("Net P&L"),
+            sides.iter().map(|s| signed(s.net_profit)).collect(),
+        ),
+        (
+            language.text("Net P&L %"),
             sides
                 .iter()
                 .map(|s| (pct(s.net_profit / cap * 100.0), tone(t, s.net_profit)))
                 .collect(),
         ),
-        ("Gross profit", three(&|s| s.gross_profit, true)),
-        ("Gross loss", three(&|s| s.gross_loss, true)),
-        ("Profit factor", three(&|s| s.profit_factor, false)),
-        ("Commission paid", three(&|s| s.commission, true)),
-        ("Expected payoff", three(&|s| s.avg_trade, true)),
+        (language.text("Gross profit"), three(&|s| s.gross_profit, true)),
+        (language.text("Gross loss"), three(&|s| s.gross_loss, true)),
+        (language.text("Profit factor"), three(&|s| s.profit_factor, false)),
+        (language.text("Commission paid"), three(&|s| s.commission, true)),
+        (language.text("Expected payoff"), three(&|s| s.avg_trade, true)),
         (
-            "Buy & hold return",
+            language.text("Buy & hold return"),
             one(format!("{}  {}", f.money(r.buy_hold_pnl), pct(r.buy_hold_pct))),
         ),
         (
-            "Strategy outperformance",
+            language.text("Strategy outperformance"),
             vec![
                 signed(r.outperformance),
                 (String::new(), t.text),
@@ -874,7 +917,7 @@ fn performance(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
             ],
         ),
         (
-            "Max equity run-up",
+            language.text("Max equity run-up"),
             one(format!(
                 "{}  {}",
                 f.money(r.max_runup_intrabar),
@@ -882,102 +925,138 @@ fn performance(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
             )),
         ),
         (
-            "Max equity drawdown",
+            language.text("Max equity drawdown"),
             one(format!(
                 "{}  {}",
                 f.money(r.max_drawdown_intrabar),
                 pct(r.max_drawdown_intrabar_pct)
             )),
         ),
-        ("Max contracts held", three(&|s| s.max_contracts, false)),
+        (language.text("Max contracts held"), three(&|s| s.max_contracts, false)),
     ];
-    table(ui, t, "perf", &["All", "Long", "Short"], &rows);
+    table(
+        ui,
+        t,
+        "perf",
+        &[language.text("All"), language.text("Long"), language.text("Short")],
+        &rows,
+    );
 }
 
 fn trades_analysis(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
+    let language = Language::of(ui);
     let sides = [&r.all, &r.long, &r.short];
     let col = |g: &dyn Fn(&opentern_engine::report::Side) -> String| -> Vec<(String, Color32)> {
         sides.iter().map(|s| (g(s), t.text)).collect()
     };
     let rows: Vec<(&str, Vec<(String, Color32)>)> = vec![
-        ("Total trades", col(&|s| s.total_trades.to_string())),
+        (language.text("Total trades"), col(&|s| s.total_trades.to_string())),
         (
-            "Total open trades",
+            language.text("Total open trades"),
             vec![
                 (r.open_trades.to_string(), t.text),
                 (String::new(), t.text),
                 (String::new(), t.text),
             ],
         ),
-        ("Winning trades", col(&|s| s.winners.to_string())),
-        ("Losing trades", col(&|s| s.losers.to_string())),
-        ("Even trades", col(&|s| s.even.to_string())),
-        ("Percent profitable", col(&|s| pct(s.percent_profitable))),
-        ("Avg P&L", col(&|s| f.money(s.avg_trade))),
-        ("Avg P&L %", col(&|s| pct(s.avg_trade_pct))),
-        ("Avg winning trade", col(&|s| f.money(s.avg_win))),
-        ("Avg losing trade", col(&|s| f.money(s.avg_loss))),
-        ("Ratio avg win / avg loss", col(&|s| num(s.win_loss_ratio, 3))),
-        ("Largest winning trade", col(&|s| f.money(s.largest_win))),
+        (language.text("Winning trades"), col(&|s| s.winners.to_string())),
+        (language.text("Losing trades"), col(&|s| s.losers.to_string())),
+        (language.text("Even trades"), col(&|s| s.even.to_string())),
+        (language.text("Percent profitable"), col(&|s| pct(s.percent_profitable))),
+        (language.text("Avg P&L"), col(&|s| f.money(s.avg_trade))),
+        (language.text("Avg P&L %"), col(&|s| pct(s.avg_trade_pct))),
+        (language.text("Avg winning trade"), col(&|s| f.money(s.avg_win))),
+        (language.text("Avg losing trade"), col(&|s| f.money(s.avg_loss))),
         (
-            "Largest winning trade, % of gross profit",
+            language.text("Ratio avg win / avg loss"),
+            col(&|s| num(s.win_loss_ratio, 3)),
+        ),
+        (language.text("Largest winning trade"), col(&|s| f.money(s.largest_win))),
+        (
+            language.text("Largest winning trade, % of gross profit"),
             col(&|s| pct(s.largest_win_pct_of_gross)),
         ),
-        ("Largest losing trade", col(&|s| f.money(s.largest_loss))),
+        (language.text("Largest losing trade"), col(&|s| f.money(s.largest_loss))),
         (
-            "Largest losing trade, % of gross loss",
+            language.text("Largest losing trade, % of gross loss"),
             col(&|s| pct(s.largest_loss_pct_of_gross)),
         ),
-        ("Avg # bars in trades", col(&|s| num(s.avg_bars, 0))),
-        ("Avg # bars in winning trades", col(&|s| num(s.avg_bars_win, 0))),
-        ("Avg # bars in losing trades", col(&|s| num(s.avg_bars_loss, 0))),
+        (language.text("Avg # bars in trades"), col(&|s| num(s.avg_bars, 0))),
+        (
+            language.text("Avg # bars in winning trades"),
+            col(&|s| num(s.avg_bars_win, 0)),
+        ),
+        (
+            language.text("Avg # bars in losing trades"),
+            col(&|s| num(s.avg_bars_loss, 0)),
+        ),
     ];
-    table(ui, t, "trades", &["All", "Long", "Short"], &rows);
+    table(
+        ui,
+        t,
+        "trades",
+        &[language.text("All"), language.text("Long"), language.text("Short")],
+        &rows,
+    );
 }
 
 fn ratios(ui: &mut Ui, t: &Theme, r: &Report, f: &Fmt) {
+    let language = Language::of(ui);
     let v = |s: String| vec![(s, t.text)];
     let rows: Vec<(&str, Vec<(String, Color32)>)> = vec![
-        ("Sharpe ratio", v(num(r.sharpe, 3))),
-        ("Sortino ratio", v(num(r.sortino, 3))),
-        ("Profit factor", v(num(r.all.profit_factor, 3))),
+        (language.text("Sharpe ratio"), v(num(r.sharpe, 3))),
+        (language.text("Sortino ratio"), v(num(r.sortino, 3))),
+        (language.text("Profit factor"), v(num(r.all.profit_factor, 3))),
         ("CAGR", v(pct(r.cagr))),
-        ("Return on initial capital", v(pct(r.return_on_capital))),
-        ("Account size required", v(f.money(r.account_size_required))),
-        ("Return on account size required", v(pct(r.return_on_account_size))),
+        (language.text("Return on initial capital"), v(pct(r.return_on_capital))),
         (
-            "Net profit as % of largest loss",
+            language.text("Account size required"),
+            v(f.money(r.account_size_required)),
+        ),
+        (
+            language.text("Return on account size required"),
+            v(pct(r.return_on_account_size)),
+        ),
+        (
+            language.text("Net profit as % of largest loss"),
             v(pct(r.net_profit_pct_of_largest_loss)),
         ),
-        ("Return of max drawdown", v(num(r.return_of_max_drawdown, 2))),
-        ("Avg equity drawdown", v(f.money(r.avg_drawdown))),
-        ("Avg drawdown duration (bars)", v(num(r.avg_drawdown_bars, 0))),
-        ("Avg equity run-up", v(f.money(r.avg_runup))),
-        ("Avg run-up duration (bars)", v(num(r.avg_runup_bars, 0))),
-        ("Avg margin used", v(f.money(r.avg_margin_used))),
-        ("Max margin used", v(f.money(r.max_margin_used))),
-        ("Margin efficiency", v(pct(r.margin_efficiency))),
-        ("Margin calls", v(r.margin_calls.to_string())),
+        (
+            language.text("Return of max drawdown"),
+            v(num(r.return_of_max_drawdown, 2)),
+        ),
+        (language.text("Avg equity drawdown"), v(f.money(r.avg_drawdown))),
+        (
+            language.text("Avg drawdown duration (bars)"),
+            v(num(r.avg_drawdown_bars, 0)),
+        ),
+        (language.text("Avg equity run-up"), v(f.money(r.avg_runup))),
+        (language.text("Avg run-up duration (bars)"), v(num(r.avg_runup_bars, 0))),
+        (language.text("Avg margin used"), v(f.money(r.avg_margin_used))),
+        (language.text("Max margin used"), v(f.money(r.max_margin_used))),
+        (language.text("Margin efficiency"), v(pct(r.margin_efficiency))),
+        (language.text("Margin calls"), v(r.margin_calls.to_string())),
     ];
-    table(ui, t, "ratios", &["Value"], &rows);
+    table(ui, t, "ratios", &[language.text("Value")], &rows);
 }
 
 fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
+    let language = Language::of(ui);
     if b.trades.is_empty() {
-        ui.label(egui::RichText::new("No closed trades yet.").color(t.text3));
+        ui.label(egui::RichText::new(language.text("No closed trades yet.")).color(t.text3));
         return;
     }
     let cols: [(&str, f32, bool); 10] = [
-        ("Trade #", 64.0, false),
-        ("Type", 92.0, false),
-        ("Signal", 190.0, false),
-        ("Date/Time", 136.0, false),
-        ("Price", 120.0, true),
-        ("Contracts", 110.0, true),
-        ("Profit", 190.0, true),
-        ("Cum. profit", 150.0, true),
-        ("Run-up", 130.0, true),
-        ("Drawdown", 130.0, true),
+        (language.text("Trade #"), 64.0, false),
+        (language.text("Type"), 92.0, false),
+        (language.text("Signal"), 190.0, false),
+        (language.text("Date/Time"), 136.0, false),
+        (language.text("Price"), 120.0, true),
+        (language.text("Contracts"), 110.0, true),
+        (language.text("Profit"), 190.0, true),
+        (language.text("Cum. profit"), 150.0, true),
+        (language.text("Run-up"), 130.0, true),
+        (language.text("Drawdown"), 130.0, true),
     ];
     let total: f32 = cols.iter().map(|c| c.1).sum();
     let row_h = 22.0;
@@ -1016,12 +1095,16 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                     if resp.hovered() {
                         p.rect_filled(r, CornerRadius::same(4), t.hover_wash());
                     }
-                    let side = if tr.long { "long" } else { "short" };
                     let pnl_c = tone(t, tr.pnl);
                     let lines: [[(String, Color32); 10]; 2] = [
                         [
                             (format!("{}", idx + 1), t.text),
-                            (format!("Exit {side}"), t.text2),
+                            (
+                                language
+                                    .text(if tr.long { "Exit long" } else { "Exit short" })
+                                    .to_string(),
+                                t.text2,
+                            ),
                             (
                                 if tr.exit_comment.is_empty() {
                                     tr.exit_id.clone()
@@ -1040,7 +1123,12 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                         ],
                         [
                             (String::new(), t.text),
-                            (format!("Entry {side}"), t.text2),
+                            (
+                                language
+                                    .text(if tr.long { "Entry long" } else { "Entry short" })
+                                    .to_string(),
+                                t.text2,
+                            ),
                             (
                                 if tr.entry_comment.is_empty() {
                                     tr.entry_id.clone()
@@ -1082,40 +1170,66 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
 
 #[allow(clippy::too_many_arguments)]
 fn properties(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], sym: &str, tf: &str, f: &Fmt) {
+    let language = Language::of(ui);
     let p = &run.broker.props;
     let range = match (bars.first(), bars.last()) {
         (Some(a), Some(b)) => format!("{} — {}", time_text(a.time, &f.tz), time_text(b.time, &f.tz)),
         _ => "—".into(),
     };
     let size = match p.qty_type {
-        opentern_engine::QtyType::Fixed => format!("{} contracts", qty_text(p.qty_value)),
+        opentern_engine::QtyType::Fixed => {
+            language.format("{quantity} contracts", &[("quantity", &qty_text(p.qty_value))])
+        }
         opentern_engine::QtyType::Cash => f.money(p.qty_value),
-        opentern_engine::QtyType::PercentOfEquity => format!("{}% of equity", num(p.qty_value, 2)),
+        opentern_engine::QtyType::PercentOfEquity => {
+            language.format("{percent}% of equity", &[("percent", &num(p.qty_value, 2))])
+        }
     };
     let commission = match p.commission {
         opentern_engine::Commission::Percent => format!("{}%", num(p.commission_value, 4)),
-        opentern_engine::Commission::CashPerContract => format!("{} per contract", f.money(p.commission_value)),
-        opentern_engine::Commission::CashPerOrder => format!("{} per order", f.money(p.commission_value)),
+        opentern_engine::Commission::CashPerContract => {
+            language.format("{amount} per contract", &[("amount", &f.money(p.commission_value))])
+        }
+        opentern_engine::Commission::CashPerOrder => {
+            language.format("{amount} per order", &[("amount", &f.money(p.commission_value))])
+        }
     };
     let v = |s: String| vec![(s, t.text)];
     let rows: Vec<(&str, Vec<(String, Color32)>)> = vec![
-        ("Symbol", v(sym.to_string())),
-        ("Timeframe", v(tf.to_string())),
-        ("Trading range", v(range)),
-        ("Bars", v(bars.len().to_string())),
-        ("Initial capital", v(f.money(p.initial_capital))),
-        ("Order size", v(size)),
-        ("Pyramiding", v(format!("{} orders", p.pyramiding.max(1)))),
-        ("Commission", v(commission)),
-        ("Slippage", v(format!("{} ticks", p.slippage))),
-        ("Margin for long positions", v(format!("{}%", num(p.margin_long, 0)))),
-        ("Margin for short positions", v(format!("{}%", num(p.margin_short, 0)))),
+        (language.text("Symbol"), v(sym.to_string())),
+        (language.text("Timeframe"), v(tf.to_string())),
+        (language.text("Trading range"), v(range)),
+        (language.text("Bars"), v(bars.len().to_string())),
+        (language.text("Initial capital"), v(f.money(p.initial_capital))),
+        (language.text("Order size"), v(size)),
         (
-            "Fill orders on bar close",
-            v(if p.process_orders_on_close { "On" } else { "Off" }.into()),
+            language.text("Pyramiding"),
+            v(language.format("{count} orders", &[("count", &p.pyramiding.max(1).to_string())])),
+        ),
+        (language.text("Commission"), v(commission)),
+        (
+            language.text("Slippage"),
+            v(language.format("{count} ticks", &[("count", &p.slippage.to_string())])),
+        ),
+        (
+            language.text("Margin for long positions"),
+            v(format!("{}%", num(p.margin_long, 0))),
+        ),
+        (
+            language.text("Margin for short positions"),
+            v(format!("{}%", num(p.margin_short, 0))),
+        ),
+        (
+            language.text("Fill orders on bar close"),
+            v(if p.process_orders_on_close {
+                language.text("On")
+            } else {
+                language.text("Off")
+            }
+            .into()),
         ),
     ];
-    table(ui, t, "props", &["Value"], &rows);
+    table(ui, t, "props", &[language.text("Value")], &rows);
 }
 
 #[cfg(test)]

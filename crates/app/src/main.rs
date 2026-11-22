@@ -150,19 +150,22 @@ fn main() -> eframe::Result<()> {
     }
     let store = match Store::open(&dir) {
         Ok(s) => s,
-        Err(e) => fatal(&format!(
-            "Couldn't open your Opentern workspace in {}:\n{e}\n\nNothing in it has been changed.{}",
-            dir.display(),
-            if dir.join("backups").is_dir() {
-                format!(
-                    "\n\nThe last week's backups are in {}. To start from one, move opentern.db out of the \
+        Err(e) => fatal(
+            i18n::Language::English,
+            &format!(
+                "Couldn't open your Opentern workspace in {}:\n{e}\n\nNothing in it has been changed.{}",
+                dir.display(),
+                if dir.join("backups").is_dir() {
+                    format!(
+                        "\n\nThe last week's backups are in {}. To start from one, move opentern.db out of the \
                      workspace folder, open Opentern, then Settings → Export and import → From a file.",
-                    dir.join("backups").display()
-                )
-            } else {
-                String::new()
-            }
-        )),
+                        dir.join("backups").display()
+                    )
+                } else {
+                    String::new()
+                }
+            ),
+        ),
     };
     // The day's backup of the workspace, off the UI thread (a database
     // that goes bad, or a change regretted, can be undone from it).
@@ -176,6 +179,7 @@ fn main() -> eframe::Result<()> {
     }
     // If a renderer fails to start and we retry with another, the first
     // attempt may already have taken the store; reopen it from disk then.
+    let language = i18n::Language::from_code(store.value("language").as_deref());
     let slot = std::rc::Rc::new(std::cell::RefCell::new(Some(store)));
 
     // The window icon (made by scripts/make-icons.py).
@@ -218,8 +222,8 @@ fn main() -> eframe::Result<()> {
     };
     let result = run_with_fallback(options, run);
     if let Err(e) = &result {
-        fatal(&format!(
-            "Opentern couldn't open its window:\n{e}\n\nThis usually means the graphics driver is missing or out of date."
+        fatal(language, &language.format(
+            "Opentern couldn't open its window:\n{error}\n\nThis usually means the graphics driver is missing or out of date.", &[("error",&e.to_string())]
         ));
     }
     result
@@ -279,15 +283,20 @@ fn print_quietly(text: &str) {
 
 /// Reports an error that stops Opentern from starting, in a dialog as well
 /// as on stderr (a Windows app has no console to print to), then exits.
-fn fatal(msg: &str) -> ! {
+fn fatal(language: i18n::Language, msg: &str) -> ! {
     diag::note("COULDN'T START", msg);
     if !app::headless() {
         let log = diag::log_path()
-            .map(|p| format!("\n\nDetails are in {}", p.display()))
+            .map(|p| {
+                format!(
+                    "\n\n{}",
+                    language.format("Details are in {path}", &[("path", &p.display().to_string())])
+                )
+            })
             .unwrap_or_default();
         let _ = rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Error)
-            .set_title("Opentern couldn't start")
+            .set_title(language.text("Opentern couldn't start"))
             .set_description(format!("{msg}{log}"))
             .set_buttons(rfd::MessageButtons::Ok)
             .show();

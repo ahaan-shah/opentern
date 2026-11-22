@@ -218,7 +218,10 @@ impl App {
         let src = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(e) => {
-                run.compile_error = Some(format!("Couldn't read {}: {e}", run.file));
+                run.compile_error = Some(self.language.format(
+                    "Couldn't read {file}: {error}",
+                    &[("file", &run.file), ("error", &e.to_string())],
+                ));
                 run.error = run.compile_error.clone();
                 return;
             }
@@ -262,7 +265,11 @@ impl App {
         };
         let run = &mut self.scripts[i];
         if script.kind() == Kind::Library {
-            run.compile_error = Some("This is a library: import it from another script.".into());
+            run.compile_error = Some(
+                self.language
+                    .text("This is a library: import it from another script.")
+                    .into(),
+            );
             run.error = run.compile_error.clone();
             return;
         }

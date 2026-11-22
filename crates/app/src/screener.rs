@@ -168,8 +168,34 @@ pub struct Screener {
     sort: (Field, bool),
     tx: crossbeam_channel::Sender<Computed>,
     rx: crossbeam_channel::Receiver<Computed>,
-    pub status: String,
+    errors: usize,
     loaded: bool,
+}
+
+impl Screener {
+    pub(crate) fn status(&self, lang: crate::i18n::Language) -> String {
+        let count = self.rows.len();
+        if self.run == 0 {
+            String::new()
+        } else if self.pending == count {
+            lang.format("Loading {count} symbols…", &[("count", &count.to_string())])
+        } else if self.pending > 0 {
+            lang.format(
+                "{done} of {count} done…",
+                &[
+                    ("done", &(count - self.pending).to_string()),
+                    ("count", &count.to_string()),
+                ],
+            )
+        } else if self.errors > 0 {
+            lang.format(
+                "Done. {errors} couldn't load (hover them to see why).",
+                &[("errors", &self.errors.to_string())],
+            )
+        } else {
+            lang.text("Done.").into()
+        }
+    }
 }
 
 impl Default for Screener {
@@ -184,7 +210,7 @@ impl Default for Screener {
             sort: (Field::Change, true),
             tx,
             rx,
-            status: String::new(),
+            errors: 0,
             loaded: false,
         }
     }
@@ -397,14 +423,18 @@ impl App {
     }
 
     pub(crate) fn universe_name(&self) -> String {
+        self.universe_name_in(crate::i18n::Language::English)
+    }
+
+    fn universe_name_in(&self, lang: crate::i18n::Language) -> String {
         match &self.screener.setup.universe {
             Universe::Watchlist(id) => self
                 .watchlists
                 .iter()
                 .find(|w| w.id == *id)
                 .map(|w| w.name.clone())
-                .unwrap_or_else(|| "Watchlist".into()),
-            Universe::Preset(n) => n.clone(),
+                .unwrap_or_else(|| lang.text("Watchlist").into()),
+            Universe::Preset(n) => lang.text(n).to_owned(),
         }
     }
 
@@ -428,7 +458,7 @@ impl App {
                 done: false,
             })
             .collect();
-        sc.status = format!("Loading {} symbols…", symbols.len());
+        sc.errors = 0;
         for (k, s) in symbols.into_iter().enumerate() {
             self.hub.send(Request::Fetch {
                 seq: self.screener.seq_base + k as u64,
@@ -510,44 +540,33 @@ impl App {
             }
         }
         let sc = &mut self.screener;
-        let mut got = false;
         while let Ok(c) = sc.rx.try_recv() {
             if c.run != sc.run {
                 continue;
             }
-            got = true;
             if let Some(r) = sc.rows.iter_mut().find(|r| r.symbol.id == c.id && !r.done) {
                 r.values = c.values;
+                sc.errors += usize::from(c.error.is_some());
                 r.error = c.error;
                 r.done = true;
                 sc.pending = sc.pending.saturating_sub(1);
             }
         }
-        if got {
-            let done = sc.rows.iter().filter(|r| r.done).count();
-            let errors = sc.rows.iter().filter(|r| r.error.is_some()).count();
-            sc.status = if sc.pending > 0 {
-                format!("{done} of {} done…", sc.rows.len())
-            } else if errors > 0 {
-                format!("Done. {errors} couldn't load (hover them to see why).")
-            } else {
-                "Done.".into()
-            };
-        }
     }
 
     pub(crate) fn screener_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         // ---- toolbar
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            let current = self.universe_name();
+            let current = self.universe_name_in(lang);
             crate::widgets::combo("screen-universe")
                 .selected_text(current)
                 .width(170.0)
                 .show_ui(ui, |ui| {
                     for (name, _) in presets() {
                         let u = Universe::Preset(name.into());
-                        if crate::widgets::option(ui, self.screener.setup.universe == u, name).clicked() {
+                        if crate::widgets::option(ui, self.screener.setup.universe == u, lang.text(name)).clicked() {
                             self.screener.setup.universe = u;
                         }
                     }
@@ -566,24 +585,30 @@ impl App {
                     }
                 });
             crate::widgets::combo("screen-tf")
-                .selected_text(self.screener.setup.tf.clone())
+                .selected_text(lang.text(&self.screener.setup.tf))
                 .width(60.0)
                 .show_ui(ui, |ui| {
                     for tf in ["15m", "1h", "4h", "1D", "1W"] {
                         let on = self.screener.setup.tf == tf;
-                        if crate::widgets::option(ui, on, tf).clicked() {
+                        if crate::widgets::option(ui, on, lang.text(tf)).clicked() {
                             self.screener.setup.tf = tf.into();
                         }
                     }
                 });
             self.script_picker(ui, t);
-            if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), "Run")
-                .on_hover_text("Fetch and measure every symbol")
-                .clicked()
+            if crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Primary,
+                true,
+                Some(ph::PLAY),
+                lang.text("Run"),
+            )
+            .on_hover_text(lang.text("Fetch and measure every symbol"))
+            .clicked()
             {
                 self.run_screener();
             }
-            ui.label(egui::RichText::new(&self.screener.status).color(t.text3));
+            ui.label(egui::RichText::new(self.screener.status(lang)).color(t.text3));
         });
         ui.add_space(4.0);
         // ---- filters
@@ -598,22 +623,30 @@ impl App {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             crate::widgets::combo(("flt-field", k))
-                                .selected_text(f.field.name())
+                                .selected_text(lang.text(f.field.name()))
                                 .width(110.0)
                                 .show_ui(ui, |ui| {
                                     for fld in Field::ALL {
-                                        crate::widgets::option_value(ui, &mut f.field, fld, fld.name());
+                                        crate::widgets::option_value(ui, &mut f.field, fld, lang.text(fld.name()));
                                     }
                                 });
                             crate::widgets::combo(("flt-op", k))
-                                .selected_text(if f.op == Op::Above { "above" } else { "below" })
+                                .selected_text(if f.op == Op::Above {
+                                    lang.text("above")
+                                } else {
+                                    lang.text("below")
+                                })
                                 .width(64.0)
                                 .show_ui(ui, |ui| {
-                                    crate::widgets::option_value(ui, &mut f.op, Op::Above, "above");
-                                    crate::widgets::option_value(ui, &mut f.op, Op::Below, "below");
+                                    crate::widgets::option_value(ui, &mut f.op, Op::Above, lang.text("above"));
+                                    crate::widgets::option_value(ui, &mut f.op, Op::Below, lang.text("below"));
                                 });
                             ui.add(egui::DragValue::new(&mut f.value).speed(0.1).max_decimals(4));
-                            if ui.small_button(ph::X).on_hover_text("Remove filter").clicked() {
+                            if ui
+                                .small_button(ph::X)
+                                .on_hover_text(lang.text("Remove filter"))
+                                .clicked()
+                            {
                                 remove = Some(k);
                             }
                         });
@@ -627,7 +660,7 @@ impl App {
                 crate::widgets::Kind::Secondary,
                 true,
                 Some(ph::FUNNEL),
-                "Add filter",
+                lang.text("Add filter"),
             )
             .clicked()
             {
@@ -657,7 +690,7 @@ impl App {
                 ui.painter().text(
                     r.left_center() + vec2(6.0, 0.0),
                     egui::Align2::LEFT_CENTER,
-                    "Symbol",
+                    lang.text("Symbol"),
                     theme::medium(12.0),
                     t.text3,
                 );
@@ -665,9 +698,9 @@ impl App {
                     let (r, resp) = ui.allocate_exact_size(vec2(col_w, row_h), Sense::click());
                     let (sf, desc) = self.screener.sort;
                     let label = if sf == *f {
-                        format!("{} {}", f.name(), if desc { "↓" } else { "↑" })
+                        format!("{} {}", lang.text(f.name()), if desc { "↓" } else { "↑" })
                     } else {
-                        f.name().to_string()
+                        lang.text(f.name()).to_string()
                     };
                     ui.painter().text(
                         r.right_center() - vec2(6.0, 0.0),
@@ -762,7 +795,7 @@ impl App {
                             }
                         }
                         let resp = match &r.error {
-                            Some(e) => resp.on_hover_text(e),
+                            Some(e) => resp.on_hover_text(lang.data_error(e)),
                             None => resp,
                         };
                         if resp.clicked() {
@@ -778,10 +811,11 @@ impl App {
 
     /// The script column: none, a built-in, or a Pine file, and its plot.
     fn script_picker(&mut self, ui: &mut Ui, _t: &Theme) {
+        let lang = self.language;
         let current = match &self.screener.setup.script {
-            ScreenScript::None => "No script".to_string(),
+            ScreenScript::None => lang.text("No script").to_string(),
             ScreenScript::Builtin(id, _) => opentern_series::builtins::by_id(id)
-                .map(|m| m.short.to_string())
+                .map(|m| lang.text(m.short).to_string())
                 .unwrap_or_else(|| id.clone()),
             ScreenScript::Pine(f, _) => f.clone(),
         };
@@ -790,7 +824,13 @@ impl App {
             .width(180.0)
             .height(360.0)
             .show_ui(ui, |ui| {
-                if crate::widgets::option(ui, self.screener.setup.script == ScreenScript::None, "No script").clicked() {
+                if crate::widgets::option(
+                    ui,
+                    self.screener.setup.script == ScreenScript::None,
+                    lang.text("No script"),
+                )
+                .clicked()
+                {
                     self.screener.setup.script = ScreenScript::None;
                 }
                 let pine: Vec<String> = self
@@ -816,7 +856,7 @@ impl App {
                 ui.separator();
                 for m in opentern_series::builtins::all().iter().filter(|m| !m.plots.is_empty()) {
                     let on = matches!(&self.screener.setup.script, ScreenScript::Builtin(x, _) if x == m.id);
-                    if crate::widgets::option(ui, on, m.name).clicked() {
+                    if crate::widgets::option(ui, on, lang.text(m.name)).clicked() {
                         self.screener.setup.script = ScreenScript::Builtin(m.id.into(), 0);
                     }
                 }
@@ -827,17 +867,17 @@ impl App {
             && m.plots.len() > 1
         {
             crate::widgets::combo("screen-plot")
-                .selected_text(m.plots.get(*plot).map(|p| p.title).unwrap_or("Plot"))
+                .selected_text(lang.text(m.plots.get(*plot).map(|p| p.title).unwrap_or("Plot")))
                 .width(110.0)
                 .show_ui(ui, |ui| {
                     for (k, p) in m.plots.iter().enumerate() {
-                        crate::widgets::option_value(ui, plot, k, p.title);
+                        crate::widgets::option_value(ui, plot, k, lang.text(p.title));
                     }
                 });
         }
         if let ScreenScript::Pine(_, plot) = &mut self.screener.setup.script {
-            ui.add(egui::DragValue::new(plot).range(0..=63).prefix("plot "))
-                .on_hover_text("Which plot to show (0 is the first)");
+            ui.add(egui::DragValue::new(plot).range(0..=63).prefix(lang.text("plot ")))
+                .on_hover_text(lang.text("Which plot to show (0 is the first)"));
         }
         let _ = Layout::left_to_right(Align::Center);
     }

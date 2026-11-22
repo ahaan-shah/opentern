@@ -83,6 +83,21 @@ pub struct Paper {
 }
 
 impl Paper {
+    pub(crate) fn relabel_default(
+        &mut self,
+        store: &opentern_core::Store,
+        previous: crate::i18n::Language,
+        language: crate::i18n::Language,
+    ) {
+        if self.account.name == previous.text("Paper account")
+            && self.others.is_empty()
+            && store.value(KEY).is_none()
+            && store.value(OLD_KEY).is_none()
+        {
+            self.account.name = language.text("Paper account").into();
+        }
+    }
+
     pub fn load(store: &opentern_core::Store) -> Paper {
         let (account, others) = match store.value(KEY).and_then(|s| serde_json::from_str::<Saved>(&s).ok()) {
             Some(mut s) if !s.accounts.is_empty() => {
@@ -94,7 +109,12 @@ impl Paper {
                 store
                     .value(OLD_KEY)
                     .and_then(|s| serde_json::from_str::<Account>(&s).ok())
-                    .unwrap_or_default(),
+                    .unwrap_or_else(|| {
+                        let lang = crate::i18n::Language::from_code(store.value("language").as_deref());
+                        let mut account = Account::default();
+                        account.name = lang.text("Paper account").to_owned();
+                        account
+                    }),
                 Vec::new(),
             ),
         };
@@ -116,6 +136,25 @@ impl Paper {
             confirm_reset: false,
         }
     }
+}
+
+pub(crate) fn order_kind(lang: crate::i18n::Language, name: &str) -> &str {
+    lang.text(if name == "Stop" { "Stop order" } else { name })
+}
+
+pub(crate) fn order_error(lang: crate::i18n::Language, error: &str) -> String {
+    for (ending, message) in [
+        (" exchange rate yet.", "No {pair} exchange rate yet."),
+        (
+            " exchange rate yet; try again in a moment.",
+            "No {pair} exchange rate yet; try again in a moment.",
+        ),
+    ] {
+        if let Some(pair) = error.strip_prefix("No ").and_then(|s| s.strip_suffix(ending)) {
+            return lang.format(message, &[("pair", pair)]);
+        }
+    }
+    lang.text(error).to_owned()
 }
 
 fn now() -> i64 {
@@ -208,6 +247,7 @@ impl App {
     /// Every frame: feeds new prices to the account, keeps quotes coming
     /// for its symbols, and puts its lines on the chart.
     pub(crate) fn poll_paper(&mut self) {
+        let lang = self.language;
         let mut symbols = self.paper.account.symbols();
         for a in &self.paper.others {
             symbols.extend(a.symbols());
@@ -227,13 +267,17 @@ impl App {
             for acc in std::iter::once(&mut paper.account).chain(paper.others.iter_mut()) {
                 let fills = acc.on_price(s, p, now());
                 for f in &fills {
-                    let side = if f.buy { "Bought" } else { "Sold" };
+                    let side = if f.buy { lang.text("Bought") } else { lang.text("Sold") };
                     let whose = if many { format!("{}: ", acc.name) } else { String::new() };
-                    paper.status = format!(
-                        "{whose}{side} {} {} at {}",
-                        qty_text(f.qty),
-                        short(&f.symbol),
-                        num(f.price)
+                    paper.status = lang.format(
+                        "{whose}{side} {qty} {symbol} at {price}",
+                        &[
+                            ("whose", &whose),
+                            ("side", side),
+                            ("qty", &qty_text(f.qty)),
+                            ("symbol", &short(&f.symbol)),
+                            ("price", &num(f.price)),
+                        ],
                     );
                     crate::diag::crumb(format!("paper fill: order {}", f.order));
                 }
@@ -245,17 +289,39 @@ impl App {
         let mut notes = Vec::new();
         for acc in std::iter::once(&mut self.paper.account).chain(self.paper.others.iter_mut()) {
             for n in acc.notices.drain(..) {
-                notes.push(if many { format!("{}: {n}", acc.name) } else { n });
+                let margin_call = n.starts_with("Margin call:");
+                let message = if let Some((details, reason)) = n.rsplit_once(" cancelled: ")
+                    && let Some((kind, order)) = details.split_once(" order ")
+                    && let Some((id, symbol)) = order.split_once(" on ")
+                {
+                    lang.format(
+                        "{kind} order {id} on {symbol} cancelled: {reason}",
+                        &[
+                            ("kind", order_kind(lang, kind)),
+                            ("id", id),
+                            ("symbol", symbol),
+                            ("reason", &order_error(lang, reason)),
+                        ],
+                    )
+                } else {
+                    lang.text(&n).to_owned()
+                };
+                let message = if many {
+                    format!("{}: {message}", acc.name)
+                } else {
+                    message
+                };
+                notes.push((message, margin_call));
             }
         }
-        for n in notes {
+        for (n, margin_call) in notes {
             self.paper.status = n.clone();
             self.notify(
                 crate::icons::ph::WALLET,
-                "Paper trading",
+                lang.text("Paper trading"),
                 &n,
                 None,
-                n.contains("Margin call"),
+                margin_call,
             );
             changed = true;
         }
@@ -275,6 +341,7 @@ impl App {
 
     /// The paper position and orders on the chart's symbol, as lines.
     pub(crate) fn paper_lines(&mut self) {
+        let lang = self.language;
         let id = self.chart.symbol.id.clone();
         let mut lines = Vec::new();
         if let Some(p) = self.paper.account.position(&id) {
@@ -283,7 +350,11 @@ impl App {
                 price: p.avg,
                 label: format!(
                     "{} {}  {}",
-                    if p.qty > 0.0 { "Long" } else { "Short" },
+                    if p.qty > 0.0 {
+                        lang.text("Long")
+                    } else {
+                        lang.text("Short")
+                    },
                     qty_text(p.qty),
                     signed(pnl)
                 ),
@@ -297,11 +368,15 @@ impl App {
                 let what = if o.reduce_only {
                     if matches!(o.kind, Kind::Limit(_)) { "TP" } else { "SL" }
                 } else {
-                    o.kind.name()
+                    order_kind(lang, o.kind.name())
                 };
                 lines.push(PaperLine {
                     price,
-                    label: format!("{what} {} {}", if o.buy { "buy" } else { "sell" }, qty_text(o.qty)),
+                    label: format!(
+                        "{what} {} {}",
+                        if o.buy { lang.text("buy") } else { lang.text("sell") },
+                        qty_text(o.qty)
+                    ),
                     buy: o.buy,
                     position: false,
                     order: Some(o.id),
@@ -318,49 +393,54 @@ impl App {
 
     /// Chart trading: an order's line was dragged.
     pub(crate) fn paper_move(&mut self, id: u64, price: f64) {
+        let lang = self.language;
         match self.paper.account.modify(id, price) {
             Ok(()) => {
-                self.paper.status = format!("Order moved to {}.", num(price));
+                self.paper.status = lang.format("Order moved to {price}.", &[("price", &num(price))]);
                 self.save_paper();
             }
-            Err(e) => self.paper.status = e,
+            Err(e) => self.paper.status = order_error(lang, &e),
         }
     }
 
     pub(crate) fn paper_cancel(&mut self, id: u64) {
+        let lang = self.language;
         if self.paper.account.cancel(id) {
-            self.paper.status = "Order cancelled.".into();
+            self.paper.status = lang.text("Order cancelled.").into();
             self.save_paper();
         }
     }
 
     pub(crate) fn paper_close(&mut self, symbol: &str) {
+        let lang = self.language;
         match self.last_price(symbol) {
             Some(l) => {
                 self.paper.account.close_position(symbol, l, now());
-                self.paper.status = format!("Closed {}.", short(symbol));
+                self.paper.status = lang.format("Closed {symbol}.", &[("symbol", &short(symbol))]);
                 self.save_paper();
             }
-            None => self.paper.status = "No price yet for this symbol.".into(),
+            None => self.paper.status = lang.text("No price yet for this symbol.").into(),
         }
     }
 
     /// Makes account `k` of the others the one in use.
     pub(crate) fn switch_account(&mut self, k: usize) {
+        let lang = self.language;
         if k < self.paper.others.len() {
             std::mem::swap(&mut self.paper.account, &mut self.paper.others[k]);
             // Keep the others in their order: the previous one goes first.
             let prev = self.paper.others.remove(k);
             self.paper.others.insert(0, prev);
-            self.paper.status = format!("Using {}.", self.paper.account.name);
+            self.paper.status = lang.format("Using {account}.", &[("account", &self.paper.account.name)]);
             self.save_paper();
         }
     }
 
     /// A free "Paper account N" name.
     fn free_account_name(&self) -> String {
+        let lang = self.language;
         (2..)
-            .map(|k| format!("Paper account {k}"))
+            .map(|k| lang.format("Paper account {k}", &[("k", &k.to_string())]))
             .find(|n| !self.paper_name_taken(n, true))
             .expect("a free name")
     }
@@ -393,6 +473,7 @@ impl App {
     /// Makes the account the dialog describes, or saves its settings to the
     /// one in use (commission applies to fills from now on).
     pub(crate) fn apply_paper_account(&mut self, f: &crate::dialogs::paper_account::PaperAccountForm) {
+        let lang = self.language;
         let name = f.name.trim().to_string();
         let set = |a: &mut Account| {
             a.commission_pct = f.commission;
@@ -408,7 +489,7 @@ impl App {
             set(&mut fresh);
             let prev = std::mem::replace(&mut self.paper.account, fresh);
             self.paper.others.insert(0, prev);
-            self.paper.status = format!("Made {name}.");
+            self.paper.status = lang.format("Made {name}.", &[("name", &name)]);
         } else {
             let a = &mut self.paper.account;
             a.name = name;
@@ -439,11 +520,12 @@ impl App {
     }
 
     pub(crate) fn delete_account(&mut self) {
+        let lang = self.language;
         if self.paper.others.is_empty() {
             return;
         }
         let gone = std::mem::replace(&mut self.paper.account, self.paper.others.remove(0));
-        self.paper.status = format!("Deleted {}.", gone.name);
+        self.paper.status = lang.format("Deleted {name}.", &[("name", &gone.name)]);
         self.save_paper();
     }
 
@@ -464,6 +546,7 @@ impl App {
     }
 
     fn ticket(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let sym = self.chart.symbol.id.clone();
         let last = self.last_price(&sym);
         ui.horizontal(|ui| {
@@ -476,7 +559,7 @@ impl App {
         // Buy / Sell.
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            for (buy, label, c) in [(true, "Buy", t.pos), (false, "Sell", t.neg)] {
+            for (buy, label, c) in [(true, lang.text("Buy"), t.pos), (false, lang.text("Sell"), t.neg)] {
                 let on = self.paper.buy == buy;
                 let (r, resp) = ui.allocate_exact_size(vec2(119.0, 30.0), Sense::click());
                 let fill = if on { c } else { t.card };
@@ -514,13 +597,13 @@ impl App {
             });
         };
         let mut kind = self.paper.kind;
-        row(ui, "Type", &mut |ui| {
+        row(ui, lang.text("Type"), &mut |ui| {
             crate::widgets::combo("paper-type")
                 .width(150.0)
-                .selected_text(kind.name())
+                .selected_text(order_kind(lang, kind.name()))
                 .show_ui(ui, |ui| {
                     for k in OrderType::ALL {
-                        crate::widgets::option_value(ui, &mut kind, k, k.name());
+                        crate::widgets::option_value(ui, &mut kind, k, order_kind(lang, k.name()));
                     }
                 });
         });
@@ -534,7 +617,7 @@ impl App {
         }
         let step = self.chart.symbol.tick_size.max(1e-8);
         let mut qty = self.paper.qty;
-        row(ui, "Quantity", &mut |ui| {
+        row(ui, lang.text("Quantity"), &mut |ui| {
             ui.add(
                 egui::DragValue::new(&mut qty)
                     .range(0.0..=1e12)
@@ -545,21 +628,21 @@ impl App {
         self.paper.qty = qty;
         let (mut price, mut limit, mut offset) = (self.paper.price, self.paper.limit, self.paper.offset);
         match self.paper.kind {
-            OrderType::Limit => row(ui, "Limit price", &mut |ui| {
+            OrderType::Limit => row(ui, lang.text("Limit price"), &mut |ui| {
                 ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
             }),
-            OrderType::Stop => row(ui, "Stop price", &mut |ui| {
+            OrderType::Stop => row(ui, lang.text("Stop price"), &mut |ui| {
                 ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
             }),
             OrderType::StopLimit => {
-                row(ui, "Stop price", &mut |ui| {
+                row(ui, lang.text("Stop price"), &mut |ui| {
                     ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
                 });
-                row(ui, "Limit price", &mut |ui| {
+                row(ui, lang.text("Limit price"), &mut |ui| {
                     ui.add(egui::DragValue::new(&mut limit).speed(step).max_decimals(8));
                 });
             }
-            OrderType::Trailing => row(ui, "Trail by", &mut |ui| {
+            OrderType::Trailing => row(ui, lang.text("Trail by"), &mut |ui| {
                 ui.add(
                     egui::DragValue::new(&mut offset)
                         .speed(step)
@@ -577,7 +660,7 @@ impl App {
             _ => Some(self.paper.price),
         };
         let dir = if self.paper.buy { 1.0 } else { -1.0 };
-        for (tp, label) in [(true, "Take profit"), (false, "Stop loss")] {
+        for (tp, label) in [(true, lang.text("Take profit")), (false, lang.text("Stop loss"))] {
             let slot = if tp { &mut self.paper.tp } else { &mut self.paper.sl };
             let mut on = slot.is_some();
             ui.horizontal(|ui| {
@@ -596,7 +679,11 @@ impl App {
             });
         }
         ui.add_space(8.0);
-        let side = if self.paper.buy { "Buy" } else { "Sell" };
+        let side = if self.paper.buy {
+            lang.text("Buy")
+        } else {
+            lang.text("Sell")
+        };
         let label = format!("{side} {} {}", qty_text(self.paper.qty), short(&sym));
         let c = if self.paper.buy { t.pos } else { t.neg };
         let (r, resp) = ui.allocate_exact_size(vec2(244.0, 34.0), Sense::click());
@@ -637,12 +724,18 @@ impl App {
             match self.paper.account.place(ticket, last, now()) {
                 Ok(_) => {
                     self.paper.status = match self.paper.kind {
-                        OrderType::Market => format!("{side} order filled."),
-                        _ => "Order placed.".into(),
+                        OrderType::Market => lang
+                            .text(if self.paper.buy {
+                                "Buy order filled."
+                            } else {
+                                "Sell order filled."
+                            })
+                            .into(),
+                        _ => lang.text("Order placed.").into(),
                     };
                     self.save_paper();
                 }
-                Err(e) => self.paper.status = e,
+                Err(e) => self.paper.status = order_error(lang, &e),
             }
         }
         if !self.paper.status.is_empty() {
@@ -652,6 +745,7 @@ impl App {
     }
 
     fn account_view(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let acc = &self.paper.account;
         let prices: HashMap<String, f64> = acc
             .symbols()
@@ -668,10 +762,13 @@ impl App {
         } else {
             format!(" {}", acc.currency)
         };
-        let margin = format!(
-            "Margin in use {}{unit} · Buying power {}{unit}",
-            num(acc.margin_used()),
-            num(acc.buying_power().max(0.0))
+        let margin = lang.format(
+            "Margin in use {margin}{unit} · Buying power {power}{unit}",
+            &[
+                ("margin", &num(acc.margin_used())),
+                ("unit", &unit),
+                ("power", &num(acc.buying_power().max(0.0))),
+            ],
         );
         // The account, and resetting it, on top.
         ui.horizontal(|ui| {
@@ -679,17 +776,17 @@ impl App {
             self.account_menu(ui, t);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if self.paper.confirm_reset {
-                    if small_button(ui, t, "Cancel", false).clicked() {
+                    if small_button(ui, t, lang.text("Cancel"), false).clicked() {
                         self.paper.confirm_reset = false;
                     }
-                    if small_button(ui, t, "Yes, reset", true).clicked() {
+                    if small_button(ui, t, lang.text("Yes, reset"), true).clicked() {
                         self.paper.account.reset();
                         self.paper.confirm_reset = false;
-                        self.paper.status = "The account was reset.".into();
+                        self.paper.status = lang.text("The account was reset.").into();
                         self.save_paper();
                     }
-                    ui.label(egui::RichText::new("Clear everything?").color(t.text2));
-                } else if small_button(ui, t, "Reset account", false).clicked() {
+                    ui.label(egui::RichText::new(lang.text("Clear everything?")).color(t.text2));
+                } else if small_button(ui, t, lang.text("Reset account"), false).clicked() {
                     self.paper.confirm_reset = true;
                 }
             });
@@ -698,10 +795,10 @@ impl App {
         // Four even columns, or two by two when the panel is narrow; values
         // never get cut off.
         let items = [
-            ("Balance", format!("{}{unit}", num(balance)), t.text),
-            ("Equity", format!("{}{unit}", num(equity)), t.text),
-            ("Unrealized", signed(unreal), tone(t, unreal)),
-            ("Realized", signed(realized), tone(t, realized)),
+            (lang.text("Balance"), format!("{}{unit}", num(balance)), t.text),
+            (lang.text("Equity"), format!("{}{unit}", num(equity)), t.text),
+            (lang.text("Unrealized"), signed(unreal), tone(t, unreal)),
+            (lang.text("Realized"), signed(realized), tone(t, realized)),
         ];
         let w = ui.available_width();
         let per_row = if w / 4.0 >= 120.0 { 4 } else { 2 };
@@ -732,9 +829,9 @@ impl App {
             self.paper.account.fills.len(),
         );
         let labels = [
-            format!("Positions {}", counts.0),
-            format!("Orders {}", counts.1),
-            format!("History {}", counts.2),
+            lang.format("Positions {count}", &[("count", &counts.0.to_string())]),
+            lang.format("Orders {count}", &[("count", &counts.1.to_string())]),
+            lang.format("History {count}", &[("count", &counts.2.to_string())]),
         ];
         let mut view = self.paper.view;
         crate::widgets::segmented(
@@ -758,6 +855,7 @@ impl App {
 
     /// The account picker: switch, make, rename and delete accounts.
     fn account_menu(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let current = self.paper.account.name.clone();
         let mut pick = None;
         let mut make = false;
@@ -776,8 +874,15 @@ impl App {
                 use crate::widgets as w;
                 ui.set_width(260.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
-                w::menu_heading(ui, t, "ACCOUNTS");
-                w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &current, "in use", true);
+                w::menu_heading(ui, t, lang.text("ACCOUNTS"));
+                w::menu_item(
+                    ui,
+                    t,
+                    Some(crate::icons::ph::WALLET),
+                    &current,
+                    lang.text("in use"),
+                    true,
+                );
                 for (k, a) in self.paper.others.iter().enumerate() {
                     if w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &a.name, "", false).clicked() {
                         pick = Some(k);
@@ -785,28 +890,37 @@ impl App {
                     }
                 }
                 w::menu_rule(ui, t);
-                if w::menu_item(ui, t, Some(crate::icons::ph::GEAR_SIX), "Account settings", "", false).clicked() {
+                if w::menu_item(
+                    ui,
+                    t,
+                    Some(crate::icons::ph::GEAR_SIX),
+                    lang.text("Account settings"),
+                    "",
+                    false,
+                )
+                .clicked()
+                {
                     settings = true;
                     ui.close();
                 }
-                if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), "New account", "", false).clicked() {
+                if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), lang.text("New account"), "", false).clicked() {
                     make = true;
                     ui.close();
                 }
                 let can = !self.paper.others.is_empty();
                 let r = if can {
-                    w::menu_danger(ui, t, Some(crate::icons::ph::TRASH), "Delete this account")
+                    w::menu_danger(ui, t, Some(crate::icons::ph::TRASH), lang.text("Delete this account"))
                 } else {
                     w::menu_row(
                         ui,
                         t,
                         Some(crate::icons::ph::TRASH),
-                        "Delete this account",
+                        lang.text("Delete this account"),
                         "",
                         false,
                         false,
                     )
-                    .on_hover_text("Make another account first")
+                    .on_hover_text(lang.text("Make another account first"))
                 };
                 if can && r.clicked() {
                     delete = true;
@@ -828,6 +942,7 @@ impl App {
     }
 
     fn positions_table(&mut self, ui: &mut Ui, t: &Theme, prices: &HashMap<String, f64>) {
+        let lang = self.language;
         let rows: Vec<_> = self.paper.account.positions.clone();
         if rows.is_empty() {
             empty(ui, t, "No open positions.");
@@ -851,7 +966,12 @@ impl App {
                 let cells = [
                     (short(&p.symbol), t.text),
                     (
-                        if p.qty > 0.0 { "Long" } else { "Short" }.to_string(),
+                        if p.qty > 0.0 {
+                            lang.text("Long")
+                        } else {
+                            lang.text("Short")
+                        }
+                        .to_string(),
                         if p.qty > 0.0 { t.pos } else { t.neg },
                     ),
                     (qty_text(p.qty), t.text),
@@ -859,7 +979,7 @@ impl App {
                     (last.map(num).unwrap_or("—".into()), t.text2),
                     (pnl.map(signed).unwrap_or("—".into()), tone(t, pnl.unwrap_or(0.0))),
                 ];
-                if row_with_action(ui, t, &cols, &cells, "Close") {
+                if row_with_action(ui, t, &cols, &cells, lang.text("Close")) {
                     close = Some((p.symbol.clone(), last));
                 }
             }
@@ -868,15 +988,16 @@ impl App {
             match last {
                 Some(l) => {
                     self.paper.account.close_position(&s, l, now());
-                    self.paper.status = format!("Closed {}.", short(&s));
+                    self.paper.status = lang.format("Closed {symbol}.", &[("symbol", &short(&s))]);
                     self.save_paper();
                 }
-                None => self.paper.status = "No price yet for this symbol.".into(),
+                None => self.paper.status = lang.text("No price yet for this symbol.").into(),
             }
         }
     }
 
     fn orders_table(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let rows = self.paper.account.orders.clone();
         if rows.is_empty() {
             empty(ui, t, "No working orders.");
@@ -907,27 +1028,28 @@ impl App {
                 let cells = [
                     (short(&o.symbol), t.text),
                     (
-                        if o.buy { "Buy" } else { "Sell" }.to_string(),
+                        if o.buy { lang.text("Buy") } else { lang.text("Sell") }.to_string(),
                         if o.buy { t.pos } else { t.neg },
                     ),
-                    (kind.to_string(), t.text2),
+                    (order_kind(lang, kind).to_string(), t.text2),
                     (qty_text(o.qty), t.text),
                     (o.kind.price(o.buy).map(num).unwrap_or("—".into()), t.text),
                     (time_text(o.placed, &self.chart.tz), t.text2),
                 ];
-                if row_with_action(ui, t, &cols, &cells, "Cancel") {
+                if row_with_action(ui, t, &cols, &cells, lang.text("Cancel")) {
                     cancel = Some(o.id);
                 }
             }
         });
         if let Some(id) = cancel {
             self.paper.account.cancel(id);
-            self.paper.status = "Order cancelled.".into();
+            self.paper.status = lang.text("Order cancelled.").into();
             self.save_paper();
         }
     }
 
     fn history_table(&mut self, ui: &mut Ui, t: &Theme) {
+        let lang = self.language;
         let fills = &self.paper.account.fills;
         if fills.is_empty() {
             empty(ui, t, "Nothing traded yet.");
@@ -954,7 +1076,7 @@ impl App {
                         (time_text(f.time, &self.chart.tz), t.text2),
                         (short(&f.symbol), t.text),
                         (
-                            if f.buy { "Buy" } else { "Sell" }.to_string(),
+                            if f.buy { lang.text("Buy") } else { lang.text("Sell") }.to_string(),
                             if f.buy { t.pos } else { t.neg },
                         ),
                         (qty_text(f.qty), t.text),
@@ -969,15 +1091,17 @@ impl App {
 }
 
 fn empty(ui: &mut Ui, t: &Theme, what: &str) {
+    let lang = crate::i18n::Language::of(ui);
     let icon = match what {
         "No open positions." => crate::icons::ph::STACK,
         "No working orders." => crate::icons::ph::LIST_CHECKS,
         _ => crate::icons::ph::RECEIPT,
     };
-    crate::widgets::empty_state(ui, t, icon, what.trim_end_matches('.'));
+    crate::widgets::empty_state(ui, t, icon, lang.text(what).trim_end_matches('.'));
 }
 
 fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {
+    let lang = crate::i18n::Language::of(ui);
     let w: f32 = cols.iter().map(|c| c.1).sum();
     let (r, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
     let mut x = r.left();
@@ -985,7 +1109,7 @@ fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {
         ui.painter().text(
             pos2(x + 8.0, r.center().y),
             Align2::LEFT_CENTER,
-            *name,
+            lang.text(name),
             theme::medium(12.0),
             t.text3,
         );

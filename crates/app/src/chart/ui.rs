@@ -173,6 +173,7 @@ pub fn show(
     interactive: bool,
     tools: &super::drawing_ui::Tools,
 ) -> Vec<Action> {
+    let lang = crate::i18n::Language::of(ui);
     let mut actions = Vec::new();
     chart.replay_tick(ui.ctx());
     let full = ui.max_rect();
@@ -665,7 +666,7 @@ pub fn show(
         }
         let _ = resp
             .on_hover_cursor(egui::CursorIcon::ResizeVertical)
-            .on_hover_text_at_pointer("Drag to scale · double-click to fit · right-click for options");
+            .on_hover_text_at_pointer(lang.text("Drag to scale · double-click to fit · right-click for options"));
     }
     // A / L / % under each price scale (the main one, then each own scale).
     {
@@ -1001,7 +1002,7 @@ pub fn show(
             painter.text(
                 pos2(xx, time_axis.center().y),
                 Align2::CENTER_CENTER,
-                &tk.label,
+                lang.text(&tk.label),
                 font,
                 pal.scale_text,
             );
@@ -1192,7 +1193,7 @@ pub fn show(
         }
         for (xx, tt) in [(xa, m.a.t), (xb, m.b.t)] {
             if xx >= time_axis.left() && xx <= time_axis.right() {
-                let text = format::crosshair_time(tt, chart.tf, &chart.tz);
+                let text = format::crosshair_time(tt, chart.tf, &chart.tz, lang);
                 let w = painter
                     .layout_no_wrap(text.clone(), small.clone(), Color32::WHITE)
                     .size()
@@ -1264,7 +1265,7 @@ pub fn show(
             None
         };
         if let Some(t) = t {
-            let text = format::crosshair_time(t, chart.tf, &chart.tz);
+            let text = format::crosshair_time(t, chart.tf, &chart.tz, lang);
             let w = painter
                 .layout_no_wrap(text.clone(), small.clone(), Color32::WHITE)
                 .size()
@@ -1333,9 +1334,8 @@ pub fn show(
         && let Some(g) = geos.first()
     {
         let msg = match &chart.status {
-            Status::Error(e) => e.clone(),
-            Status::Offline(e) => e.clone(),
-            _ => "Loading…".to_string(),
+            Status::Error(e) | Status::Offline(e) => lang.data_error(e),
+            _ => lang.text("Loading…").to_string(),
         };
         painter.text(
             g.rect.center() + vec2(0.0, 48.0),
@@ -1371,7 +1371,7 @@ pub fn show(
             theme::regular(14.0),
             t.text2,
         );
-        if resp.on_hover_text("Scroll to the most recent bar").clicked() {
+        if resp.on_hover_text(lang.text("Scroll to the most recent bar")).clicked() {
             chart.view.right = chart.last_index() + super::RIGHT_MARGIN;
         }
     }
@@ -1526,8 +1526,13 @@ fn axis_toggles(
     on: [bool; 3],
     live: bool,
 ) -> Option<usize> {
+    let lang = crate::i18n::Language::of(ui);
     let labels = ["A", "L", "%"];
-    let tips = ["Auto (fits data to screen)", "Log scale", "Percent scale"];
+    let tips = [
+        lang.text("Auto (fits data to screen)"),
+        lang.text("Log scale"),
+        lang.text("Percent scale"),
+    ];
     let w = ((rect.width() - 8.0) / 3.0).min(22.0);
     let x0 = rect.center().x - w * 1.5;
     let mut hit = None;
@@ -2311,6 +2316,7 @@ fn draw_corporate(
     last: usize,
     rect: Rect,
 ) {
+    let lang = crate::i18n::Language::from_context(ctx);
     if chart.bars.is_empty() {
         return;
     }
@@ -2329,7 +2335,7 @@ fn draw_corporate(
     let y = rect.bottom() - r - 6.0;
     let fmt_day = |d: i64| {
         jiff::Timestamp::from_millisecond(d)
-            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%d %b %Y").to_string())
+            .map(|t| lang.date(&t.to_zoned(jiff::tz::TimeZone::UTC), "%d %b %Y"))
             .unwrap_or_default()
     };
     let items = c
@@ -2340,46 +2346,52 @@ fn draw_corporate(
                 *d,
                 'D',
                 format!(
-                    "Dividend {} {}\nEx-date {}",
-                    trim_num(*a),
-                    chart.symbol.currency,
-                    fmt_day(*d)
+                    "{}\n{}",
+                    lang.format(
+                        "Dividend {amount} {currency}",
+                        &[("amount", &trim_num(*a)), ("currency", &chart.symbol.currency)]
+                    ),
+                    lang.format("Ex-date {date}", &[("date", &fmt_day(*d))]),
                 ),
             )
         })
         .chain(c.splits.iter().map(|(d, ratio)| {
             // Yahoo lists Indian bonus issues as splits too.
             let what = if matches!(chart.symbol.exchange(), "NSE" | "BSE") {
-                "Split or bonus"
+                lang.text("Split or bonus")
             } else {
-                "Split"
+                lang.text("Split")
             };
             let text = if *ratio >= 1.0 {
                 format!("{what} {}:1", trim_num(*ratio))
             } else {
-                format!("Reverse split 1:{}", trim_num(1.0 / ratio))
+                lang.format("Reverse split 1:{ratio}", &[("ratio", &trim_num(1.0 / ratio))])
             };
-            (*d, 'S', format!("{text}\n{}\nEarlier prices adjusted", fmt_day(*d)))
+            (
+                *d,
+                'S',
+                format!("{text}\n{}\n{}", fmt_day(*d), lang.text("Earlier prices adjusted")),
+            )
         }));
     // Earnings: green when they beat the estimate, red when they missed,
     // grey when still to come.
     let earnings = c.earnings.iter().map(|e| {
         let num = |v: Option<f64>| v.map(trim_num).unwrap_or_else(|| "—".into());
-        let text = match e.eps {
-            Some(eps) => {
-                let mut t = format!(
-                    "Earnings {}\nReported EPS {}\nEstimate {}",
-                    fmt_day(e.time),
-                    trim_num(eps),
-                    num(e.estimate)
-                );
-                if let Some(s) = e.surprise {
-                    t.push_str(&format!("\nSurprise {}{:.2}%", if s >= 0.0 { "+" } else { "" }, s));
-                }
-                t
-            }
-            None => format!("Next earnings {}\nEstimate {}", fmt_day(e.time), num(e.estimate)),
+        let mut lines = Vec::new();
+        let title = if e.eps.is_some() {
+            "Earnings {date}"
+        } else {
+            "Next earnings {date}"
         };
+        lines.push(lang.format(title, &[("date", &fmt_day(e.time))]));
+        if let Some(eps) = e.eps {
+            lines.push(lang.format("Reported EPS {eps}", &[("eps", &trim_num(eps))]));
+        }
+        lines.push(lang.format("Estimate {estimate}", &[("estimate", &num(e.estimate))]));
+        if let (Some(_), Some(diff)) = (e.eps, e.surprise) {
+            lines.push(lang.format("Surprise {difference}%", &[("difference", &format!("{diff:+.2}"))]));
+        }
+        let text = lines.join("\n");
         let kind = match (e.eps, e.estimate) {
             (None, _) => 'e',
             (Some(a), Some(est)) if a < est => 'm',
@@ -2666,6 +2678,7 @@ fn legend(
     actions: &mut Vec<Action>,
     logos: Option<&crate::logos::Logos>,
 ) {
+    let lang = crate::i18n::Language::of(ui);
     // Clipped to the plot, so a long legend never runs into the scale.
     let plot = geos.iter().fold(egui::Rect::NOTHING, |r, g| r.union(g.rect));
     let painter = ui.painter().with_clip_rect(plot);
@@ -2700,13 +2713,18 @@ fn legend(
                 let now = jiff::Timestamp::now().as_millisecond();
                 let state = opentern_core::calendar::state(market, now);
                 let (col, tip) = match &state {
-                    opentern_core::calendar::State::Open => (t.pos, "Market open".to_string()),
+                    opentern_core::calendar::State::Open => (t.pos, lang.text("Market open").to_string()),
                     opentern_core::calendar::State::Closed(next) => {
-                        let when = next
+                        let tip = next
                             .and_then(|n| jiff::Timestamp::from_millisecond(n).ok())
-                            .map(|ts| format!(" · opens {}", ts.to_zoned(chart.tz.clone()).strftime("%a %H:%M")))
-                            .unwrap_or_default();
-                        (t.text3, format!("Market closed{when}"))
+                            .map(|ts| {
+                                lang.format(
+                                    "Market closed · opens {time}",
+                                    &[("time", &lang.date(&ts.to_zoned(chart.tz.clone()), "%a %H:%M"))],
+                                )
+                            })
+                            .unwrap_or_else(|| lang.text("Market closed").to_string());
+                        (t.text3, tip)
                     }
                 };
                 let c = pos2(xx + 3.0, pos.y + 9.0);
@@ -2728,7 +2746,7 @@ fn legend(
                         let ch = e.price - e.base;
                         let tip = format!(
                             "{} {} {}{} ({})\n{tip}",
-                            e.session.label(),
+                            lang.text(e.session.label()),
                             format::price(e.price, prec),
                             if ch >= 0.0 { "+" } else { "" },
                             format::price(ch, prec),
@@ -2751,7 +2769,13 @@ fn legend(
                 let up = bar_color(chart, i, &b);
                 let vc = c32(if up { st.up_body } else { st.down_body });
                 for (l, v) in [("O", b.open), ("H", b.high), ("L", b.low), ("C", b.close)] {
-                    let r1 = painter.text(pos2(xx, pos.y + 1.0), Align2::LEFT_TOP, l, font.clone(), pal.text2);
+                    let r1 = painter.text(
+                        pos2(xx, pos.y + 1.0),
+                        Align2::LEFT_TOP,
+                        lang.text(l),
+                        font.clone(),
+                        pal.text2,
+                    );
                     let r2 = painter.text(
                         pos2(r1.right() + 3.0, pos.y + 1.0),
                         Align2::LEFT_TOP,
@@ -2789,11 +2813,11 @@ fn legend(
             legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW + 2.0, pal, t, false);
             pos.y += LEGEND_ROW + 2.0;
             let note = match &chart.status {
-                Status::Offline(m) => Some(m.clone()),
-                Status::Error(m) if n > 0 => Some(m.clone()),
+                Status::Offline(m) => Some(lang.data_error(m)),
+                Status::Error(m) if n > 0 => Some(lang.data_error(m)),
                 _ => chart
                     .stale_for(jiff::Timestamp::now().as_millisecond())
-                    .map(|d| format!("No new prices for {}", format::span(d))),
+                    .map(|d| lang.format("No new prices for {duration}", &[("duration", &format::span(d, lang))])),
             };
             // Nothing arrives on a stalled chart to wake the UI, so look
             // again now and then (a live chart repaints more often anyway).
@@ -2802,7 +2826,8 @@ fn legend(
             }
             if let Some(m) = note {
                 // The no-signal icon only when the connection is what's wrong.
-                let icon = if m.starts_with(opentern_data::provider::NO_INTERNET) {
+                let icon = if matches!(&chart.status, Status::Error(raw) | Status::Offline(raw) if raw.starts_with(opentern_data::provider::NO_INTERNET))
+                {
                     ph::WIFI_SLASH
                 } else {
                     ph::WARNING_CIRCLE
@@ -2816,7 +2841,7 @@ fn legend(
                 );
                 pos.y += LEGEND_ROW;
             }
-            if let Some(m) = chart.data_gap(jiff::Timestamp::now().as_millisecond()) {
+            if let Some(m) = chart.data_gap(jiff::Timestamp::now().as_millisecond(), lang) {
                 painter.text(
                     pos,
                     Align2::LEFT_TOP,
@@ -2856,8 +2881,8 @@ fn legend(
                     .or_else(|| c.bars.last().map(|b| b.close));
                 let text = match (value, &c.status) {
                     (Some(v), _) => format::price(v, c.symbol.precision()),
-                    (None, Status::Error(e)) | (None, Status::Offline(e)) => e.clone(),
-                    (None, _) => "Loading…".into(),
+                    (None, Status::Error(e)) | (None, Status::Offline(e)) => lang.data_error(e),
+                    (None, _) => lang.text("Loading…").into(),
                 };
                 let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, font.clone(), col);
                 // The name and value take a right-click; registered before the
@@ -2891,11 +2916,11 @@ fn legend(
                     let visible = c.visible;
                     let eye = btn(
                         if visible { ph::EYE } else { ph::EYE_SLASH },
-                        if visible { "Hide" } else { "Show" },
+                        if visible { lang.text("Hide") } else { lang.text("Show") },
                         "eye",
                     );
-                    let remove = btn(ph::X, "Remove", "remove");
-                    let more = btn(ph::DOTS_THREE, "Scale and more", "more");
+                    let remove = btn(ph::X, lang.text("Remove"), "remove");
+                    let more = btn(ph::DOTS_THREE, lang.text("Scale and more"), "more");
                     if eye {
                         chart.compares[ci].visible = !visible;
                         chart.touch();
@@ -2921,7 +2946,7 @@ fn legend(
             let Some(s) = chart.studies.iter().find(|s| s.uid == uid) else {
                 continue;
             };
-            let title = s.title(st.show_study_inputs);
+            let title = s.display_title(st.show_study_inputs, lang);
             let dim = if s.visible { 1.0 } else { 0.45 };
             // A long title (a strategy with many inputs) is cut short so its
             // buttons always fit inside the pane.
@@ -2972,11 +2997,20 @@ fn legend(
                     resp.on_hover_text(tip).clicked()
                 };
                 let eye = if s.visible { ph::EYE } else { ph::EYE_SLASH };
-                let toggle = btn(eye, if s.visible { "Hide" } else { "Show" }, "eye");
-                let settings = btn(ph::GEAR_SIX, "Settings", "gear");
-                let source = crate::app::App::has_source(s.meta().id) && btn(ph::CODE, "Source code", "code");
-                let remove = btn(ph::X, "Remove", "remove");
-                let more = btn(ph::DOTS_THREE, "More", "more");
+                let toggle = btn(
+                    eye,
+                    if s.visible {
+                        lang.text("Hide")
+                    } else {
+                        lang.text("Show")
+                    },
+                    "eye",
+                );
+                let settings = btn(ph::GEAR_SIX, lang.text("Settings"), "gear");
+                let source =
+                    crate::app::App::has_source(s.meta().id) && btn(ph::CODE, lang.text("Source code"), "code");
+                let remove = btn(ph::X, lang.text("Remove"), "remove");
+                let more = btn(ph::DOTS_THREE, lang.text("More"), "more");
                 if toggle && let Some(s) = chart.study_mut(uid) {
                     s.visible = !s.visible;
                     chart.touch();

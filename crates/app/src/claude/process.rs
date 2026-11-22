@@ -4,6 +4,7 @@
 //! (`--permission-prompt-tool stdio`), and the app's own tools are an
 //! in-process MCP server the CLI reaches over the same pipe (`mcp_message`).
 
+use crate::i18n::Language;
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
@@ -640,22 +641,22 @@ fn order(name: &str) -> u8 {
 }
 
 /// A plain name for a usage window (Codex's are `w<minutes>`).
-pub fn window_name(name: &str) -> String {
+pub fn window_name(language: Language, name: &str) -> String {
     if let Some(m) = name.strip_prefix('w').and_then(|m| m.parse::<i64>().ok()) {
         return match m {
-            300 => "5-hour limit".into(),
-            10080 => "Weekly limit".into(),
-            43200 => "Monthly limit".into(),
-            m if m % 1440 == 0 => format!("{}-day limit", m / 1440),
-            m if m % 60 == 0 => format!("{}-hour limit", m / 60),
-            m => format!("{m}-minute limit"),
+            300 => language.text("5-hour limit").into(),
+            10080 => language.text("Weekly limit").into(),
+            43200 => language.text("Monthly limit").into(),
+            m if m % 1440 == 0 => language.format("{days}-day limit", &[("days", &(m / 1440).to_string())]),
+            m if m % 60 == 0 => language.format("{hours}-hour limit", &[("hours", &(m / 60).to_string())]),
+            m => language.format("{m}-minute limit", &[("m", &m.to_string())]),
         };
     }
     match name {
-        "five_hour" => "5-hour limit".into(),
-        "seven_day" => "Weekly limit".into(),
-        "seven_day_opus" => "Weekly (Opus)".into(),
-        "seven_day_sonnet" => "Weekly (Sonnet)".into(),
+        "five_hour" => language.text("5-hour limit").into(),
+        "seven_day" => language.text("Weekly limit").into(),
+        "seven_day_opus" => language.text("Weekly (Opus)").into(),
+        "seven_day_sonnet" => language.text("Weekly (Sonnet)").into(),
         other => other.replace('_', " "),
     }
 }

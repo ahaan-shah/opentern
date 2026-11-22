@@ -217,6 +217,7 @@ impl Updater {
     /// Applies results from the worker thread. Returns a message for a toast
     /// when something worth saying happened.
     pub fn poll(&mut self, ctx: &egui::Context) -> Option<Result<String, String>> {
+        let lang = crate::i18n::Language::from_context(ctx);
         let mut note = None;
         if let Some(rx) = &self.rx {
             while let Ok(msg) = rx.try_recv() {
@@ -225,13 +226,16 @@ impl Updater {
                     Msg::Progress(p) => self.progress = p,
                     Msg::Installed(Ok(())) => {
                         if let Phase::Installing(r) = &self.phase {
-                            note = Some(Ok(format!("Opentern {} is installed. Restart to use it.", r.version)));
+                            note = Some(Ok(lang.format(
+                                "Opentern {version} is installed. Restart to use it.",
+                                &[("version", &r.version)],
+                            )));
                             self.phase = Phase::Ready(r.clone());
                         }
                     }
                     Msg::Installed(Err(e)) => {
                         crate::diag::crumb(format!("update failed: {e}"));
-                        note = Some(Err(format!("Couldn't update: {e}")));
+                        note = Some(Err(lang.format("Couldn't update: {error}", &[("error", &e)])));
                         self.phase = Phase::Failed(format!("Couldn't update: {e}"));
                     }
                 }

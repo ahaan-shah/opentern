@@ -180,7 +180,7 @@ impl ChartSettings {
         let lang = app.language;
         let mut done = Done::Keep;
         let mut changed = false;
-        let closed = localized_frame(ui, t, lang, "Chart settings", 640.0, |ui| {
+        let closed = localized_frame(ui, t, lang, lang.text("Chart settings"), 640.0, |ui| {
             let height = 440.0;
             ui.horizontal_top(|ui| {
                 ui.allocate_ui_with_layout(vec2(160.0, height), Layout::top_down(Align::Min), |ui| {

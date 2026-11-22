@@ -234,7 +234,7 @@ impl App {
                     } else if age > Duration::from_secs(180) {
                         Some(error(format!(
                             "The screener is still loading ({}). Call screener with action results later.",
-                            self.screener.status
+                            self.screener.status(crate::i18n::Language::English)
                         )))
                     } else {
                         None
@@ -1196,7 +1196,7 @@ impl App {
             .filter_map(|r| r.error.as_ref().map(|e| json!({"symbol": r.symbol.id, "error": e})))
             .collect();
         pretty(&json!({
-            "status": sc.status,
+            "status": sc.status(crate::i18n::Language::English),
             "universe": self.universe_name(),
             "timeframe": setup.tf,
             "symbols": sc.rows.len(),

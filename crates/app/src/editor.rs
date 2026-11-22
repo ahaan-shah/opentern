@@ -7,6 +7,7 @@
 //! chart reloads when they change.
 
 use crate::app::App;
+use crate::i18n::Language;
 use crate::icons::ph;
 use crate::motion;
 use crate::scripting::Lang;
@@ -30,6 +31,14 @@ pub struct Doc {
 }
 
 impl Doc {
+    fn display_title(&self, language: Language) -> &str {
+        if self.readonly {
+            language.text(&self.title)
+        } else {
+            &self.title
+        }
+    }
+
     pub(crate) fn dirty(&self) -> bool {
         !self.readonly && self.text != self.saved
     }
@@ -673,7 +682,7 @@ impl App {
     fn new_script(&mut self, lang: Lang) {
         let dir = self.editor.new_dir.clone();
         let _ = std::fs::create_dir_all(self.scripts_dir().join(&dir));
-        let name = self.free_name(&dir, "Untitled", lang.ext());
+        let name = self.free_name(&dir, self.language.text("Untitled"), lang.ext());
         let body = match lang {
             Lang::Python => PYTHON_TEMPLATE,
             Lang::Pine => PINE_TEMPLATE,
@@ -707,16 +716,20 @@ impl App {
         match std::fs::write(self.scripts_dir().join(&name), text) {
             Ok(()) => {
                 self.open_in_editor(&name);
-                self.editor.status = format!("Copied to {name}.");
+                self.editor.status = self.language.format("Copied to {name}.", &[("name", &name)]);
             }
-            Err(e) => self.editor.status = format!("Couldn't copy it: {e}"),
+            Err(e) => self.editor.status = self.language.format("Couldn't copy it: {e}", &[("e", &e.to_string())]),
         }
     }
 
     fn duplicate_script(&mut self, file: &str) {
         let Some(lang) = Lang::of(file) else { return };
         let stem = base_name(file).strip_suffix(lang.ext()).unwrap_or(base_name(file));
-        let name = self.free_name(parent_dir(file), &format!("{stem} copy"), lang.ext());
+        let name = self.free_name(
+            parent_dir(file),
+            &self.language.format("{stem} copy", &[("stem", stem)]),
+            lang.ext(),
+        );
         let root = self.scripts_dir();
         if std::fs::copy(root.join(file), root.join(&name)).is_ok() {
             self.open_in_editor(&name);
@@ -773,15 +786,22 @@ impl App {
             return;
         }
         if self.on_chart_under(from) {
-            self.editor.status = "Take its scripts off the chart before renaming it.".into();
+            self.editor.status = self
+                .language
+                .text("Take its scripts off the chart before renaming it.")
+                .into();
             return;
         }
         if root.join(&dest).exists() {
-            self.editor.status = format!("There's already something called {name} there.");
+            self.editor.status = self
+                .language
+                .format("There's already something called {name} there.", &[("name", &name)]);
             return;
         }
         if let Err(e) = std::fs::rename(root.join(from), root.join(&dest)) {
-            self.editor.status = format!("Couldn't rename it: {e}");
+            self.editor.status = self
+                .language
+                .format("Couldn't rename it: {e}", &[("e", &e.to_string())]);
             return;
         }
         self.follow_move(from, &dest);
@@ -794,12 +814,15 @@ impl App {
             return;
         }
         if self.on_chart_under(file) {
-            self.editor.status = "Take it off the chart before moving it.".into();
+            self.editor.status = self.language.text("Take it off the chart before moving it.").into();
             return;
         }
         let root = self.scripts_dir();
         if root.join(&dest).exists() {
-            self.editor.status = format!("{dir} already has a {}.", base_name(file));
+            self.editor.status = self.language.format(
+                "{dir} already has a {name}.",
+                &[("dir", dir), ("name", base_name(file))],
+            );
             return;
         }
         match std::fs::rename(root.join(file), root.join(&dest)) {
@@ -808,17 +831,30 @@ impl App {
                 if !dir.is_empty() {
                     self.editor.open_dirs.insert(dir.to_string());
                 }
-                self.editor.status = format!("Moved to {}.", if dir.is_empty() { "scripts" } else { dir });
+                self.editor.status = self.language.format(
+                    "Moved to {folder}.",
+                    &[(
+                        "folder",
+                        if dir.is_empty() {
+                            self.language.text("scripts")
+                        } else {
+                            dir
+                        },
+                    )],
+                );
             }
-            Err(e) => self.editor.status = format!("Couldn't move it: {e}"),
+            Err(e) => self.editor.status = self.language.format("Couldn't move it: {e}", &[("e", &e.to_string())]),
         }
     }
 
     /// A new folder in `dir`, with its name ready to type.
     fn new_folder(&mut self, dir: &str) {
         let root = self.scripts_dir();
-        let path = std::iter::once("New folder".to_string())
-            .chain((2..).map(|k| format!("New folder {k}")))
+        let path = std::iter::once(self.language.text("New folder").to_string())
+            .chain((2..).map(|k| {
+                self.language
+                    .format("New folder {number}", &[("number", &k.to_string())])
+            }))
             .map(|n| join_path(dir, &n))
             .find(|p| !root.join(p).exists())
             .expect("a free name");
@@ -830,7 +866,11 @@ impl App {
                 self.editor.scripts_open = true;
                 self.editor.renaming = Some((path.clone(), base_name(&path).to_string()));
             }
-            Err(e) => self.editor.status = format!("Couldn't make the folder: {e}"),
+            Err(e) => {
+                self.editor.status = self
+                    .language
+                    .format("Couldn't make the folder: {e}", &[("e", &e.to_string())])
+            }
         }
     }
 
@@ -842,7 +882,9 @@ impl App {
             .map(|mut d| d.next().is_none())
             .unwrap_or(false);
         if !empty {
-            self.editor.status = format!("{dir} isn't empty: move or delete what's in it first.");
+            self.editor.status = self
+                .language
+                .format("{dir} isn't empty: move or delete what's in it first.", &[("dir", dir)]);
             return;
         }
         match std::fs::remove_dir(&path) {
@@ -851,9 +893,13 @@ impl App {
                 if self.editor.new_dir == dir {
                     self.editor.new_dir = parent_dir(dir).to_string();
                 }
-                self.editor.status = format!("Deleted the folder {dir}.");
+                self.editor.status = self.language.format("Deleted the folder {dir}.", &[("dir", dir)]);
             }
-            Err(e) => self.editor.status = format!("Couldn't delete it: {e}"),
+            Err(e) => {
+                self.editor.status = self
+                    .language
+                    .format("Couldn't delete it: {e}", &[("e", &e.to_string())])
+            }
         }
     }
 
@@ -879,7 +925,7 @@ impl App {
                 let d = &mut self.editor.docs[self.editor.active];
                 d.saved = d.text.clone();
                 d.mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-                self.editor.status = format!("Saved {file}.");
+                self.editor.status = self.language.format("Saved {file}.", &[("file", &file)]);
                 // In-process scripts recompile on save; Python reloads by itself.
                 for i in 0..self.scripts.len() {
                     if self.scripts[i].file == file && self.scripts[i].lang.in_process() {
@@ -887,7 +933,7 @@ impl App {
                     }
                 }
             }
-            Err(e) => self.editor.status = format!("Couldn't save: {e}"),
+            Err(e) => self.editor.status = self.language.format("Couldn't save: {e}", &[("e", &e.to_string())]),
         }
     }
 
@@ -900,23 +946,21 @@ impl App {
         let file = d.key.clone();
         if self.python_held(&file) {
             if self.editor.trust_asked.as_deref() != Some(&file) {
-                self.editor.status = format!(
-                    "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
-                );
+                self.editor.status = self.language.format("{file} was imported, and Python has full access to this computer. Press Run again if you trust it.", &[("file", &file)]);
                 self.editor.trust_asked = Some(file);
                 return;
             }
             self.editor.trust_asked = None;
             self.trust_python(&file);
-            self.editor.status = format!("Added {file} to the chart.");
+            self.editor.status = self.language.format("Added {file} to the chart.", &[("file", &file)]);
             return;
         }
         self.save_script();
         if !self.scripts.iter().any(|r| r.file == file) {
             self.add_script(&file);
-            self.editor.status = format!("Added {file} to the chart.");
+            self.editor.status = self.language.format("Added {file} to the chart.", &[("file", &file)]);
         } else {
-            self.editor.status = format!("Updated {file} on the chart.");
+            self.editor.status = self.language.format("Updated {file} on the chart.", &[("file", &file)]);
         }
     }
 
@@ -934,7 +978,9 @@ impl App {
             }
         }
         for file in changed {
-            self.editor.status = format!("Reloaded {file}: it changed on disk.");
+            self.editor.status = self
+                .language
+                .format("Reloaded {file}: it changed on disk.", &[("file", &file)]);
             for i in 0..self.scripts.len() {
                 if self.scripts[i].file == file && self.scripts[i].lang.in_process() {
                     self.compile_pine(i);
@@ -1018,6 +1064,7 @@ impl App {
     }
 
     fn explorer(&mut self, ui: &mut Ui, t: &Theme, files: &[String]) {
+        let language = Language::of(ui);
         use crate::widgets as w;
         let c = code_colors(t);
         let full = ui.max_rect();
@@ -1026,7 +1073,7 @@ impl App {
         ui.painter().text(
             pos2(head.left() + 16.0, head.center().y),
             Align2::LEFT_CENTER,
-            "EXPLORER",
+            language.text("EXPLORER"),
             theme::medium(11.0),
             c.dim,
         );
@@ -1036,11 +1083,20 @@ impl App {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         bar.spacing_mut().item_spacing.x = 0.0;
-        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "More", false, 24.0);
+        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, language.text("More"), false, 24.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(220.0);
             ui.spacing_mut().item_spacing.y = 1.0;
-            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FOLDER_OPEN),
+                language.text("Open the scripts folder"),
+                "",
+                false,
+            )
+            .clicked()
+            {
                 let dir = self.scripts_dir();
                 let _ = std::fs::create_dir_all(&dir);
                 crate::app::open_path(&dir);
@@ -1050,7 +1106,7 @@ impl App {
                 ui,
                 t,
                 Some(ph::SIDEBAR_SIMPLE),
-                "Hide the sidebar",
+                language.text("Hide the sidebar"),
                 shortcut!("B"),
                 false,
             )
@@ -1061,15 +1117,24 @@ impl App {
             }
         });
         let find = self.editor.filtering;
-        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "Filter files", find, 24.0).clicked() {
+        if w::tool_button(
+            &mut bar,
+            t,
+            ph::MAGNIFYING_GLASS,
+            language.text("Filter files"),
+            find,
+            24.0,
+        )
+        .clicked()
+        {
             self.editor.filtering = !find;
             self.editor.filter.clear();
         }
-        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, "New folder", false, 24.0).clicked() {
+        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, language.text("New folder"), false, 24.0).clicked() {
             let dir = self.editor.new_dir.clone();
             self.new_folder(&dir);
         }
-        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, "New script", false, 24.0);
+        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, language.text("New script"), false, 24.0);
         egui::Popup::menu(&add).show(|ui| {
             ui.set_width(210.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -1086,7 +1151,7 @@ impl App {
         if self.editor.filtering {
             let r = Rect::from_min_size(pos2(full.left() + 10.0, y), vec2(full.width() - 20.0, 34.0));
             let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
-            let resp = w::search_field(&mut f, t, &mut self.editor.filter, "Filter", r.width());
+            let resp = w::search_field(&mut f, t, &mut self.editor.filter, language.text("Filter"), r.width());
             if !resp.has_focus() && self.editor.filter.is_empty() && f.input(|i| i.key_pressed(Key::Escape)) {
                 self.editor.filtering = false;
             }
@@ -1118,7 +1183,7 @@ impl App {
                 // scripts as a flat list of paths.
                 let dirs = self.script_dirs();
                 let root_open = self.editor.scripts_open || !q.is_empty();
-                let head = folder_row(ui, t, "SCRIPTS", root_open, files.len());
+                let head = folder_row(ui, t, language.text("SCRIPTS"), root_open, files.len());
                 if head.clicked() {
                     self.editor.scripts_open = !self.editor.scripts_open;
                     self.editor.new_dir.clear();
@@ -1130,7 +1195,7 @@ impl App {
                         ui.horizontal(|ui| {
                             ui.add_space(30.0);
                             ui.label(
-                                egui::RichText::new("No scripts yet. Press + to start one.")
+                                egui::RichText::new(language.text("No scripts yet. Press + to start one."))
                                     .font(theme::regular(12.0))
                                     .color(c.dim),
                             );
@@ -1222,17 +1287,21 @@ impl App {
                                     item(
                                         ui,
                                         ph::PLAY,
-                                        if on_chart { "Update on chart" } else { "Add to chart" },
+                                        if on_chart {
+                                            language.text("Update on chart")
+                                        } else {
+                                            language.text("Add to chart")
+                                        },
                                         1,
                                     );
-                                    item(ui, ph::COPY, "Duplicate", 2);
+                                    item(ui, ph::COPY, language.text("Duplicate"), 2);
                                     if !on_chart {
-                                        item(ui, ph::PENCIL_SIMPLE, "Rename", 4);
+                                        item(ui, ph::PENCIL_SIMPLE, language.text("Rename"), 4);
                                     }
-                                    item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
+                                    item(ui, ph::ARROW_SQUARE_OUT, language.text("Open in your editor"), 5);
                                     if !on_chart {
                                         w::menu_rule(ui, t);
-                                        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
+                                        if w::menu_danger(ui, t, Some(ph::TRASH), language.text("Delete")).clicked() {
                                             action = Some((6, f.clone()));
                                             ui.close();
                                         }
@@ -1245,11 +1314,11 @@ impl App {
                 // Built-ins' Pine source, read-only.
                 let list: Vec<(&str, &str)> = crate::sources::SOURCES
                     .iter()
-                    .filter_map(|(id, _)| opentern_series::builtins::by_id(id).map(|m| (*id, m.name)))
+                    .filter_map(|(id, _)| opentern_series::builtins::by_id(id).map(|m| (*id, language.text(m.name))))
                     .filter(|(_, n)| q.is_empty() || n.to_lowercase().contains(&q))
                     .collect();
                 let open_list = self.editor.show_builtins || !q.is_empty();
-                if folder_row(ui, t, "BUILT-IN INDICATORS", open_list, list.len()).clicked() {
+                if folder_row(ui, t, language.text("BUILT-IN INDICATORS"), open_list, list.len()).clicked() {
                     self.editor.show_builtins = !self.editor.show_builtins;
                 }
                 if open_list {
@@ -1273,7 +1342,15 @@ impl App {
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(outline_rect));
         child.set_clip_rect(outline_rect.intersect(ui.clip_rect()));
         child.spacing_mut().item_spacing.y = 0.0;
-        if folder_row(&mut child, t, "OUTLINE", self.editor.outline_open, outline_items.len()).clicked() {
+        if folder_row(
+            &mut child,
+            t,
+            language.text("OUTLINE"),
+            self.editor.outline_open,
+            outline_items.len(),
+        )
+        .clicked()
+        {
             self.editor.outline_open = !self.editor.outline_open;
         }
         let mut jump = None;
@@ -1287,7 +1364,7 @@ impl App {
                         ui.horizontal(|ui| {
                             ui.add_space(30.0);
                             ui.label(
-                                egui::RichText::new("Nothing defined yet.")
+                                egui::RichText::new(language.text("Nothing defined yet."))
                                     .font(theme::regular(12.0))
                                     .color(c.dim),
                             );
@@ -1397,9 +1474,9 @@ impl App {
                 if self.editor.deleting.as_deref() == Some(f.as_str()) {
                     self.editor.deleting = None;
                     self.delete_script(&f);
-                    self.editor.status = format!("Deleted {f}.");
+                    self.editor.status = language.format("Deleted {f}.", &[("f", &f)]);
                 } else {
-                    self.editor.status = format!("Delete {f}? Choose Delete again to confirm.");
+                    self.editor.status = language.format("Delete {f}? Choose Delete again to confirm.", &[("f", &f)]);
                     self.editor.deleting = Some(f);
                 }
             }
@@ -1409,6 +1486,7 @@ impl App {
     }
 
     fn editor_main(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         let c = code_colors(t);
         let full = ui.max_rect();
         // Tabs, with the run and more buttons at the end.
@@ -1424,7 +1502,7 @@ impl App {
                 &mut b,
                 t,
                 ph::SIDEBAR_SIMPLE,
-                concat!("Show files (", shortcut!("B"), ")"),
+                &language.format("Show files ({shortcut})", &[("shortcut", shortcut!("B"))]),
                 false,
                 28.0,
             )
@@ -1455,7 +1533,7 @@ impl App {
         if self.editor.docs.is_empty() {
             let rest = Rect::from_min_max(pos2(full.left(), bar.bottom()), full.max);
             let mut e = ui.new_child(egui::UiBuilder::new().max_rect(rest.shrink(20.0)));
-            crate::widgets::empty_state(&mut e, t, ph::CODE, "No file open");
+            crate::widgets::empty_state(&mut e, t, ph::CODE, language.text("No file open"));
             return;
         }
 
@@ -1474,6 +1552,7 @@ impl App {
     }
 
     fn breadcrumbs(&self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let language = Language::of(ui);
         let c = code_colors(t);
         let Some(d) = self.editor.doc() else { return };
         let p = ui.painter();
@@ -1484,7 +1563,16 @@ impl App {
             let g = p.text(pos2(x, y), Align2::LEFT_CENTER, text, font.clone(), col);
             x = g.right() + 6.0;
         };
-        put(p, if d.readonly { "built-in" } else { "scripts" }, c.dim, &font);
+        put(
+            p,
+            if d.readonly {
+                language.text("built-in")
+            } else {
+                language.text("scripts")
+            },
+            c.dim,
+            &font,
+        );
         put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
         // The folders it's in.
         if !d.readonly {
@@ -1496,7 +1584,7 @@ impl App {
         }
         let (icon, col) = file_icon(d.lang);
         put(p, icon, col, &theme::regular(13.0));
-        put(p, &d.title, c.text2, &font);
+        put(p, d.display_title(language), c.text2, &font);
         let line = self.editor.caret.0.saturating_sub(1);
         if let Some((_, name, _)) = outline(&d.text, d.lang).into_iter().rev().find(|(l, _, _)| *l <= line) {
             put(p, ph::CARET_RIGHT, c.dim, &theme::regular(10.0));
@@ -1506,6 +1594,7 @@ impl App {
     }
 
     fn doc_tabs(&mut self, ui: &mut Ui, t: &Theme, rect: Rect) {
+        let language = Language::of(ui);
         let c = code_colors(t);
         let font = theme::regular(12.5);
         let n = self.editor.docs.len();
@@ -1522,7 +1611,7 @@ impl App {
         for (i, d) in self.editor.docs.iter().enumerate() {
             let p = ui.painter();
             let label = if d.readonly {
-                format!("{}  {}", d.title, ph::LOCK_SIMPLE)
+                format!("{}  {}", d.display_title(language), ph::LOCK_SIMPLE)
             } else {
                 d.title.clone()
             };
@@ -1571,9 +1660,13 @@ impl App {
                 }
                 p.text(xr.center(), Align2::CENTER_CENTER, ph::X, theme::regular(12.0), c.text2);
             }
-            if xresp.on_hover_text(concat!("Close (", shortcut!("W"), ")")).clicked() || resp.middle_clicked() {
+            if xresp
+                .on_hover_text(language.format("Close ({shortcut})", &[("shortcut", shortcut!("W"))]))
+                .clicked()
+                || resp.middle_clicked()
+            {
                 close = Some(i);
-            } else if resp.on_hover_text(&d.title).clicked() {
+            } else if resp.on_hover_text(d.display_title(language)).clicked() {
                 pick = Some(i);
             }
         }
@@ -1583,7 +1676,10 @@ impl App {
         if let Some(i) = close {
             let d = &self.editor.docs[i];
             if d.dirty() && self.editor.deleting.as_deref() != Some(d.key.as_str()) {
-                self.editor.status = format!("{} has unsaved changes: close again to discard them.", d.title);
+                self.editor.status = language.format(
+                    "{file} has unsaved changes: close again to discard them.",
+                    &[("file", &d.title)],
+                );
                 self.editor.deleting = Some(d.key.clone());
             } else {
                 self.editor.deleting = None;
@@ -1593,48 +1689,80 @@ impl App {
     }
 
     fn editor_tools(&mut self, ui: &mut Ui, t: &Theme) {
+        let language = Language::of(ui);
         use crate::widgets as w;
         let Some(d) = self.editor.doc() else { return };
         ui.spacing_mut().item_spacing.x = 0.0;
         let (file, readonly) = (d.key.clone(), d.readonly);
         let on_chart = self.scripts.iter().any(|r| r.file == file);
-        let more = w::tool_button(ui, t, ph::DOTS_THREE, "More", false, 28.0);
+        let more = w::tool_button(ui, t, ph::DOTS_THREE, language.text("More"), false, 28.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(230.0);
             ui.spacing_mut().item_spacing.y = 1.0;
             if readonly {
-                if w::menu_item(ui, t, Some(ph::COPY), "Make a copy to edit", "", false).clicked() {
+                if w::menu_item(ui, t, Some(ph::COPY), language.text("Make a copy to edit"), "", false).clicked() {
                     self.copy_builtin();
                     ui.close();
                 }
                 return;
             }
-            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save", shortcut!("S"), false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FLOPPY_DISK),
+                language.text("Save"),
+                shortcut!("S"),
+                false,
+            )
+            .clicked()
+            {
                 self.save_script();
                 ui.close();
             }
-            if w::menu_item(ui, t, Some(ph::ARROW_SQUARE_OUT), "Open in your editor", "", false)
-                .on_hover_text("The chart reloads when you save there")
-                .clicked()
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::ARROW_SQUARE_OUT),
+                language.text("Open in your editor"),
+                "",
+                false,
+            )
+            .on_hover_text(language.text("The chart reloads when you save there"))
+            .clicked()
             {
                 crate::app::open_path(&self.scripts_dir().join(&file));
                 ui.close();
             }
-            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FOLDER_OPEN),
+                language.text("Open the scripts folder"),
+                "",
+                false,
+            )
+            .clicked()
+            {
                 crate::app::open_path(&self.scripts_dir());
                 ui.close();
             }
         });
         if readonly {
-            if w::tool_button(ui, t, ph::COPY, "Make a copy to edit", false, 28.0).clicked() {
+            if w::tool_button(ui, t, ph::COPY, language.text("Make a copy to edit"), false, 28.0).clicked() {
                 self.copy_builtin();
             }
             return;
         }
         let tip = if on_chart {
-            concat!("Save and update the chart (", shortcut!("Enter"), ")")
+            language.format(
+                "Save and update the chart ({shortcut})",
+                &[("shortcut", shortcut!("Enter"))],
+            )
         } else {
-            concat!("Save and add to the chart (", shortcut!("Enter"), ")")
+            language.format(
+                "Save and add to the chart ({shortcut})",
+                &[("shortcut", shortcut!("Enter"))],
+            )
         };
         // The run button, green like an IDE's.
         let (r, resp) = ui.allocate_exact_size(vec2(28.0, 28.0), Sense::click());
@@ -1910,9 +2038,10 @@ impl App {
 
     /// Problems and Output, under the code (VS Code's bottom panel).
     fn problems(&mut self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let language = Language::of(ui);
         let c = code_colors(t);
         let Some(d) = self.editor.doc() else { return };
-        let (key, readonly, title) = (d.key.clone(), d.readonly, d.title.clone());
+        let (key, readonly, title) = (d.key.clone(), d.readonly, d.display_title(language).to_owned());
         let run = self.scripts.iter().find(|x| x.file == key);
         let on_chart = run.is_some();
         let errors: Vec<String> = run
@@ -1933,7 +2062,10 @@ impl App {
         // Header: the two tabs and a caret to fold.
         let head = Rect::from_min_size(r.min, vec2(r.width(), 28.0));
         let mut x = head.left() + 14.0;
-        for (k, label, count) in [(0u8, "PROBLEMS", errors.len()), (1u8, "OUTPUT", 0)] {
+        for (k, label, count) in [
+            (0u8, language.text("PROBLEMS"), errors.len()),
+            (1u8, language.text("OUTPUT"), 0),
+        ] {
             let on = self.editor.panel_tab == k && self.editor.panel_open;
             let g = ui
                 .painter()
@@ -1999,18 +2131,19 @@ impl App {
                 if self.editor.panel_tab == 0 {
                     if readonly {
                         ui.label(
-                            egui::RichText::new("Built-in source, read-only. Make a copy to change and run it.")
-                                .font(theme::regular(12.5))
-                                .color(c.dim),
+                            egui::RichText::new(
+                                language.text("Built-in source, read-only. Make a copy to change and run it."),
+                            )
+                            .font(theme::regular(12.5))
+                            .color(c.dim),
                         );
                     } else if errors.is_empty() {
                         let msg = if on_chart {
-                            "No problems. Running on the chart."
+                            language.text("No problems. Running on the chart.").to_string()
                         } else {
-                            concat!(
-                                "No problems found. ",
-                                shortcut!("Enter"),
-                                " saves the script and puts it on the chart."
+                            language.format(
+                                "No problems found. {shortcut} saves the script and puts it on the chart.",
+                                &[("shortcut", shortcut!("Enter"))],
                             )
                         };
                         ui.label(egui::RichText::new(msg).font(theme::regular(12.5)).color(c.dim));
@@ -2040,7 +2173,12 @@ impl App {
                         p.text(
                             pos2(g.right() + 10.0, rr.center().y),
                             Align2::LEFT_CENTER,
-                            format!("{}  {}", title, line.map(|l| format!("[Ln {l}]")).unwrap_or_default()),
+                            format!(
+                                "{}  {}",
+                                title,
+                                line.map(|l| language.format("[Ln {l}]", &[("l", &l.to_string())]))
+                                    .unwrap_or_default()
+                            ),
                             theme::regular(11.5),
                             c.dim,
                         );
@@ -2066,6 +2204,7 @@ impl App {
     }
 
     fn status_bar(&mut self, ui: &mut Ui, t: &Theme, r: Rect) {
+        let language = Language::of(ui);
         let c = code_colors(t);
         let p = ui.painter();
         p.rect_filled(r, CornerRadius::ZERO, c.side);
@@ -2086,8 +2225,14 @@ impl App {
         );
         if self.editor.doc().is_some_and(|d| !d.readonly) {
             match run {
-                Some(_) => put(&format!("{}  On the chart", ph::CHART_LINE_UP), t.pos),
-                None => put(&format!("{}  Not on the chart", ph::CHART_LINE_UP), c.dim),
+                Some(_) => put(
+                    &language.format("{icon}  On the chart", &[("icon", ph::CHART_LINE_UP)]),
+                    t.pos,
+                ),
+                None => put(
+                    &language.format("{icon}  Not on the chart", &[("icon", ph::CHART_LINE_UP)]),
+                    c.dim,
+                ),
             }
         }
         if !self.editor.status.is_empty() {
@@ -2095,10 +2240,14 @@ impl App {
         }
         let Some(d) = self.editor.doc() else { return };
         let (line, col) = self.editor.caret;
-        let right = format!(
-            "Ln {line}, Col {col}      Spaces: {}      UTF-8      {}",
-            indent_unit(d.lang).len(),
-            lang_name(d.lang)
+        let right = language.format(
+            "Ln {line}, Col {col}      Spaces: {spaces}      UTF-8      {language}",
+            &[
+                ("line", &line.to_string()),
+                ("col", &col.to_string()),
+                ("spaces", &indent_unit(d.lang).len().to_string()),
+                ("language", lang_name(d.lang)),
+            ],
         );
         p.text(pos2(r.right() - 12.0, y), Align2::RIGHT_CENTER, right, font, c.dim);
     }
@@ -2299,10 +2448,11 @@ fn drop_target(ui: &Ui, t: &Theme, resp: &egui::Response, dir: &str, action: &mu
 
 /// A folder's right-click menu ("" is the scripts folder itself).
 fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, String)>) {
+    let language = Language::of(ui);
     use crate::widgets as w;
     ui.set_width(220.0);
     ui.spacing_mut().item_spacing.y = 1.0;
-    w::menu_heading(ui, t, "NEW SCRIPT HERE");
+    w::menu_heading(ui, t, language.text("NEW SCRIPT HERE"));
     for lang in [Lang::Pine, Lang::Python, Lang::Luau, Lang::Js, Lang::Ts] {
         let (icon, _) = file_icon(lang);
         if w::menu_item(ui, t, Some(icon), lang_name(lang), lang.ext(), false).clicked() {
@@ -2311,21 +2461,30 @@ fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, Strin
         }
     }
     w::menu_rule(ui, t);
-    if w::menu_item(ui, t, Some(ph::FOLDER_PLUS), "New folder", "", false).clicked() {
+    if w::menu_item(ui, t, Some(ph::FOLDER_PLUS), language.text("New folder"), "", false).clicked() {
         *action = Some((10, dir.to_string()));
         ui.close();
     }
-    if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open in your file manager", "", false).clicked() {
+    if w::menu_item(
+        ui,
+        t,
+        Some(ph::FOLDER_OPEN),
+        language.text("Open in your file manager"),
+        "",
+        false,
+    )
+    .clicked()
+    {
         *action = Some((12, dir.to_string()));
         ui.close();
     }
     if !dir.is_empty() {
-        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked() {
+        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), language.text("Rename"), "", false).clicked() {
             *action = Some((4, dir.to_string()));
             ui.close();
         }
         w::menu_rule(ui, t);
-        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete folder (if empty)").clicked() {
+        if w::menu_danger(ui, t, Some(ph::TRASH), language.text("Delete folder (if empty)")).clicked() {
             *action = Some((11, dir.to_string()));
             ui.close();
         }
@@ -2345,6 +2504,7 @@ fn file_row(
     dirty: bool,
     depth: usize,
 ) -> egui::Response {
+    let language = Language::of(ui);
     let c = code_colors(t);
     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click_and_drag());
     let p = ui.painter();
@@ -2380,7 +2540,7 @@ fn file_row(
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     if on_chart {
-        resp.on_hover_text("On the chart")
+        resp.on_hover_text(language.text("On the chart"))
     } else {
         resp
     }

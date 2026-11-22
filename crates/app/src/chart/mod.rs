@@ -156,6 +156,16 @@ pub struct StudyView {
     pub pane: u64,
 }
 
+/// Built-in titles and choices come from our catalog. Script authors own
+/// the labels on their indicators, even when they match a catalog key.
+pub(crate) fn metadata_language(meta: &Meta, language: crate::i18n::Language) -> crate::i18n::Language {
+    if language != crate::i18n::Language::English && opentern_series::builtins::by_id(meta.id).is_some() {
+        language
+    } else {
+        crate::i18n::Language::English
+    }
+}
+
 impl StudyView {
     pub fn meta(&self) -> &'static Meta {
         self.inst.meta
@@ -168,12 +178,19 @@ impl StudyView {
 
     /// "RSI 14 close 14": the legend title.
     pub fn title(&self, with_inputs: bool) -> String {
-        let s = self.inst.inputs.summary(self.meta());
-        if with_inputs && !s.is_empty() {
-            format!("{} {s}", self.meta().short)
-        } else {
-            self.meta().short.to_string()
+        self.display_title(with_inputs, crate::i18n::Language::English)
+    }
+
+    pub fn display_title(&self, with_inputs: bool, language: crate::i18n::Language) -> String {
+        let lang = metadata_language(self.meta(), language);
+        let title = lang.text(self.meta().short);
+        if with_inputs {
+            let summary = self.inst.inputs.summary_with(self.meta(), |s| lang.text(s).to_string());
+            if !summary.is_empty() {
+                return format!("{title} {summary}");
+            }
         }
+        title.to_string()
     }
 }
 
@@ -919,7 +936,7 @@ impl Chart {
     /// whose daily history is a single bar (most of them, Nov 2026), and
     /// an Indian special session (Muhurat trading) its bars skip, for a
     /// month after it, when this chart has no bars from it.
-    pub fn data_gap(&self, now_ms: i64) -> Option<String> {
+    pub fn data_gap(&self, now_ms: i64, lang: crate::i18n::Language) -> Option<String> {
         use opentern_core::calendar::{self, Market};
         // Not waiting for `Live`: Yahoo's charts say Loading until the
         // first poll, 30 s after the history is already showing.
@@ -931,9 +948,9 @@ impl Chart {
             return None;
         }
         if exchange == "BSE" && !self.tf.is_intraday() && self.raw.len() <= 2 {
-            return Some(format!(
-                "Yahoo has no daily history for this BSE listing. NSE:{} has it.",
-                self.symbol.ticker()
+            return Some(lang.format(
+                "Yahoo has no daily history for this BSE listing. NSE:{ticker} has it.",
+                &[("ticker", self.symbol.ticker())],
             ));
         }
         if !(self.tf.is_intraday() || self.tf.unit == opentern_core::Unit::Day) {
@@ -954,10 +971,23 @@ impl Chart {
             return None;
         }
         let name = calendar::special(Market::India, day).map_or("A special session", |s| s.2);
-        Some(format!(
-            "Yahoo's prices skip {name} on {}: it isn't on this chart.",
-            day.strftime("%-d %b %Y")
-        ))
+        Some(
+            lang.format(
+                "Yahoo's prices skip {session} on {date}: it isn't on this chart.",
+                &[
+                    ("session", lang.text(name)),
+                    (
+                        "date",
+                        &lang.date(
+                            &jiff::Timestamp::from_millisecond(midnight)
+                                .ok()?
+                                .to_zoned(jiff::tz::TimeZone::UTC),
+                            "%-d %b %Y",
+                        ),
+                    ),
+                ],
+            ),
+        )
     }
 
     /// Applies a data event meant for this chart.
@@ -1318,6 +1348,7 @@ mod tests {
 
     #[test]
     fn known_gaps_in_yahoos_indian_prices_are_said() {
+        let lang = crate::i18n::Language::English;
         use opentern_core::{AssetKind, Symbol};
         let ms = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
         let day = |d: &str| ms(&format!("{d}T00:00:00Z"));
@@ -1350,32 +1381,40 @@ mod tests {
         let now = ms("2026-11-12T06:00:00Z");
         // BSE daily history that's one bar.
         let c = open("BSE:INFY", "1D", vec![bar(day("2026-11-12"))]);
-        assert!(c.data_gap(now).unwrap().contains("NSE:INFY"));
+        assert!(c.data_gap(now, lang).unwrap().contains("NSE:INFY"));
         // Muhurat trading on Sunday 8 Nov 2026, missing between Friday and Monday.
         let days = vec![bar(day("2026-11-06")), bar(day("2026-11-09")), bar(day("2026-11-10"))];
         let c = open("NSE:INFY", "1D", days.clone());
-        assert!(c.data_gap(now).unwrap().contains("8 Nov 2026"), "{:?}", c.data_gap(now));
+        assert!(
+            c.data_gap(now, lang).unwrap().contains("8 Nov 2026"),
+            "{:?}",
+            c.data_gap(now, lang)
+        );
         let mut with = days.clone();
         with.insert(1, bar(day("2026-11-08")));
-        assert_eq!(open("NSE:INFY", "1D", with).data_gap(now), None, "built from the quote");
+        assert_eq!(
+            open("NSE:INFY", "1D", with).data_gap(now, lang),
+            None,
+            "built from the quote"
+        );
         // Over a month later, or a chart that starts after it: nothing to say.
-        assert_eq!(c.data_gap(ms("2026-12-20T06:00:00Z")), None);
-        assert_eq!(open("NSE:INFY", "1D", days[1..].to_vec()).data_gap(now), None);
+        assert_eq!(c.data_gap(ms("2026-12-20T06:00:00Z"), lang), None);
+        assert_eq!(open("NSE:INFY", "1D", days[1..].to_vec()).data_gap(now, lang), None);
         // Intraday: no bar within the session's window.
         let c = open(
             "NSE:INFY",
             "15m",
             vec![bar(ms("2026-11-06T09:00:00Z")), bar(ms("2026-11-09T04:00:00Z"))],
         );
-        assert!(c.data_gap(now).is_some());
+        assert!(c.data_gap(now, lang).is_some());
         let c = open(
             "NSE:INFY",
             "15m",
             vec![bar(ms("2026-11-06T09:00:00Z")), bar(ms("2026-11-08T09:00:00Z"))],
         );
-        assert_eq!(c.data_gap(now), None);
+        assert_eq!(c.data_gap(now, lang), None);
         // US stocks and weekly charts: never.
-        assert_eq!(open("NSE:INFY", "1W", days).data_gap(now), None);
+        assert_eq!(open("NSE:INFY", "1W", days).data_gap(now, lang), None);
     }
 
     #[test]

@@ -418,12 +418,19 @@ impl Inputs {
 
     /// The input values in the legend: "RSI 14 close".
     pub fn summary(&self, meta: &Meta) -> String {
+        self.summary_with(meta, str::to_owned)
+    }
+
+    /// Format built-in source and choice labels for display. Free text
+    /// belongs to the user and is always included verbatim.
+    pub fn summary_with(&self, meta: &Meta, choice_label: impl Fn(&str) -> String) -> String {
         meta.inputs
             .iter()
             .filter(|i| !matches!(i.kind, InputKind::Color))
             .filter_map(|i| match self.values.get(i.id)? {
                 Value::Int(v) => Some(v.to_string()),
                 Value::Float(v) => Some(trim_float(*v)),
+                Value::Text(s) if matches!(i.kind, InputKind::Choice(_) | InputKind::Source) => Some(choice_label(s)),
                 Value::Text(s) => Some(s.clone()),
                 Value::Bool(_) => None,
             })
