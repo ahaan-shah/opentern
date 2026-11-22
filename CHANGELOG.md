@@ -18,6 +18,7 @@
 - **A friendlier installer on Linux and macOS.** `install.sh` shows the Opentern logo, the version it's installing and a progress bar with megabytes, then a tick for each step. Piped into a log, it prints plain lines as before.
 
 ### Fixed
+- **Safer with data from the internet.** The Interactive Brokers gateway's certificate check is only skipped for a gateway on this computer (an address that merely started with "localhost" used to pass). Requests that carry your API keys never follow a redirect to another site. Downloaded logos can't read files from your disk or ask for huge amounts of memory, live data connections cap their message size, and exported trade lists can't carry spreadsheet formulas from a script.
 - **Coins an exchange stops trading carry on elsewhere.** When an exchange drops a pair (Binance still lists Monero's XMRUSDT, frozen since February 2024), watchlists, charts and price alerts move to the same coin where it trades, with a note saying so. The market overview no longer compares today's price with a delisted pair's old closes (it once showed Monero +331% on a new workspace).
 
 ## 0.3.0 (2026-11-21)

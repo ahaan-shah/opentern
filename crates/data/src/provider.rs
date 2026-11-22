@@ -186,6 +186,10 @@ fn yahoo_get(
     })
 }
 
+/// The largest websocket message accepted (Binance's combined quote stream
+/// sends well under 100 KB).
+const WS_MAX_MESSAGE: usize = 8 << 20;
+
 pub(crate) type Socket = tungstenite::WebSocket<tungstenite::stream::MaybeTlsStream<TcpStream>>;
 
 /// Opens a TLS websocket. Returns the socket and a second handle on the
@@ -202,7 +206,12 @@ pub(crate) fn websocket(host: &str, port: u16, path: &str) -> Result<(Socket, Tc
         .map_err(|_| Error::Offline)?;
     let handle = tcp.try_clone().map_err(|_| Error::Offline)?;
     let url = format!("wss://{host}:{port}{path}");
-    let (ws, _) = tungstenite::client_tls(url, tcp).map_err(|_| Error::Offline)?;
+    // Market data comes in small messages; a service (or anything posing as
+    // one) can't make the app hold more than this at once.
+    let limits = tungstenite::protocol::WebSocketConfig::default()
+        .max_message_size(Some(WS_MAX_MESSAGE))
+        .max_frame_size(Some(WS_MAX_MESSAGE));
+    let (ws, _) = tungstenite::client_tls_with_config(url, tcp, Some(limits), None).map_err(|_| Error::Offline)?;
     handle
         .set_read_timeout(Some(Duration::from_millis(250)))
         .map_err(|_| Error::Offline)?;
@@ -294,7 +303,9 @@ pub(crate) fn num(v: &serde_json::Value) -> Option<f64> {
 
 /// GET with extra headers (API keys, bearer tokens).
 pub(crate) fn get_json_with(agent: &ureq::Agent, url: &str, headers: &[(&str, &str)]) -> Result<serde_json::Value> {
-    let mut req = agent.get(url);
+    // These carry the user's keys (some in headers of the service's own
+    // naming, which a redirect would pass on): never follow one elsewhere.
+    let mut req = agent.get(url).config().max_redirects(0).build();
     for (k, v) in headers {
         req = req.header(*k, *v);
     }

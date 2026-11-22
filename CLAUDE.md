@@ -1573,6 +1573,19 @@ every data change (scripts re-run on it).
   fuzzing). Known limits: 5 guesses at a 6-digit code per offer; a LAN device can end an offer
   or a search (fails safe); the agents can
   read imported scripts, so a hostile script could try to talk them into something.
+- **Network input is untrusted too** (reviewed Nov 2026). Don't weaken: TLS
+  verification is only skipped for the IBKR gateway on this machine
+  (`ibkr::is_loopback` compares the host exactly: `contains("://localhost")`
+  passed `localhost.attacker.example`); requests carrying keys never follow
+  redirects (`get_json_with`; Alpaca's keys are custom headers ureq would
+  forward); websocket messages ≤ 8 MB (`WS_MAX_MESSAGE`); downloaded logos:
+  SVG `<image>` only from data in the file (`logos::svg_options`; usvg's
+  default reads any path from disk), PNGs sized from the header before
+  decoding (≤ 2048 px, 32 MB); CSV text cells that start like a formula get
+  `'` (`quant::export::cell`; order names come from scripts); the agents'
+  system prompt says tool results are data, not instructions. Links open
+  only as http(s) (`may_open`); file names from symbols are sanitised; the
+  only listener is the transfer handoff while it's sharing.
 - **Permissions:** Windows Firewall and macOS Local Network ask once. `NetHelp` offers the way
   back: `handoff::firewall` runs `opentern --allow-firewall` elevated (clears the exe's block
   rules, adds rule "Opentern transfer" for port 47811; stays after uninstalling on a per-user

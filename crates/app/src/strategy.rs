@@ -405,7 +405,10 @@ pub fn trades_csv(b: &Broker, tz: &jiff::tz::TimeZone) -> String {
     let mut out =
         String::from("Trade #,Type,Signal,Date/Time,Price,Contracts,Profit,Profit %,Cum. Profit,Run-up,Drawdown\n");
     let mut cum = 0.0;
-    let q = |s: &str| format!("\"{}\"", s.replace('"', "\"\""));
+    let q = |s: &str| {
+        let s = opentern_engine::quant::export::cell(s);
+        if s.starts_with('"') { s } else { format!("\"{s}\"") }
+    };
     for (k, tr) in b.trades.iter().enumerate() {
         cum += tr.pnl;
         let side = if tr.long { "long" } else { "short" };

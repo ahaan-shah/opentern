@@ -565,9 +565,15 @@ fn crop_round(pm: &mut tiny_skia::Pixmap) {
 
 /// A PNG as a premultiplied pixmap (any colour type; at most 2048 px a side).
 fn raster_pixmap(bytes: &[u8]) -> Option<tiny_skia::Pixmap> {
-    let mut dec = png::Decoder::new(std::io::Cursor::new(bytes));
+    // A downloaded file's header can claim any size: refuse a big one before
+    // anything is allocated for it.
+    let mut dec = png::Decoder::new_with_limits(std::io::Cursor::new(bytes), png::Limits { bytes: 32 << 20 });
     dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
     let mut reader = dec.read_info().ok()?;
+    let (w, h) = (reader.info().width, reader.info().height);
+    if w == 0 || h == 0 || w > 2048 || h > 2048 {
+        return None;
+    }
     let mut buf = vec![0; reader.output_buffer_size()?];
     let info = reader.next_frame(&mut buf).ok()?;
     let (w, h) = (info.width, info.height);
@@ -592,10 +598,23 @@ fn raster_pixmap(bytes: &[u8]) -> Option<tiny_skia::Pixmap> {
     tiny_skia::Pixmap::from_vec(rgba, tiny_skia::IntSize::from_wh(w, h)?)
 }
 
+/// SVG options for downloaded logos: an `<image>` may only use data that's
+/// in the file itself (by default usvg reads any path an `href` names
+/// from the disk).
+fn svg_options() -> usvg::Options<'static> {
+    usvg::Options {
+        image_href_resolver: usvg::ImageHrefResolver {
+            resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
+            resolve_string: Box::new(|_, _| None),
+        },
+        ..usvg::Options::default()
+    }
+}
+
 /// Draws the disc for a kept logo.
 fn render(kept: &str) -> Option<Image> {
     let mut pm = tiny_skia::Pixmap::new(SIZE, SIZE)?;
-    let opt = usvg::Options::default();
+    let opt = svg_options();
     let size = SIZE as f32;
     let place = |tree: &usvg::Tree, box_size: f32| {
         let ts = tree.size();
@@ -989,6 +1008,27 @@ mod tests {
                 None => assert!(badge(&s).is_some(), "{} has no icon", s.id),
             }
         }
+    }
+
+    #[test]
+    fn logos_never_read_files_from_the_disk() {
+        let dir = std::env::temp_dir().join(format!("opentern-svg-href-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let inner = dir.join("inner.svg");
+        std::fs::write(&inner, r##"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#ff0000"/></svg>"##).unwrap();
+        let svg = format!(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 10 10"><image width="10" height="10" xlink:href="{}"/></svg>"#,
+            inner.display()
+        );
+        // The default options would draw the file's red square.
+        let tree = usvg::Tree::from_str(&svg, &svg_options()).unwrap();
+        assert!(!tree.root().has_children(), "an outside file was loaded");
+        let _ = std::fs::remove_dir_all(&dir);
+        // A PNG whose header claims a huge size is refused, not allocated.
+        let mut big = png_of(1, 1, [0, 0, 0, 255]);
+        big[16..20].copy_from_slice(&60_000u32.to_be_bytes());
+        big[20..24].copy_from_slice(&60_000u32.to_be_bytes());
+        assert!(raster_pixmap(&big).is_none());
     }
 
     #[test]

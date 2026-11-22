@@ -100,12 +100,27 @@ fn conids() -> &'static Mutex<HashMap<String, String>> {
     C.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+/// Whether a URL's host is this machine: exactly `localhost`, `127.0.0.1`
+/// or `[::1]` (not `localhost.example.com`, which `contains` would pass).
+fn is_loopback(url: &str) -> bool {
+    let rest = url.split_once("://").map_or(url, |(_, r)| r);
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    // Credentials before an @ aren't the host.
+    let host_port = authority.rsplit_once('@').map_or(authority, |(_, h)| h);
+    let host = if let Some(v6) = host_port.strip_prefix('[') {
+        v6.split(']').next().unwrap_or("")
+    } else {
+        host_port.split(':').next().unwrap_or("")
+    };
+    matches!(host.to_ascii_lowercase().as_str(), "localhost" | "127.0.0.1" | "::1")
+}
+
 impl Ibkr {
     pub fn new(base: &str) -> Ibkr {
         let base = base.trim_end_matches('/').to_string();
         // The gateway uses a self-signed certificate; only trust that on
         // this machine.
-        let local = base.contains("://localhost") || base.contains("://127.0.0.1");
+        let local = is_loopback(&base);
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(20)))
             .tls_config(ureq::tls::TlsConfig::builder().disable_verification(local).build())
@@ -219,6 +234,27 @@ impl Provider for Ibkr {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_this_machine_skips_the_certificate_check() {
+        for ok in [
+            "https://localhost:5000",
+            "https://127.0.0.1:5000/",
+            "https://[::1]:5000",
+            "https://LOCALHOST",
+        ] {
+            assert!(is_loopback(ok), "{ok}");
+        }
+        for bad in [
+            "https://localhost.attacker.example:5000",
+            "https://127.0.0.1.attacker.example",
+            "https://localhost@attacker.example",
+            "https://attacker.example/://localhost",
+            "https://attacker.example?x=://127.0.0.1",
+        ] {
+            assert!(!is_loopback(bad), "{bad}");
+        }
+    }
 
     #[test]
     fn parses_history_conids_and_snapshots() {

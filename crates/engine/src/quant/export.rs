@@ -7,11 +7,20 @@ use super::optimize::{Outcome, Setup};
 use super::portfolio::PortfolioResult;
 use super::walkforward::WalkResult;
 
-fn cell(s: &str) -> String {
+/// A text cell. One starting like a formula (`=`, `+`, `-`, `@`, a tab)
+/// gets a `'` first, so a spreadsheet shows it instead of running it: names
+/// and comments come from scripts, which may be someone else's.
+pub fn cell(s: &str) -> String {
+    // Numbers (-5, +1.5) are left alone: they can't run.
+    let s = if s.starts_with(['=', '+', '-', '@', '\t', '\r']) && s.trim().parse::<f64>().is_err() {
+        format!("'{s}")
+    } else {
+        s.to_string()
+    };
     if s.contains([',', '"', '\n']) {
         format!("\"{}\"", s.replace('"', "\"\""))
     } else {
-        s.to_string()
+        s
     }
 }
 
@@ -192,5 +201,19 @@ mod tests {
         assert_eq!(lines.len(), 4);
         assert!(lines[0].starts_with("Rank,\"Fast, length\",Score (Net profit),Net profit"));
         assert!(lines[1].starts_with("1,"));
+    }
+}
+
+#[cfg(test)]
+mod cell_tests {
+    use super::cell;
+
+    #[test]
+    fn formulas_are_shown_not_run() {
+        assert_eq!(cell("=HYPERLINK(\"http://x\")"), "\"'=HYPERLINK(\"\"http://x\"\")\"");
+        assert_eq!(cell("@SUM(A1)"), "'@SUM(A1)");
+        assert_eq!(cell("-5"), "-5");
+        assert_eq!(cell("+1.5"), "+1.5");
+        assert_eq!(cell("Long"), "Long");
     }
 }
