@@ -2758,6 +2758,31 @@ fn legend(
                 );
                 xx = r.right() + 8.0;
             }
+            // A perpetual's funding: the rate, and how long until it's paid.
+            if let Some((rate, next)) = chart.funding_now() {
+                let left = ((next - jiff::Timestamp::now().as_millisecond()) / 60_000).max(0);
+                let col = if rate >= 0.0 { t.pos } else { t.neg };
+                let f = theme::regular(12.0);
+                let a = painter.text(pos2(xx, pos.y + 1.0), Align2::LEFT_TOP, "Funding", f.clone(), pal.text2);
+                let b = painter.text(
+                    pos2(a.right() + 4.0, pos.y + 1.0),
+                    Align2::LEFT_TOP,
+                    format!("{:+.4}%", rate * 100.0),
+                    f.clone(),
+                    col,
+                );
+                let c = painter.text(
+                    pos2(b.right() + 4.0, pos.y + 1.0),
+                    Align2::LEFT_TOP,
+                    format!("{}h {:02}m", left / 60, left % 60),
+                    f,
+                    pal.text2,
+                );
+                ui.interact(a.union(c), ui.id().with("funding"), Sense::hover())
+                    .on_hover_text("Paid between longs and shorts at the countdown's end. Positive: longs pay shorts.");
+                xx = c.right() + 10.0;
+                ui.ctx().request_repaint_after(std::time::Duration::from_secs(20));
+            }
             if let (true, Some(i)) = (st.show_ohlc, idx) {
                 let b = chart.bars[i];
                 let up = bar_color(chart, i, &b);

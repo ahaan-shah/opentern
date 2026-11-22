@@ -113,6 +113,10 @@ webhook, Telegram or email.
 
 **Markets.**
 - **Crypto:** Binance, Bybit, OKX, Coinbase and Kraken. Free, live and with deep history.
+  Perpetual futures on Binance, Bybit and OKX too, with their funding rates.
+- **Indices worldwide:** the S&P 500, Nasdaq, Dow, Nikkei 225, FTSE 100, DAX, CAC 40,
+  Euro Stoxx 50, Hang Seng, KOSPI, ASX 200, TSX, Ibovespa and more, plus US Treasury
+  yields, VIX, India VIX, the MOVE index and the dollar index (Yahoo, free).
 - **US stocks, ETFs, indices, forex and commodities:** Yahoo by default, delayed.
   Add your own Alpaca, OANDA or Interactive Brokers keys for live data.
 - **India (NSE/BSE):** Yahoo by default, or Upstox with your own keys.

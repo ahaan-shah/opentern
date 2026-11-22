@@ -1111,8 +1111,18 @@ Symbol logos (crates/app/assets/logos)
 
 Coin icons: web3icons (@web3icons/core), MIT License, https://www.npmjs.com/package/@web3icons/core
 Company marks: theSVG (@thesvg/icons), MIT License, https://www.npmjs.com/package/@thesvg/icons
-Logos fetched later at run time come from the same two sets. The marks are
-trademarks of their owners and are shown only to identify the symbols.
+Indian company logos: Wikimedia Commons, public domain or CC0 files only.
+Logos fetched later at run time come from these sets, cryptocurrency-icons
+(CC0) and logoapi.sh. The marks are trademarks of their owners and are shown
+only to identify the symbols.
+
+
+------------------------------------------------------------------------------
+Country flags (crates/app/assets/flags)
+------------------------------------------------------------------------------
+
+flag-icons 7.6.0, MIT License, Copyright (c) 2013 Panayiotis Lipiridis,
+https://github.com/lipis/flag-icons
 
 
 ------------------------------------------------------------------------------

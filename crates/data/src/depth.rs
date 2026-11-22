@@ -69,8 +69,30 @@ pub fn book(sym: &Symbol, last: f64, demo: bool) -> Result<Book> {
         return Ok(demo_book(last, sym.tick_size));
     }
     let agent = provider::agent();
-    let t = sym.ticker();
+    let perp = crate::binance::is_perp(sym);
+    let t = sym.ticker().trim_end_matches(".P");
     let mut b = match sym.exchange() {
+        "BINANCE" if perp => parse_pairs(&crate::binance::get_futures(
+            &agent,
+            &format!("/fapi/v1/depth?symbol={t}&limit=50"),
+        )?),
+        "BYBIT" if perp => {
+            let v = provider::get_json(
+                &agent,
+                &format!("https://api.bybit.com/v5/market/orderbook?category=linear&symbol={t}&limit=50"),
+            )?;
+            Book {
+                bids: levels(&v["result"]["b"]),
+                asks: levels(&v["result"]["a"]),
+            }
+        }
+        // OKX's swap book counts contracts, not coins.
+        "OKX" if perp => {
+            return Err(Error::Bad(
+                "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+                    .into(),
+            ));
+        }
         "BINANCE" => parse_pairs(&crate::binance::get(
             &agent,
             &format!("/api/v3/depth?symbol={t}&limit=50"),

@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### New
+- **Indices from around the world.** The Nikkei 225, FTSE 100, DAX, CAC 40, Euro Stoxx 50, SMI, Hang Seng, SSE Composite, KOSPI, Taiwan Weighted, Straits Times, ASX 200, TSX and Ibovespa, plus the S&P 500, Nasdaq 100 and Composite, Dow and Russell 2000, each with its exchange's trading hours. They show their country's flag, or TradingView's badge.
+- **Rates, volatility and the dollar.** US 3-month, 5-, 10- and 30-year Treasury yields, VIX, the Nasdaq 100's VXN, India VIX, the MOVE bond volatility index and the U.S. Dollar Index.
+- **Crypto perpetual futures.** Binance, Bybit and OKX perpetuals (`BTCUSDT.P`) chart and stream live like spot, show up in search tagged "perpetual", and the legend shows the funding rate and the time to the next payment. The depth-of-market ladder works for Binance and Bybit perpetuals.
 - **Commodity icons.** Gold and silver show stacked bars, platinum, palladium and copper ingots with their element, oil a barrel, natural gas a flame, and the farm and livestock markets their own pictures, in place of letter badges.
 - **Logos for many more coins and stocks.** US and large Indian stocks get logoapi.sh's logos, coins quoted per thousand (1000SATS) show the coin's logo, and 27 more Indian companies (BHEL, GAIL, ITC, L&T, NTPC, ONGC, Sun Pharma and others) come built in. Fewer letter circles in the watchlist, search and market overview.
 - **Spot commodities from OANDA.** With an OANDA key, search lists spot gold, silver, platinum, palladium, copper, WTI, Brent, natural gas, wheat, corn, soybeans and sugar beside the futures. Search tags each row "futures" or "spot".

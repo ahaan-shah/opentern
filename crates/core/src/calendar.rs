@@ -21,19 +21,86 @@ pub enum Market {
     Us,
     /// NSE, BSE: 09:15–15:30 India.
     India,
+    /// Another stock exchange's regular hours, weekdays (its holidays and
+    /// lunch breaks aren't kept).
+    Exchange(Venue),
     /// Anything else: assumed open on weekdays.
     Other,
 }
 
+/// Stock exchanges whose indices Opentern lists (`crate::INDICES`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Venue {
+    Tokyo,
+    London,
+    Frankfurt,
+    Paris,
+    Zurich,
+    HongKong,
+    Shanghai,
+    Seoul,
+    Taipei,
+    Singapore,
+    Sydney,
+    Toronto,
+    SaoPaulo,
+}
+
+impl Venue {
+    /// (time zone, open, close), local regular hours.
+    fn hours(self) -> (&'static str, (i8, i8), (i8, i8)) {
+        match self {
+            Venue::Tokyo => ("Asia/Tokyo", (9, 0), (15, 30)),
+            Venue::London => ("Europe/London", (8, 0), (16, 30)),
+            Venue::Frankfurt => ("Europe/Berlin", (9, 0), (17, 30)),
+            Venue::Paris => ("Europe/Paris", (9, 0), (17, 30)),
+            Venue::Zurich => ("Europe/Zurich", (9, 0), (17, 30)),
+            Venue::HongKong => ("Asia/Hong_Kong", (9, 30), (16, 0)),
+            Venue::Shanghai => ("Asia/Shanghai", (9, 30), (15, 0)),
+            Venue::Seoul => ("Asia/Seoul", (9, 0), (15, 30)),
+            Venue::Taipei => ("Asia/Taipei", (9, 0), (13, 30)),
+            Venue::Singapore => ("Asia/Singapore", (9, 0), (17, 0)),
+            Venue::Sydney => ("Australia/Sydney", (10, 0), (16, 0)),
+            Venue::Toronto => ("America/Toronto", (9, 30), (16, 0)),
+            Venue::SaoPaulo => ("America/Sao_Paulo", (10, 0), (17, 0)),
+        }
+    }
+}
+
 impl Market {
     pub fn of(sym: &Symbol) -> Market {
-        Market::from_parts(sym.exchange(), sym.kind)
+        Market::of_id(&sym.id).unwrap_or_else(|| Market::from_parts(sym.exchange(), sym.kind))
+    }
+
+    /// The listed indices (`crate::INDICES`) whose prefix doesn't say
+    /// where they trade (`TVC:`).
+    fn of_id(id: &str) -> Option<Market> {
+        Some(match id {
+            "TVC:RUT" | "TVC:US03MY" | "TVC:US05Y" | "TVC:US10Y" | "TVC:US30Y" | "TVC:MOVE" => Market::Us,
+            // The dollar index is a futures price: nearly round the clock.
+            "TVC:DXY" => Market::Forex,
+            "TVC:NI225" => Market::Exchange(Venue::Tokyo),
+            "TVC:UKX" => Market::Exchange(Venue::London),
+            "TVC:CAC40" => Market::Exchange(Venue::Paris),
+            "TVC:SX5E" => Market::Exchange(Venue::Frankfurt),
+            "TVC:HSI" => Market::Exchange(Venue::HongKong),
+            "TVC:KOSPI" => Market::Exchange(Venue::Seoul),
+            "TVC:STI" => Market::Exchange(Venue::Singapore),
+            _ => return None,
+        })
     }
 
     /// From an exchange prefix ("NASDAQ") and the asset kind.
     pub fn from_parts(exchange: &str, kind: AssetKind) -> Market {
         match exchange {
-            "NASDAQ" | "NYSE" | "AMEX" => Market::Us,
+            "NASDAQ" | "NYSE" | "AMEX" | "SP" | "DJ" | "CBOE" => Market::Us,
+            "XETR" => Market::Exchange(Venue::Frankfurt),
+            "SIX" => Market::Exchange(Venue::Zurich),
+            "SSE" => Market::Exchange(Venue::Shanghai),
+            "TWSE" => Market::Exchange(Venue::Taipei),
+            "ASX" => Market::Exchange(Venue::Sydney),
+            "TSX" => Market::Exchange(Venue::Toronto),
+            "BMFBOVESPA" => Market::Exchange(Venue::SaoPaulo),
             "NSE" | "BSE" => Market::India,
             "FX" | "OANDA" => Market::Forex,
             // Commodity futures trade nearly round the clock, Sunday evening
@@ -52,6 +119,7 @@ impl Market {
         let name = match self {
             Market::Us | Market::Forex => "America/New_York",
             Market::India => "Asia/Kolkata",
+            Market::Exchange(v) => v.hours().0,
             Market::Crypto | Market::Other => "UTC",
         };
         TimeZone::get(name).unwrap_or(TimeZone::UTC)
@@ -62,6 +130,10 @@ impl Market {
         match self {
             Market::Us => Some((Time::constant(9, 30, 0, 0), Time::constant(16, 0, 0, 0))),
             Market::India => Some((Time::constant(9, 15, 0, 0), Time::constant(15, 30, 0, 0))),
+            Market::Exchange(v) => {
+                let (_, (oh, om), (ch, cm)) = v.hours();
+                Some((Time::constant(oh, om, 0, 0), Time::constant(ch, cm, 0, 0)))
+            }
             _ => None,
         }
     }
@@ -527,7 +599,7 @@ pub fn state(m: Market, t: i64) -> State {
                 .map(|z| z.timestamp().as_millisecond());
             State::Closed(open)
         }
-        Market::Us | Market::India => {
+        Market::Us | Market::India | Market::Exchange(_) => {
             let d = z.date();
             if let Some((o, c)) = session(m, d)
                 && t >= o
@@ -616,7 +688,7 @@ pub fn session_day(m: Market, t: i64) -> Option<i64> {
     let z = jiff::Timestamp::from_millisecond(t).ok()?.to_zoned(m.tz());
     let d = z.date();
     let started = match m {
-        Market::Us | Market::India => session(m, d).is_some_and(|(open, _)| t >= open),
+        Market::Us | Market::India | Market::Exchange(_) => session(m, d).is_some_and(|(open, _)| t >= open),
         Market::Crypto => true,
         _ => false,
     };
@@ -642,7 +714,7 @@ pub fn trading(m: Market, t: i64) -> bool {
 pub fn closed_between(m: Market, from: i64, to: i64) -> bool {
     match m {
         Market::Us => last_close_in(m, from - AFTER_HOURS, to - AFTER_HOURS).is_some(),
-        Market::India => last_close_in(m, from, to).is_some(),
+        Market::India | Market::Exchange(_) => last_close_in(m, from, to).is_some(),
         _ => trading(m, from) && !trading(m, to),
     }
 }
@@ -650,6 +722,27 @@ pub fn closed_between(m: Market, from: i64, to: i64) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn world_exchanges_keep_their_hours() {
+        let nikkei = crate::indices().into_iter().find(|s| s.id == "TVC:NI225").unwrap();
+        let m = Market::of(&nikkei);
+        assert_eq!(m, Market::Exchange(Venue::Tokyo));
+        // Monday 23 Nov 2026, 10:00 Tokyo (01:00 UTC): open; 16:00 Tokyo: closed.
+        assert_eq!(state(m, ms("2026-11-23T01:00:00Z")), State::Open);
+        assert!(matches!(state(m, ms("2026-11-23T07:00:00Z")), State::Closed(Some(_))));
+        // Saturday: closed, opening Monday 09:00 Tokyo.
+        assert_eq!(
+            state(m, ms("2026-11-28T03:00:00Z")),
+            State::Closed(Some(ms("2026-11-30T00:00:00Z")))
+        );
+        let us10 = crate::indices().into_iter().find(|s| s.id == "TVC:US10Y").unwrap();
+        assert_eq!(Market::of(&us10), Market::Us);
+        assert_eq!(
+            Market::from_parts("XETR", crate::AssetKind::Index),
+            Market::Exchange(Venue::Frankfurt)
+        );
+    }
 
     #[test]
     fn us_extended_hours() {

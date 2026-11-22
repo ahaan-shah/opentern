@@ -39,11 +39,11 @@ impl Yahoo {
 
 /// Our symbol id → Yahoo's ticker.
 pub fn ticker(id: &str) -> String {
+    if let Some(t) = opentern_core::index_yahoo(id) {
+        return t.into();
+    }
     let (ex, t) = id.split_once(':').unwrap_or(("", id));
     match (ex, t) {
-        ("NSE", "NIFTY") => "^NSEI".into(),
-        ("NSE", "BANKNIFTY") => "^NSEBANK".into(),
-        ("BSE", "SENSEX") => "^BSESN".into(),
         ("NSE", t) => format!("{t}.NS"),
         ("BSE", t) => format!("{t}.BO"),
         ("FX", t) => format!("{t}=X"),
@@ -59,14 +59,15 @@ pub fn ticker(id: &str) -> String {
 /// A Yahoo exchange code and ticker → our symbol id.
 fn id_for(exchange: &str, symbol: &str) -> String {
     let base = |s: &str, suffix: &str| s.strip_suffix(suffix).unwrap_or(s).to_string();
+    // Indices and rates we list (^N225 → TVC:NI225).
+    if let Some(id) = opentern_core::index_from_yahoo(symbol) {
+        return id.into();
+    }
     match exchange {
         "NMS" | "NGM" | "NCM" | "NAS" => format!("NASDAQ:{symbol}"),
         "NYQ" | "NYS" => format!("NYSE:{symbol}"),
         "PCX" | "ASE" | "BTS" => format!("AMEX:{symbol}"),
-        "NSI" if symbol == "^NSEI" => "NSE:NIFTY".into(),
-        "NSI" if symbol == "^NSEBANK" => "NSE:BANKNIFTY".into(),
         "NSI" => format!("NSE:{}", base(symbol, ".NS")),
-        "BSE" if symbol == "^BSESN" => "BSE:SENSEX".into(),
         "BSE" => format!("BSE:{}", base(symbol, ".BO")),
         "CCY" => format!("FX:{}", base(symbol, "=X")),
         // A front-month future we list as a commodity (GC=F → COMEX:GC1!).
@@ -886,6 +887,9 @@ mod tests {
         assert_eq!(id_for("CCY", "EURUSD=X"), "FX:EURUSD");
         assert_eq!(id_for("FGI", "X"), "YAHOO:X");
         assert_eq!(ticker("YAHOO:^GSPC"), "^GSPC");
+        assert_eq!(ticker("TVC:NI225"), "^N225");
+        assert_eq!(ticker("TVC:US10Y"), "^TNX");
+        assert_eq!(id_for("OSA", "^N225"), "TVC:NI225");
         assert_eq!(urlencode("^GSPC"), "%5EGSPC");
     }
 

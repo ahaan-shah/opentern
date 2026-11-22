@@ -7,7 +7,10 @@
 //!   the mark in white, cropped round; else the `cryptocurrency-icons` discs.
 //! - Commodities: our own drawings (`assets/commodities/`, made by
 //!   `scripts/make-commodity-icons.py`): gold bars, an oil barrel, a flame.
-//! - Indices: badges drawn here ("50" for the Nifty 50).
+//! - Indices: TradingView's badges, drawn here ("500" for the S&P 500,
+//!   "50" for the Nifty 50); other countries' indices, Treasury yields and
+//!   the dollar index show their country's flag (`assets/flags/`,
+//!   flag-icons, MIT).
 //! - Companies and funds: theSVG's brand marks (`@thesvg/icons`, MIT; the
 //!   marks stay their owners' trademarks), found by the symbol's name. The
 //!   one-colour "mono" mark is drawn white on the brand colour (or on a dark
@@ -80,6 +83,7 @@ fn file_key(s: &Symbol) -> Option<String> {
             (!t.is_empty()).then(|| format!("co-{}-{}", s.exchange().to_lowercase(), t.to_lowercase()))
         }
         AssetKind::Commodity => opentern_core::commodity_of(s).map(|c| format!("cmdty-{c}")),
+        AssetKind::Index => flag_of(s).map(|c| format!("flag-{c}")),
         _ => None,
     }
 }
@@ -106,16 +110,64 @@ const COMMODITY_ICONS: &[(&str, &str)] = &[
     ("cattle", include_str!("../assets/commodities/cattle.svg")),
 ];
 
+/// Country flags (flag-icons, MIT; the square set).
+const FLAGS: &[(&str, &str)] = &[
+    ("au", include_str!("../assets/flags/au.svg")),
+    ("br", include_str!("../assets/flags/br.svg")),
+    ("ca", include_str!("../assets/flags/ca.svg")),
+    ("ch", include_str!("../assets/flags/ch.svg")),
+    ("cn", include_str!("../assets/flags/cn.svg")),
+    ("de", include_str!("../assets/flags/de.svg")),
+    ("eu", include_str!("../assets/flags/eu.svg")),
+    ("fr", include_str!("../assets/flags/fr.svg")),
+    ("gb", include_str!("../assets/flags/gb.svg")),
+    ("hk", include_str!("../assets/flags/hk.svg")),
+    ("jp", include_str!("../assets/flags/jp.svg")),
+    ("kr", include_str!("../assets/flags/kr.svg")),
+    ("sg", include_str!("../assets/flags/sg.svg")),
+    ("tw", include_str!("../assets/flags/tw.svg")),
+    ("us", include_str!("../assets/flags/us.svg")),
+];
+
+/// The flag an index shows: indices outside the US and India (which have
+/// TradingView's number badges), Treasury yields and the dollar index.
+fn flag_of(s: &Symbol) -> Option<&'static str> {
+    Some(match s.id.as_str() {
+        "TVC:NI225" => "jp",
+        "TVC:UKX" => "gb",
+        "XETR:DAX" => "de",
+        "TVC:CAC40" => "fr",
+        "TVC:SX5E" => "eu",
+        "SIX:SMI" => "ch",
+        "TVC:HSI" => "hk",
+        "SSE:000001" => "cn",
+        "TVC:KOSPI" => "kr",
+        "TWSE:TAIEX" => "tw",
+        "TVC:STI" => "sg",
+        "ASX:XJO" => "au",
+        "TSX:TSX" => "ca",
+        "BMFBOVESPA:IBOV" => "br",
+        "TVC:US03MY" | "TVC:US05Y" | "TVC:US10Y" | "TVC:US30Y" | "TVC:DXY" => "us",
+        _ => return None,
+    })
+}
+
 /// A kept logo for one of our commodity drawings (a square, cropped round).
 fn commodity_icon(key: &str) -> Option<String> {
-    let name = key.strip_prefix("cmdty-")?;
-    let svg = COMMODITY_ICONS.iter().find(|(n, _)| *n == name)?.1;
+    let svg = match key.strip_prefix("flag-") {
+        Some(cc) => FLAGS.iter().find(|(n, _)| *n == cc)?.1,
+        None => {
+            let name = key.strip_prefix("cmdty-")?;
+            COMMODITY_ICONS.iter().find(|(n, _)| *n == name)?.1
+        }
+    };
     Some(format!("square\n{svg}"))
 }
 
 /// A crypto pair's coin: BTCUSDT → btc.
 fn coin(ticker: &str) -> Option<String> {
-    let pair = ticker.replace(['-', '/', '_'], "");
+    // A perpetual (BTCUSDT.P) shows its coin's logo.
+    let pair = ticker.trim_end_matches(".P").replace(['-', '/', '_'], "");
     let base = QUOTES
         .iter()
         .find_map(|q| pair.strip_suffix(q).filter(|b| b.len() >= 2))
@@ -783,6 +835,7 @@ fn badge(s: &Symbol) -> Option<(Color32, &'static str)> {
     let rgb = |v: u32| Color32::from_rgb((v >> 16) as u8, (v >> 8) as u8, v as u8);
     let t = s.ticker().to_uppercase();
     match s.kind {
+        AssetKind::Index if flag_of(s).is_some() => None,
         AssetKind::Index => Some(match t.trim_start_matches('^') {
             "NIFTY" | "NSEI" | "NIFTY50" => (rgb(0x2B3990), "50"),
             "BANKNIFTY" | "NSEBANK" => (rgb(0x2B3990), ph::BANK),
@@ -793,6 +846,9 @@ fn badge(s: &Symbol) -> Option<(Color32, &'static str)> {
             "DJI" | "DJIA" => (rgb(0x0B3D91), "30"),
             "RUT" => (rgb(0x6D2077), "2K"),
             "VIX" => (rgb(0x4B2E83), "VIX"),
+            "VXN" => (rgb(0x0091C8), "VXN"),
+            "MOVE" => (rgb(0x1F3B5C), "MV"),
+            "INDIAVIX" => (rgb(0x2B3990), "VIX"),
             "DAX" | "GDAXI" => (rgb(0x1E1E1E), "40"),
             "FTSE" => (rgb(0x00205B), "100"),
             "N225" | "NI225" => (rgb(0xBC002D), "225"),
@@ -845,6 +901,7 @@ mod tests {
         assert_eq!(coin("1000SATSUSDT").as_deref(), Some("sats"));
         assert_eq!(coin("1MBABYDOGEUSDT").as_deref(), Some("babydoge"));
         assert_eq!(coin("1INCHUSDT").as_deref(), Some("1inch"));
+        assert_eq!(coin("BTCUSDT.P").as_deref(), Some("btc"));
         let slugs: HashSet<String> = ["apple", "nvidia", "reliance-industries-limited", "reliance"]
             .into_iter()
             .map(String::from)
@@ -916,6 +973,22 @@ mod tests {
         assert_eq!(at(&px, 48, 4), [255, 255, 255, 255]);
         // Not a PNG: no logo, not a crash.
         assert!(render("image\nfill\nbm90IGEgcG5n").is_none());
+    }
+
+    #[test]
+    fn index_flags_and_badges() {
+        for s in opentern_core::indices() {
+            match flag_of(&s) {
+                // Flags render, and the badge stands aside for them.
+                Some(_) => {
+                    assert!(badge(&s).is_none(), "{}", s.id);
+                    let k = commodity_icon(&key(&s).unwrap()).unwrap();
+                    assert!(render(&k).is_some(), "{}", s.id);
+                }
+                // Everything else has a badge.
+                None => assert!(badge(&s).is_some(), "{} has no icon", s.id),
+            }
+        }
     }
 
     #[test]

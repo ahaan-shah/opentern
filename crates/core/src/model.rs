@@ -253,6 +253,157 @@ pub fn commodities() -> Vec<Symbol> {
     ]
 }
 
+/// Indices, rates and volatility, served by Yahoo: (our id, Yahoo's
+/// ticker, name, currency, time zone, tick size). Ids follow TradingView's
+/// (`TVC:NI225`, `SP:SPX`, `TVC:US10Y`). Trading hours: `calendar::Market::of`.
+pub const INDICES: &[(&str, &str, &str, &str, &str, f64)] = &[
+    // United States
+    ("SP:SPX", "^GSPC", "S&P 500", "USD", "America/New_York", 0.01),
+    ("NASDAQ:NDX", "^NDX", "Nasdaq 100", "USD", "America/New_York", 0.01),
+    (
+        "NASDAQ:IXIC",
+        "^IXIC",
+        "Nasdaq Composite",
+        "USD",
+        "America/New_York",
+        0.01,
+    ),
+    (
+        "DJ:DJI",
+        "^DJI",
+        "Dow Jones Industrial Average",
+        "USD",
+        "America/New_York",
+        0.01,
+    ),
+    ("TVC:RUT", "^RUT", "Russell 2000", "USD", "America/New_York", 0.01),
+    // India
+    ("NSE:NIFTY", "^NSEI", "Nifty 50", "INR", "Asia/Kolkata", 0.05),
+    ("NSE:BANKNIFTY", "^NSEBANK", "Nifty Bank", "INR", "Asia/Kolkata", 0.05),
+    ("BSE:SENSEX", "^BSESN", "S&P BSE Sensex", "INR", "Asia/Kolkata", 0.01),
+    // The world
+    ("TVC:NI225", "^N225", "Nikkei 225", "JPY", "Asia/Tokyo", 0.01),
+    ("TVC:UKX", "^FTSE", "FTSE 100", "GBP", "Europe/London", 0.01),
+    ("XETR:DAX", "^GDAXI", "DAX", "EUR", "Europe/Berlin", 0.01),
+    ("TVC:CAC40", "^FCHI", "CAC 40", "EUR", "Europe/Paris", 0.01),
+    ("TVC:SX5E", "^STOXX50E", "Euro Stoxx 50", "EUR", "Europe/Berlin", 0.01),
+    ("SIX:SMI", "^SSMI", "Swiss Market Index", "CHF", "Europe/Zurich", 0.01),
+    ("TVC:HSI", "^HSI", "Hang Seng", "HKD", "Asia/Hong_Kong", 0.01),
+    (
+        "SSE:000001",
+        "000001.SS",
+        "SSE Composite",
+        "CNY",
+        "Asia/Shanghai",
+        0.001,
+    ),
+    ("TVC:KOSPI", "^KS11", "KOSPI", "KRW", "Asia/Seoul", 0.01),
+    ("TWSE:TAIEX", "^TWII", "Taiwan Weighted", "TWD", "Asia/Taipei", 0.01),
+    ("TVC:STI", "^STI", "Straits Times", "SGD", "Asia/Singapore", 0.01),
+    ("ASX:XJO", "^AXJO", "S&P/ASX 200", "AUD", "Australia/Sydney", 0.1),
+    (
+        "TSX:TSX",
+        "^GSPTSE",
+        "S&P/TSX Composite",
+        "CAD",
+        "America/Toronto",
+        0.01,
+    ),
+    ("BMFBOVESPA:IBOV", "^BVSP", "Ibovespa", "BRL", "America/Sao_Paulo", 1.0),
+    // Rates, volatility and the dollar
+    (
+        "TVC:US03MY",
+        "^IRX",
+        "US 3-month Treasury bill yield",
+        "%",
+        "America/New_York",
+        0.001,
+    ),
+    (
+        "TVC:US05Y",
+        "^FVX",
+        "US 5-year Treasury yield",
+        "%",
+        "America/New_York",
+        0.001,
+    ),
+    (
+        "TVC:US10Y",
+        "^TNX",
+        "US 10-year Treasury yield",
+        "%",
+        "America/New_York",
+        0.001,
+    ),
+    (
+        "TVC:US30Y",
+        "^TYX",
+        "US 30-year Treasury yield",
+        "%",
+        "America/New_York",
+        0.001,
+    ),
+    (
+        "CBOE:VIX",
+        "^VIX",
+        "Cboe Volatility Index",
+        "USD",
+        "America/New_York",
+        0.01,
+    ),
+    (
+        "CBOE:VXN",
+        "^VXN",
+        "Cboe Nasdaq 100 Volatility Index",
+        "USD",
+        "America/New_York",
+        0.01,
+    ),
+    (
+        "TVC:MOVE",
+        "^MOVE",
+        "ICE BofA MOVE Index (bond volatility)",
+        "USD",
+        "America/New_York",
+        0.01,
+    ),
+    ("NSE:INDIAVIX", "^INDIAVIX", "India VIX", "INR", "Asia/Kolkata", 0.0025),
+    (
+        "TVC:DXY",
+        "DX-Y.NYB",
+        "U.S. Dollar Index",
+        "USD",
+        "America/New_York",
+        0.001,
+    ),
+];
+
+/// Every index, rate and volatility index above, as symbols.
+pub fn indices() -> Vec<Symbol> {
+    INDICES
+        .iter()
+        .map(|(id, _, name, currency, tz, tick)| Symbol {
+            id: (*id).into(),
+            description: (*name).into(),
+            kind: AssetKind::Index,
+            currency: (*currency).into(),
+            tick_size: *tick,
+            min_qty: 0.0,
+            timezone: (*tz).into(),
+        })
+        .collect()
+}
+
+/// Our index id → Yahoo's ticker (`TVC:NI225` → `^N225`).
+pub fn index_yahoo(id: &str) -> Option<&'static str> {
+    INDICES.iter().find(|i| i.0 == id).map(|i| i.1)
+}
+
+/// Yahoo's ticker → our index id (`^N225` → `TVC:NI225`).
+pub fn index_from_yahoo(ticker: &str) -> Option<&'static str> {
+    INDICES.iter().find(|i| i.1 == ticker).map(|i| i.0)
+}
+
 /// Spot commodities from OANDA (needs the user's OANDA key): the price
 /// of the metal or barrel now, not a futures contract. Futures trade above
 /// spot by the cost of carry, so the two never show the same number.
@@ -316,6 +467,21 @@ pub fn commodity_of(s: &Symbol) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indices_map_both_ways() {
+        assert_eq!(index_yahoo("TVC:NI225"), Some("^N225"));
+        assert_eq!(index_from_yahoo("^TNX"), Some("TVC:US10Y"));
+        let all = indices();
+        let mut ids: Vec<_> = all.iter().map(|s| s.id.clone()).collect();
+        ids.sort();
+        ids.dedup();
+        assert_eq!(ids.len(), all.len(), "ids are unique");
+        // Every index's time zone is a real one.
+        for s in &all {
+            assert!(jiff::tz::TimeZone::get(&s.timezone).is_ok(), "{}", s.id);
+        }
+    }
 
     #[test]
     fn futures_and_spot_name_the_same_commodity() {

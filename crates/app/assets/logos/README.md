@@ -12,5 +12,8 @@ extend the set.
   Commons (found through Wikidata), only files marked public domain or CC0,
   as 128 px PNG thumbnails. https://commons.wikimedia.org
 
+Country flags for indices (`crates/app/assets/flags/`): flag-icons
+(`flag-icons` 7.6.0, MIT), the square set. https://github.com/lipis/flag-icons
+
 The marks are trademarks of their owners. They're shown only to identify each
 symbol, as any market data app does; they don't imply endorsement.

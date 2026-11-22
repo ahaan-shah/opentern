@@ -84,6 +84,7 @@ enum Row<'a> {
 
 fn kind_name(s: &Symbol) -> &'static str {
     match s.kind {
+        AssetKind::Crypto if s.ticker().ends_with(".P") => "perpetual",
         AssetKind::Crypto => "crypto",
         AssetKind::Stock => "stock",
         AssetKind::Fund => "fund",

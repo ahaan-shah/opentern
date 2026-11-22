@@ -1344,6 +1344,22 @@ every data change (scripts re-run on it).
 - A custom index with several segments has no native 1W/1M
   (`ExprProvider::natives`): its weeks and months are resampled from its
   own days, since weights change on a day, not at a month's start.
+- **Indices and rates** (Nov 2026): `opentern_core::INDICES` is the one table
+  (TradingView-style id → Yahoo ticker, name, currency, zone); `yahoo::ticker` /
+  `id_for` map both ways; search knows them. `calendar::Market::Exchange(Venue)`
+  gives other exchanges' regular hours (weekdays; **no holidays or lunch
+  breaks yet**); `Market::of` checks ids for `TVC:` ones. Icons: flags
+  (`assets/flags/`, flag-icons MIT, `logos::flag_of`) for non-US/India
+  indices, yields and DXY; badges for the rest.
+- **Perpetuals** (`….P`, TradingView's name): `Binance::perp()` (fapi; its
+  market streams are under `/market/ws/` since late 2026: the old `/ws/`
+  path connects and sends nothing), `Bybit::perp()` (`category=linear`),
+  OKX `BTC-USDT-SWAP` (volume from column 6: column 5 counts contracts;
+  its book counts contracts too, so the DOM says so). Lists saved as
+  sources `*_perp` (meta `symbol_lists_at_v2` forced a refetch). Quotes via
+  per-pair streams. `Request::Funding` → legend "Funding +0.0034% 3h 11m"
+  (`App::poll_funding`, once a minute). Perpetuals never get a spot
+  `successor`. Not yet: open interest.
 - **Delisted pairs:** Binance keeps listing pairs it stopped (status
   BREAK, e.g. XMRUSDT): `ticker/price` and `24hr` still return the last
   trade from years ago, klines end then, and a `tradingDay` batch with any

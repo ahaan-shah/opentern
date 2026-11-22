@@ -1,5 +1,7 @@
-//! Binance spot: REST klines for history, websocket klines for live bars,
-//! exchangeInfo for the symbol list. Public endpoints, no key needed.
+//! Binance spot and USDⓈ-M perpetual futures: REST klines for history,
+//! websocket klines for live bars, exchangeInfo for the symbol lists.
+//! Public endpoints, no key needed. Perpetuals are `BINANCE:BTCUSDT.P`
+//! (TradingView's name), served by the futures API (`fapi`).
 
 use crate::provider::{self, Error, Live, Provider, Result, num};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe};
@@ -16,22 +18,35 @@ static REST_AT: AtomicUsize = AtomicUsize::new(0);
 const WS: [(&str, u16); 2] = [("data-stream.binance.vision", 443), ("stream.binance.com", 9443)];
 static WS_AT: AtomicUsize = AtomicUsize::new(0);
 const PAGE: usize = 1000;
+/// The futures API (perpetuals): one host, and its stream host.
+const FAPI: [&str; 1] = ["https://fapi.binance.com"];
+static FAPI_AT: AtomicUsize = AtomicUsize::new(0);
+const FSTREAM: (&str, u16) = ("fstream.binance.com", 443);
 
 pub struct Binance {
     agent: ureq::Agent,
+    /// USDⓈ-M perpetual futures instead of spot.
+    perp: bool,
 }
 
 impl Default for Binance {
     fn default() -> Self {
         Binance {
             agent: provider::agent(),
+            perp: false,
         }
     }
 }
 
-/// "BINANCE:BTCUSDT" → "BTCUSDT".
+/// "BINANCE:BTCUSDT" → "BTCUSDT"; "BINANCE:BTCUSDT.P" → "BTCUSDT".
 fn pair(sym: &Symbol) -> &str {
-    sym.ticker()
+    let t = sym.ticker();
+    t.strip_suffix(".P").unwrap_or(t)
+}
+
+/// Whether a symbol is a perpetual future (`….P`, TradingView's name).
+pub fn is_perp(sym: &Symbol) -> bool {
+    sym.ticker().ends_with(".P")
 }
 
 /// GET `path` (e.g. `/api/v3/depth?…`) from whichever REST host answers.
@@ -40,6 +55,11 @@ fn pair(sym: &Symbol) -> &str {
 /// service beats "couldn't connect".
 pub(crate) fn get(agent: &ureq::Agent, path: &str) -> Result<serde_json::Value> {
     get_from(agent, &REST, &REST_AT, path)
+}
+
+/// GET `path` from the futures API (perpetuals: `/fapi/v1/…`).
+pub(crate) fn get_futures(agent: &ureq::Agent, path: &str) -> Result<serde_json::Value> {
+    get_from(agent, &FAPI, &FAPI_AT, path)
 }
 
 fn get_from(agent: &ureq::Agent, hosts: &[&str], at: &AtomicUsize, path: &str) -> Result<serde_json::Value> {
@@ -125,10 +145,59 @@ pub(crate) fn parse_ws_kline(v: &serde_json::Value) -> Option<Bar> {
 }
 
 impl Binance {
+    /// Perpetual futures.
+    pub fn perp() -> Binance {
+        Binance {
+            perp: true,
+            ..Binance::default()
+        }
+    }
+
+    fn rest(&self, path: &str) -> Result<serde_json::Value> {
+        if self.perp {
+            get_from(&self.agent, &FAPI, &FAPI_AT, path)
+        } else {
+            get(&self.agent, path)
+        }
+    }
+
     fn klines(&self, sym: &Symbol, tf: Timeframe, query: &str) -> Result<Vec<Bar>> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Binance has no {} bars", tf.label())))?;
-        let path = format!("/api/v3/klines?symbol={}&interval={iv}&limit={PAGE}{query}", pair(sym));
-        parse_klines(&get(&self.agent, &path)?)
+        let api = if self.perp { "/fapi/v1" } else { "/api/v3" };
+        let path = format!("{api}/klines?symbol={}&interval={iv}&limit={PAGE}{query}", pair(sym));
+        parse_klines(&self.rest(&path)?)
+    }
+
+    /// Every USDⓈ-M perpetual trading now (`BINANCE:BTCUSDT.P`).
+    pub fn perps(&self) -> Result<Vec<Symbol>> {
+        let v = get_from(&self.agent, &FAPI, &FAPI_AT, "/fapi/v1/exchangeInfo")?;
+        let list = v["symbols"]
+            .as_array()
+            .ok_or_else(|| Error::Bad("Binance: unexpected futures list".into()))?;
+        Ok(list
+            .iter()
+            .filter(|s| s["contractType"] == "PERPETUAL" && s["status"] == "TRADING")
+            .filter_map(|s| {
+                let mut sym = listed(s)?;
+                sym.id.push_str(".P");
+                sym.description.push_str(" Perpetual");
+                Some(sym)
+            })
+            .collect())
+    }
+
+    /// A perpetual's funding rate (a fraction, per period) and when it's
+    /// next paid (ms).
+    pub fn funding(&self, sym: &Symbol) -> Result<(f64, i64)> {
+        let v = get_from(
+            &self.agent,
+            &FAPI,
+            &FAPI_AT,
+            &format!("/fapi/v1/premiumIndex?symbol={}", pair(sym)),
+        )?;
+        let rate = num(&v["lastFundingRate"]).ok_or_else(|| Error::Bad("Binance: no funding rate".into()))?;
+        let next = v["nextFundingTime"].as_i64().unwrap_or(0);
+        Ok((rate, next))
     }
 
     /// One symbol's lot step (`LOT_SIZE` → `stepSize`), which TradingView
@@ -258,8 +327,14 @@ impl Provider for Binance {
 
     fn stream(&self, sym: &Symbol, tf: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Binance has no {} bars", tf.label())))?;
-        let path = format!("/ws/{}@kline_{iv}", pair(sym).to_lowercase());
-        let (mut ws, _tcp) = websocket(&path)?;
+        let stream = format!("{}@kline_{iv}", pair(sym).to_lowercase());
+        // Futures market streams moved under /market (checked Nov 2026: the
+        // old /ws/ path still connects but sends nothing).
+        let (mut ws, _tcp) = if self.perp {
+            provider::websocket(FSTREAM.0, FSTREAM.1, &format!("/market/ws/{stream}"))?
+        } else {
+            websocket(&format!("/ws/{stream}"))?
+        };
         let mut alive = provider::Alive::default();
         loop {
             let item = match provider::read_text(&mut ws, &mut alive)? {

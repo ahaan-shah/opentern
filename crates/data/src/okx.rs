@@ -1,6 +1,7 @@
-//! OKX spot (v5 API): candles and history-candles for history, the public
-//! candle channel for live bars. Daily and longer bars use OKX's UTC-aligned
-//! intervals (`1Dutc`), as TradingView does. No key needed.
+//! OKX spot and USDT perpetual swaps (v5 API): candles and history-candles
+//! for history, the public candle channel for live bars. Daily and longer
+//! bars use OKX's UTC-aligned intervals (`1Dutc`), as TradingView does. No
+//! key needed. Perpetuals are `OKX:BTCUSDT.P` (OKX's `BTC-USDT-SWAP`).
 
 use crate::provider::{self, Error, Live, Provider, Result, num};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe, Unit};
@@ -25,6 +26,11 @@ impl Default for Okx {
     }
 }
 
+/// Whether a symbol is a perpetual swap (`OKX:BTCUSDT.P`).
+fn is_swap(sym: &Symbol) -> bool {
+    sym.ticker().ends_with(".P")
+}
+
 pub fn interval(tf: Timeframe) -> Option<&'static str> {
     Some(match (tf.unit, tf.count) {
         (Unit::Minute, 1) => "1m",
@@ -44,31 +50,52 @@ pub fn interval(tf: Timeframe) -> Option<&'static str> {
     })
 }
 
-/// "OKX:BTCUSDT" → "BTC-USDT".
+/// "OKX:BTCUSDT" → "BTC-USDT"; "OKX:BTCUSDT.P" → "BTC-USDT-SWAP".
 pub fn inst_id(sym: &Symbol) -> String {
     let t = sym.ticker();
+    let (t, swap) = match t.strip_suffix(".P") {
+        Some(b) => (b, "-SWAP"),
+        None => (t, ""),
+    };
     if t.contains('-') {
-        return t.to_string();
+        return format!("{t}{swap}");
     }
     match provider::split_pair(t) {
-        Some((b, q)) => format!("{b}-{q}"),
-        None => t.to_string(),
+        Some((b, q)) => format!("{b}-{q}{swap}"),
+        None => format!("{t}{swap}"),
     }
 }
 
-fn row(r: &serde_json::Value) -> Option<Bar> {
+/// A candle row; `vol` is the volume column: 5 for spot (the coin), 6 for
+/// swaps (5 counts contracts there; 6 is the coin).
+fn row_at(r: &serde_json::Value, vol: usize) -> Option<Bar> {
     Some(Bar {
         time: num(r.get(0)?)? as i64,
         open: num(r.get(1)?)?,
         high: num(r.get(2)?)?,
         low: num(r.get(3)?)?,
         close: num(r.get(4)?)?,
-        volume: num(r.get(5)?)?,
+        volume: num(r.get(vol)?)?,
     })
 }
 
-/// A candles reply → bars, oldest first.
-pub(crate) fn parse_candles(v: &serde_json::Value) -> Result<Vec<Bar>> {
+fn row(r: &serde_json::Value) -> Option<Bar> {
+    row_at(r, 5)
+}
+
+/// Swaps' candles: their volume in the coin.
+fn parse_ws_swap(v: &serde_json::Value) -> Vec<Bar> {
+    if !v["arg"]["channel"].as_str().is_some_and(|c| c.starts_with("candle")) {
+        return Vec::new();
+    }
+    v["data"]
+        .as_array()
+        .map(|a| a.iter().filter_map(|r| row_at(r, 6)).collect())
+        .unwrap_or_default()
+}
+
+/// A candles reply → bars, oldest first; `vol` as in `row_at`.
+fn parse_candles_at(v: &serde_json::Value, vol: usize) -> Result<Vec<Bar>> {
     if v["code"].as_str() != Some("0") {
         return Err(Error::Bad(format!(
             "OKX: {}",
@@ -77,7 +104,7 @@ pub(crate) fn parse_candles(v: &serde_json::Value) -> Result<Vec<Bar>> {
     }
     let mut bars: Vec<Bar> = v["data"]
         .as_array()
-        .map(|a| a.iter().filter_map(row).collect())
+        .map(|a| a.iter().filter_map(|r| row_at(r, vol)).collect())
         .unwrap_or_default();
     bars.reverse();
     Ok(bars)
@@ -123,7 +150,46 @@ impl Okx {
                 e + 1
             ),
         };
-        parse_candles(&self.get(&path)?)
+        parse_candles_at(&self.get(&path)?, if is_swap(sym) { 6 } else { 5 })
+    }
+
+    /// Every USDT perpetual swap trading now (`OKX:BTCUSDT.P`).
+    pub fn perps(&self) -> Result<Vec<Symbol>> {
+        let v = self.get("/api/v5/public/instruments?instType=SWAP")?;
+        Ok(v["data"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .iter()
+            .filter(|s| s["state"] == "live")
+            .filter_map(|s| {
+                // USDT- and USDC-margined only (coin-margined ones are
+                // priced in USD contracts of the coin).
+                let (base, quote) = s["uly"].as_str()?.split_once('-')?;
+                if !matches!(quote, "USDT" | "USDC") {
+                    return None;
+                }
+                Some(Symbol {
+                    id: format!("OKX:{base}{quote}.P"),
+                    description: format!("{base} / {quote} Perpetual"),
+                    kind: AssetKind::Crypto,
+                    currency: quote.into(),
+                    tick_size: num(&s["tickSz"]).filter(|x| *x > 0.0).unwrap_or(0.01),
+                    min_qty: 0.0,
+                    timezone: "UTC".into(),
+                })
+            })
+            .collect())
+    }
+
+    /// A perpetual's funding rate (a fraction, per period) and when it's
+    /// next paid (ms).
+    pub fn funding(&self, sym: &Symbol) -> Result<(f64, i64)> {
+        let v = self.get(&format!("/api/v5/public/funding-rate?instId={}", inst_id(sym)))?;
+        let d = &v["data"][0];
+        let rate = num(&d["fundingRate"]).ok_or_else(|| Error::Bad("OKX: no funding rate".into()))?;
+        let next = num(&d["fundingTime"]).unwrap_or(0.0) as i64;
+        Ok((rate, next))
     }
 
     pub fn symbols(&self) -> Result<Vec<Symbol>> {
@@ -200,7 +266,7 @@ impl Provider for Okx {
             "/ws/v5/business",
             &sub,
             Some(("ping", Duration::from_secs(20))),
-            parse_ws,
+            if is_swap(sym) { parse_ws_swap } else { parse_ws },
             sink,
         )
     }
@@ -217,12 +283,22 @@ mod tests {
                 ["1700000000000","1","2","0.5","2","10","0","0","1"]]}"#,
         )
         .unwrap();
-        let b = parse_candles(&v).unwrap();
+        let b = parse_candles_at(&v, 5).unwrap();
         assert_eq!((b[0].time, b[1].close), (1_700_000_000_000, 3.0));
-        assert!(parse_candles(&serde_json::json!({"code":"51001","msg":"Instrument ID does not exist"})).is_err());
+        assert!(
+            parse_candles_at(
+                &serde_json::json!({"code":"51001","msg":"Instrument ID does not exist"}),
+                5
+            )
+            .is_err()
+        );
         let ws = serde_json::json!({"arg":{"channel":"candle1H","instId":"BTC-USDT"},"data":[["1700000000000","1","2","0.5","1.5","9","0","0","0"]]});
         assert_eq!(parse_ws(&ws)[0].volume, 9.0);
         assert_eq!(inst_id(&Symbol::bare("OKX:ETHUSDT")), "ETH-USDT");
+        assert_eq!(inst_id(&Symbol::bare("OKX:ETHUSDT.P")), "ETH-USDT-SWAP");
+        // Swaps: the coin's volume (column 6), not contracts (5).
+        let swap = serde_json::json!({"arg":{"channel":"candle1H","instId":"BTC-USDT-SWAP"},"data":[["1700000000000","1","2","0.5","1.5","900","9","0","0"]]});
+        assert_eq!(parse_ws_swap(&swap)[0].volume, 9.0);
         assert_eq!(interval(Timeframe::parse("1D").unwrap()), Some("1Dutc"));
     }
 }

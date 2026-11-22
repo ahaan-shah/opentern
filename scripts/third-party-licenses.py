@@ -95,8 +95,15 @@ def main():
         "Symbol logos (crates/app/assets/logos)",
         "Coin icons: web3icons (@web3icons/core), MIT License, https://www.npmjs.com/package/@web3icons/core\n"
         "Company marks: theSVG (@thesvg/icons), MIT License, https://www.npmjs.com/package/@thesvg/icons\n"
-        "Logos fetched later at run time come from the same two sets. The marks are\n"
-        "trademarks of their owners and are shown only to identify the symbols.",
+        "Indian company logos: Wikimedia Commons, public domain or CC0 files only.\n"
+        "Logos fetched later at run time come from these sets, cryptocurrency-icons\n"
+        "(CC0) and logoapi.sh. The marks are trademarks of their owners and are shown\n"
+        "only to identify the symbols.",
+    )
+    section(
+        "Country flags (crates/app/assets/flags)",
+        "flag-icons 7.6.0, MIT License, Copyright (c) 2013 Panayiotis Lipiridis,\n"
+        "https://github.com/lipis/flag-icons",
     )
     section(
         "Index member lists (crates/data/assets/overview)",

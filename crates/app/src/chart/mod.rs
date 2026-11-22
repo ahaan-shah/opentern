@@ -276,6 +276,10 @@ pub struct Chart {
     /// The symbol's pre-market or after-hours price (US stocks and funds),
     /// shown beside the regular one; it never moves the bars.
     pub extended: Option<opentern_data::yahoo::Ext>,
+    /// A perpetual's funding rate (fraction per period) and next payment
+    /// (ms), for the legend; asked once a minute (`App::poll_funding`).
+    pub funding: Option<(String, f64, i64)>,
+    pub funding_asked: Option<(String, std::time::Instant)>,
     raw: Vec<Bar>,
     /// The box size (Renko, Kagi, Point & figure) the bars were built with.
     pub brick: f64,
@@ -382,6 +386,8 @@ impl Chart {
             paper: Vec::new(),
             corporate: None,
             extended: None,
+            funding: None,
+            funding_asked: None,
             adj: false,
             ext: false,
             raw: Vec::new(),
@@ -913,6 +919,14 @@ impl Chart {
             && quiet >= STALE_AFTER
             && steadily_open(&self.symbol, now_ms))
         .then_some(quiet)
+    }
+
+    /// This symbol's funding rate and next payment, when it's a perpetual.
+    pub fn funding_now(&self) -> Option<(f64, i64)> {
+        self.funding
+            .as_ref()
+            .filter(|(id, ..)| *id == self.symbol.id)
+            .map(|(_, r, t)| (*r, *t))
     }
 
     /// Prices Yahoo is known to lack, said under the legend: BSE listings

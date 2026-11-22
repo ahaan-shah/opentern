@@ -757,3 +757,75 @@ fn delisted_pairs_find_where_the_coin_trades() {
     let btc = known.iter().find(|s| s.id == "BINANCE:BTCUSDT").unwrap();
     assert_eq!(opentern_data::hub::successor(&known, btc), None);
 }
+
+/// Perpetual futures on Binance, Bybit and OKX: their lists, history, a
+/// live bar from the stream, and the funding rate.
+#[test]
+#[ignore]
+fn perpetuals_list_chart_stream_and_fund() {
+    use opentern_data::provider::{Live, Provider};
+    let tf = opentern_core::Timeframe::parse("1m").unwrap();
+    let day = opentern_core::Timeframe::parse("1D").unwrap();
+    let binance = opentern_data::binance::Binance::perp();
+    let bybit = opentern_data::bybit::Bybit::perp();
+    let okx = opentern_data::okx::Okx::default();
+    let lists = [
+        ("binance", binance.perps().unwrap()),
+        ("bybit", bybit.perps().unwrap()),
+        ("okx", okx.perps().unwrap()),
+    ];
+    for (name, list) in &lists {
+        let btc = list.iter().find(|s| s.ticker() == "BTCUSDT.P").expect("BTC perpetual");
+        println!(
+            "{name}: {} perpetuals; {} \"{}\" tick {}",
+            list.len(),
+            btc.id,
+            btc.description,
+            btc.tick_size
+        );
+    }
+    let providers: [(&dyn Provider, &str); 3] = [
+        (&binance, "BINANCE:BTCUSDT.P"),
+        (&bybit, "BYBIT:BTCUSDT.P"),
+        (&okx, "OKX:BTCUSDT.P"),
+    ];
+    for (p, id) in providers {
+        let sym = lists.iter().flat_map(|(_, l)| l).find(|s| s.id == id).unwrap().clone();
+        let bars = p.latest(&sym, day, 400).unwrap();
+        let last = bars.last().unwrap();
+        println!(
+            "{id}: {} daily bars, last close {} vol {:.0}",
+            bars.len(),
+            last.close,
+            last.volume
+        );
+        assert!(bars.len() >= 300 && last.close > 1000.0);
+        let mut got = None;
+        let started = std::time::Instant::now();
+        let _ = p.stream(&sym, tf, &mut |item| {
+            if let Live::Bar(b) = item {
+                got = Some(b.close);
+            }
+            got.is_none() && started.elapsed().as_secs() < 20
+        });
+        println!("  stream: {got:?}");
+        assert!(got.is_some(), "{id}: no live bar");
+    }
+    for (id, f) in [
+        (
+            "BINANCE",
+            binance.funding(&opentern_core::Symbol::bare("BINANCE:BTCUSDT.P")),
+        ),
+        ("BYBIT", bybit.funding(&opentern_core::Symbol::bare("BYBIT:BTCUSDT.P"))),
+        ("OKX", okx.funding(&opentern_core::Symbol::bare("OKX:BTCUSDT.P"))),
+    ] {
+        let (rate, next) = f.unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64;
+        let mins = (next - now) / 60_000;
+        println!("{id} funding {:+.4}% in {mins} min", rate * 100.0);
+        assert!(rate.abs() < 0.01 && (0..=8 * 60).contains(&mins));
+    }
+}

@@ -358,15 +358,29 @@ impl App {
                     self.add_compare(s, mode);
                 }
             } else if let Some(id) = part.strip_prefix("symbol:") {
-                // `symbol:NSE:INFY`: a starter symbol by id, else a bare one.
+                // `symbol:NSE:INFY`: a listed symbol by id (starter, indices,
+                // commodities), else a bare one (a crypto pair on a crypto
+                // exchange, a stock elsewhere).
+                let crypto = matches!(
+                    id.split(':').next(),
+                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+                );
                 let s = opentern_core::starter_watchlist()
                     .into_iter()
+                    .chain(opentern_core::indices())
+                    .chain(opentern_core::commodities())
+                    .chain(opentern_core::spot_commodities())
                     .find(|s| s.id == id)
                     .unwrap_or_else(|| Symbol {
-                        kind: opentern_core::AssetKind::Stock,
+                        kind: if crypto {
+                            opentern_core::AssetKind::Crypto
+                        } else {
+                            opentern_core::AssetKind::Stock
+                        },
                         description: String::new(),
                         timezone: match id.split(':').next() {
                             Some("NSE" | "BSE") => "Asia/Kolkata".into(),
+                            _ if crypto => "UTC".into(),
                             _ => "America/New_York".into(),
                         },
                         ..Symbol::bare(id)
@@ -1149,6 +1163,14 @@ impl App {
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Replaced { from, to } => self.pair_replaced(from, to),
+                Event::Funding { id, result } => {
+                    let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
+                    for c in std::iter::once(&mut self.chart).chain(slots) {
+                        if c.symbol.id == id {
+                            c.funding = result.as_ref().ok().map(|(r, t)| (id.clone(), *r, *t));
+                        }
+                    }
+                }
                 Event::Fetched {
                     seq,
                     symbol,
@@ -1459,6 +1481,7 @@ impl App {
         self.python_notice();
         self.refresh_strategies();
         self.poll_paper();
+        self.poll_funding();
         self.poll_other_charts();
         self.poll_screener();
         // An index whose weights are being built again (after an edit or

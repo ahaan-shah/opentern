@@ -141,6 +141,29 @@ impl App {
     /// A crypto pair its exchange stopped trading carries on where the coin
     /// still trades (`hub::successor`): watchlists, charts and price alerts
     /// move to the new pair, and a notification says so once.
+    /// Perpetuals' funding rates for the legend, asked once a minute per
+    /// chart (and at once for a new symbol).
+    pub(crate) fn poll_funding(&mut self) {
+        let mut ask = Vec::new();
+        let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
+        for c in std::iter::once(&mut self.chart).chain(slots) {
+            if !opentern_data::binance::is_perp(&c.symbol) {
+                continue;
+            }
+            let due = c
+                .funding_asked
+                .as_ref()
+                .is_none_or(|(id, at)| *id != c.symbol.id || at.elapsed().as_secs() >= 60);
+            if due {
+                c.funding_asked = Some((c.symbol.id.clone(), std::time::Instant::now()));
+                ask.push(c.symbol.clone());
+            }
+        }
+        for symbol in ask {
+            self.hub.send(opentern_data::Request::Funding { symbol });
+        }
+    }
+
     pub(crate) fn pair_replaced(&mut self, from: Symbol, to: Symbol) {
         let mut lists = false;
         for w in &mut self.watchlists {

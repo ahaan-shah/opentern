@@ -1,5 +1,6 @@
-//! Bybit spot (v5 API): REST klines for history, the public kline stream
-//! for live bars, instruments for the symbol list. No key needed.
+//! Bybit spot and USDT perpetuals (v5 API, `category=linear`): REST klines
+//! for history, the public kline stream for live bars, instruments for the
+//! symbol lists. No key needed. Perpetuals are `BYBIT:BTCUSDT.P`.
 
 use crate::provider::{self, Error, Live, Provider, Result, num};
 use opentern_core::{AssetKind, Bar, Symbol, Timeframe, Unit};
@@ -11,14 +12,23 @@ const PAGE: usize = 1000;
 
 pub struct Bybit {
     agent: ureq::Agent,
+    /// Linear perpetuals instead of spot.
+    perp: bool,
 }
 
 impl Default for Bybit {
     fn default() -> Self {
         Bybit {
             agent: provider::agent(),
+            perp: false,
         }
     }
+}
+
+/// "BYBIT:BTCUSDT.P" → "BTCUSDT".
+fn pair(sym: &Symbol) -> &str {
+    let t = sym.ticker();
+    t.strip_suffix(".P").unwrap_or(t)
 }
 
 pub fn interval(tf: Timeframe) -> Option<&'static str> {
@@ -90,13 +100,61 @@ pub(crate) fn parse_ws(v: &serde_json::Value) -> Vec<Bar> {
 }
 
 impl Bybit {
+    /// Linear (USDT) perpetuals.
+    pub fn perp() -> Bybit {
+        Bybit {
+            perp: true,
+            ..Bybit::default()
+        }
+    }
+
+    fn category(&self) -> &'static str {
+        if self.perp { "linear" } else { "spot" }
+    }
+
     fn klines(&self, sym: &Symbol, tf: Timeframe, query: &str) -> Result<Vec<Bar>> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Bybit has no {} bars", tf.label())))?;
         let url = format!(
-            "{REST}/v5/market/kline?category=spot&symbol={}&interval={iv}&limit={PAGE}{query}",
-            sym.ticker()
+            "{REST}/v5/market/kline?category={}&symbol={}&interval={iv}&limit={PAGE}{query}",
+            self.category(),
+            pair(sym)
         );
         parse_klines(&provider::get_json(&self.agent, &url)?)
+    }
+
+    /// Every linear perpetual trading now (`BYBIT:BTCUSDT.P`).
+    pub fn perps(&self) -> Result<Vec<Symbol>> {
+        let url = format!("{REST}/v5/market/instruments-info?category=linear&limit=1000");
+        let v = provider::get_json(&self.agent, &url)?;
+        let list = v["result"]["list"].as_array().cloned().unwrap_or_default();
+        Ok(list
+            .iter()
+            .filter(|s| s["status"] == "Trading" && s["contractType"] == "LinearPerpetual")
+            .filter_map(|s| {
+                let t = s["symbol"].as_str()?;
+                let (base, quote) = (s["baseCoin"].as_str()?, s["quoteCoin"].as_str()?);
+                Some(Symbol {
+                    id: format!("BYBIT:{t}.P"),
+                    description: format!("{base} / {quote} Perpetual"),
+                    kind: AssetKind::Crypto,
+                    currency: quote.into(),
+                    tick_size: num(&s["priceFilter"]["tickSize"]).filter(|x| *x > 0.0).unwrap_or(0.01),
+                    min_qty: num(&s["lotSizeFilter"]["qtyStep"]).filter(|x| *x > 0.0).unwrap_or(0.0),
+                    timezone: "UTC".into(),
+                })
+            })
+            .collect())
+    }
+
+    /// A perpetual's funding rate (a fraction, per period) and when it's
+    /// next paid (ms).
+    pub fn funding(&self, sym: &Symbol) -> Result<(f64, i64)> {
+        let url = format!("{REST}/v5/market/tickers?category=linear&symbol={}", pair(sym));
+        let v = provider::get_json(&self.agent, &url)?;
+        let t = &v["result"]["list"][0];
+        let rate = num(&t["fundingRate"]).ok_or_else(|| Error::Bad("Bybit: no funding rate".into()))?;
+        let next = num(&t["nextFundingTime"]).unwrap_or(0.0) as i64;
+        Ok((rate, next))
     }
 
     pub fn symbols(&self) -> Result<Vec<Symbol>> {
@@ -159,11 +217,15 @@ impl Provider for Bybit {
 
     fn stream(&self, sym: &Symbol, tf: Timeframe, sink: &mut dyn FnMut(Live) -> bool) -> Result<()> {
         let iv = interval(tf).ok_or_else(|| Error::Bad(format!("Bybit has no {} bars", tf.label())))?;
-        let sub = serde_json::json!({"op": "subscribe", "args": [format!("kline.{iv}.{}", sym.ticker())]}).to_string();
+        let sub = serde_json::json!({"op": "subscribe", "args": [format!("kline.{iv}.{}", pair(sym))]}).to_string();
         provider::ws_candles(
             WS_HOST,
             443,
-            "/v5/public/spot",
+            if self.perp {
+                "/v5/public/linear"
+            } else {
+                "/v5/public/spot"
+            },
             &sub,
             Some((r#"{"op":"ping"}"#, Duration::from_secs(20))),
             parse_ws,

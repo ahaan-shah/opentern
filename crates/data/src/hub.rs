@@ -94,6 +94,10 @@ pub enum Request {
         market: crate::overview::Market,
         keys: Vec<String>,
     },
+    /// A perpetual future's funding rate (`….P` symbols).
+    Funding {
+        symbol: Symbol,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -126,6 +130,12 @@ pub enum Event {
         id: String,
         last: f64,
         prev: f64,
+    },
+    /// A perpetual's funding rate (a fraction per period, e.g. 0.0001 =
+    /// 0.01%) and when it's next paid (ms).
+    Funding {
+        id: String,
+        result: Result<(f64, i64), String>,
     },
     /// A crypto pair its exchange no longer trades (it left the exchange's
     /// list) and the same coin where it still does: charts and quotes
@@ -358,6 +368,16 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                     out.send(Event::News { seq, result });
                 });
             }
+            Request::Funding { symbol } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new().name("data-funding".into()).spawn(move || {
+                    let result = funding(&symbol, demo).map_err(|e| e.to_string());
+                    out.send(Event::Funding {
+                        id: symbol.id.clone(),
+                        result,
+                    });
+                });
+            }
             Request::Open { chart, symbol, tf, ext } => {
                 if let Some(old) = sessions.remove(&chart) {
                     let _ = old.send(Cmd::Stop);
@@ -365,6 +385,7 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 opened.insert(chart, (symbol.clone(), tf, ext));
                 if symbol.min_qty == 0.0
                     && !demo
+                    && !crate::binance::is_perp(&symbol)
                     && let Some(ticker) = symbol.id.strip_prefix("BINANCE:").map(str::to_string)
                 {
                     let out = out.clone();
@@ -641,7 +662,9 @@ pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
     }
     let c = creds().read().unwrap_or_else(|e| e.into_inner()).clone();
     match sym.exchange() {
+        "BINANCE" if crate::binance::is_perp(sym) => Arc::new(Binance::perp()),
         "BINANCE" => Arc::new(Binance::default()),
+        "BYBIT" if crate::binance::is_perp(sym) => Arc::new(crate::bybit::Bybit::perp()),
         "BYBIT" => Arc::new(crate::bybit::Bybit::default()),
         "OKX" => Arc::new(crate::okx::Okx::default()),
         "COINBASE" => Arc::new(crate::coinbase::Coinbase::default()),
@@ -684,7 +707,8 @@ fn listed_source(exchange: &str) -> Option<&'static str> {
 /// Coinbase, Bybit, OKX, Kraken). None while it still trades, when the
 /// exchange's list isn't in yet, or when no exchange has the coin.
 pub fn successor(known: &[Symbol], sym: &Symbol) -> Option<Symbol> {
-    if sym.kind != opentern_core::AssetKind::Crypto {
+    // Perpetuals carry on as perpetuals or not at all (no spot stand-in).
+    if sym.kind != opentern_core::AssetKind::Crypto || crate::binance::is_perp(sym) {
         return None;
     }
     listed_source(sym.exchange())?;
@@ -705,6 +729,24 @@ pub fn successor(known: &[Symbol], sym: &Symbol) -> Option<Symbol> {
     };
     crate::overview::crypto_pairs(known).remove(&base)
 }
+
+/// A perpetual's funding rate and next payment, from its exchange.
+fn funding(sym: &Symbol, demo: bool) -> crate::provider::Result<(f64, i64)> {
+    if demo {
+        let next = (crate::provider::now_ms() / 28_800_000 + 1) * 28_800_000;
+        return Ok((0.0001, next));
+    }
+    match sym.exchange() {
+        "BINANCE" => Binance::perp().funding(sym),
+        "BYBIT" => crate::bybit::Bybit::perp().funding(sym),
+        "OKX" => crate::okx::Okx::default().funding(sym),
+        _ => Err(crate::provider::Error::Bad("No funding rate for this symbol.".into())),
+    }
+}
+
+/// When the exchanges' symbol lists were last fetched. Renamed when the
+/// lists gain a source (v2: perpetuals), so they're fetched again at once.
+const LISTS_AT: &str = "symbol_lists_at_v2";
 
 /// Swaps delisted pairs for their successors, saying so once each.
 fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) -> Vec<Symbol> {
@@ -755,6 +797,7 @@ fn yahoo_routed(sym: &Symbol) -> bool {
 /// pairs share one combined stream instead).
 fn streams_quotes(sym: &Symbol) -> bool {
     matches!(sym.exchange(), "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+        || (sym.exchange() == "BINANCE" && crate::binance::is_perp(sym))
 }
 
 /// A pair's live price and previous daily close, from the exchange's own
@@ -1443,7 +1486,10 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
         }
         return;
     }
-    let (crypto, others): (Vec<_>, Vec<_>) = plain.into_iter().partition(|s| s.id.starts_with("BINANCE:"));
+    // Binance spot: one combined stream. Perpetuals stream on their own.
+    let (crypto, others): (Vec<_>, Vec<_>) = plain
+        .into_iter()
+        .partition(|s| s.id.starts_with("BINANCE:") && !crate::binance::is_perp(s));
     let pairs: Vec<String> = crypto.iter().map(|s| s.ticker().to_string()).collect();
     let mut yq = YahooQuotes {
         syms: others.clone(),
@@ -1599,7 +1645,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
     let refreshing = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let refresh = |cache: &Option<Cache>, within: i64| {
         let stale = cache.as_ref().is_some_and(|c| {
-            c.meta("binance_symbols_at")
+            c.meta(LISTS_AT)
                 .and_then(|t| t.parse::<i64>().ok())
                 .is_none_or(|t| crate::provider::now_ms() - t > within)
         });
@@ -1611,12 +1657,15 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         let refreshing = refreshing.clone();
         let _ = std::thread::Builder::new().name("symbol-lists".into()).spawn(move || {
             if let Ok(c) = Cache::open(&dir) {
-                let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 5] = [
+                let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 8] = [
                     ("binance", Binance::default().symbols()),
                     ("bybit", crate::bybit::Bybit::default().symbols()),
                     ("okx", crate::okx::Okx::default().symbols()),
                     ("coinbase", crate::coinbase::Coinbase::default().symbols()),
                     ("kraken", crate::kraken::Kraken::default().symbols()),
+                    ("binance_perp", Binance::perp().perps()),
+                    ("bybit_perp", crate::bybit::Bybit::perp().perps()),
+                    ("okx_perp", crate::okx::Okx::default().perps()),
                 ];
                 let mut any = false;
                 for (source, list) in lists {
@@ -1626,7 +1675,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                     }
                 }
                 if any {
-                    let _ = c.set_meta("binance_symbols_at", &crate::provider::now_ms().to_string());
+                    let _ = c.set_meta(LISTS_AT, &crate::provider::now_ms().to_string());
                     let _ = fresh_tx.try_send(());
                 }
             }
@@ -1641,6 +1690,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         known.extend(opentern_core::commodities());
         known.extend(opentern_core::spot_commodities());
+        known.extend(opentern_core::indices());
         known.extend(crate::overview::listed_stocks());
         if let Some(c) = cache {
             known.extend(c.symbols().unwrap_or_default());
