@@ -37,8 +37,8 @@ impl Market {
 
     pub fn label(self) -> &'static str {
         match self {
-            Market::Us => "US markets",
-            Market::India => "Indian markets",
+            Market::Us => "US Markets",
+            Market::India => "Indian Markets",
             Market::Crypto => "Crypto",
         }
     }

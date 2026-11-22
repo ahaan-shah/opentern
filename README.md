@@ -117,9 +117,9 @@ webhook, Telegram or email.
 - **Indices worldwide:** the S&P 500, Nasdaq, Dow, Nikkei 225, FTSE 100, DAX, CAC 40,
   Euro Stoxx 50, Hang Seng, KOSPI, ASX 200, TSX, Ibovespa and more, plus US Treasury
   yields, VIX, India VIX, the MOVE index and the dollar index (Yahoo, free).
-- **US markets (NYSE, Nasdaq): stocks, ETFs, plus forex and commodities:** Yahoo by default, delayed.
+- **US Markets (NYSE, Nasdaq): stocks, ETFs, plus forex and commodities:** Yahoo by default, delayed.
   Add your own Alpaca, OANDA or Interactive Brokers keys for live data.
-- **Indian markets (NSE, BSE):** Yahoo by default, or Upstox with your own keys.
+- **Indian Markets (NSE, BSE):** Yahoo by default, or Upstox with your own keys.
 
 Exchange calendars, dividends and splits are built in. Everything is free until
 you choose to add a paid provider.

@@ -3,8 +3,9 @@
 //! symbol's dividends and splits).
 
 use crate::app::App;
+use crate::icons::ph;
 use crate::theme::{self, Theme};
-use egui::{Sense, Ui, vec2};
+use egui::{Sense, Ui, pos2, vec2};
 use opentern_data::Request;
 use opentern_data::feeds::{HotKind, HotMarket, HotRow, NewsItem};
 use std::time::{Duration, Instant};
@@ -20,6 +21,9 @@ pub struct Side {
     news_for: Option<(String, Instant)>,
     /// A refresh is out (since when), so the button turns.
     news_busy: Option<Instant>,
+    /// The Calendar's folded sections, by title (settings key
+    /// `calendar_folded`; read on first use).
+    folded: Option<std::collections::HashSet<String>>,
 }
 
 impl Default for Side {
@@ -34,6 +38,7 @@ impl Default for Side {
             news_seq: 1 << 51,
             news_for: None,
             news_busy: None,
+            folded: None,
         }
     }
 }
@@ -71,8 +76,8 @@ impl App {
             ui.spacing_mut().item_spacing.x = 2.0;
             for (m, label) in [
                 (HotMarket::Crypto, "Crypto"),
-                (HotMarket::UsStocks, "US markets"),
-                (HotMarket::India, "Indian markets"),
+                (HotMarket::UsStocks, "US Markets"),
+                (HotMarket::India, "Indian Markets"),
             ] {
                 if crate::shell::small_button(ui, t, label, sd.market == m).clicked() {
                     sd.market = m;
@@ -295,6 +300,12 @@ impl App {
     pub(crate) fn calendar_widget(&mut self, ui: &mut Ui, t: &Theme) {
         use opentern_core::calendar::{Market, Special, upcoming};
         let today = jiff::Zoned::now().date();
+        if self.side.folded.is_none() {
+            let saved = self.store.value(FOLDED_KEY).unwrap_or_default();
+            self.side.folded = Some(serde_json::from_str(&saved).unwrap_or_default());
+        }
+        let folded = self.side.folded.clone().unwrap_or_default();
+        let mut toggled: Vec<String> = Vec::new();
         egui::ScrollArea::vertical()
             .id_salt("calendar")
             .auto_shrink([false, false])
@@ -307,10 +318,17 @@ impl App {
                     _ => None,
                 };
                 for (m, name, exchanges) in here.into_iter().chain([
-                    (Market::Us, "US markets", "NYSE · NASDAQ"),
-                    (Market::India, "Indian markets", "NSE · BSE"),
+                    (Market::Us, "US Markets", "NYSE · NASDAQ"),
+                    (Market::India, "Indian Markets", "NSE · BSE"),
                 ]) {
-                    section_head(ui, t, name, exchanges);
+                    let shut = folded.contains(name);
+                    if section_head(ui, t, name, exchanges, Some(shut)) {
+                        toggled.push(name.to_string());
+                    }
+                    if shut {
+                        ui.add_space(6.0);
+                        continue;
+                    }
                     let list = upcoming(m, today, 120);
                     if list.is_empty() {
                         ui.label(egui::RichText::new("No holidays in the next four months.").color(t.text3));
@@ -345,7 +363,14 @@ impl App {
                         return;
                     }
                     ev.sort_by_key(|e| std::cmp::Reverse(e.0));
-                    section_head(ui, t, "Dividends and splits", self.chart.symbol.ticker());
+                    let name = "Dividends and splits";
+                    let shut = folded.contains(name);
+                    if section_head(ui, t, name, self.chart.symbol.ticker(), Some(shut)) {
+                        toggled.push(name.to_string());
+                    }
+                    if shut {
+                        return;
+                    }
                     let cur = currency_prefix(&self.chart.symbol);
                     // Yahoo lists Indian bonus issues as splits too.
                     let split = if matches!(self.chart.symbol.exchange(), "NSE" | "BSE") {
@@ -383,16 +408,47 @@ impl App {
                     }
                 }
             });
+        if !toggled.is_empty() {
+            let set = self.side.folded.get_or_insert_with(Default::default);
+            for name in toggled {
+                if !set.remove(&name) {
+                    set.insert(name);
+                }
+            }
+            let json = serde_json::to_string(&set.iter().collect::<Vec<_>>()).unwrap_or_default();
+            let _ = self.store.set_value(FOLDED_KEY, &json);
+        }
     }
 }
 
 /// A section title with a quieter note on the right.
-fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str) {
+const FOLDED_KEY: &str = "calendar_folded";
+
+/// A section's title row. With `folded` (Some), it's a toggle: a caret
+/// before the title, and a click (returned) folds or opens it.
+fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str, folded: Option<bool>) -> bool {
     let w = ui.available_width();
-    let (rect, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+    let sense = if folded.is_some() {
+        Sense::click()
+    } else {
+        Sense::hover()
+    };
+    let (rect, resp) = ui.allocate_exact_size(vec2(w, 24.0), sense);
     let p = ui.painter();
+    let mut x = rect.left();
+    if let Some(shut) = folded {
+        let hover = ui.rect_contains_pointer(rect);
+        p.text(
+            pos2(x + 6.0, rect.center().y),
+            egui::Align2::CENTER_CENTER,
+            if shut { ph::CARET_RIGHT } else { ph::CARET_DOWN },
+            theme::regular(11.0),
+            if hover { t.text2 } else { t.text3 },
+        );
+        x += 16.0;
+    }
     p.text(
-        rect.left_center(),
+        pos2(x, rect.center().y),
         egui::Align2::LEFT_CENTER,
         title,
         theme::semibold(13.0),
@@ -406,6 +462,7 @@ fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str) {
         t.text3,
     );
     ui.add_space(4.0);
+    folded.is_some() && resp.clicked()
 }
 
 /// "Today", "Tomorrow", "in 5 days", "in 3 weeks".

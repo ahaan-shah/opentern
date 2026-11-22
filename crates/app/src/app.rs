@@ -483,8 +483,8 @@ impl App {
                         .position(|i| matches!(i, Item::Symbol(s) if s.id.ends_with(id)))
                 };
                 for (name, first) in [
-                    ("Indian markets", "NIFTY"),
-                    ("US markets", ":SPY"),
+                    ("Indian Markets", "NIFTY"),
+                    ("US Markets", ":SPY"),
                     ("Crypto", "BTCUSDT"),
                 ] {
                     if let Some(k) = at(items, first) {

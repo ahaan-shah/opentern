@@ -453,6 +453,32 @@ mod tests {
     }
 
     #[test]
+    fn calendar_lists_fold_and_stay_folded() {
+        let mut d = Driver::new("calendar-fold");
+        d.app.layout.widget = Some(crate::shell::Widget::Calendar);
+        d.frame(vec![]);
+        let pills = |d: &mut Driver| d.all_texts().iter().filter(|(t, _)| t == "Closed").count();
+        let before = pills(&mut d);
+        assert!(before > 0, "holidays are listed");
+        let head = d.text_rect("US Markets").expect("the US section");
+        d.click(head.center());
+        d.frame(vec![]);
+        assert!(pills(&mut d) < before, "the US list folded");
+        // Folded after a restart too.
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let mut d = Driver::open(dir);
+        d.app.layout.widget = Some(crate::shell::Widget::Calendar);
+        d.frame(vec![]);
+        assert!(pills(&mut d) < before, "still folded after a restart");
+        let head = d.text_rect("US Markets").unwrap();
+        d.click(head.center());
+        d.frame(vec![]);
+        assert_eq!(pills(&mut d), before, "open again");
+    }
+
+    #[test]
     fn the_overview_header_fits_the_smallest_window() {
         let mut d = Driver::new("overview-narrow");
         d.screen = vec2(1000.0, 640.0);
@@ -462,7 +488,7 @@ mod tests {
         }
         let all = d.all_texts();
         let at = |name: &str| all.iter().filter(|(t, _)| t == name).map(|x| x.1).collect::<Vec<_>>();
-        let tabs: Vec<Rect> = ["US markets", "Indian markets", "Crypto"]
+        let tabs: Vec<Rect> = ["US Markets", "Indian Markets", "Crypto"]
             .iter()
             .map(|n| *at(n).first().unwrap_or_else(|| panic!("{n} not drawn: {all:?}")))
             .collect();
