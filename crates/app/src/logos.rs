@@ -1010,6 +1010,35 @@ mod tests {
         }
     }
 
+    /// Downloaded logos, mangled: every kind still gives a picture or
+    /// nothing, never a crash.
+    #[test]
+    fn mangled_logos_never_crash() {
+        use opentern_core::fuzzing::{bytes_target, text_target};
+        let svg = include_str!("../assets/commodities/gold.svg");
+        for kind in ["square", "coin", "mark\nD1AB66\nmono", "mark\n\ndefault"] {
+            text_target(&format!("logo {kind}"), svg, |s| {
+                let _ = render(&format!("{kind}\n{s}"));
+            });
+        }
+        text_target(
+            "logoapi",
+            r##"<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#D1AB66"><path d="M0 0h24v24H0z"/></svg>"##,
+            |s| {
+                if let Some(k) = from_logoapi(s) {
+                    let _ = render(&k);
+                }
+            },
+        );
+        let png = png_of(16, 8, [10, 200, 30, 255]);
+        bytes_target("png", &png, |b| {
+            let _ = raster_pixmap(b);
+            use base64::Engine;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(b);
+            let _ = render(&format!("image\nfill\n{b64}"));
+        });
+    }
+
     #[test]
     fn logos_never_read_files_from_the_disk() {
         let dir = std::env::temp_dir().join(format!("opentern-svg-href-{}", std::process::id()));

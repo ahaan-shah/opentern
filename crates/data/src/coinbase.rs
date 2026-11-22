@@ -59,7 +59,7 @@ pub(crate) fn parse_candles(v: &serde_json::Value) -> Result<Vec<Bar>> {
         .iter()
         .filter_map(|r| {
             Some(Bar {
-                time: r.get(0)?.as_i64()? * 1000,
+                time: provider::secs_ms(r.get(0)?.as_i64()?)?,
                 low: num(r.get(1)?)?,
                 high: num(r.get(2)?)?,
                 open: num(r.get(3)?)?,

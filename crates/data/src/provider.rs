@@ -435,6 +435,18 @@ pub(crate) fn rfc3339(ms: i64) -> String {
 }
 
 /// RFC 3339 / ISO text (any offset, any fraction) → ms.
+/// Unix seconds from a reply → ms, for a time a market could have (1900
+/// to 2200); None for anything else (a hostile or broken reply's
+/// `i64::MAX` would overflow the multiplication).
+pub(crate) fn secs_ms(s: i64) -> Option<i64> {
+    (-2_208_988_800..=7_258_118_400).contains(&s).then(|| s * 1000)
+}
+
+/// A time in ms from a reply, if it's in that range.
+pub(crate) fn sane_ms(ms: i64) -> Option<i64> {
+    (-2_208_988_800_000..=7_258_118_400_000).contains(&ms).then_some(ms)
+}
+
 pub(crate) fn parse_time(s: &str) -> Option<i64> {
     s.parse::<jiff::Timestamp>().ok().map(|t| t.as_millisecond())
 }

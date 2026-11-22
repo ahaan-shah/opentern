@@ -57,7 +57,7 @@ pub(crate) fn parse_history(v: &serde_json::Value, daily: bool, tz: &jiff::tz::T
         .unwrap_or(&empty)
         .iter()
         .filter_map(|b| {
-            let t = b["t"].as_i64()?;
+            let t = provider::sane_ms(b["t"].as_i64()?)?;
             Some(Bar {
                 time: if daily {
                     crate::resample::to_utc_midnight(t, tz)

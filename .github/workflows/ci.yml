@@ -37,6 +37,16 @@ jobs:
           tool: cargo-audit
       - run: cargo audit
 
+  # Licences, sources and advisories of every dependency (deny.toml).
+  deny:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - run: cargo deny check --hide-inclusion-graph
+
   check:
     runs-on: ubuntu-24.04
     timeout-minutes: 60

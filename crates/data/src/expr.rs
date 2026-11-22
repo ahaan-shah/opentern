@@ -105,7 +105,16 @@ struct Parser {
     toks: Vec<Tok>,
     pos: usize,
     legs: Vec<String>,
+    /// Brackets and minus signs open now (`MAX_NESTING`).
+    depth: usize,
 }
+
+/// Formulas come from people and from imported files: brackets nest at
+/// most this deep, and a formula has at most `MAX_TOKENS` pieces (a custom
+/// index of 2,000 members fits). Past either the parser (and the code that
+/// walks the tree) would recurse deep enough to overflow the stack.
+const MAX_NESTING: usize = 64;
+const MAX_TOKENS: usize = 8_000;
 
 impl Parser {
     fn peek(&self) -> Option<&Tok> {
@@ -131,11 +140,18 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Option<Expr> {
-        if let Some(Tok::Op('-')) = self.peek() {
-            self.pos += 1;
-            return Some(Expr::Neg(Box::new(self.unary()?)));
+        if self.depth >= MAX_NESTING {
+            return None;
         }
-        self.atom()
+        self.depth += 1;
+        let e = if let Some(Tok::Op('-')) = self.peek() {
+            self.pos += 1;
+            self.unary().map(|x| Expr::Neg(Box::new(x)))
+        } else {
+            self.atom()
+        };
+        self.depth -= 1;
+        e
     }
 
     fn atom(&mut self) -> Option<Expr> {
@@ -165,10 +181,15 @@ impl Parser {
 
 /// Parses a formula into an expression and its legs (as written).
 pub fn parse(s: &str) -> Option<(Expr, Vec<String>)> {
+    let toks = lex(s)?;
+    if toks.len() > MAX_TOKENS {
+        return None;
+    }
     let mut p = Parser {
-        toks: lex(s)?,
+        toks,
         pos: 0,
         legs: Vec::new(),
+        depth: 0,
     };
     let e = p.sum()?;
     (p.pos == p.toks.len() && !p.legs.is_empty()).then_some((e, p.legs))

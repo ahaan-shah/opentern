@@ -3,6 +3,8 @@
 
 pub mod calendar;
 pub mod db;
+#[doc(hidden)]
+pub mod fuzzing;
 pub mod handoff;
 pub mod model;
 pub mod secrets;

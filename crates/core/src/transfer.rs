@@ -1273,6 +1273,114 @@ mod tests {
         assert_eq!(left[0], format!("daily-2020-01-04.{EXTENSION}"));
     }
 
+    /// A damaged or hostile `.opentern` file: inspecting it and importing it
+    /// give an error or a partial import, never a crash or a file outside
+    /// the workspace.
+    #[test]
+    fn mangled_files_never_crash_an_import() {
+        let from = tempfile::tempdir().unwrap();
+        seeded(from.path());
+        let f = file_in(from.path());
+        export(from.path(), &Item::ALL, &f).unwrap();
+        let seed = std::fs::read(&f).unwrap();
+        let to = tempfile::tempdir().unwrap();
+        let outside = to.path().parent().unwrap().to_path_buf();
+        let before: Vec<_> = std::fs::read_dir(&outside)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name())
+            .collect();
+        let probe = to.path().join("probe.opentern");
+        // Imports touch the database: a fifth of the usual rounds.
+        let rounds = (crate::fuzzing::rounds() / 5).max(50);
+        // SAFETY: only read by this test's fuzz run.
+        unsafe { std::env::set_var("OPENTERN_FUZZ_ROUNDS", rounds.to_string()) };
+        crate::fuzzing::bytes_target("import file", &seed, |b| {
+            std::fs::write(&probe, b).unwrap();
+            let _ = inspect(&probe);
+            let _ = apply(to.path(), &probe, &Item::ALL, Mode::Merge);
+        });
+        // Byte flips mostly break the zip's own checksums; a hostile file is
+        // a good zip with bad contents: mutate what's inside and re-zip.
+        let entries: Vec<(String, Vec<u8>)> = {
+            let mut z = zip::ZipArchive::new(std::io::Cursor::new(&seed)).unwrap();
+            (0..z.len())
+                .map(|i| {
+                    let mut e = z.by_index(i).unwrap();
+                    let mut v = Vec::new();
+                    std::io::Read::read_to_end(&mut e, &mut v).unwrap();
+                    (e.name().map(|n| n.to_string()).unwrap_or_default(), v)
+                })
+                .collect()
+        };
+        let mut r = crate::fuzzing::Rng::new(99);
+        let hostile_paths = [
+            "scripts/../../escape.pine",
+            "scripts//etc/passwd",
+            "scripts/..\\..\\escape.pine",
+            "scripts/C:/Windows/x.pine",
+            "scripts/a/../../../x.py",
+            "scripts/\u{0}.pine",
+            "../manifest.json",
+        ];
+        let inputs: Vec<Vec<u8>> = (0..rounds)
+            .map(|_| {
+                let mut es = entries.clone();
+                let k = r.below(es.len());
+                if es[k].0.ends_with(".json")
+                    && let Ok(mut v) = serde_json::from_slice::<serde_json::Value>(&es[k].1)
+                {
+                    for _ in 0..(1 + r.below(4)) {
+                        crate::fuzzing::mutate(&mut v, &mut r);
+                    }
+                    es[k].1 = serde_json::to_vec(&v).unwrap();
+                } else {
+                    es[k].0 = hostile_paths[r.below(hostile_paths.len())].to_string();
+                }
+                let mut buf = std::io::Cursor::new(Vec::new());
+                {
+                    let mut w = zip::ZipWriter::new(&mut buf);
+                    for (name, data) in &es {
+                        let _ = w.start_file(name.as_str(), zip::write::SimpleFileOptions::default());
+                        let _ = std::io::Write::write_all(&mut w, data);
+                    }
+                    let _ = w.finish();
+                }
+                buf.into_inner()
+            })
+            .collect();
+        let mut applied = 0;
+        let mut why = std::collections::BTreeMap::<String, usize>::new();
+        for (i, b) in inputs.iter().enumerate() {
+            std::fs::write(&probe, b).unwrap();
+            let ok = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let _ = inspect(&probe);
+                apply(to.path(), &probe, &Item::ALL, Mode::Merge)
+            }));
+            match ok {
+                Ok(Ok(())) => applied += 1,
+                Ok(Err(e)) => *why.entry(e.to_string().chars().take(60).collect()).or_default() += 1,
+                Err(_) => panic!("import #{i} panicked"),
+            }
+        }
+        eprintln!(
+            "{applied} of {} mutated imports applied; refusals: {why:?}",
+            inputs.len()
+        );
+        // Most must get past the checks, or this tests only the checks.
+        assert!(applied * 3 > inputs.len(), "{applied} applied");
+        let after: Vec<_> = std::fs::read_dir(&outside)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name())
+            .collect();
+        let new: Vec<_> = after.iter().filter(|n| !before.contains(n)).collect();
+        assert!(
+            new.iter().all(|n| n.to_string_lossy().starts_with(".tmp")),
+            "written next to the workspace: {new:?}"
+        );
+    }
+
     #[test]
     fn counts_say_what_is_there() {
         let d = tempfile::tempdir().unwrap();

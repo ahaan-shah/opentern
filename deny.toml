@@ -1,0 +1,61 @@
+# cargo-deny: what may be in Opentern's dependency tree. Run in CI
+# (`cargo deny check`); locally `cargo install cargo-deny` once.
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# The platforms Opentern ships for.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+]
+all-features = true
+
+[advisories]
+version = 2
+# Security advisories always fail. Unmaintained crates fail only when
+# Opentern depends on them directly; deeper ones are listed in `ignore`
+# with why, so a new one still shows up.
+unmaintained = "workspace"
+yanked = "deny"
+ignore = []
+
+[licenses]
+version = 2
+# Opentern is MIT; MPL-2.0 is file-level copyleft (used as-is, never
+# modified in a way that matters here); the rest are permissive.
+allow = [
+    "MIT",
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "BSL-1.0",
+    "Unicode-3.0",
+    "CC0-1.0",
+    "MPL-2.0",
+    "OFL-1.1",
+    "Ubuntu-font-1.0",
+    "CDLA-Permissive-2.0",
+]
+confidence-threshold = 0.8
+
+[bans]
+# Two versions of one crate is common (a dependency lags) and not a risk;
+# not reported, so real findings stand out.
+multiple-versions = "allow"
+wildcards = "deny"
+# Path dependencies inside the workspace have no version range to check.
+allow-wildcard-paths = true
+
+[sources]
+# Crates only from crates.io: no git repositories or other registries.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

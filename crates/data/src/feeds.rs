@@ -326,7 +326,10 @@ pub(crate) fn parse_news(v: &serde_json::Value) -> Vec<NewsItem> {
                 title: n["title"].as_str()?.to_string(),
                 publisher: n["publisher"].as_str().unwrap_or("").to_string(),
                 link: n["link"].as_str()?.to_string(),
-                time: n["providerPublishTime"].as_i64().unwrap_or(0) * 1000,
+                time: n["providerPublishTime"]
+                    .as_i64()
+                    .and_then(provider::secs_ms)
+                    .unwrap_or(0),
             })
         })
         .collect()

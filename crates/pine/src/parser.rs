@@ -5,6 +5,38 @@ use crate::Error;
 use crate::ast::*;
 use crate::lexer::{Line, Tok};
 
+/// How deep expressions and blocks may nest. Deeper is an error, not a
+/// crash: the parser recurses, and a mangled or hostile script
+/// (`((((…` a few thousand deep) would overflow the stack, which aborts.
+const MAX_DEPTH: usize = 256;
+
+thread_local! {
+    static DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// One level of nesting, given back when dropped.
+struct Deeper;
+
+impl Deeper {
+    fn enter(line: usize) -> Result<Deeper, Error> {
+        let d = DEPTH.with(|d| {
+            d.set(d.get() + 1);
+            d.get()
+        });
+        let guard = Deeper;
+        if d > MAX_DEPTH {
+            return Err(Error::at(line, "This is nested too deeply."));
+        }
+        Ok(guard)
+    }
+}
+
+impl Drop for Deeper {
+    fn drop(&mut self) {
+        DEPTH.with(|d| d.set(d.get().saturating_sub(1)));
+    }
+}
+
 struct Cursor<'a> {
     toks: &'a [Tok],
     pos: usize,
@@ -185,6 +217,8 @@ impl Parser {
 
     /// Statements at exactly `indent`, until a line indented less.
     fn block(&mut self, indent: usize) -> Result<Block, Error> {
+        let line = self.lines.get(self.i).map_or(0, |l| l.line);
+        let _deeper = Deeper::enter(line)?;
         let mut out = Vec::new();
         while self.i < self.lines.len() {
             let l = &self.lines[self.i];
@@ -628,6 +662,7 @@ impl Parser {
     // ---- expressions, by precedence
 
     fn expr(c: &mut Cursor) -> Result<Expr, Error> {
+        let _deeper = Deeper::enter(c.line)?;
         Self::ternary(c)
     }
 
@@ -706,6 +741,7 @@ impl Parser {
     }
 
     fn unary(c: &mut Cursor) -> Result<Expr, Error> {
+        let _deeper = Deeper::enter(c.line)?;
         if c.eat_op("-") {
             return Ok(Expr::Unary("-", Box::new(Self::unary(c)?)));
         }
@@ -948,6 +984,48 @@ mod tests {
             }
         ));
         assert!(matches!(&b[9], Stmt::Func { params, .. } if params[0].2.as_deref() == Some("float")));
+    }
+
+    #[test]
+    fn deep_nesting_is_an_error_not_a_crash() {
+        // Run on a thread with a small stack, as the app's workers have.
+        std::thread::Builder::new()
+            .stack_size(2 << 20)
+            .spawn(|| {
+                let deep = format!(
+                    "//@version=5\nindicator(\"x\")\nplot({}close{})\n",
+                    "(".repeat(5000),
+                    ")".repeat(5000)
+                );
+                let e = crate::compile(&deep, "t", crate::Env::default())
+                    .err()
+                    .expect("an error");
+                assert!(e.to_string().contains("nested too deeply"), "{e}");
+                let minus = format!("//@version=5\nindicator(\"x\")\nplot({}close)\n", "-".repeat(5000));
+                assert!(crate::compile(&minus, "t", crate::Env::default()).is_err());
+                // Nesting a script really uses still works, and runs.
+                let ok = format!(
+                    "//@version=5\nindicator(\"x\")\nplot({}close{})\n",
+                    "(".repeat(120),
+                    ")".repeat(120)
+                );
+                let s = crate::compile(&ok, "t", crate::Env::default()).unwrap();
+                let bars: Vec<opentern_core::Bar> = (0..50)
+                    .map(|i| opentern_core::Bar {
+                        time: i * 60_000,
+                        open: 1.0,
+                        high: 2.0,
+                        low: 0.5,
+                        close: 1.5,
+                        volume: 1.0,
+                    })
+                    .collect();
+                let mut st = s.study(&opentern_series::study::Inputs::default());
+                let _ = st.run(&bars, opentern_core::Timeframe::new(1, opentern_core::Unit::Minute));
+            })
+            .unwrap()
+            .join()
+            .unwrap();
     }
 
     #[test]

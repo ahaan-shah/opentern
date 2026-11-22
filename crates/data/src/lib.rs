@@ -15,6 +15,8 @@ pub mod earnings;
 pub mod expr;
 pub mod feeds;
 pub mod fundamentals;
+#[cfg(test)]
+mod fuzz;
 pub mod hub;
 pub mod ibkr;
 pub mod kraken;

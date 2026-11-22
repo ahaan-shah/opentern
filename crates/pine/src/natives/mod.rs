@@ -410,7 +410,12 @@ fn core_defs() -> Vec<NatDef> {
         .pure(),
         d("str.repeat", &["source", "repeat", "separator"], |_, a, _| {
             let n = int_or(a, 1, 0).clamp(0, 100_000) as usize;
-            Ok(V::str(vec![str_or(a, 0, ""); n].join(str_or(a, 2, ""))))
+            let (s, sep) = (str_or(a, 0, ""), str_or(a, 2, ""));
+            // Repeats of repeats would outgrow memory.
+            if n.saturating_mul(s.len() + sep.len()) > 1_000_000 {
+                return Err("str.repeat would make a string over a million characters.".into());
+            }
+            Ok(V::str(vec![s; n].join(sep)))
         })
         .pure(),
         d("str.format_time", &["time", "format", "timezone"], |g, a, _| {

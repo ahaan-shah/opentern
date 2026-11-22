@@ -84,7 +84,7 @@ fn row(r: &serde_json::Value) -> Option<Bar> {
 }
 
 /// Swaps' candles: their volume in the coin.
-fn parse_ws_swap(v: &serde_json::Value) -> Vec<Bar> {
+pub(crate) fn parse_ws_swap(v: &serde_json::Value) -> Vec<Bar> {
     if !v["arg"]["channel"].as_str().is_some_and(|c| c.starts_with("candle")) {
         return Vec::new();
     }
@@ -95,7 +95,7 @@ fn parse_ws_swap(v: &serde_json::Value) -> Vec<Bar> {
 }
 
 /// A candles reply → bars, oldest first; `vol` as in `row_at`.
-fn parse_candles_at(v: &serde_json::Value, vol: usize) -> Result<Vec<Bar>> {
+pub(crate) fn parse_candles_at(v: &serde_json::Value, vol: usize) -> Result<Vec<Bar>> {
     if v["code"].as_str() != Some("0") {
         return Err(Error::Bad(format!(
             "OKX: {}",

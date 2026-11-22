@@ -119,7 +119,7 @@ fn with_crumb(agent: &ureq::Agent, call: impl Fn(&str, &str) -> Result<(u16, Str
 }
 
 fn day_of(secs: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    to_utc_midnight(secs * 1000, tz)
+    to_utc_midnight(crate::provider::secs_ms(secs).unwrap_or(0), tz)
 }
 
 /// Yahoo's earnings calendar for the ticker (newest 100 reports).

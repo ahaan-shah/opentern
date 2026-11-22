@@ -148,7 +148,7 @@ pub fn choose_base(tf: Timeframe, natives: &[Timeframe]) -> Option<Timeframe> {
 
 /// Stamps a daily-or-longer bar at 00:00 UTC of its local date in `tz`.
 pub fn to_utc_midnight(t: i64, tz: &TimeZone) -> i64 {
-    local_day(t, tz) * DAY
+    local_day(t, tz).saturating_mul(DAY)
 }
 
 #[cfg(test)]

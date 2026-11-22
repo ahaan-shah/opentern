@@ -138,7 +138,7 @@ pub(crate) fn parse_chart(v: &serde_json::Value, daily: bool) -> Result<(Vec<Bar
         else {
             continue;
         };
-        let ms = t * 1000;
+        let Some(ms) = provider::secs_ms(t) else { continue };
         bars.push(Bar {
             time: if daily { to_utc_midnight(ms, &tz) } else { ms },
             open,
@@ -170,13 +170,13 @@ fn fold_now_point(bars: &mut Vec<Bar>, meta: &serde_json::Value, step: i64, prep
         return;
     }
     let (p, prev) = (bars[n - 1], bars[n - 2]);
-    let now = meta["regularMarketTime"].as_i64().map(|t| t * 1000);
+    let now = meta["regularMarketTime"].as_i64().and_then(provider::secs_ms);
     let flat = p.open == p.high && p.high == p.low && p.low == p.close && p.volume == 0.0;
     if !flat || now != Some(p.time) {
         return;
     }
     let period = &meta["currentTradingPeriod"];
-    let edge = |k: &str, e: &str| period[k][e].as_i64().map(|t| t * 1000);
+    let edge = |k: &str, e: &str| period[k][e].as_i64().and_then(provider::secs_ms);
     let (from, to) = if prepost {
         (edge("pre", "start"), edge("post", "end"))
     } else {
@@ -218,7 +218,8 @@ fn quote_from(bars: &[Bar], meta: &serde_json::Value, indian: bool) -> Result<(f
         .unwrap_or(jiff::tz::TimeZone::UTC);
     let today = meta["regularMarketTime"]
         .as_i64()
-        .map(|t| to_utc_midnight(t * 1000, &tz))
+        .and_then(provider::secs_ms)
+        .map(|t| to_utc_midnight(t, &tz))
         .or(bars.last().map(|b| b.time));
     let prev = match today {
         Some(day) => bars.iter().rev().find(|b| b.time < day).map(|b| b.close),
@@ -289,7 +290,12 @@ pub(crate) fn parse_events(v: &serde_json::Value) -> Corporate {
         .as_str()
         .and_then(|n| jiff::tz::TimeZone::get(n).ok())
         .unwrap_or(jiff::tz::TimeZone::UTC);
-    let day = |e: &serde_json::Value| e["date"].as_i64().map(|t| to_utc_midnight(t * 1000, &tz));
+    let day = |e: &serde_json::Value| {
+        e["date"]
+            .as_i64()
+            .and_then(provider::secs_ms)
+            .map(|t| to_utc_midnight(t, &tz))
+    };
     let mut c = Corporate::default();
     if let Some(m) = r["events"]["dividends"].as_object() {
         c.dividends = m
@@ -619,7 +625,7 @@ pub(crate) fn skipped_day(sym: &Symbol, meta: &serde_json::Value, bars: &[Bar]) 
     let price = meta["regularMarketPrice"]
         .as_f64()
         .filter(|p| p.is_finite() && *p > 0.0)?;
-    let t = meta["regularMarketTime"].as_i64()? * 1000;
+    let t = provider::secs_ms(meta["regularMarketTime"].as_i64()?)?;
     let tz = Market::India.tz();
     let local = jiff::Timestamp::from_millisecond(t).ok()?.to_zoned(tz.clone()).date();
     let skipped = calendar::special(Market::India, local).is_some()
@@ -688,7 +694,7 @@ impl OwnBar {
         let price = meta["regularMarketPrice"]
             .as_f64()
             .filter(|p| p.is_finite() && *p > 0.0)?;
-        let t = meta["regularMarketTime"].as_i64()? * 1000;
+        let t = provider::secs_ms(meta["regularMarketTime"].as_i64()?)?;
         if now - t > 10 * 60_000 {
             self.bar = None;
             return None;

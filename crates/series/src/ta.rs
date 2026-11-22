@@ -49,7 +49,9 @@ impl Hist {
     pub fn new(cap: usize) -> Hist {
         let cap = cap.max(1);
         Hist {
-            buf: VecDeque::with_capacity(cap),
+            // A script picks the length (`ta.sma(close, 1e15)`): grow with
+            // the bars rather than reserve it all up front.
+            buf: VecDeque::with_capacity(cap.min(4096)),
             cap,
             seen: 0,
         }

@@ -29,6 +29,16 @@ fn levels(v: &serde_json::Value) -> Vec<(f64, f64)> {
 }
 
 /// Parses a Binance-style `{bids: [[p, q]…], asks: [[p, q]…]}`.
+/// Every book parser on one reply (the fuzz tests).
+#[cfg(test)]
+pub(crate) fn fuzz_books(v: &serde_json::Value) {
+    let _ = parse_pairs(v);
+    let _ = parse_coinbase(v);
+    let _ = parse_kraken(v);
+    let _ = levels(v);
+    let _ = levels(&v["bids"]);
+}
+
 fn parse_pairs(v: &serde_json::Value) -> Book {
     Book {
         bids: levels(&v["bids"]),

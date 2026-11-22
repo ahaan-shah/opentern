@@ -1586,6 +1586,24 @@ every data change (scripts re-run on it).
   system prompt says tool results are data, not instructions. Links open
   only as http(s) (`may_open`); file names from symbols are sanitised; the
   only listener is the transfer handoff while it's sharing.
+- **Fuzzing** (Nov 2026; stable Rust, no cargo-fuzz: `opentern_core::fuzzing`
+  mutates JSON structure, text and bytes, catches panics, says where):
+  every provider reply parser (`data/src/fuzz.rs`), Pine scripts (all of
+  `tests/corpus`, compiled and run: `pine/tests/fuzz.rs`), logos (SVG kinds,
+  PNG, logoapi), `.opentern` imports (bytes, and good zips with mutated
+  JSON and hostile script paths). Short runs in `cargo test`; long:
+  `OPENTERN_FUZZ_ROUNDS=40000 cargo test --all fuzz` (Pine:
+  `OPENTERN_FUZZ_TRACE=<file>` keeps the last input, for aborts). Found and
+  fixed: seconds → ms overflow on absurd times (`provider::secs_ms`/
+  `sane_ms`), a `ta.*` length reserving petabytes (`Hist::new`),
+  `str.repeat` of repeats, stack overflow on deep nesting in the Pine
+  parser (`MAX_DEPTH`) and in formulas (`MAX_NESTING`, `MAX_TOKENS`: a
+  2,000-member custom index fits). Aborts (out of memory, stack) can't be
+  caught: bound every allocation and recursion a script or reply controls.
+- **cargo-deny** (`deny.toml`, CI job `deny`): crates.io only, an allow-list
+  of licences, yanked crates fail. Known and accepted: rustix's xattr and
+  tokio's `AsyncFd` "unsound" notices (no fix yet; neither is called), and
+  zbus/zvariant unmaintained (via notify-rust).
 - **Permissions:** Windows Firewall and macOS Local Network ask once. `NetHelp` offers the way
   back: `handoff::firewall` runs `opentern --allow-firewall` elevated (clears the exe's block
   rules, adds rule "Opentern transfer" for port 47811; stays after uninstalling on a per-user
