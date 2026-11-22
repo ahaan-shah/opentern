@@ -963,7 +963,8 @@ impl App {
             f,
             t.text,
         );
-        let sub = if m.name.is_empty() {
+        // Coins have no name apart from their ticker (shown above).
+        let sub = if m.name.is_empty() || m.name.eq_ignore_ascii_case(&short(m)) {
             m.sector.clone()
         } else if m.industry.is_empty() || m.industry == m.name {
             format!("{} · {}", m.name, m.sector)

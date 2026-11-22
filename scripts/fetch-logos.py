@@ -5,20 +5,28 @@ Writes crates/app/assets/logos/<key>.logo (the format logos.rs keeps) and
 crates/app/src/logos_bundled.rs (the list, as include_str!). Run it again to
 refresh or extend the set; the app fetches anything else at runtime.
 
-Sources (both MIT; the marks themselves stay their owners' trademarks):
+Sources (the marks themselves stay their owners' trademarks):
 - Coins: web3icons (@web3icons/core), the "background" token icons: the
   brand's colour or gradient with the mark in white, cropped round in the app.
 - Companies: theSVG (@thesvg/icons), the one-colour "mono" mark, drawn white
   on the brand colour in the app (or the full mark on white when there's no
   mono version).
+- Indian companies theSVG lacks: their logo on Wikimedia Commons, found
+  through Wikidata (the NIFTY 500's NSE ticker or name), kept only when the
+  file is public domain or CC0 and roughly square (a long wordmark can't be
+  read on a small disc). Kept as 128 px PNG thumbnails (`<key>.png`, in
+  BUNDLED_IMAGES), drawn on white.
 
     python3 scripts/fetch-logos.py
 """
 
+import csv
 import json
 import pathlib
 import re
 import sys
+import time
+import urllib.parse
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -27,6 +35,13 @@ LIST = ROOT / "crates" / "app" / "src" / "logos_bundled.rs"
 W3 = "@web3icons/core@4.0.58"
 THESVG = "@thesvg/icons@3.3.14"
 MIRRORS = ["https://unpkg.com/", "https://cdn.jsdelivr.net/npm/"]
+NIFTY500 = ROOT / "crates" / "data" / "assets" / "overview" / "nifty500.csv"
+# Wikimedia asks scripts to name themselves.
+WIKI_UA = {"User-Agent": "Opentern logo script (https://github.com/ahaan-shah/opentern)"}
+NSE_ITEM = "Q638740"  # National Stock Exchange of India on Wikidata
+WIDEST = 2.6  # widest logo (width / height) still legible on a disc
+# Wikidata matches that show a company's old brand (Vodafone Idea is "Vi" now).
+OUTDATED = {"IDEA"}
 
 COINS = """BTC ETH SOL BNB XRP DOGE ADA AVAX TRX LINK DOT POL MATIC TON SHIB LTC BCH NEAR UNI APT ICP XLM ETC
 FIL ATOM ARB OP HBAR VET INJ IMX SUI SEI TIA RENDER GRT AAVE MKR ALGO EGLD SAND MANA AXS THETA FLOW XTZ
@@ -177,6 +192,86 @@ def slugs():
     return {f["name"][6:-3] for f in files if f["name"].startswith("/dist/") and f["name"].endswith(".js")}
 
 
+def wiki_json(url, data=None):
+    req = urllib.request.Request(url, data=data, headers={**WIKI_UA, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        return json.load(r)
+
+
+def sparql(query):
+    data = urllib.parse.urlencode({"query": query}).encode()
+    for attempt in range(4):
+        try:
+            return wiki_json("https://query.wikidata.org/sparql", data)["results"]["bindings"]
+        except (ValueError, OSError) as e:  # a slow query arrives cut short
+            print(f"  Wikidata again ({e})", file=sys.stderr)
+            time.sleep(5 * (attempt + 1))
+    raise SystemExit("Wikidata didn't answer")
+
+
+def company_key(name):
+    name = name.lower().replace("&", "and")
+    name = re.sub(r"\b(ltd|limited|the|india|of|co|company|corporation|corp|inc)\b\.?", "", name)
+    return re.sub(r"[^a-z0-9]", "", name)
+
+
+def india(have):
+    """NIFTY 500 logos from Wikimedia Commons: public domain or CC0 only."""
+    by_ticker, by_name = {}, {}
+    for b in sparql(f"SELECT ?t ?logo WHERE {{ ?i p:P414 ?s . ?s ps:P414 wd:{NSE_ITEM} ; pq:P249 ?t . "
+                    "?i wdt:P154 ?logo }"):
+        by_ticker[b["t"]["value"].upper().removeprefix("NSE:")] = b["logo"]["value"]
+    for b in sparql('SELECT DISTINCT ?l ?logo WHERE { ?i wdt:P17 wd:Q668 ; wdt:P154 ?logo ; wdt:P452 ?x ; '
+                    'rdfs:label ?l . FILTER(LANG(?l)="en") }'):
+        by_name.setdefault(company_key(b["l"]["value"]), b["logo"]["value"])
+    picked = {}
+    for r in csv.DictReader(NIFTY500.open()):
+        key = "co-nse-" + "".join(c for c in r["Symbol"] if c.isalnum()).lower()
+        url = by_ticker.get(r["Symbol"]) or by_name.get(company_key(r["Company Name"]))
+        if url and key not in have and r["Symbol"] not in OUTDATED:
+            picked[key] = urllib.parse.unquote(url.rsplit("/", 1)[1]).replace("_", " ")
+    files = sorted(set(picked.values()))
+    info = {}
+    for i in range(0, len(files), 40):
+        q = urllib.parse.urlencode({
+            "action": "query", "format": "json", "prop": "imageinfo",
+            "iiprop": "url|size|extmetadata", "iiextmetadatafilter": "License|LicenseShortName",
+            "iiurlwidth": 128, "titles": "|".join("File:" + f for f in files[i:i + 40]),
+        })
+        pages = wiki_json("https://commons.wikimedia.org/w/api.php?" + q)["query"]["pages"]
+        for p in pages.values():
+            if p.get("imageinfo"):
+                info[p["title"].removeprefix("File:")] = p["imageinfo"][0]
+    out = {}
+    for key, f in sorted(picked.items()):
+        ii = info.get(f)
+        if not ii:
+            continue
+        meta = ii["extmetadata"]
+        lic = meta.get("License", {}).get("value", "")
+        short = meta.get("LicenseShortName", {}).get("value", "")
+        if not (lic in ("pd", "cc0") or short.lower().startswith("public domain")):
+            print(f"  not public domain: {f} ({short})", file=sys.stderr)
+            continue
+        w, h = ii["width"], ii["height"]
+        if w > h * WIDEST:
+            continue
+        if w < h:  # tall: 128 px high instead
+            q = urllib.parse.urlencode({"action": "query", "format": "json", "prop": "imageinfo",
+                                        "iiprop": "url", "iiurlheight": 128, "titles": "File:" + f})
+            p = next(iter(wiki_json("https://commons.wikimedia.org/w/api.php?" + q)["query"]["pages"].values()))
+            ii = p["imageinfo"][0]
+        req = urllib.request.Request(ii.get("thumburl") or ii["url"], headers=WIKI_UA)
+        with urllib.request.urlopen(req, timeout=60) as r:
+            png = r.read()
+        if not png.startswith(b"\x89PNG") or len(png) > 200_000:
+            continue  # JPEG/WebP originals keep JPEG thumbnails: the app reads PNG only
+        out[key] = png  # kept as a .png (bytes)
+        print(f"  {key}: {f} ({short})", file=sys.stderr)
+        time.sleep(0.2)
+    return out
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
     known = slugs()
@@ -200,10 +295,13 @@ def main():
         logo = thesvg(slug)
         if logo:
             kept[key] = logo
-    for old in OUT.glob("*.logo"):
+    images = india(kept)
+    for old in [*OUT.glob("*.logo"), *OUT.glob("*.png")]:
         old.unlink()
     for key, body in sorted(kept.items()):
         (OUT / f"{key}.logo").write_text(body)
+    for key, png in sorted(images.items()):
+        (OUT / f"{key}.png").write_bytes(png)
     lines = [
         "// Generated by scripts/fetch-logos.py: the logos that ship with the app.",
         "// Sources and licences: crates/app/assets/logos/README.md.",
@@ -212,9 +310,13 @@ def main():
     ]
     for key in sorted(kept):
         lines.append(f'    ("{key}", include_str!("../assets/logos/{key}.logo")),')
+    lines += ["];", "", "/// Company logos kept as PNGs, drawn on a white disc.",
+              "pub const BUNDLED_IMAGES: &[(&str, &[u8])] = &["]
+    for key in sorted(images):
+        lines.append(f'    ("{key}", include_bytes!("../assets/logos/{key}.png")),')
     lines += ["];", ""]
     LIST.write_text("\n".join(lines))
-    print(f"wrote {len(kept)} logos")
+    print(f"wrote {len(kept)} logos and {len(images)} images")
 
 
 if __name__ == "__main__":

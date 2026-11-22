@@ -2746,6 +2746,18 @@ fn legend(
                     .on_hover_text(tip);
                 xx += w + 2.0;
             }
+            // Free futures prices run behind the exchange (CME's rule).
+            if let Some(min) = opentern_data::hub::delayed_minutes(&chart.symbol) {
+                let g = painter.layout_no_wrap(format!("Delayed {min} min"), theme::regular(11.0), t.warn);
+                let r = Rect::from_min_size(pos2(xx + 4.0, pos.y + 1.0), g.size() + vec2(10.0, 2.0));
+                painter.rect_filled(r, CornerRadius::same(4), t.warn.gamma_multiply(0.14));
+                painter.galley(r.min + vec2(5.0, 1.0), g, t.warn);
+                ui.interact(r, ui.id().with("delayed"), Sense::hover()).on_hover_text(
+                    "Futures prices from free sources are about 10 minutes behind the exchange. \
+                     Daily closes are the official settlements.",
+                );
+                xx = r.right() + 8.0;
+            }
             if let (true, Some(i)) = (st.show_ohlc, idx) {
                 let b = chart.bars[i];
                 let up = bar_color(chart, i, &b);

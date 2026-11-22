@@ -236,5 +236,16 @@ mod tests {
         assert_eq!(parse_price(&serde_json::json!({"type":"HEARTBEAT"})), None);
         assert_eq!(instrument(&Symbol::bare("OANDA:EURUSD")), "EUR_USD");
         assert_eq!(instrument(&Symbol::bare("OANDA:XAUUSD")), "XAU_USD");
+        for (t, want) in [
+            ("WTICOUSD", "WTICO_USD"),
+            ("BCOUSD", "BCO_USD"),
+            ("NATGASUSD", "NATGAS_USD"),
+        ] {
+            assert_eq!(instrument(&Symbol::bare(&format!("OANDA:{t}"))), want);
+        }
+        // Every spot commodity we list maps to an OANDA name.
+        for s in opentern_core::spot_commodities() {
+            assert!(instrument(&s).ends_with("_USD"), "{}", s.id);
+        }
     }
 }

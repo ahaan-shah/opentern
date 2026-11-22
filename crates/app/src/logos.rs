@@ -5,13 +5,17 @@
 //!   `scripts/fetch-logos.py`), so the common ones show at once.
 //! - Coins: web3icons' token icons (MIT): the brand colour or gradient with
 //!   the mark in white, cropped round; else the `cryptocurrency-icons` discs.
-//! - Indices and commodities: badges drawn here ("50" for the Nifty 50,
-//!   "Au" for gold, a drop for oil).
+//! - Commodities: our own drawings (`assets/commodities/`, made by
+//!   `scripts/make-commodity-icons.py`): gold bars, an oil barrel, a flame.
+//! - Indices: badges drawn here ("50" for the Nifty 50).
 //! - Companies and funds: theSVG's brand marks (`@thesvg/icons`, MIT; the
 //!   marks stay their owners' trademarks), found by the symbol's name. The
 //!   one-colour "mono" mark is drawn white on the brand colour (or on a dark
 //!   disc when the brand colour is very light); marks with no mono version
 //!   go on a white disc as they are.
+//! - Stocks theSVG lacks: logoapi.sh's ticker logos (free, no key; its
+//!   terms allow keeping them in an app), real icons only. Indian
+//!   companies: public-domain Commons logos, bundled.
 //! - Anything else: a coloured disc with the first letter.
 //!
 //! A background thread finds and fetches each logo once, keeps the SVG in
@@ -75,8 +79,38 @@ fn file_key(s: &Symbol) -> Option<String> {
             let t: String = ticker.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
             (!t.is_empty()).then(|| format!("co-{}-{}", s.exchange().to_lowercase(), t.to_lowercase()))
         }
+        AssetKind::Commodity => opentern_core::commodity_of(s).map(|c| format!("cmdty-{c}")),
         _ => None,
     }
+}
+
+/// Our own commodity drawings, by `commodity_of` name.
+const COMMODITY_ICONS: &[(&str, &str)] = &[
+    ("gold", include_str!("../assets/commodities/gold.svg")),
+    ("silver", include_str!("../assets/commodities/silver.svg")),
+    ("platinum", include_str!("../assets/commodities/platinum.svg")),
+    ("palladium", include_str!("../assets/commodities/palladium.svg")),
+    ("copper", include_str!("../assets/commodities/copper.svg")),
+    ("wti", include_str!("../assets/commodities/wti.svg")),
+    ("brent", include_str!("../assets/commodities/brent.svg")),
+    ("natgas", include_str!("../assets/commodities/natgas.svg")),
+    ("gasoline", include_str!("../assets/commodities/gasoline.svg")),
+    ("heating-oil", include_str!("../assets/commodities/heating-oil.svg")),
+    ("wheat", include_str!("../assets/commodities/wheat.svg")),
+    ("corn", include_str!("../assets/commodities/corn.svg")),
+    ("soybeans", include_str!("../assets/commodities/soybeans.svg")),
+    ("coffee", include_str!("../assets/commodities/coffee.svg")),
+    ("sugar", include_str!("../assets/commodities/sugar.svg")),
+    ("cocoa", include_str!("../assets/commodities/cocoa.svg")),
+    ("cotton", include_str!("../assets/commodities/cotton.svg")),
+    ("cattle", include_str!("../assets/commodities/cattle.svg")),
+];
+
+/// A kept logo for one of our commodity drawings (a square, cropped round).
+fn commodity_icon(key: &str) -> Option<String> {
+    let name = key.strip_prefix("cmdty-")?;
+    let svg = COMMODITY_ICONS.iter().find(|(n, _)| *n == name)?.1;
+    Some(format!("square\n{svg}"))
 }
 
 /// A crypto pair's coin: BTCUSDT → btc.
@@ -91,6 +125,15 @@ fn coin(ticker: &str) -> Option<String> {
         "XDG" => "DOGE",
         b => b,
     };
+    // Binance quotes some coins per thousand or million (1000SATS,
+    // 1MBABYDOGE): the coin's own logo.
+    let base = ["1000000", "1000", "1M"]
+        .iter()
+        .find_map(|m| {
+            base.strip_prefix(m)
+                .filter(|b| b.len() >= 2 && b.starts_with(|c: char| c.is_ascii_alphabetic()))
+        })
+        .unwrap_or(base);
     (!base.is_empty() && base.chars().all(|c| c.is_ascii_alphanumeric())).then(|| base.to_lowercase())
 }
 
@@ -305,7 +348,84 @@ fn find(
             return Some(format!("mark\n{hex}\ndefault\n{svg}"));
         }
     }
-    None
+    match logoapi(agent, s) {
+        Got::Logo(k) => Some(k),
+        Got::Later => Some(String::new()),
+        Got::None => None,
+    }
+}
+
+/// What a source answered: a logo, none, or ask again another time (it
+/// failed or asked us to slow down).
+enum Got {
+    Logo(String),
+    None,
+    Later,
+}
+
+/// logoapi.sh's ticker logos (free, no key; its terms allow using and
+/// keeping them in an app). US listings, and NSE/BSE's largest companies.
+/// Only real icons: its stand-ins (a favicon, a name tile, a wordmark too
+/// wide for a disc) come with `X-Logo-Fallback` and count as none.
+fn logoapi(agent: &ureq::Agent, s: &Symbol) -> Got {
+    if !matches!(s.kind, AssetKind::Stock | AssetKind::Fund) {
+        return Got::None;
+    }
+    let t = s.ticker().to_uppercase();
+    if t.is_empty() || !t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') {
+        return Got::None;
+    }
+    let ticker = match s.exchange() {
+        e @ ("NASDAQ" | "NYSE" | "AMEX" | "NSE") => format!("{e}:{t}"),
+        "BSE" => format!("{t}.BO"),
+        _ => return Got::None,
+    };
+    let url = format!("https://logoapi.sh/ticker/{ticker}.svg?fallback=none");
+    let mut r = match agent.get(&url).call() {
+        Ok(r) => r,
+        Err(_) => return Got::Later,
+    };
+    match r.status().as_u16() {
+        200 => {}
+        404 => return Got::None,
+        _ => return Got::Later,
+    }
+    if r.headers().contains_key("x-logo-fallback") {
+        return Got::None;
+    }
+    let Ok(svg) = r.body_mut().with_config().limit(1 << 20).read_to_string() else {
+        return Got::Later;
+    };
+    from_logoapi(&svg).map_or(Got::None, Got::Logo)
+}
+
+/// How to draw a logoapi.sh answer: a one-colour Simple Icons mark (24 px,
+/// a root fill) in white on its colour, a picture wrapped in an SVG as an
+/// image on white, anything else on white as it is.
+fn from_logoapi(svg: &str) -> Option<String> {
+    let start = svg.find("<svg")?;
+    let svg = &svg[start..];
+    let head = &svg[..svg.find('>')?];
+    if let Some(b64) = svg
+        .split("data:image/png;base64,")
+        .nth(1)
+        .and_then(|r| r.split(['"', '\'']).next())
+    {
+        return Some(format!("image\nmark\n{b64}"));
+    }
+    let fill = head
+        .split("fill=\"#")
+        .nth(1)
+        .and_then(|r| r.split('"').next())
+        .filter(|h| h.len() == 6 && h.chars().all(|c| c.is_ascii_hexdigit()));
+    match fill {
+        Some(hex) if head.contains("viewBox=\"0 0 24 24\"") => {
+            // The mark is recoloured white, which sets the root's fill.
+            let svg = svg.replacen(&format!(" fill=\"#{hex}\""), "", 1);
+            Some(format!("mark\n{hex}\nmono\n{svg}"))
+        }
+        _ => Some(format!("mark\n\ndefault\n{svg}")),
+    }
 }
 
 /// The SVG in a web3icons module: `var X = '<svg …>'`, unescaped.
@@ -376,6 +496,50 @@ fn recolor(svg: &str, col: &str) -> String {
     s.replacen("<svg ", &format!("<svg fill=\"{col}\" "), 1)
 }
 
+/// Cuts a square image to a circle (anti-aliased edge).
+fn crop_round(pm: &mut tiny_skia::Pixmap) {
+    let c = SIZE as f32 / 2.0;
+    for (i, px) in pm.data_mut().chunks_mut(4).enumerate() {
+        let (x, y) = ((i as u32 % SIZE) as f32 + 0.5, (i as u32 / SIZE) as f32 + 0.5);
+        let d = ((x - c).powi(2) + (y - c).powi(2)).sqrt();
+        let k = (c - d + 0.5).clamp(0.0, 1.0);
+        if k < 1.0 {
+            for v in px.iter_mut() {
+                *v = (*v as f32 * k) as u8;
+            }
+        }
+    }
+}
+
+/// A PNG as a premultiplied pixmap (any colour type; at most 2048 px a side).
+fn raster_pixmap(bytes: &[u8]) -> Option<tiny_skia::Pixmap> {
+    let mut dec = png::Decoder::new(std::io::Cursor::new(bytes));
+    dec.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = dec.read_info().ok()?;
+    let mut buf = vec![0; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut buf).ok()?;
+    let (w, h) = (info.width, info.height);
+    if w == 0 || h == 0 || w > 2048 || h > 2048 {
+        return None;
+    }
+    let px = &buf[..info.buffer_size()];
+    let n = (w * h) as usize;
+    let mut rgba = Vec::with_capacity(n * 4);
+    let mut push = |r: u8, g: u8, b: u8, a: u8| {
+        let m = |v: u8| ((v as u16 * a as u16 + 127) / 255) as u8;
+        rgba.extend_from_slice(&[m(r), m(g), m(b), a]);
+    };
+    match info.color_type {
+        png::ColorType::Rgba => px.as_chunks::<4>().0.iter().for_each(|p| push(p[0], p[1], p[2], p[3])),
+        png::ColorType::Rgb => px.as_chunks::<3>().0.iter().for_each(|p| push(p[0], p[1], p[2], 255)),
+        png::ColorType::GrayscaleAlpha => px.as_chunks::<2>().0.iter().for_each(|p| push(p[0], p[0], p[0], p[1])),
+        png::ColorType::Grayscale => px.iter().for_each(|&v| push(v, v, v, 255)),
+        _ => return None,
+    }
+    (rgba.len() == n * 4).then_some(())?;
+    tiny_skia::Pixmap::from_vec(rgba, tiny_skia::IntSize::from_wh(w, h)?)
+}
+
 /// Draws the disc for a kept logo.
 fn render(kept: &str) -> Option<Image> {
     let mut pm = tiny_skia::Pixmap::new(SIZE, SIZE)?;
@@ -413,17 +577,29 @@ fn render(kept: &str) -> Option<Image> {
             // A square icon (colour to the edges), cropped to a circle.
             let tree = usvg::Tree::from_str(rest, &opt).ok()?;
             resvg::render(&tree, place(&tree, size), &mut pm.as_mut());
-            let c = size / 2.0;
-            for (i, px) in pm.data_mut().chunks_mut(4).enumerate() {
-                let (x, y) = ((i as u32 % SIZE) as f32 + 0.5, (i as u32 / SIZE) as f32 + 0.5);
-                let d = ((x - c).powi(2) + (y - c).powi(2)).sqrt();
-                let k = (c - d + 0.5).clamp(0.0, 1.0);
-                if k < 1.0 {
-                    for v in px.iter_mut() {
-                        *v = (*v as f32 * k) as u8;
-                    }
-                }
+            crop_round(&mut pm);
+        }
+        "image" => {
+            // A PNG: "fill" covers the disc, "mark" sits on a white disc
+            // (a company's logo).
+            let (how, b64) = rest.split_once('\n')?;
+            use base64::Engine;
+            let bytes = base64::engine::general_purpose::STANDARD.decode(b64.trim()).ok()?;
+            let src = raster_pixmap(&bytes)?;
+            let fill = how == "fill";
+            if !fill {
+                disc(&mut pm, Color32::WHITE);
             }
+            let room = if fill { size } else { size * 0.72 };
+            let (w, h) = (src.width() as f32, src.height() as f32);
+            let k = room / w.max(h);
+            let ts = tiny_skia::Transform::from_scale(k, k).post_translate((size - w * k) / 2.0, (size - h * k) / 2.0);
+            let paint = tiny_skia::PixmapPaint {
+                quality: tiny_skia::FilterQuality::Bicubic,
+                ..Default::default()
+            };
+            pm.draw_pixmap(0, 0, src.as_ref(), &paint, ts, None);
+            crop_round(&mut pm);
         }
         "mark" => {
             let mut parts = rest.splitn(3, '\n');
@@ -490,11 +666,27 @@ impl Logos {
                 let mut slugs = None;
                 let mut mirrors = Mirrors([false; 2]);
                 while let Ok((key, sym)) = rx.recv() {
-                    // v2: web3icons coins, TradingView-style marks (older files are ignored).
-                    let path = dir.join(format!("{key}.v2.logo"));
-                    let bundled = crate::logos_bundled::BUNDLED.iter().find(|(k, _)| *k == key);
+                    // v3: logoapi.sh added, so misses are tried again
+                    // (older files are ignored).
+                    let path = dir.join(format!("{key}.v3.logo"));
+                    // A BSE listing shares its NSE twin's logo.
+                    let twin = key.strip_prefix("co-bse-").map(|t| format!("co-nse-{t}"));
+                    let bundled = crate::logos_bundled::BUNDLED
+                        .iter()
+                        .find(|(k, _)| *k == key || Some(*k) == twin.as_deref());
+                    let image = || {
+                        use base64::Engine;
+                        crate::logos_bundled::BUNDLED_IMAGES
+                            .iter()
+                            .find(|(k, _)| *k == key || Some(*k) == twin.as_deref())
+                            .map(|(_, png)| {
+                                format!("image\nmark\n{}", base64::engine::general_purpose::STANDARD.encode(png))
+                            })
+                    };
                     let kept = match bundled
                         .map(|(_, v)| v.to_string())
+                        .or_else(image)
+                        .or_else(|| commodity_icon(&key))
                         .ok_or(())
                         .or_else(|_| std::fs::read_to_string(&path))
                     {
@@ -606,29 +798,8 @@ fn badge(s: &Symbol) -> Option<(Color32, &'static str)> {
             "N225" | "NI225" => (rgb(0xBC002D), "225"),
             _ => return None,
         }),
-        AssetKind::Commodity => {
-            let root = t.trim_end_matches('!').trim_end_matches('1');
-            Some(match root {
-                "GC" => (rgb(0xC9A227), "Au"),
-                "SI" => (rgb(0x8E959C), "Ag"),
-                "PL" => (rgb(0x6F7F8F), "Pt"),
-                "PA" => (rgb(0x8C7B6B), "Pd"),
-                "HG" => (rgb(0xB06A3B), "Cu"),
-                "CL" => (rgb(0x3D434C), ph::DROP),
-                "BRN" | "BZ" => (rgb(0x1F3B5C), ph::DROP),
-                "NG" => (rgb(0x2E6FD8), ph::FLAME),
-                "RB" => (rgb(0xD9480F), ph::GAS_PUMP),
-                "HO" => (rgb(0x7A4E1D), ph::DROP_HALF),
-                "ZW" | "ZC" => (rgb(0xC08A2B), ph::GRAINS),
-                "ZS" => (rgb(0x5B8C2A), ph::PLANT),
-                "KC" => (rgb(0x6B4226), ph::COFFEE),
-                "SB" => (rgb(0x5E9BD6), ph::CUBE),
-                "CC" => (rgb(0x5A3A22), ph::LEAF),
-                "CT" => (rgb(0x7A8FA6), ph::FLOWER),
-                "LE" => (rgb(0x7C5A3A), ph::COW),
-                _ => (rgb(0x5B6472), ph::BARN),
-            })
-        }
+        // Ones we have no drawing for.
+        AssetKind::Commodity if opentern_core::commodity_of(s).is_none() => Some((rgb(0x5B6472), ph::BARN)),
         _ => None,
     }
 }
@@ -670,6 +841,10 @@ mod tests {
     fn keys_and_names() {
         assert_eq!(key(&sym("BTCUSDT")).as_deref(), Some("coin-btc"));
         assert_eq!(key(&sym("EURUSD")), None);
+        // Coins quoted per thousand or million share the coin's logo.
+        assert_eq!(coin("1000SATSUSDT").as_deref(), Some("sats"));
+        assert_eq!(coin("1MBABYDOGEUSDT").as_deref(), Some("babydoge"));
+        assert_eq!(coin("1INCHUSDT").as_deref(), Some("1inch"));
         let slugs: HashSet<String> = ["apple", "nvidia", "reliance-industries-limited", "reliance"]
             .into_iter()
             .map(String::from)
@@ -701,7 +876,107 @@ mod tests {
             js_string("var X =\n  '<svg a=\\'1\\'>\\n</svg>';").as_deref(),
             Some("<svg a='1'>\n</svg>")
         );
-        assert!(badge(&opentern_core::commodities()[0]).is_some());
+        // Every commodity, futures and spot, has a drawing that renders.
+        for c in opentern_core::commodities()
+            .iter()
+            .chain(&opentern_core::spot_commodities())
+        {
+            assert!(badge(c).is_none(), "{}", c.id);
+            let kept = commodity_icon(&key(c).unwrap()).unwrap_or_else(|| panic!("{}", c.id));
+            let (w, _, px) = render(&kept).unwrap();
+            assert_eq!(px[3], 0, "{}: corner cut away", c.id);
+            assert!(px[(48 * w + 4) * 4 + 3] > 200, "{}: filled to the edge", c.id);
+        }
+    }
+
+    /// A w×h PNG of one colour.
+    fn png_of(w: u32, h: u32, rgba: [u8; 4]) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let mut enc = png::Encoder::new(&mut buf, w, h);
+        enc.set_color(png::ColorType::Rgba);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut wr = enc.write_header().unwrap();
+        wr.write_image_data(&rgba.repeat((w * h) as usize)).unwrap();
+        wr.finish().unwrap();
+        buf
+    }
+
+    #[test]
+    fn png_logos_fill_the_disc_or_sit_on_white() {
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(png_of(40, 20, [200, 30, 30, 255]));
+        let at = |px: &[u8], x: usize, y: usize| px[(y * SIZE as usize + x) * 4..][..4].to_vec();
+        // A coin's image covers the disc, corners cut away.
+        let (_, _, px) = render(&format!("image\nfill\n{b64}")).unwrap();
+        assert_eq!(at(&px, 48, 48), [200, 30, 30, 255]);
+        assert_eq!(at(&px, 0, 0)[3], 0);
+        // A company's logo on white, with room around it.
+        let (_, _, px) = render(&format!("image\nmark\n{b64}")).unwrap();
+        assert_eq!(at(&px, 48, 48), [200, 30, 30, 255]);
+        assert_eq!(at(&px, 48, 4), [255, 255, 255, 255]);
+        // Not a PNG: no logo, not a crash.
+        assert!(render("image\nfill\nbm90IGEgcG5n").is_none());
+    }
+
+    #[test]
+    fn bundled_pictures_render() {
+        assert!(!crate::logos_bundled::BUNDLED_IMAGES.is_empty());
+        for (k, png) in crate::logos_bundled::BUNDLED_IMAGES {
+            assert!(raster_pixmap(png).is_some(), "{k}");
+        }
+    }
+
+    #[test]
+    fn logoapi_answers_become_discs() {
+        let simple = r##"<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#D1AB66"><path d="M0 0h24v24H0z"/></svg>"##;
+        let kept = from_logoapi(simple).unwrap();
+        assert!(kept.starts_with("mark\nD1AB66\nmono\n<svg"), "{kept}");
+        let full = r##"<?xml version="1.0"?><svg viewBox="0 0 256 315" xmlns="http://www.w3.org/2000/svg"><path fill="#000" d="M0 0h9v9H0z"/></svg>"##;
+        assert!(from_logoapi(full).unwrap().starts_with("mark\n\ndefault\n<svg"));
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(png_of(4, 4, [0, 0, 0, 255]));
+        let wrapped =
+            format!(r#"<svg xmlns="http://www.w3.org/2000/svg"><image href="data:image/png;base64,{b64}"/></svg>"#);
+        assert_eq!(from_logoapi(&wrapped).unwrap(), format!("image\nmark\n{b64}"));
+        for k in [kept, from_logoapi(full).unwrap(), from_logoapi(&wrapped).unwrap()] {
+            assert!(render(&k).is_some(), "{k}");
+        }
+    }
+
+    /// Real logoapi.sh lookups (network):
+    /// `cargo test -p opentern --bin opentern live_logo_sources -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn live_logo_sources() {
+        let agent = agent();
+        let s = |id: &str, kind| Symbol {
+            id: id.into(),
+            description: String::new(),
+            kind,
+            currency: "USD".into(),
+            tick_size: 0.01,
+            min_qty: 0.0,
+            timezone: "UTC".into(),
+        };
+        for id in [
+            "NASDAQ:MNDY",
+            "NYSE:KO",
+            "NSE:RELIANCE",
+            "BSE:TCS",
+            "NSE:HDFCLIFE",
+            "NASDAQ:ZZZZQ",
+        ] {
+            let got = match logoapi(&agent, &s(id, AssetKind::Stock)) {
+                Got::Logo(k) => format!(
+                    "logo ({}), renders: {}",
+                    k.lines().next().unwrap(),
+                    render(&k).is_some()
+                ),
+                Got::None => "none".into(),
+                Got::Later => "later".into(),
+            };
+            println!("logoapi {id}: {got}");
+        }
     }
 
     #[test]

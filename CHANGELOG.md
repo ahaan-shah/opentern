@@ -2,8 +2,18 @@
 
 ## Unreleased
 
+### New
+- **Commodity icons.** Gold and silver show stacked bars, platinum, palladium and copper ingots with their element, oil a barrel, natural gas a flame, and the farm and livestock markets their own pictures, in place of letter badges.
+- **Logos for many more coins and stocks.** US and large Indian stocks get logoapi.sh's logos, coins quoted per thousand (1000SATS) show the coin's logo, and 27 more Indian companies (BHEL, GAIL, ITC, L&T, NTPC, ONGC, Sun Pharma and others) come built in. Fewer letter circles in the watchlist, search and market overview.
+- **Spot commodities from OANDA.** With an OANDA key, search lists spot gold, silver, platinum, palladium, copper, WTI, Brent, natural gas, wheat, corn, soybeans and sugar beside the futures. Search tags each row "futures" or "spot".
+
 ### Changed
+- **The crypto map shows the 150 most traded coins, sized by 24-hour volume on Binance.** Opentern no longer uses CoinGecko: its free API is meant for testing, and every price already comes from the exchanges.
+- **Delayed futures prices are labelled.** Commodity futures charts show "Delayed 10 min": free sources get CME's and ICE's prices at least 10 minutes late. Daily closes are the official settlements.
 - **A friendlier installer on Linux and macOS.** `install.sh` shows the Opentern logo, the version it's installing and a progress bar with megabytes, then a tick for each step. Piped into a log, it prints plain lines as before.
+
+### Fixed
+- **Coins an exchange stops trading carry on elsewhere.** When an exchange drops a pair (Binance still lists Monero's XMRUSDT, frozen since February 2024), watchlists, charts and price alerts move to the same coin where it trades, with a note saying so. The market overview no longer compares today's price with a delisted pair's old closes (it once showed Monero +331% on a new workspace).
 
 ## 0.3.0 (2026-11-21)
 

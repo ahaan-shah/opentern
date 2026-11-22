@@ -8,6 +8,9 @@ extend the set.
   https://github.com/0xa3k5/web3icons
 - `co-*`: theSVG (`@thesvg/icons`, MIT), brand marks.
   https://github.com/glincker/thesvg
+- `co-nse-*.png`: the company's logo from Wikimedia
+  Commons (found through Wikidata), only files marked public domain or CC0,
+  as 128 px PNG thumbnails. https://commons.wikimedia.org
 
 The marks are trademarks of their owners. They're shown only to identify each
 symbol, as any market data app does; they don't imply endorsement.

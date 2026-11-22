@@ -138,6 +138,69 @@ impl App {
         self.subscribe_quotes();
     }
 
+    /// A crypto pair its exchange stopped trading carries on where the coin
+    /// still trades (`hub::successor`): watchlists, charts and price alerts
+    /// move to the new pair, and a notification says so once.
+    pub(crate) fn pair_replaced(&mut self, from: Symbol, to: Symbol) {
+        let mut lists = false;
+        for w in &mut self.watchlists {
+            for item in &mut w.items {
+                if let Item::Symbol(s) = item
+                    && s.id == from.id
+                {
+                    *s = to.clone();
+                    lists = true;
+                }
+            }
+        }
+        let mut charts = false;
+        let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
+        for c in std::iter::once(&mut self.chart).chain(slots) {
+            if c.symbol.id == from.id {
+                c.symbol = to.clone();
+                charts = true;
+            }
+        }
+        let moved: Vec<_> = self
+            .alerts
+            .list
+            .iter()
+            .filter(|(a, _)| a.symbol == from.id)
+            .map(|(a, _)| a.clone())
+            .collect();
+        for mut a in moved {
+            a.symbol = to.id.clone();
+            a.sym = Some(to.clone());
+            self.alerts.save(&mut self.store, a);
+        }
+        if charts {
+            self.save_layout_now();
+        }
+        if lists {
+            self.save_watchlists();
+        }
+        if self.replaced_told.insert(from.id.clone()) {
+            let name = |s: &Symbol| {
+                let e = match s.exchange() {
+                    "BINANCE" => "Binance",
+                    "COINBASE" => "Coinbase",
+                    "BYBIT" => "Bybit",
+                    "KRAKEN" => "Kraken",
+                    e => e,
+                };
+                (e.to_string(), s.description.clone())
+            };
+            let ((fe, fd), (te, td)) = (name(&from), name(&to));
+            self.notify(
+                ph::ARROWS_LEFT_RIGHT,
+                &format!("{fe} no longer trades {fd}"),
+                &format!("Showing {te}'s {td} instead."),
+                None,
+                true,
+            );
+        }
+    }
+
     /// Live prices for every symbol in the active list, plus US stocks on
     /// a chart or charted lately (for their pre-market and after-hours
     /// prices).

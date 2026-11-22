@@ -34,6 +34,8 @@ pub struct App {
     pub quotes: HashMap<String, (f64, f64)>,
     /// When each symbol's quote last arrived (`watchlists::stale_quote`).
     pub quote_at: HashMap<String, std::time::Instant>,
+    /// Delisted pairs already announced this run (`pair_replaced`).
+    pub replaced_told: std::collections::HashSet<String>,
     /// US stocks' pre-market or after-hours prices, per symbol id.
     pub extended: HashMap<String, opentern_data::yahoo::Ext>,
     /// The symbols last sent in `Request::Quotes`.
@@ -215,6 +217,7 @@ impl App {
             active_list,
             quotes: HashMap::new(),
             quote_at: HashMap::new(),
+            replaced_told: Default::default(),
             extended: HashMap::new(),
             quoted: Vec::new(),
             ext_recent: Vec::new(),
@@ -1145,6 +1148,7 @@ impl App {
                     self.spread_quote(&id, last, prev);
                     self.quotes.insert(id, (last, prev));
                 }
+                Event::Replaced { from, to } => self.pair_replaced(from, to),
                 Event::Fetched {
                     seq,
                     symbol,

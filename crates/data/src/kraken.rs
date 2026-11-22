@@ -107,6 +107,13 @@ impl Kraken {
         };
         Ok(map
             .values()
+            // Pairs Kraken stopped (cancel_only, reduce_only, delisted)
+            // stay out, so a coin falls back to where it still trades.
+            .filter(|p| {
+                p["status"]
+                    .as_str()
+                    .is_none_or(|st| matches!(st, "online" | "post_only" | "limit_only"))
+            })
             .filter_map(|p| {
                 let ws = p["wsname"].as_str()?;
                 let (b, q) = ws.split_once('/')?;

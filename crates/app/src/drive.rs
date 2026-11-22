@@ -1463,6 +1463,47 @@ mod formula_tests {
     }
 
     #[test]
+    fn a_delisted_pair_moves_to_where_it_still_trades() {
+        let mut d = Driver::new("delisted");
+        let pair = |id: &str, desc: &str| opentern_core::Symbol {
+            id: id.into(),
+            description: desc.into(),
+            kind: opentern_core::AssetKind::Crypto,
+            currency: "USD".into(),
+            tick_size: 0.01,
+            min_qty: 0.0,
+            timezone: "UTC".into(),
+        };
+        let (from, to) = (
+            pair("BINANCE:XMRUSDT", "XMR / USDT"),
+            pair("KRAKEN:XMRUSD", "XMR / USD"),
+        );
+        let k = d.app.active_list;
+        d.app.watchlists[k]
+            .items
+            .push(crate::watchlists::Item::Symbol(from.clone()));
+        d.app.chart.symbol = from.clone();
+        let alert = opentern_engine::alerts::Alert {
+            symbol: from.id.clone(),
+            sym: Some(from.clone()),
+            ..Default::default()
+        };
+        d.app.alerts.save(&mut d.app.store, alert);
+        let notes = d.app.notes.list.len();
+        d.app.pair_replaced(from.clone(), to.clone());
+        // Twice (the chart and the quotes both find it): one notification.
+        d.app.pair_replaced(from.clone(), to.clone());
+        let ids: Vec<String> = d.app.watchlist().iter().map(|s| s.id.clone()).collect();
+        assert!(ids.contains(&to.id) && !ids.contains(&from.id), "{ids:?}");
+        assert_eq!(d.app.chart.symbol.id, to.id);
+        assert!(d.app.alerts.list.iter().all(|(a, _)| a.symbol != from.id));
+        assert!(d.app.alerts.list.iter().any(|(a, _)| a.symbol == to.id));
+        assert_eq!(d.app.notes.list.len(), notes + 1);
+        assert_eq!(d.app.notes.list[0].title, "Binance no longer trades XMR / USDT");
+        assert_eq!(d.app.notes.list[0].body, "Showing Kraken's XMR / USD instead.");
+    }
+
+    #[test]
     fn watchlist_changes_line_up_under_their_heading() {
         let mut d = Driver::new("watch-columns");
         // Long enough to scroll (the rows then sit narrower than the header).

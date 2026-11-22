@@ -82,15 +82,16 @@ enum Row<'a> {
     Sym(&'a Symbol, bool),
 }
 
-fn kind_name(k: AssetKind) -> &'static str {
-    match k {
+fn kind_name(s: &Symbol) -> &'static str {
+    match s.kind {
         AssetKind::Crypto => "crypto",
         AssetKind::Stock => "stock",
         AssetKind::Fund => "fund",
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
-        AssetKind::Commodity => "commodity",
+        AssetKind::Commodity if s.exchange() == "OANDA" => "spot",
+        AssetKind::Commodity => "futures",
     }
 }
 
@@ -344,7 +345,7 @@ impl SymbolSearch {
                                 if *complete && i == self.selected {
                                     format!("{}  insert", crate::icons::ph::ARROW_ELBOW_DOWN_LEFT)
                                 } else {
-                                    format!("{}  ·  {}", kind_name(s.kind), s.exchange())
+                                    format!("{}  ·  {}", kind_name(s), s.exchange())
                                 },
                             ),
                         };

@@ -455,6 +455,19 @@ fn overview_boards() {
         let t = std::time::Instant::now();
         match board(m, dir.path(), false) {
             Ok(b) => {
+                // A delisted pair's old closes once made up +331% for XMR.
+                if m == Market::Crypto {
+                    if let Some(x) = b.members.iter().find(|x| x.name == "XMR") {
+                        println!("  XMR via {}: 1D {:+.2}%", x.symbol.id, x.change(Period::Day));
+                    }
+                    let wild: Vec<_> = b
+                        .members
+                        .iter()
+                        .filter(|x| x.change(Period::Day).abs() > 60.0)
+                        .map(|x| format!("{} {:+.1}%", x.name, x.change(Period::Day)))
+                        .collect();
+                    assert!(wild.is_empty(), "implausible 1D moves: {wild:?}");
+                }
                 let mut top: Vec<_> = b.members.iter().collect();
                 top.sort_by(|a, c| c.cap.total_cmp(&a.cap));
                 let with = |p: Period| b.members.iter().filter(|x| x.change(p).is_finite()).count();
@@ -715,4 +728,32 @@ fn other_exchanges_quote_live() {
     assert!(live >= 3, "{seen:?}");
     // No faster than once a second each.
     assert!(seen.values().all(|v| v.len() <= 27), "{seen:?}");
+}
+
+/// Binance still lists XMRUSDT (status BREAK) but its daily list leaves it
+/// out, so a saved XMRUSDT carries on where Monero trades.
+#[test]
+#[ignore]
+fn delisted_pairs_find_where_the_coin_trades() {
+    let mut known = opentern_data::binance::Binance::default().symbols().unwrap();
+    known.extend(opentern_data::kraken::Kraken::default().symbols().unwrap());
+    known.extend(
+        opentern_data::coinbase::Coinbase::default()
+            .symbols()
+            .unwrap_or_default(),
+    );
+    let xmr = opentern_core::Symbol {
+        id: "BINANCE:XMRUSDT".into(),
+        description: "XMR / USDT".into(),
+        kind: opentern_core::AssetKind::Crypto,
+        currency: "USDT".into(),
+        tick_size: 0.01,
+        min_qty: 0.0,
+        timezone: "UTC".into(),
+    };
+    let to = opentern_data::hub::successor(&known, &xmr);
+    println!("BINANCE:XMRUSDT → {:?}", to.as_ref().map(|s| &s.id));
+    assert!(to.is_some_and(|s| s.id.ends_with("XMRUSD") || s.id.ends_with("XMRUSDT")));
+    let btc = known.iter().find(|s| s.id == "BINANCE:BTCUSDT").unwrap();
+    assert_eq!(opentern_data::hub::successor(&known, btc), None);
 }

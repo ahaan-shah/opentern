@@ -97,14 +97,17 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   the user is sending or receiving in Settings → Export and import, the local network
   (a UDP broadcast and one encrypted TCP connection; never the internet). About 200
   logos ship in the app (`crates/app/assets/logos/`, made by `scripts/fetch-logos.py`:
-  web3icons coins and theSVG brand marks, both MIT); others are fetched once per
-  symbol from jsDelivr or unpkg into `<workspace>/logos/` (demo mode shows only the bundled
+  web3icons coins and theSVG brand marks, both MIT, plus public-domain/CC0
+  Wikimedia Commons logos for NIFTY 500 companies); others are fetched once per
+  symbol from jsDelivr or unpkg, then logoapi.sh (US, NSE and BSE tickers) into `<workspace>/logos/` (demo mode shows only the bundled
   ones and fetches nothing), off in
   Settings → Symbol logos. Indices and commodities get drawn badges. The market
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
   500 list (niftyindices.com) at most weekly, Yahoo's
-  screener, spark and batch quotes, and CoinGecko's free markets API (one request
-  per refresh, no key) plus Binance daily bars and trading-day tickers for coins. The agent
+  screener, spark and batch quotes, plus Binance's 24h and trading-day tickers
+  and daily bars for coins. **No CoinGecko** (removed Nov 2026, the
+  maintainer's call: its keyless API is "for testing" and needs a visible
+  credit; prices come from the exchanges anyway). The agent
   panel (§ "Agent panel" below) only talks through the user's own Claude Code or
   Codex CLI, and only after they send a message (or open Codex's model menu):
   nothing starts at launch.
@@ -913,6 +916,16 @@ workspace.
   like TradingView's continuous contracts (`COMEX:GC1!`), served by Yahoo's front
   month (`GC=F`; `ICEEUR:BRN1!` → `BZ=F`). Hours treated as forex's (Sun–Fri,
   New York), which ignores the daily break and the grains' shorter sessions.
+  **Checked 22 Nov 2026:** Yahoo's daily closes equal the official settlements
+  (gold, Brent, WTI), but intraday prices are delayed (CME: ≥ 10 min on free
+  data), so the legend shows "Delayed 10 min" (`hub::delayed_minutes`). `BZ=F`
+  is NYMEX's Brent Last Day Financial, a cash-settled copy of ICE Brent.
+  Futures ≠ spot: futures sit above spot by the cost of carry. Spot comes
+  from OANDA (`opentern_core::spot_commodities()`, `OANDA:XAUUSD` …; listed
+  in search only with an OANDA key; search tags rows "futures"/"spot").
+  No free keyless real-time source exists for either (CME blocks and forbids
+  scraping its site). Icons: our own drawings in `assets/commodities/`
+  (`scripts/make-commodity-icons.py`), keyed by `opentern_core::commodity_of`.
 - Not yet: Dhan/Angel One/Zerodha, Upstox's protobuf websocket, IBKR TWS socket API,
   extended-hours shading, earnings markers.
 
@@ -1331,6 +1344,24 @@ every data change (scripts re-run on it).
 - A custom index with several segments has no native 1W/1M
   (`ExprProvider::natives`): its weeks and months are resampled from its
   own days, since weights change on a day, not at a month's start.
+- **Delisted pairs:** Binance keeps listing pairs it stopped (status
+  BREAK, e.g. XMRUSDT): `ticker/price` and `24hr` still return the last
+  trade from years ago, klines end then, and a `tradingDay` batch with any
+  unknown pair fails whole. Never guess a Binance pair: the exchange lists
+  (refreshed daily, trading pairs only; Kraken filtered by `status`) are
+  the truth. `hub::successor` moves a pair missing from its exchange's list
+  to the same coin elsewhere (`Event::Replaced` → `App::pair_replaced`:
+  watchlists, charts, price alerts, one note). The overview fetches
+  Binance's list itself before the lists are in, bisects refused
+  `tradingDay` batches, and ignores closes older than 4 days.
+- **Logo pictures are binary `.png` files** (`BUNDLED_IMAGES`, `include_bytes!`),
+  never base64 in a text `.logo`: long base64 matches the leak check's API-key
+  shapes. Runtime sources keep base64 only in `<workspace>/logos/`. logoapi.sh
+  answers stand-ins (favicon, name tile, wordmark) with 200 + `X-Logo-Fallback`:
+  treat those as no logo. Coin logos: web3icons, then cryptocurrency-icons
+  (both MIT; about 240 of Binance's ~525 USDT coins). Checked and not used:
+  Trust Wallet's token lists (MIT, 389 tokens, adds ~8), ErikThiart's set
+  (MIT label, but "sourced from CoinMarketCap").
 - Formulas: subtraction needs spaces (`AAPL - MSFT`) because `-` can be part of a
   ticker (`BRK-B`); bare tickers resolve via known symbols, crypto quote suffixes →
   Binance, else `YAHOO:`.
@@ -1566,15 +1597,13 @@ every data change (scripts re-run on it).
   Caps are kept as share counts in `<cache>/overview/shares-*.json` (refreshed
   daily), so caps follow the price when Yahoo refuses later. Under half with
   caps → `Sizing::Equal` (the legend's tooltip says so); the rest get the
-  smallest known cap. Crypto: CoinGecko `coins/markets` (250, filtered:
-  stablecoins, wrapped/staked, tokenized funds and stocks; `excluded`), kept to
-  coins with a pair in the cached exchange lists (`crypto_pairs`: Binance USDT
-  first), top 150; categories from the `CATEGORIES` table, else "Other";
-  For coins on Binance every period comes from Binance like the charts:
-  1D from the UTC day's open (`ticker/tradingDay`, 100 a request; the
-  watchlist's daily change), the rest from daily klines (kept an hour) to
-  the live price; CoinGecko's rolling 24h/7d/30d/1y only fill gaps. No
-  CoinGecko → Binance 24h tickers sized by volume (`Sizing::Volume`).
+  smallest known cap. Crypto: Binance's 24h tickers, USDT pairs with
+  volume (filtered: stablecoins, wrapped/staked, leveraged UP/DOWN;
+  `excluded`), the 150 most traded, sized by 24h volume (`Sizing::Volume`;
+  no market-cap source); categories from the `CATEGORIES` table, else
+  "Other". Every period comes from Binance like the charts: 1D from the
+  UTC day's open (`ticker/tradingDay`, 100 a request; the watchlist's daily
+  change), the rest from daily klines (kept an hour) to the live price.
 - **Yahoo's crumb endpoint answered 429 for a while on 8 Nov 2026** (then
   worked again). Don't try to get around a limit; the design above keeps
   working without the crumb for US and with kept share counts for India.
@@ -1596,8 +1625,7 @@ every data change (scripts re-run on it).
   a key only if Binance answered for its pair (one unknown pair fails a
   whole batch). `Overview::drawn`
   records tile/sector/button rects for tests. Market and period saved under
-  settings key `overview`. CoinGecko's free API asks for attribution: the
-  legend's tooltip names the source. Stills: `overview[:market[:period[:sector]]]`,
+  settings key `overview`. The legend's tooltip names the source. Stills: `overview[:market[:period[:sector]]]`,
   `overview-hover:<ticker>`.
 - **Large numbers** (Settings → General): per market, millions/billions or
   lakhs/crores (`format::Numbers`, settings key `number_style`, a global

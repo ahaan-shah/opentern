@@ -230,3 +230,52 @@ pub const BUNDLED: &[(&str, &str)] = &[
     ("coin-zec", include_str!("../assets/logos/coin-zec.logo")),
     ("coin-zil", include_str!("../assets/logos/coin-zil.logo")),
 ];
+
+/// Company logos kept as PNGs, drawn on a white disc.
+pub const BUNDLED_IMAGES: &[(&str, &[u8])] = &[
+    ("co-nse-abb", include_bytes!("../assets/logos/co-nse-abb.png")),
+    ("co-nse-bhel", include_bytes!("../assets/logos/co-nse-bhel.png")),
+    ("co-nse-bse", include_bytes!("../assets/logos/co-nse-bse.png")),
+    ("co-nse-crisil", include_bytes!("../assets/logos/co-nse-crisil.png")),
+    (
+        "co-nse-enginersin",
+        include_bytes!("../assets/logos/co-nse-enginersin.png"),
+    ),
+    ("co-nse-forcemot", include_bytes!("../assets/logos/co-nse-forcemot.png")),
+    ("co-nse-gail", include_bytes!("../assets/logos/co-nse-gail.png")),
+    ("co-nse-havells", include_bytes!("../assets/logos/co-nse-havells.png")),
+    (
+        "co-nse-hindpetro",
+        include_bytes!("../assets/logos/co-nse-hindpetro.png"),
+    ),
+    ("co-nse-ioc", include_bytes!("../assets/logos/co-nse-ioc.png")),
+    ("co-nse-itc", include_bytes!("../assets/logos/co-nse-itc.png")),
+    (
+        "co-nse-lemontree",
+        include_bytes!("../assets/logos/co-nse-lemontree.png"),
+    ),
+    ("co-nse-lt", include_bytes!("../assets/logos/co-nse-lt.png")),
+    ("co-nse-meesho", include_bytes!("../assets/logos/co-nse-meesho.png")),
+    (
+        "co-nse-natcopharm",
+        include_bytes!("../assets/logos/co-nse-natcopharm.png"),
+    ),
+    ("co-nse-niacl", include_bytes!("../assets/logos/co-nse-niacl.png")),
+    ("co-nse-ntpc", include_bytes!("../assets/logos/co-nse-ntpc.png")),
+    ("co-nse-oil", include_bytes!("../assets/logos/co-nse-oil.png")),
+    ("co-nse-ongc", include_bytes!("../assets/logos/co-nse-ongc.png")),
+    ("co-nse-pfc", include_bytes!("../assets/logos/co-nse-pfc.png")),
+    (
+        "co-nse-pidilitind",
+        include_bytes!("../assets/logos/co-nse-pidilitind.png"),
+    ),
+    ("co-nse-polycab", include_bytes!("../assets/logos/co-nse-polycab.png")),
+    ("co-nse-sail", include_bytes!("../assets/logos/co-nse-sail.png")),
+    (
+        "co-nse-sunpharma",
+        include_bytes!("../assets/logos/co-nse-sunpharma.png"),
+    ),
+    ("co-nse-titagarh", include_bytes!("../assets/logos/co-nse-titagarh.png")),
+    ("co-nse-voltas", include_bytes!("../assets/logos/co-nse-voltas.png")),
+    ("co-nse-zeel", include_bytes!("../assets/logos/co-nse-zeel.png")),
+];

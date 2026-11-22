@@ -9,10 +9,9 @@
 //! - **India**: the NIFTY 500, with NSE's industries, from NSE's own
 //!   constituent file (weekly; a copy ships too). Market caps from Yahoo's
 //!   batch quotes (which need Yahoo's session, like fundamentals).
-//! - **Crypto**: the largest coins by market cap from CoinGecko's free API
-//!   (one request), kept to coins a supported exchange trades; categories
-//!   from the table below, "Other" for the rest. When CoinGecko can't be
-//!   reached, Binance's 24-hour volume sizes the tiles instead.
+//! - **Crypto**: the coins Binance trades most against USDT, sized by
+//!   24-hour volume (Binance's tickers, one request; no market-cap source
+//!   is used); categories from the table below, "Other" for the rest.
 //!
 //! Prices and history come from Yahoo's spark (stocks) and Binance's daily
 //! bars (crypto). A stock's share count (cap ÷ price) is kept in
@@ -177,7 +176,7 @@ pub struct Price {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sizing {
     MarketCap,
-    /// Crypto without CoinGecko: 24-hour volume.
+    /// Crypto: 24-hour volume.
     Volume,
     /// No caps came: every tile the same size.
     Equal,
@@ -1215,39 +1214,6 @@ fn binance_pair(base: &str) -> Symbol {
     }
 }
 
-/// One coin from CoinGecko's markets list.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct Coin {
-    pub symbol: String,
-    pub name: String,
-    pub cap: f64,
-    pub price: f64,
-    pub day: f64,
-    pub week: f64,
-    pub month: f64,
-    pub year: f64,
-}
-
-pub(crate) fn parse_coingecko(v: &serde_json::Value) -> Vec<Coin> {
-    let f = |q: &serde_json::Value, k: &str| q[k].as_f64().unwrap_or(f64::NAN);
-    v.as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|q| {
-            Some(Coin {
-                symbol: q["symbol"].as_str()?.to_ascii_uppercase(),
-                name: q["name"].as_str()?.to_string(),
-                cap: q["market_cap"].as_f64().filter(|c| *c > 0.0)?,
-                price: f(q, "current_price"),
-                day: f(q, "price_change_percentage_24h_in_currency"),
-                week: f(q, "price_change_percentage_7d_in_currency"),
-                month: f(q, "price_change_percentage_30d_in_currency"),
-                year: f(q, "price_change_percentage_1y_in_currency"),
-            })
-        })
-        .collect()
-}
-
 /// Daily Binance closes per pair, kept an hour (the map refreshes far
 /// more often than a daily close changes).
 fn binance_closes(pairs: &[String]) -> HashMap<String, (Vec<i64>, Vec<f64>)> {
@@ -1308,13 +1274,27 @@ fn binance_days(pairs: &[String]) -> HashMap<String, (f64, f64)> {
     let agent = provider::agent();
     let mut out = HashMap::new();
     for chunk in pairs.chunks(100) {
-        let list: Vec<String> = chunk.iter().map(|p| format!("%22{p}%22")).collect();
-        let path = format!("/api/v3/ticker/tradingDay?type=MINI&symbols=%5B{}%5D", list.join(","));
-        if let Ok(v) = crate::binance::get(&agent, &path) {
-            out.extend(parse_days(&v));
-        }
+        days_of(&agent, chunk, &mut out);
     }
     out
+}
+
+/// One batch of trading days. Binance refuses a whole batch for one pair
+/// it doesn't know ("Invalid symbol"), so a refused batch is asked again
+/// in halves until the unknown pairs are on their own.
+fn days_of(agent: &ureq::Agent, pairs: &[String], out: &mut HashMap<String, (f64, f64)>) {
+    let list: Vec<String> = pairs.iter().map(|p| format!("%22{p}%22")).collect();
+    let path = format!("/api/v3/ticker/tradingDay?type=MINI&symbols=%5B{}%5D", list.join(","));
+    match crate::binance::get(agent, &path) {
+        Ok(v) => out.extend(parse_days(&v)),
+        Err(Error::Offline) => {}
+        Err(_) if pairs.len() > 1 => {
+            let (a, b) = pairs.split_at(pairs.len() / 2);
+            days_of(agent, a, out);
+            days_of(agent, b, out);
+        }
+        Err(_) => {}
+    }
 }
 
 pub(crate) fn parse_days(v: &serde_json::Value) -> HashMap<String, (f64, f64)> {
@@ -1333,106 +1313,75 @@ pub(crate) fn parse_days(v: &serde_json::Value) -> HashMap<String, (f64, f64)> {
 const COINS: usize = 150;
 
 fn crypto_board(dir: &Path) -> Result<Board> {
-    let known = crate::cache::Cache::open(dir)
+    let mut known = crate::cache::Cache::open(dir)
         .ok()
         .and_then(|c| c.symbols().ok())
         .unwrap_or_default();
+    // A new workspace's lists aren't in yet: Binance's trading pairs now
+    // (one request), so no coin is taken for a pair Binance stopped.
+    if !known.iter().any(|s| s.id.starts_with("BINANCE:"))
+        && let Ok(list) = crate::binance::Binance::default().symbols()
+    {
+        known.extend(list);
+    }
     let pairs = crypto_pairs(&known);
-    let pair_for = |base: &str| -> Option<Symbol> {
-        pairs
-            .get(base)
-            .cloned()
-            // Before the exchanges' lists are in: the coins named above.
-            .or_else(|| (pairs.is_empty() && category(base) != "Other").then(|| binance_pair(base)))
-    };
     let agent = provider::agent();
-    let url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d,1y";
-    let gecko = provider::get_json(&agent, url).map(|v| parse_coingecko(&v));
     let now_s = provider::now_ms() / 1000;
-    let (mut members, sizing, source) = match gecko {
-        Ok(coins) if !coins.is_empty() => {
-            let mut seen = std::collections::HashSet::new();
-            let members: Vec<Member> = coins
-                .into_iter()
-                .filter(|c| !excluded(&c.symbol, &c.name, c.price))
-                .filter(|c| seen.insert(c.symbol.clone()))
-                .filter_map(|c| {
-                    let symbol = pair_for(&c.symbol)?;
-                    let mut change = [f64::NAN; 6];
-                    change[Period::Day.index()] = c.day;
-                    change[Period::Week.index()] = c.week;
-                    change[Period::Month.index()] = c.month;
-                    change[Period::Year.index()] = c.year;
-                    Some(Member {
-                        symbol,
-                        sector: category(&c.symbol).to_string(),
-                        industry: String::new(),
-                        name: c.name,
-                        cap: c.cap,
-                        price: c.price,
-                        change,
-                        closes: Vec::new(),
-                        key: String::new(),
-                        ext: None,
-                    })
-                })
-                .take(COINS)
-                .collect();
-            (members, Sizing::MarketCap, "CoinGecko".to_string())
-        }
-        _ => {
-            // Binance's 24-hour tickers: sized by volume.
-            let v = crate::binance::get(&agent, "/api/v3/ticker/24hr")?;
-            let mut rows: Vec<(String, f64, f64, f64)> = v
-                .as_array()
-                .into_iter()
-                .flatten()
-                .filter_map(|r| {
-                    let t = r["symbol"].as_str()?;
-                    let base = t.strip_suffix("USDT")?;
-                    let vol = provider::num(&r["quoteVolume"])?;
-                    let price = provider::num(&r["lastPrice"])?;
-                    let ch = provider::num(&r["priceChangePercent"])?;
-                    (!base.is_empty()
-                        && price > 0.0
-                        && !excluded(base, "", price)
-                        && !base.ends_with("UP")
-                        && !base.ends_with("DOWN"))
-                    .then(|| (base.to_string(), vol, price, ch))
-                })
-                .collect();
-            rows.sort_by(|a, b| b.1.total_cmp(&a.1));
-            let members = rows
-                .into_iter()
-                .take(COINS)
-                .map(|(base, vol, price, ch)| {
-                    let mut change = [f64::NAN; 6];
-                    change[Period::Day.index()] = ch;
-                    Member {
-                        symbol: pairs.get(&base).cloned().unwrap_or_else(|| binance_pair(&base)),
-                        sector: category(&base).to_string(),
-                        industry: String::new(),
-                        name: base,
-                        cap: vol,
-                        price,
-                        change,
-                        closes: Vec::new(),
-                        key: String::new(),
-                        ext: None,
-                    }
-                })
-                .collect();
-            (members, Sizing::Volume, "Binance 24h volume".to_string())
-        }
-    };
-    // Binance wherever a coin trades there, so every period is measured
-    // like the charts and watchlist: 1D from today's UTC open, the rest
-    // from daily closes, all to the live price. CoinGecko's rolling
-    // figures only fill in where Binance has too little history.
+    // Binance's 24-hour tickers: the most traded coins, sized by volume.
+    let v = crate::binance::get(&agent, "/api/v3/ticker/24hr")?;
+    let mut rows: Vec<(String, f64, f64, f64)> = v
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|r| {
+            let t = r["symbol"].as_str()?;
+            let base = t.strip_suffix("USDT")?;
+            let vol = provider::num(&r["quoteVolume"])?;
+            let price = provider::num(&r["lastPrice"])?;
+            let ch = provider::num(&r["priceChangePercent"])?;
+            // Pairs Binance stopped trading keep a last price but no volume.
+            (!base.is_empty()
+                && price > 0.0
+                && vol > 0.0
+                && !excluded(base, "", price)
+                && !base.ends_with("UP")
+                && !base.ends_with("DOWN"))
+            .then(|| (base.to_string(), vol, price, ch))
+        })
+        .collect();
+    rows.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let mut members: Vec<Member> = rows
+        .into_iter()
+        .take(COINS)
+        .map(|(base, vol, price, ch)| {
+            let mut change = [f64::NAN; 6];
+            change[Period::Day.index()] = ch;
+            Member {
+                symbol: pairs.get(&base).cloned().unwrap_or_else(|| binance_pair(&base)),
+                sector: category(&base).to_string(),
+                industry: String::new(),
+                name: base,
+                cap: vol,
+                price,
+                change,
+                closes: Vec::new(),
+                key: String::new(),
+                ext: None,
+            }
+        })
+        .collect();
+    let (sizing, source) = (Sizing::Volume, "Binance 24h volume".to_string());
+    // Every period measured like the charts and watchlist: 1D from today's
+    // UTC open, the rest from daily closes, all to the live price.
     let binance: Vec<String> = members
         .iter()
         .filter_map(|m| m.symbol.id.strip_prefix("BINANCE:").map(str::to_string))
         .collect();
+    // The same coins elsewhere, for any Binance stopped trading.
+    let others: HashMap<String, Symbol> = {
+        let elsewhere: Vec<Symbol> = known.iter().filter(|s| s.exchange() != "BINANCE").cloned().collect();
+        crypto_pairs(&elsewhere)
+    };
     let (closes, days) = std::thread::scope(|s| {
         let days = s.spawn(|| binance_days(&binance));
         (binance_closes(&binance), days.join().unwrap_or_default())
@@ -1441,14 +1390,25 @@ fn crypto_board(dir: &Path) -> Result<Board> {
         let Some(pair) = m.symbol.id.strip_prefix("BINANCE:") else {
             continue;
         };
-        let day = days.get(pair).copied();
-        if let Some((_, last)) = day {
-            // Refreshed between boards only when Binance knows the pair (a
-            // batch with an unknown one fails whole).
-            m.key = pair.to_string();
-            m.price = last;
-        }
-        if let Some((t, c)) = closes.get(pair) {
+        // No trading day from Binance: a pair it delisted but still lists
+        // (XMRUSDT: status BREAK, closes ending Feb 2024). Its old closes
+        // against today's price would make up a change (+331% for XMR), so
+        // they're not used, and the coin opens where it trades.
+        let Some(day) = days.get(pair).copied() else {
+            if let Some(alt) = others.get(&m.name) {
+                m.symbol = alt.clone();
+            }
+            continue;
+        };
+        let (_, last) = day;
+        // Refreshed between boards only when Binance trades the pair.
+        m.key = pair.to_string();
+        m.price = last;
+        let day = Some(day);
+        if let Some((t, c)) = closes.get(pair)
+            // Closes that stopped days ago are a pair that stopped.
+            && t.last().is_some_and(|l| now_s - l < 4 * 86_400)
+        {
             for (i, v) in changes(t, c, m.price, None, now_s).iter().enumerate() {
                 if v.is_finite() {
                     m.change[i] = *v;
@@ -1803,7 +1763,7 @@ mod tests {
     }
 
     #[test]
-    fn spark_screener_and_coingecko_replies_parse() {
+    fn spark_and_screener_replies_parse() {
         let v: serde_json::Value = serde_json::from_str(
             r#"{"AAPL":{"timestamp":[1,2,3],"close":[1.0,null,3.0],"fulldayPrice":3.1,"fulldayChangePercent":-0.4}}"#,
         )
@@ -1820,13 +1780,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(parse_quotes(&v), vec![("NVDA".into(), 4.5e12, 186.6, "NASDAQ".into())]);
-        let v: serde_json::Value = serde_json::from_str(
-            r#"[{"symbol":"btc","name":"Bitcoin","market_cap":1.5e12,"current_price":75000,"price_change_percentage_24h_in_currency":-0.4,"price_change_percentage_7d_in_currency":-2.3,"price_change_percentage_30d_in_currency":null,"price_change_percentage_1y_in_currency":-27.0}]"#,
-        )
-        .unwrap();
-        let c = &parse_coingecko(&v)[0];
-        assert_eq!((c.symbol.as_str(), c.day, c.week), ("BTC", -0.4, -2.3));
-        assert!(c.month.is_nan());
     }
 
     #[test]

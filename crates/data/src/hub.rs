@@ -127,6 +127,13 @@ pub enum Event {
         last: f64,
         prev: f64,
     },
+    /// A crypto pair its exchange no longer trades (it left the exchange's
+    /// list) and the same coin where it still does: charts and quotes
+    /// carry on with `to`.
+    Replaced {
+        from: Symbol,
+        to: Symbol,
+    },
     /// A US stock's pre-market or after-hours price (`None` once those
     /// hours are over), for symbols in `Request::Quotes`.
     Extended {
@@ -201,6 +208,7 @@ impl Hub {
     /// prices with no network at all; `wake` asks the UI to repaint.
     pub fn start(dir: PathBuf, demo: bool, wake: Waker) -> Hub {
         let _ = CACHE_DIR.set(dir.clone());
+        DEMO.store(demo, std::sync::atomic::Ordering::Relaxed);
         let (tx, req_rx) = unbounded();
         let (ev_tx, rx) = unbounded();
         let out = Out { tx: ev_tx, wake };
@@ -254,7 +262,10 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
         let (dir, out) = (dir.clone(), out.clone());
         std::thread::Builder::new()
             .name(format!("data-{}", symbol.ticker()))
-            .spawn(move || Session::run(chart, symbol, tf, ext, dir, demo, cmd_rx, out))
+            .spawn(move || {
+                let symbol = carry_on(&dir, demo, vec![symbol], &out).remove(0);
+                Session::run(chart, symbol, tf, ext, dir, demo, cmd_rx, out)
+            })
             .ok()
             .map(|_| tx)
     };
@@ -384,9 +395,13 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                 }
                 let (tx, cmd_rx) = unbounded();
                 let out = out.clone();
+                let dir = dir.clone();
                 if std::thread::Builder::new()
                     .name("data-quotes".into())
-                    .spawn(move || quote_worker(symbols, demo, cmd_rx, out))
+                    .spawn(move || {
+                        let symbols = carry_on(&dir, demo, symbols, &out);
+                        quote_worker(symbols, demo, cmd_rx, out)
+                    })
                     .is_ok()
                 {
                     quotes = Some(tx);
@@ -649,6 +664,79 @@ pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
         }
         _ => Arc::new(Yahoo::default()),
     }
+}
+
+/// The exchanges whose whole list of pairs is kept (refreshed daily): a
+/// pair missing from its list has stopped trading there.
+fn listed_source(exchange: &str) -> Option<&'static str> {
+    Some(match exchange {
+        "BINANCE" => "binance",
+        "BYBIT" => "bybit",
+        "OKX" => "okx",
+        "COINBASE" => "coinbase",
+        "KRAKEN" => "kraken",
+        _ => return None,
+    })
+}
+
+/// Where a crypto pair carries on when its exchange stopped trading it:
+/// the same coin on the best other exchange (USDT/USD first; Binance,
+/// Coinbase, Bybit, OKX, Kraken). None while it still trades, when the
+/// exchange's list isn't in yet, or when no exchange has the coin.
+pub fn successor(known: &[Symbol], sym: &Symbol) -> Option<Symbol> {
+    if sym.kind != opentern_core::AssetKind::Crypto {
+        return None;
+    }
+    listed_source(sym.exchange())?;
+    let prefix = format!("{}:", sym.exchange());
+    let mut has_list = false;
+    for s in known {
+        if s.id == sym.id {
+            return None;
+        }
+        has_list |= s.id.starts_with(&prefix);
+    }
+    if !has_list {
+        return None;
+    }
+    let base = match sym.description.split_once(" / ") {
+        Some((b, _)) => b.trim().to_ascii_uppercase(),
+        None => crate::provider::split_pair(sym.ticker())?.0.to_ascii_uppercase(),
+    };
+    crate::overview::crypto_pairs(known).remove(&base)
+}
+
+/// Swaps delisted pairs for their successors, saying so once each.
+fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) -> Vec<Symbol> {
+    if demo || !symbols.iter().any(|s| s.kind == opentern_core::AssetKind::Crypto) {
+        return symbols;
+    }
+    let known = Cache::open(dir).ok().and_then(|c| c.symbols().ok()).unwrap_or_default();
+    symbols
+        .into_iter()
+        .map(|s| match successor(&known, &s) {
+            Some(to) => {
+                out.send(Event::Replaced {
+                    from: s,
+                    to: to.clone(),
+                });
+                to
+            }
+            None => s,
+        })
+        .collect()
+}
+
+static DEMO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// How many minutes behind the exchange a symbol's free prices are, when
+/// known: CME's and ICE's futures (our commodities, from Yahoo) reach free
+/// sources at least 10 minutes late. Daily closes are the settlements.
+pub fn delayed_minutes(sym: &Symbol) -> Option<u32> {
+    (sym.kind == opentern_core::AssetKind::Commodity
+        && !DEMO.load(std::sync::atomic::Ordering::Relaxed)
+        && yahoo_routed(sym))
+    .then_some(10)
 }
 
 /// Whether Yahoo serves a symbol (its quotes come from Yahoo's quote API).
@@ -1552,6 +1640,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
     let load = |cache: &Option<Cache>| {
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         known.extend(opentern_core::commodities());
+        known.extend(opentern_core::spot_commodities());
         known.extend(crate::overview::listed_stocks());
         if let Some(c) = cache {
             known.extend(c.symbols().unwrap_or_default());
@@ -1706,9 +1795,12 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 });
                 continue;
             }
+            // OANDA's spot commodities only once there's a key to chart them.
+            let oanda = creds().read().unwrap_or_else(|e| e.into_inner()).oanda.is_some();
             let mut hits: Vec<(u32, Symbol)> = known
                 .iter()
                 .filter(|s| want_ex.as_deref().is_none_or(|e| s.exchange() == e))
+                .filter(|s| oanda || s.exchange() != "OANDA")
                 .filter_map(|s| Some((rank(s, &q)?, s.clone())))
                 .collect();
             // Sources without a symbol list: take "OANDA:EURUSD" as typed.
@@ -1717,9 +1809,10 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 && !hits.iter().any(|(_, h)| h.ticker() == q)
             {
                 let forex = e == "OANDA";
+                let spot = opentern_core::spot_commodities().into_iter().find(|s| s.ticker() == q);
                 hits.push((
                     0,
-                    Symbol {
+                    spot.unwrap_or_else(|| Symbol {
                         id: format!("{e}:{q}"),
                         description: if forex {
                             "OANDA".into()
@@ -1739,7 +1832,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                         tick_size: if forex { 0.00001 } else { 0.01 },
                         min_qty: 0.0,
                         timezone: if forex { "UTC".into() } else { "America/New_York".into() },
-                    },
+                    }),
                 ));
             }
             // No coin by that name yet: perhaps it listed today.
@@ -1779,6 +1872,39 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn pair(id: &str) -> Symbol {
+        let (_, t) = id.split_once(':').unwrap();
+        let (b, q) = crate::provider::split_pair(t).unwrap();
+        Symbol {
+            id: id.into(),
+            description: format!("{b} / {q}"),
+            kind: opentern_core::AssetKind::Crypto,
+            currency: q.into(),
+            tick_size: 0.01,
+            min_qty: 0.0,
+            timezone: "UTC".into(),
+        }
+    }
+
+    #[test]
+    fn a_delisted_pair_carries_on_where_the_coin_still_trades() {
+        let xmr = pair("BINANCE:XMRUSDT");
+        let known = vec![pair("BINANCE:BTCUSDT"), pair("KRAKEN:XMRUSD"), pair("KRAKEN:XMREUR")];
+        // Binance's list no longer has it: Kraken's USD pair.
+        assert_eq!(successor(&known, &xmr).map(|s| s.id), Some("KRAKEN:XMRUSD".into()));
+        // Still listed: stays.
+        assert_eq!(successor(&known, &pair("BINANCE:BTCUSDT")), None);
+        // Binance's list not in yet: no guessing.
+        let no_binance = vec![pair("KRAKEN:XMRUSD")];
+        assert_eq!(successor(&no_binance, &xmr), None);
+        // Nowhere else: stays (and shows it's stale).
+        assert_eq!(successor(&[pair("BINANCE:BTCUSDT")], &xmr), None);
+        // Not crypto: never.
+        let mut stock = pair("BINANCE:XMRUSDT");
+        stock.kind = opentern_core::AssetKind::Stock;
+        assert_eq!(successor(&known, &stock), None);
+    }
 
     /// Real Yahoo: a cache holding pre-split prices (HDFC Bank's 1:1 bonus,
     /// Aug 2025, undone by doubling what's cached) is replaced.

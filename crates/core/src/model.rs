@@ -253,9 +253,89 @@ pub fn commodities() -> Vec<Symbol> {
     ]
 }
 
+/// Spot commodities from OANDA (needs the user's OANDA key): the price
+/// of the metal or barrel now, not a futures contract. Futures trade above
+/// spot by the cost of carry, so the two never show the same number.
+pub fn spot_commodities() -> Vec<Symbol> {
+    let s = |t: &str, description: &str, tick_size| Symbol {
+        id: format!("OANDA:{t}"),
+        description: description.into(),
+        kind: AssetKind::Commodity,
+        currency: "USD".into(),
+        tick_size,
+        min_qty: 0.0,
+        timezone: "America/New_York".into(),
+    };
+    vec![
+        s("XAUUSD", "Gold Spot / U.S. Dollar", 0.01),
+        s("XAGUSD", "Silver Spot / U.S. Dollar", 0.001),
+        s("XPTUSD", "Platinum Spot / U.S. Dollar", 0.01),
+        s("XPDUSD", "Palladium Spot / U.S. Dollar", 0.01),
+        s("XCUUSD", "Copper Spot / U.S. Dollar", 0.0001),
+        s("WTICOUSD", "Crude Oil WTI Spot", 0.001),
+        s("BCOUSD", "Brent Crude Oil Spot", 0.001),
+        s("NATGASUSD", "Natural Gas Spot", 0.0001),
+        s("WHEATUSD", "Wheat Spot", 0.001),
+        s("CORNUSD", "Corn Spot", 0.001),
+        s("SOYBNUSD", "Soybeans Spot", 0.001),
+        s("SUGARUSD", "Sugar Spot", 0.00001),
+    ]
+}
+
+/// Which commodity a symbol is, futures or spot: "gold", "wti", …
+/// (None for anything else). Names its icon.
+pub fn commodity_of(s: &Symbol) -> Option<&'static str> {
+    if s.kind != AssetKind::Commodity {
+        return None;
+    }
+    let t = s.ticker().to_uppercase();
+    let root = t.trim_end_matches('!').trim_end_matches('1').trim_end_matches("USD");
+    Some(match root {
+        "GC" | "XAU" => "gold",
+        "SI" | "XAG" => "silver",
+        "PL" | "XPT" => "platinum",
+        "PA" | "XPD" => "palladium",
+        "HG" | "XCU" => "copper",
+        "CL" | "WTICO" => "wti",
+        "BRN" | "BZ" | "BCO" => "brent",
+        "NG" | "NATGAS" => "natgas",
+        "RB" => "gasoline",
+        "HO" => "heating-oil",
+        "ZW" | "WHEAT" => "wheat",
+        "ZC" | "CORN" => "corn",
+        "ZS" | "SOYBN" => "soybeans",
+        "KC" => "coffee",
+        "SB" | "SUGAR" => "sugar",
+        "CC" => "cocoa",
+        "CT" => "cotton",
+        "LE" => "cattle",
+        _ => return None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn futures_and_spot_name_the_same_commodity() {
+        let of = |id: &str| {
+            let all: Vec<Symbol> = commodities().into_iter().chain(spot_commodities()).collect();
+            commodity_of(all.iter().find(|s| s.id == id).unwrap())
+        };
+        assert_eq!(of("COMEX:GC1!"), Some("gold"));
+        assert_eq!(of("OANDA:XAUUSD"), Some("gold"));
+        assert_eq!(of("ICEEUR:BRN1!"), Some("brent"));
+        assert_eq!(of("OANDA:BCOUSD"), Some("brent"));
+        assert_eq!(of("OANDA:NATGASUSD"), Some("natgas"));
+        assert!(
+            commodities()
+                .iter()
+                .chain(&spot_commodities())
+                .all(|s| commodity_of(s).is_some())
+        );
+        assert_eq!(commodity_of(&starter_watchlist()[0]), None);
+    }
 
     #[test]
     fn parses_tradingview_intervals() {

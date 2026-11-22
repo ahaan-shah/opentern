@@ -92,8 +92,8 @@ revenue growth, margins, RSI and moving averages, then every member's, as a
 colour-coded table or a treemap. **Compare** puts all your indices side by side.
 
 **Market overview.** One click beside the layout button swaps the charts for a
-heatmap of a whole market: the S&P 500, the NIFTY 500 or the 150 largest coins.
-Tiles are sized by market cap, grouped by sector and coloured by the day's
+heatmap of a whole market: the S&P 500, the NIFTY 500 or the 150 most traded coins.
+Tiles are sized by market cap (coins by 24-hour volume), grouped by sector and coloured by the day's
 change, or the week's, month's, quarter's, year to date or year's. Click a
 sector to zoom in, click a tile to open its chart. Your watchlists and the
 agent stay beside it.
@@ -245,7 +245,7 @@ telemetry. Opentern only goes online for the market data providers you use, a
 check for a new release on GitHub (you can turn it off in Settings), symbol
 logos (also optional), and the agent CLI you choose, when you send it a message.
 The market overview, while it's open, also fetches the S&P 500 and NIFTY 500
-member lists (weekly) and coin market caps from CoinGecko.
+member lists (weekly).
 API keys are kept in your system's keychain, never in a file.
 
 | | Linux | macOS | Windows |
