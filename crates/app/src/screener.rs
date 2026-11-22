@@ -276,8 +276,27 @@ pub fn presets() -> Vec<(&'static str, Vec<Symbol>)> {
     vec![
         ("Crypto majors", crypto),
         ("US large caps", us),
-        ("India large caps", india),
+        ("Indian large caps", india),
     ]
+}
+
+/// A preset's name as it is now (saves and the agent may use an old one:
+/// "India large caps" until Nov 2026).
+pub fn preset_name(name: &str) -> &str {
+    match name {
+        "India large caps" => "Indian large caps",
+        n => n,
+    }
+}
+
+/// A preset's symbols, by its name (old names too).
+pub fn preset(name: &str) -> Vec<Symbol> {
+    let name = preset_name(name);
+    presets()
+        .into_iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, s)| s)
+        .unwrap_or_default()
 }
 
 /// What runs on each symbol's bars, prepared on the UI thread.
@@ -388,11 +407,7 @@ impl App {
                 .find(|w| w.id == *id)
                 .map(|w| w.symbols())
                 .unwrap_or_default(),
-            Universe::Preset(name) => presets()
-                .into_iter()
-                .find(|(n, _)| n == name)
-                .map(|(_, s)| s)
-                .unwrap_or_default(),
+            Universe::Preset(name) => preset(name),
         }
     }
 
@@ -404,7 +419,7 @@ impl App {
                 .find(|w| w.id == *id)
                 .map(|w| w.name.clone())
                 .unwrap_or_else(|| "Watchlist".into()),
-            Universe::Preset(n) => n.clone(),
+            Universe::Preset(n) => preset_name(n).to_string(),
         }
     }
 

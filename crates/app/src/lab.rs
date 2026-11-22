@@ -496,11 +496,7 @@ impl App {
                 .find(|w| w.id == *id)
                 .map(|w| w.symbols())
                 .unwrap_or_default(),
-            crate::screener::Universe::Preset(name) => crate::screener::presets()
-                .into_iter()
-                .find(|(n, _)| n == name)
-                .map(|(_, s)| s)
-                .unwrap_or_default(),
+            crate::screener::Universe::Preset(name) => crate::screener::preset(name),
         };
         if symbols.is_empty() {
             self.lab.status = "That list has no symbols.".into();
@@ -810,7 +806,7 @@ impl App {
             let preset = crate::screener::presets()
                 .into_iter()
                 .map(|(p, _)| p)
-                .find(|p| norm(p) == norm(&u));
+                .find(|p| norm(p) == norm(crate::screener::preset_name(&u)));
             self.lab.setup.universe = match (list, preset) {
                 (Some(id), _) => crate::screener::Universe::Watchlist(id),
                 (None, Some(p)) => crate::screener::Universe::Preset(p.to_string()),
@@ -1232,7 +1228,7 @@ impl App {
                         .find(|w| w.id == *id)
                         .map(|w| w.name.clone())
                         .unwrap_or_else(|| "Watchlist".into()),
-                    crate::screener::Universe::Preset(n) => n.clone(),
+                    crate::screener::Universe::Preset(n) => crate::screener::preset_name(n).to_string(),
                 };
                 let lists = self.watchlists.clone();
                 let s = &mut self.lab.setup;

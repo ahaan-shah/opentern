@@ -14,6 +14,8 @@ pub struct Driver {
     time: f64,
     pointer: Pos2,
     pub dir: std::path::PathBuf,
+    /// The window's size (1400 × 900 unless a test sets another).
+    pub screen: egui::Vec2,
 }
 
 impl Driver {
@@ -37,6 +39,7 @@ impl Driver {
             time: 0.0,
             pointer: pos2(10.0, 10.0),
             dir,
+            screen: vec2(1400.0, 900.0),
         };
         d.wait(|a| !a.chart.bars.is_empty());
         d
@@ -45,7 +48,7 @@ impl Driver {
     pub fn frame(&mut self, events: Vec<Event>) {
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             events,
             ..Default::default()
@@ -447,6 +450,35 @@ mod tests {
         d.app.share_board(Market::Us);
         assert_eq!(tile(&d, &fed.symbol.id).price, fed.price * 1.05);
         assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn the_overview_header_fits_the_smallest_window() {
+        let mut d = Driver::new("overview-narrow");
+        d.screen = vec2(1000.0, 640.0);
+        d.app.layout.overview = true;
+        for _ in 0..5 {
+            d.frame(vec![]);
+        }
+        let all = d.all_texts();
+        let at = |name: &str| all.iter().filter(|(t, _)| t == name).map(|x| x.1).collect::<Vec<_>>();
+        let tabs: Vec<Rect> = ["US markets", "Indian markets", "Crypto"]
+            .iter()
+            .map(|n| *at(n).first().unwrap_or_else(|| panic!("{n} not drawn: {all:?}")))
+            .collect();
+        // The period buttons on the same row.
+        let row = tabs[0].center().y;
+        let periods: Vec<Rect> = ["1W", "YTD", "1Y"]
+            .iter()
+            .filter_map(|n| at(n).into_iter().find(|r| (r.center().y - row).abs() < 6.0))
+            .collect();
+        assert_eq!(periods.len(), 3, "the periods share the tabs' row");
+        let mut row_items: Vec<Rect> = tabs.iter().chain(&periods).copied().collect();
+        row_items.sort_by(|a, b| a.left().total_cmp(&b.left()));
+        for w in row_items.windows(2) {
+            assert!(w[0].right() <= w[1].left(), "overlap: {w:?}");
+        }
+        assert!(row_items.last().unwrap().right() < 1000.0);
     }
 
     #[test]

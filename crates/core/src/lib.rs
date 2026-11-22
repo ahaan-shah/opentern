@@ -9,6 +9,7 @@ pub mod secrets;
 pub mod store;
 pub mod transfer;
 pub mod update;
+mod venue_days;
 
 pub use model::*;
 pub use store::{Settings, Store};

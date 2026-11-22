@@ -4,6 +4,7 @@
 
 ### New
 - **Indices from around the world.** The Nikkei 225, FTSE 100, DAX, CAC 40, Euro Stoxx 50, SMI, Hang Seng, SSE Composite, KOSPI, Taiwan Weighted, Straits Times, ASX 200, TSX and Ibovespa, plus the S&P 500, Nasdaq 100 and Composite, Dow and Russell 2000, each with its exchange's trading hours. They show their country's flag, or TradingView's badge.
+- **Holidays, half days and lunch breaks for every exchange.** Tokyo, London, Frankfurt, Paris, Zurich, Hong Kong, Shanghai, Seoul, Taipei, Singapore, Sydney, Toronto and São Paulo know when they're closed, so an index's open/closed dot, its daily bars and the Calendar widget are right. The Calendar lists the chart's exchange first.
 - **Rates, volatility and the dollar.** US 3-month, 5-, 10- and 30-year Treasury yields, VIX, the Nasdaq 100's VXN, India VIX, the MOVE bond volatility index and the U.S. Dollar Index.
 - **Crypto perpetual futures.** Binance, Bybit and OKX perpetuals (`BTCUSDT.P`) chart and stream live like spot, show up in search tagged "perpetual", and the legend shows the funding rate and the time to the next payment. The depth-of-market ladder works for Binance and Bybit perpetuals.
 - **Commodity icons.** Gold and silver show stacked bars, platinum, palladium and copper ingots with their element, oil a barrel, natural gas a flame, and the farm and livestock markets their own pictures, in place of letter badges.
@@ -11,6 +12,7 @@
 - **Spot commodities from OANDA.** With an OANDA key, search lists spot gold, silver, platinum, palladium, copper, WTI, Brent, natural gas, wheat, corn, soybeans and sugar beside the futures. Search tags each row "futures" or "spot".
 
 ### Changed
+- **Clearer market names.** "US markets" and "Indian markets" replace "US stocks" and "India" in the market overview, hotlists, the Calendar, onboarding and settings; the screener's preset is "Indian large caps".
 - **The crypto map shows the 150 most traded coins, sized by 24-hour volume on Binance.** Opentern no longer uses CoinGecko: its free API is meant for testing, and every price already comes from the exchanges.
 - **Delayed futures prices are labelled.** Commodity futures charts show "Delayed 10 min": free sources get CME's and ICE's prices at least 10 minutes late. Daily closes are the official settlements.
 - **A friendlier installer on Linux and macOS.** `install.sh` shows the Opentern logo, the version it's installing and a progress bar with megabytes, then a tick for each step. Piped into a log, it prints plain lines as before.

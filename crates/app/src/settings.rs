@@ -543,10 +543,7 @@ impl App {
                 ui.painter().text(
                     r.left_center(),
                     Align2::LEFT_CENTER,
-                    match m {
-                        Market::India => "Indian stocks",
-                        _ => m.label(),
-                    },
+                    m.label(),
                     theme::regular(13.0),
                     t.text,
                 );

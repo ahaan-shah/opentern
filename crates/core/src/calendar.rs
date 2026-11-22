@@ -47,25 +47,88 @@ pub enum Venue {
 }
 
 impl Venue {
-    /// (time zone, open, close), local regular hours.
-    fn hours(self) -> (&'static str, (i8, i8), (i8, i8)) {
+    /// Its trading days (`venue_days.rs`, made by
+    /// `scripts/exchange-holidays.py`).
+    pub fn days(self) -> &'static VenueDays {
+        use crate::venue_days as v;
         match self {
-            Venue::Tokyo => ("Asia/Tokyo", (9, 0), (15, 30)),
-            Venue::London => ("Europe/London", (8, 0), (16, 30)),
-            Venue::Frankfurt => ("Europe/Berlin", (9, 0), (17, 30)),
-            Venue::Paris => ("Europe/Paris", (9, 0), (17, 30)),
-            Venue::Zurich => ("Europe/Zurich", (9, 0), (17, 30)),
-            Venue::HongKong => ("Asia/Hong_Kong", (9, 30), (16, 0)),
-            Venue::Shanghai => ("Asia/Shanghai", (9, 30), (15, 0)),
-            Venue::Seoul => ("Asia/Seoul", (9, 0), (15, 30)),
-            Venue::Taipei => ("Asia/Taipei", (9, 0), (13, 30)),
-            Venue::Singapore => ("Asia/Singapore", (9, 0), (17, 0)),
-            Venue::Sydney => ("Australia/Sydney", (10, 0), (16, 0)),
-            Venue::Toronto => ("America/Toronto", (9, 30), (16, 0)),
-            Venue::SaoPaulo => ("America/Sao_Paulo", (10, 0), (17, 0)),
+            Venue::Tokyo => &v::TOKYO,
+            Venue::London => &v::LONDON,
+            Venue::Frankfurt => &v::FRANKFURT,
+            Venue::Paris => &v::PARIS,
+            Venue::Zurich => &v::ZURICH,
+            Venue::HongKong => &v::HONGKONG,
+            Venue::Shanghai => &v::SHANGHAI,
+            Venue::Seoul => &v::SEOUL,
+            Venue::Taipei => &v::TAIPEI,
+            Venue::Singapore => &v::SINGAPORE,
+            Venue::Sydney => &v::SYDNEY,
+            Venue::Toronto => &v::TORONTO,
+            Venue::SaoPaulo => &v::SAOPAULO,
         }
     }
+
+    /// The exchange's name and where it is.
+    pub fn name(self) -> (&'static str, &'static str) {
+        match self {
+            Venue::Tokyo => ("Japan Exchange Group", "Tokyo"),
+            Venue::London => ("London Stock Exchange", "London"),
+            Venue::Frankfurt => ("Xetra", "Frankfurt"),
+            Venue::Paris => ("Euronext Paris", "Paris"),
+            Venue::Zurich => ("SIX Swiss Exchange", "Zurich"),
+            Venue::HongKong => ("Hong Kong Exchanges", "Hong Kong"),
+            Venue::Shanghai => ("Shanghai Stock Exchange", "Shanghai"),
+            Venue::Seoul => ("Korea Exchange", "Seoul"),
+            Venue::Taipei => ("Taiwan Stock Exchange", "Taipei"),
+            Venue::Singapore => ("Singapore Exchange", "Singapore"),
+            Venue::Sydney => ("ASX", "Sydney"),
+            Venue::Toronto => ("Toronto Stock Exchange", "Toronto"),
+            Venue::SaoPaulo => ("B3", "São Paulo"),
+        }
+    }
+
+    /// The hours on local date `d` if it trades: (open, close, lunch).
+    /// Unknown years (past `until`): weekdays at the regular hours.
+    fn day(self, d: Date) -> Option<DayHours> {
+        let v = self.days();
+        let key = (d.year(), d.month(), d.day());
+        if let Ok(i) = v.special.binary_search_by(|x| (x.0, x.1, x.2).cmp(&key)) {
+            let x = v.special[i];
+            return Some((x.3, x.4, x.5));
+        }
+        if matches!(d.weekday(), Weekday::Saturday | Weekday::Sunday) || self.holiday(d).is_some() {
+            return None;
+        }
+        Some((v.open, v.close, v.lunch))
+    }
+
+    /// The holiday on `d`, if the exchange is shut for one ("" = unnamed).
+    fn holiday(self, d: Date) -> Option<&'static str> {
+        let key = (d.year(), d.month(), d.day());
+        let h = self.days().holidays;
+        h.binary_search_by(|x| (x.0, x.1, x.2).cmp(&key)).ok().map(|i| h[i].3)
+    }
 }
+
+/// An exchange's trading days: regular hours (local), lunch break, the
+/// holidays and the days with other hours, known until `until`.
+pub struct VenueDays {
+    pub tz: &'static str,
+    pub open: Hm,
+    pub close: Hm,
+    pub lunch: Option<(Hm, Hm)>,
+    pub until: (i16, i8, i8),
+    /// (year, month, day, name), sorted.
+    pub holidays: &'static [(i16, i8, i8, &'static str)],
+    /// (year, month, day, open, close, lunch), sorted: half days, late
+    /// opens, special sessions.
+    pub special: &'static [SpecialDay],
+}
+
+/// A day's (open, close, lunch), local.
+type DayHours = (Hm, Hm, Option<(Hm, Hm)>);
+/// (year, month, day, open, close, lunch).
+pub type SpecialDay = (i16, i8, i8, Hm, Hm, Option<(Hm, Hm)>);
 
 impl Market {
     pub fn of(sym: &Symbol) -> Market {
@@ -119,7 +182,7 @@ impl Market {
         let name = match self {
             Market::Us | Market::Forex => "America/New_York",
             Market::India => "Asia/Kolkata",
-            Market::Exchange(v) => v.hours().0,
+            Market::Exchange(v) => v.days().tz,
             Market::Crypto | Market::Other => "UTC",
         };
         TimeZone::get(name).unwrap_or(TimeZone::UTC)
@@ -130,10 +193,7 @@ impl Market {
         match self {
             Market::Us => Some((Time::constant(9, 30, 0, 0), Time::constant(16, 0, 0, 0))),
             Market::India => Some((Time::constant(9, 15, 0, 0), Time::constant(15, 30, 0, 0))),
-            Market::Exchange(v) => {
-                let (_, (oh, om), (ch, cm)) = v.hours();
-                Some((Time::constant(oh, om, 0, 0), Time::constant(ch, cm, 0, 0)))
-            }
+            Market::Exchange(v) => Some((hm(v.days().open), hm(v.days().close))),
             _ => None,
         }
     }
@@ -265,7 +325,7 @@ const NSE_HOLIDAYS: &[(i16, i8, i8, &str)] = &[
 ];
 
 /// Hours and minutes, local time.
-type Hm = (i8, i8);
+pub type Hm = (i8, i8);
 
 /// A session NSE and BSE hold outside their usual days or hours.
 struct Extra {
@@ -445,6 +505,16 @@ pub fn special_sessions(m: Market) -> Vec<(Date, i64, i64)> {
 /// A special session's trading windows on `d` (UTC ms), when it has more
 /// than one (a break between them).
 fn windows(m: Market, d: Date) -> Vec<(i64, i64)> {
+    if let Market::Exchange(v) = m {
+        // A lunch break splits the day in two.
+        let Some((open, close, Some((l0, l1)))) = v.day(d) else {
+            return Vec::new();
+        };
+        return [(open, l0), (l1, close)]
+            .iter()
+            .filter_map(|(a, b)| Some((local_ms(m, d, hm(*a))?, local_ms(m, d, hm(*b))?)))
+            .collect();
+    }
     let Some(e) = extra(m, d) else { return Vec::new() };
     let tz = m.tz();
     let at = |t: Time| {
@@ -467,6 +537,7 @@ pub fn holiday(m: Market, d: Date) -> Option<&'static str> {
             .iter()
             .find(|(y, mo, da, _)| date(*y, *mo, *da) == d)
             .map(|(_, _, _, n)| *n),
+        Market::Exchange(v) => v.holiday(d).map(|n| if n.is_empty() { "Market holiday" } else { n }),
         _ => None,
     }
 }
@@ -489,7 +560,18 @@ pub fn upcoming(m: Market, from: Date, days: i64) -> Vec<(Date, Special)> {
     let mut out = Vec::new();
     let mut d = from;
     for _ in 0..days.max(0) {
-        if let Some((open, close, name)) = special(m, d) {
+        if let Market::Exchange(v) = m
+            && let Some((open, close, _)) = v.day(d)
+            && (open, close) != (v.days().open, v.days().close)
+        {
+            out.push(
+                if matches!(d.weekday(), Weekday::Saturday | Weekday::Sunday) || open < v.days().open {
+                    (d, Special::Session("Special hours".to_string(), hm(open), hm(close)))
+                } else {
+                    (d, Special::EarlyClose(hm(close)))
+                },
+            );
+        } else if let Some((open, close, name)) = special(m, d) {
             out.push((d, Special::Session(name.to_string(), open, close)));
         } else if let Some(name) = holiday(m, d) {
             out.push((d, Special::Holiday(name.to_string())));
@@ -512,8 +594,20 @@ pub enum State {
     Closed(Option<i64>),
 }
 
+/// A local date and time at the market → UTC ms.
+fn local_ms(m: Market, d: Date, t: Time) -> Option<i64> {
+    d.to_datetime(t)
+        .to_zoned(m.tz())
+        .ok()
+        .map(|z| z.timestamp().as_millisecond())
+}
+
 /// Today's (local date `d`) regular session as UTC ms, if it trades.
 fn session(m: Market, d: Date) -> Option<(i64, i64)> {
+    if let Market::Exchange(v) = m {
+        let (open, close, _) = v.day(d)?;
+        return Some((local_ms(m, d, hm(open))?, local_ms(m, d, hm(close))?));
+    }
     let (mut open, mut close) = m.hours()?;
     if let Some((o, c, _)) = special(m, d) {
         (open, close) = (o, c);
@@ -728,14 +822,46 @@ mod tests {
         let nikkei = crate::indices().into_iter().find(|s| s.id == "TVC:NI225").unwrap();
         let m = Market::of(&nikkei);
         assert_eq!(m, Market::Exchange(Venue::Tokyo));
-        // Monday 23 Nov 2026, 10:00 Tokyo (01:00 UTC): open; 16:00 Tokyo: closed.
-        assert_eq!(state(m, ms("2026-11-23T01:00:00Z")), State::Open);
-        assert!(matches!(state(m, ms("2026-11-23T07:00:00Z")), State::Closed(Some(_))));
+        // Monday 23 Nov 2026 is Labour Thanksgiving Day: closed.
+        assert!(matches!(state(m, ms("2026-11-23T01:00:00Z")), State::Closed(_)));
+        // Tuesday 24 Nov, 10:00 Tokyo (01:00 UTC): open; 16:00 Tokyo: closed.
+        assert_eq!(state(m, ms("2026-11-24T01:00:00Z")), State::Open);
+        assert!(matches!(state(m, ms("2026-11-24T07:00:00Z")), State::Closed(Some(_))));
         // Saturday: closed, opening Monday 09:00 Tokyo.
         assert_eq!(
             state(m, ms("2026-11-28T03:00:00Z")),
             State::Closed(Some(ms("2026-11-30T00:00:00Z")))
         );
+        // Lunch: 11:30–12:30 Tokyo is a break (12:00 Tokyo = 03:00 UTC),
+        // reopening at 12:30.
+        assert_eq!(
+            state(m, ms("2026-11-24T03:00:00Z")),
+            State::Closed(Some(ms("2026-11-24T03:30:00Z")))
+        );
+        // A holiday: Coming of Age Day, Monday 12 Jan 2026.
+        assert_eq!(holiday(m, date(2026, 1, 12)), Some("Coming of Age Day"));
+        assert_eq!(
+            holiday(Market::Exchange(Venue::SaoPaulo), date(2026, 2, 16)),
+            Some("Carnival")
+        );
+        assert!(matches!(state(m, ms("2026-01-12T01:00:00Z")), State::Closed(_)));
+        // The "citizens' holiday" between two holidays: Tuesday 22 Sep 2026.
+        assert!(holiday(m, date(2026, 9, 22)).is_some());
+        // Seoul: Constitution Day 2026 (an addition to exchange_calendars).
+        assert!(holiday(Market::Exchange(Venue::Seoul), date(2026, 7, 17)).is_some());
+        // Hong Kong's half day on Christmas Eve: closes 12:00.
+        let hk = Market::Exchange(Venue::HongKong);
+        assert_eq!(
+            upcoming(hk, date(2026, 12, 24), 1),
+            vec![(date(2026, 12, 24), Special::EarlyClose(Time::constant(12, 0, 0, 0)))]
+        );
+        assert!(upcoming(hk, date(2026, 12, 25), 1)[0].1 == Special::Holiday("Christmas Day".into()));
+        // Easter-based: Good Friday and Easter Monday in London, any year listed.
+        let lon = Market::Exchange(Venue::London);
+        assert!(holiday(lon, date(2030, 4, 19)).is_some() && holiday(lon, date(2030, 4, 22)).is_some());
+        // Past the list: weekdays at regular hours.
+        let sg = Market::Exchange(Venue::Singapore);
+        assert_eq!(state(sg, ms("2029-01-03T02:00:00Z")), State::Open);
         let us10 = crate::indices().into_iter().find(|s| s.id == "TVC:US10Y").unwrap();
         assert_eq!(Market::of(&us10), Market::Us);
         assert_eq!(

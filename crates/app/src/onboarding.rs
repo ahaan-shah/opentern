@@ -57,8 +57,8 @@ impl Market {
     pub fn name(self) -> &'static str {
         match self {
             Market::Crypto => "Crypto",
-            Market::Us => "US stocks",
-            Market::India => "Indian stocks",
+            Market::Us => "US markets",
+            Market::India => "Indian markets",
             Market::Forex => "Forex",
             Market::Commodities => "Commodities",
         }

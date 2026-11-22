@@ -1118,6 +1118,14 @@ only to identify the symbols.
 
 
 ------------------------------------------------------------------------------
+Exchange trading days (crates/core/src/venue_days.rs)
+------------------------------------------------------------------------------
+
+Generated from exchange_calendars, Apache License 2.0,
+https://github.com/gerrymanoim/exchange_calendars
+
+
+------------------------------------------------------------------------------
 Country flags (crates/app/assets/flags)
 ------------------------------------------------------------------------------
 

@@ -482,7 +482,11 @@ impl App {
                         .iter()
                         .position(|i| matches!(i, Item::Symbol(s) if s.id.ends_with(id)))
                 };
-                for (name, first) in [("India", "NIFTY"), ("US", ":SPY"), ("Crypto", "BTCUSDT")] {
+                for (name, first) in [
+                    ("Indian markets", "NIFTY"),
+                    ("US markets", ":SPY"),
+                    ("Crypto", "BTCUSDT"),
+                ] {
                     if let Some(k) = at(items, first) {
                         items.insert(
                             k,

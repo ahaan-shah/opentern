@@ -71,8 +71,8 @@ impl App {
             ui.spacing_mut().item_spacing.x = 2.0;
             for (m, label) in [
                 (HotMarket::Crypto, "Crypto"),
-                (HotMarket::UsStocks, "US stocks"),
-                (HotMarket::India, "India"),
+                (HotMarket::UsStocks, "US markets"),
+                (HotMarket::India, "Indian markets"),
             ] {
                 if crate::shell::small_button(ui, t, label, sd.market == m).clicked() {
                     sd.market = m;
@@ -301,10 +301,15 @@ impl App {
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
                 ui.spacing_mut().item_spacing.y = 2.0;
-                for (m, name, exchanges) in [
-                    (Market::Us, "US stocks", "NYSE · NASDAQ"),
-                    (Market::India, "India", "NSE · BSE"),
-                ] {
+                // The chart's own exchange first, when it's another country's.
+                let here = match Market::of(&self.chart.symbol) {
+                    Market::Exchange(v) => Some((Market::Exchange(v), v.name().0, v.name().1)),
+                    _ => None,
+                };
+                for (m, name, exchanges) in here.into_iter().chain([
+                    (Market::Us, "US markets", "NYSE · NASDAQ"),
+                    (Market::India, "Indian markets", "NSE · BSE"),
+                ]) {
                     section_head(ui, t, name, exchanges);
                     let list = upcoming(m, today, 120);
                     if list.is_empty() {

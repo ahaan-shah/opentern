@@ -1217,7 +1217,7 @@ impl App {
                 let preset = crate::screener::presets()
                     .into_iter()
                     .map(|(n, _)| n)
-                    .find(|n| norm(n) == norm(u));
+                    .find(|n| norm(n) == norm(crate::screener::preset_name(u)));
                 let list = self.watchlists.iter().find(|w| norm(&w.name) == norm(u)).map(|w| w.id);
                 self.screener.setup.universe = match (list, preset) {
                     (Some(id), _) => Universe::Watchlist(id),

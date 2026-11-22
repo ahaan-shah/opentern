@@ -101,6 +101,11 @@ def main():
         "only to identify the symbols.",
     )
     section(
+        "Exchange trading days (crates/core/src/venue_days.rs)",
+        "Generated from exchange_calendars, Apache License 2.0,\n"
+        "https://github.com/gerrymanoim/exchange_calendars",
+    )
+    section(
         "Country flags (crates/app/assets/flags)",
         "flag-icons 7.6.0, MIT License, Copyright (c) 2013 Panayiotis Lipiridis,\n"
         "https://github.com/lipis/flag-icons",
