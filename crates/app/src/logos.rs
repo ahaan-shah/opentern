@@ -127,6 +127,32 @@ const FLAGS: &[(&str, &str)] = &[
     ("sg", include_str!("../assets/flags/sg.svg")),
     ("tw", include_str!("../assets/flags/tw.svg")),
     ("us", include_str!("../assets/flags/us.svg")),
+    ("in", include_str!("../assets/flags/in.svg")),
+    ("nz", include_str!("../assets/flags/nz.svg")),
+    ("mx", include_str!("../assets/flags/mx.svg")),
+    ("za", include_str!("../assets/flags/za.svg")),
+    ("tr", include_str!("../assets/flags/tr.svg")),
+    ("se", include_str!("../assets/flags/se.svg")),
+    ("no", include_str!("../assets/flags/no.svg")),
+    ("dk", include_str!("../assets/flags/dk.svg")),
+    ("pl", include_str!("../assets/flags/pl.svg")),
+    ("hu", include_str!("../assets/flags/hu.svg")),
+    ("cz", include_str!("../assets/flags/cz.svg")),
+    ("ru", include_str!("../assets/flags/ru.svg")),
+    ("th", include_str!("../assets/flags/th.svg")),
+    ("id", include_str!("../assets/flags/id.svg")),
+    ("my", include_str!("../assets/flags/my.svg")),
+    ("ph", include_str!("../assets/flags/ph.svg")),
+    ("il", include_str!("../assets/flags/il.svg")),
+    ("ae", include_str!("../assets/flags/ae.svg")),
+    ("sa", include_str!("../assets/flags/sa.svg")),
+    ("vn", include_str!("../assets/flags/vn.svg")),
+    ("pk", include_str!("../assets/flags/pk.svg")),
+    ("cl", include_str!("../assets/flags/cl.svg")),
+    ("co", include_str!("../assets/flags/co.svg")),
+    ("ar", include_str!("../assets/flags/ar.svg")),
+    ("eg", include_str!("../assets/flags/eg.svg")),
+    ("ng", include_str!("../assets/flags/ng.svg")),
 ];
 
 /// The flag an index shows: indices outside the US and India (which have
@@ -162,6 +188,72 @@ fn commodity_icon(key: &str) -> Option<String> {
         }
     };
     Some(format!("square\n{svg}"))
+}
+
+/// The flag a currency shows (flag-icons' country codes).
+fn currency_flag(ccy: &str) -> Option<&'static str> {
+    Some(match ccy {
+        "USD" => "us",
+        "EUR" => "eu",
+        "GBP" => "gb",
+        "JPY" => "jp",
+        "CHF" => "ch",
+        "AUD" => "au",
+        "NZD" => "nz",
+        "CAD" => "ca",
+        "CNY" | "CNH" => "cn",
+        "HKD" => "hk",
+        "SGD" => "sg",
+        "INR" => "in",
+        "KRW" => "kr",
+        "TWD" => "tw",
+        "BRL" => "br",
+        "MXN" => "mx",
+        "ZAR" => "za",
+        "TRY" => "tr",
+        "SEK" => "se",
+        "NOK" => "no",
+        "DKK" => "dk",
+        "PLN" => "pl",
+        "HUF" => "hu",
+        "CZK" => "cz",
+        "RUB" => "ru",
+        "THB" => "th",
+        "IDR" => "id",
+        "MYR" => "my",
+        "PHP" => "ph",
+        "ILS" => "il",
+        "AED" => "ae",
+        "SAR" => "sa",
+        "VND" => "vn",
+        "PKR" => "pk",
+        "CLP" => "cl",
+        "COP" => "co",
+        "ARS" => "ar",
+        "EGP" => "eg",
+        "NGN" => "ng",
+        _ => return None,
+    })
+}
+
+/// A forex pair's two flags: `FX:EURUSD`, OANDA's `EUR_USD`, or Yahoo's
+/// `FX:INR` (= USD/INR).
+fn forex_flags(s: &Symbol) -> Option<(&'static str, &'static str)> {
+    if s.kind != AssetKind::Forex {
+        return None;
+    }
+    let t: String = s
+        .ticker()
+        .to_uppercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphabetic())
+        .collect();
+    let (b, q) = match t.len() {
+        6 => (t[..3].to_string(), t[3..].to_string()),
+        3 => ("USD".to_string(), t),
+        _ => return None,
+    };
+    Some((currency_flag(&b)?, currency_flag(&q)?))
 }
 
 /// A crypto pair's coin: BTCUSDT → btc.
@@ -825,10 +917,13 @@ impl Logos {
     }
 
     fn texture(&self, ctx: &egui::Context, s: &Symbol) -> Option<TextureHandle> {
+        self.texture_key(ctx, key(s)?, s)
+    }
+
+    fn texture_key(&self, ctx: &egui::Context, key: String, s: &Symbol) -> Option<TextureHandle> {
         if !self.enabled {
             return None;
         }
-        let key = key(s)?;
         if let Some(slot) = self.slots.borrow().get(&key) {
             return match slot {
                 Slot::Ready(t) => Some(t.clone()),
@@ -855,6 +950,32 @@ impl Logos {
                 Color32::WHITE,
             );
             return;
+        }
+        // A currency pair: its two flags, the base in front (as TradingView).
+        if let Some((base, quote)) = forex_flags(s) {
+            let tb = self.texture_key(p.ctx(), format!("flag-{base}"), s);
+            let tq = self.texture_key(p.ctx(), format!("flag-{quote}"), s);
+            if let (Some(tb), Some(tq)) = (tb, tq) {
+                let d = r * 0.3;
+                let rr = r * 0.72;
+                let uv = egui::Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0));
+                let back = c + egui::vec2(d, d);
+                let front = c - egui::vec2(d, d);
+                p.image(
+                    tq.id(),
+                    egui::Rect::from_center_size(back, egui::vec2(rr * 2.0, rr * 2.0)),
+                    uv,
+                    Color32::WHITE,
+                );
+                p.image(
+                    tb.id(),
+                    egui::Rect::from_center_size(front, egui::vec2(rr * 2.0, rr * 2.0)),
+                    uv,
+                    Color32::WHITE,
+                );
+                p.circle_stroke(front, rr, egui::Stroke::new(1.0, Color32::from_black_alpha(90)));
+                return;
+            }
         }
         match self.texture(p.ctx(), s) {
             Some(tex) => {
@@ -1105,6 +1226,23 @@ mod tests {
             assert!(local(&k, &dir).is_some(), "{} isn't local", s.id);
         }
         assert!(local("coin-notacoinxyz", &dir).is_none());
+    }
+
+    #[test]
+    fn forex_pairs_get_two_flags() {
+        let fx = |id: &str| Symbol {
+            id: id.into(),
+            kind: AssetKind::Forex,
+            ..opentern_core::commodities()[0].clone()
+        };
+        assert_eq!(forex_flags(&fx("FX:EURUSD")), Some(("eu", "us")));
+        assert_eq!(forex_flags(&fx("FX:INR")), Some(("us", "in")));
+        assert_eq!(forex_flags(&fx("OANDA:GBP_JPY")), Some(("gb", "jp")));
+        let dir = std::env::temp_dir().join("opentern-no-logos-here");
+        for (_, f) in FLAGS {
+            assert!(render(&format!("square\n{f}")).is_some());
+        }
+        assert!(local("flag-in", &dir).is_some());
     }
 
     #[test]
