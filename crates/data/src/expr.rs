@@ -25,26 +25,37 @@ pub enum Expr {
 
 impl Expr {
     pub fn eval(&self, legs: &[f64]) -> f64 {
-        match self {
+        // A long index is a long left-leaning chain (`((A + B) + C) + …`):
+        // walk down it in a loop, so the stack only goes as deep as the
+        // brackets (`MAX_NESTING`), not as long as the index.
+        let mut spine = Vec::new();
+        let mut cur = self;
+        while let Expr::Bin(op, a, b) = cur {
+            spine.push((*op, b));
+            cur = a;
+        }
+        let mut v = match cur {
             Expr::Num(v) => *v,
-            Expr::Leg(i) => legs[*i],
+            Expr::Leg(i) => legs.get(*i).copied().unwrap_or(f64::NAN),
             Expr::Neg(e) => -e.eval(legs),
-            Expr::Bin(op, a, b) => {
-                let (a, b) = (a.eval(legs), b.eval(legs));
-                match op {
-                    '+' => a + b,
-                    '-' => a - b,
-                    '*' => a * b,
-                    _ => {
-                        if b == 0.0 {
-                            f64::NAN
-                        } else {
-                            a / b
-                        }
+            Expr::Bin(..) => unreachable!("walked down above"),
+        };
+        for (op, b) in spine.into_iter().rev() {
+            let b = b.eval(legs);
+            v = match op {
+                '+' => v + b,
+                '-' => v - b,
+                '*' => v * b,
+                _ => {
+                    if b == 0.0 {
+                        f64::NAN
+                    } else {
+                        v / b
                     }
                 }
-            }
+            };
         }
+        v
     }
 }
 
@@ -111,10 +122,10 @@ struct Parser {
 
 /// Formulas come from people and from imported files: brackets nest at
 /// most this deep, and a formula has at most `MAX_TOKENS` pieces (a custom
-/// index of 2,000 members fits). Past either the parser (and the code that
+/// index of 1,000 members fits, even on Windows' 1 MB main-thread stack). Past either the parser (and the code that
 /// walks the tree) would recurse deep enough to overflow the stack.
 const MAX_NESTING: usize = 64;
-const MAX_TOKENS: usize = 8_000;
+const MAX_TOKENS: usize = 4_000;
 
 impl Parser {
     fn peek(&self) -> Option<&Tok> {
@@ -211,16 +222,30 @@ pub fn render(e: &Expr, name: &dyn Fn(usize) -> String) -> String {
         }
         Expr::Leg(i) => name(*i),
         Expr::Neg(x) => format!("-{}", wrap(x, 3, name)),
-        Expr::Bin(op, a, b) => {
+        Expr::Bin(..) => {
+            // Down the left-leaning chain in a loop (as `eval`): the stack
+            // stays as deep as the brackets, however long the index.
             let p = prec(e);
-            // The right side of - and / needs brackets at equal precedence.
-            let right = if matches!(op, '-' | '/') { p + 1 } else { p };
-            let sep = if *op == '-' || *op == '+' {
-                format!(" {op} ")
-            } else {
-                op.to_string()
-            };
-            format!("{}{sep}{}", wrap(a, p, name), wrap(b, right, name))
+            let mut spine = Vec::new();
+            let mut cur = e;
+            while let Expr::Bin(op, a, b) = cur
+                && prec(cur) == p
+            {
+                spine.push((*op, b));
+                cur = a;
+            }
+            let mut out = wrap(cur, p, name);
+            for (op, b) in spine.into_iter().rev() {
+                // The right side of - and / needs brackets at equal precedence.
+                let right = if matches!(op, '-' | '/') { p + 1 } else { p };
+                if op == '-' || op == '+' {
+                    out.push_str(&format!(" {op} "));
+                } else {
+                    out.push(op);
+                }
+                out.push_str(&wrap(b, right, name));
+            }
+            out
         }
     }
 }

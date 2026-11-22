@@ -279,19 +279,22 @@ mod tests {
 
     #[test]
     fn deep_formulas_dont_overflow_the_stack() {
+        // A quarter of Windows' 1 MB main thread: room for its larger
+        // debug frames.
         std::thread::Builder::new()
-            .stack_size(2 << 20)
+            .stack_size(1 << 18)
             .spawn(|| {
                 let deep = format!("{}BINANCE:BTCUSDT{}", "(".repeat(50_000), ")".repeat(50_000));
                 let _ = crate::expr::parse(&deep);
                 let _ = crate::expr::parse(&"-".repeat(50_000));
                 let _ = crate::expr::parse(&"A + ".repeat(50_000));
-                // At the cap: a 2,000-member index (`X*w + …`) parses, renders
+                // At the cap: a 1,000-member index (`X*w + …`) parses, renders
                 // and is freed without running out of stack.
-                let big = format!("{}A*2", "A*2 + ".repeat(1_999));
+                let big = format!("{}A*2", "A*2 + ".repeat(999));
                 let (e, legs) = crate::expr::parse(&big).expect("a long sum parses");
                 assert_eq!(legs.len(), 1);
                 let _ = crate::expr::render(&e, &|i| format!("x{i}"));
+                assert_eq!(e.eval(&[1.0]), 2000.0);
                 drop(e);
             })
             .unwrap()

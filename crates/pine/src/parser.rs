@@ -679,7 +679,10 @@ impl Parser {
 
     fn or(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::and(c)?;
+        // Each link of a chain is one level deeper in the tree it makes.
+        let mut chain = Vec::new();
         while c.eat_word("or") {
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary("or", Box::new(e), Box::new(Self::and(c)?));
         }
         Ok(e)
@@ -687,13 +690,16 @@ impl Parser {
 
     fn and(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::not(c)?;
+        let mut chain = Vec::new();
         while c.eat_word("and") {
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary("and", Box::new(e), Box::new(Self::not(c)?));
         }
         Ok(e)
     }
 
     fn not(c: &mut Cursor) -> Result<Expr, Error> {
+        let _deeper = Deeper::enter(c.line)?;
         if c.eat_word("not") {
             return Ok(Expr::Unary("not", Box::new(Self::not(c)?)));
         }
@@ -702,9 +708,11 @@ impl Parser {
 
     fn equality(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::comparison(c)?;
+        let mut chain = Vec::new();
         while let Some(Tok::Op(o @ ("==" | "!="))) = c.peek() {
             let op = *o;
             c.pos += 1;
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary(op, Box::new(e), Box::new(Self::comparison(c)?));
         }
         Ok(e)
@@ -712,9 +720,11 @@ impl Parser {
 
     fn comparison(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::additive(c)?;
+        let mut chain = Vec::new();
         while let Some(Tok::Op(o @ ("<" | ">" | "<=" | ">="))) = c.peek() {
             let op = *o;
             c.pos += 1;
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary(op, Box::new(e), Box::new(Self::additive(c)?));
         }
         Ok(e)
@@ -722,9 +732,11 @@ impl Parser {
 
     fn additive(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::multiplicative(c)?;
+        let mut chain = Vec::new();
         while let Some(Tok::Op(o @ ("+" | "-"))) = c.peek() {
             let op = *o;
             c.pos += 1;
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary(op, Box::new(e), Box::new(Self::multiplicative(c)?));
         }
         Ok(e)
@@ -732,9 +744,11 @@ impl Parser {
 
     fn multiplicative(c: &mut Cursor) -> Result<Expr, Error> {
         let mut e = Self::unary(c)?;
+        let mut chain = Vec::new();
         while let Some(Tok::Op(o @ ("*" | "/" | "%"))) = c.peek() {
             let op = *o;
             c.pos += 1;
+            chain.push(Deeper::enter(c.line)?);
             e = Expr::Binary(op, Box::new(e), Box::new(Self::unary(c)?));
         }
         Ok(e)
@@ -1006,8 +1020,8 @@ mod tests {
                 // Nesting a script really uses still works, and runs.
                 let ok = format!(
                     "//@version=5\nindicator(\"x\")\nplot({}close{})\n",
-                    "(".repeat(120),
-                    ")".repeat(120)
+                    "(".repeat(40),
+                    ")".repeat(40)
                 );
                 let s = crate::compile(&ok, "t", crate::Env::default()).unwrap();
                 let bars: Vec<opentern_core::Bar> = (0..50)
@@ -1026,6 +1040,36 @@ mod tests {
             .unwrap()
             .join()
             .unwrap();
+    }
+
+    #[test]
+    fn long_chains_dont_overflow_the_stack() {
+        // 250 links: just under MAX_DEPTH, and it must still compile and run
+        // on a quarter of Windows' 1 MB main thread.
+        for n in [250, 20_000] {
+            let ok = std::thread::Builder::new()
+                .stack_size(1 << 18)
+                .spawn(move || {
+                    let src = format!("//@version=5\nindicator(\"x\")\nplot(close{})\n", " + close".repeat(n));
+                    if let Ok(s) = crate::compile(&src, "t", crate::Env::default()) {
+                        let bars: Vec<opentern_core::Bar> = (0..5)
+                            .map(|i| opentern_core::Bar {
+                                time: i * 60_000,
+                                open: 1.0,
+                                high: 2.0,
+                                low: 0.5,
+                                close: 1.5,
+                                volume: 1.0,
+                            })
+                            .collect();
+                        let mut st = s.study(&opentern_series::study::Inputs::default());
+                        let _ = st.run(&bars, opentern_core::Timeframe::new(1, opentern_core::Unit::Minute));
+                    }
+                })
+                .unwrap()
+                .join();
+            assert!(ok.is_ok(), "{n} terms");
+        }
     }
 
     #[test]

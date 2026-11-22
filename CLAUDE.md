@@ -1597,8 +1597,11 @@ every data change (scripts re-run on it).
   fixed: seconds → ms overflow on absurd times (`provider::secs_ms`/
   `sane_ms`), a `ta.*` length reserving petabytes (`Hist::new`),
   `str.repeat` of repeats, stack overflow on deep nesting in the Pine
-  parser (`MAX_DEPTH`) and in formulas (`MAX_NESTING`, `MAX_TOKENS`: a
-  2,000-member custom index fits). Aborts (out of memory, stack) can't be
+  parser (`MAX_DEPTH`; each link of an operator chain counts as a level)
+  and in formulas (`MAX_NESTING`, `MAX_TOKENS`: a 1,000-member custom index
+  fits; `Expr::eval`/`render` loop down the left-leaning chain). Stack
+  tests run on 256 KB: Windows' main thread is 1 MB and its debug frames
+  are the largest (CI caught a 2,000-member formula overflowing there). Aborts (out of memory, stack) can't be
   caught: bound every allocation and recursion a script or reply controls.
 - **cargo-deny** (`deny.toml`, CI job `deny`): crates.io only, an allow-list
   of licences, yanked crates fail. Known and accepted: rustix's xattr and
