@@ -346,7 +346,7 @@ impl App {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             let open = self.settings.is_some();
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Settings", open).clicked() {
+            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", self.language.text("Settings"), open).clicked() {
                 if open {
                     self.settings = None;
                 } else {
@@ -878,7 +878,7 @@ impl App {
                     .settings
                     .as_ref()
                     .is_some_and(|s| s.cat == crate::settings::Cat::Shortcuts);
-                if w::tool_button(ui, t, ph::KEYBOARD, "Keyboard shortcuts", on, 34.0).clicked() {
+                if w::tool_button(ui, t, ph::KEYBOARD, self.language.text("Keyboard shortcuts"), on, 34.0).clicked() {
                     self.open_settings(crate::settings::Cat::Shortcuts);
                 }
                 if self.updater.prompt() {
@@ -1094,8 +1094,10 @@ impl App {
                     now.strftime("%H:%M"),
                     crate::timezones::offset_label(&self.chart.tz)
                 );
-                let resp = small_button(ui, t, &clock, false)
-                    .on_hover_text(crate::timezones::choice_name(&self.chart.style.timezone));
+                let resp = small_button(ui, t, &clock, false).on_hover_text(
+                    self.language
+                        .text(&crate::timezones::choice_name(&self.chart.style.timezone)),
+                );
                 self.still_open(ui, &resp, "timezone");
                 egui::Popup::menu(&resp)
                     .align(egui::RectAlign::TOP_END)
@@ -1104,7 +1106,14 @@ impl App {
                         ui.set_width(250.0);
                         let mut choice = self.chart.style.timezone.clone();
                         let exchange = self.chart.sym_tz.clone();
-                        if crate::timezones::picker(ui, t, Id::new("clock-tz-search"), &mut choice, &exchange) {
+                        if crate::timezones::picker(
+                            ui,
+                            t,
+                            self.language,
+                            Id::new("clock-tz-search"),
+                            &mut choice,
+                            &exchange,
+                        ) {
                             let mut s = self.chart.style.clone();
                             s.timezone = choice;
                             self.set_chart_style(s);

@@ -6,6 +6,7 @@ use egui::Ui;
 use jiff::tz::TimeZone;
 
 use crate::chart::style::TimeZoneChoice;
+use crate::i18n::Language;
 use crate::theme::Theme;
 use crate::widgets as w;
 
@@ -127,10 +128,17 @@ pub fn choice_name(c: &TimeZoneChoice) -> String {
 /// The picker: a search field, then Exchange, UTC and Local, then every
 /// city by offset. `exchange` is the symbol's own zone (for its offset).
 /// Returns true when the choice changed.
-pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice, exchange: &TimeZone) -> bool {
+pub fn picker(
+    ui: &mut Ui,
+    t: &Theme,
+    lang: Language,
+    id: egui::Id,
+    current: &mut TimeZoneChoice,
+    exchange: &TimeZone,
+) -> bool {
     let mut changed = false;
     let mut query: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
-    let r = w::search_field(ui, t, &mut query, "Search", ui.available_width());
+    let r = w::search_field(ui, t, &mut query, lang.text("Search"), ui.available_width());
     if !r.has_focus() && query.is_empty() && ui.memory(|m| m.focused().is_none()) {
         r.request_focus();
     }
@@ -161,6 +169,7 @@ pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice
             (TimeZoneChoice::Local, "Local", offset_label(&TimeZone::system())),
         ];
         for (choice, label, offset) in fixed {
+            let label = lang.text(label);
             if hit(label, "", &offset) {
                 pick(ui, choice, label, &offset);
                 any = true;
@@ -171,7 +180,7 @@ pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice
             .filter_map(|(zone, name)| {
                 let tz = TimeZone::get(zone).ok()?;
                 let secs = tz.to_offset(jiff::Timestamp::now()).seconds();
-                Some((secs, *zone, *name, offset_label(&tz)))
+                Some((secs, *zone, lang.text(name), offset_label(&tz)))
             })
             .filter(|(_, zone, name, offset)| hit(name, zone, offset))
             .collect();
@@ -184,7 +193,7 @@ pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice
         }
         if !any && cities.is_empty() {
             ui.add_space(8.0);
-            ui.vertical_centered(|ui| ui.label(egui::RichText::new("No matches").color(t.text3)));
+            ui.vertical_centered(|ui| ui.label(egui::RichText::new(lang.text("No matches")).color(t.text3)));
             ui.add_space(8.0);
         }
     });

@@ -4,6 +4,7 @@
 //! its flows. Importing restarts the app (see `transfer`'s module doc).
 
 use crate::app::App;
+use crate::i18n::Language;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -31,9 +32,25 @@ enum SendPhase {
         progress: f32,
     },
     Sent {
-        peer: String,
+        peer: Option<String>,
     },
-    Failed(String),
+    Failed(TransferError),
+}
+
+/// Keep the original diagnostic so a language change also updates an error already on screen.
+#[derive(Clone, Debug, PartialEq)]
+enum TransferError {
+    Plain(String),
+    WithDetail(&'static str, String),
+}
+
+impl TransferError {
+    fn text(&self, lang: Language) -> String {
+        match self {
+            Self::Plain(message) => lang.text(message).to_owned(),
+            Self::WithDetail(template, detail) => lang.format(template, &[("error", lang.text(detail))]),
+        }
+    }
 }
 
 struct Sending {
@@ -139,7 +156,7 @@ impl NetHelp {
         self.ask = FirewallAsk::Asking(rx);
     }
 
-    fn show(&mut self, ui: &mut Ui, t: &Theme) {
+    fn show(&mut self, ui: &mut Ui, t: &Theme, lang: Language) {
         if let FirewallAsk::Asking(rx) = &self.ask
             && let Ok(r) = rx.try_recv()
         {
@@ -153,13 +170,13 @@ impl NetHelp {
             };
         }
         let press = |ui: &mut Ui, text: &str, tip: &str| {
-            let rich = egui::RichText::new(text)
+            let rich = egui::RichText::new(lang.text(text))
                 .font(theme::regular(12.0))
                 .color(t.text3)
                 .underline();
             ui.add(egui::Label::new(rich).selectable(false).sense(egui::Sense::click()))
                 .on_hover_cursor(egui::CursorIcon::PointingHand)
-                .on_hover_text(tip)
+                .on_hover_text(lang.text(tip))
                 .clicked()
         };
         match (self.kind, &self.ask) {
@@ -170,8 +187,8 @@ impl NetHelp {
                     crate::app::open_url(crate::app::MACOS_LOCAL_NETWORK);
                 }
             }
-            (NetKind::Firewall, FirewallAsk::Asking(_)) => line(ui, t, "Waiting for Windows"),
-            (NetKind::Firewall, FirewallAsk::Allowed) => line(ui, t, "Allowed through Windows Firewall"),
+            (NetKind::Firewall, FirewallAsk::Asking(_)) => line(ui, t, lang.text("Waiting for Windows")),
+            (NetKind::Firewall, FirewallAsk::Allowed) => line(ui, t, lang.text("Allowed through Windows Firewall")),
             (NetKind::Firewall, ask) => {
                 let failed = matches!(ask, FirewallAsk::Failed);
                 let text = if failed {
@@ -195,7 +212,7 @@ pub struct Transfer {
     flow: Flow,
     /// The export just saved.
     saved: Option<PathBuf>,
-    error: Option<String>,
+    error: Option<TransferError>,
     port: u16,
     device: String,
     dir: PathBuf,
@@ -230,16 +247,16 @@ fn icon(item: Item) -> &'static str {
     }
 }
 
-fn recv_message(e: &RecvError) -> String {
-    match e {
+fn recv_message(e: &RecvError, lang: Language) -> &str {
+    lang.text(match e {
         RecvError::NotFound => {
-            "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern.".into()
+            "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
         }
-        RecvError::WrongCode => "That code doesn't match. Check the other device and try again.".into(),
-        RecvError::Incompatible => "The other device runs a different version of Opentern. Update both, then try again.".into(),
-        RecvError::Dropped => "The connection dropped. Try again.".into(),
-        RecvError::Other(m) => m.clone(),
-    }
+        RecvError::WrongCode => "That code doesn't match. Check the other device and try again.",
+        RecvError::Incompatible => "The other device runs a different version of Opentern. Update both, then try again.",
+        RecvError::Dropped => "The connection dropped. Try again.",
+        RecvError::Other(m) => m,
+    })
 }
 
 /// A plain sentence in the page's quiet style.
@@ -301,9 +318,9 @@ impl Transfer {
         let (tx, rx) = bounded(1);
         // Made here (some platforms need the UI thread), awaited on another.
         let fut = rfd::AsyncFileDialog::new()
-            .set_title("Export")
+            .set_title(app.language.text("Export"))
             .set_file_name(&name)
-            .add_filter("Opentern export", &[transfer::EXTENSION])
+            .add_filter(app.language.text("Opentern export"), &[transfer::EXTENSION])
             .save_file();
         let ctx = app.egui_ctx.clone();
         std::thread::spawn(move || {
@@ -328,7 +345,7 @@ impl Transfer {
         std::thread::spawn(move || {
             let r = transfer::export(&dir, &items, &path)
                 .map(|_| path)
-                .map_err(|e| format!("Couldn't export: {e}"));
+                .map_err(|e| e.to_string());
             let _ = tx.send(r);
             ctx.request_repaint();
         });
@@ -342,7 +359,7 @@ impl Transfer {
         self.refresh(app);
         let code = code.unwrap_or_else(handoff::new_code);
         if code.is_empty() {
-            self.error = Some("Couldn't make a code on this computer.".into());
+            self.error = Some(TransferError::Plain("Couldn't make a code on this computer.".into()));
             return;
         }
         let (tx, rx) = bounded(1);
@@ -351,7 +368,7 @@ impl Transfer {
             let out = transfer::outgoing_file(&dir);
             let r = transfer::export(&dir, &items, &out)
                 .map(|_| ())
-                .map_err(|e| format!("Couldn't get your data ready: {e}"));
+                .map_err(|e| e.to_string());
             let _ = tx.send(r);
             ctx.request_repaint();
         });
@@ -377,8 +394,8 @@ impl Transfer {
         self.error = None;
         let (tx, rx) = bounded(1);
         let fut = rfd::AsyncFileDialog::new()
-            .set_title("Import")
-            .add_filter("Opentern export", &[transfer::EXTENSION])
+            .set_title(app.language.text("Import"))
+            .add_filter(app.language.text("Opentern export"), &[transfer::EXTENSION])
             .pick_file();
         let ctx = app.egui_ctx.clone();
         std::thread::spawn(move || {
@@ -415,7 +432,7 @@ impl Transfer {
                 }));
             }
             Err(e) => {
-                self.error = Some(e.to_string());
+                self.error = Some(TransferError::Plain(e.to_string()));
                 self.flow = Flow::Idle;
             }
         }
@@ -497,11 +514,11 @@ impl Transfer {
                     next = Some(Flow::Idle);
                 }
                 Ok(Err(e)) => {
-                    self.error = Some(e);
+                    self.error = Some(TransferError::WithDetail("Couldn't export: {error}", e));
                     next = Some(Flow::Idle);
                 }
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                    self.error = Some("Couldn't export.".into());
+                    self.error = Some(TransferError::Plain("Couldn't export.".into()));
                     next = Some(Flow::Idle);
                 }
                 Err(_) => {}
@@ -522,11 +539,14 @@ impl Transfer {
                         }
                         Ok(Err(e)) => {
                             s.prepared = None;
-                            s.phase = SendPhase::Failed(e);
+                            s.phase = SendPhase::Failed(TransferError::WithDetail(
+                                "Couldn't get your data ready: {error}",
+                                e,
+                            ));
                         }
                         Err(crossbeam_channel::TryRecvError::Disconnected) => {
                             s.prepared = None;
-                            s.phase = SendPhase::Failed("Couldn't get your data ready.".into());
+                            s.phase = SendPhase::Failed(TransferError::Plain("Couldn't get your data ready.".into()));
                         }
                         Err(_) => {}
                     }
@@ -550,8 +570,8 @@ impl Transfer {
                         }
                         SendEvent::Done => {
                             let peer = match &s.phase {
-                                SendPhase::Sending { peer, .. } => peer.clone(),
-                                _ => "your other device".into(),
+                                SendPhase::Sending { peer, .. } => Some(peer.clone()),
+                                _ => None,
                             };
                             s.phase = SendPhase::Sent { peer };
                             s.job = None;
@@ -562,7 +582,7 @@ impl Transfer {
                             s.phase = SendPhase::Waiting;
                         }
                         SendEvent::Failed(m) => {
-                            s.phase = SendPhase::Failed(m);
+                            s.phase = SendPhase::Failed(TransferError::Plain(m));
                             s.job = None;
                             let _ = std::fs::remove_file(transfer::outgoing_file(&self.dir));
                         }
@@ -624,6 +644,7 @@ impl Transfer {
     }
 
     pub fn page(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        let lang = app.language;
         self.poll(app, ui.ctx());
         // A file dropped anywhere on the page opens for review.
         if matches!(self.flow, Flow::Idle) {
@@ -636,7 +657,7 @@ impl Transfer {
         }
         match &self.flow {
             Flow::Send(_) => self.send_page(ui, app, t),
-            Flow::Code(_) => self.code_page(ui, t),
+            Flow::Code(_) => self.code_page(ui, t, lang),
             Flow::Review(_) => self.review_page(ui, app, t),
             _ => {
                 let before = self.view;
@@ -644,7 +665,7 @@ impl Transfer {
                     ui,
                     t,
                     &mut self.view,
-                    &[(View::Export, "Export"), (View::Import, "Import")],
+                    &[(View::Export, lang.text("Export")), (View::Import, lang.text("Import"))],
                 );
                 if before != self.view {
                     self.saved = None;
@@ -664,6 +685,7 @@ impl Transfer {
     }
 
     fn export_page(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        let lang = app.language;
         let rows: Vec<(Item, usize)> = Item::ALL
             .into_iter()
             .map(|i| (i, self.counts.get(&i).copied().unwrap_or(0)))
@@ -675,9 +697,9 @@ impl Transfer {
             .id_salt("transfer-items")
             .max_height(room)
             .auto_shrink([false, true])
-            .show(ui, |ui| pick_list(ui, t, &rows, &mut self.picks));
+            .show(ui, |ui| pick_list(ui, t, lang, &rows, &mut self.picks));
         ui.add_space(10.0);
-        line(ui, t, "API keys and passwords aren't included.");
+        line(ui, t, lang.text("API keys and passwords aren't included."));
         let unsaved = app.editor.docs.iter().filter(|d| d.dirty()).count();
         if unsaved > 0 && self.picks.get(&Item::Scripts).copied().unwrap_or(true) {
             ui.add_space(4.0);
@@ -685,9 +707,13 @@ impl Transfer {
                 ui,
                 t,
                 if unsaved == 1 {
-                    "1 script has unsaved changes. Save it to include them.".to_string()
+                    lang.text("1 script has unsaved changes. Save it to include them.")
+                        .to_string()
                 } else {
-                    format!("{unsaved} scripts have unsaved changes. Save them to include them.")
+                    lang.format(
+                        "{count} scripts have unsaved changes. Save them to include them.",
+                        &[("count", &unsaved.to_string())],
+                    )
                 },
             );
         }
@@ -697,7 +723,7 @@ impl Transfer {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
             let saving = matches!(self.flow, Flow::Saving(_));
-            let label = if saving { "Exporting" } else { "Export" };
+            let label = lang.text(if saving { "Exporting" } else { "Export" });
             if widgets::button(ui, Kind::Primary, any && idle, Some(ph::DOWNLOAD_SIMPLE), label).clicked()
                 && any
                 && idle
@@ -709,7 +735,7 @@ impl Transfer {
                 Kind::Secondary,
                 any && idle,
                 Some(ph::PAPER_PLANE_TILT),
-                "Send to another device",
+                lang.text("Send to another device"),
             )
             .clicked()
                 && any
@@ -727,21 +753,26 @@ impl Transfer {
                         .font(theme::regular(16.0))
                         .color(t.accent),
                 );
-                line(ui, t, format!("Saved to {}", crate::settings::shorten_home(&path)));
-                if widgets::secondary(ui, "Show in folder").clicked()
+                line(
+                    ui,
+                    t,
+                    lang.format("Saved to {path}", &[("path", &crate::settings::shorten_home(&path))]),
+                );
+                if widgets::secondary(ui, lang.text("Show in folder")).clicked()
                     && let Some(parent) = path.parent()
                 {
                     crate::app::open_path(&parent.join("."));
                 }
             });
         }
-        if let Some(e) = self.error.clone() {
+        if let Some(e) = &self.error {
             ui.add_space(12.0);
-            line(ui, t, e);
+            line(ui, t, e.text(lang));
         }
     }
 
     fn import_page(&mut self, ui: &mut Ui, app: &App, t: &Theme) {
+        let lang = app.language;
         let idle = !self.busy();
         let gap = 12.0;
         let w = ui.available_width();
@@ -770,7 +801,7 @@ impl Transfer {
             p.text(
                 pos2(r.center().x, r.top() + 78.0),
                 Align2::CENTER_CENTER,
-                title,
+                lang.text(title),
                 theme::medium(14.0),
                 t.text,
             );
@@ -779,7 +810,7 @@ impl Transfer {
                     .max_rect(Rect::from_min_max(pos2(r.left(), r.top() + 100.0), r.max))
                     .layout(egui::Layout::top_down(egui::Align::Center)),
             );
-            if widgets::button(&mut c, kind, idle, None, button).clicked() && idle {
+            if widgets::button(&mut c, kind, idle, None, lang.text(button)).clicked() && idle {
                 *hit = true;
             }
         };
@@ -828,13 +859,14 @@ impl Transfer {
         if receive {
             self.start_code();
         }
-        if let Some(e) = self.error.clone() {
+        if let Some(e) = &self.error {
             ui.add_space(14.0);
-            line(ui, t, e);
+            line(ui, t, e.text(lang));
         }
     }
 
     fn send_page(&mut self, ui: &mut Ui, app: &App, t: &Theme) {
+        let lang = app.language;
         let device = self.device.clone();
         let Flow::Send(s) = &mut self.flow else { return };
         let mut stop = false;
@@ -846,21 +878,21 @@ impl Transfer {
                     link(
                         ui,
                         t,
-                        ("This device", ph::MONITOR),
-                        ("Other device", ph::MONITOR),
+                        (lang.text("This device"), ph::MONITOR),
+                        (lang.text("Other device"), ph::MONITOR),
                         Link::Waiting,
                     );
                     ui.add_space(18.0);
-                    title(ui, t, "Enter this code on your other device");
+                    title(ui, t, lang.text("Enter this code on your other device"));
                     ui.add_space(4.0);
-                    line(ui, t, "Settings → Export and import → Import → Receive");
+                    line(ui, t, lang.text("Settings → Export and import → Import → Receive"));
                     ui.add_space(18.0);
                     code_row(ui, t, &s.code, None, Some(app));
                     ui.add_space(16.0);
                     let status = s.note.unwrap_or("Waiting for the other device");
-                    pulse_line(ui, t, status);
+                    pulse_line(ui, t, lang.text(status));
                     ui.add_space(18.0);
-                    if widgets::secondary(ui, "Cancel").clicked() {
+                    if widgets::secondary(ui, lang.text("Cancel")).clicked() {
                         stop = true;
                     }
                     if let Some(addr) = s.addresses.first() {
@@ -875,32 +907,43 @@ impl Transfer {
                     }
                     if self.net.kind != NetKind::None {
                         ui.add_space(8.0);
-                        self.net.show(ui, t);
+                        self.net.show(ui, t, lang);
                     }
                 }
                 SendPhase::Sending { peer, progress } => {
                     link(
                         ui,
                         t,
-                        ("This device", ph::MONITOR),
+                        (lang.text("This device"), ph::MONITOR),
                         (peer, ph::MONITOR),
                         Link::Progress(*progress),
                     );
                     ui.add_space(18.0);
-                    title(ui, t, &format!("Sending to {peer}"));
+                    title(ui, t, &lang.format("Sending to {peer}", &[("peer", peer)]));
                     ui.add_space(6.0);
-                    line(ui, t, format!("{:.0}%", progress * 100.0));
+                    line(
+                        ui,
+                        t,
+                        lang.format("{value}%", &[("value", &format!("{:.0}", progress * 100.0))]),
+                    );
                     ui.add_space(18.0);
-                    if widgets::secondary(ui, "Cancel").clicked() {
+                    if widgets::secondary(ui, lang.text("Cancel")).clicked() {
                         stop = true;
                     }
                 }
                 SendPhase::Sent { peer } => {
-                    link(ui, t, ("This device", ph::MONITOR), (peer, ph::MONITOR), Link::Done);
+                    let peer = peer.as_deref().unwrap_or_else(|| lang.text("your other device"));
+                    link(
+                        ui,
+                        t,
+                        (lang.text("This device"), ph::MONITOR),
+                        (peer, ph::MONITOR),
+                        Link::Done,
+                    );
                     ui.add_space(18.0);
-                    title(ui, t, &format!("Sent to {peer}"));
+                    title(ui, t, &lang.format("Sent to {peer}", &[("peer", peer)]));
                     ui.add_space(18.0);
-                    if widgets::primary(ui, "Done").clicked() {
+                    if widgets::primary(ui, lang.text("Done")).clicked() {
                         stop = true;
                     }
                 }
@@ -908,19 +951,19 @@ impl Transfer {
                     link(
                         ui,
                         t,
-                        ("This device", ph::MONITOR),
-                        ("Other device", ph::MONITOR),
+                        (lang.text("This device"), ph::MONITOR),
+                        (lang.text("Other device"), ph::MONITOR),
                         Link::Idle,
                     );
                     ui.add_space(18.0);
-                    title(ui, t, m);
+                    title(ui, t, &m.text(lang));
                     ui.add_space(18.0);
                     ui.horizontal(|ui| {
                         centered_buttons(ui, 170.0);
-                        if widgets::primary(ui, "Start again").clicked() {
+                        if widgets::primary(ui, lang.text("Start again")).clicked() {
                             again = true;
                         }
-                        if widgets::secondary(ui, "Close").clicked() {
+                        if widgets::secondary(ui, lang.text("Close")).clicked() {
                             stop = true;
                         }
                     });
@@ -938,7 +981,7 @@ impl Transfer {
                 let out = transfer::outgoing_file(&dir);
                 let r = transfer::export(&dir, &items, &out)
                     .map(|_| ())
-                    .map_err(|e| format!("Couldn't get your data ready: {e}"));
+                    .map_err(|e| e.to_string());
                 let _ = tx.send(r);
                 ctx.request_repaint();
             });
@@ -953,7 +996,7 @@ impl Transfer {
         }
     }
 
-    fn code_page(&mut self, ui: &mut Ui, t: &Theme) {
+    fn code_page(&mut self, ui: &mut Ui, t: &Theme, lang: Language) {
         let (dir, device, port) = (self.dir.clone(), self.device.clone(), self.port);
         let Flow::Code(c) = &mut self.flow else { return };
         let mut cancel = false;
@@ -966,32 +1009,42 @@ impl Transfer {
                         ui,
                         t,
                         (&peer, ph::MONITOR),
-                        ("This device", ph::MONITOR),
+                        (lang.text("This device"), ph::MONITOR),
                         Link::Progress(progress),
                     );
                     ui.add_space(18.0);
-                    title(ui, t, &format!("Receiving from {peer}"));
+                    title(ui, t, &lang.format("Receiving from {peer}", &[("peer", &peer)]));
                     ui.add_space(6.0);
-                    line(ui, t, format!("{:.0}%", progress * 100.0));
+                    line(
+                        ui,
+                        t,
+                        lang.format("{value}%", &[("value", &format!("{:.0}", progress * 100.0))]),
+                    );
                     ui.add_space(18.0);
-                    if widgets::secondary(ui, "Cancel").clicked() {
+                    if widgets::secondary(ui, lang.text("Cancel")).clicked() {
                         cancel = true;
                     }
                 }
                 phase => {
                     let searching = phase == CodePhase::Searching;
                     let look = if searching { Link::Waiting } else { Link::Idle };
-                    link(ui, t, ("Other device", ph::MONITOR), ("This device", ph::MONITOR), look);
+                    link(
+                        ui,
+                        t,
+                        (lang.text("Other device"), ph::MONITOR),
+                        (lang.text("This device"), ph::MONITOR),
+                        look,
+                    );
                     ui.add_space(18.0);
-                    title(ui, t, "Enter the code from your other device");
+                    title(ui, t, lang.text("Enter the code from your other device"));
                     ui.add_space(18.0);
                     code_input(ui, t, c, !searching);
                     ui.add_space(16.0);
                     if searching {
-                        pulse_line(ui, t, "Looking for your other device");
+                        pulse_line(ui, t, lang.text("Looking for your other device"));
                     } else if let Some(e) = &c.error {
                         // Wraps within a comfortable measure.
-                        let m = recv_message(e);
+                        let m = recv_message(e, lang);
                         let w = ui.available_width().min(440.0);
                         ui.allocate_ui(vec2(w, 0.0), |ui| {
                             ui.vertical_centered(|ui| line(ui, t, m));
@@ -999,14 +1052,14 @@ impl Transfer {
                         // A receiver needs no way in, only macOS's permission.
                         if *e == RecvError::NotFound && self.net.kind == NetKind::LocalNetwork {
                             ui.add_space(8.0);
-                            self.net.show(ui, t);
+                            self.net.show(ui, t, lang);
                         }
                     }
                     if let Some(a) = &mut c.address {
                         ui.add_space(12.0);
                         ui.add(
                             widgets::field(a)
-                                .hint_text("Address, like 192.168.1.20")
+                                .hint_text(lang.text("Address, like 192.168.1.20"))
                                 .desired_width(240.0),
                         );
                     }
@@ -1017,13 +1070,13 @@ impl Transfer {
                     let width = 80.0 + if can_retry { 96.0 } else { 0.0 } + if can_address { 130.0 } else { 0.0 };
                     ui.horizontal(|ui| {
                         centered_buttons(ui, width);
-                        if can_retry && widgets::primary(ui, "Try again").clicked() {
+                        if can_retry && widgets::primary(ui, lang.text("Try again")).clicked() {
                             Transfer::start_receive(c, &dir, &device, port, &ctx);
                         }
-                        if can_address && widgets::secondary(ui, "Enter address").clicked() {
+                        if can_address && widgets::secondary(ui, lang.text("Enter address")).clicked() {
                             c.address = Some(String::new());
                         }
-                        if widgets::secondary(ui, "Cancel").clicked() {
+                        if widgets::secondary(ui, lang.text("Cancel")).clicked() {
                             cancel = true;
                         }
                     });
@@ -1046,11 +1099,12 @@ impl Transfer {
     }
 
     fn review_page(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) {
+        let lang = app.language;
         let dir = self.dir.clone();
         let Flow::Review(r) = &mut self.flow else { return };
         let mut cancel = false;
         ui.label(
-            egui::RichText::new(format!("Import from {}", r.source))
+            egui::RichText::new(lang.format("Import from {source}", &[("source", &r.source)]))
                 .font(theme::semibold(15.0))
                 .color(t.text),
         );
@@ -1058,23 +1112,30 @@ impl Transfer {
         let when = jiff::Timestamp::from_millisecond(r.manifest.created)
             .map(|ts| {
                 ts.to_zoned(jiff::tz::TimeZone::system())
-                    .strftime("%-d %b %Y, %H:%M")
+                    .strftime(lang.text("%-d %b %Y, %H:%M"))
                     .to_string()
             })
             .unwrap_or_default();
-        line(ui, t, format!("Exported {when} · Opentern {}", r.manifest.app));
+        line(
+            ui,
+            t,
+            lang.format(
+                "Exported {when} · Opentern {version}",
+                &[("when", &when), ("version", &r.manifest.app)],
+            ),
+        );
         ui.add_space(14.0);
         let rows = r.manifest.present();
         if rows.is_empty() {
-            line(ui, t, "This file has nothing in it to import.");
+            line(ui, t, lang.text("This file has nothing in it to import."));
         } else {
-            pick_list(ui, t, &rows, &mut r.picks);
+            pick_list(ui, t, lang, &rows, &mut r.picks);
             ui.add_space(16.0);
             widgets::segmented(
                 ui,
                 t,
                 &mut r.mode,
-                &[(Mode::Merge, "Merge"), (Mode::Replace, "Replace")],
+                &[(Mode::Merge, lang.text("Merge")), (Mode::Replace, lang.text("Replace"))],
             );
             ui.add_space(8.0);
             line(
@@ -1082,9 +1143,11 @@ impl Transfer {
                 t,
                 match r.mode {
                     Mode::Merge => {
-                        "Keeps what's here and updates anything with the same name. A backup is saved first."
+                        lang.text("Keeps what's here and updates anything with the same name. A backup is saved first.")
                     }
-                    Mode::Replace => "Removes what's here for the items ticked above. A backup is saved first.",
+                    Mode::Replace => {
+                        lang.text("Removes what's here for the items ticked above. A backup is saved first.")
+                    }
                 },
             );
             let warn = |ui: &mut Ui, text: String| {
@@ -1101,34 +1164,36 @@ impl Transfer {
             };
             let on = |item: Item| r.picks.get(&item).copied().unwrap_or(false);
             if r.seen.python > 0 && on(Item::Scripts) {
-                let what = if r.seen.python == 1 {
-                    "This file has a Python script".to_string()
+                let warning = if r.seen.python == 1 {
+                    lang.text("This file has a Python script, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor.").to_owned()
                 } else {
-                    format!("This file has {} Python scripts", r.seen.python)
+                    lang.format("This file has {count} Python scripts, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor.", &[("count", &r.seen.python.to_string())])
                 };
-                warn(
-                    ui,
-                    format!(
-                        "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
-                    ),
-                );
+                warn(ui, warning);
             }
             if !r.seen.webhook_hosts.is_empty() && on(Item::Alerts) {
                 warn(
                     ui,
-                    format!("Alerts in this file send to {}.", r.seen.webhook_hosts.join(", ")),
+                    lang.format(
+                        "Alerts in this file send to {hosts}.",
+                        &[("hosts", &r.seen.webhook_hosts.join(", "))],
+                    ),
                 );
             }
         }
         if let Some(e) = &r.error {
             ui.add_space(10.0);
-            line(ui, t, e.clone());
+            line(ui, t, lang.text(e));
         }
         // Another window would keep the old data open across the import.
         let other_window = app.app_lock.is_none() && !crate::app::headless();
         if other_window {
             ui.add_space(10.0);
-            line(ui, t, "Opentern is open in another window. Close it, then import.");
+            line(
+                ui,
+                t,
+                lang.text("Opentern is open in another window. Close it, then import."),
+            );
         }
         ui.add_space(16.0);
         let staging = r.staging.is_some();
@@ -1141,10 +1206,10 @@ impl Transfer {
                 (Mode::Merge, _) => (Kind::Primary, "Import and restart"),
                 (Mode::Replace, _) => (Kind::Danger, "Replace and restart"),
             };
-            if widgets::button(ui, kind, can, None, label).clicked() && can {
+            if widgets::button(ui, kind, can, None, lang.text(label)).clicked() && can {
                 Transfer::start_staging(r, &dir, ui.ctx());
             }
-            if widgets::button(ui, Kind::Secondary, !staging, None, "Cancel").clicked() && !staging {
+            if widgets::button(ui, Kind::Secondary, !staging, None, lang.text("Cancel")).clicked() && !staging {
                 cancel = true;
             }
         });
@@ -1180,12 +1245,18 @@ impl App {
         match o.error {
             None => self.notify(
                 ph::CHECK_CIRCLE,
-                "Import finished",
-                "What was here is saved in the backups folder.",
+                self.language.text("Import finished"),
+                self.language.text("What was here is saved in the backups folder."),
                 backups,
                 true,
             ),
-            Some(e) => self.notify(ph::WARNING, "Couldn't import", &e, backups, true),
+            Some(e) => self.notify(
+                ph::WARNING,
+                self.language.text("Couldn't import"),
+                self.language.text(&e),
+                backups,
+                true,
+            ),
         }
     }
 
@@ -1238,8 +1309,8 @@ impl App {
             "sending" | "sent" | "send-failed" => {
                 let phase = match head {
                     "sending" => SendPhase::Sending { peer, progress },
-                    "sent" => SendPhase::Sent { peer },
-                    _ => SendPhase::Failed("Too many wrong codes. Start again.".into()),
+                    "sent" => SendPhase::Sent { peer: Some(peer) },
+                    _ => SendPhase::Failed(TransferError::Plain("Too many wrong codes. Start again.".into())),
                 };
                 x.flow = Flow::Send(Box::new(Sending {
                     code: "482193".into(),
@@ -1284,17 +1355,17 @@ fn centered_buttons(ui: &mut Ui, width: f32) {
 
 /// The items with their checkboxes: a card of two columns when there's room.
 /// A whole row toggles, not only its box.
-fn pick_list(ui: &mut Ui, t: &Theme, rows: &[(Item, usize)], picks: &mut BTreeMap<Item, bool>) {
+fn pick_list(ui: &mut Ui, t: &Theme, lang: Language, rows: &[(Item, usize)], picks: &mut BTreeMap<Item, bool>) {
     let all = rows.iter().all(|(i, _)| picks.get(i).copied().unwrap_or(true));
     let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
     ui.painter().text(
         pos2(head.left(), head.center().y),
         Align2::LEFT_CENTER,
-        "INCLUDE",
+        lang.text("INCLUDE"),
         theme::semibold(11.0),
         t.text3,
     );
-    let label = if all { "Select none" } else { "Select all" };
+    let label = lang.text(if all { "Select none" } else { "Select all" });
     let g = ui
         .painter()
         .layout_no_wrap(label.to_string(), theme::medium(12.0), t.text2);
@@ -1360,7 +1431,7 @@ fn pick_list(ui: &mut Ui, t: &Theme, rows: &[(Item, usize)], picks: &mut BTreeMa
         p.text(
             pos2(r.left() + 58.0, r.center().y),
             Align2::LEFT_CENTER,
-            item.title(),
+            lang.text(item.title()),
             theme::regular(13.0),
             text_col,
         );
@@ -1519,7 +1590,7 @@ fn copied_id() -> egui::Id {
 
 /// The copy button: when pressed, the two squares fade as a check draws
 /// itself in, then it turns back.
-fn copy_button(ui: &mut Ui, t: &Theme, code: &str, rect: Rect) {
+fn copy_button(ui: &mut Ui, t: &Theme, lang: Language, code: &str, rect: Rect) {
     let resp = ui
         .interact(rect, ui.id().with("transfer-copy"), Sense::click())
         .on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -1538,7 +1609,7 @@ fn copy_button(ui: &mut Ui, t: &Theme, code: &str, rect: Rect) {
     }
     let k = motion::toggle(ui.ctx(), resp.id.with("copied"), copied, motion::STANDARD);
     let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
-    let resp = resp.on_hover_text(if copied { "Copied" } else { "Copy code" });
+    let resp = resp.on_hover_text(lang.text(if copied { "Copied" } else { "Copy code" }));
     let p = ui.painter();
     let round = CornerRadius::same(7);
     p.rect_filled(resp.rect, round, motion::with_alpha(t.hover_wash(), hover * (1.0 - k)));
@@ -1619,12 +1690,12 @@ fn code_row(ui: &mut Ui, t: &Theme, code: &str, active: Option<usize>, app: Opti
         vec2(code_width(), BOX.y),
     );
     paint_code(ui, t, boxes, code, active);
-    if app.is_some() {
+    if let Some(app) = app {
         let r = Rect::from_center_size(
             pos2(boxes.right() + 8.0 + copy / 2.0, boxes.center().y),
             vec2(copy, copy),
         );
-        copy_button(ui, t, code, r);
+        copy_button(ui, t, app.language, code, r);
     }
 }
 
@@ -1995,6 +2066,32 @@ mod tests {
         let texts = d.texts().join("\n");
         assert!(texts.contains("That isn't an Opentern export file."), "{texts}");
         assert!(texts.contains("Choose file"), "{texts}");
+
+        d.app.set_language(Language::Swedish);
+        d.frame(Vec::new());
+        let texts = d.texts().join("\n");
+        assert!(texts.contains("Filen är inte en exportfil från Opentern."), "{texts}");
+        assert!(texts.contains("Välj fil"), "{texts}");
+        assert!(!texts.contains("That isn't an Opentern export file."), "{texts}");
+    }
+
+    #[test]
+    fn export_errors_follow_the_language_and_keep_the_diagnostic() {
+        let mut d = Driver::new("transfer-error-language");
+        open_page(&mut d);
+        let (tx, rx) = bounded(1);
+        tx.send(Err("fixture-{error}".to_owned())).unwrap();
+        with_page(&mut d, |x, _| x.flow = Flow::Saving(rx));
+        assert!(d.texts().join("\n").contains("Couldn't export: fixture-{error}"));
+
+        d.app.set_language(Language::Swedish);
+        assert!(
+            d.texts()
+                .join("\n")
+                .contains("Det gick inte att exportera: fixture-{error}")
+        );
+        d.app.set_language(Language::English);
+        assert!(d.texts().join("\n").contains("Couldn't export: fixture-{error}"));
     }
 
     #[test]

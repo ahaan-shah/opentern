@@ -2,6 +2,7 @@
 //! seven shades), recent colours, a custom colour and an opacity slider.
 
 use crate::chart::style::{c32, rgba};
+use crate::i18n::Language;
 use crate::motion;
 use crate::theme::{self, Theme};
 use egui::{Color32, CornerRadius, Id, Sense, Stroke, Ui, vec2};
@@ -73,6 +74,10 @@ fn swatch(ui: &Ui, t: &Theme, r: egui::Rect, color: Rgba, radius: u8) {
 /// A colour swatch button that opens the picker. Returns true when the
 /// colour changed.
 pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
+    localized_color_button(ui, Language::English, t, color)
+}
+
+pub(super) fn localized_color_button(ui: &mut Ui, lang: Language, t: &Theme, color: &mut Rgba) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
     let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
@@ -92,12 +97,12 @@ pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     egui::Popup::from_toggle_button_response(&resp)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .show(|ui| {
-            changed = picker(ui, t, color);
+            changed = picker(ui, lang, t, color);
         });
     changed
 }
 
-fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
+fn picker(ui: &mut Ui, lang: Language, t: &Theme, color: &mut Rgba) -> bool {
     let mut changed = false;
     let alpha = color.a();
     ui.spacing_mut().item_spacing = vec2(3.0, 3.0);
@@ -130,7 +135,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
         for c in recent.iter().take(9) {
             let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
             swatch(ui, t, r, *c, 4);
-            if resp.on_hover_text("Recent colour").clicked() {
+            if resp.on_hover_text(lang.text("Recent colour")).clicked() {
                 *color = *c;
                 changed = true;
             }
@@ -138,7 +143,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
         // Any colour at all.
         let mut c = c32(*color);
         if egui::widgets::color_picker::color_edit_button_srgba(ui, &mut c, egui::color_picker::Alpha::OnlyBlend)
-            .on_hover_text("Custom colour")
+            .on_hover_text(lang.text("Custom colour"))
             .changed()
         {
             *color = rgba(c);
@@ -147,7 +152,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     });
     ui.add_space(6.0);
     ui.label(
-        egui::RichText::new("OPACITY")
+        egui::RichText::new(lang.text("OPACITY"))
             .font(theme::semibold(10.5))
             .color(t.text3),
     );

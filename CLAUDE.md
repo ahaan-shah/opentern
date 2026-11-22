@@ -16,6 +16,8 @@ here" at the end first.
 - Name **Opentern** (open + terminal; a tern is a seabird, a sibling to Magpie). The binary
   is `opentern`.
 - **Rust + egui on glow**, like Magpie. The UX, design and self-updater all come from Magpie.
+- Settings use English source strings as catalog keys and fallbacks. Swedish is embedded from
+  `crates/app/locales/sv.json`. Translate display labels only; keep saved values and egui IDs stable.
 - Markets: crypto, US stocks, Indian stocks (NSE/BSE), forex/futures. Crypto goes first.
 - Scope: analysis, scripting, backtests, alerts and **paper** trading. Live order routing
   comes later.

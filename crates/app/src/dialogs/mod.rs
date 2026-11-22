@@ -70,12 +70,24 @@ pub enum Done {
 /// The frame every dialog sits in: elevated card, rounded, with a title
 /// row and a close button.
 pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(&mut Ui)) -> bool {
+    localized_frame(ui, t, crate::i18n::Language::English, title, width, body)
+}
+
+fn localized_frame(
+    ui: &mut Ui,
+    t: &Theme,
+    lang: crate::i18n::Language,
+    title: &str,
+    width: f32,
+    body: impl FnOnce(&mut Ui),
+) -> bool {
     let mut close = false;
     ui.set_width(width);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(title).font(theme::semibold(16.0)));
+        ui.label(egui::RichText::new(lang.text(title)).font(theme::semibold(16.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, "Close (Esc)", false, 28.0).clicked() {
+            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, lang.text("Close (Esc)"), false, 28.0).clicked()
+            {
                 close = true;
             }
         });
@@ -148,12 +160,13 @@ impl App {
 }
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
+    let lang = app.language;
     let title = match kind {
         TemplateKind::Chart => "Save chart template",
         TemplateKind::Indicators => "Save indicator template",
     };
     let mut done = Done::Keep;
-    if frame(ui, t, title, 380.0, |ui| {
+    if localized_frame(ui, t, lang, title, 380.0, |ui| {
         if kind == TemplateKind::Indicators && !app.chart.studies.is_empty() {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
@@ -170,10 +183,14 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
             });
         }
         ui.add_space(10.0);
-        ui.label(egui::RichText::new("Name").font(theme::medium(12.0)).color(t.text2));
+        ui.label(
+            egui::RichText::new(lang.text("Name"))
+                .font(theme::medium(12.0))
+                .color(t.text2),
+        );
         let r = ui.add(
             crate::widgets::field(name)
-                .hint_text("e.g. Swing setup")
+                .hint_text(lang.text("e.g. Swing setup"))
                 .desired_width(f32::INFINITY),
         );
         if !r.has_focus() && name.is_empty() {
@@ -183,8 +200,9 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         if exists {
             ui.label(
                 egui::RichText::new(format!(
-                    "{}  Saving replaces the template with this name.",
-                    crate::icons::ph::INFO
+                    "{}  {}",
+                    crate::icons::ph::INFO,
+                    lang.text("Saving replaces the template with this name.")
                 ))
                 .font(theme::regular(12.0))
                 .color(t.warn),
@@ -196,11 +214,17 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         ui.horizontal(|ui| {
             let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
             ui.add_space((ui.available_width() - 168.0).max(0.0));
-            if crate::widgets::secondary(ui, "Cancel").clicked() {
+            if crate::widgets::secondary(ui, lang.text("Cancel")).clicked() {
                 done = Done::Close;
             }
-            let ok = crate::widgets::button(ui, crate::widgets::Kind::Primary, !name.trim().is_empty(), None, "Save")
-                .clicked();
+            let ok = crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Primary,
+                !name.trim().is_empty(),
+                None,
+                lang.text("Save"),
+            )
+            .clicked();
             if (ok || enter) && !name.trim().is_empty() {
                 app.save_template(kind, name.trim());
                 done = Done::Close;
@@ -269,11 +293,11 @@ pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnO
 
 /// A section title with a "Beta" pill: for providers written from their
 /// documentation that nobody has yet run against a real account.
-pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
+pub fn section_beta(ui: &mut Ui, t: &Theme, lang: crate::i18n::Language, title: &str) {
     ui.add_space(6.0);
     ui.horizontal(|ui| {
         ui.label(
-            egui::RichText::new(title.to_uppercase())
+            egui::RichText::new(lang.text(title).to_uppercase())
                 .font(theme::semibold(11.0))
                 .color(t.text3),
         );
@@ -284,9 +308,9 @@ pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
             .stroke(egui::Stroke::new(1.0, t.warn.gamma_multiply(0.5)))
             .show(ui, |ui| ui.label(text))
             .response
-            .on_hover_text(
+            .on_hover_text(lang.text(
                 "Not yet tried with a real account. Compare its prices with another source before relying on them.",
-            );
+            ));
     });
     ui.add_space(2.0);
 }
@@ -341,19 +365,23 @@ fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
 }
 
 fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
+    let lang = app.language;
     let mut done = Done::Keep;
-    if frame(ui, t, "Clear the price cache?", 400.0, |ui| {
+    if localized_frame(ui, t, lang, "Clear the price cache?", 400.0, |ui| {
         ui.label(
-            egui::RichText::new(
+            egui::RichText::new(lang.text(
                 "Charts download their prices again when you open them. Older minute and hour bars may \
                  not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, \
                  60 days of 15-minute). Muhurat and other special sessions recorded live won't come back \
                  either.",
-            )
+            ))
             .color(t.text2),
         );
         ui.add_space(4.0);
-        ui.label(egui::RichText::new("Your watchlists, layouts, drawings, alerts and scripts stay.").color(t.text2));
+        ui.label(
+            egui::RichText::new(lang.text("Your watchlists, layouts, drawings, alerts and scripts stay."))
+                .color(t.text2),
+        );
         ui.add_space(16.0);
         // A fixed-size row: a bare right-to-left layout takes the whole
         // modal's height.
@@ -361,11 +389,13 @@ fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
             vec2(ui.available_width(), 32.0),
             Layout::right_to_left(Align::Center),
             |ui| {
-                if crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, "Clear cache").clicked() {
+                if crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, lang.text("Clear cache"))
+                    .clicked()
+                {
                     app.clear_price_cache(ui.ctx());
                     done = Done::Close;
                 }
-                if crate::widgets::secondary(ui, "Cancel").clicked() {
+                if crate::widgets::secondary(ui, lang.text("Cancel")).clicked() {
                     done = Done::Close;
                 }
             },

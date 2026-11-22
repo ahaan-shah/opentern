@@ -23,6 +23,7 @@ const RECENTS_MAX: usize = 40;
 
 pub struct App {
     pub store: Store,
+    pub(crate) language: crate::i18n::Language,
     pub theme: ThemeState,
     pub updater: Updater,
     pub layout: Arrangement,
@@ -205,6 +206,7 @@ impl App {
         let overview = crate::overview::Overview::load(&store);
         crate::format::load_numbers(store.value(crate::format::NUMBERS_KEY).as_deref());
         let mut app = App {
+            language: crate::i18n::Language::from_code(store.value("language").as_deref()),
             store,
             theme,
             app_lock: None,
@@ -614,6 +616,13 @@ impl App {
         });
         for i in 0..self.chart.compares.len() {
             self.open_compare(i);
+        }
+    }
+
+    pub(crate) fn set_language(&mut self, language: crate::i18n::Language) {
+        self.language = language;
+        if let Err(e) = self.store.set_value("language", language.code()) {
+            crate::diag::crumb(format!("couldn't save language: {e}"));
         }
     }
 

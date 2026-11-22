@@ -6,6 +6,7 @@
 use crate::app::App;
 use crate::dialogs::ChartSettings;
 use crate::dialogs::providers::Providers;
+use crate::i18n::Language;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, THEMES, Theme};
@@ -153,9 +154,18 @@ impl App {
         let Some(mut page) = self.settings.take() else { return };
         let full = ui.max_rect();
         ui.painter().rect_filled(full, CornerRadius::ZERO, t.bg);
-        // Narrower categories when the window is (a 1000 px window has the
-        // widget panel open beside this).
-        let nav_w = if full.width() < 760.0 { 188.0 } else { 220.0 };
+        // Keep the sidebar compact, but allow for a longer translation or UI font.
+        let nav_w = if full.width() < 760.0 {
+            Cat::ALL.into_iter().fold(188.0_f32, |width, cat| {
+                let title = self.language.text(cat.title());
+                let galley = ui
+                    .painter()
+                    .layout_no_wrap(title.to_owned(), theme::medium(13.5), t.text);
+                width.max(galley.size().x + 60.0)
+            })
+        } else {
+            220.0
+        };
         let nav = Rect::from_min_size(full.min, vec2(nav_w, full.height()));
         ui.painter().vline(
             nav.right(),
@@ -167,7 +177,7 @@ impl App {
         // Categories.
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(nav.shrink2(vec2(12.0, 16.0))));
         c.label(
-            egui::RichText::new("Settings")
+            egui::RichText::new(self.language.text("Settings"))
                 .font(theme::semibold(18.0))
                 .color(t.text),
         );
@@ -192,7 +202,7 @@ impl App {
             p.text(
                 pos2(r.left() + 36.0, r.center().y),
                 Align2::LEFT_CENTER,
-                cat.title(),
+                self.language.text(cat.title()),
                 theme::medium(13.5),
                 col,
             );
@@ -206,7 +216,7 @@ impl App {
         let body = Rect::from_min_max(pos2(nav.right() + 1.0, full.top()), full.max);
         let close_r = Rect::from_min_size(pos2(body.right() - 44.0, body.top() + 12.0), vec2(30.0, 30.0));
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(close_r));
-        if crate::widgets::tool_button(&mut c, t, ph::X, "Close (Esc)", false, 30.0).clicked() {
+        if crate::widgets::tool_button(&mut c, t, ph::X, self.language.text("Close (Esc)"), false, 30.0).clicked() {
             close = true;
         }
         let inner = Rect::from_min_max(
@@ -216,7 +226,7 @@ impl App {
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(inner));
         c.set_clip_rect(inner.intersect(ui.clip_rect()));
         c.label(
-            egui::RichText::new(page.cat.title())
+            egui::RichText::new(self.language.text(page.cat.title()))
                 .font(theme::semibold(18.0))
                 .color(t.text),
         );
@@ -239,7 +249,7 @@ impl App {
                         .providers
                         .get_or_insert_with(|| self.providers_form())
                         .page(ui, self, t),
-                    Cat::Shortcuts => shortcuts(ui, t),
+                    Cat::Shortcuts => shortcuts(ui, t, self.language),
                     Cat::Transfer => page
                         .transfer
                         .get_or_insert_with(|| crate::transfer::Transfer::new(self))
@@ -258,7 +268,15 @@ impl App {
 
     fn general(&mut self, ui: &mut Ui, t: &Theme) {
         self.poll_folder_pick();
-        crate::dialogs::section(ui, t, "Folders");
+        crate::dialogs::section(ui, t, self.language.text("Language"));
+        ui.add_space(4.0);
+        let mut language = self.language;
+        let choices = Language::ALL.map(|lang| (lang, lang.name()));
+        if crate::widgets::segmented(ui, t, &mut language, &choices) {
+            self.set_language(language);
+        }
+        ui.add_space(22.0);
+        crate::dialogs::section(ui, t, self.language.text("Folders"));
         ui.add_space(4.0);
         self.folder_row(ui, t, Folder::Scripts);
         ui.add_space(8.0);
@@ -266,19 +284,19 @@ impl App {
         ui.add_space(22.0);
         self.appearance(ui, t);
         ui.add_space(12.0);
-        crate::dialogs::section(ui, t, "Symbol logos");
+        crate::dialogs::section(ui, t, self.language.text("Symbol logos"));
         ui.add_space(4.0);
         self.logo_settings(ui);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Large numbers");
+        crate::dialogs::section(ui, t, self.language.text("Large numbers"));
         ui.add_space(4.0);
         self.number_settings(ui, t);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Price cache");
+        crate::dialogs::section(ui, t, self.language.text("Price cache"));
         ui.add_space(4.0);
         self.cache_settings(ui, t);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Alerts");
+        crate::dialogs::section(ui, t, self.language.text("Alerts"));
         ui.add_space(4.0);
         self.alert_settings(ui, t);
     }
@@ -287,9 +305,16 @@ impl App {
     fn alert_settings(&mut self, ui: &mut Ui, t: &Theme) {
         use crate::daemon::{AT_LOGIN, BACKGROUND};
         let mut background = crate::daemon::background_on(&self.store);
-        if crate::widgets::checkbox(ui, &mut background, "Keep alerts running when Opentern is closed")
-            .on_hover_text("Alerts are watched in the background until Opentern opens again.")
-            .changed()
+        if crate::widgets::checkbox(
+            ui,
+            &mut background,
+            self.language.text("Keep alerts running when Opentern is closed"),
+        )
+        .on_hover_text(
+            self.language
+                .text("Alerts are watched in the background until Opentern opens again."),
+        )
+        .changed()
         {
             let _ = self.store.set_value(BACKGROUND, if background { "on" } else { "off" });
         }
@@ -297,8 +322,10 @@ impl App {
         let err_id = egui::Id::new("alerts-at-login-error");
         let mut at_login = self.store.value(AT_LOGIN).as_deref() == Some("on");
         let resp = ui.add_enabled_ui(background, |ui| {
-            crate::widgets::checkbox(ui, &mut at_login, "Start watching at login")
-                .on_hover_text("Alerts keep working after a restart, without opening Opentern.")
+            crate::widgets::checkbox(ui, &mut at_login, self.language.text("Start watching at login")).on_hover_text(
+                self.language
+                    .text("Alerts keep working after a restart, without opening Opentern."),
+            )
         });
         if resp.inner.changed() {
             let dir = self.store.dir().to_path_buf();
@@ -310,14 +337,17 @@ impl App {
                 }
                 Err(e) => {
                     ui.data_mut(|d| {
-                        d.insert_temp(err_id, format!("Couldn't change the login items: {e}"));
+                        d.insert_temp(err_id, e.to_string());
                     });
                 }
             }
         }
         if let Some(e) = ui.data(|d| d.get_temp::<String>(err_id)) {
             ui.add_space(6.0);
-            ui.label(egui::RichText::new(e).font(theme::regular(12.5)).color(t.text2));
+            let message = self
+                .language
+                .format("Couldn't change the login items: {error}", &[("error", &e)]);
+            ui.label(egui::RichText::new(message).font(theme::regular(12.5)).color(t.text2));
         }
     }
 
@@ -387,12 +417,26 @@ impl App {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         buttons.spacing_mut().item_spacing.x = 4.0;
-        if crate::widgets::secondary(&mut buttons, "Change").clicked() && self.folders.picking.is_none() {
+        if crate::widgets::secondary(&mut buttons, self.language.text("Change")).clicked()
+            && self.folders.picking.is_none()
+        {
             let _ = std::fs::create_dir_all(&dir);
-            let title = format!("Choose a {} folder", name.to_lowercase());
-            self.folders.picking = Some((f, pick_folder(&title, &dir)));
+            let title = match f {
+                Folder::Scripts => "Choose a scripts folder",
+                Folder::Snapshots => "Choose a snapshots folder",
+            };
+            self.folders.picking = Some((f, pick_folder(self.language.text(title), &dir)));
         }
-        if crate::widgets::tool_button(&mut buttons, t, ph::FOLDER_OPEN, "Open folder", false, 30.0).clicked() {
+        if crate::widgets::tool_button(
+            &mut buttons,
+            t,
+            ph::FOLDER_OPEN,
+            self.language.text("Open folder"),
+            false,
+            30.0,
+        )
+        .clicked()
+        {
             let _ = std::fs::create_dir_all(&dir);
             crate::app::open_path(&dir.join("."));
         }
@@ -401,7 +445,7 @@ impl App {
                 &mut buttons,
                 t,
                 ph::ARROW_COUNTER_CLOCKWISE,
-                "Use the default folder",
+                self.language.text("Use the default folder"),
                 false,
                 30.0,
             )
@@ -418,7 +462,7 @@ impl App {
         p.text(
             pos2(text_l, r.center().y - 9.0),
             Align2::LEFT_CENTER,
-            name,
+            self.language.text(name),
             theme::medium(13.5),
             t.text,
         );
@@ -443,7 +487,7 @@ impl App {
     }
 
     fn appearance(&mut self, ui: &mut Ui, t: &Theme) {
-        crate::dialogs::section(ui, t, "Theme");
+        crate::dialogs::section(ui, t, self.language.text("Theme"));
         ui.add_space(4.0);
         let current = self.t().name;
         let mut pick = None;
@@ -532,8 +576,8 @@ impl App {
         use crate::format::Numbers;
         use opentern_data::overview::Market;
         let opts = [
-            (Numbers::Intl, "Millions, billions"),
-            (Numbers::Indian, "Lakhs, crores"),
+            (Numbers::Intl, self.language.text("Millions, billions")),
+            (Numbers::Indian, self.language.text("Lakhs, crores")),
         ];
         let mut changed = false;
         for m in Market::ALL {
@@ -543,10 +587,10 @@ impl App {
                 ui.painter().text(
                     r.left_center(),
                     Align2::LEFT_CENTER,
-                    match m {
+                    self.language.text(match m {
                         Market::India => "Indian stocks",
                         _ => m.label(),
-                    },
+                    }),
                     theme::regular(13.0),
                     t.text,
                 );
@@ -581,16 +625,19 @@ impl App {
         let clearing = CLEARING.load(std::sync::atomic::Ordering::Relaxed);
         ui.label(
             egui::RichText::new(if clearing {
-                "Clearing…".to_string()
+                self.language.text("Clearing…").to_string()
             } else {
-                format!("{:.0} MB of prices on this computer", size as f64 / 1e6)
+                self.language.format(
+                    "{size} MB of prices on this computer",
+                    &[("size", &format!("{:.0}", size as f64 / 1e6))],
+                )
             })
             .color(t.text2),
         );
         ui.add_space(10.0);
         let clear = ui
             .add_enabled_ui(!clearing && !self.demo, |ui| {
-                crate::widgets::secondary(ui, "Clear price cache")
+                crate::widgets::secondary(ui, self.language.text("Clear price cache"))
             })
             .inner;
         if clear.clicked() {
@@ -614,12 +661,12 @@ impl App {
 
     fn logo_settings(&mut self, ui: &mut Ui) {
         let mut on = self.logos.enabled;
-        if crate::widgets::checkbox(ui, &mut on, "Show symbol logos").changed() {
+        if crate::widgets::checkbox(ui, &mut on, self.language.text("Show symbol logos")).changed() {
             self.logos.enabled = on;
             let _ = self.store.set_value("symbol_logos", if on { "on" } else { "off" });
         }
         ui.add_space(10.0);
-        if crate::widgets::secondary(ui, "Clear saved logos").clicked() {
+        if crate::widgets::secondary(ui, self.language.text("Clear saved logos")).clicked() {
             self.logos.clear();
         }
     }
@@ -638,7 +685,7 @@ impl App {
                         .color(t.text),
                 );
                 ui.label(
-                    egui::RichText::new("A fast, local-first market analysis terminal.")
+                    egui::RichText::new(self.language.text("A fast, local-first market analysis terminal."))
                         .font(theme::regular(13.0))
                         .color(t.text2),
                 );
@@ -646,27 +693,46 @@ impl App {
         });
         ui.add_space(18.0);
 
-        crate::dialogs::section(ui, t, "Updates");
+        crate::dialogs::section(ui, t, self.language.text("Updates"));
         ui.add_space(4.0);
         let subtle = |s: String| egui::RichText::new(s).font(theme::regular(12.5)).color(t.text2);
         let phase = self.updater.phase.clone();
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 12.0;
             match &phase {
                 Phase::Available(r) => {
-                    if crate::widgets::primary(ui, &format!("Update to {}", r.version)).clicked() {
+                    if crate::widgets::primary(
+                        ui,
+                        &self.language.format("Update to {version}", &[("version", &r.version)]),
+                    )
+                    .clicked()
+                    {
                         self.update_action(ui.ctx());
                     }
-                    ui.label(subtle("Update available".into()));
+                    ui.label(subtle(self.language.text("Update available").into()));
                 }
                 Phase::Manual(r, why) => {
-                    if crate::widgets::secondary(ui, &format!("Download {}", r.version)).clicked() {
+                    if crate::widgets::secondary(
+                        ui,
+                        &self.language.format("Download {version}", &[("version", &r.version)]),
+                    )
+                    .clicked()
+                    {
                         self.update_action(ui.ctx());
                     }
-                    ui.label(subtle(format!("{why}.")));
+                    let reason = match why.strip_prefix("Opentern can't write to ") {
+                        Some(path) => self
+                            .language
+                            .format("Opentern can't write to {path}", &[("path", path)]),
+                        None => self.language.text(why).to_owned(),
+                    };
+                    ui.label(subtle(format!("{reason}.")));
                 }
                 Phase::Installing(r) => {
-                    ui.label(subtle(format!("Updating to {}", r.version)));
+                    ui.label(subtle(
+                        self.language
+                            .format("Updating to {version}", &[("version", &r.version)]),
+                    ));
                     crate::widgets::progress(
                         ui,
                         t,
@@ -674,29 +740,34 @@ impl App {
                         vec2(160.0, 6.0),
                         self.updater.progress,
                     );
-                    ui.label(subtle(format!("{:.0}%", self.updater.progress * 100.0)));
+                    let percent = format!("{:.0}", self.updater.progress * 100.0);
+                    ui.label(subtle(self.language.format("{percent}%", &[("percent", &percent)])));
                 }
                 Phase::Ready(r) => {
-                    if crate::widgets::primary(ui, "Restart Opentern").clicked() {
+                    if crate::widgets::primary(ui, self.language.text("Restart Opentern")).clicked() {
                         self.update_action(ui.ctx());
                     }
-                    ui.label(subtle(format!(
-                        "Opentern {} is installed. Restart to use it.",
-                        r.version
+                    ui.label(subtle(self.language.format(
+                        "Opentern {version} is installed. Restart to use it.",
+                        &[("version", &r.version)],
                     )));
                 }
                 _ => {
                     let checking = phase == Phase::Checking;
                     let label = if checking { "Checking" } else { "Check for updates" };
-                    if crate::widgets::secondary(ui, label).clicked() && !checking {
+                    if crate::widgets::secondary(ui, self.language.text(label)).clicked() && !checking {
                         self.updater.check(ui.ctx(), true);
                     }
                     match &phase {
                         Phase::UpToDate => {
-                            ui.label(subtle("Opentern is up to date".into()));
+                            ui.label(subtle(self.language.text("Opentern is up to date").into()));
                         }
                         Phase::Failed(m) => {
-                            ui.label(subtle(m.clone()));
+                            let message = match m.strip_prefix("Couldn't update: ") {
+                                Some(error) => self.language.format("Couldn't update: {error}", &[("error", error)]),
+                                None => self.language.text(m).to_owned(),
+                            };
+                            ui.label(subtle(message));
                         }
                         _ => {}
                     }
@@ -705,7 +776,13 @@ impl App {
         });
         ui.add_space(10.0);
         let mut on = self.store.settings().check_updates;
-        if crate::widgets::checkbox(ui, &mut on, "Check for updates when Opentern starts").changed() {
+        if crate::widgets::checkbox(
+            ui,
+            &mut on,
+            self.language.text("Check for updates when Opentern starts"),
+        )
+        .changed()
+        {
             let s = opentern_core::store::Settings {
                 check_updates: on,
                 ..self.store.settings().clone()
@@ -715,17 +792,17 @@ impl App {
             }
         }
         ui.add_space(12.0);
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             ui.spacing_mut().item_spacing.x = 8.0;
-            if crate::widgets::secondary(ui, "What's new").clicked() {
+            if crate::widgets::secondary(ui, self.language.text("What's new")).clicked() {
                 self.modal = Some(crate::dialogs::Modal::WhatsNew(Box::new(
                     crate::whatsnew::Card::current(),
                 )));
             }
-            if crate::widgets::secondary(ui, "Release notes").clicked() {
+            if crate::widgets::secondary(ui, self.language.text("Release notes")).clicked() {
                 crate::app::open_url("https://github.com/ahaan-shah/opentern/releases");
             }
-            if crate::widgets::secondary(ui, "Source code").clicked() {
+            if crate::widgets::secondary(ui, self.language.text("Source code")).clicked() {
                 crate::app::open_url("https://github.com/ahaan-shah/opentern");
             }
         });
@@ -733,7 +810,7 @@ impl App {
 }
 
 /// The keyboard shortcuts sheet: TradingView's, plus Opentern's own.
-fn shortcuts(ui: &mut Ui, t: &Theme) {
+fn shortcuts(ui: &mut Ui, t: &Theme, lang: Language) {
     use crate::chart::draw::Tool;
     let general: &[(&str, &str)] = &[
         ("Symbol search", "Type anywhere"),
@@ -763,30 +840,30 @@ fn shortcuts(ui: &mut Ui, t: &Theme) {
         ),
         ("Answer a prompt", "1 2 3"),
     ];
-    crate::dialogs::section(ui, t, "General");
+    crate::dialogs::section(ui, t, lang.text("General"));
     for (what, keys) in general {
-        shortcut_row(ui, t, None, what, keys);
+        shortcut_row(ui, t, lang, None, what, keys);
     }
     ui.add_space(10.0);
-    crate::dialogs::section(ui, t, "Price scale");
+    crate::dialogs::section(ui, t, lang.text("Price scale"));
     for (what, keys) in scale {
-        shortcut_row(ui, t, None, what, keys);
+        shortcut_row(ui, t, lang, None, what, keys);
     }
     ui.add_space(10.0);
-    crate::dialogs::section(ui, t, "Drawing tools");
+    crate::dialogs::section(ui, t, lang.text("Drawing tools"));
     for tool in Tool::ALL {
-        shortcut_row(ui, t, Some(tool.icon()), tool.name(), tool.shortcut());
+        shortcut_row(ui, t, lang, Some(tool.icon()), tool.name(), tool.shortcut());
     }
     ui.add_space(10.0);
-    crate::dialogs::section(ui, t, "Agent panel");
+    crate::dialogs::section(ui, t, lang.text("Agent panel"));
     for (what, keys) in agent {
-        shortcut_row(ui, t, None, what, keys);
+        shortcut_row(ui, t, lang, None, what, keys);
     }
 }
 
 /// One row of the sheet: what it does on the left, its keys as keycaps on
 /// the right ("Type anywhere" and the like as plain words).
-fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &str) {
+fn shortcut_row(ui: &mut Ui, t: &Theme, lang: Language, icon: Option<&str>, what: &str, keys: &str) {
     let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
     let p = ui.painter();
     p.hline(
@@ -808,7 +885,7 @@ fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &s
     p.text(
         pos2(x, r.center().y),
         Align2::LEFT_CENTER,
-        what,
+        lang.text(what),
         theme::regular(13.5),
         t.text,
     );
@@ -817,7 +894,7 @@ fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &s
         p.text(
             pos2(r.right() - 4.0, r.center().y),
             Align2::RIGHT_CENTER,
-            keys,
+            lang.text(keys),
             theme::regular(12.5),
             t.text2,
         );
@@ -831,7 +908,7 @@ fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &s
         } else {
             k
         };
-        let g = p.layout_no_wrap(k.to_string(), theme::medium(12.0), t.text);
+        let g = p.layout_no_wrap(lang.text(k).to_owned(), theme::medium(12.0), t.text);
         let w = (g.size().x + 14.0).max(24.0);
         let cap = Rect::from_min_size(pos2(right - w, r.center().y - 11.0), vec2(w, 22.0));
         p.rect(
@@ -920,6 +997,41 @@ fn elide_middle(ui: &Ui, text: &str, width: f32) -> String {
 mod tests {
     use super::*;
     use crate::drive::Driver;
+
+    #[test]
+    fn changing_the_settings_language_relabels_the_open_page() {
+        let mut d = Driver::new("settings-language");
+        d.app.open_settings(Cat::General);
+        let swedish = d.text_rect("Svenska").expect("Swedish option");
+        d.click(swedish.center());
+        let texts = d.texts();
+        for label in [
+            "Inställningar",
+            "Allmänt",
+            "SPRÅK",
+            "MAPPAR",
+            "Dataleverantörer",
+            "Kortkommandon",
+        ] {
+            assert!(texts.iter().any(|s| s == label), "missing {label}");
+        }
+        // Rebuild the app from a newly opened workspace database, as at startup.
+        d.app = App::with_context(
+            &d.ctx,
+            Default::default(),
+            opentern_core::Store::open(&d.dir).expect("reopen workspace"),
+            true,
+        );
+        assert_eq!(d.app.language, Language::Swedish);
+        d.app.open_settings(Cat::Shortcuts);
+        assert!(d.texts().iter().any(|s| s == "Sök efter en symbol"));
+        d.app.open_settings(Cat::About);
+        assert!(d.texts().iter().any(|s| s == "Sök efter uppdateringar"));
+        d.app.open_settings(Cat::General);
+        let english = d.text_rect("English").expect("English option");
+        d.click(english.center());
+        assert!(d.texts().iter().any(|s| s == "FOLDERS"));
+    }
 
     #[test]
     fn clearing_the_price_cache_asks_first() {
