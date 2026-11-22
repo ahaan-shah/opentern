@@ -15,9 +15,68 @@ set -eu
 REPO="ahaan-shah/opentern"
 VERSION="${OPENTERN_VERSION:-latest}"
 
-say() { printf '\033[1;36mopentern\033[0m %s\n' "$*"; }
-die() { printf '\033[1;31merror\033[0m %s\n' "$*" >&2; exit 1; }
+# A terminal gets the logo and a drawn progress bar; a pipe or a log gets plain lines.
+FANCY=""
+if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ]; then FANCY=1; fi
+if [ -n "$FANCY" ] && [ -z "${NO_COLOR:-}" ]; then
+    BOLD="$(printf '\033[1m')" DIM="$(printf '\033[2m')" RED="$(printf '\033[31m')" RESET="$(printf '\033[0m')"
+    case "${COLORTERM:-}" in
+    truecolor | 24bit) GREEN="$(printf '\033[38;2;34;181;108m')" TRUECOLOR=1 ;;
+    *) case "${TERM:-}" in *256color*) GREEN="$(printf '\033[38;5;35m')" ;; *) GREEN="$(printf '\033[32m')" ;; esac ;;
+    esac
+else
+    BOLD="" DIM="" RED="" RESET="" GREEN=""
+fi
+TRUECOLOR="${TRUECOLOR:-}"
+
+if [ -n "$FANCY" ]; then
+    say() { printf '  %s\n' "$*"; }
+    ok() { printf '  %s✓%s %s\n' "$GREEN" "$RESET" "$*"; }
+    die() { printf '\r\033[K\033[?25h  %serror%s %s\n' "$BOLD$RED" "$RESET" "$*" >&2; exit 1; }
+else
+    say() { printf 'opentern: %s\n' "$*"; }
+    ok() { say "$*"; }
+    die() { printf 'opentern: error: %s\n' "$*" >&2; exit 1; }
+fi
 need() { command -v "$1" >/dev/null 2>&1 || die "this installer needs '$1'"; }
+
+# The app icon's two candles, a shade lighter at the top as on the icon.
+banner() {
+    [ -n "$FANCY" ] || return 0
+    printf '\n'
+    i=0
+    while IFS= read -r row; do
+        colour="$GREEN"
+        if [ -n "$TRUECOLOR" ]; then
+            colour="$(printf '\033[38;2;%d;%d;%dm' $((52 - i * 45 / 7)) $((211 - i * 80 / 7)) $((130 - i * 56 / 7)))"
+        fi
+        case $i in
+        3) text="      ${BOLD}Opentern${RESET}" ;;
+        4) text="      ${DIM}installer${RESET}" ;;
+        *) text="" ;;
+        esac
+        printf '  %s%s%s%s\n' "$colour" "$row" "$RESET" "$text"
+        i=$((i + 1))
+    done <<'LOGO'
+          ██  
+  ██    ██████
+██████  ██████
+██  ██  ██████
+██  ██  ██████
+██████  ██████
+  ██    ██████
+          ██  
+LOGO
+    printf '\n'
+}
+
+# "~/.local/bin" reads better than the full path.
+tilde() {
+    case "$1" in
+    "$HOME"/*) printf '~%s' "${1#"$HOME"}" ;;
+    *) printf '%s' "$1" ;;
+    esac
+}
 
 OS="$(uname -s)"
 BIN_DIR="${OPENTERN_INSTALL_DIR:-$HOME/.local/bin}"
@@ -40,8 +99,8 @@ uninstall() {
         # Left only if an in-app update was interrupted.
         rm -rf "$BIN_DIR"/.opentern-update-* "$BIN_DIR/.opentern.old"
         refresh
-        say "uninstalled $BIN_DIR/opentern"
-        say "your workspace is still in $DATA/opentern (delete it to remove that too)"
+        say "Uninstalled $BIN_DIR/opentern"
+        say "Your workspace is still in $DATA/opentern (delete it to remove that too)"
         ;;
     Darwin)
         found=""
@@ -49,10 +108,10 @@ uninstall() {
             [ -e "$app" ] || continue
             found=1
             rm -rf "$app" 2>/dev/null || die "couldn't remove $app (try: sudo rm -rf '$app')"
-            say "uninstalled $app"
+            say "Uninstalled $app"
         done
         [ -n "$found" ] || die "Opentern.app isn't in /Applications or ~/Applications"
-        say "your workspace is still in ~/Library/Application Support (delete its opentern folder to remove that too)"
+        say "Your workspace is still in ~/Library/Application Support (delete its opentern folder to remove that too)"
         ;;
     *) die "unsupported OS: $OS (this installer is for Linux and macOS; on Windows use install.ps1)" ;;
     esac
@@ -69,20 +128,94 @@ esac
 
 need uname
 need curl
+need awk
 
+# Name the version up front (and download exactly that one) by following
+# GitHub's redirect from /releases/latest to its tag.
+if [ "$VERSION" = "latest" ] && [ -z "${OPENTERN_BASE_URL:-}" ]; then
+    tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)"
+    case "$tag" in */tag/v*) VERSION="${tag##*/tag/v}" ;; esac
+fi
 if [ "$VERSION" = "latest" ]; then
     BASE="https://github.com/$REPO/releases/latest/download"
+    SHOWN="Opentern"
 else
-    BASE="https://github.com/$REPO/releases/download/v${VERSION#v}"
+    VERSION="${VERSION#v}"
+    BASE="https://github.com/$REPO/releases/download/v$VERSION"
+    SHOWN="Opentern $VERSION"
 fi
 BASE="${OPENTERN_BASE_URL:-$BASE}"
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT INT TERM
+PID=""
+cleanup() {
+    [ -n "$PID" ] && kill "$PID" 2>/dev/null
+    [ -n "$FANCY" ] && printf '\033[?25h'
+    rm -rf "$TMP"
+}
+trap cleanup EXIT
+trap 'cleanup; trap - EXIT; exit 130' INT TERM
 
+# One line of the bar: ■ for what's in, · for what's left, then % and MB.
+draw() {
+    got=0
+    if [ -f "$TMP/$1" ]; then got="$(wc -c <"$TMP/$1" | tr -d ' ')"; fi
+    # Redirects come first in the headers; the last length is the file's.
+    total="$(tr -d '\r' <"$TMP/headers" 2>/dev/null | awk 'tolower($1) == "content-length:" { n = $2 } END { print n + 0 }')"
+    cols="$(tput cols 2>/dev/null || echo 80)"
+    width=32
+    [ "$cols" -lt 70 ] && width=$((cols - 38))
+    [ "$width" -lt 10 ] && width=10
+    if [ "$total" -gt 0 ]; then
+        [ "$got" -gt "$total" ] && got="$total"
+        filled=$((got * width / total))
+        pct="$((got * 100 / total))%"
+        size="$(mb "$got") / $(mb "$total") MB"
+    else
+        filled=0 pct="" size="$(mb "$got") MB"
+    fi
+    done_part="" left_part="" n=0
+    while [ $n -lt $width ]; do
+        if [ $n -lt $filled ]; then done_part="$done_part■"; else left_part="$left_part·"; fi
+        n=$((n + 1))
+    done
+    printf '\r\033[K  %s%s%s%s%s  %4s  %s%s%s' "$GREEN" "$done_part" "$RESET$DIM" "$left_part" "$RESET" "$pct" "$DIM" "$size" "$RESET"
+}
+
+mb() {
+    tenths=$(($1 * 10 / 1048576))
+    printf '%d.%d' $((tenths / 10)) $((tenths % 10))
+}
+
+# Downloads $1 into $TMP; `bar` draws the progress bar in a terminal.
 fetch() {
-    say "downloading $1"
-    curl -fL --progress-bar "$BASE/$1" -o "$TMP/$1" || die "couldn't download $BASE/$1"
+    if [ -z "$FANCY" ] || [ "${2:-}" != bar ]; then
+        [ -n "$FANCY" ] || say "Downloading $1"
+        curl -fsSL "$BASE/$1" -o "$TMP/$1" || die "couldn't download $BASE/$1"
+        return 0
+    fi
+    : >"$TMP/headers"
+    printf '\033[?25l'
+    curl -fsSL -D "$TMP/headers" "$BASE/$1" -o "$TMP/$1" 2>/dev/null &
+    PID=$!
+    while kill -0 "$PID" 2>/dev/null; do
+        draw "$1"
+        sleep 0.1 2>/dev/null || sleep 1
+    done
+    if wait "$PID"; then status=0; else status=$?; fi
+    PID=""
+    [ "$status" -eq 0 ] || die "couldn't download $BASE/$1"
+    draw "$1"
+    printf '\033[?25h\n\n'
+}
+
+start() {
+    banner
+    if [ -n "$FANCY" ]; then
+        printf '  %sInstalling%s %s%s%s\n\n' "$DIM" "$RESET" "$BOLD" "$SHOWN" "$RESET"
+    else
+        say "Installing $SHOWN"
+    fi
 }
 
 sha256() {
@@ -94,7 +227,7 @@ verify() {
     expected="$(grep " $1\$" "$TMP/SHA256SUMS" | cut -d' ' -f1)"
     [ -n "$expected" ] || die "$1 isn't listed in the release's SHA256SUMS"
     [ "$expected" = "$(sha256 "$TMP/$1")" ] || die "checksum mismatch for $1"
-    say "checksum ok"
+    ok "Checksum verified"
 }
 
 case "$OS" in
@@ -108,7 +241,8 @@ Linux)
     esac
 
     NAME="opentern-$ARCH-unknown-linux-gnu"
-    fetch "$NAME.tar.gz"
+    start
+    fetch "$NAME.tar.gz" bar
     verify "$NAME.tar.gz"
     tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"
     SRC="$TMP/$NAME"
@@ -127,17 +261,20 @@ Linux)
     chmod 644 "$DATA/applications/opentern.desktop"
     refresh
 
-    say "installed $("$BIN_DIR/opentern" --version 2>/dev/null || echo opentern) to $BIN_DIR"
+    ok "Installed to $(tilde "$BIN_DIR")"
+    [ -n "$FANCY" ] && printf '\n'
     case ":$PATH:" in
-    *":$BIN_DIR:"*) ;;
-    *) say "note: $BIN_DIR isn't on your PATH. Add it, or open Opentern from your app menu" ;;
+    *":$BIN_DIR:"*) say "Run it with ${BOLD}opentern${RESET}, or open it from your app menu" ;;
+    *) say "$(tilde "$BIN_DIR") isn't on your PATH: add it, or open Opentern from your app menu" ;;
     esac
-    say "run it with: opentern"
+    [ -n "$FANCY" ] && printf '\n'
+    true
     ;;
 Darwin)
     need unzip
     ASSET="Opentern-macos-universal.zip"
-    fetch "$ASSET"
+    start
+    fetch "$ASSET" bar
     verify "$ASSET"
     unzip -q "$TMP/$ASSET" -d "$TMP"
     if [ -w /Applications ]; then DEST=/Applications; else DEST="$HOME/Applications"; mkdir -p "$DEST"; fi
@@ -145,8 +282,11 @@ Darwin)
     mv "$TMP/Opentern.app" "$DEST/"
     # Downloaded with curl, so there's no quarantine flag, but clear it just in case.
     xattr -dr com.apple.quarantine "$DEST/Opentern.app" 2>/dev/null || true
-    say "installed $DEST/Opentern.app"
-    say "open it from Launchpad, or run: open -a Opentern"
+    ok "Installed to $(tilde "$DEST")"
+    [ -n "$FANCY" ] && printf '\n'
+    say "Open it from Launchpad, or run ${BOLD}open -a Opentern${RESET}"
+    [ -n "$FANCY" ] && printf '\n'
+    true
     ;;
 *)
     die "unsupported OS: $OS (this installer is for Linux and macOS; on Windows use install.ps1)"

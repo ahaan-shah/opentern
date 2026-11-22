@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **A friendlier installer on Linux and macOS.** `install.sh` shows the Opentern logo, the version it's installing and a progress bar with megabytes, then a tick for each step. Piped into a log, it prints plain lines as before.
+
 ## 0.3.0 (2026-11-21)
 
 Paper accounts work like real ones, symbol search keeps up with your typing, data holds steady when Yahoo struggles, and Seasonality is right for US stocks and custom indices.
