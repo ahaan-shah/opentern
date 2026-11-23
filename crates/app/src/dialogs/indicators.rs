@@ -84,8 +84,8 @@ impl Indicators {
                     item(ui, Tab::All, ph::FUNCTION, "Built-ins");
                     ui.add_space(6.0);
                     ui.label(
-                        egui::RichText::new("CATEGORIES")
-                            .font(theme::semibold(10.5))
+                        egui::RichText::new("Categories")
+                            .font(theme::medium(12.0))
                             .color(t.text3),
                     );
                     ui.add_space(2.0);

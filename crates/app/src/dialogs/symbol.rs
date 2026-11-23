@@ -25,21 +25,41 @@ pub struct SymbolSearch {
     pub query: String,
     pub results: Vec<Symbol>,
     pub seq: u64,
-    /// The query number `results` answer.
+    /// The query number `results` fully answer.
     pub got: u64,
+    /// The query number `results` answer at least in part (the symbols
+    /// already known, before the network's answer).
+    pub quick: u64,
     sent: Option<String>,
     /// Enter was pressed before this query's results came back.
     enter_pending: bool,
+    /// When (`ctx` time) that Enter was pressed.
+    enter_at: f64,
     /// Move the text cursor here next frame (after a completion).
     cursor_to: Option<usize>,
     /// Where the text cursor is (a char index).
     cursor: usize,
     /// The arrow keys moved the highlight since the query changed.
     moved: bool,
-    filter: Option<AssetKind>,
+    pub(crate) filter: Option<AssetKind>,
     selected: usize,
     focused: bool,
+    /// Prices for rows the feed doesn't follow: id → (last, previous close).
+    pub peek: std::collections::HashMap<String, (f64, f64)>,
+    /// Rows whose prices were asked for.
+    peeked: std::collections::HashSet<String>,
+    /// When (`ctx` time) prices were last asked for.
+    peek_at: f64,
 }
+
+/// Rows from the top whose prices are fetched.
+const PEEK_ROWS: usize = 14;
+/// The kind-and-exchange column's width, and the day change's.
+const TAG_W: f32 = 124.0;
+const CHANGE_W: f32 = 64.0;
+
+/// How long Enter waits for the network's matches (seconds).
+const ENTER_WAIT: f64 = 1.0;
 
 const FILTERS: [(&str, Option<AssetKind>); 8] = [
     ("All", None),
@@ -104,14 +124,19 @@ impl SymbolSearch {
             results: opentern_core::starter_watchlist(),
             seq: 0,
             got: 0,
+            quick: 0,
             sent: None,
             enter_pending: false,
+            enter_at: 0.0,
             cursor_to: None,
             cursor: query.chars().count(),
             moved: false,
             filter: None,
             selected: 0,
             focused: false,
+            peek: Default::default(),
+            peeked: Default::default(),
+            peek_at: f64::NEG_INFINITY,
         }
     }
 
@@ -141,15 +166,26 @@ impl SymbolSearch {
             Pick::Watchlist => "Add to watchlist",
             Pick::Compare { .. } => "Compare symbol",
         };
-        if frame(ui, t, title, 620.0, |ui| {
+        if frame(ui, t, title, 700.0, |ui| {
             // Keys first, so the text field doesn't eat them.
-            let (up, down, enter) = ui.input_mut(|i| {
+            // Shifted keys first: a plain `consume_key` ignores Shift.
+            let (star_key, back, tab, up, down, enter) = ui.input_mut(|i| {
                 (
+                    i.consume_key(egui::Modifiers::SHIFT, Key::Enter),
+                    i.consume_key(egui::Modifiers::SHIFT, Key::Tab),
+                    i.consume_key(egui::Modifiers::NONE, Key::Tab),
                     i.consume_key(egui::Modifiers::NONE, Key::ArrowUp),
                     i.consume_key(egui::Modifiers::NONE, Key::ArrowDown),
                     i.consume_key(egui::Modifiers::NONE, Key::Enter),
                 )
             });
+            // Tab and Shift+Tab step through the kinds.
+            if tab || back {
+                let at = FILTERS.iter().position(|(_, f)| *f == self.filter).unwrap_or(0);
+                let n = FILTERS.len();
+                self.filter = FILTERS[if tab { (at + 1) % n } else { (at + n - 1) % n }].1;
+                self.selected = 0;
+            }
             let r = ui.add(
                 crate::widgets::field(&mut self.query)
                     .hint_text("Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT")
@@ -195,6 +231,8 @@ impl SymbolSearch {
             if self.sent.as_deref() != Some(ask.as_str()) {
                 self.seq += 1;
                 self.sent = Some(ask);
+                // Typing again cancels an Enter still waiting.
+                self.enter_pending = false;
                 // Mid-formula, search for the term being typed.
                 let what = completing.as_ref().map(|c| c.1.as_str()).unwrap_or(&self.query);
                 app.search(self.seq, what);
@@ -262,7 +300,48 @@ impl SymbolSearch {
             } else {
                 Vec::new()
             };
-            let source = if recents.is_empty() { &self.results } else { &recents };
+            // Symbols already in a watchlist or picked lately come first
+            // among those that match from the start (an exact ticker still
+            // leads).
+            let lifted: Vec<Symbol>;
+            let source = if recents.is_empty() {
+                let what = completing
+                    .as_ref()
+                    .map(|c| c.1.as_str())
+                    .unwrap_or(&self.query)
+                    .trim()
+                    .to_uppercase();
+                let mut mine: std::collections::HashSet<String> =
+                    app.recent_symbols().iter().map(|s| s.id.clone()).collect();
+                mine.extend(
+                    app.watchlists
+                        .iter()
+                        .flat_map(|w| w.items.iter())
+                        .filter_map(|i| match i {
+                            crate::watchlists::Item::Symbol(s) => Some(s.id.clone()),
+                            _ => None,
+                        }),
+                );
+                let mut l = self.results.clone();
+                if !what.is_empty() {
+                    l.sort_by_key(|s| {
+                        let tk = s.ticker().to_uppercase();
+                        if tk == what {
+                            0
+                        } else if mine.contains(&s.id)
+                            && (tk.starts_with(&what) || s.description.to_uppercase().starts_with(&what))
+                        {
+                            1
+                        } else {
+                            2
+                        }
+                    });
+                }
+                lifted = l;
+                &lifted
+            } else {
+                &recents
+            };
             for s in source.iter().filter(|s| self.filter.is_none_or(|f| s.kind == f)) {
                 if completing.is_some() && opentern_data::expr::is_expr(&s.id) {
                     continue;
@@ -304,15 +383,55 @@ impl SymbolSearch {
             let local = !awaiting_match && matches!(shown.get(self.selected), Some(Row::Formula(_)));
             // A held Enter fires only once this query's results are in, never
             // on the next frame's leftovers from an older query.
-            let ready = self.got == self.seq || local;
+            // The network gets `ENTER_WAIT` to add its matches; after that
+            // Enter takes the highlighted one of what's shown (a slow or
+            // blocked service never holds it up).
+            let now = ui.input(|i| i.time);
+            let waited = self.enter_pending && self.quick == self.seq && now - self.enter_at >= ENTER_WAIT;
+            let ready = self.got == self.seq || local || waited;
             if enter && !self.query.trim().is_empty() && !ready {
+                if !self.enter_pending {
+                    self.enter_at = now;
+                }
                 self.enter_pending = true;
             } else if (enter || (self.enter_pending && ready)) && self.selected < shown.len() {
                 chosen = Some(self.selected);
             }
+            if self.enter_pending && !ready {
+                ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+            }
             if self.got == self.seq {
                 self.enter_pending = false;
             }
+            // Prices for the top rows the feed doesn't already follow, asked
+            // once this query's results show (at most every quarter second).
+            let now = ui.input(|i| i.time);
+            if self.quick == self.seq && now - self.peek_at > 0.25 {
+                let want: Vec<Symbol> = shown
+                    .iter()
+                    .filter_map(|r| match r {
+                        Row::Sym(s, _) => Some(*s),
+                        Row::Formula(_) => None,
+                    })
+                    .take(PEEK_ROWS)
+                    .filter(|s| !self.peeked.contains(&s.id) && !app.quotes.contains_key(&s.id))
+                    .cloned()
+                    .collect();
+                if !want.is_empty() {
+                    self.peek_at = now;
+                    self.peeked.extend(want.iter().map(|s| s.id.clone()));
+                    app.hub.send(opentern_data::hub::Request::Peek {
+                        seq: self.seq,
+                        symbols: want,
+                    });
+                }
+            }
+            let words = completing
+                .as_ref()
+                .map(|c| c.1.clone())
+                .unwrap_or_else(|| self.query.clone());
+            let starring = self.purpose != Pick::Watchlist;
+            let mut star_row: Option<usize> = star_key.then_some(self.selected);
             // A fixed height: the dialog doesn't jump as results come and go, and
             // a short list is never clipped by last frame's size.
             egui::ScrollArea::vertical()
@@ -326,11 +445,12 @@ impl SymbolSearch {
                     }
                     for (i, row) in shown.iter().enumerate() {
                         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
-                        let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+                        // By the pointer, not `hovered()`: the star takes the hover over its part.
+                        let hov = motion::toggle(ui.ctx(), resp.id, ui.rect_contains_pointer(rect), motion::MICRO);
                         let lit = if i == self.selected { 1.0 } else { hov };
                         ui.painter()
                             .rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), lit));
-                        let p = ui.painter();
+                        let p = ui.painter().clone();
                         let y = rect.center().y;
                         let (sym, ticker, desc, right) = match row {
                             Row::Formula(f) => (
@@ -350,27 +470,97 @@ impl SymbolSearch {
                                 },
                             ),
                         };
-                        app.logos.paint(p, t, sym, pos2(rect.left() + 21.0, y), 10.0);
-                        let right = p.text(
-                            pos2(rect.right() - 10.0, y),
-                            Align2::RIGHT_CENTER,
-                            right,
-                            theme::regular(12.0),
-                            t.text3,
-                        );
+                        app.logos.paint(&p, t, sym, pos2(rect.left() + 21.0, y), 10.0);
+                        // The star (add to or take out of the open watchlist)
+                        // shows on the hovered and highlighted rows, and on
+                        // symbols already in the list.
+                        let mut edge = rect.right() - 10.0;
+                        if let Row::Sym(s, false) = row
+                            && starring
+                        {
+                            let r = egui::Rect::from_center_size(pos2(rect.right() - 20.0, y), vec2(26.0, 26.0));
+                            let star = ui.interact(r, resp.id.with("star"), Sense::click());
+                            let on = app.watching(&s.id);
+                            let near = i == self.selected || ui.rect_contains_pointer(rect);
+                            if on {
+                                crate::widgets::filled_star(&p, r.center(), 6.5, t.warn);
+                            } else if near {
+                                let c = if star.hovered() { t.text } else { t.text3 };
+                                p.text(
+                                    r.center(),
+                                    Align2::CENTER_CENTER,
+                                    crate::icons::ph::STAR,
+                                    theme::regular(14.0),
+                                    c,
+                                );
+                            }
+                            star.clone().on_hover_text(if on {
+                                "Remove from watchlist (Shift+Enter)"
+                            } else {
+                                "Add to watchlist (Shift+Enter)"
+                            });
+                            if star.clicked() {
+                                star_row = Some(i);
+                            }
+                            edge = r.left() - 2.0;
+                        }
+                        // Fixed columns, so prices and changes line up down the list.
+                        let tag_font = theme::regular(12.0);
+                        let right = crate::format::elide_to(&p, &right, &tag_font, TAG_W);
+                        let right = p.text(pos2(edge, y), Align2::RIGHT_CENTER, right, tag_font, t.text3);
+                        // Price and day change: the feed's when it follows the
+                        // symbol, else fetched for the search.
+                        let change_x = edge - TAG_W - 14.0;
+                        let mut room = right.left() - 14.0;
+                        if let Row::Sym(s, _) = row
+                            && let Some(&(last, prev)) = app.quotes.get(&s.id).or_else(|| self.peek.get(&s.id))
+                            && last.is_finite()
+                            && last > 0.0
+                        {
+                            let nf = theme::regular(12.5);
+                            if prev > 0.0 {
+                                let pct = (last / prev - 1.0) * 100.0;
+                                let c = if pct > 0.0 {
+                                    t.pos
+                                } else if pct < 0.0 {
+                                    t.neg
+                                } else {
+                                    t.text3
+                                };
+                                p.text(
+                                    pos2(change_x, y),
+                                    Align2::RIGHT_CENTER,
+                                    crate::format::signed_pct(pct),
+                                    nf.clone(),
+                                    c,
+                                );
+                            }
+                            let d = s.precision().max(if last < 1.0 { 4 } else { 2 });
+                            let pr = p.text(
+                                pos2(change_x - CHANGE_W, y),
+                                Align2::RIGHT_CENTER,
+                                crate::format::grouped(last, d),
+                                nf,
+                                t.text,
+                            );
+                            room = pr.left() - 16.0;
+                        }
                         // Each column elided to its own room, so nothing overlaps.
                         let (tf, df) = (theme::semibold(13.5), theme::regular(13.0));
                         let formula_row = matches!(row, Row::Formula(_));
                         let desc_x = if formula_row {
                             let w = p.layout_no_wrap(ticker.clone(), tf.clone(), t.text).size().x;
-                            (rect.left() + 40.0 + w + 16.0).min(right.left() - 60.0)
+                            (rect.left() + 40.0 + w + 16.0).min(room - 60.0)
                         } else {
-                            rect.left() + 180.0
+                            rect.left() + 170.0
                         };
-                        let tick = crate::format::elide_to(p, &ticker, &tf, desc_x - rect.left() - 48.0);
-                        p.text(pos2(rect.left() + 40.0, y), Align2::LEFT_CENTER, tick, tf, t.text);
-                        let desc = crate::format::elide_to(p, &desc, &df, right.left() - desc_x - 12.0);
-                        p.text(pos2(desc_x, y), Align2::LEFT_CENTER, desc, df, t.text2);
+                        let tick = crate::format::elide_to(&p, &ticker, &tf, desc_x - rect.left() - 48.0);
+                        let hl = if formula_row { "" } else { words.as_str() };
+                        let g = ui.fonts_mut(|f| f.layout_job(marked(&tick, hl, tf.clone(), t.text, t.accent)));
+                        p.galley(pos2(rect.left() + 40.0, y - g.size().y / 2.0), g, t.text);
+                        let desc = crate::format::elide_to(&p, &desc, &df, room - desc_x);
+                        let g = ui.fonts_mut(|f| f.layout_job(marked(&desc, hl, df.clone(), t.text2, t.accent)));
+                        p.galley(pos2(desc_x, y - g.size().y / 2.0), g, t.text2);
                         // Only arrow keys bring the selection into view, so
                         // the wheel and the scrollbar scroll freely.
                         if i == self.selected && (up || down) {
@@ -393,6 +583,11 @@ impl SymbolSearch {
                 Some(Row::Sym(s, false)) => pick = Some((*s).clone()),
                 None => {}
             }
+            if let Some(Row::Sym(s, false)) = star_row.and_then(|i| shown.get(i))
+                && starring
+            {
+                app.toggle_watch(s);
+            }
         }) {
             done = Done::Close;
         }
@@ -407,6 +602,50 @@ impl SymbolSearch {
         }
         done
     }
+}
+
+/// `text` with the first place `query` matches it (a word's start if
+/// there is one, ignoring case; each word of a several-word query) drawn
+/// in `hi`.
+fn marked(
+    text: &str,
+    query: &str,
+    font: egui::FontId,
+    color: egui::Color32,
+    hi: egui::Color32,
+) -> egui::text::LayoutJob {
+    let upper = text.to_uppercase();
+    // Byte ranges to mark; only when upper-casing kept the byte offsets.
+    let mut marks: Vec<(usize, usize)> = Vec::new();
+    if upper.len() == text.len() {
+        for w in query.split_whitespace() {
+            let w = w.to_uppercase();
+            if w.is_empty() {
+                continue;
+            }
+            let found: Vec<usize> = upper.match_indices(w.as_str()).map(|(i, _)| i).collect();
+            let at = found
+                .iter()
+                .find(|&&i| i == 0 || upper[..i].ends_with(|c: char| !c.is_alphanumeric()))
+                .or(found.first());
+            if let Some(&i) = at
+                && !marks.iter().any(|&(a, b)| i < b && a < i + w.len())
+            {
+                marks.push((i, i + w.len()));
+            }
+        }
+    }
+    marks.sort();
+    let mut job = egui::text::LayoutJob::default();
+    let fmt = |c| egui::TextFormat::simple(font.clone(), c);
+    let mut at = 0;
+    for (a, b) in marks {
+        job.append(&text[at..a], 0.0, fmt(color));
+        job.append(&text[a..b], 0.0, fmt(hi));
+        at = b;
+    }
+    job.append(&text[at..], 0.0, fmt(color));
+    job
 }
 
 #[cfg(test)]

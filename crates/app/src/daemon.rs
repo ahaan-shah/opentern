@@ -6,8 +6,9 @@
 //! it runs; the background process holds `alerts.lock`, looks at
 //! `app.lock` a few times a second and leaves as soon as the app opens
 //! (the app waits for it, then takes over). Closing the app starts it
-//! again when "Keep alerts running" is on and an alert is active; "Start
-//! at login" adds it to the system's login items. It exits by itself once
+//! again when Settings → Alerts → "When Opentern is closed" is "Keep
+//! checking alerts" and an alert is active; "Keep checking, even after a
+//! restart" also adds it to the system's login items. It exits by itself once
 //! no alert is active.
 
 use crate::alerts::Alerts;

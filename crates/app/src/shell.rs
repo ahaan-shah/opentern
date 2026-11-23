@@ -1308,9 +1308,11 @@ pub(crate) fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> 
     let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     if ui.is_rect_visible(rect) {
         let p = ui.painter();
-        p.rect_filled(rect, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hover));
+        // Inset, so two lit buttons side by side (log, auto) never touch.
+        let pill = rect.shrink2(vec2(2.0, 0.0));
+        p.rect_filled(pill, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hover));
         if active {
-            p.rect_filled(rect, CornerRadius::same(6), t.accent_soft());
+            p.rect_filled(pill, CornerRadius::same(6), t.accent_soft());
         }
         let color = if active {
             t.accent

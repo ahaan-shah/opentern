@@ -70,6 +70,17 @@ pub struct Editor {
     /// Tried opening the first script once (an empty editor stays empty
     /// after the last tab is closed).
     started: bool,
+    /// The explorer has the keyboard (a row was clicked): arrows move
+    /// `cursor`, Enter opens, F2 renames, Delete deletes, Ctrl C/X/V copy,
+    /// cut and paste scripts.
+    tree_focus: bool,
+    /// The explorer row the keys act on (a script or folder path).
+    cursor: Option<String>,
+    /// A script copied (false) or cut (true) for pasting into a folder.
+    clip: Option<(String, bool)>,
+    /// The pass the explorer was last drawn in (its keys only count while
+    /// it's on screen).
+    tree_pass: u64,
 }
 
 impl Default for Editor {
@@ -96,11 +107,21 @@ impl Default for Editor {
             open_dirs: Default::default(),
             new_dir: String::new(),
             started: false,
+            tree_focus: false,
+            cursor: None,
+            clip: None,
+            tree_pass: 0,
         }
     }
 }
 
 impl Editor {
+    /// Whether the scripts explorer has the keyboard (the app's own
+    /// shortcuts stand down meanwhile).
+    pub fn tree_has_keys(&self, ctx: &egui::Context) -> bool {
+        self.tree_focus && ctx.cumulative_pass_nr().saturating_sub(self.tree_pass) <= 1
+    }
+
     pub fn doc(&self) -> Option<&Doc> {
         self.docs.get(self.active)
     }
@@ -1021,7 +1042,15 @@ impl App {
         use crate::widgets as w;
         let c = code_colors(t);
         let full = ui.max_rect();
-        // Header: EXPLORER and its actions.
+        self.editor.tree_pass = ui.ctx().cumulative_pass_nr();
+        // A press anywhere else gives the keyboard back.
+        if ui.input(|i| i.pointer.any_pressed() && i.pointer.interact_pos().is_some_and(|p| !full.contains(p))) {
+            self.editor.tree_focus = false;
+        }
+        // Rows in the order shown, for the arrow keys: (path, is a folder).
+        let mut order: Vec<(String, bool)> = Vec::new();
+        let tree_focus = self.editor.tree_focus;
+        let cursor = self.editor.cursor.clone();
         let head = Rect::from_min_size(full.min, vec2(full.width(), 36.0));
         ui.painter().text(
             pos2(head.left() + 16.0, head.center().y),
@@ -1156,13 +1185,41 @@ impl App {
                         if let Some((from, to)) = &mut self.editor.renaming
                             && *from == path
                         {
-                            ui.horizontal(|ui| {
-                                ui.add_space(26.0 + depth as f32 * 14.0);
+                            // In the row's own place and height: its icon, then
+                            // the name in a slim box (as VS Code's).
+                            let (rowr, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
+                            let x0 = rowr.left() + 14.0 + (depth + 1) as f32 * 14.0;
+                            let is_dir = matches!(row, Node::Dir { .. });
+                            let (glyph, col) = if is_dir {
+                                (ph::FOLDER_SIMPLE, Color32::from_rgb(0xE0, 0xA8, 0x4E))
+                            } else {
+                                file_icon(Lang::of(&path).unwrap_or(Lang::Pine))
+                            };
+                            ui.painter().text(
+                                pos2(x0 + 6.0, rowr.center().y),
+                                Align2::CENTER_CENTER,
+                                glyph,
+                                theme::regular(14.0),
+                                col,
+                            );
+                            let boxr = Rect::from_min_max(
+                                pos2(x0 + 16.0, rowr.top() + 1.0),
+                                pos2(rowr.right() - 8.0, rowr.bottom() - 1.0),
+                            );
+                            ui.painter().rect(
+                                boxr,
+                                CornerRadius::same(4),
+                                t.field(),
+                                egui::Stroke::new(1.0, t.accent),
+                                egui::StrokeKind::Inside,
+                            );
+                            ui.scope_builder(egui::UiBuilder::new().max_rect(boxr), |ui| {
                                 let r = ui.add(
-                                    w::field(to)
-                                        .desired_width(ui.available_width() - 12.0)
-                                        .font(theme::regular(12.5))
-                                        .margin(vec2(8.0, 3.0)),
+                                    egui::TextEdit::singleline(to)
+                                        .frame(egui::Frame::NONE)
+                                        .desired_width(boxr.width() - 10.0)
+                                        .font(theme::regular(13.0))
+                                        .margin(vec2(5.0, 3.0)),
                                 );
                                 if !r.has_focus() && !r.lost_focus() {
                                     r.request_focus();
@@ -1182,10 +1239,16 @@ impl App {
                                 open,
                                 count,
                             } => {
+                                order.push((path.clone(), true));
                                 let picked = self.editor.new_dir == path;
                                 let resp = dir_row(ui, t, base_name(&path), open, depth + 1, count, picked);
+                                if tree_focus && cursor.as_deref() == Some(path.as_str()) {
+                                    focus_ring(ui, t, resp.rect);
+                                }
                                 if resp.clicked() {
                                     action = Some((15, path.clone()));
+                                    self.editor.cursor = Some(path.clone());
+                                    self.editor.tree_focus = true;
                                 }
                                 if resp.double_clicked() {
                                     action = Some((4, path.clone()));
@@ -1200,12 +1263,18 @@ impl App {
                                 let dirty = self.editor.docs.iter().any(|d| d.key == f && d.dirty());
                                 // Filtered: the path, so same names in two folders read apart.
                                 let label = if q.is_empty() { base_name(&f) } else { f.as_str() };
+                                order.push((f.clone(), false));
                                 let resp = file_row(ui, t, lang, label, selected, on_chart, dirty, depth + 1);
+                                if tree_focus && cursor.as_deref() == Some(f.as_str()) {
+                                    focus_ring(ui, t, resp.rect);
+                                }
                                 if resp.drag_started() {
                                     resp.dnd_set_drag_payload(f.clone());
                                 }
                                 if resp.clicked() {
                                     open = Some(f.clone());
+                                    self.editor.cursor = Some(f.clone());
+                                    self.editor.tree_focus = true;
                                 }
                                 if resp.double_clicked() {
                                     action = Some((4, f.clone()));
@@ -1336,6 +1405,9 @@ impl App {
             d.jump = Some(line);
         }
 
+        if self.editor.tree_focus && self.editor.renaming.is_none() && ui.ctx().memory(|m| m.focused().is_none()) {
+            self.tree_keys(ui, &order, &mut open, &mut action);
+        }
         if let Some(k) = open {
             match k.strip_prefix("builtin:") {
                 Some(id) => self.open_builtin_source(id),
@@ -1405,6 +1477,186 @@ impl App {
             }
             Some((9, _)) => self.editor.renaming = None,
             _ => {}
+        }
+    }
+
+    /// The explorer's keys, as in VS Code's: arrows move (Right opens a
+    /// folder, Left closes it or goes to its folder), Enter opens, F2
+    /// renames, Delete deletes (asking first), Ctrl C / X / V copy, cut
+    /// and paste a script into the folder at the cursor, a letter jumps to
+    /// the next name starting with it, Esc lets go.
+    fn tree_keys(
+        &mut self,
+        ui: &mut Ui,
+        order: &[(String, bool)],
+        open: &mut Option<String>,
+        action: &mut Option<(u8, String)>,
+    ) {
+        use egui::Event;
+        let events = ui.input_mut(|i| {
+            let mut taken = Vec::new();
+            i.events.retain(|e| {
+                let mine = match e {
+                    Event::Key {
+                        key,
+                        pressed: true,
+                        modifiers,
+                        ..
+                    } => {
+                        !modifiers.alt
+                            && matches!(
+                                key,
+                                Key::ArrowUp
+                                    | Key::ArrowDown
+                                    | Key::ArrowLeft
+                                    | Key::ArrowRight
+                                    | Key::Enter
+                                    | Key::F2
+                                    | Key::Delete
+                                    | Key::Escape
+                                    | Key::Home
+                                    | Key::End
+                            )
+                    }
+                    Event::Copy | Event::Cut | Event::Paste(_) => true,
+                    Event::Text(s) => s.chars().all(|c| c.is_alphanumeric()),
+                    _ => false,
+                };
+                if mine {
+                    taken.push(e.clone());
+                }
+                !mine
+            });
+            taken
+        });
+        if events.is_empty() {
+            return;
+        }
+        let at = self
+            .editor
+            .cursor
+            .as_ref()
+            .and_then(|c| order.iter().position(|(p, _)| p == c));
+        let go = |k: usize, this: &mut Self| {
+            if let Some((p, _)) = order.get(k) {
+                this.editor.cursor = Some(p.clone());
+            }
+        };
+        for e in events {
+            let here = at.and_then(|k| order.get(k).cloned());
+            match e {
+                Event::Key {
+                    key: Key::ArrowDown, ..
+                } => go(at.map_or(0, |k| (k + 1).min(order.len().saturating_sub(1))), self),
+                Event::Key { key: Key::ArrowUp, .. } => go(at.map_or(0, |k| k.saturating_sub(1)), self),
+                Event::Key { key: Key::Home, .. } => go(0, self),
+                Event::Key { key: Key::End, .. } => go(order.len().saturating_sub(1), self),
+                Event::Key {
+                    key: Key::ArrowRight, ..
+                } => {
+                    if let Some((p, true)) = &here {
+                        if self.editor.open_dirs.contains(p) {
+                            go(at.unwrap_or(0) + 1, self);
+                        } else {
+                            self.editor.open_dirs.insert(p.clone());
+                        }
+                    }
+                }
+                Event::Key {
+                    key: Key::ArrowLeft, ..
+                } => match &here {
+                    Some((p, true)) if self.editor.open_dirs.contains(p) => {
+                        self.editor.open_dirs.remove(p);
+                    }
+                    Some((p, _)) => {
+                        let up = parent_dir(p).to_string();
+                        if !up.is_empty() {
+                            self.editor.cursor = Some(up);
+                        }
+                    }
+                    None => {}
+                },
+                Event::Key { key: Key::Enter, .. } => match &here {
+                    Some((p, true)) => *action = Some((15, p.clone())),
+                    Some((p, false)) => *open = Some(p.clone()),
+                    None => {}
+                },
+                Event::Key { key: Key::F2, .. } => {
+                    if let Some((p, _)) = &here {
+                        *action = Some((4, p.clone()));
+                    }
+                }
+                Event::Key { key: Key::Delete, .. } => match &here {
+                    Some((p, true)) => *action = Some((11, p.clone())),
+                    Some((p, false)) => *action = Some((6, p.clone())),
+                    None => {}
+                },
+                Event::Key { key: Key::Escape, .. } => self.editor.tree_focus = false,
+                Event::Copy | Event::Cut => {
+                    if let Some((p, false)) = &here {
+                        let cut = matches!(e, Event::Cut);
+                        self.editor.clip = Some((p.clone(), cut));
+                        // Also as text, so Ctrl+V brings a paste event back.
+                        ui.ctx().copy_text(p.clone());
+                        self.editor.status = format!(
+                            "{} {p}. Paste it into a folder with Ctrl+V.",
+                            if cut { "Cut" } else { "Copied" }
+                        );
+                    }
+                }
+                Event::Paste(_) => {
+                    let dir = match &here {
+                        Some((p, true)) => p.clone(),
+                        Some((p, false)) => parent_dir(p).to_string(),
+                        None => String::new(),
+                    };
+                    if let Some((file, cut)) = self.editor.clip.clone() {
+                        if cut {
+                            self.move_script(&file, &dir);
+                            self.editor.clip = None;
+                        } else {
+                            self.copy_script_to(&file, &dir);
+                        }
+                    }
+                }
+                Event::Text(s) => {
+                    // The next row whose name starts with the letter.
+                    let s = s.to_lowercase();
+                    let start = at.map_or(0, |k| k + 1);
+                    let n = order.len();
+                    if let Some(k) = (0..n)
+                        .map(|j| (start + j) % n.max(1))
+                        .find(|&j| base_name(&order[j].0).to_lowercase().starts_with(&s))
+                    {
+                        go(k, self);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Copies a script into folder `dir` (a free name if it's taken).
+    fn copy_script_to(&mut self, file: &str, dir: &str) {
+        let Some(lang) = Lang::of(file) else { return };
+        let name = base_name(file);
+        let stem = name.strip_suffix(lang.ext()).unwrap_or(name);
+        let stem = if parent_dir(file) == dir {
+            format!("{stem} copy")
+        } else {
+            stem.to_string()
+        };
+        let dest = self.free_name(dir, &stem, lang.ext());
+        let root = self.scripts_dir();
+        match std::fs::copy(root.join(file), root.join(&dest)) {
+            Ok(_) => {
+                if !dir.is_empty() {
+                    self.editor.open_dirs.insert(dir.to_string());
+                }
+                self.editor.cursor = Some(dest.clone());
+                self.editor.status = format!("Pasted {dest}.");
+            }
+            Err(e) => self.editor.status = format!("Couldn't paste it: {e}"),
         }
     }
 
@@ -2334,6 +2586,16 @@ fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, Strin
 
 /// One file in the explorer: its language's icon and name, a dot when
 /// it's on the chart, a filled circle when unsaved.
+/// The keyboard cursor's outline on an explorer row.
+fn focus_ring(ui: &Ui, t: &Theme, r: Rect) {
+    ui.painter().rect_stroke(
+        r.shrink(0.5),
+        CornerRadius::ZERO,
+        egui::Stroke::new(1.0, crate::motion::with_alpha(t.accent, 0.7)),
+        egui::StrokeKind::Inside,
+    );
+}
+
 #[allow(clippy::too_many_arguments)]
 fn file_row(
     ui: &mut Ui,
@@ -2475,6 +2737,76 @@ pub fn outline(text: &str, lang: Lang) -> Vec<(usize, String, Outline)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_explorer_works_from_the_keyboard() {
+        use egui::{Event, Key, Modifiers};
+        let mut d = crate::drive::Driver::new("explorer-keys");
+        let root = d.app.scripts_dir();
+        std::fs::create_dir_all(root.join("ideas")).unwrap();
+        std::fs::write(root.join("alpha.pine"), PINE_TEMPLATE).unwrap();
+        std::fs::write(root.join("beta.pine"), PINE_TEMPLATE).unwrap();
+        d.app.open_in_editor("alpha.pine");
+        d.app.layout.tab = Some(crate::shell::Tab::Editor);
+        d.app.layout.panel_h = 420.0;
+        // Let the panel slide in and the file list settle.
+        for _ in 0..60 {
+            d.frame(vec![]);
+        }
+        // Click alpha's row: the explorer takes the keyboard.
+        // The explorer's row: the leftmost "alpha.pine" (tabs and the
+        // breadcrumb show it too).
+        let at = d
+            .text_rects("alpha.pine")
+            .into_iter()
+            .min_by(|a, b| a.left().total_cmp(&b.left()))
+            .expect("alpha's row")
+            .center();
+        d.click(at);
+        d.frame(vec![]);
+        assert!(d.app.editor.tree_focus);
+        assert_eq!(d.app.editor.cursor.as_deref(), Some("alpha.pine"));
+        let right_before = d.app.chart.view.right;
+        d.key(Key::ArrowDown, Modifiers::NONE);
+        assert_eq!(d.app.editor.cursor.as_deref(), Some("beta.pine"));
+        d.key(Key::ArrowUp, Modifiers::NONE);
+        d.key(Key::ArrowUp, Modifiers::NONE);
+        assert_eq!(d.app.editor.cursor.as_deref(), Some("ideas"), "folders come first");
+        // Arrows stayed in the explorer, not the chart.
+        d.key(Key::ArrowLeft, Modifiers::NONE);
+        assert_eq!(d.app.chart.view.right, right_before);
+        // A letter jumps to the next name starting with it.
+        d.frame(vec![Event::Text("b".into())]);
+        assert_eq!(d.app.editor.cursor.as_deref(), Some("beta.pine"));
+        // Copy beta, paste into ideas.
+        d.frame(vec![Event::Copy]);
+        d.key(Key::Home, Modifiers::NONE);
+        d.frame(vec![Event::Paste("beta.pine".into())]);
+        d.frame(vec![]);
+        assert!(root.join("ideas/beta.pine").exists(), "paste copied into the folder");
+        assert!(root.join("beta.pine").exists());
+        // Cut alpha and paste it at the top of ideas.
+        d.app.editor.cursor = Some("alpha.pine".into());
+        d.frame(vec![Event::Cut]);
+        d.app.editor.cursor = Some("ideas".into());
+        d.frame(vec![Event::Paste("alpha.pine".into())]);
+        d.frame(vec![]);
+        assert!(root.join("ideas/alpha.pine").exists() && !root.join("alpha.pine").exists());
+        // F2 renames; Esc cancels.
+        d.app.editor.cursor = Some("beta.pine".into());
+        d.key(Key::F2, Modifiers::NONE);
+        assert!(d.app.editor.renaming.is_some());
+        d.key(Key::Escape, Modifiers::NONE);
+        d.frame(vec![]);
+        assert!(d.app.editor.renaming.is_none());
+        // Delete asks, then deletes.
+        d.app.editor.tree_focus = true;
+        d.app.editor.cursor = Some("beta.pine".into());
+        d.key(Key::Delete, Modifiers::NONE);
+        assert!(root.join("beta.pine").exists(), "the first Delete only asks");
+        d.key(Key::Delete, Modifiers::NONE);
+        assert!(!root.join("beta.pine").exists());
+    }
 
     #[test]
     fn folders_in_the_scripts_folder() {

@@ -1278,7 +1278,7 @@ fn binance_closes(pairs: &[String]) -> HashMap<String, (Vec<i64>, Vec<f64>)> {
 
 /// Binance's current UTC day per pair: (open, last), as the watchlist's
 /// daily change uses. A hundred pairs a request.
-fn binance_days(pairs: &[String]) -> HashMap<String, (f64, f64)> {
+pub(crate) fn binance_days(pairs: &[String]) -> HashMap<String, (f64, f64)> {
     let agent = provider::agent();
     let mut out = HashMap::new();
     for chunk in pairs.chunks(100) {

@@ -67,13 +67,17 @@ fn get_from(agent: &ureq::Agent, hosts: &[&str], at: &AtomicUsize, path: &str) -
     let mut err = Error::Offline;
     for k in 0..hosts.len() {
         let i = (start + k) % hosts.len();
-        match provider::get_json(agent, &format!("{}{path}", hosts[i])) {
+        match provider::get_json_refusal(agent, &format!("{}{path}", hosts[i])) {
             Ok(v) => {
                 at.store(i, Ordering::Relaxed);
                 return Ok(v);
             }
-            Err(Error::Offline) => {}
-            Err(e) => err = e,
+            // "Invalid symbol" and the like: every host says the same, and
+            // asking the next one can mean a long connect timeout on a
+            // network that blocks it (a coin lookup held search's Enter).
+            Err((e, true)) => return Err(e),
+            Err((Error::Offline, _)) => {}
+            Err((e, _)) => err = e,
         }
     }
     Err(err)

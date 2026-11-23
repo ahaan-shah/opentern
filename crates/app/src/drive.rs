@@ -83,6 +83,36 @@ impl Driver {
         texts
     }
 
+    /// Runs a frame and returns every text painted, with where and the
+    /// clip rect it was painted in (which tells layers and panels apart).
+    pub fn labelled_rects(&mut self) -> Vec<(String, Rect, Rect)> {
+        fn walk(shape: &egui::Shape, clip: Rect, out: &mut Vec<(String, Rect, Rect)>) {
+            match shape {
+                egui::Shape::Text(t) => out.push((
+                    t.galley.text().to_string(),
+                    t.galley.rect.translate(t.pos.to_vec2()),
+                    clip,
+                )),
+                egui::Shape::Vec(v) => v.iter().for_each(|s| walk(s, clip, out)),
+                _ => {}
+            }
+        }
+        self.time += 1.0 / 60.0;
+        let raw = RawInput {
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            time: Some(self.time),
+            ..Default::default()
+        };
+        let app = &mut self.app;
+        let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
+        out.textures_delta.clear();
+        let mut all = Vec::new();
+        for c in &out.shapes {
+            walk(&c.shape, c.clip_rect, &mut all);
+        }
+        all
+    }
+
     /// Runs a frame and returns where text that is exactly `text` was
     /// painted (the last such, so the topmost layer's).
     pub fn text_rect(&mut self, text: &str) -> Option<Rect> {
@@ -1325,6 +1355,7 @@ mod formula_tests {
             unreachable!()
         };
         s.got = s.seq - 1;
+        s.quick = s.seq - 1;
         d.key(Key::Enter, Modifiers::NONE);
         for _ in 0..5 {
             d.frame(vec![]);
@@ -1336,6 +1367,119 @@ mod formula_tests {
         // They arrive: the waiting Enter completes the term with the first.
         s.got = s.seq;
         d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.query == "BTCUSDT/BINANCE:ETHUSDT"));
+    }
+
+    /// Enter never waits long for the network's matches: once this query's
+    /// quick results show, it takes the highlighted row after `ENTER_WAIT`
+    /// (a slow or blocked service held it until a click, Nov 2026).
+    #[test]
+    fn enter_opens_the_highlighted_row_when_the_network_is_slow() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("search-slow-enter");
+        for ch in "eth".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.got == s.seq && !s.results.is_empty()));
+        // The network part of this query hasn't answered yet.
+        let Some(Modal::Symbol(s)) = &mut d.app.modal else {
+            unreachable!()
+        };
+        s.got = s.seq - 1;
+        let first = s.results[0].id.clone();
+        d.key(Key::Enter, Modifiers::NONE);
+        for _ in 0..10 {
+            d.frame(vec![]);
+        }
+        assert!(
+            matches!(&d.app.modal, Some(Modal::Symbol(_))),
+            "Enter didn't wait at all"
+        );
+        for _ in 0..60 {
+            d.frame(vec![]);
+        }
+        assert!(d.app.modal.is_none(), "Enter still waiting after a second");
+        assert_eq!(d.app.chart.symbol.id, first);
+    }
+
+    /// Search rows carry a price, Shift+Enter stars the highlighted row
+    /// into the watchlist (and out again) without closing, and Tab steps
+    /// through the kinds.
+    #[test]
+    fn search_rows_have_prices_stars_and_tabs() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("search-extras");
+        for ch in "sol".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.got == s.seq && !s.results.is_empty()));
+        let first = match &d.app.modal {
+            Some(Modal::Symbol(s)) => s.results[0].clone(),
+            _ => unreachable!(),
+        };
+        d.wait(|a| {
+            a.quotes.contains_key(&first.id)
+                || matches!(&a.modal, Some(Modal::Symbol(s)) if s.peek.contains_key(&first.id))
+        });
+        // (The starter list may already have it.)
+        let was = d.app.watching(&first.id);
+        d.key(Key::Enter, Modifiers::SHIFT);
+        d.frame(vec![]);
+        assert_eq!(d.app.watching(&first.id), !was, "Shift+Enter didn't star it");
+        assert!(
+            matches!(&d.app.modal, Some(Modal::Symbol(_))),
+            "starring closed the search"
+        );
+        d.key(Key::Enter, Modifiers::SHIFT);
+        d.frame(vec![]);
+        assert_eq!(d.app.watching(&first.id), was, "Shift+Enter again didn't undo it");
+        d.key(Key::Tab, Modifiers::NONE);
+        d.frame(vec![]);
+        let filter = |d: &Driver| match &d.app.modal {
+            Some(Modal::Symbol(s)) => s.filter,
+            _ => panic!("search closed"),
+        };
+        assert_eq!(filter(&d), Some(opentern_core::AssetKind::Crypto));
+        d.key(Key::Tab, Modifiers::SHIFT);
+        d.key(Key::Tab, Modifiers::SHIFT);
+        d.frame(vec![]);
+        assert_eq!(filter(&d), Some(opentern_core::AssetKind::Commodity));
+    }
+
+    /// A search row's columns (ticker, name, price, change, kind) never
+    /// overlap, long names included.
+    #[test]
+    fn search_row_columns_never_overlap() {
+        use crate::dialogs::Modal;
+        let mut d = Driver::new("search-columns");
+        for ch in "e".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.wait(|a| matches!(&a.modal, Some(Modal::Symbol(s)) if s.got == s.seq && s.results.len() > 3 && s.results.iter().take(5).all(|r| a.quotes.contains_key(&r.id) || s.peek.contains_key(&r.id))));
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        let texts = d.labelled_rects();
+        // The result list's texts: those clipped like a row's kind tag.
+        let list = texts
+            .iter()
+            .find(|(t, ..)| t.contains("  ·  "))
+            .expect("no result rows")
+            .2;
+        let rows: Vec<&(String, Rect, Rect)> = texts
+            .iter()
+            .filter(|(t, r, c)| *c == list && !t.trim().is_empty() && r.height() < 30.0)
+            .collect();
+        let pct = rows.iter().filter(|(t, ..)| t.ends_with('%')).count();
+        assert!(pct >= 3, "no day changes painted: {rows:?}");
+        // Texts on one row (same centre line) mustn't overlap.
+        for (i, a) in rows.iter().enumerate() {
+            for b in &rows[i + 1..] {
+                let same_line = (a.1.center().y - b.1.center().y).abs() < 2.0;
+                if same_line && a.1.shrink2(vec2(0.5, 0.0)).intersects(b.1.shrink2(vec2(0.5, 0.0))) {
+                    panic!("{:?} overlaps {:?}", a, b);
+                }
+            }
+        }
     }
 
     /// The first term completes too: with the cursor back in it, Enter
@@ -1460,7 +1604,7 @@ mod formula_tests {
         d.frame(vec![]);
         let texts = d.texts();
         // The page's own controls show, and the panel's tabs don't.
-        assert!(texts.iter().any(|t| t == "FOLDERS"), "{texts:?}");
+        assert!(texts.iter().any(|t| t == "Folders"), "{texts:?}");
         assert!(!texts.iter().any(|t| t == "Screener"), "{texts:?}");
         d.app.settings = None;
         d.frame(vec![]);
@@ -1665,7 +1809,12 @@ mod formula_tests {
             });
         }
         d.frame(vec![]);
-        let title = d.text_rect("Watchlist").expect("watchlist title");
+        // The title: the topmost "Watchlist" (the strip of lists has it too).
+        let title = d
+            .text_rects("Watchlist")
+            .into_iter()
+            .min_by(|a, b| a.top().total_cmp(&b.top()))
+            .expect("watchlist title");
         let glass = d
             .text_rects(crate::icons::ph::MAGNIFYING_GLASS)
             .into_iter()
@@ -1679,9 +1828,9 @@ mod formula_tests {
         assert!(!texts.iter().any(|t| t == "Swing" || t == "Scalps"), "{texts:?}");
         d.key(Key::Enter, Modifiers::NONE);
         assert_eq!(d.app.watchlists[d.app.active_list].name, "Semis");
-        // Picking closes the search: the switcher's circles are back.
+        // Picking closes the search: the strip of lists is back.
         assert!(d.text_rect("Semis").is_some());
-        assert!(d.texts().iter().any(|t| t == "D"));
+        assert!(d.texts().iter().any(|t| t == "Dividends"));
     }
 
     #[test]

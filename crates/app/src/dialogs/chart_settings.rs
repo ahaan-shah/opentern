@@ -276,9 +276,11 @@ fn symbol_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle, exchange: &jiff::tz::T
                 changed |= color_button(ui, t, &mut s.baseline_down);
             });
             form_row(ui, t, "Base level", |ui| {
-                changed |= ui
-                    .add(egui::Slider::new(&mut s.baseline_level, 0..=100).suffix("%"))
-                    .changed();
+                let mut level = s.baseline_level as i32;
+                if crate::widgets::slider(ui, t, &mut level, 0..=100, "%").changed() {
+                    s.baseline_level = level as _;
+                    changed = true;
+                }
             });
         }
         SeriesKind::HighLow => {

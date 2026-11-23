@@ -73,16 +73,75 @@ pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(
     let mut close = false;
     ui.set_width(width);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(title).font(theme::semibold(16.0)));
+        ui.label(egui::RichText::new(title).font(theme::semibold(17.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if crate::widgets::tool_button(ui, t, crate::icons::ph::X, "Close (Esc)", false, 28.0).clicked() {
                 close = true;
             }
         });
     });
-    ui.add_space(8.0);
+    // A hairline under the title, edge to edge across the dialog.
+    ui.add_space(10.0);
+    let (r, _) = ui.allocate_exact_size(vec2(width, 1.0), egui::Sense::hover());
+    let edge = (r.left() - MARGIN as f32)..=(r.right() + MARGIN as f32);
+    ui.painter().hline(edge, r.center().y, egui::Stroke::new(1.0, t.border));
+    ui.add_space(14.0);
     body(ui);
     close
+}
+
+/// A dialog's padding.
+const MARGIN: i8 = 22;
+
+/// The border of the big dialogs: firmer than menus', since they stand
+/// alone mid-screen.
+fn border_stroke(t: &Theme) -> egui::Stroke {
+    egui::Stroke::new(1.5, t.edge().lerp_to_gamma(t.text, if t.dark { 0.10 } else { 0.06 }))
+}
+
+/// A glow of the app's green falling on a dialog from above, fading into
+/// the surface over its top. Drawn as stacked rounded bands (so corners
+/// stay round) in exact, solid colours: faint see-through green on the
+/// slate rounded to equal parts green and blue and read as teal. The glow
+/// is the accent darkened (like the selected rows' fill), mixed in just
+/// far enough that it reads green, not teal, on the bluish surface.
+/// Call [`sheen_slots`] before the dialog's content and this after it, so
+/// it spans the finished dialog yet sits behind the content.
+pub fn sheen(ui: &Ui, t: &Theme, slots: &[egui::layers::ShapeIdx], frame: egui::Rect, radius: u8) {
+    let p = ui.painter();
+    let reach = 120.0_f32.min(frame.height());
+    let top = CornerRadius {
+        nw: radius,
+        ne: radius,
+        sw: 0,
+        se: 0,
+    };
+    let base = t.popup();
+    let (glow, most) = if t.dark {
+        {
+            let a = t.accent;
+            let q = |c: u8| (c as f32 * 0.25).round() as u8;
+            (egui::Color32::from_rgb(q(a.r()), q(a.g()), q(a.b())), 0.42)
+        }
+    } else {
+        (t.accent, 0.07)
+    };
+    let n = slots.len();
+    for (k, slot) in slots.iter().enumerate() {
+        // Tallest and faintest first, the short strong ones on top.
+        let h = reach * (n - k) as f32 / n as f32;
+        let c = base.lerp_to_gamma(glow, most * (k + 1) as f32 / n as f32);
+        // At least twice the radius: egui caps a corner at half the
+        // rect's height, and a sharper corner poked past the border's curve.
+        let r = egui::Rect::from_min_size(frame.min, vec2(frame.width(), h.max(2.0 * radius as f32 + 1.0)));
+        p.set(*slot, egui::Shape::rect_filled(r, top, c));
+    }
+}
+
+/// Places for [`sheen`]'s bands, behind what's drawn next.
+pub fn sheen_slots(ui: &Ui) -> Vec<egui::layers::ShapeIdx> {
+    // 24 bands, then the border drawn again over them.
+    (0..25).map(|_| ui.painter().add(egui::Shape::Noop)).collect()
 }
 
 impl App {
@@ -91,41 +150,62 @@ impl App {
         let Some(mut modal) = self.modal.take() else { return };
         let t = self.t();
         let resp = egui::Modal::new(Id::new("modal"))
-            .backdrop_color(egui::Color32::from_black_alpha(if t.dark { 110 } else { 60 }))
+            .backdrop_color(egui::Color32::from_black_alpha(if t.dark { 150 } else { 70 }))
             .frame(
                 egui::Frame::new()
-                    .fill(t.elevated)
-                    .stroke(egui::Stroke::new(1.0, t.border))
-                    .corner_radius(CornerRadius::same(theme::RADIUS))
-                    .inner_margin(Margin::same(18))
+                    .fill(t.popup())
+                    .stroke(border_stroke(&t))
+                    .corner_radius(CornerRadius::same(16))
+                    .inner_margin(Margin::same(MARGIN))
                     .shadow(egui::Shadow {
-                        offset: [0, 12],
-                        blur: 36,
+                        offset: [0, 24],
+                        blur: 64,
                         spread: 0,
                         color: t.shadow(),
                     }),
             )
-            .show(ctx, |ui| match &mut modal {
-                Modal::Symbol(s) => s.show(ui, self, &t),
-                Modal::Indicators(s) => s.show(ui, self, &t),
-                Modal::Study(s) => s.show(ui, self, &t),
-                Modal::ChartSettings(s) => s.show(ui, self, &t),
-                Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
-                Modal::Interval(text) => interval(ui, self, &t, text),
-                Modal::Alert(f) => f.show(ui, self, &t),
-                Modal::Providers(p) => p.show(ui, self, &t),
-                Modal::StrategyProps(p) => p.show(ui, self, &t),
-                Modal::PaperAccount(f) => f.show(ui, self, &t),
-                Modal::Index(e) => e.show(ui, self, &t),
-                Modal::ClearCache => clear_cache(ui, self, &t),
-                Modal::PythonNotice => python_notice(ui, &t),
-                Modal::WhatsNew(c) => {
-                    if crate::whatsnew::card(c, ui, &t) {
-                        Done::Close
-                    } else {
-                        Done::Keep
+            .show(ctx, |ui| {
+                let slots = sheen_slots(ui);
+                let done = match &mut modal {
+                    Modal::Symbol(s) => s.show(ui, self, &t),
+                    Modal::Indicators(s) => s.show(ui, self, &t),
+                    Modal::Study(s) => s.show(ui, self, &t),
+                    Modal::ChartSettings(s) => s.show(ui, self, &t),
+                    Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
+                    Modal::Interval(text) => interval(ui, self, &t, text),
+                    Modal::Alert(f) => f.show(ui, self, &t),
+                    Modal::Providers(p) => p.show(ui, self, &t),
+                    Modal::StrategyProps(p) => p.show(ui, self, &t),
+                    Modal::PaperAccount(f) => f.show(ui, self, &t),
+                    Modal::Index(e) => e.show(ui, self, &t),
+                    Modal::ClearCache => clear_cache(ui, self, &t),
+                    Modal::PythonNotice => python_notice(ui, &t),
+                    Modal::WhatsNew(c) => {
+                        if crate::whatsnew::card(c, ui, &t) {
+                            Done::Close
+                        } else {
+                            Done::Keep
+                        }
                     }
-                }
+                };
+                // Inside the border: the frame's corner less its stroke.
+                let fill = ui.min_rect().expand(MARGIN as f32);
+                sheen(ui, &t, &slots[..slots.len() - 1], fill, 15);
+                // The border once more over the glow (as egui draws it:
+                // inside the frame's outer edge), so the glow's corners can
+                // never cover it, at any screen scale.
+                let border = border_stroke(&t);
+                ui.painter().set(
+                    slots[slots.len() - 1],
+                    egui::Shape::Rect(egui::epaint::RectShape::new(
+                        fill.expand(border.width),
+                        CornerRadius::same(16),
+                        egui::Color32::TRANSPARENT,
+                        border,
+                        egui::StrokeKind::Inside,
+                    )),
+                );
+                done
             });
         let done = matches!(resp.inner, Done::Close);
         if done {
@@ -255,7 +335,9 @@ pub fn form_row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut U
 /// [`form_row`] with a label column `w` wide.
 pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(w, 26.0), egui::Sense::hover());
+        // As tall as a field or a dropdown, so the label sits on the
+        // control's centre line.
+        let (r, _) = ui.allocate_exact_size(vec2(w, 34.0), egui::Sense::hover());
         ui.painter().text(
             r.left_center(),
             egui::Align2::LEFT_CENTER,
@@ -292,12 +374,8 @@ pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
 }
 
 pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
-    ui.add_space(6.0);
-    ui.label(
-        egui::RichText::new(title.to_uppercase())
-            .font(theme::semibold(11.0))
-            .color(t.text3),
-    );
+    ui.add_space(10.0);
+    ui.label(egui::RichText::new(title).font(theme::semibold(13.0)).color(t.text));
     ui.add_space(2.0);
 }
 

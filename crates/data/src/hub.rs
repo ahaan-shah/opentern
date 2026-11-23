@@ -53,6 +53,12 @@ pub enum Request {
     },
     /// Keys for the providers that need an account (from the keychain).
     Credentials(Credentials),
+    /// Price and previous close once, for symbol search's rows; answered
+    /// in parts (`Event::Peek`) as each source replies.
+    Peek {
+        seq: u64,
+        symbols: Vec<Symbol>,
+    },
     /// One-off history, no streaming (screener, portfolio backtests, other
     /// symbols in `request.security`): the latest `count` bars.
     Fetch {
@@ -192,6 +198,11 @@ pub enum Event {
     Depth {
         seq: u64,
         result: Result<crate::depth::Book, String>,
+    },
+    /// Part of the answer to a `Request::Peek`: (id, last, previous close).
+    Peek {
+        seq: u64,
+        quotes: Vec<(String, f64, f64)>,
     },
     /// The answer to a `Request::Fundamentals`.
     Fundamentals {
@@ -338,6 +349,12 @@ fn manager(dir: PathBuf, demo: bool, rx: Receiver<Request>, out: Out) {
                     let result = crate::feeds::hotlist(market, kind, demo).map_err(|e| e.to_string());
                     out.send(Event::Hotlist { seq, result });
                 });
+            }
+            Request::Peek { seq, symbols } => {
+                let out = out.clone();
+                let _ = std::thread::Builder::new()
+                    .name("data-peek".into())
+                    .spawn(move || peek(seq, symbols, demo, &out));
             }
             Request::Overview { seq, market } => {
                 let out = out.clone();
@@ -893,6 +910,81 @@ fn daily_quote(sym: &Symbol) -> Option<(f64, f64)> {
         last.open
     };
     Some((last.close, prev))
+}
+
+/// Prices for symbol search's rows, by the cheapest route per source:
+/// Binance pairs in one trading-day batch (the watchlist's daily change),
+/// Yahoo symbols in one spark batch (shared with the quote feed's
+/// cache), anything else from its two latest daily bars. Each source's
+/// part is sent as soon as it's in.
+fn peek(seq: u64, symbols: Vec<Symbol>, demo: bool, out: &Out) {
+    if demo {
+        let quotes = symbols
+            .iter()
+            .map(|s| {
+                let (last, prev) = demo::quote(s);
+                (s.id.clone(), last, prev)
+            })
+            .collect();
+        out.send(Event::Peek { seq, quotes });
+        return;
+    }
+    let mut pairs = Vec::new();
+    let mut yahoo = Vec::new();
+    let mut rest = Vec::new();
+    for s in symbols {
+        if crate::expr::is_expr(&s.id) {
+            continue;
+        }
+        if s.exchange() == "BINANCE" && !s.ticker().ends_with(".P") {
+            pairs.push(s);
+        } else if yahoo_routed(&s) && !crate::yahoo::ticker(&s.id).ends_with("=X") {
+            yahoo.push(s);
+        } else {
+            rest.push(s);
+        }
+    }
+    std::thread::scope(|sc| {
+        sc.spawn(|| {
+            if pairs.is_empty() {
+                return;
+            }
+            let tickers: Vec<String> = pairs.iter().map(|s| s.ticker().to_string()).collect();
+            let days = crate::overview::binance_days(&tickers);
+            let quotes: Vec<_> = pairs
+                .iter()
+                .filter_map(|s| days.get(s.ticker()).map(|(open, last)| (s.id.clone(), *last, *open)))
+                .collect();
+            out.send(Event::Peek { seq, quotes });
+        });
+        sc.spawn(|| {
+            if yahoo.is_empty() {
+                return;
+            }
+            let tickers: Vec<String> = yahoo.iter().map(|s| crate::yahoo::ticker(&s.id)).collect();
+            let sparks = crate::overview::sparks(&tickers, "5d");
+            let quotes: Vec<_> = yahoo
+                .iter()
+                .zip(&tickers)
+                .filter_map(|(s, t)| {
+                    let indian = matches!(s.exchange(), "NSE" | "BSE");
+                    let (last, prev) = sparks.get(t)?.quote(indian)?;
+                    Some((s.id.clone(), last, prev))
+                })
+                .collect();
+            out.send(Event::Peek { seq, quotes });
+        });
+        for s in &rest {
+            sc.spawn(move || {
+                if let Some((last, prev)) = daily_quote(s) {
+                    out.send(Event::Peek {
+                        seq,
+                        quotes: vec![(s.id.clone(), last, prev)],
+                    });
+                }
+            });
+        }
+    });
 }
 
 /// Exchanges in the order their symbols are offered when names tie.
@@ -1593,16 +1685,115 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
     }
     let score = if t.starts_with(q) {
         20 + (t.len() - q.len()) as u32
+    } else if let Some(r) = coin_name_rank(s, &d, q) {
+        r
     } else if d.starts_with(q) {
         50
+    } else if word_starts(&d, q) {
+        55
     } else if t.contains(q) {
         70
     } else if d.contains(q) {
         90
     } else {
-        return loose_rank(s, &t, &d, q);
+        return loose_rank(s, &t, &d, q).or_else(|| typo_rank(&t, &d, q));
     };
     Some(score)
+}
+
+/// A word of `d` (after a space, a dash or a bracket) starts with `q`:
+/// "MAHINDRA" in "KOTAK MAHINDRA BANK".
+fn word_starts(d: &str, q: &str) -> bool {
+    d.match_indices(q)
+        .any(|(i, _)| i == 0 || d[..i].ends_with(|c: char| !c.is_alphanumeric()))
+}
+
+/// A coin found by its name ("BITCOIN", "SOL" → "SOLANA" too): the
+/// exchanges describe pairs as "BTC / USDT", without it. Ranked like a
+/// ticker match, preferring the same quotes.
+fn coin_name_rank(s: &Symbol, d: &str, q: &str) -> Option<u32> {
+    if s.kind != opentern_core::AssetKind::Crypto || q.len() < 3 {
+        return None;
+    }
+    let (base, quote) = d.split_once(" / ")?;
+    // "BTC / USDT" from the exchanges, "Bitcoin / TetherUS" in the starter
+    // list (TradingView's wording): either names the coin.
+    let base = base.trim();
+    let (_, name) = crate::feeds::COINS
+        .iter()
+        .find(|(b, n)| *b == base || n.to_uppercase() == base)?;
+    let name = name.to_uppercase();
+    if !(name.starts_with(q) || compact(&name).starts_with(&compact(q))) {
+        return None;
+    }
+    let pref = ["USDT", "USDC", "FDUSD", "BTC", "ETH", "EUR", "TRY"];
+    let quote = match quote.trim().trim_end_matches(" PERPETUAL") {
+        "TETHERUS" => "USDT",
+        q => q,
+    };
+    // The whole name first: "BITCOIN" is BTC before Bitcoin Cash.
+    let whole = if compact(&name) == compact(q) { 30 } else { 45 };
+    Some(whole + pref.iter().position(|p| *p == quote).unwrap_or(9) as u32 + 10 * u32::from(s.ticker().ends_with(".P")))
+}
+
+/// A query one or two letters off a ticker or a word of the name
+/// ("RELAINCE", "TESLE"): ranked after every real match. One edit for
+/// short queries, two from seven letters; the start of a word is
+/// compared too, so it works while still typing ("RELAIN").
+fn typo_rank(t: &str, d: &str, q: &str) -> Option<u32> {
+    let n = q.chars().count();
+    if n < 4 || !q.chars().all(|c| c.is_ascii_alphabetic()) {
+        return None;
+    }
+    let most = if n >= 7 { 2 } else { 1 };
+    let close = |w: &str| {
+        let w: Vec<char> = w.chars().collect();
+        if w.len() + most < n {
+            return false;
+        }
+        let whole = edits(&w, q, most) <= most;
+        whole || (w.len() > n && edits(&w[..n], q, most) <= most)
+    };
+    if close(&compact(t)) {
+        return Some(97);
+    }
+    d.split(|c: char| !c.is_alphanumeric())
+        .filter(|w| w.len() >= 4)
+        .any(close)
+        .then_some(99)
+}
+
+/// Edits (insert, delete, change, swap two neighbours) from `a` to `b`,
+/// giving up past `most`.
+fn edits(a: &[char], b: &str, most: usize) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    if a.len().abs_diff(b.len()) > most {
+        return most + 1;
+    }
+    let (n, m) = (a.len(), b.len());
+    let mut d = vec![vec![0usize; m + 1]; n + 1];
+    for (i, row) in d.iter_mut().enumerate() {
+        row[0] = i;
+    }
+    for (j, cell) in d[0].iter_mut().enumerate() {
+        *cell = j;
+    }
+    for i in 1..=n {
+        let mut low = usize::MAX;
+        for j in 1..=m {
+            let cost = usize::from(a[i - 1] != b[j - 1]);
+            let mut v = (d[i - 1][j] + 1).min(d[i][j - 1] + 1).min(d[i - 1][j - 1] + cost);
+            if i > 1 && j > 1 && a[i - 1] == b[j - 2] && a[i - 2] == b[j - 1] {
+                v = v.min(d[i - 2][j - 2] + 1);
+            }
+            d[i][j] = v;
+            low = low.min(v);
+        }
+        if low > most {
+            return most + 1;
+        }
+    }
+    d[n][m]
 }
 
 /// Letters and digits only: "S&P 500" and "SP500" read the same.
@@ -2109,6 +2300,48 @@ mod tests {
         assert!(rank(&aapl, "APPLE NASDAQ").is_some());
         let spx = mk("SP:SPX", "S&P 500");
         assert!(rank(&spx, "SP500").is_some());
+    }
+
+    #[test]
+    fn search_finds_names_words_and_typos() {
+        let mk = |id: &str, d: &str, kind| Symbol {
+            description: d.into(),
+            kind,
+            ..Symbol::bare(id)
+        };
+        use opentern_core::AssetKind::{Crypto, Stock};
+        let btc = mk("BINANCE:BTCUSDT", "BTC / USDT", Crypto);
+        let btceur = mk("BINANCE:BTCEUR", "BTC / EUR", Crypto);
+        let perp = mk("BYBIT:BTCUSDT.P", "BTC / USDT Perpetual", Crypto);
+        let bch = mk("BINANCE:BCHUSDT", "BCH / USDT", Crypto);
+        // Coins by name, the USDT pair first, spot before perpetuals.
+        let r = |s: &Symbol, q: &str| rank(s, q).unwrap_or(u32::MAX);
+        assert!(r(&btc, "BITCOIN") < r(&btceur, "BITCOIN"));
+        assert!(r(&btc, "BITCOIN") < r(&perp, "BITCOIN"));
+        assert!(r(&btc, "BITCOIN") < r(&bch, "BITCOIN"));
+        // The starter list's wording ranks the same, ahead of other exchanges.
+        let starter = mk("BINANCE:BTCUSDT", "Bitcoin / TetherUS", Crypto);
+        let coinbase = mk("COINBASE:BTCUSDT", "BTC / USDT", Crypto);
+        assert_eq!(r(&starter, "BITCOIN"), r(&coinbase, "BITCOIN"));
+        assert!(rank(&btc, "BITC").is_some());
+        assert!(rank(&btc, "BI").is_none());
+        // A word of the name.
+        let kotak = mk("NSE:KOTAKBANK", "Kotak Mahindra Bank", Stock);
+        let mm = mk("NSE:M&M", "Mahindra & Mahindra", Stock);
+        assert!(r(&kotak, "MAHINDRA") < 70);
+        assert!(r(&mm, "MAHINDRA") < r(&kotak, "MAHINDRA"));
+        // Typos, ranked after every real match.
+        let rel = mk("NSE:RELIANCE", "Reliance Industries", Stock);
+        assert!(rank(&rel, "RELAINCE").is_some());
+        assert!(rank(&rel, "RELAIN").is_some());
+        assert!(rank(&rel, "RELIENCE").is_some());
+        assert!(r(&rel, "RELAINCE") > 95);
+        assert!(rank(&rel, "RXLXXNCE").is_none());
+        assert!(rank(&rel, "REL").is_some());
+        let tsla = mk("NASDAQ:TSLA", "Tesla, Inc.", Stock);
+        assert!(rank(&tsla, "TESLE").is_some());
+        assert!(rank(&tsla, "TSAL").is_some());
+        assert!(rank(&tsla, "AAPL").is_none());
     }
 
     #[test]

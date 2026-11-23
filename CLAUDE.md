@@ -889,8 +889,22 @@ workspace.
   S&P 500 and NIFTY 500 via `overview::listed_stocks`) answer at once with
   `Event::Search { done: false }`; Binance lookups and Yahoo search run on a
   thread, one typed query at a time (the latest waits), merged answer
-  `done: true` (Enter and the agent wait for it). Empty query: recent picks
+  `done: true` (the agent waits for it; Enter waits at most
+  `ENTER_WAIT`, 1 s, then takes the highlighted row). Empty query: recent picks
   per tab (`App::recent_symbols`, settings key `recent_symbols`, 40).
+  Ranking (`hub::rank`): exact ticker, ticker prefix, coin names
+  (`feeds::COINS`: "bitcoin"), name start, a word of the name, then
+  contains, words in any order (`loose_rank`), typos last (`typo_rank`,
+  1 edit, 2 from 7 letters). The dialog lifts watchlist/recent symbols
+  that match from the start. Rows show price and day change (the feed's
+  quote, else `Request::Peek` → `Event::Peek` for the top 14:
+  Binance trading-day batch, Yahoo spark, else two daily bars), the match
+  in the accent, and a star (Shift+Enter) that toggles the open
+  watchlist; Tab/Shift+Tab step the kinds. Still: `search:<query>`.
+  **Binance gotcha (Nov 2026):** a 400/404 from one host is final
+  (`provider::get_json_refusal`): falling through to `api.binance.com`
+  on Jio meant an 8 s connect timeout per unknown-coin lookup, which held
+  search's Enter.
 - **Binance gotcha (Oct 2026):** Jio (India) points `api.binance.com` and
   `stream.binance.com` at a dead address, so charts silently stayed on cached
   bars. Binance goes to its public market-data mirrors first
@@ -1018,6 +1032,7 @@ workspace.
   plots, painted in `chart/profile.rs`; numbers in `series/profile.rs`): VPVR,
   Session VP, Visible Average Price, Seasonality (own pane, month axis). Drawing
   tools: Anchored VWAP, Fixed Range VP, Anchored VP. 96 built-ins in all.
+- Nov 2026: Moving Average Adaptive (KAMA), Hamming and Channel (`ma.rs`): 102 built-ins.
 - **Screener tab** (`screener.rs`): universe = a watchlist or a preset (crypto
   majors, US and India large caps); columns price, change, 1W/1M perf, volume, rel
   volume, RSI, vs SMA 50/200, ATR %, plus an optional script column (any built-in
@@ -1318,6 +1333,43 @@ every data change (scripts re-run on it).
 - Quieter controls (`theme::visuals`): fields a shade under their surface, a soft
   focus ring (`selection.stroke` at 60%), neutral hover instead of an accent
   outline, deeper popup shadow, 32 px menu rows.
+
+### UI pass 6 (24 Nov 2026)
+- **Look:** Tern Dark is deeper (bg #0D1016, card #13171E, elevated
+  #181D25, hairline border #232A34) with a brighter green (#2FD48A, dark
+  text on it); Opentern Light is white on cool grey (#F3F5F7) with
+  #0A9A5C. T3 Code was the structural reference only (layers, hairlines,
+  roomy dialogs), not its colours (the maintainer: stay with Opentern's
+  palette). `Theme::edge()` (popup/field hairline) and `Theme::field()`
+  (field fill; dropdowns share it) live in theme.rs. `widgets::accent`
+  reads `visuals.hyperlink_color` (full strength; the selection stroke is
+  60%), and `widgets::ink_on(fill)` picks text for an accent fill.
+- **Dialogs:** `dialogs::frame` draws a hairline under the title, edge to
+  edge (`MARGIN` 22). `section()` is a sentence-case heading now (no
+  capitals). Stacked forms: `widgets::{stacked, pair, field_label, area,
+  chip, form_rule}`; the alert dialog uses them (labels above, chips for
+  delivery; the webhook chip clears the URL when off).
+- **Script explorer keys** (`Editor::tree_keys`): a row click gives the
+  explorer the keyboard (`tree_focus`, a press elsewhere or Esc takes it
+  back); `App::shortcuts` stands down while `tree_has_keys`. Ctrl+C/X put
+  the path on the clipboard as text too, so Ctrl+V arrives as a paste.
+- **Watchlist switcher:** a sideways-scrolling strip of names
+  (`list_tab`), hidden with one list.
+- **Calendar:** every `Venue` by region, folded by default (remembered
+  as `+<name>` in the folded set when opened).
+- **Selected/on fill** (`Theme::accent_soft`): the accent steeped into
+  near-black (white in light themes): a deep, rich green, with
+  `accent_ink` text and `accent_edge` borders. A grey "lift" and a plain
+  green wash both read cheap to the maintainer.
+- **Popups:** `Theme::popup()` (deeper than `elevated`) for menus and
+  dialogs; dialogs add `dialogs::sheen` (light from the top, drawn as
+  stacked rounded bands so corners stay round). Meshes can't be clipped to
+  rounded rects: `color::round_off` masks their corners with the popup
+  fill. Sliders go through `widgets::slider`. Colour picker: Swatches /
+  Custom (SV square, hue bar, hex, RGB); still `colors[:custom]`.
+- **Selection:** `selection.stroke` is both selected text's colour and a
+  focused field's ring, so it's the text colour with a touch of accent;
+  the agent panel sets it to the text colour exactly.
 
 ### Gotchas so far
 - **Scrollbars show only while scrolling** (the maintainer, Nov 2026: a bar
@@ -1910,6 +1962,19 @@ every data change (scripts re-run on it).
   `overview::weighted`.
 
 ### Website
+**Screenshots (refreshed 24 Nov 2026):** demo data in a seed workspace
+(`scripts/ma_cross.pine`, an MA Cross 12/30 strategy; five NSE sector indices
+written into settings `custom_indices`), a fresh copy per shot, the window
+floated to 1080x675 on ws10 and grabbed with `grim -T` (see
+`CLAUDE.local.md`), then `magick -resize 1880x1175 -quality 86` to WebP.
+Stills: home `script:ma_cross.pine,add:bb,add:rsi` (+`light`, or
+`theme:<name>` for the theme deck), `tab:script`, `tab:strategy r`,
+`lab:heatmap`, `grid:Four`, `screen`, `tab:indices,max,widget:none`,
+`symbol:NSE:RELIANCE,tf:1D,tab:seasonality,max,widget:none`,
+`settings:general,scroll:196` (past Folders, whose paths would show),
+`overview`, and the agent with `agent:claude,claude-model:sonnet,claude:<msg>`
+plus `OPENTERN_CLAUDE` pointed at a throwaway stand-in CLI that replays one
+scripted turn (like `claude/fake_claude.py`; keep it out of the repo).
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in
 Spotsie's style and Opentern's theme colours, published by `pages.yml` to
 https://ahaan-shah.github.io/opentern/ on pushes touching `site/`. Install lines
@@ -1964,6 +2029,10 @@ What's new reopens it. Still: `whatsnew`.
    platform without publishing (do one after changing packaging).
 6. Don't install the new version locally (`install.sh` or otherwise) unless
    the maintainer asks.
+**Gate before step 5 (tagging): the maintainer tests it** (their rule, 24 Nov 2026):
+   build (`cargo build --profile fast`), open it for them on workspace 10
+   (see `CLAUDE.local.md`), and wait for their go. Skip only when they
+   say so, and even then suggest they try it first.
 7. Asset names are a contract with `install.sh`, `install.ps1` and
    `update::asset_name`. Don't rename them.
 

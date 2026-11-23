@@ -109,13 +109,16 @@ pub fn fill(t: &Theme, change: f64, period: Period) -> Color32 {
     }
     let k = (change.abs() / scale(period)).min(1.0).powf(0.8) as f32;
     let end = if change > 0.0 { t.pos } else { t.neg };
-    let end = if t.dark {
-        lerp_color(end, Color32::BLACK, 0.12)
-    } else {
-        end
-    };
-    let floor = if t.dark { 0.25 } else { 0.4 };
-    lerp_color(neutral, end, floor + (1.0 - floor) * k)
+    if t.dark {
+        let end = lerp_color(end, Color32::BLACK, 0.12);
+        return lerp_color(neutral, end, 0.25 + 0.75 * k);
+    }
+    // Light: always the colour itself, from a soft (but still saturated
+    // enough for white text) shade to a deep one. Blending through the grey
+    // left small moves a dusty teal or pink.
+    let soft = lerp_color(end, neutral, 0.42);
+    let deep = lerp_color(end, Color32::BLACK, 0.10);
+    lerp_color(soft, deep, k)
 }
 
 /// White on dark fills, the theme's text on light ones.

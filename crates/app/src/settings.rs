@@ -46,7 +46,7 @@ impl Cat {
         match self {
             Cat::General => ph::SLIDERS_HORIZONTAL,
             Cat::Chart => ph::CHART_LINE,
-            Cat::Providers => ph::PLUGS_CONNECTED,
+            Cat::Providers => ph::DATABASE,
             Cat::Shortcuts => ph::KEYBOARD,
             Cat::Transfer => ph::ARROWS_LEFT_RIGHT,
             Cat::About => ph::INFO,
@@ -223,9 +223,17 @@ impl App {
         c.add_space(14.0);
         // `OPENTERN_STILL=…,scroll-end` (screenshots): start at the bottom.
         let end = std::env::var("OPENTERN_STILL").is_ok_and(|v| v.split(',').any(|p| p == "scroll-end"));
-        egui::ScrollArea::vertical()
+        // `scroll:<points>`: start that far down (the themes, past Folders).
+        let down: Option<f32> = std::env::var("OPENTERN_STILL")
+            .ok()
+            .and_then(|v| v.split(',').find_map(|p| p.strip_prefix("scroll:")?.parse().ok()));
+        let mut area = egui::ScrollArea::vertical()
             .id_salt(("settings", page.cat as u8))
-            .auto_shrink([false; 2])
+            .auto_shrink([false; 2]);
+        if let Some(y) = down {
+            area = area.vertical_scroll_offset(y);
+        }
+        area
             .show(&mut c, |ui| {
                 let w = (ui.available_width() - 14.0).min(720.0);
                 ui.set_max_width(w);
@@ -283,35 +291,57 @@ impl App {
         self.alert_settings(ui, t);
     }
 
-    /// Keep alerts running with the window closed, and from login.
+    /// What happens to alerts when Opentern is closed: one plain choice
+    /// (pause them; keep checking them; keep checking them, also after a
+    /// restart), instead of two linked checkboxes.
     fn alert_settings(&mut self, ui: &mut Ui, t: &Theme) {
         use crate::daemon::{AT_LOGIN, BACKGROUND};
-        let mut background = crate::daemon::background_on(&self.store);
-        if crate::widgets::checkbox(ui, &mut background, "Keep alerts running when Opentern is closed")
-            .on_hover_text("Alerts are watched in the background until Opentern opens again.")
-            .changed()
-        {
-            let _ = self.store.set_value(BACKGROUND, if background { "on" } else { "off" });
+        let background = crate::daemon::background_on(&self.store);
+        let at_login = self.store.value(AT_LOGIN).as_deref() == Some("on");
+        let was: u8 = match (background, at_login) {
+            (false, _) => 0,
+            (true, false) => 1,
+            (true, true) => 2,
+        };
+        let mut pick = was;
+        ui.label(egui::RichText::new("When Opentern is closed").color(t.text2));
+        ui.add_space(4.0);
+        let choices: [(u8, &str, &str); 3] = [
+            (0, "Pause alerts", "Alerts only fire while Opentern is open."),
+            (
+                1,
+                "Keep checking alerts",
+                "A small helper keeps checking your alerts and notifies you. It stops when you open \
+                 Opentern again, or when no alert is left.",
+            ),
+            (
+                2,
+                "Keep checking, even after a restart",
+                "The same, and it also starts when you log in to your computer, so alerts keep \
+                 working after a restart.",
+            ),
+        ];
+        for (k, label, tip) in choices {
+            crate::widgets::radio(ui, &mut pick, k, label).on_hover_text(tip);
+            ui.add_space(2.0);
         }
-        ui.add_space(8.0);
         let err_id = egui::Id::new("alerts-at-login-error");
-        let mut at_login = self.store.value(AT_LOGIN).as_deref() == Some("on");
-        let resp = ui.add_enabled_ui(background, |ui| {
-            crate::widgets::checkbox(ui, &mut at_login, "Start watching at login")
-                .on_hover_text("Alerts keep working after a restart, without opening Opentern.")
-        });
-        if resp.inner.changed() {
-            let dir = self.store.dir().to_path_buf();
-            let separate = dir != opentern_core::data_dir();
-            match crate::daemon::set_at_login(&dir, separate, at_login) {
-                Ok(()) => {
-                    let _ = self.store.set_value(AT_LOGIN, if at_login { "on" } else { "off" });
-                    ui.data_mut(|d| d.remove::<String>(err_id));
-                }
-                Err(e) => {
-                    ui.data_mut(|d| {
-                        d.insert_temp(err_id, format!("Couldn't change the login items: {e}"));
-                    });
+        if pick != was {
+            let _ = self.store.set_value(BACKGROUND, if pick > 0 { "on" } else { "off" });
+            let want_login = pick == 2;
+            if want_login != at_login {
+                let dir = self.store.dir().to_path_buf();
+                let separate = dir != opentern_core::data_dir();
+                match crate::daemon::set_at_login(&dir, separate, want_login) {
+                    Ok(()) => {
+                        let _ = self.store.set_value(AT_LOGIN, if want_login { "on" } else { "off" });
+                        ui.data_mut(|d| d.remove::<String>(err_id));
+                    }
+                    Err(e) => {
+                        ui.data_mut(|d| {
+                            d.insert_temp(err_id, format!("Couldn't set Opentern to start at login: {e}"));
+                        });
+                    }
                 }
             }
         }
@@ -1039,7 +1069,7 @@ mod tests {
         d.app.open_settings(Cat::General);
         let texts = d.texts().join("\n");
         assert!(
-            texts.contains("FOLDERS") && texts.contains("Scripts") && texts.contains("Snapshots"),
+            texts.contains("Folders") && texts.contains("Scripts") && texts.contains("Snapshots"),
             "{texts}"
         );
 

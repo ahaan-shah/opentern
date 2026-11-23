@@ -140,7 +140,28 @@ pub fn drag_handle(ui: &mut Ui, t: &Theme, rect: Rect, id: &str, vertical: bool)
 // into any code without a theme to hand.
 
 fn accent(v: &egui::Visuals) -> Color32 {
-    v.selection.stroke.color
+    // The theme puts its accent here at full strength (the selection
+    // stroke has it at 60%, for focus rings).
+    v.hyperlink_color
+}
+
+/// Text on an accent fill: near-black on a bright accent, white on a deep
+/// one, so a button's label always reads.
+pub fn ink_on(fill: Color32) -> Color32 {
+    let l = |c: u8| {
+        let c = c as f32 / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    let lum = 0.2126 * l(fill.r()) + 0.7152 * l(fill.g()) + 0.0722 * l(fill.b());
+    if lum > 0.36 {
+        Color32::from_rgb(4, 21, 13)
+    } else {
+        Color32::WHITE
+    }
 }
 
 /// A rounded checkbox: an accent square with a drawn tick when on.
@@ -181,7 +202,7 @@ pub fn checkbox(ui: &mut Ui, on: &mut bool, label: impl Into<egui::WidgetText>) 
             egui::StrokeKind::Inside,
         );
         if k > 0.01 {
-            let c = motion::with_alpha(Color32::WHITE, k);
+            let c = motion::with_alpha(ink_on(accent(&v)), k);
             let pts = [
                 b.left_top() + vec2(4.4, 8.8),
                 b.left_top() + vec2(7.2, 11.6),
@@ -220,15 +241,18 @@ pub fn radio<V: PartialEq>(ui: &mut Ui, current: &mut V, value: V, label: impl I
     if ui.is_rect_visible(rect) {
         let p = ui.painter();
         let c = egui::pos2(rect.left() + d / 2.0, rect.center().y);
+        // A ring that turns the accent when picked, with an accent dot
+        // growing in its middle (no solid disc with a dark dot).
+        let a = accent(&v);
         let edge = motion::lerp_color(v.widgets.inactive.bg_stroke.color, v.text_color(), hover * 0.35);
         p.circle(
             c,
-            d / 2.0 - 0.5,
-            motion::lerp_color(v.extreme_bg_color, accent(&v), k),
-            Stroke::new(1.0, motion::lerp_color(edge, accent(&v), k)),
+            d / 2.0 - 0.75,
+            v.text_edit_bg_color(),
+            Stroke::new(1.5, motion::lerp_color(edge, a, k)),
         );
         if k > 0.01 {
-            p.circle_filled(c, 3.2 * k, Color32::WHITE);
+            p.circle_filled(c, 4.2 * k, a);
         }
         let pos = egui::pos2(rect.left() + d + 8.0, rect.center().y - galley.size().y / 2.0);
         p.galley(pos, galley, v.text_color());
@@ -334,7 +358,7 @@ pub fn button(ui: &mut Ui, kind: Kind, enabled: bool, icon: Option<&str>, label:
         let neg = v.error_fg_color;
         let lift = if v.dark_mode { Color32::WHITE } else { Color32::BLACK };
         let (bg, stroke, fg) = match kind {
-            Kind::Primary => (motion::lerp_color(a, lift, 0.08 * hover), Stroke::NONE, Color32::WHITE),
+            Kind::Primary => (motion::lerp_color(a, lift, 0.10 * hover), Stroke::NONE, ink_on(a)),
             Kind::Secondary => (
                 motion::lerp_color(v.widgets.inactive.bg_fill, v.widgets.hovered.bg_fill, hover),
                 Stroke::new(
@@ -382,6 +406,136 @@ pub fn secondary(ui: &mut Ui, label: &str) -> Response {
 /// makes fields shorter than the dropdowns beside them).
 pub fn field(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
     egui::TextEdit::singleline(text).margin(vec2(12.0, 8.0))
+}
+
+/// A multi-line text field with the same padding as [`field`], so its
+/// text and hint sit where a single-line field's do.
+pub fn area(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
+    egui::TextEdit::multiline(text).margin(vec2(12.0, 8.0))
+}
+
+/// A field's name, above it: small, medium weight, muted.
+pub fn field_label(ui: &mut Ui, t: &Theme, text: &str) {
+    ui.add_space(2.0);
+    ui.label(egui::RichText::new(text).font(theme::medium(12.5)).color(t.text2));
+    ui.add_space(-2.0);
+}
+
+/// A labelled field in a stacked form: the name above, the control below,
+/// `width` wide.
+pub fn stacked(ui: &mut Ui, t: &Theme, label: &str, width: f32, control: impl FnOnce(&mut Ui)) {
+    ui.allocate_ui_with_layout(vec2(width, 0.0), egui::Layout::top_down(egui::Align::Min), |ui| {
+        ui.set_width(width);
+        field_label(ui, t, label);
+        control(ui);
+    });
+}
+
+/// One side of a [`pair`]: its label and what draws its control (given
+/// the width it has).
+pub type Half<'a> = (&'a str, &'a mut dyn FnMut(&mut Ui, f32));
+
+/// Two stacked fields side by side, each half the row.
+pub fn pair(ui: &mut Ui, t: &Theme, left: Half<'_>, right: Half<'_>) {
+    let gap = 12.0;
+    let w = ((ui.available_width() - gap) / 2.0).floor();
+    ui.horizontal_top(|ui| {
+        ui.spacing_mut().item_spacing.x = gap;
+        stacked(ui, t, left.0, w, |ui| (left.1)(ui, w));
+        stacked(ui, t, right.0, w, |ui| (right.1)(ui, w));
+    });
+}
+
+/// A toggle chip: icon and label in a pill, filled with a wash of the
+/// accent while on. For picking any of a few options (where to notify).
+pub fn chip(ui: &mut Ui, t: &Theme, on: &mut bool, icon: &str, label: &str) -> Response {
+    let font = theme::medium(13.0);
+    let g = ui.painter().layout_no_wrap(format!("{icon}  {label}"), font, t.text);
+    let size = vec2(g.size().x + 26.0, 32.0);
+    let (rect, mut resp) = ui.allocate_exact_size(size, Sense::click());
+    if resp.clicked() {
+        *on = !*on;
+        resp.mark_changed();
+    }
+    let k = motion::toggle(ui.ctx(), resp.id.with("on"), *on, motion::MICRO);
+    let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
+    if ui.is_rect_visible(rect) {
+        let p = ui.painter();
+        // Off: the field look. On: the rich accent fill, its edge, and
+        // the label and icon in the accent's ink.
+        let off_fill = motion::lerp_color(t.field(), t.hovered(t.field()), hover);
+        let fill = motion::lerp_color(off_fill, t.accent_soft(), k);
+        let edge = motion::lerp_color(t.edge(), t.accent_edge(), k);
+        p.rect(
+            rect,
+            CornerRadius::same(8),
+            fill,
+            Stroke::new(1.0, edge),
+            egui::StrokeKind::Inside,
+        );
+        let off = t.text2.lerp_to_gamma(t.text, hover * 0.5);
+        let fg = motion::lerp_color(off, t.accent_ink(), k);
+        p.galley_with_override_text_color(rect.center() - g.size() / 2.0, g, fg);
+    }
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// A slider: a small solid handle on a slim rail that fills with the
+/// accent, and the value as plain text beside it (egui's own had a large
+/// hollow handle and a framed number box).
+pub fn slider(ui: &mut Ui, t: &Theme, value: &mut i32, range: std::ops::RangeInclusive<i32>, suffix: &str) -> Response {
+    ui.horizontal(|ui| {
+        let (lo, hi) = (*range.start(), *range.end());
+        let r = ui
+            .scope(|ui| {
+                ui.spacing_mut().interact_size.y = 16.0;
+                // The rail's empty part is the inactive fill (so is egui's
+                // resting handle, which is drawn again on top below).
+                let rail = t.field().lerp_to_gamma(t.text, 0.12);
+                let w = &mut ui.visuals_mut().widgets;
+                for s in [&mut w.inactive, &mut w.hovered, &mut w.active] {
+                    s.bg_fill = rail;
+                    s.fg_stroke = Stroke::NONE;
+                    s.bg_stroke = Stroke::NONE;
+                }
+                ui.visuals_mut().selection.bg_fill = t.accent;
+                ui.add(egui::Slider::new(value, range).show_value(false))
+            })
+            .inner;
+        // The handle: white with a soft ring, where egui puts its own.
+        let rad = r.rect.height() / 2.5;
+        let span = r.rect.x_range().shrink(rad);
+        let k = if hi > lo {
+            (*value - lo) as f32 / (hi - lo) as f32
+        } else {
+            0.0
+        };
+        let c = egui::pos2(span.min + k * (span.max - span.min), r.rect.center().y);
+        let p = ui.painter();
+        p.circle_filled(c + vec2(0.0, 1.0), rad + 1.0, Color32::from_black_alpha(70));
+        p.circle_filled(
+            c,
+            rad + if r.hovered() || r.dragged() { 1.0 } else { 0.0 },
+            Color32::WHITE,
+        );
+        ui.add_space(6.0);
+        ui.label(
+            egui::RichText::new(format!("{value}{suffix}"))
+                .font(theme::medium(13.0))
+                .color(t.text),
+        );
+        r
+    })
+    .inner
+}
+
+/// A hairline across the whole of a dialog's body, with air around it.
+pub fn form_rule(ui: &mut Ui, t: &Theme) {
+    ui.add_space(6.0);
+    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+    ui.painter()
+        .hline(r.x_range(), r.center().y, Stroke::new(1.0, t.border));
+    ui.add_space(6.0);
 }
 
 /// A search field with the magnifying glass drawn in its own gutter, so
@@ -468,7 +622,14 @@ pub fn option(ui: &mut Ui, selected: bool, text: impl Into<egui::WidgetText>) ->
         let p = ui.painter();
         let radius = CornerRadius::same(7);
         if selected {
-            let fill = motion::with_alpha(a, if v.dark_mode { 0.16 } else { 0.11 } + 0.05 * hover);
+            // The rich selected fill (`Theme::accent_soft`), from the
+            // visuals: the accent steeped into the dark (or the white).
+            let base = if v.dark_mode {
+                v.extreme_bg_color.lerp_to_gamma(Color32::BLACK, 0.3)
+            } else {
+                Color32::WHITE
+            };
+            let fill = base.lerp_to_gamma(a, if v.dark_mode { 0.19 } else { 0.13 } + 0.04 * hover);
             p.rect_filled(rect, radius, fill);
             p.text(
                 egui::pos2(rect.right() - pad, rect.center().y),

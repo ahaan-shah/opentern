@@ -132,10 +132,23 @@ pub(crate) fn get_json(agent: &ureq::Agent, url: &str) -> Result<serde_json::Val
     if let Some(path) = YAHOO.iter().find_map(|h| url.strip_prefix(h)) {
         return yahoo_get(agent, &YAHOO, &YAHOO_AT, YAHOO_FIRST, path);
     }
+    get_json_refusal(agent, url).map_err(|(e, _)| e)
+}
+
+/// `get_json`, also saying whether the host refused the request itself
+/// (400 or 404): a mirror of the same API would refuse it too, so there's
+/// no point asking another host.
+pub(crate) fn get_json_refusal(
+    agent: &ureq::Agent,
+    url: &str,
+) -> std::result::Result<serde_json::Value, (Error, bool)> {
     fetch_json(agent, url, None).map_err(|f| match f {
-        Fail::Status(c) => Error::Bad(format!("The data service answered with an error ({c}).")),
-        Fail::Slow | Fail::Connect => Error::Offline,
-        Fail::Other(m) => Error::Bad(m),
+        Fail::Status(c) => (
+            Error::Bad(format!("The data service answered with an error ({c}).")),
+            matches!(c, 400 | 404),
+        ),
+        Fail::Slow | Fail::Connect => (Error::Offline, false),
+        Fail::Other(m) => (Error::Bad(m), false),
     })
 }
 

@@ -1,5 +1,32 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Three more built-in indicators** (102 in all): Moving Average Adaptive (Kaufman's KAMA: quick in a trend, flat in chop), Moving Average Hamming, and Moving Average Channel (averages of the highs and the lows, the band between shaded).
+- **Pick any colour.** The colour picker has a Custom tab: a saturation and brightness square, a hue bar, and hex and RGB fields, with the opacity slider under both tabs.
+- **Prices in symbol search.** Each result shows its price and today's change, so you can tell listings apart before opening one.
+- **Star a symbol from search.** The star on a row (or Shift+Enter) adds it to the open watchlist, or takes it out, without leaving the search.
+- **Search by coin name and with typos.** "bitcoin" finds BTCUSDT, "solana" finds SOL; "RELAINCE" still finds Reliance; a word of a company's name works too ("Mahindra").
+
+- **Every exchange in the Calendar.** Besides the US and India, the Calendar lists holidays, half days and special sessions for London, Frankfurt, Paris, Zurich, Tokyo, Hong Kong, Shanghai, Seoul, Taipei, Singapore, Sydney, Toronto and São Paulo, grouped by region (folded until you open one).
+- **The script explorer works from the keyboard.** Click a file, then use the arrows (Right opens a folder, Left closes it), Enter to open, F2 to rename, Delete to delete (it asks first), Ctrl+C or Ctrl+X then Ctrl+V to copy or move a script into a folder, and a letter to jump to a name.
+
+### Changed
+- **Simpler alert setting.** Settings → General → Alerts asks one thing, what happens when Opentern is closed: pause alerts, keep checking them, or keep checking even after a restart.
+- **A cleaner, sharper look.** Deeper night-sea surfaces in clear layers, hairline borders, a fresher tern green, and dialogs with a proper header; the light theme is paper white on cool grey.
+- **The alert dialog, redesigned.** Labels sit above their fields, related settings share a row, the message box lines up with the rest, and where to notify you is a row of toggles (Notification, Sound, Webhook, Telegram, Email) that reveal their settings when on.
+- **Watchlists switch by name.** The row of letter circles is now a strip of list names that scrolls sideways, with the open list highlighted.
+- **Brighter heatmap tiles in light mode.** Small moves are clean greens and reds instead of dusty teal and pink.
+- **Renaming in the script explorer** happens in a slim box in the row itself.
+- **Data providers** has a clearer icon in Settings.
+- **Search puts your symbols first.** Symbols in your watchlists or opened lately come before others that match as well, and the part that matched is highlighted.
+- **Tab switches the search's kind tabs** (Shift+Tab goes back).
+
+### Fixed
+- **Lit buttons side by side no longer touch** (log and auto under the chart).
+- **Enter opens the highlighted symbol at once.** On some networks it waited up to several seconds for a coin lookup, so it took a few presses (or a click).
+
 ## 0.3.3 (2026-11-23)
 
 A smoother agent panel, 6-month and 1-year returns, a font of your choice and friendlier symbol search.

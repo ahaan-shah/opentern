@@ -2062,6 +2062,8 @@ impl App {
                             // aren't elsewhere in the app).
                             ui.scope(|ui| {
                                 ui.style_mut().interaction.selectable_labels = true;
+                                // Selected text keeps its colour, as in any text selection.
+                                ui.visuals_mut().selection.stroke.color = ui.visuals().text_color();
                                 markdown(ui, t, text, (chat.id, i), &scripts, &mut open_file)
                             });
                         }
@@ -3538,6 +3540,8 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
     let text_rect = egui::Rect::from_min_size(r.min + pad, galley.size());
     let resp = ui.scope_builder(egui::UiBuilder::new().max_rect(text_rect), |ui| {
         ui.style_mut().interaction.selectable_labels = true;
+        // Selected text keeps its colour, as in any text selection.
+        ui.visuals_mut().selection.stroke.color = ui.visuals().text_color();
         ui.add(egui::Label::new(galley).selectable(true))
     });
     resp.inner.context_menu(|ui| {

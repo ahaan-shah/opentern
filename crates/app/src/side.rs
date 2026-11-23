@@ -312,21 +312,67 @@ impl App {
             .show(ui, |ui| {
                 ui.set_max_width(ui.available_width());
                 ui.spacing_mut().item_spacing.y = 2.0;
-                // The chart's own exchange first, when it's another country's.
+                // The chart's own exchange first, when it's another country's;
+                // then the US and India (open), then every other exchange the
+                // app knows, by region, folded until opened.
+                use opentern_core::calendar::Venue;
                 let here = match Market::of(&self.chart.symbol) {
-                    Market::Exchange(v) => Some((Market::Exchange(v), v.name().0, v.name().1)),
+                    Market::Exchange(v) => Some(v),
                     _ => None,
                 };
-                for (m, name, exchanges) in here.into_iter().chain([
-                    (Market::Us, "US Markets", "NYSE · NASDAQ"),
-                    (Market::India, "Indian Markets", "NSE · BSE"),
-                ]) {
-                    let shut = folded.contains(name);
+                // (market, title, note, open by default, region heading)
+                let mut entries: Vec<(Market, &str, &str, bool, Option<&str>)> = Vec::new();
+                if let Some(v) = here {
+                    entries.push((Market::Exchange(v), v.name().1, v.name().0, true, None));
+                }
+                entries.push((Market::Us, "US Markets", "NYSE · NASDAQ", true, None));
+                entries.push((Market::India, "Indian Markets", "NSE · BSE", true, None));
+                let regions: [(&str, &[Venue]); 3] = [
+                    (
+                        "Europe",
+                        &[Venue::London, Venue::Frankfurt, Venue::Paris, Venue::Zurich],
+                    ),
+                    (
+                        "Asia-Pacific",
+                        &[
+                            Venue::Tokyo,
+                            Venue::HongKong,
+                            Venue::Shanghai,
+                            Venue::Seoul,
+                            Venue::Taipei,
+                            Venue::Singapore,
+                            Venue::Sydney,
+                        ],
+                    ),
+                    ("Americas", &[Venue::Toronto, Venue::SaoPaulo]),
+                ];
+                for (region, venues) in regions {
+                    let mut first = true;
+                    for v in venues.iter().filter(|v| Some(**v) != here) {
+                        let head = first.then_some(region);
+                        first = false;
+                        entries.push((Market::Exchange(*v), v.name().1, v.name().0, false, head));
+                    }
+                }
+                for (m, name, exchanges, open_default, region) in entries {
+                    if let Some(r) = region {
+                        ui.add_space(8.0);
+                        ui.label(egui::RichText::new(r).font(crate::theme::medium(12.0)).color(t.text3));
+                        ui.add_space(2.0);
+                    }
+                    // Sections open by default are remembered when folded;
+                    // the others when opened ("+name").
+                    let key = if open_default {
+                        name.to_string()
+                    } else {
+                        format!("+{name}")
+                    };
+                    let shut = folded.contains(&key) == open_default;
                     if section_head(ui, t, name, exchanges, Some(shut)) {
-                        toggled.push(name.to_string());
+                        toggled.push(key);
                     }
                     if shut {
-                        ui.add_space(6.0);
+                        ui.add_space(if open_default { 6.0 } else { 0.0 });
                         continue;
                     }
                     let list = upcoming(m, today, 120);
@@ -365,6 +411,7 @@ impl App {
                     ev.sort_by_key(|e| std::cmp::Reverse(e.0));
                     let name = "Dividends and splits";
                     let shut = folded.contains(name);
+                    ui.add_space(10.0);
                     if section_head(ui, t, name, self.chart.symbol.ticker(), Some(shut)) {
                         toggled.push(name.to_string());
                     }

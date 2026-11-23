@@ -99,6 +99,8 @@ pub struct App {
     still_measure: bool,
     /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
     still_replay: bool,
+    /// `OPENTERN_STILL=colors[:custom]`: the colour picker on its own.
+    still_colors: Option<(bool, opentern_series::Rgba)>,
     /// `OPENTERN_STILL=claude:<message>`: send it once bars are in.
     still_claude: Option<String>,
     pub egui_ctx: egui::Context,
@@ -255,6 +257,7 @@ impl App {
             still_menu: None,
             still_measure: false,
             still_replay: false,
+            still_colors: None,
             still_claude: None,
             logos,
             folders,
@@ -330,7 +333,9 @@ impl App {
         // Several at once: "script:x.pine,tab:report".
         let mut rest = Vec::new();
         for part in what.split(',') {
-            if let Some(file) = part.strip_prefix("script:") {
+            if part == "colors" || part == "colors:custom" {
+                self.still_colors = Some((part.ends_with("custom"), opentern_series::Rgba(0x2FD48A99)));
+            } else if let Some(file) = part.strip_prefix("script:") {
                 self.add_script(file);
             } else if let Some(id) = part.strip_prefix("add:") {
                 if let Some(m) = opentern_series::builtins::by_id(id) {
@@ -569,6 +574,10 @@ impl App {
         self.modal = match what.as_str() {
             "indicators" => Some(Modal::Indicators(crate::dialogs::Indicators::new(false))),
             "symbol" => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(""))),
+            // `search:<query>`: symbol search with something typed.
+            w if w.starts_with("search:") => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(
+                &w["search:".len()..].to_uppercase(),
+            ))),
             "python-notice" => Some(Modal::PythonNotice),
             "paper-account" => {
                 self.open_paper_account(true);
@@ -1186,6 +1195,13 @@ impl App {
                 Event::Overview { seq, market, result } => self.overview_event(seq, market, result),
                 Event::OverviewPrices { seq, market, result } => self.overview_prices(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
+                Event::Peek { quotes, .. } => {
+                    if let Some(Modal::Symbol(s)) = &mut self.modal {
+                        for (id, last, prev) in quotes {
+                            s.peek.insert(id, (last, prev));
+                        }
+                    }
+                }
                 Event::Search { seq, results, done } if seq >= crate::claude::tools::SEARCH_BASE => {
                     if done {
                         self.claude_search_done(seq, results)
@@ -1196,6 +1212,7 @@ impl App {
                 Event::Search { seq, results, done } => match &mut self.modal {
                     Some(Modal::Symbol(s)) if seq == self.search_seq => {
                         s.results = results;
+                        s.quick = seq;
                         if done {
                             s.got = seq;
                         }
@@ -1269,7 +1286,7 @@ impl App {
     /// TradingView's keys: start typing for symbol search, `/` for
     /// indicators, Alt+R to reset the chart.
     fn shortcuts(&mut self, ctx: &egui::Context) {
-        if self.modal.is_some() || ctx.egui_wants_keyboard_input() {
+        if self.modal.is_some() || ctx.egui_wants_keyboard_input() || self.editor.tree_has_keys(ctx) {
             return;
         }
         // Settings has the chart's place: Esc closes it, nothing else applies.
@@ -1502,6 +1519,18 @@ impl App {
         self.shell(ui);
         self.drawing_bar(&ctx);
         self.modal(&ctx);
+        if let Some((custom, mut c)) = self.still_colors {
+            let t = self.t();
+            egui::Area::new(egui::Id::new("still-colors"))
+                .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
+                .show(&ctx, |ui| {
+                    egui::Frame::popup(ui.style()).show(ui, |ui| {
+                        ui.data_mut(|d| d.insert_temp(egui::Id::new("color-picker-custom"), custom));
+                        crate::dialogs::color::show_picker(ui, &t, &mut c);
+                    });
+                });
+            self.still_colors = Some((custom, c));
+        }
         self.alert_toasts(&ctx);
         self.note_toasts(&ctx);
         self.poll_snapshot(&ctx);

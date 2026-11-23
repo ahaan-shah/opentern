@@ -54,6 +54,9 @@ What the automated tests already check for every built-in:
 | MACD | `macd` | Oscillators | Ported; awaiting TradingView export |
 | Mass Index | `mass` | Trend | Ported; awaiting TradingView export |
 | McGinley Dynamic | `mcginley` | Moving averages | Ported; awaiting TradingView export |
+| Moving Average Adaptive | `kama` | Moving averages | From Kaufman's definition (efficiency ratio, fast 2 / slow 30); seeded with the price when the window fills; awaiting TradingView's source or export |
+| Moving Average Channel | `ma_channel` | Bands and channels | SMA of highs and of lows, own lengths and offsets; awaiting TradingView export |
+| Moving Average Hamming | `hamming` | Moving averages | Hamming-window weighted average (0.54 − 0.46·cos); awaiting TradingView export |
 | Momentum | `mom` | Oscillators | Ported; awaiting TradingView export |
 | Money Flow Index | `mfi` | Volume | Ported; awaiting TradingView export |
 | Moving Average Exponential | `ema` | Moving averages | Ported; awaiting TradingView export |

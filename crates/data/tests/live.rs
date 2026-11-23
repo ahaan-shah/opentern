@@ -829,3 +829,36 @@ fn perpetuals_list_chart_stream_and_fund() {
         assert!(rate.abs() < 0.01 && (0..=8 * 60).contains(&mins));
     }
 }
+
+/// Symbol search's row prices: Binance, Yahoo (US, NSE) and forex.
+#[test]
+#[ignore]
+fn search_peeks_prices() {
+    let dir = tempfile::tempdir().unwrap();
+    let hub = Hub::start(dir.path().to_path_buf(), false, Arc::new(|| {}));
+    let mut want: Vec<Symbol> = ["BINANCE:BTCUSDT", "NASDAQ:AAPL", "NSE:KOTAKBANK", "FX:EURUSD"]
+        .iter()
+        .map(|id| Symbol::bare(id))
+        .collect();
+    want[0].kind = opentern_core::AssetKind::Crypto;
+    let started = Instant::now();
+    hub.send(Request::Peek {
+        seq: 1,
+        symbols: want.clone(),
+    });
+    let mut got = std::collections::HashMap::new();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while Instant::now() < deadline && got.len() < want.len() {
+        for e in hub.poll() {
+            if let Event::Peek { quotes, .. } = e {
+                for (id, last, prev) in quotes {
+                    println!("{id}: {last} (prev {prev}) after {:?}", started.elapsed());
+                    assert!(last > 0.0 && prev > 0.0);
+                    got.insert(id, (last, prev));
+                }
+            }
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert_eq!(got.len(), want.len(), "{got:?}");
+}

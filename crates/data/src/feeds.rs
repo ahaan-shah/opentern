@@ -398,8 +398,9 @@ fn get_text(url: &str) -> Result<String> {
         .map_err(|_| Error::Offline)
 }
 
-/// Coins' names, for news searches and for spotting them in headlines.
-const COINS: [(&str, &str); 30] = [
+/// Coins' names, for news searches, spotting them in headlines and
+/// symbol search ("bitcoin").
+pub(crate) const COINS: [(&str, &str); 30] = [
     ("BTC", "Bitcoin"),
     ("ETH", "Ethereum"),
     ("SOL", "Solana"),

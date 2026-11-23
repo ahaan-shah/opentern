@@ -43,17 +43,19 @@ pub const THEMES: &[Theme] = &[
     Theme {
         name: "Tern Dark",
         dark: true,
-        bg: hex(0x14181F),
-        sidebar: hex(0x101319),
-        card: hex(0x1A1F27),
-        hover: hex(0x222833),
-        elevated: hex(0x1F2530),
-        border: hex(0x2A313C),
-        text: hex(0xE6E9EE),
-        text2: hex(0xA8B0BC),
-        text3: hex(0x707884),
-        accent: hex(0x22B56C),
-        on_accent: hex(0xFFFFFF),
+        // Deeper water, cleaner layers: each surface one clear step up,
+        // hairline borders, and a brighter, fresher tern green.
+        bg: hex(0x0D1016),
+        sidebar: hex(0x0A0D12),
+        card: hex(0x13171E),
+        hover: hex(0x1C222B),
+        elevated: hex(0x181D25),
+        border: hex(0x232A34),
+        text: hex(0xE9ECF1),
+        text2: hex(0xA2AAB6),
+        text3: hex(0x69717D),
+        accent: hex(0x2FD48A),
+        on_accent: hex(0x04150D),
         pos: hex(0x22AB94),
         neg: hex(0xF7525F),
         warn: hex(0xE8B65A),
@@ -189,16 +191,18 @@ pub const THEMES: &[Theme] = &[
     Theme {
         name: "Opentern Light",
         dark: false,
-        bg: hex(0xF5F8F6),
-        sidebar: hex(0xE9EFEB),
+        // Paper white on a cool mist: neutral greys so charts and tiles
+        // keep their own colours, green only where it means something.
+        bg: hex(0xF3F5F7),
+        sidebar: hex(0xEBEEF1),
         card: hex(0xFFFFFF),
-        hover: hex(0xEAF1ED),
+        hover: hex(0xEEF1F4),
         elevated: hex(0xFFFFFF),
-        border: hex(0xD3DED7),
-        text: hex(0x0F1B15),
-        text2: hex(0x48594F),
-        text3: hex(0x84948A),
-        accent: hex(0x07834A),
+        border: hex(0xE1E5EA),
+        text: hex(0x111820),
+        text2: hex(0x4A5562),
+        text3: hex(0x8A94A0),
+        accent: hex(0x0A9A5C),
         on_accent: hex(0xFFFFFF),
         pos: hex(0x089981),
         neg: hex(0xF23645),
@@ -382,15 +386,66 @@ impl Theme {
         motion::lerp_color(base, self.text, if self.dark { 0.075 } else { 0.06 })
     }
 
+    /// The fill under something selected or switched on: the accent
+    /// steeped into near-black (dark themes) or white (light), so it's a
+    /// deep, saturated green, not a grey wash. Text and icons on it use
+    /// `accent_ink`.
     pub fn accent_soft(&self) -> Color32 {
-        self.tint(self.accent, if self.dark { 0.16 } else { 0.12 })
+        if self.dark {
+            let base = self.bg.lerp_to_gamma(Color32::BLACK, 0.3);
+            base.lerp_to_gamma(self.accent, 0.19)
+        } else {
+            Color32::WHITE.lerp_to_gamma(self.accent, 0.13)
+        }
+    }
+
+    /// Text and icons on `accent_soft`: the accent, a little brighter in
+    /// dark themes and deeper in light ones.
+    pub fn accent_ink(&self) -> Color32 {
+        if self.dark {
+            self.accent.lerp_to_gamma(Color32::WHITE, 0.12)
+        } else {
+            self.accent.lerp_to_gamma(Color32::BLACK, 0.12)
+        }
+    }
+
+    /// The edge of something on `accent_soft`.
+    pub fn accent_edge(&self) -> Color32 {
+        motion::with_alpha(self.accent, if self.dark { 0.32 } else { 0.40 })
+    }
+
+    /// Dialogs, menus and popups: a deep surface between the page and the
+    /// cards (a lighter grey slab read dull), lit by a sheen from the top
+    /// in dialogs (`dialogs::sheen`).
+    pub fn popup(&self) -> Color32 {
+        // The page's own colour (the side panel's), as the maintainer
+        // asked: dialogs read as part of the app, set apart by their
+        // border, shadow and glow.
+        if self.dark { self.bg } else { Color32::WHITE }
+    }
+
+    /// The hairline around popups, dialogs and fields: the border, lifted
+    /// a touch towards the text so it reads on elevated surfaces too.
+    pub fn edge(&self) -> Color32 {
+        self.border
+            .lerp_to_gamma(self.text, if self.dark { 0.06 } else { 0.03 })
+    }
+
+    /// A text field's fill: a shade under the surface in dark themes, a
+    /// faint grey on white in light ones.
+    pub fn field(&self) -> Color32 {
+        if self.dark {
+            self.bg.lerp_to_gamma(self.card, 0.35)
+        } else {
+            self.bg.lerp_to_gamma(self.card, 0.55)
+        }
     }
 
     pub fn shadow(&self) -> Color32 {
         if self.dark {
-            Color32::from_black_alpha(90)
+            Color32::from_black_alpha(150)
         } else {
-            Color32::from_rgba_premultiplied(20, 24, 40, 22)
+            Color32::from_rgba_premultiplied(16, 24, 32, 26)
         }
     }
 }
@@ -648,6 +703,9 @@ fn style(s: &mut Style, t: &Theme) {
     s.spacing.scroll.floating_allocated_width = 12.0;
     s.spacing.scroll.bar_outer_margin = 2.0;
     quieten(&mut s.spacing.scroll, 0.0);
+    // Sliders: a round handle on a slim rail, wide enough to aim.
+    s.spacing.slider_width = 170.0;
+    s.spacing.slider_rail_height = 5.0;
     s.animation_time = 0.18;
     s.interaction.selectable_labels = false;
     s.visuals = visuals(t);
@@ -662,33 +720,41 @@ fn visuals(t: &Theme) -> Visuals {
     v.faint_bg_color = t.hover;
     v.extreme_bg_color = t.bg;
     // Fields sit a shade under the surface they're on, not in a black hole.
-    v.text_edit_bg_color = Some(t.bg.lerp_to_gamma(t.hover, 0.3));
+    v.text_edit_bg_color = Some(t.field());
     v.code_bg_color = t.hover;
     v.warn_fg_color = t.warn;
     v.error_fg_color = t.neg;
-    v.window_fill = t.elevated;
+    v.window_fill = t.popup();
     v.panel_fill = t.bg;
-    v.window_stroke = Stroke::new(1.0, motion::with_alpha(t.border, 0.85));
+    // Popups and dialogs: a crisp hairline a shade lighter than the
+    // surface (so the edge reads on any background) and a soft, wide shadow.
+    v.window_stroke = Stroke::new(1.0, t.edge());
     v.window_corner_radius = CornerRadius::same(RADIUS);
     v.menu_corner_radius = CornerRadius::same(12);
     let shadow = Shadow {
-        offset: [0, 10],
-        blur: 32,
+        offset: [0, 16],
+        blur: 48,
         spread: 0,
         color: t.shadow(),
     };
     v.window_shadow = shadow;
     v.popup_shadow = Shadow {
-        offset: [0, 14],
-        blur: 40,
+        offset: [0, 10],
+        blur: 30,
         spread: 0,
         color: t.shadow(),
     };
-    v.selection.bg_fill = motion::with_alpha(t.accent, 0.35);
-    // Also the focus ring of text fields: a soft one, not a hard blue line.
-    v.selection.stroke = Stroke::new(1.0, motion::with_alpha(t.accent, 0.6));
+    // A text selection, not a highlighter: a see-through wash behind the
+    // text, which keeps (nearly) its own colour. egui paints selected text
+    // and a focused field's ring with the same stroke, so it's the text
+    // colour with a touch of the accent: readable inside a selection, a
+    // soft mint ring around a field.
+    v.selection.bg_fill = motion::with_alpha(t.accent, if t.dark { 0.26 } else { 0.20 });
+    v.selection.stroke = Stroke::new(1.0, t.text.lerp_to_gamma(t.accent, if t.dark { 0.38 } else { 0.55 }));
     v.text_cursor.stroke = Stroke::new(2.0, t.accent);
     v.button_frame = true;
+    v.handle_shape = egui::style::HandleShape::Circle;
+    v.slider_trailing_fill = true;
     v.striped = false;
     v.indent_has_left_vline = false;
 
@@ -699,15 +765,17 @@ fn visuals(t: &Theme) -> Visuals {
     w.noninteractive.fg_stroke = Stroke::new(1.0, t.text2);
     w.noninteractive.corner_radius = r;
 
-    w.inactive.bg_fill = t.hover;
-    w.inactive.weak_bg_fill = t.hover;
-    w.inactive.bg_stroke = Stroke::new(1.0, motion::with_alpha(t.border, 0.9));
+    // Dropdowns and other framed controls look like fields: the same
+    // fill and hairline, so a form reads as one set of controls.
+    w.inactive.bg_fill = t.field();
+    w.inactive.weak_bg_fill = t.field();
+    w.inactive.bg_stroke = Stroke::new(1.0, t.edge());
     w.inactive.fg_stroke = Stroke::new(1.0, t.text);
     w.inactive.corner_radius = r;
     w.inactive.expansion = 0.0;
 
     // Hover is a quiet lift, not a coloured outline.
-    w.hovered.bg_fill = t.hover.lerp_to_gamma(t.text, if t.dark { 0.05 } else { 0.035 });
+    w.hovered.bg_fill = t.field().lerp_to_gamma(t.text, if t.dark { 0.05 } else { 0.035 });
     w.hovered.weak_bg_fill = w.hovered.bg_fill;
     w.hovered.bg_stroke = Stroke::new(1.0, t.border.lerp_to_gamma(t.text3, 0.45));
     w.hovered.fg_stroke = Stroke::new(1.5, t.text);
@@ -721,7 +789,9 @@ fn visuals(t: &Theme) -> Visuals {
     w.active.corner_radius = r;
     w.active.expansion = 0.0;
 
-    w.open = w.active;
+    // An open dropdown keeps its field look, with the focus edge.
+    w.open = w.hovered;
+    w.open.bg_stroke = Stroke::new(1.0, t.accent_edge());
     v
 }
 

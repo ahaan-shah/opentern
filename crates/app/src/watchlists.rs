@@ -1,5 +1,5 @@
 //! Watchlists, laid out like TradingView's: the list's name (click for its
-//! menu, double-click to rename), a circle per list to switch, sections that
+//! menu, double-click to rename), a strip of list names to switch, sections that
 //! fold, rows dragged to reorder or move between sections, and live prices.
 //! Saved in the workspace; a list is a JSON array of symbols and section
 //! headers (older lists, plain symbol arrays, still load).
@@ -259,6 +259,26 @@ impl App {
         }
     }
 
+    /// Whether the open list has this symbol.
+    pub(crate) fn watching(&self, id: &str) -> bool {
+        self.watchlists[self.active_list]
+            .items
+            .iter()
+            .any(|i| matches!(i, Item::Symbol(x) if x.id == id))
+    }
+
+    /// Adds the symbol to the open list, or takes it out if it's there.
+    pub(crate) fn toggle_watch(&mut self, s: &Symbol) {
+        if self.watching(&s.id) {
+            self.watchlists[self.active_list]
+                .items
+                .retain(|i| !matches!(i, Item::Symbol(x) if x.id == s.id));
+            self.save_watchlists();
+        } else {
+            self.add_to_watchlist(s.clone());
+        }
+    }
+
     /// Alt+W: the chart's symbol goes to the end of the open list's top
     /// section (the symbols before the first header, or the first header's
     /// own), from where it can be dragged anywhere.
@@ -512,30 +532,41 @@ impl App {
         true
     }
 
-    /// A circle per list with its initial, as on TradingView, and a + for a
-    /// new one.
+    /// The lists by name on one line that scrolls sideways (the wheel
+    /// scrolls it too), the open one lit and kept in view, and a + for a new
+    /// one. Hidden while there's only one list (its + is in the menu).
     fn watchlist_switcher(&mut self, ui: &mut Ui, t: &Theme) {
         let mut switch = None;
         let mut new = false;
-        ui.horizontal_wrapped(|ui| {
-            ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
-            for (k, l) in self.watchlists.iter().enumerate() {
-                let on = k == self.active_list;
-                let initial: String = l
-                    .name
-                    .chars()
-                    .find(|c| c.is_alphanumeric())
-                    .map(|c| c.to_uppercase().collect())
-                    .unwrap_or_else(|| "·".into());
-                let tip = format!("{} · {} symbols", l.name, l.symbols().len());
-                if circle(ui, t, &initial, on).on_hover_text(tip).clicked() && !on {
-                    switch = Some(k);
-                }
-            }
-            if circle(ui, t, ph::PLUS, false).on_hover_text("New list").clicked() {
-                new = true;
-            }
-        });
+        if self.watchlists.len() < 2 {
+            return;
+        }
+        let seen_id = state_id("switcher-seen");
+        let seen: Option<usize> = ui.data(|d| d.get_temp(seen_id));
+        let reveal = seen != Some(self.active_list);
+        egui::ScrollArea::horizontal()
+            .id_salt("watchlist-switcher")
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing = vec2(4.0, 0.0);
+                    for (k, l) in self.watchlists.iter().enumerate() {
+                        let on = k == self.active_list;
+                        let tip = format!("{} · {} symbols", l.name, l.symbols().len());
+                        let r = list_tab(ui, t, &l.name, on).on_hover_text(tip);
+                        if on && reveal {
+                            r.scroll_to_me(Some(Align::Center));
+                        }
+                        if r.clicked() && !on {
+                            switch = Some(k);
+                        }
+                    }
+                    if list_tab(ui, t, ph::PLUS, false).on_hover_text("New list").clicked() {
+                        new = true;
+                    }
+                });
+            });
+        ui.data_mut(|d| d.insert_temp(seen_id, self.active_list));
         if let Some(k) = switch {
             self.active_list = k;
             ui.data_mut(|d| d.insert_temp::<Option<String>>(state_id("rename"), None));
@@ -942,23 +973,35 @@ fn title_button(ui: &mut Ui, t: &Theme, name: &str) -> egui::Response {
         .on_hover_text("List menu (double-click to rename)")
 }
 
-/// A round switcher button: the list's initial, filled when it's the one on
-/// show.
-fn circle(ui: &mut Ui, t: &Theme, text: &str, on: bool) -> egui::Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
-    let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
-    let on_k = motion::toggle(ui.ctx(), resp.id.with("on"), on, motion::STANDARD);
+/// A list's name as a tab in the switcher: lit when it's the open list.
+fn list_tab(ui: &mut Ui, t: &Theme, text: &str, on: bool) -> egui::Response {
+    let font = theme::medium(12.5);
+    let g = ui.painter().layout_no_wrap(text.to_string(), font, t.text);
+    let w = (g.size().x + 20.0).min(180.0);
+    let (rect, resp) = ui.allocate_exact_size(vec2(w, 26.0), egui::Sense::click());
+    let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
+    let on_k = motion::toggle(ui.ctx(), resp.id.with("on"), on, motion::MICRO);
     let p = ui.painter();
-    let c = rect.center();
-    p.circle_filled(c, 12.5, motion::with_alpha(t.text, on_k));
-    p.circle_filled(c, 12.5, motion::with_alpha(t.hover_wash(), hover * (1.0 - on_k)));
-    p.circle_stroke(c, 12.0, Stroke::new(1.0, motion::with_alpha(t.border, 1.0 - on_k)));
+    // The same corners as the other controls, not a pill.
+    let r = egui::CornerRadius::same(7);
+    p.rect_filled(rect, r, motion::with_alpha(t.hover_wash(), hover * (1.0 - on_k)));
+    if on_k > 0.0 {
+        p.rect(
+            rect,
+            r,
+            motion::with_alpha(t.hover, on_k),
+            Stroke::new(1.0, motion::with_alpha(t.edge(), on_k)),
+            egui::StrokeKind::Inside,
+        );
+    }
+    let c = motion::lerp_color(motion::lerp_color(t.text3, t.text2, hover), t.text, on_k);
+    let label = crate::format::elide_to(p, text, &theme::medium(12.5), w - 20.0);
     p.text(
+        rect.center(),
+        egui::Align2::CENTER_CENTER,
+        label,
+        theme::medium(12.5),
         c,
-        Align2::CENTER_CENTER,
-        text,
-        theme::medium(12.0),
-        motion::lerp_color(t.text2, t.bg, on_k),
     );
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
