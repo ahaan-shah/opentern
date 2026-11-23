@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 (2026-11-23)
+
+A smoother agent panel, 6-month and 1-year returns, a font of your choice and friendlier symbol search.
 
 ### New
 - **The agent can move around the chart like you do.** It can pan back and forth, zoom in and out, fix the price scale to a range and ask what's in view, so it looks at the right bars before judging trades.

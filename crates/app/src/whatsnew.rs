@@ -31,6 +31,36 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.3",
+        items: &[
+            Item {
+                icon: ph::CHAT_CIRCLE,
+                title: "A smoother agent panel",
+                body: "Queue your next message while the agent works, select and copy text from replies, \
+                   and let the agent pan, zoom and rescale the chart to look at it properly.",
+                image: None,
+            },
+            Item {
+                icon: ph::CHART_LINE_UP,
+                title: "6-month and 1-year returns",
+                body: "In the market overview, custom indices and the screener.",
+                image: None,
+            },
+            Item {
+                icon: ph::TEXT_AA,
+                title: "Pick your font",
+                body: "Settings → General → Font has nine to choose from.",
+                image: None,
+            },
+            Item {
+                icon: ph::MAGNIFYING_GLASS,
+                title: "Friendlier search",
+                body: "Words can come in any order and match the name or exchange, so \"NSE VIX\" finds India VIX.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.2",
         items: &[
             Item {
