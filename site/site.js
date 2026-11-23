@@ -39,13 +39,14 @@ document.querySelector(".mode").addEventListener("click", () => {
 // Tour: a sidebar of pages, crossfading between screenshots.
 const captions = [
   "Charts laid out the way TradingView has them, with its built-in indicators, drawing tools and logos for every coin and company.",
+  "A whole market as a heatmap: the S&P 500, the NIFTY 500 or the top 150 coins, by sector, over a day, a week, a month, six months or a year.",
   "Write Pine Script, Python, Luau, JavaScript or TypeScript. Save, and the chart reloads.",
   "TradingView’s Strategy Report, with the same tabs, metrics and trade list.",
   "Optimize a strategy’s inputs and see the best ones on a heatmap, walk it forward, or stress it with Monte Carlo.",
   "Claude Code or Codex, beside the chart: it writes the strategy, checks it, and reads you the results.",
   "Up to eight charts at once, with symbol, interval, crosshair and time kept in sync.",
   "Screen a watchlist on price, change, volume and RSI, or any script of your own.",
-  "Build your own index, weighted by free float like NSE’s, and see its valuation, growth, margins and returns, member by member.",
+  "Build your own index, weighted by free float like NSE’s, and see its valuation, growth, margins and returns from a month to a year, member by member.",
   "Every month of every year at a glance, with a slider to pick the years.",
   "Sixteen themes and nine fonts, data providers, symbol logos and updates, all in one calm page.",
 ];

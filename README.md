@@ -38,7 +38,7 @@ opens faster and asks your computer for less.
   saved per symbol.
 - Logos for coins and companies, as on TradingView.
 
-**96 of TradingView's built-in indicators**, written in Rust from Pine-exact `ta.*`
+**102 of TradingView's built-in indicators**, written in Rust from Pine-exact `ta.*`
 primitives, so they match TradingView's numbers. They keep TradingView's default
 inputs, styles, colours and levels, with settings dialogs, saved defaults and
 indicator templates (star one to keep it in the top bar). They include the Volume
@@ -88,13 +88,15 @@ builds an index the way NSE builds its own: weighted by free-float market cap
 (or full market cap, or equally), starting at 1000, and rebalanced on 1 April
 and 1 October without the level jumping. Chart it like any symbol, with
 indicators and alerts. Its board shows the index's returns, P/E, EV/EBITDA,
-revenue growth, margins, RSI and moving averages, then every member's, as a
+revenue growth, margins, returns from a month to a year, RSI and moving averages, then every member's, as a
 colour-coded table or a treemap. **Compare** puts all your indices side by side.
+
+<img src="site/media/overview.webp" alt="The market overview: the S&P 500 as a heatmap, grouped by sector" width="900">
 
 **Market overview.** One click beside the layout button swaps the charts for a
 heatmap of a whole market: the S&P 500, the NIFTY 500 or the 150 most traded coins.
 Tiles are sized by market cap (coins by 24-hour volume), grouped by sector and coloured by the day's
-change, or the week's, month's, quarter's, year to date or year's. Click a
+change, or the week's, month's, quarter's, six months', year to date or year's. Click a
 sector to zoom in, click a tile to open its chart. Your watchlists and the
 agent stay beside it.
 
@@ -109,7 +111,8 @@ order's tag, or from the depth-of-market ladder.
 
 **Alerts.** Alerts can watch a price, a drawn line, an indicator plot or a
 script's `alert()`. They reach you as a desktop notification with sound, a
-webhook, Telegram or email.
+webhook, Telegram or email, and can keep running when Opentern is closed, even
+after a restart.
 
 **Markets.**
 - **Crypto:** Binance, Bybit, OKX, Coinbase and Kraken. Free, live and with deep history.
@@ -121,12 +124,20 @@ webhook, Telegram or email.
   Add your own Alpaca, OANDA or Interactive Brokers keys for live data.
 - **Indian Markets (NSE, BSE):** Yahoo by default, or Upstox with your own keys.
 
-Exchange calendars, dividends and splits are built in. Everything is free until
-you choose to add a paid provider.
+**Symbol search** finds a symbol however you type it: by ticker, by company or
+coin name ("bitcoin"), with words in any order ("NSE VIX"), and with a typo or two.
+Each result shows its price and today's change, and a star adds it to your
+watchlist without leaving the search.
+
+Exchange calendars for fifteen exchanges (the US, India, London, Frankfurt, Paris,
+Zurich, Tokyo, Hong Kong, Shanghai, Seoul, Taipei, Singapore, Sydney, Toronto and
+São Paulo), dividends and splits are built in. Everything is free until you
+choose to add a paid provider.
 
 **Everything else.**
 - 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 interface fonts.
-- A screener over any watchlist, with an optional script column.
+- A screener over any watchlist, with 1-week to 1-year performance columns and an
+  optional script column.
 - Watchlists with sections, laid out like TradingView's, plus hotlists (crypto, US
   and Indian stocks), news, a calendar, depth of market and an object tree in the
   right-hand widgets.
