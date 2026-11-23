@@ -233,32 +233,31 @@ impl App {
         if let Some(y) = down {
             area = area.vertical_scroll_offset(y);
         }
-        area
-            .show(&mut c, |ui| {
-                let w = (ui.available_width() - 14.0).min(720.0);
-                ui.set_max_width(w);
-                match page.cat {
-                    Cat::General => self.general(ui, t),
-                    Cat::Chart => page
-                        .chart
-                        .get_or_insert_with(|| ChartSettings::new(self))
-                        .page(ui, self, t),
-                    Cat::Providers => page
-                        .providers
-                        .get_or_insert_with(|| self.providers_form())
-                        .page(ui, self, t),
-                    Cat::Shortcuts => shortcuts(ui, t),
-                    Cat::Transfer => page
-                        .transfer
-                        .get_or_insert_with(|| crate::transfer::Transfer::new(self))
-                        .page(ui, self, t),
-                    Cat::About => self.about(ui, t),
-                }
-                ui.add_space(24.0);
-                if end {
-                    ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
-                }
-            });
+        area.show(&mut c, |ui| {
+            let w = (ui.available_width() - 14.0).min(720.0);
+            ui.set_max_width(w);
+            match page.cat {
+                Cat::General => self.general(ui, t),
+                Cat::Chart => page
+                    .chart
+                    .get_or_insert_with(|| ChartSettings::new(self))
+                    .page(ui, self, t),
+                Cat::Providers => page
+                    .providers
+                    .get_or_insert_with(|| self.providers_form())
+                    .page(ui, self, t),
+                Cat::Shortcuts => shortcuts(ui, t),
+                Cat::Transfer => page
+                    .transfer
+                    .get_or_insert_with(|| crate::transfer::Transfer::new(self))
+                    .page(ui, self, t),
+                Cat::About => self.about(ui, t),
+            }
+            ui.add_space(24.0);
+            if end {
+                ui.scroll_to_cursor(Some(egui::Align::BOTTOM));
+            }
+        });
         if !close && self.settings.is_none() {
             self.settings = Some(page);
         }

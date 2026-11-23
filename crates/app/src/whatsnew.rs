@@ -31,6 +31,38 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.4",
+        items: &[
+            Item {
+                icon: ph::SPARKLE,
+                title: "A sharper, calmer look",
+                body: "Deeper layers, hairline borders, a fresher green, and dialogs, menus and \
+                   controls redrawn to match, in dark and light.",
+                image: None,
+            },
+            Item {
+                icon: ph::MAGNIFYING_GLASS,
+                title: "Search shows prices",
+                body: "Every result has its price and day change. Star one into your watchlist, \
+                   and find coins by name (\"bitcoin\") even with a typo.",
+                image: None,
+            },
+            Item {
+                icon: ph::PALETTE,
+                title: "Any colour you like",
+                body: "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB.",
+                image: None,
+            },
+            Item {
+                icon: ph::KEYBOARD,
+                title: "Scripts from the keyboard",
+                body: "In the Script Editor's explorer, arrows, Enter, F2, Delete and copy, cut and \
+                   paste all work. Plus three new indicators and calendars for 15 exchanges.",
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.3",
         items: &[
             Item {

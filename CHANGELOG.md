@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.4 (2026-11-24)
+
+A sharper, calmer look throughout, symbol search with prices, a custom colour picker, a keyboard-friendly script explorer and three new indicators.
 
 ### New
 - **Three more built-in indicators** (102 in all): Moving Average Adaptive (Kaufman's KAMA: quick in a trend, flat in chop), Moving Average Hamming, and Moving Average Channel (averages of the highs and the lows, the band between shaded).
@@ -8,13 +10,13 @@
 - **Prices in symbol search.** Each result shows its price and today's change, so you can tell listings apart before opening one.
 - **Star a symbol from search.** The star on a row (or Shift+Enter) adds it to the open watchlist, or takes it out, without leaving the search.
 - **Search by coin name and with typos.** "bitcoin" finds BTCUSDT, "solana" finds SOL; "RELAINCE" still finds Reliance; a word of a company's name works too ("Mahindra").
-
 - **Every exchange in the Calendar.** Besides the US and India, the Calendar lists holidays, half days and special sessions for London, Frankfurt, Paris, Zurich, Tokyo, Hong Kong, Shanghai, Seoul, Taipei, Singapore, Sydney, Toronto and São Paulo, grouped by region (folded until you open one).
 - **The script explorer works from the keyboard.** Click a file, then use the arrows (Right opens a folder, Left closes it), Enter to open, F2 to rename, Delete to delete (it asks first), Ctrl+C or Ctrl+X then Ctrl+V to copy or move a script into a folder, and a letter to jump to a name.
 
 ### Changed
 - **Simpler alert setting.** Settings → General → Alerts asks one thing, what happens when Opentern is closed: pause alerts, keep checking them, or keep checking even after a restart.
-- **A cleaner, sharper look.** Deeper night-sea surfaces in clear layers, hairline borders, a fresher tern green, and dialogs with a proper header; the light theme is paper white on cool grey.
+- **A cleaner, sharper look.** Deeper night-sea surfaces in clear layers, hairline borders, a fresher tern green, and a rich deep-green fill for whatever is selected or switched on; the light theme is paper white on cool grey. Dialogs get a proper header, a firmer border and a soft green glow from the top; radio buttons, sliders, chips and text selection are redrawn to match.
+- **See-through colours look like themselves.** A colour swatch shows the colour as it will look at its opacity (hover for the percentage), instead of a grey checkerboard.
 - **The alert dialog, redesigned.** Labels sit above their fields, related settings share a row, the message box lines up with the rest, and where to notify you is a row of toggles (Notification, Sound, Webhook, Telegram, Email) that reveal their settings when on.
 - **Watchlists switch by name.** The row of letter circles is now a strip of list names that scrolls sideways, with the open list highlighted.
 - **Brighter heatmap tiles in light mode.** Small moves are clean greens and reds instead of dusty teal and pink.
