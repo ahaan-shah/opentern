@@ -524,6 +524,37 @@ impl App {
         if let Some(name) = pick {
             self.set_theme(ui.ctx(), name);
         }
+        ui.add_space(12.0);
+        crate::dialogs::section(ui, t, "Font");
+        ui.add_space(4.0);
+        self.font_picker(ui);
+    }
+
+    /// The interface font, each shown in its own face.
+    fn font_picker(&mut self, ui: &mut Ui) {
+        let current = theme::font_by_name(&self.store.settings().font).name;
+        let face = |name: &str| egui::RichText::new(name).family(theme::preview_family(name)).size(13.5);
+        let mut pick = None;
+        crate::widgets::combo("settings-font")
+            .width(220.0)
+            .selected_text(face(current))
+            .show_ui(ui, |ui| {
+                for f in theme::FONTS {
+                    if crate::widgets::option(ui, f.name == current, face(f.name)).clicked() {
+                        pick = Some(f.name);
+                    }
+                }
+            });
+        if let Some(name) = pick.filter(|n| *n != current) {
+            theme::install_fonts(ui.ctx(), name);
+            let s = opentern_core::Settings {
+                font: name.into(),
+                ..self.store.settings().clone()
+            };
+            if let Err(e) = self.store.set_settings(s) {
+                crate::diag::crumb(format!("couldn't save the font: {e}"));
+            }
+        }
     }
 
     /// Per market: millions and billions, or lakhs and crores (market

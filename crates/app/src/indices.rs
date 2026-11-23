@@ -249,6 +249,8 @@ impl IndexDef {
 pub enum Metric {
     Ret1M,
     Ret3M,
+    Ret6M,
+    Ret1Y,
     Pe,
     EvEbitda,
     RevGrowth,
@@ -262,9 +264,11 @@ pub enum Metric {
 }
 
 impl Metric {
-    pub const ALL: [Metric; 12] = [
+    pub const ALL: [Metric; 14] = [
         Metric::Ret1M,
         Metric::Ret3M,
+        Metric::Ret6M,
+        Metric::Ret1Y,
         Metric::Pe,
         Metric::EvEbitda,
         Metric::RevGrowth,
@@ -281,6 +285,8 @@ impl Metric {
         match self {
             Metric::Ret1M => "1M return",
             Metric::Ret3M => "3M return",
+            Metric::Ret6M => "6M return",
+            Metric::Ret1Y => "1Y return",
             Metric::Pe => "P/E",
             Metric::EvEbitda => "EV/EBITDA",
             Metric::RevGrowth => "Revenue growth",
@@ -299,6 +305,8 @@ impl Metric {
         match self {
             Metric::Ret1M => "1M",
             Metric::Ret3M => "3M",
+            Metric::Ret6M => "6M",
+            Metric::Ret1Y => "1Y",
             Metric::RevGrowth => "Rev growth",
             Metric::GrossMargin => "Gross",
             Metric::EbitdaMargin => "EBITDA",
@@ -313,7 +321,7 @@ impl Metric {
 
     fn group(self) -> &'static str {
         match self {
-            Metric::Ret1M | Metric::Ret3M => "Returns",
+            Metric::Ret1M | Metric::Ret3M | Metric::Ret6M | Metric::Ret1Y => "Returns",
             Metric::Pe | Metric::EvEbitda => "Valuation",
             Metric::RevGrowth | Metric::GrossMargin | Metric::EbitdaMargin | Metric::EbitMargin | Metric::PatMargin => {
                 "Growth and margins"
@@ -326,6 +334,8 @@ impl Metric {
         match self {
             Metric::Ret1M => "Change over the last month",
             Metric::Ret3M => "Change over the last three months",
+            Metric::Ret6M => "Change over the last six months",
+            Metric::Ret1Y => "Change over the last year",
             Metric::Pe => "Price over trailing earnings. For the index: total market cap over total earnings",
             Metric::EvEbitda => "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA",
             Metric::RevGrowth => "Revenue, year on year. For the index: the members' revenue together",
@@ -358,7 +368,13 @@ impl Metric {
             return None;
         }
         match self {
-            Metric::Ret1M | Metric::Ret3M | Metric::Sma50 | Metric::Sma200 | Metric::RevGrowth => {
+            Metric::Ret1M
+            | Metric::Ret3M
+            | Metric::Ret6M
+            | Metric::Ret1Y
+            | Metric::Sma50
+            | Metric::Sma200
+            | Metric::RevGrowth => {
                 let max = all.iter().filter(|x| x.is_finite()).fold(0.0f64, |m, x| m.max(x.abs()));
                 Some(if max > 0.0 {
                     (v / max).clamp(-1.0, 1.0) as f32
@@ -1231,11 +1247,22 @@ fn price_measures(bars: &[Bar], steps: &mut Option<Steps>, out: &mut HashMap<Met
     let then = jiff::Timestamp::from_millisecond(last.time)
         .unwrap_or(jiff::Timestamp::UNIX_EPOCH)
         .to_zoned(jiff::tz::TimeZone::UTC);
-    for (m, months) in [(Metric::Ret1M, 1), (Metric::Ret3M, 3)] {
+    let first = bars[0].time;
+    for (m, months) in [
+        (Metric::Ret1M, 1),
+        (Metric::Ret3M, 3),
+        (Metric::Ret6M, 6),
+        (Metric::Ret1Y, 12),
+    ] {
         let Ok(cut) = then.checked_sub(jiff::Span::new().months(months)) else {
             continue;
         };
-        let c = close_at(bars, cut.timestamp().as_millisecond());
+        let cut = cut.timestamp().as_millisecond();
+        // History too short to reach back that far.
+        if first > cut {
+            continue;
+        }
+        let c = close_at(bars, cut);
         if c.is_finite() && c != 0.0 {
             out.insert(m, (last.close / c - 1.0) * 100.0);
         }
@@ -1543,7 +1570,7 @@ pub(crate) struct MapBoard {
     /// Each member's weight in its index, in percent.
     pub weights: Vec<f64>,
     /// Each index's own change per period, by its name on the map.
-    pub changes: HashMap<String, [f64; 6]>,
+    pub changes: HashMap<String, [f64; opentern_data::overview::PERIODS]>,
     waiting: bool,
 }
 
@@ -2554,7 +2581,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
         .fold(0.0, f32::max);
     let avail = ui.available_width();
     let fits = |n: f32| (avail - gap * (n - 1.0)) / n >= widest + 26.0;
-    let per_row = [12.0, 6.0, 4.0].into_iter().find(|n| fits(*n)).unwrap_or(3.0);
+    let per_row = [14.0, 7.0, 5.0].into_iter().find(|n| fits(*n)).unwrap_or(3.0);
     let tile_w = ((avail - gap * (per_row - 1.0)) / per_row).floor();
     for row in Metric::ALL.chunks(per_row as usize) {
         ui.horizontal(|ui| {
@@ -2580,7 +2607,13 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
                 );
                 let signed = matches!(
                     m,
-                    Metric::Ret1M | Metric::Ret3M | Metric::RevGrowth | Metric::Sma50 | Metric::Sma200
+                    Metric::Ret1M
+                        | Metric::Ret3M
+                        | Metric::Ret6M
+                        | Metric::Ret1Y
+                        | Metric::RevGrowth
+                        | Metric::Sma50
+                        | Metric::Sma200
                 );
                 let c = if !v.is_finite() {
                     t.text3

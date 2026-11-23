@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **The agent can move around the chart like you do.** It can pan back and forth, zoom in and out, fix the price scale to a range and ask what's in view, so it looks at the right bars before judging trades.
+- **6-month and 1-year returns.** The market overview gains a 6M period (beside 1D, 1W, 1M, 3M, YTD and 1Y), custom indices show 6M and 1Y returns for the index and every member (and can colour their map by them), and the screener has Perf 6M and Perf 1Y columns you can sort and filter by.
+- **Choose the app's font.** Settings → General → Font offers Inter, Geist, Onest, Plus Jakarta Sans, DM Sans, Figtree, Outfit, IBM Plex Sans and JetBrains Mono, each shown in its own face; the change applies at once.
+- **Select and copy text in the agent panel.** Drag across part of a reply or one of your own messages to select it, then copy it.
+
+### Changed
+- **Friendlier symbol search.** Words can come in any order and match the ticker, the name or the exchange, so "NSE VIX" finds India VIX and "apple nasdaq" finds Apple; spaces and punctuation don't matter ("SP500" finds the S&P 500), and "NSE: VIX" works with a space after the colon.
+- **Queue a message while the agent works.** With text in the box, the round button now queues it (as Enter already did) instead of stopping the agent; with the box empty it still stops.
+
 ## 0.3.2 (2026-11-22)
 
 Logos and commodity icons show up again, and currency pairs show their flags.

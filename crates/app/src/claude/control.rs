@@ -341,6 +341,70 @@ impl App {
         })
     }
 
+    /// The active chart's plot width in points (a guess before it's drawn).
+    fn plot_width(&self) -> f32 {
+        let w = self.chart_ui.main_rect.width();
+        if w > 50.0 { w } else { 900.0 }
+    }
+
+    /// How many bars fit across the plot at the current zoom.
+    fn visible_bars(&self) -> f64 {
+        (self.plot_width() / self.chart.view.bar_w) as f64
+    }
+
+    /// Average time between bars, for asking for older history.
+    fn bar_spacing(&self) -> f64 {
+        let b = &self.chart.bars;
+        match (self.chart.tf.millis(), b.len()) {
+            (Some(ms), _) => ms as f64,
+            (None, n) if n > 1 => (b[n - 1].time - b[0].time) as f64 / (n - 1) as f64,
+            _ => 86_400_000.0,
+        }
+    }
+
+    /// What the chart shows now: dates, bar count and price range.
+    pub(crate) fn view_note(&self) -> String {
+        let bars = &self.chart.bars;
+        if bars.is_empty() {
+            return "The chart has no bars yet.".into();
+        }
+        let last = bars.len() - 1;
+        let right = self.chart.view.right;
+        let left = right - self.visible_bars();
+        let i0 = (left.ceil().max(0.0) as usize).min(last);
+        let i1 = (right.floor().max(0.0) as usize).min(last);
+        if right < 0.0 || left > last as f64 {
+            return "No bars are in view (scrolled past the data). Use reset or go_to.".into();
+        }
+        let (lo, hi) = bars[i0..=i1]
+            .iter()
+            .fold((f64::MAX, f64::MIN), |(l, h), b| (l.min(b.low), h.max(b.high)));
+        let d = self.chart.symbol.precision();
+        let scale = match self.chart.panes.first() {
+            Some(p) if !p.scale.auto => format!(
+                "; price scale fixed at {} to {}",
+                crate::format::price(p.scale.lo, d),
+                crate::format::price(p.scale.hi, d)
+            ),
+            _ => "; price scale fits the bars".into(),
+        };
+        let latest = if i1 == last { " (the latest bar)" } else { "" };
+        let older = if i0 == 0 && !self.chart.complete {
+            "; older history loads when you pan further back"
+        } else {
+            ""
+        };
+        format!(
+            "Showing {} bars, {} to {}{latest}; their low {} and high {}{scale}{older}. {} bars loaded in all.",
+            i1 - i0 + 1,
+            iso(bars[i0].time),
+            iso(bars[i1].time),
+            crate::format::price(lo, d),
+            crate::format::price(hi, d),
+            bars.len()
+        )
+    }
+
     // ------------------------------------------------------- chart_view
 
     pub(crate) fn tool_chart_view(&mut self, ctx: (u64, &str, &Value), a: &Value) -> Option<Value> {
@@ -399,6 +463,78 @@ impl App {
                     iso(bars[i0].time),
                     iso(bars[i1].time)
                 ))
+            }
+            "view" => text(self.view_note()),
+            "pan" => {
+                let Some(n) = num(a, "bars").filter(|n| n.is_finite() && *n != 0.0) else {
+                    return Some(error(
+                        "pan needs \"bars\": how many bars to move (negative = back in time, positive = towards the latest).",
+                    ));
+                };
+                if self.chart.bars.is_empty() {
+                    return Some(error("The chart has no bars yet."));
+                }
+                // Going back past the first bar: load older history first.
+                let left = self.chart.view.right + n - self.visible_bars();
+                if left < 0.0 {
+                    let first = self.chart.bars[0].time;
+                    let from = first - (-left * self.bar_spacing()) as i64;
+                    if self.wait_for_history(ctx, from, "chart_view", a).is_some() {
+                        return None;
+                    }
+                }
+                let last = self.chart.last_index();
+                let span = self.visible_bars();
+                self.chart.view.right = (self.chart.view.right + n)
+                    .clamp((span * 0.1).min(last + 1.0), last + crate::chart::RIGHT_MARGIN * 4.0);
+                text(self.view_note())
+            }
+            "zoom" => {
+                if self.chart.bars.is_empty() {
+                    return Some(error("The chart has no bars yet."));
+                }
+                let width = self.plot_width();
+                let span = self.visible_bars();
+                let want = match (num(a, "bars"), num(a, "factor")) {
+                    (Some(b), _) if b >= 2.0 => b,
+                    (_, Some(f)) if f > 0.0 && f.is_finite() => span / f,
+                    _ => {
+                        return Some(error(
+                            "zoom needs \"bars\" (how many bars to show) or \"factor\" (2 = zoom in twice as close, 0.5 = out).",
+                        ));
+                    }
+                };
+                // Around the middle of the view, as a pinch would.
+                let mid = self.chart.view.right - span / 2.0;
+                let bar_w = (width / want as f32).clamp(0.4, 80.0);
+                self.chart.view.bar_w = bar_w;
+                let span = (width / bar_w) as f64;
+                self.chart.view.right = (mid + span / 2.0).min(self.chart.last_index() + span * 0.9);
+                text(self.view_note())
+            }
+            "price_range" => {
+                let (lo, hi) = (num(a, "low"), num(a, "high"));
+                let Some(p) = self.chart.panes.first_mut() else {
+                    return Some(error("The chart has no price pane."));
+                };
+                match (lo, hi) {
+                    (Some(lo), Some(hi)) if lo.is_finite() && hi.is_finite() && hi > lo => {
+                        if self.chart.log && lo <= 0.0 {
+                            return Some(error("A log scale needs a low above 0."));
+                        }
+                        p.scale.auto = false;
+                        p.scale.lo = lo;
+                        p.scale.hi = hi;
+                    }
+                    (None, None) => p.scale.auto = true,
+                    _ => {
+                        return Some(error(
+                            "price_range needs \"low\" < \"high\" (or neither, to fit the bars again).",
+                        ));
+                    }
+                }
+                self.chart.touch();
+                text(self.view_note())
             }
             "reset" => {
                 self.chart.reset_view();
@@ -519,7 +655,7 @@ impl App {
                 }
             }
             other => error(format!(
-                "chart_view has no action \"{other}\". Use chart_type, go_to, reset, scale, layout, activate, compare, remove_compare or indicator_template."
+                "chart_view has no action \"{other}\". Use chart_type, go_to, view, pan, zoom, price_range, reset, scale, layout, activate, compare, remove_compare or indicator_template."
             )),
         })
     }
@@ -1901,6 +2037,29 @@ mod drive_tests {
             json!({"action": "go_to", "from": t40, "to": t20}),
         ));
         assert!((d.app.chart.view.right - (n - 20) as f64).abs() < 5.0);
+        // Pan, zoom and the price scale, as the mouse would.
+        let right = d.app.chart.view.right;
+        let v = ok(&call(&mut d, "chart_view", json!({"action": "pan", "bars": -10})));
+        assert!((d.app.chart.view.right - (right - 10.0)).abs() < 1e-6, "{v}");
+        assert!(v.starts_with("Showing "), "{v}");
+        let v = ok(&call(&mut d, "chart_view", json!({"action": "zoom", "bars": 50})));
+        let w = d.app.chart_ui.main_rect.width();
+        let w = if w > 50.0 { w } else { 900.0 };
+        assert!((w / d.app.chart.view.bar_w - 50.0).abs() < 1.0, "{v}");
+        ok(&call(&mut d, "chart_view", json!({"action": "zoom", "factor": 0.5})));
+        ok(&call(
+            &mut d,
+            "chart_view",
+            json!({"action": "price_range", "low": 10, "high": 20}),
+        ));
+        let p = &d.app.chart.panes[0].scale;
+        assert!(!p.auto && p.lo == 10.0 && p.hi == 20.0);
+        let v = ok(&call(&mut d, "chart_view", json!({"action": "view"})));
+        assert!(v.contains("fixed at"), "{v}");
+        ok(&call(&mut d, "chart_view", json!({"action": "price_range"})));
+        assert!(d.app.chart.panes[0].scale.auto);
+        let e = call(&mut d, "chart_view", json!({"action": "pan"}));
+        assert!(e["isError"].as_bool().unwrap_or(false));
         ok(&call(&mut d, "chart_view", json!({"action": "scale", "log": true})));
         assert!(d.app.chart.log);
 

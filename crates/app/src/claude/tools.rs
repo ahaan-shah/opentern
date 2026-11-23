@@ -141,10 +141,11 @@ pub fn specs() -> Value {
         ),
         tool(
             "chart_view",
-            "Changes how the active chart looks. Actions: chart_type {type: candles, hollow candles, bars, heikin ashi, line, area, baseline, renko, …}; go_to {from, to?} scrolls and zooms to a date range, loading older history; reset (back to the latest bar); scale {log?, percent?, auto?}; layout {charts: 1-8} splits the window into that many charts; activate {chart: 1-based number} picks which one the tools act on; compare {symbol, mode: percent|scale|pane}; remove_compare {symbol}; indicator_template {name}.",
+            "Changes how the active chart looks. Actions: chart_type {type: candles, hollow candles, bars, heikin ashi, line, area, baseline, renko, …}; go_to {from, to?} scrolls and zooms to a date range, loading older history; view (what's in view now: dates, bars, price range); pan {bars: negative = back in time, positive = forward}; zoom {bars: how many to show, or factor: 2 = closer, 0.5 = further}; price_range {low, high} fixes the price scale (neither = fit the bars again); reset (back to the latest bar); scale {log?, percent?, auto?}; layout {charts: 1-8} splits the window into that many charts; activate {chart: 1-based number} picks which one the tools act on; compare {symbol, mode: percent|scale|pane}; remove_compare {symbol}; indicator_template {name}.",
             json!({
-                "action": s("chart_type, go_to, reset, scale, layout, activate, compare, remove_compare or indicator_template."),
+                "action": s("chart_type, go_to, view, pan, zoom, price_range, reset, scale, layout, activate, compare, remove_compare or indicator_template."),
                 "type": t("string"), "from": t("string"), "to": t("string"),
+                "bars": t("number"), "factor": t("number"), "low": t("number"), "high": t("number"),
                 "log": t("boolean"), "percent": t("boolean"), "auto": t("boolean"),
                 "charts": t("integer"), "chart": t("integer"),
                 "symbol": t("string"), "mode": t("string"), "name": t("string"),
@@ -272,11 +273,11 @@ pub fn specs() -> Value {
         ),
         tool(
             "market_overview",
-            "The market overview (the heatmap beside the layout grid button): every member of the S&P 500 (market us), the NIFTY 500 (india) or the largest coins (crypto), grouped by sector, sized by market cap and coloured by the change over a period (1D, 1W, 1M, 3M, YTD or 1Y). Actions: open {market?, period?, sector?} shows it in place of the charts (sector zooms into one); close shows the charts again; get {market?, period?, sector?, top?} answers with each sector's share of the market and size-weighted change, the largest members and the top gainers and losers (top of each, default 10).",
+            "The market overview (the heatmap beside the layout grid button): every member of the S&P 500 (market us), the NIFTY 500 (india) or the largest coins (crypto), grouped by sector, sized by market cap and coloured by the change over a period (1D, 1W, 1M, 3M, 6M, YTD or 1Y). Actions: open {market?, period?, sector?} shows it in place of the charts (sector zooms into one); close shows the charts again; get {market?, period?, sector?, top?} answers with each sector's share of the market and size-weighted change, the largest members and the top gainers and losers (top of each, default 10).",
             json!({
                 "action": s("open, close or get."),
                 "market": s("us, india or crypto (default: the one showing)."),
-                "period": s("1D, 1W, 1M, 3M, YTD or 1Y (default: the one showing)."),
+                "period": s("1D, 1W, 1M, 3M, 6M, YTD or 1Y (default: the one showing)."),
                 "sector": t("string"),
                 "top": t("integer"),
             }),

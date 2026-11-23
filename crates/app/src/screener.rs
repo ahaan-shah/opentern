@@ -25,6 +25,8 @@ pub enum Field {
     Change,
     PerfWeek,
     PerfMonth,
+    PerfHalf,
+    PerfYear,
     Volume,
     RelVolume,
     Rsi,
@@ -35,11 +37,13 @@ pub enum Field {
 }
 
 impl Field {
-    pub const ALL: [Field; 11] = [
+    pub const ALL: [Field; 13] = [
         Field::Last,
         Field::Change,
         Field::PerfWeek,
         Field::PerfMonth,
+        Field::PerfHalf,
+        Field::PerfYear,
         Field::Volume,
         Field::RelVolume,
         Field::Rsi,
@@ -55,6 +59,8 @@ impl Field {
             Field::Change => "Change %",
             Field::PerfWeek => "Perf 1W %",
             Field::PerfMonth => "Perf 1M %",
+            Field::PerfHalf => "Perf 6M %",
+            Field::PerfYear => "Perf 1Y %",
             Field::Volume => "Volume",
             Field::RelVolume => "Rel volume",
             Field::Rsi => "RSI (14)",
@@ -68,7 +74,14 @@ impl Field {
     fn pct(self) -> bool {
         matches!(
             self,
-            Field::Change | Field::PerfWeek | Field::PerfMonth | Field::Sma50 | Field::Sma200 | Field::Atr
+            Field::Change
+                | Field::PerfWeek
+                | Field::PerfMonth
+                | Field::PerfHalf
+                | Field::PerfYear
+                | Field::Sma50
+                | Field::Sma200
+                | Field::Atr
         )
     }
 }
@@ -352,7 +365,12 @@ fn measure(bars: &[Bar], tf: Timeframe, tz: &jiff::tz::TimeZone, job: &Job) -> R
         v.insert(Field::Change, (last.close / bars[n - 2].close - 1.0) * 100.0);
     }
     let day = 86_400_000;
-    for (f, days) in [(Field::PerfWeek, 7), (Field::PerfMonth, 30)] {
+    for (f, days) in [
+        (Field::PerfWeek, 7),
+        (Field::PerfMonth, 30),
+        (Field::PerfHalf, 182),
+        (Field::PerfYear, 365),
+    ] {
         if let Some(c) = close_at(bars, last.time - days * day).filter(|c| *c != 0.0) {
             v.insert(f, (last.close / c - 1.0) * 100.0);
         }

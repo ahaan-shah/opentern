@@ -1128,7 +1128,13 @@ workspace.
   in OpenAI's compliance logs. Opentern must stay free and local for this.
   `live_codex` (ignored, uses the account): `CODEX_MODEL=<id> cargo test -p
   opentern --bin opentern live_codex -- --ignored --nocapture`.
-- **Queued messages** (Nov 2026): Enter while the agent works puts the message
+- **Selectable text** (Nov 2026): labels aren't selectable app-wide
+  (`theme.rs`), so replies turn `selectable_labels` on in a scope and the
+  user bubble is a selectable `Label` on the painted bubble; reply lines
+  with script links are Labels too, traced to a word with the same cached
+  galley.
+- **Queued messages** (Nov 2026; the send button queues too while there's
+  text in the box, and stops only when it's empty): Enter while the agent works puts the message
   in `Chat::queued` (dimmed bubbles under the spinner, × removes one); when the
   turn's `Done` arrives they all go as one message (`claude_send_queued`), as in
   Claude Code. Stop, or the CLI exiting, puts them back in the input box
@@ -1179,7 +1185,9 @@ workspace.
   Claude edits files with its own tools; scripts on the chart hot-reload.
 - **The agent's hands** (0.2.0, the maintainer: "everything I can do with
   clicks"; `claude/control.rs`): one tool per area with an `action` (keeps the
-  list, sent with every request, short): chart_view, indicator, drawings,
+  list, sent with every request, short): chart_view (incl. view, pan,
+  zoom, price_range; each answers with `view_note`: dates, bars, price
+  range in view), indicator, drawings,
   replay, snapshot, watchlist, screener, strategy_settings, strategy_lab,
   paper_trading, alerts, open_panel; seasonality and custom_index
   (`claude/markets.rs`: list/get/compare/create/edit/rebalance/delete/open;
@@ -1488,7 +1496,7 @@ every data change (scripts re-run on it).
   left them out), NSE's IWF banding, historical float (past segments use
   the float known when they were made).
 - Board: tiles for the index's own numbers (one row when names fit, else
-  6 or 4 a row), then a table (logos, weight with a mini bar, price, 1D,
+  7 or 5 a row), then a table (logos, weight with a mini bar, price, 1D,
   metrics under group bands with rules between groups; numbers coloured
   by score, no cell boxes; P/E and EV/EBITDA rank lower-better,
   loss-makers worst) or a treemap. **Compare** (top of the list once

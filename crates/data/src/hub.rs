@@ -1600,9 +1600,45 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
     } else if d.contains(q) {
         90
     } else {
-        return None;
+        return loose_rank(s, &t, &d, q);
     };
     Some(score)
+}
+
+/// Letters and digits only: "S&P 500" and "SP500" read the same.
+fn compact(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).collect()
+}
+
+/// A query that doesn't match as a whole: every word of it found in the
+/// ticker, the name or the exchange ("NSE VIX" → India VIX, "nifty bank",
+/// "apple nasdaq"), or the query with spaces and punctuation dropped
+/// ("SP 500"). Ranks after whole matches.
+fn loose_rank(s: &Symbol, t: &str, d: &str, q: &str) -> Option<u32> {
+    let ex = s.exchange().to_uppercase();
+    let (ct, cd) = (compact(t), compact(d));
+    let cq = compact(q);
+    if !cq.is_empty() && (ct.contains(&cq) || cd.contains(&cq)) {
+        return Some(if ct.starts_with(&cq) || cd.starts_with(&cq) {
+            92
+        } else {
+            95
+        });
+    }
+    let words: Vec<String> = q.split_whitespace().map(compact).filter(|w| !w.is_empty()).collect();
+    if words.len() < 2 {
+        return None;
+    }
+    let mut on_ticker = false;
+    for w in &words {
+        let in_ticker = ct.contains(w.as_str());
+        let found = in_ticker || cd.contains(w.as_str()) || ex == *w || (w.len() >= 3 && ex.starts_with(w.as_str()));
+        if !found {
+            return None;
+        }
+        on_ticker |= in_ticker;
+    }
+    Some(if on_ticker { 96 } else { 98 })
 }
 
 /// Searches numbered from here are each answered, even when newer ones are
@@ -1834,7 +1870,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             let q = query.trim().to_uppercase();
             // "OKX:BTC" searches one exchange.
             let (want_ex, q) = match q.split_once(':') {
-                Some((e, t)) => (Some(e.to_string()), t.to_string()),
+                Some((e, t)) => (Some(e.trim().to_string()), t.trim().to_string()),
                 None => (None, q),
             };
             if q.is_empty() {
@@ -2064,6 +2100,15 @@ mod tests {
         assert_eq!(rank(&aapl, "AAPL"), Some(0));
         assert!(rank(&aapl, "APPLE").is_some());
         assert_eq!(rank(&aapl, "MSFT"), None);
+        // Words in any order, across ticker, name and exchange.
+        let vix = mk("NSE:INDIAVIX", "India VIX");
+        assert!(rank(&vix, "NSE VIX").is_some());
+        assert!(rank(&vix, "VIX INDIA").is_some());
+        assert!(rank(&vix, "INDIA VIX").is_some());
+        assert_eq!(rank(&vix, "NSE APPLE"), None);
+        assert!(rank(&aapl, "APPLE NASDAQ").is_some());
+        let spx = mk("SP:SPX", "S&P 500");
+        assert!(rank(&spx, "SP500").is_some());
     }
 
     #[test]

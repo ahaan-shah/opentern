@@ -523,7 +523,7 @@ impl App {
             "" => self.overview.period,
             p => match Period::from_label(p) {
                 Some(p) => p,
-                None => return Some(error("period is 1D, 1W, 1M, 3M, YTD or 1Y.")),
+                None => return Some(error("period is 1D, 1W, 1M, 3M, 6M, YTD or 1Y.")),
             },
         };
         let mut a = a.clone();

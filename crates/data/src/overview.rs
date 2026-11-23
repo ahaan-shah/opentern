@@ -67,6 +67,9 @@ impl Market {
     }
 }
 
+/// How many periods there are (1D 1W 1M 3M 6M YTD 1Y).
+pub const PERIODS: usize = 7;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
 pub enum Period {
     #[default]
@@ -74,16 +77,18 @@ pub enum Period {
     Week,
     Month,
     Quarter,
+    HalfYear,
     Ytd,
     Year,
 }
 
 impl Period {
-    pub const ALL: [Period; 6] = [
+    pub const ALL: [Period; PERIODS] = [
         Period::Day,
         Period::Week,
         Period::Month,
         Period::Quarter,
+        Period::HalfYear,
         Period::Ytd,
         Period::Year,
     ];
@@ -94,6 +99,7 @@ impl Period {
             Period::Week => "1W",
             Period::Month => "1M",
             Period::Quarter => "3M",
+            Period::HalfYear => "6M",
             Period::Ytd => "YTD",
             Period::Year => "1Y",
         }
@@ -121,7 +127,7 @@ pub struct Member {
     pub cap: f64,
     pub price: f64,
     /// Percent change per `Period` (by `Period::index`); NaN when unknown.
-    pub change: [f64; 6],
+    pub change: [f64; PERIODS],
     /// Daily closes, oldest first (the last three months or so), for the
     /// hover card's line.
     pub closes: Vec<f32>,
@@ -499,8 +505,8 @@ fn india_symbol(x: &Listed) -> Symbol {
 /// Percent changes per period from daily closes (`times` in seconds,
 /// oldest first) up to `last`; `day` is the 1D change when the source
 /// gives one (else from the closes).
-pub fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s: i64) -> [f64; 6] {
-    let mut out = [f64::NAN; 6];
+pub fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s: i64) -> [f64; PERIODS] {
+    let mut out = [f64::NAN; PERIODS];
     if !last.is_finite() || times.len() != closes.len() {
         return out;
     }
@@ -542,6 +548,7 @@ pub fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s
     out[Period::Week.index()] = pct(at(back(jiff::Span::new().days(7))));
     out[Period::Month.index()] = pct(at(back(jiff::Span::new().months(1))));
     out[Period::Quarter.index()] = pct(at(back(jiff::Span::new().months(3))));
+    out[Period::HalfYear.index()] = pct(at(back(jiff::Span::new().months(6))));
     out[Period::Year.index()] = pct(at(back(jiff::Span::new().years(1))));
     let jan1 = jiff::civil::date(zone.year(), 1, 1)
         .to_zoned(jiff::tz::TimeZone::UTC)
@@ -554,6 +561,7 @@ pub fn changes(times: &[i64], closes: &[f64], last: f64, day: Option<f64>, now_s
             (Period::Week, back(jiff::Span::new().days(7))),
             (Period::Month, back(jiff::Span::new().months(1))),
             (Period::Quarter, back(jiff::Span::new().months(3))),
+            (Period::HalfYear, back(jiff::Span::new().months(6))),
             (Period::Year, back(jiff::Span::new().years(1))),
             (Period::Ytd, jan1 - 1),
         ] {
@@ -578,7 +586,7 @@ fn tail(closes: &[f64]) -> Vec<f32> {
 /// change of neither day. The pre-market or after-hours price goes in
 /// `ext` instead. Indian stocks take Yahoo's own day change (it counts
 /// sessions Yahoo's bars skip).
-fn stock_price(market: Market, s: &Spark, now_s: i64) -> (Price, [f64; 6]) {
+fn stock_price(market: Market, s: &Spark, now_s: i64) -> (Price, [f64; PERIODS]) {
     let (price, day, ext) = match market {
         Market::India => (s.price, s.day, None),
         _ => (s.regular, None, crate::yahoo::Ext::at(now_s * 1000, s.price, s.regular)),
@@ -1354,7 +1362,7 @@ fn crypto_board(dir: &Path) -> Result<Board> {
         .into_iter()
         .take(COINS)
         .map(|(base, vol, price, ch)| {
-            let mut change = [f64::NAN; 6];
+            let mut change = [f64::NAN; PERIODS];
             change[Period::Day.index()] = ch;
             Member {
                 symbol: pairs.get(&base).cloned().unwrap_or_else(|| binance_pair(&base)),
@@ -1657,12 +1665,15 @@ mod tests {
         assert!((c[Period::Week.index()] - (499.0 / 492.0 - 1.0) * 100.0).abs() < 1e-9);
         // 6 Oct → 6 Nov is 31 days.
         assert!((c[Period::Month.index()] - (499.0 / 468.0 - 1.0) * 100.0).abs() < 1e-9);
+        // 6 May → 6 Nov is 184 days.
+        assert!((c[Period::HalfYear.index()] - (499.0 / 315.0 - 1.0) * 100.0).abs() < 1e-9);
         // YTD: against 31 Dec 2025's close (310 days before 6 Nov 2026).
         assert!((c[Period::Ytd.index()] - (499.0 / 189.0 - 1.0) * 100.0).abs() < 1e-9);
         assert!((c[Period::Year.index()] - (499.0 / 134.0 - 1.0) * 100.0).abs() < 1e-9);
         // Too little history for a year: unknown, not wrong.
         let short = changes(&times[300..], &closes[300..], 499.0, Some(1.5), now);
         assert!(short[Period::Year.index()].is_nan());
+        assert!(short[Period::HalfYear.index()].is_nan());
         assert_eq!(short[Period::Day.index()], 1.5);
         assert!(short[Period::Month.index()].is_finite());
     }
@@ -1712,7 +1723,7 @@ mod tests {
         m.key = "X".into();
         m.price = 100.0;
         m.cap = 1000.0;
-        m.change = [1.0, 10.0, -20.0, f64::NAN, 0.0, 5.0];
+        m.change = [1.0, 10.0, -20.0, f64::NAN, 0.0, 0.0, 5.0];
         let base_week = 100.0 / 1.10;
         let q = Price {
             price: 110.0,
@@ -1727,6 +1738,7 @@ mod tests {
         assert!((m.change(Period::Month) - (110.0 / 125.0 - 1.0) * 100.0).abs() < 1e-9);
         assert!(m.change[3].is_nan());
         assert!((m.change[4] - 10.0).abs() < 1e-9);
+        assert!((m.change(Period::Ytd) - 10.0).abs() < 1e-9);
     }
 
     #[test]

@@ -89,6 +89,7 @@ pub fn scale(p: Period) -> f64 {
         Period::Week => 6.0,
         Period::Month => 10.0,
         Period::Quarter => 20.0,
+        Period::HalfYear => 25.0,
         Period::Ytd | Period::Year => 30.0,
     }
 }
@@ -1033,7 +1034,7 @@ pub(crate) struct MapSpec<'a> {
     pub still_hover: Option<&'a str>,
     /// Each sector's own change per period (an index's), in place of its
     /// tiles' weighted average.
-    pub sector_change: Option<&'a HashMap<String, [f64; 6]>>,
+    pub sector_change: Option<&'a HashMap<String, [f64; opentern_data::overview::PERIODS]>>,
     /// Each member's weight in its sector, in percent (by position in
     /// `Board::members`): the hover card shows it instead of the size.
     pub weights: Option<&'a [f64]>,
@@ -1160,7 +1161,7 @@ mod tests {
             industry: String::new(),
             cap,
             price: 1.0,
-            change: [ch; 6],
+            change: [ch; opentern_data::overview::PERIODS],
             closes: Vec::new(),
             key: String::new(),
             ext: None,

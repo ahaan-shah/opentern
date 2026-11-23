@@ -2057,7 +2057,14 @@ impl App {
                                 open_attachment = Some(files[k].clone());
                             }
                         }
-                        Item::Assistant(text) => markdown(ui, t, text, (chat.id, i), &scripts, &mut open_file),
+                        Item::Assistant(text) => {
+                            // Replies can be selected and copied (labels
+                            // aren't elsewhere in the app).
+                            ui.scope(|ui| {
+                                ui.style_mut().interaction.selectable_labels = true;
+                                markdown(ui, t, text, (chat.id, i), &scripts, &mut open_file)
+                            });
+                        }
                         Item::Ask {
                             tool,
                             label,
@@ -2580,11 +2587,13 @@ impl App {
                         let can_send = !self.claude.input.trim().is_empty() || !self.claude.attached.is_empty();
                         let send_resp = send_button(ui, t, agent, busy, can_send);
                         self.claude.footer.push(send_resp.rect);
+                        // Busy with text in the box: the button queues it
+                        // (as Enter does); with the box empty it stops.
                         if send_resp.clicked() {
-                            if busy {
-                                stop = true;
-                            } else if can_send {
+                            if can_send {
                                 send = true;
+                            } else if busy {
+                                stop = true;
                             }
                         }
                         if show_ring {
@@ -3523,15 +3532,15 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
     let size = galley.size() + pad * 2.0;
     let (row, _) = ui.allocate_exact_size(vec2(width, size.y), Sense::hover());
     let r = egui::Rect::from_min_size(egui::pos2(row.right() - size.x, row.top()), size);
-    let resp = ui.interact(
-        r,
-        ui.id().with(("bubble", text.len(), row.top() as i32)),
-        Sense::click(),
-    );
-    let p = ui.painter();
-    p.rect_filled(r, 14, if t.dark { t.hover } else { t.sidebar });
-    p.galley(r.min + pad, galley, t.text);
-    resp.context_menu(|ui| {
+    ui.painter()
+        .rect_filled(r, 14, if t.dark { t.hover } else { t.sidebar });
+    // A selectable label, so part of the message can be copied.
+    let text_rect = egui::Rect::from_min_size(r.min + pad, galley.size());
+    let resp = ui.scope_builder(egui::UiBuilder::new().max_rect(text_rect), |ui| {
+        ui.style_mut().interaction.selectable_labels = true;
+        ui.add(egui::Label::new(galley).selectable(true))
+    });
+    resp.inner.context_menu(|ui| {
         if ui.button("Copy").clicked() {
             ui.ctx().copy_text(text.to_string());
             ui.close();
@@ -3754,7 +3763,7 @@ fn send_button(ui: &mut Ui, t: &Theme, agent: Agent, busy: bool, can_send: bool)
     let hover = ui.rect_contains_pointer(r);
     let p = ui.painter();
     let c = r.center();
-    if busy {
+    if busy && !can_send {
         p.circle_filled(c, 15.0, if hover { t.text } else { t.text2 });
         p.rect_filled(egui::Rect::from_center_size(c, vec2(10.0, 10.0)), 2, t.card);
     } else if can_send {
@@ -3781,7 +3790,11 @@ fn send_button(ui: &mut Ui, t: &Theme, agent: Agent, busy: bool, can_send: bool)
             t.text3,
         );
     }
-    let tip = if busy { "Stop" } else { "Send (Enter)" };
+    let tip = match (busy, can_send) {
+        (true, true) => "Queue (Enter)",
+        (true, false) => "Stop",
+        _ => "Send (Enter)",
+    };
     resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip)
 }
 
@@ -4256,15 +4269,15 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
         ui.add(egui::Label::new(job).wrap());
         return;
     }
-    // With links: lay it out here, so a click can be traced to a word.
-    let galley = ui.fonts_mut(|f| f.layout_job(job));
-    let (rect, resp) = ui.allocate_exact_size(galley.size(), Sense::click());
+    // With links: a selectable label as usual; the same layout (cached by
+    // the fonts) traces the pointer to a word.
+    let galley = ui.fonts_mut(|f| f.layout_job(job.clone()));
+    let resp = ui.add(egui::Label::new(job).wrap().sense(Sense::click()));
+    let rect = resp.rect;
     let hovered = resp.hover_pos().and_then(|p| {
         let at = galley.cursor_from_pos(p - rect.min).index.0;
         links.iter().find(|(a, b, _)| at >= *a && at < *b).cloned()
     });
-    let p = ui.painter();
-    p.galley(rect.min, galley.clone(), t.text);
     if let Some((a, b, f)) = &hovered {
         // Underline the link (it may wrap over two rows).
         let ra = galley.pos_from_cursor(egui::text::CCursor::new(*a));
@@ -4272,7 +4285,8 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
         let stroke = Stroke::new(1.0, code.color);
         if (ra.top() - rb.top()).abs() < 1.0 {
             let y = rect.top() + ra.bottom() - 3.0;
-            p.hline((rect.left() + ra.left())..=(rect.left() + rb.left()), y, stroke);
+            ui.painter()
+                .hline((rect.left() + ra.left())..=(rect.left() + rb.left()), y, stroke);
         }
         let resp = resp
             .on_hover_cursor(egui::CursorIcon::PointingHand)
