@@ -1,0 +1,23 @@
+name: Leaks
+
+# The leak check runs on every push, docs included (ci.yml skips
+# docs-only pushes; the privacy rule covers docs too).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leaks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  leaks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/check-leaks.sh

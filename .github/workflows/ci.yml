@@ -4,10 +4,16 @@ name: CI
 # platform problem shows up on a push, not on release day. Runner images
 # are pinned (macos-15, as in release.yml): when GitHub announces one's
 # retirement, move both files to the next.
+#
+# Pushes that only change Markdown or docs/ skip it; leaks.yml still runs
+# on those. docs/scripting.md is compiled in (the agent's scripting
+# guide), so it counts as code.
 on:
   push:
     branches: [main]
+    paths: ["**", "!**.md", "!docs/**", "docs/scripting.md"]
   pull_request:
+    paths: ["**", "!**.md", "!docs/**", "docs/scripting.md"]
   workflow_dispatch:
 
 permissions:
@@ -21,12 +27,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  leaks:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - run: scripts/check-leaks.sh
-
   # Known security advisories in the dependency tree (RustSec).
   audit:
     runs-on: ubuntu-24.04

@@ -8,7 +8,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
    on GitHub, **public since 21 Oct 2026** (v0.1.2, the maintainer's go after a
    full history scan for secrets and personal data: clean). CI runs leaks, `cargo audit`, fmt, clippy
    and tests on Linux, plus clippy and tests on macOS 15 and Windows
-   (since 0.2.5). `release.yml` on a `v*` tag builds Linux x86-64 +
+   (since 0.2.5). Pushes that only change Markdown or `docs/` (except
+   `docs/scripting.md`, compiled in) skip `ci.yml`; the leak check is its own
+   `leaks.yml` and runs on every push. `release.yml` on a `v*` tag builds Linux x86-64 +
    ARM64 tarballs (`scripts/package-linux.sh`), a universal macOS `.app` as
    `.dmg` + `.zip` (`scripts/bundle-macos.sh`, ad-hoc signed, not notarized),
    Windows x64 + ARM64 zips and an Inno Setup installer
