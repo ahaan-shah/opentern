@@ -3581,7 +3581,7 @@ fn queued_bubble(ui: &mut Ui, t: &Theme, q: &Queued, width: f32, key: (u64, usiz
     let p = ui.painter();
     p.rect_stroke(r, 14, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
     p.galley(r.min + pad, galley, t.text3);
-    // Tested on the row, not the button (see "hover flicker" in CLAUDE.md).
+    // Tested on the row, not the button (see "hover flicker" in docs/notes/alerts.md).
     if !ui.rect_contains_pointer(row) {
         return false;
     }

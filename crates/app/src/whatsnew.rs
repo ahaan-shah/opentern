@@ -3,7 +3,7 @@
 //! → About opens it again. Adapted from Magpie's (there it hangs off a
 //! sidebar row; Opentern has no sidebar, so it opens by itself).
 //!
-//! Every release adds its notes to [`RELEASES`] (see CLAUDE.md → Releasing).
+//! Every release adds its notes to [`RELEASES`] (see docs/notes/release.md → Releasing).
 
 use crate::icons::ph;
 use crate::theme::{self, Theme};
@@ -824,7 +824,7 @@ mod tests {
         assert_eq!(versions(to_show(FAKE, None, "0.2.4", true, None)), ["0.2.4"]);
     }
 
-    /// Every release from 0.2.0 on must say what's new (CLAUDE.md →
+    /// Every release from 0.2.0 on must say what's new (docs/notes/release.md →
     /// Releasing): bumping the version without notes fails here.
     #[test]
     fn this_release_has_notes() {

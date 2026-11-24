@@ -263,7 +263,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             broker(g)?.props.allow_entry_in = v;
             Ok(V::Na)
         }),
-        // Accepted; not enforced yet (see CLAUDE.md, Phase 7).
+        // Accepted; not enforced yet (see docs/notes/strategies.md, Phase 7).
         d(
             "strategy.risk.max_drawdown",
             &["value", "type", "alert_message"],

@@ -202,4 +202,4 @@ apart from line endings):
 
 No indicator ports yet. Only MPL-2.0 (or more permissive) open-source TradingView scripts may
 be ported; record author, URL, licence and version here, and keep the port's
-file under MPL-2.0 with the credit in its header. See CLAUDE.md §6a.
+file under MPL-2.0 with the credit in its header. See docs/design.md §6a.

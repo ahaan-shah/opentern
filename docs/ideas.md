@@ -1,7 +1,7 @@
 # Ideas for later
 
 Ideas the maintainer wants kept but not built yet. Don't start one without
-their go; when one is built, move its notes into `CLAUDE.md` and delete it here.
+their go; when one is built, move its notes into the right `docs/notes/` file and delete it here.
 
 ## Send to a nearby device, AirDrop style (Nov 2026)
 Instead of typing a six-digit code, Send shows a radar (rings pulsing out
@@ -29,7 +29,7 @@ that are on Import → From another device. Click one to send.
 
 ## Upstox Analytics Token for complete Indian history (Nov 2026)
 Yahoo's bars skip some special sessions (Muhurat on 8 Nov 2026, 12 Nov
-2023, 2010–2016's, the 2024 drill Saturdays; see CLAUDE.md "Special
+2023, 2010–2016's, the 2024 drill Saturdays; see docs/notes/data.md "Special
 sessions"). NSE's own files would fill them, but NSE's terms forbid the app
 fetching them, so the licensed route is the user's own broker.
 

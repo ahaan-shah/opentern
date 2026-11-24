@@ -2,7 +2,7 @@
 //! top bar, drawing toolbar on the left, chart in the middle, a widget panel
 //! and icon rail on the right, the date-range bar under the chart, and a
 //! bottom panel with tabs (screener, script editor, strategy report, paper
-//! trading, alerts). See CLAUDE.md §4a.
+//! trading, alerts). See docs/design.md §4a.
 
 use crate::app::App;
 use crate::chart::draw::{Group, Tool};
@@ -197,7 +197,7 @@ impl App {
         // left edge.
         // The chart, the widget panel and the open bottom panel are cards
         // on the darker frame, with a small gap between them: the regions
-        // read apart at a glance (CLAUDE.md §4a).
+        // read apart at a glance (docs/design.md §4a).
         let mut cards: Vec<Rect> = Vec::new();
         // The market overview takes the charts' place and the bottom
         // panel's; the side panel stays.
