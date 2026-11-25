@@ -1,0 +1,6172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Opentern\n"
+"Language: ja\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "\nSurprise {0}{1}%"
+msgstr "\nサプライズ {0}{1}%"
+
+msgid "\nVol {0}"
+msgstr "\n出来高 {0}"
+
+msgid "\n{0}: {1}% used"
+msgstr "\n{0}: {1}% 使用済み"
+
+msgid " What can I help you with?"
+msgstr " ご用件をどうぞ"
+
+msgid " · opens {0}"
+msgstr " · 開場 {0}"
+
+#, message
+msgid "\"{0}\" isn't an email address."
+msgstr "「{0}」はメールアドレスではありません。"
+
+msgid "% of equity"
+msgstr "資産の%"
+
+msgid "%D"
+msgstr ""
+
+msgid "%D Length"
+msgstr "%D 期間"
+
+msgid "%D Smoothing"
+msgstr "%D 平滑化"
+
+msgid "%K"
+msgstr ""
+
+msgid "%K Length"
+msgstr "%K 期間"
+
+msgid "%K Smoothing"
+msgstr "%K 平滑化"
+
+msgid "%R"
+msgstr ""
+
+msgid "%a %H:%M"
+msgstr "%-m月%-d日(%a)%H:%M"
+
+msgid "%a %d %b '%y"
+msgstr "%y年%-m月%-d日(%a)"
+
+msgid "%a %d %b '%y %H:%M"
+msgstr "%y年%-m月%-d日(%a) %H:%M"
+
+msgid "%a %d %b '%y %H:%M:%S"
+msgstr "%y年%-m月%-d日(%a) %H:%M:%S"
+
+msgid "%b %-d"
+msgstr "%-m月%-d日"
+
+msgid "%b '%y"
+msgstr "%y年%-m月"
+
+msgid "%d %b"
+msgstr "%-m月%-d日"
+
+msgid "%d %b %Y"
+msgstr "%Y年%-m月%-d日"
+
+msgid "+DI"
+msgstr ""
+
+msgid "-DI"
+msgstr ""
+
+msgid "1 chart"
+msgstr "1チャート"
+
+msgid "1 day"
+msgstr "1日"
+
+msgid "1 hour"
+msgstr "1時間"
+
+msgid "1 minute"
+msgstr "1分"
+
+msgid "1 month"
+msgstr "1か月"
+
+msgid "1 script has unsaved changes. Save it to include them."
+msgstr "1個のスクリプトに未保存の変更があります。含めるには保存してください。"
+
+msgid "1 second"
+msgstr "1秒"
+
+msgid "1 symbol"
+msgstr "1銘柄"
+
+msgid "1 week"
+msgstr "1週間"
+
+msgid "1M return"
+msgstr "1か月リターン"
+
+msgid "1Y return"
+msgstr "1年リターン"
+
+msgid "1× is cash only. Below half the margin in use, every position is closed"
+msgstr "1×は現金のみです。使用証拠金の半分を下回ると全ポジションが決済されます"
+
+msgid "200 SMA"
+msgstr "200 SMA"
+
+msgid "24-hour Volume"
+msgstr "24時間出来高"
+
+msgid "24h Volume"
+msgstr "24時間出来高"
+
+msgid "24h volume"
+msgstr "24時間出来高"
+
+msgid "3M return"
+msgstr "3か月リターン"
+
+msgid "5-hour limit"
+msgstr "5時間の上限"
+
+msgid "50 SMA"
+msgstr "50 SMA"
+
+msgid "6M return"
+msgstr "6か月リターン"
+
+msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
+msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます。コードによってはファイルの読み書きやインターネット接続ができ、エージェントが書いたコードも同様です。信頼できるものだけを実行してください。"
+
+msgid "A fast, local-first market analysis terminal."
+msgstr "高速でローカルファーストな市場分析ターミナル。"
+
+#, message
+msgid "A market order has no price to move."
+msgstr "成行注文には動かす価格がありません。"
+
+msgid "A sharper, calmer look"
+msgstr "よりくっきり、落ち着いた見た目"
+
+msgid "A small helper keeps checking your alerts and notifies you. It stops when you open Opentern again, or when no alert is left."
+msgstr "小さなヘルパーがアラートの監視を続けて通知します。Openternを再び開くか、アラートがなくなると停止します。"
+
+msgid "A special session"
+msgstr "特別セッション"
+
+#, message
+msgid "A trailing stop follows the price; it can't be moved."
+msgstr "トレーリングストップは価格に追従するため、動かせません。"
+
+msgid "A value"
+msgstr "値"
+
+msgid "ACCOUNTS"
+msgstr "アカウント"
+
+msgid "ADJ"
+msgstr "調整"
+
+msgid "ADR"
+msgstr ""
+
+msgid "ADX"
+msgstr ""
+
+msgid "ADX Smoothing"
+msgstr "ADX 平滑化"
+
+msgid "AO"
+msgstr ""
+
+msgid "API keys and passwords aren't included."
+msgstr "APIキーとパスワードは含まれません。"
+
+msgid "API price equivalent"
+msgstr "API料金換算"
+
+msgid "API token"
+msgstr "APIトークン"
+
+msgid "ASX"
+msgstr ""
+
+msgid "ATR"
+msgstr ""
+
+msgid "ATR %"
+msgstr ""
+
+msgid "ATR Coefficient"
+msgstr "ATR 係数"
+
+msgid "ATR Length"
+msgstr "ATR 期間"
+
+msgid "ATR Multiplier"
+msgstr "ATR 倍率"
+
+msgid "ATR length"
+msgstr "ATR 期間"
+
+msgid "About"
+msgstr "このアプリについて"
+
+msgid "About {0}"
+msgstr "{0}について"
+
+msgid "Absolute"
+msgstr "絶対値"
+
+msgid "Access token"
+msgstr "アクセストークン"
+
+msgid "Account"
+msgstr "口座"
+
+msgid "Account ID"
+msgstr "口座ID"
+
+msgid "Account settings"
+msgstr "口座設定"
+
+msgid "Account size required"
+msgstr "必要口座資金"
+
+msgid "Accumulation/Distribution"
+msgstr "累積/分配"
+
+msgid "Across"
+msgstr "横軸"
+
+msgid "Active"
+msgstr "有効"
+
+msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
+
+msgid "Add files"
+msgstr "ファイルを追加"
+
+msgid "Add filter"
+msgstr "フィルターを追加"
+
+msgid "Add section"
+msgstr "セクションを追加"
+
+msgid "Add symbol"
+msgstr "銘柄を追加"
+
+msgid "Add to chart"
+msgstr "チャートに追加"
+
+msgid "Add to favorites"
+msgstr "お気に入りに追加"
+
+msgid "Add to watchlist"
+msgstr "ウォッチリストに追加"
+
+msgid "Add to watchlist (Shift+Enter)"
+msgstr "ウォッチリストに追加 (Shift+Enter)"
+
+#, message
+msgid "Add {0}"
+msgstr "{0}を追加"
+
+#, message
+msgid "Add {0} to the chart"
+msgstr "{0}をチャートに追加"
+
+#, message
+msgid "Added {0}"
+msgstr "{0}を追加しました"
+
+#, message
+msgid "Added {0} to the chart"
+msgstr "{0}をチャートに追加しました"
+
+#, message
+msgid "Added {file} to the chart."
+msgstr "{file}をチャートに追加しました。"
+
+msgid "Address, like 192.168.1.20"
+msgstr "アドレス(例: 192.168.1.20)"
+
+msgid "Adjust prices for dividends"
+msgstr "配当で価格を調整"
+
+msgid "After"
+msgstr "指定日まで"
+
+msgid "After hours"
+msgstr "時間外"
+
+msgid "After trade {0}"
+msgstr "{0}回目の取引後"
+
+msgid "Against market, stop and trailing fills; limits fill at their price"
+msgstr "成行・逆指値・トレーリングの約定に適用。指値は指定価格で約定します"
+
+msgid "Agent"
+msgstr "エージェント"
+
+msgid "Agent panel"
+msgstr "エージェントパネル"
+
+msgid "Alert"
+msgstr "アラート"
+
+msgid "Alerts"
+msgstr "アラート"
+
+msgid "Alerts in this file send to {0}."
+msgstr "このファイルのアラートは{0}に送信されます。"
+
+msgid "Alerts log"
+msgstr "アラートログ"
+
+msgid "Alerts only fire while Opentern is open."
+msgstr "アラートはOpenternを開いている間だけ発動します。"
+
+#, message
+msgid "Alerts: {0}"
+msgstr "アラート: {0}"
+
+msgid "All"
+msgstr "すべて"
+
+msgid "All Souls' Day"
+msgstr "死者の日"
+
+msgid "All caught up"
+msgstr "すべて確認済み"
+
+msgid "All sectors (Esc)"
+msgstr "全セクター (Esc)"
+
+msgid "Allow"
+msgstr "許可"
+
+msgid "Allow for this chat"
+msgstr "このチャットで許可"
+
+msgid "Allow through Windows Firewall"
+msgstr "Windowsファイアウォールで許可"
+
+msgid "Allow {0} to do this?"
+msgstr "{0}にこれを許可しますか?"
+
+msgid "Allowed"
+msgstr "許可済み"
+
+msgid "Allowed through Windows Firewall"
+msgstr "Windowsファイアウォールで許可済み"
+
+#, message
+msgid "Alpaca has no {0} bars"
+msgstr "Alpacaに{0}足はありません"
+
+msgid "Alpaca · US stocks"
+msgstr "Alpaca · 米国株"
+
+msgid "Americas"
+msgstr "南北アメリカ"
+
+msgid "An alert fired while Opentern was closed"
+msgstr "Opentern終了中にアラートが発動しました"
+
+msgid "An app password, not your login"
+msgstr "ログイン用ではなくアプリパスワード"
+
+msgid "An empty list"
+msgstr "空のリスト"
+
+msgid "Anchor Period"
+msgstr "アンカー期間"
+
+msgid "Anchored"
+msgstr "アンカー"
+
+msgid "Anchored VWAP"
+msgstr "アンカーVWAP"
+
+msgid "Anchored volume profile"
+msgstr "アンカー出来高プロファイル"
+
+msgid "Annotation tools"
+msgstr "注釈ツール"
+
+msgid "Answer a prompt"
+msgstr "質問に答える"
+
+msgid "Any colour you like"
+msgstr "好きな色を選べます"
+
+msgid "Anzac Day"
+msgstr "アンザック・デー"
+
+msgid "Applied a lab result"
+msgstr "ラボの結果を適用しました"
+
+msgid "Applied to the chart."
+msgstr "チャートに適用しました。"
+
+msgid "Apply a lab result"
+msgstr "ラボの結果を適用"
+
+msgid "Apply best"
+msgstr "最良を適用"
+
+msgid "Apply defaults"
+msgstr "既定値を適用"
+
+msgid "Apr"
+msgstr "4月"
+
+msgid "April"
+msgstr "4月"
+
+msgid "Area"
+msgstr "エリア"
+
+msgid "Arnaud Legoux Moving Average"
+msgstr "アルノー・ルグー移動平均"
+
+msgid "Aroon"
+msgstr "アルーン"
+
+msgid "Aroon Down"
+msgstr "アルーンダウン"
+
+msgid "Aroon Up"
+msgstr "アルーンアップ"
+
+msgid "Arrow"
+msgstr "矢印"
+
+msgid "Arrow mark down"
+msgstr "下矢印マーク"
+
+msgid "Arrow mark up"
+msgstr "上矢印マーク"
+
+msgid "Ascension Day"
+msgstr "キリスト昇天祭"
+
+msgid "Asia-Pacific"
+msgstr "アジア太平洋"
+
+msgid "Ask"
+msgstr "売気配"
+
+msgid "Ask first"
+msgstr "先に確認"
+
+msgid "Attach files"
+msgstr "ファイルを添付"
+
+msgid "Aug"
+msgstr "8月"
+
+msgid "August"
+msgstr "8月"
+
+msgid "Australia Day"
+msgstr "オーストラリア・デー"
+
+msgid "Auto"
+msgstr "自動"
+
+msgid "Auto (fits data to screen)"
+msgstr "自動 (データを画面に合わせる)"
+
+msgid "Auto Fib Extension"
+msgstr "自動フィボエクステンション"
+
+msgid "Auto Fib Retracement"
+msgstr "自動フィボリトレースメント"
+
+msgid "Auto, fits data to screen (Alt U)"
+msgstr "自動、データを画面に合わせる (Alt U)"
+
+msgid "Average"
+msgstr "平均"
+
+msgid "Average Day Range"
+msgstr "平均日中値幅"
+
+msgid "Average Directional Index"
+msgstr "平均方向性指数 (ADX)"
+
+msgid "Average True Range"
+msgstr "アベレージトゥルーレンジ (ATR)"
+
+msgid "Avg"
+msgstr "平均"
+
+msgid "Avg # bars in losing trades"
+msgstr "負けトレードの平均足数"
+
+msgid "Avg # bars in trades"
+msgstr "トレードの平均足数"
+
+msgid "Avg # bars in winning trades"
+msgstr "勝ちトレードの平均足数"
+
+msgid "Avg P&L"
+msgstr "平均損益"
+
+msgid "Avg P&L %"
+msgstr "平均損益 %"
+
+msgid "Avg drawdown duration (bars)"
+msgstr "平均ドローダウン期間 (足)"
+
+msgid "Avg equity drawdown"
+msgstr "平均資産ドローダウン"
+
+msgid "Avg equity run-up"
+msgstr "平均資産ランアップ"
+
+msgid "Avg losing trade"
+msgstr "平均負けトレード"
+
+msgid "Avg margin used"
+msgstr "平均使用証拠金"
+
+msgid "Avg price"
+msgstr "平均価格"
+
+msgid "Avg run-up duration (bars)"
+msgstr "平均ランアップ期間 (足)"
+
+msgid "Avg winning trade"
+msgstr "平均勝ちトレード"
+
+msgid "Awesome Oscillator"
+msgstr "オーサムオシレーター"
+
+msgid "BBPower"
+msgstr ""
+
+msgid "BOP"
+msgstr ""
+
+msgid "BUILT-IN INDICATORS"
+msgstr "内蔵インジケーター"
+
+msgid "Back"
+msgstr "戻る"
+
+msgid "Background"
+msgstr "背景"
+
+msgid "Backtest's max drawdown"
+msgstr "バックテストの最大ドローダウン"
+
+msgid "Bakri Id"
+msgstr ""
+
+msgid "Balance"
+msgstr "残高"
+
+msgid "Balance of Power"
+msgstr "バランス・オブ・パワー"
+
+msgid "Bands Calculation Mode"
+msgstr "バンドの計算モード"
+
+msgid "Bands Fill #1"
+msgstr "バンド塗り 1"
+
+msgid "Bands Fill #2"
+msgstr "バンド塗り 2"
+
+msgid "Bands Fill #3"
+msgstr "バンド塗り 3"
+
+msgid "Bands Multiplier #1"
+msgstr "バンド倍率 1"
+
+msgid "Bands Multiplier #2"
+msgstr "バンド倍率 2"
+
+msgid "Bands Multiplier #3"
+msgstr "バンド倍率 3"
+
+msgid "Bands Settings"
+msgstr "バンド設定"
+
+msgid "Bands Style"
+msgstr "バンドスタイル"
+
+msgid "Bands and channels"
+msgstr "バンドとチャネル"
+
+msgid "Bar change values"
+msgstr "足の変化値"
+
+msgid "Bar replay"
+msgstr "バーリプレイ"
+
+msgid "Bars"
+msgstr "バー"
+
+msgid "Bars per symbol"
+msgstr "銘柄あたりの足数"
+
+msgid "Bars style"
+msgstr "バーのスタイル"
+
+msgid "Base Line"
+msgstr "基準線"
+
+msgid "Base Line Length"
+msgstr "基準線の期間"
+
+msgid "Base level"
+msgstr "基準レベル"
+
+msgid "Baseline"
+msgstr "ベースライン"
+
+msgid "Basis"
+msgstr "ベーシス"
+
+msgid "Basis MA Type"
+msgstr "ベーシスのMAタイプ"
+
+msgid "Bayesian"
+msgstr "ベイズ"
+
+msgid "Begin"
+msgstr "始める"
+
+msgid "Berchtold's Day"
+msgstr "ベルヒトルトの日"
+
+msgid "Best: {0}  →  {1} ({2}), {3} trades"
+msgstr "最良: {0}  →  {1} ({2})、{3}トレード"
+
+msgid "Beta"
+msgstr "ベータ"
+
+msgid "Bid"
+msgstr "買気配"
+
+#, message
+msgid "Binance has no {0} bars"
+msgstr "Binanceに{0}足はありません"
+
+msgid "Black Consciousness Day"
+msgstr "黒人意識の日"
+
+msgid "Body"
+msgstr "実体"
+
+msgid "Body Middle"
+msgstr "実体の中央"
+
+msgid "Bollinger BandWidth"
+msgstr "ボリンジャーバンド幅"
+
+msgid "Bollinger Bands"
+msgstr "ボリンジャーバンド"
+
+msgid "Bollinger Bands %B"
+msgstr "ボリンジャーバンド %B"
+
+msgid "Borders"
+msgstr "枠線"
+
+#, message
+msgid "Bought {qty} {sym} at {price}"
+msgstr "{sym}を{qty}、{price}で買いました"
+
+msgid "Box size"
+msgstr "ボックスサイズ"
+
+msgid "Boxing Day"
+msgstr "ボクシング・デー"
+
+msgid "Brush"
+msgstr "ブラシ"
+
+msgid "Buddha's Birthday"
+msgstr "釈迦誕生日"
+
+msgid "Built-in source, read-only. Make a copy to change and run it."
+msgstr "内蔵ソース(読み取り専用)。変更して実行するにはコピーを作成してください。"
+
+msgid "Built-ins"
+msgstr "内蔵"
+
+msgid "Bull Bear Power"
+msgstr "ブルベアパワー"
+
+msgid "Buy"
+msgstr "買い"
+
+msgid "Buy & hold"
+msgstr "バイ&ホールド"
+
+msgid "Buy & hold return"
+msgstr "バイ&ホールドのリターン"
+
+msgid "Buy order filled."
+msgstr "買い注文が約定しました。"
+
+#, message
+msgid "Bybit has no {0} bars"
+msgstr "Bybitに{0}足はありません"
+
+msgid "CAGR"
+msgstr ""
+
+msgid "CCI"
+msgstr ""
+
+msgid "CCI Histogram"
+msgstr "CCI ヒストグラム"
+
+msgid "CCI Length"
+msgstr "CCI 期間"
+
+msgid "CCI Turbo"
+msgstr "CCI ターボ"
+
+msgid "CCI Turbo Length"
+msgstr "CCI ターボ期間"
+
+msgid "CHARTS IN THIS WINDOW"
+msgstr "このウィンドウのチャート"
+
+msgid "CHOP"
+msgstr ""
+
+msgid "CRSI"
+msgstr ""
+
+msgid "CSV"
+msgstr ""
+
+msgid "Calendar"
+msgstr "カレンダー"
+
+msgid "Camarilla"
+msgstr "カマリラ"
+
+msgid "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
+msgstr "もう一方のデバイスが見つかりません。コードを表示したまま、両方が同じネットワークにあり、ファイアウォールがOpenternをブロックしていないか確認してください。"
+
+#, message
+msgid "Can't reach the IBKR gateway. Start the Client Portal gateway and log in, then try again."
+msgstr "IBKRゲートウェイに接続できません。Client Portalゲートウェイを起動してログインし、もう一度お試しください。"
+
+msgid "Canada Day"
+msgstr "カナダ・デー"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Candles"
+msgstr "ローソク足"
+
+msgid "Canvas"
+msgstr "背景と表示"
+
+msgid "Capital and size"
+msgstr "資金とサイズ"
+
+msgid "Carnival"
+msgstr "カーニバル"
+
+msgid "Cash"
+msgstr "現金"
+
+msgid "Categories"
+msgstr "カテゴリー"
+
+msgid "Centered"
+msgstr "中央"
+
+msgid "Chaikin Money Flow"
+msgstr "チャイキンマネーフロー"
+
+msgid "Chaikin Oscillator"
+msgstr "チャイキンオシレーター"
+
+msgid "Chance of a loss"
+msgstr "損失の確率"
+
+msgid "Chance of ruin"
+msgstr "破産の確率"
+
+msgid "Chande Kroll Stop"
+msgstr "シャンデクロールストップ"
+
+msgid "Chande MO"
+msgstr "シャンデMO"
+
+msgid "Chande Momentum Oscillator"
+msgstr "シャンデモメンタムオシレーター"
+
+msgid "Change"
+msgstr "変化"
+
+msgid "Change %"
+msgstr "変化率 %"
+
+msgid "Change interval"
+msgstr "時間足を変更"
+
+msgid "Change over the last 24 hours"
+msgstr "過去24時間の変化"
+
+msgid "Change over the last month"
+msgstr "過去1か月の変化"
+
+msgid "Change over the last six months"
+msgstr "過去6か月の変化"
+
+msgid "Change over the last three months"
+msgstr "過去3か月の変化"
+
+msgid "Change over the last year"
+msgstr "過去1年の変化"
+
+msgid "Change since the last close"
+msgstr "直近終値からの変化"
+
+msgid "Change since the previous close"
+msgstr "前回終値からの変化"
+
+msgid "Change the interval"
+msgstr "時間足を変更"
+
+msgid "Change the strategy settings"
+msgstr "ストラテジー設定を変更"
+
+#, message
+msgid "Change the {what}"
+msgstr "{what}を変更"
+
+msgid "Change {0}"
+msgstr "{0}を変更"
+
+#, message
+msgid "Change {0}'s inputs"
+msgstr "{0}の入力を変更"
+
+#, message
+msgid "Changed the {what}"
+msgstr "{what}を変更しました"
+
+#, message
+msgid "Changed {0}'s inputs"
+msgstr "{0}の入力を変更しました"
+
+msgid "Change|button"
+msgstr "変更"
+
+msgid "Channel settings"
+msgstr "チャネル設定"
+
+msgid "Chart"
+msgstr "チャート"
+
+msgid "Chart basic styles"
+msgstr "チャートの基本スタイル"
+
+msgid "Chart settings"
+msgstr "チャート設定"
+
+msgid "Chart type"
+msgstr "チャートタイプ"
+
+msgid "Charts download their prices again when you open them. Older minute and hour bars may not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back either."
+msgstr "チャートを開くと価格を再ダウンロードします。古い分足・時間足は戻らないことがあります。データ元は直近分しか保持しません(Yahoo: 1分足は約1週間、15分足は60日)。ライブで記録したムフーラト等の特別セッションも戻りません。"
+
+msgid "Charts, scripts and backtests. All on your own machine."
+msgstr "チャート、スクリプト、バックテスト。すべて自分のマシンで。"
+
+msgid "Chats"
+msgstr "チャット"
+
+msgid "Check again"
+msgstr "再確認"
+
+msgid "Check for updates"
+msgstr "更新を確認"
+
+msgid "Check for updates when Opentern starts"
+msgstr "Openternの起動時に更新を確認"
+
+#, message
+msgid "Check {0}"
+msgstr "{0}を確認"
+
+#, message
+msgid "Checked {0}"
+msgstr "{0}を確認しました"
+
+msgid "Checking"
+msgstr "確認中"
+
+msgid "Chg%"
+msgstr "変化%"
+
+msgid "Chg% 24h"
+msgstr "変化% 24h"
+
+msgid "Chg% today"
+msgstr "本日変化%"
+
+msgid "Children's Day"
+msgstr "こどもの日"
+
+msgid "Choose a scripts folder"
+msgstr "スクリプトフォルダーを選択"
+
+msgid "Choose a snapshots folder"
+msgstr "スナップショットフォルダーを選択"
+
+msgid "Choose file"
+msgstr "ファイルを選択"
+
+msgid "Chop Zone"
+msgstr "チョップゾーン"
+
+msgid "Choppiness Index"
+msgstr "チョピネス指数"
+
+msgid "Christmas"
+msgstr "クリスマス"
+
+msgid "Christmas Day"
+msgstr "クリスマス"
+
+msgid "Christmas Eve"
+msgstr "クリスマス・イブ"
+
+msgid "Chuseok"
+msgstr "秋夕"
+
+msgid "Circles"
+msgstr "円"
+
+msgid "Civic Holiday"
+msgstr "シビック・ホリデー"
+
+msgid "Classic"
+msgstr "クラシック"
+
+msgid "Claude Code decides what's safe and asks only when it isn't sure."
+msgstr "Claude Codeが安全性を判断し、確信がないときだけ確認します。"
+
+msgid "Claude asks before it edits files or runs commands."
+msgstr "Claudeはファイル編集やコマンド実行の前に確認します。"
+
+msgid "Clear all"
+msgstr "すべて消去"
+
+msgid "Clear cache"
+msgstr "キャッシュを消去"
+
+msgid "Clear everything?"
+msgstr "すべて消去しますか?"
+
+msgid "Clear log"
+msgstr "ログを消去"
+
+msgid "Clear price cache"
+msgstr "価格キャッシュを消去"
+
+msgid "Clear saved logos"
+msgstr "保存済みロゴを消去"
+
+msgid "Clear the price cache?"
+msgstr "価格キャッシュを消去しますか?"
+
+msgid "Clearing…"
+msgstr "消去中…"
+
+msgid "Click a bar to start from it"
+msgstr "開始する足をクリック"
+
+msgid "Close"
+msgstr "閉じる"
+
+msgid "Close (Esc)"
+msgstr "閉じる (Esc)"
+
+msgid "Close ({0})"
+msgstr "閉じる ({0})"
+
+msgid "Close replay"
+msgstr "リプレイを閉じる"
+
+msgid "Closed"
+msgstr "休場"
+
+#, message
+msgid "Closed {0}."
+msgstr "{0}を決済しました。"
+
+msgid "Closes {0}"
+msgstr "{0}終了"
+
+msgid "Close|price"
+msgstr "終値"
+
+msgid "Codex asks before it edits files or runs anything it doesn't know is safe."
+msgstr "Codexはファイル編集や安全か不明なものの実行前に確認します。"
+
+msgid "Codex works freely in your scripts folder and asks before going outside it."
+msgstr "Codexはスクリプトフォルダー内で自由に作業し、外に出る前に確認します。"
+
+#, message
+msgid "Coinbase has no {0} bars"
+msgstr "Coinbaseに{0}足はありません"
+
+msgid "Collapse panel"
+msgstr "パネルをたたむ"
+
+msgid "Color"
+msgstr "色"
+
+msgid "Color bars based on previous close"
+msgstr "前の終値で足を色分け"
+
+msgid "Color based on previous close"
+msgstr "前の終値で色分け"
+
+msgid "Colours"
+msgstr "色"
+
+msgid "Columns"
+msgstr "カラム"
+
+msgid "Coming of Age Day"
+msgstr "成人の日"
+
+msgid "Commission"
+msgstr "手数料"
+
+msgid "Commission paid"
+msgstr "支払手数料"
+
+msgid "Commodities"
+msgstr "商品"
+
+msgid "Commodity Channel Index"
+msgstr "商品チャネル指数 (CCI)"
+
+msgid "Compare"
+msgstr "比較"
+
+msgid "Compare indices"
+msgstr "指数を比較"
+
+msgid "Compare or add symbol"
+msgstr "比較または銘柄を追加"
+
+msgid "Compare symbol"
+msgstr "銘柄を比較"
+
+msgid "Compare the indices"
+msgstr "指数を比較"
+
+msgid "Compared the indices"
+msgstr "指数を比較しました"
+
+msgid "Compared with"
+msgstr "比較対象"
+
+msgid "Connors RSI"
+msgstr "コナーズRSI"
+
+msgid "Constitution Day"
+msgstr "憲法記念日"
+
+msgid "Constitution Memorial Day"
+msgstr "憲法記念日"
+
+msgid "Context now"
+msgstr "現在のコンテキスト"
+
+msgid "Continue"
+msgstr "続ける"
+
+msgid "Contracts"
+msgstr "枚数"
+
+msgid "Conversion Line"
+msgstr "転換線"
+
+msgid "Conversion Line Length"
+msgstr "転換線の期間"
+
+msgid "Copied"
+msgstr "コピーしました"
+
+#, message
+msgid "Copied to {name}."
+msgstr "{name}にコピーしました。"
+
+msgid "Coppock Curve"
+msgstr "コポック曲線"
+
+msgid "Copy"
+msgstr "コピー"
+
+msgid "Copy code"
+msgstr "コードをコピー"
+
+msgid "Copy image"
+msgstr "画像をコピー"
+
+msgid "Corpus Christi"
+msgstr "聖体の祝日"
+
+msgid "Costs"
+msgstr "コスト"
+
+msgid "Couldn't check for updates right now. Try again later."
+msgstr "今は更新を確認できません。後でもう一度お試しください。"
+
+msgid "Couldn't check. Make sure you are connected to the internet."
+msgstr "確認できませんでした。インターネット接続を確認してください。"
+
+#, message
+msgid "Couldn't connect. Check your internet connection."
+msgstr "接続できません。インターネット接続を確認してください。"
+
+#, message
+msgid "Couldn't copy it: {e}"
+msgstr "コピーできません: {e}"
+
+#, message
+msgid "Couldn't delete it: {e}"
+msgstr "削除できません: {e}"
+
+msgid "Couldn't export."
+msgstr "エクスポートできません。"
+
+#, message
+msgid "Couldn't export: {e}"
+msgstr "エクスポートできません: {e}"
+
+msgid "Couldn't get the import ready."
+msgstr "インポートの準備ができませんでした。"
+
+msgid "Couldn't get your data ready."
+msgstr "データの準備ができませんでした。"
+
+#, message
+msgid "Couldn't get your data ready: {e}"
+msgstr "データの準備ができませんでした: {e}"
+
+msgid "Couldn't import"
+msgstr "インポートできません"
+
+msgid "Couldn't make a code on this computer."
+msgstr "このコンピューターでコードを作成できませんでした。"
+
+#, message
+msgid "Couldn't make the folder: {e}"
+msgstr "フォルダーを作成できません: {e}"
+
+#, message
+msgid "Couldn't move it: {e}"
+msgstr "移動できません: {e}"
+
+#, message
+msgid "Couldn't open the clipboard: {e}"
+msgstr "クリップボードを開けません: {e}"
+
+#, message
+msgid "Couldn't paste it: {e}"
+msgstr "貼り付けできません: {e}"
+
+#, message
+msgid "Couldn't reach Yahoo."
+msgstr "Yahooに接続できません。"
+
+#, message
+msgid "Couldn't reach the data service."
+msgstr "データサービスに接続できません。"
+
+#, message
+msgid "Couldn't reach {0}: {err}"
+msgstr "{0}に接続できません: {err}"
+
+#, message
+msgid "Couldn't read {0}: {e}"
+msgstr "{0}を読み込めません: {e}"
+
+#, message
+msgid "Couldn't read {file}: {e}"
+msgstr "{file}を読み込めません: {e}"
+
+#, message
+msgid "Couldn't rename it: {e}"
+msgstr "名前を変更できません: {e}"
+
+#, message
+msgid "Couldn't save the chat id: {e}"
+msgstr "チャットIDを保存できません: {e}"
+
+#, message
+msgid "Couldn't save the email settings: {e}"
+msgstr "メール設定を保存できません: {e}"
+
+#, message
+msgid "Couldn't save the password in your keychain: {e}"
+msgstr "パスワードをキーチェーンに保存できません: {e}"
+
+msgid "Couldn't save the snapshot"
+msgstr "スナップショットを保存できません"
+
+#, message
+msgid "Couldn't save the token in your keychain: {e}"
+msgstr "トークンをキーチェーンに保存できません: {e}"
+
+#, message
+msgid "Couldn't save to your keychain: {e}"
+msgstr "キーチェーンに保存できません: {e}"
+
+#, message
+msgid "Couldn't save: {e}"
+msgstr "保存できません: {e}"
+
+#, message
+msgid "Couldn't set Opentern to start at login: {e}"
+msgstr "ログイン時にOpenternを起動する設定ができません: {e}"
+
+msgid "Couldn't start the run."
+msgstr "実行を開始できません。"
+
+#, message
+msgid "Couldn't start {0}: {e}"
+msgstr "{0}を起動できません: {e}"
+
+#, message
+msgid "Couldn't update: {e}"
+msgstr "更新できません: {e}"
+
+msgid "Count in the index"
+msgstr "指数に含める"
+
+msgid "Countdown to bar close"
+msgstr "足確定までのカウントダウン"
+
+msgid "Counts all of a company's shares."
+msgstr "会社の全株式を数えます。"
+
+msgid "Counts only the shares the public can trade, as NSE does."
+msgstr "NSEと同じく、一般に取引できる株式だけを数えます。"
+
+msgid "Create"
+msgstr "作成"
+
+msgid "Create alert"
+msgstr "アラートを作成"
+
+msgid "Create alert (Alt+A)"
+msgstr "アラートを作成 (Alt+A)"
+
+msgid "Create an alert"
+msgstr "アラートを作成"
+
+#, message
+msgid "Create {0}"
+msgstr "{0}を作成"
+
+msgid "Cross"
+msgstr "十字"
+
+msgid "Cross line"
+msgstr "十字線"
+
+msgid "Crosshair"
+msgstr "クロスヘア"
+
+msgid "Crossing"
+msgstr "交差"
+
+msgid "Crossing down"
+msgstr "下に交差"
+
+msgid "Crossing up"
+msgstr "上に交差"
+
+msgid "Crypto"
+msgstr "暗号資産"
+
+msgid "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source that needs an account. Keys stay in your system keychain."
+msgstr "暗号資産(Binance、Bybit、OKX、Coinbase、Kraken)とYahooは設定不要です。口座が必要なデータ元を使うにはキーを追加します。キーはシステムのキーチェーンに保存されます。"
+
+msgid "Crypto majors"
+msgstr "主要な暗号資産"
+
+msgid "Culture Day"
+msgstr "文化の日"
+
+msgid "Cum. profit"
+msgstr "累積損益"
+
+msgid "Currency"
+msgstr "通貨"
+
+msgid "Cursors"
+msgstr "カーソル"
+
+msgid "Custom"
+msgstr "カスタム"
+
+msgid "Custom indices"
+msgstr "カスタム指数"
+
+msgid "Custom: 7m, 3h, 2D"
+msgstr "カスタム: 7m, 3h, 2D"
+
+msgid "DATA WINDOW"
+msgstr "データウィンドウ"
+
+msgid "DAYS"
+msgstr "日"
+
+msgid "DI Length"
+msgstr "DI 期間"
+
+msgid "DM"
+msgstr ""
+
+msgid "Daily"
+msgstr "日次"
+
+msgid "Dashed"
+msgstr "破線"
+
+msgid "Data modification"
+msgstr "データの調整"
+
+msgid "Data providers"
+msgstr "データプロバイダー"
+
+msgid "Date"
+msgstr "日付"
+
+msgid "Date and price range"
+msgstr "日付と価格の範囲"
+
+msgid "Date range"
+msgstr "日付範囲"
+
+msgid "Date/Time"
+msgstr "日時"
+
+msgid "Days"
+msgstr "日"
+
+msgid "Dec"
+msgstr "12月"
+
+msgid "December"
+msgstr "12月"
+
+msgid "Declined"
+msgstr "拒否しました"
+
+msgid "Deeper layers, hairline borders, a fresher green, and dialogs, menus and controls redrawn to match, in dark and light."
+msgstr "奥行きのあるレイヤー、細い境界線、より鮮やかな緑。ダイアログ、メニュー、操作部もダークとライトで描き直しました。"
+
+msgid "Default"
+msgstr "既定"
+
+msgid "Defaults  {0}"
+msgstr "既定  {0}"
+
+msgid "Delayed {min} min"
+msgstr "{min}分遅延"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "Delete chat"
+msgstr "チャットを削除"
+
+msgid "Delete folder (if empty)"
+msgstr "フォルダーを削除 (空の場合)"
+
+msgid "Delete for good"
+msgstr "完全に削除"
+
+msgid "Delete layout"
+msgstr "レイアウトを削除"
+
+msgid "Delete list"
+msgstr "リストを削除"
+
+msgid "Delete template"
+msgstr "テンプレートを削除"
+
+msgid "Delete the selected drawing"
+msgstr "選択した描画を削除"
+
+msgid "Delete this account"
+msgstr "この口座を削除"
+
+#, message
+msgid "Delete {0}"
+msgstr "{0}を削除"
+
+#, message
+msgid "Delete {f}? Choose Delete again to confirm."
+msgstr "{f}を削除しますか? もう一度「削除」を選ぶと確定します。"
+
+#, message
+msgid "Deleted the folder {dir}."
+msgstr "フォルダー{dir}を削除しました。"
+
+#, message
+msgid "Deleted {0}"
+msgstr "{0}を削除しました"
+
+#, message
+msgid "Deleted {0}."
+msgstr "{0}を削除しました。"
+
+#, message
+msgid "Deleted {f}."
+msgstr "{f}を削除しました。"
+
+msgid "Deny"
+msgstr "拒否"
+
+msgid "Depth"
+msgstr "板"
+
+msgid "Depth of market"
+msgstr "板情報"
+
+msgid "Detrended Price Oscillator"
+msgstr "トレンド除去価格オシレーター"
+
+msgid "Deviation"
+msgstr "偏差"
+
+msgid "Difference"
+msgstr "差"
+
+msgid "Directional Movement Index"
+msgstr "方向性指数 (DMI)"
+
+msgid "Display cumulative volume"
+msgstr "累積出来高を表示"
+
+msgid "Display reversal price"
+msgstr "反転価格を表示"
+
+msgid "Display reversal price change"
+msgstr "反転価格の変化を表示"
+
+msgid "Display settings"
+msgstr "表示設定"
+
+msgid "Dividend"
+msgstr "配当"
+
+msgid "Dividend {0} {1}\nEx-date {2}"
+msgstr "配当 {0} {1}\n権利落ち日 {2}"
+
+msgid "Dividends and splits"
+msgstr "配当と分割"
+
+msgid "Divisor"
+msgstr "除数"
+
+msgid "Diwali Balipratipada"
+msgstr ""
+
+msgid "Diwali Laxmi Pujan"
+msgstr ""
+
+msgid "Donchian Channels"
+msgstr "ドンチャンチャネル"
+
+msgid "Done"
+msgstr "完了"
+
+msgid "Done."
+msgstr "完了。"
+
+#, message
+msgid "Done. {errors} couldn't load (hover them to see why)."
+msgstr "完了。{errors}件は読み込めませんでした(カーソルを合わせると理由を表示)。"
+
+msgid "Dotted"
+msgstr "点線"
+
+msgid "Double EMA"
+msgstr "二重EMA"
+
+msgid "Double-click to put these inputs on the chart"
+msgstr "ダブルクリックでこの入力をチャートに適用"
+
+msgid "Double-click to rename"
+msgstr "ダブルクリックで名前を変更"
+
+msgid "Down"
+msgstr "下"
+
+msgid "Down Trend"
+msgstr "下降トレンド"
+
+msgid "Down volume"
+msgstr "下落出来高"
+
+msgid "Download image"
+msgstr "画像をダウンロード"
+
+msgid "Download {0}"
+msgstr "{0}をダウンロード"
+
+msgid "Downtrend Highlighter"
+msgstr "下降トレンドの強調"
+
+msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr ""
+
+msgid "Drag to scale · double-click to fit · right-click for options"
+msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
+
+msgid "Draw with replacement"
+msgstr "復元抽出"
+
+#, message
+msgid "Draw {what}"
+msgstr "{what}を描く"
+
+msgid "Drawdown"
+msgstr "ドローダウン"
+
+msgid "Drawing tools"
+msgstr "描画ツール"
+
+#, message
+msgid "Drawing: {0} #{1}"
+msgstr "描画: {0} #{1}"
+
+msgid "Drawings"
+msgstr "描画"
+
+#, message
+msgid "Drew {what}"
+msgstr "{what}を描きました"
+
+msgid "Drop files to attach"
+msgstr "ファイルをドロップして添付"
+
+msgid "Duplicate"
+msgstr "複製"
+
+msgid "Dussehra"
+msgstr "ダシェラー"
+
+msgid "EBIT"
+msgstr ""
+
+msgid "EBIT margin"
+msgstr "EBIT マージン"
+
+msgid "EBITDA"
+msgstr ""
+
+msgid "EBITDA margin"
+msgstr "EBITDA マージン"
+
+msgid "EMA"
+msgstr ""
+
+msgid "EMA Cross"
+msgstr "EMA クロス"
+
+msgid "EMA Length"
+msgstr "EMA 期間"
+
+msgid "EOM"
+msgstr ""
+
+msgid "EV/EBITDA"
+msgstr ""
+
+msgid "EXPLORER"
+msgstr "エクスプローラー"
+
+msgid "EXT"
+msgstr ""
+
+msgid "Each symbol's own"
+msgstr "各銘柄の通貨"
+
+msgid "Early May Bank Holiday"
+msgstr "5月初旬の銀行休業日"
+
+msgid "Early close"
+msgstr "短縮取引"
+
+msgid "Earnings {0}\nReported EPS {1}\nEstimate {2}"
+msgstr "決算 {0}\n実績EPS {1}\n予想 {2}"
+
+msgid "Ease of Movement"
+msgstr "イーズ・オブ・ムーブメント"
+
+msgid "Easter Monday"
+msgstr "イースターマンデー"
+
+msgid "Edit"
+msgstr "編集"
+
+msgid "Edit alert"
+msgstr "アラートを編集"
+
+msgid "Edit index"
+msgstr "指数を編集"
+
+#, message
+msgid "Edit {0}"
+msgstr "{0}を編集"
+
+#, message
+msgid "Edited {0}"
+msgstr "{0}を編集しました"
+
+msgid "Efficiency"
+msgstr "効率"
+
+msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr "効率: アウトオブサンプルの足あたり利益をインサンプルと比べた割合。50%超なら一般に堅牢とされます。"
+
+msgid "Elder Force Index"
+msgstr "エルダー勢力指数"
+
+msgid "Ellipse"
+msgstr "楕円"
+
+msgid "Email"
+msgstr "メール"
+
+msgid "Emperor Naruhito's Birthday"
+msgstr "天皇誕生日"
+
+msgid "End of Year Holiday"
+msgstr "年末休業日"
+
+msgid "End the replay"
+msgstr "リプレイを終了"
+
+msgid "Ended the replay"
+msgstr "リプレイを終了しました"
+
+msgid "Enter Opentern"
+msgstr "Openternに入る"
+
+#, message
+msgid "Enter a price."
+msgstr "価格を入力してください。"
+
+#, message
+msgid "Enter a quantity above zero."
+msgstr "0より大きい数量を入力してください。"
+
+msgid "Enter address"
+msgstr "アドレスを入力"
+
+#, message
+msgid "Enter both the stop and the limit price."
+msgstr "逆指値と指値の両方を入力してください。"
+
+#, message
+msgid "Enter how far the stop trails the price."
+msgstr "ストップが価格を追う幅を入力してください。"
+
+msgid "Enter the Telegram chat id to send alerts to."
+msgstr "アラートの送信先のTelegramチャットIDを入力してください。"
+
+msgid "Enter the code from your other device"
+msgstr "もう一方のデバイスのコードを入力"
+
+msgid "Enter this code on your other device"
+msgstr "もう一方のデバイスでこのコードを入力"
+
+msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
+msgstr "企業価値 ÷ 直近12か月のEBITDA。指数では合計EV ÷ 合計EBITDA"
+
+msgid "Entry {side}"
+msgstr "{side} 仕掛け"
+
+msgid "Envelope"
+msgstr "エンベロープ"
+
+msgid "Equal"
+msgstr "均等"
+
+msgid "Equal weight"
+msgstr "均等ウェイト"
+
+msgid "Equity"
+msgstr "資産"
+
+msgid "Eraser"
+msgstr "消しゴム"
+
+msgid "Euronext Paris"
+msgstr ""
+
+msgid "Europe"
+msgstr "ヨーロッパ"
+
+msgid "Even trades"
+msgstr "損益なしトレード"
+
+msgid "Every combination"
+msgstr "全組み合わせ"
+
+msgid "Every in-sample window starts at the first bar"
+msgstr "各インサンプル期間は最初の足から始まります"
+
+msgid "Every index (Esc)"
+msgstr "全指数 (Esc)"
+
+msgid "Every result has its price and day change. Star one into your watchlist, and find coins by name (\"bitcoin\") even with a typo."
+msgstr "検索結果ごとに価格と当日の変化を表示。星でウォッチリストに追加でき、コインは名前(「bitcoin」)で、打ち間違いがあっても見つかります。"
+
+msgid "Every stock starts with the same weight."
+msgstr "全銘柄が同じウェイトで始まります。"
+
+msgid "Every time"
+msgstr "毎回"
+
+#, message
+msgid "Everything else came in, but this computer can't save these scripts: {0}. Rename them on the other device and export again."
+msgstr "ほかはすべて取り込みましたが、このコンピューターでは次のスクリプトを保存できません: {0}。もう一方のデバイスで名前を変えて再度エクスポートしてください。"
+
+msgid "Exchange"
+msgstr "取引所"
+
+msgid "Exit {side}"
+msgstr "{side} 手仕舞い"
+
+msgid "Expected payoff"
+msgstr "期待損益"
+
+msgid "Expired"
+msgstr "期限切れ"
+
+msgid "Expires"
+msgstr "有効期限"
+
+msgid "Exponential"
+msgstr "指数"
+
+msgid "Export"
+msgstr "エクスポート"
+
+msgid "Export and import"
+msgstr "エクスポートとインポート"
+
+msgid "Export: save the list of trades as a CSV file"
+msgstr "エクスポート: トレード一覧をCSVで保存"
+
+msgid "Exported {when} · Opentern {0}"
+msgstr "{when} エクスポート · Opentern {0}"
+
+msgid "Exporting"
+msgstr "エクスポート中"
+
+msgid "Extend left"
+msgstr "左に延長"
+
+msgid "Extend lines left"
+msgstr "線を左に延長"
+
+msgid "Extend lines right"
+msgstr "線を右に延長"
+
+msgid "Extend right"
+msgstr "右に延長"
+
+msgid "Extend to last bar"
+msgstr "最後の足まで延長"
+
+msgid "Extended line"
+msgstr "延長線"
+
+msgid "Extended trading hours"
+msgstr "時間外取引"
+
+msgid "Factor"
+msgstr "係数"
+
+msgid "Family Day"
+msgstr "ファミリー・デー"
+
+msgid "Fast Length"
+msgstr "短期期間"
+
+msgid "Fast length"
+msgstr "短期期間"
+
+msgid "Favorites"
+msgstr "お気に入り"
+
+msgid "Feb"
+msgstr "2月"
+
+msgid "February"
+msgstr "2月"
+
+msgid "Feed"
+msgstr "フィード"
+
+msgid "Fetch and measure every symbol"
+msgstr "全銘柄を取得して計測"
+
+msgid "Fewest trades"
+msgstr "最少トレード数"
+
+msgid "Fib retracement"
+msgstr "フィボリトレースメント"
+
+msgid "Fibonacci"
+msgstr "フィボナッチ"
+
+msgid "Fill"
+msgstr "塗り"
+
+msgid "Fill in every field first."
+msgstr "先にすべての欄を入力してください。"
+
+msgid "Fill in the SMTP server, your address and where to send, or turn email off."
+msgstr "SMTPサーバー、自分のアドレス、送信先を入力するか、メールをオフにしてください。"
+
+msgid "Fill orders on bar close"
+msgstr "足の終値で注文を約定"
+
+msgid "Fills"
+msgstr "塗り"
+
+msgid "Filter"
+msgstr "フィルター"
+
+msgid "Filter files"
+msgstr "ファイルを絞り込む"
+
+#, message
+msgid "Find files: {0}"
+msgstr "ファイルを検索: {0}"
+
+msgid "Finish signing in in your browser."
+msgstr "ブラウザーでサインインを完了してください。"
+
+msgid "Fisher"
+msgstr "フィッシャー"
+
+msgid "Fisher Transform"
+msgstr "フィッシャー変換"
+
+msgid "Fixed range volume profile"
+msgstr "固定範囲出来高プロファイル"
+
+msgid "Floor"
+msgstr "フロア"
+
+msgid "Folders"
+msgstr "フォルダー"
+
+msgid "Follow the app theme"
+msgstr "アプリのテーマに合わせる"
+
+msgid "Font"
+msgstr "フォント"
+
+msgid "Forecasting and measurement tools"
+msgstr "予測と計測ツール"
+
+msgid "Forex"
+msgstr "FX"
+
+msgid "Forward one bar"
+msgstr "1本進める"
+
+#, message
+msgid "Found files: {0}"
+msgstr "ファイルを検索しました: {0}"
+
+msgid "Frankfurt"
+msgstr "フランクフルト"
+
+msgid "Free float"
+msgstr "浮動株"
+
+msgid "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."
+msgstr "無料のリアルタイム価格 (IEX)。キー: app.alpaca.markets → API keys。"
+
+msgid "Free-float market cap"
+msgstr "浮動株時価総額"
+
+msgid "Fri"
+msgstr "金"
+
+msgid "Friday"
+msgstr "金曜日"
+
+msgid "From @BotFather"
+msgstr "@BotFather から"
+
+msgid "From a file"
+msgstr "ファイルから"
+
+msgid "From another device"
+msgstr "別のデバイスから"
+
+msgid "Full Moon"
+msgstr "満月"
+
+msgid "Full market cap"
+msgstr "全時価総額"
+
+msgid "Full release notes"
+msgstr "リリースノート全文"
+
+msgid "Full screen"
+msgstr "全画面"
+
+msgid "Fullscreen mode (Shift F)"
+msgstr "全画面モード (Shift F)"
+
+#, message
+msgid "Fundamentals: {e}"
+msgstr "ファンダメンタルズ: {e}"
+
+msgid "Funding"
+msgstr "資金調達"
+
+msgid "Funds"
+msgstr "ファンド"
+
+msgid "Futures"
+msgstr "先物"
+
+msgid "Futures prices from free sources are about 10 minutes behind the exchange. Daily closes are the official settlements."
+msgstr "無料データ元の先物価格は取引所より約10分遅れます。日足の終値は公式の清算値です。"
+
+msgid "Gainers"
+msgstr "値上がり"
+
+msgid "Ganesh Chaturthi"
+msgstr ""
+
+msgid "Gann and Fibonacci tools"
+msgstr "ギャンとフィボナッチツール"
+
+msgid "Gateway URL"
+msgstr "ゲートウェイURL"
+
+msgid "General"
+msgstr "一般"
+
+msgid "Geometric shapes"
+msgstr "図形"
+
+msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
+msgstr "Gmail、Outlookなど多くのサービスではアプリパスワードが必要です。アカウントのセキュリティ設定で作成してください。"
+
+msgid "Good Friday"
+msgstr "聖金曜日"
+
+msgid "Got it"
+msgstr "了解"
+
+msgid "Gradient"
+msgstr "グラデーション"
+
+msgid "Greater than"
+msgstr "より大きい"
+
+msgid "Greenery Day"
+msgstr "みどりの日"
+
+msgid "Grid (every combination)"
+msgstr "グリッド (全組み合わせ)"
+
+msgid "Gross"
+msgstr "売上総利益"
+
+msgid "Gross loss"
+msgstr "総損失"
+
+msgid "Gross margin"
+msgstr "売上総利益率"
+
+msgid "Gross profit"
+msgstr "総利益"
+
+msgid "Growth and margins"
+msgstr "成長と利益率"
+
+msgid "HOURS"
+msgstr "時間"
+
+msgid "HV"
+msgstr ""
+
+msgid "Hangul Proclamation Day"
+msgstr "ハングルの日"
+
+msgid "Heatmap"
+msgstr "ヒートマップ"
+
+msgid "Heikin Ashi"
+msgstr "平均足"
+
+msgid "Hidden"
+msgstr "非表示"
+
+msgid "Hide"
+msgstr "隠す"
+
+msgid "Hide VWAP on 1D or Above"
+msgstr "1D以上でVWAPを隠す"
+
+msgid "Hide all drawings"
+msgstr "すべての描画を隠す"
+
+msgid "Hide all drawings ({0})"
+msgstr "すべての描画を隠す ({0})"
+
+msgid "Hide the drawing toolbar"
+msgstr "描画ツールバーを隠す"
+
+msgid "Hide the sidebar"
+msgstr "サイドバーを隠す"
+
+msgid "High-low"
+msgstr "高値-安値"
+
+msgid "High|price"
+msgstr "高値"
+
+msgid "Histogram"
+msgstr "ヒストグラム"
+
+msgid "Historical Volatility"
+msgstr "ヒストリカルボラティリティ"
+
+msgid "History"
+msgstr "期間"
+
+msgid "History {0}"
+msgstr "履歴 {0}"
+
+msgid "Holi"
+msgstr "ホーリー"
+
+msgid "Hollow candles"
+msgstr "中空ローソク足"
+
+msgid "Hong Kong"
+msgstr "香港"
+
+msgid "Hong Kong Exchanges"
+msgstr ""
+
+msgid "Hong Kong Special Region Establishment Day"
+msgstr "香港特別行政区成立記念日"
+
+msgid "Horizontal line"
+msgstr "水平線"
+
+msgid "Horizontal ray"
+msgstr "水平レイ"
+
+msgid "Horz grid lines"
+msgstr "横グリッド線"
+
+msgid "Hotlists"
+msgstr "ホットリスト"
+
+msgid "Hours"
+msgstr "時間"
+
+msgid "How far back its prices go"
+msgstr "価格データがさかのぼれる期間"
+
+msgid "How far the price is above or below its 200-day average"
+msgstr "価格が200日平均からどれだけ離れているか"
+
+msgid "How far the price is above or below its 50-day average"
+msgstr "価格が50日平均からどれだけ離れているか"
+
+msgid "Hull Moving Average"
+msgstr "ハル移動平均"
+
+#, message
+msgid "IBKR doesn't know {0}."
+msgstr "IBKRに{0}はありません。"
+
+#, message
+msgid "IBKR has no {0} bars"
+msgstr "IBKRに{0}足はありません"
+
+msgid "IN {0}"
+msgstr "{0}の新機能"
+
+msgid "INCLUDE"
+msgstr "含める"
+
+msgid "INPUTS TO VARY"
+msgstr "変化させる入力"
+
+msgid "Ichimoku Cloud"
+msgstr "一目均衡表"
+
+msgid "Icons"
+msgstr "アイコン"
+
+msgid "Id-Ul-Fitr"
+msgstr "イード・アル＝フィトル"
+
+msgid "Import"
+msgstr "インポート"
+
+msgid "Import and restart"
+msgstr "インポートして再起動"
+
+msgid "Import finished"
+msgstr "インポート完了"
+
+msgid "Import from {0}"
+msgstr "{0}からインポート"
+
+msgid "Imported. Press Run in the Script Editor to start it."
+msgstr "インポートしました。スクリプトエディターで「実行」を押すと開始します。"
+
+msgid "Importing"
+msgstr "インポート中"
+
+msgid "In a pane of its own, below"
+msgstr "下の専用ペイン"
+
+msgid "In-sample P&L"
+msgstr "インサンプル損益"
+
+msgid "In-sample bars"
+msgstr "インサンプル足数"
+
+msgid "Increment"
+msgstr "増分"
+
+msgid "Independence Day"
+msgstr "独立記念日"
+
+msgid "Independence Movement Day"
+msgstr "独立運動記念日"
+
+msgid "Index"
+msgstr "指数"
+
+msgid "Indian Markets"
+msgstr "インド市場"
+
+msgid "Indian large caps"
+msgstr "インド大型株"
+
+msgid "Indicator inputs"
+msgstr "インジケーターの入力"
+
+msgid "Indicator templates"
+msgstr "インジケーターテンプレート"
+
+msgid "Indicator titles"
+msgstr "インジケーター名"
+
+msgid "Indicator value labels"
+msgstr "インジケーター値ラベル"
+
+msgid "Indicator values"
+msgstr "インジケーターの値"
+
+msgid "Indicators"
+msgstr "インジケーター"
+
+msgid "Indicators, metrics and strategies (/)"
+msgstr "インジケーター、指標、ストラテジー (/)"
+
+msgid "Indices"
+msgstr "指数"
+
+msgid "Initial capital"
+msgstr "初期資金"
+
+msgid "Input"
+msgstr "入力"
+
+msgid "Inputs"
+msgstr "入力"
+
+msgid "Install {0}"
+msgstr "{0}をインストール"
+
+msgid "Interactive Brokers"
+msgstr ""
+
+msgid "Interval"
+msgstr "時間足"
+
+#, message
+msgid "It ended with code {n}."
+msgstr "コード{n}で終了しました。"
+
+msgid "JSON"
+msgstr ""
+
+msgid "Jan"
+msgstr "1月"
+
+msgid "January"
+msgstr "1月"
+
+msgid "Japan Exchange Group"
+msgstr ""
+
+msgid "Jaw"
+msgstr "ジョー"
+
+msgid "Jaw Length"
+msgstr "ジョーの期間"
+
+msgid "Jaw Offset"
+msgstr "ジョーのオフセット"
+
+msgid "Jul"
+msgstr "7月"
+
+msgid "July"
+msgstr "7月"
+
+msgid "Jump to real time"
+msgstr "リアルタイムへ移動"
+
+msgid "Jun"
+msgstr "6月"
+
+msgid "June"
+msgstr "6月"
+
+msgid "Juneteenth"
+msgstr "ジューンティーンス"
+
+msgid "KEEP IN SYNC"
+msgstr "同期する項目"
+
+msgid "KST"
+msgstr ""
+
+msgid "Kagi"
+msgstr "カギ足"
+
+msgid "Keep checking alerts"
+msgstr "アラートの監視を続ける"
+
+msgid "Keep checking, even after a restart"
+msgstr "再起動後も監視を続ける"
+
+msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
+msgstr "既存のものを残し、同名のものを更新します。先にバックアップを保存します。"
+
+msgid "Keltner Channels"
+msgstr "ケルトナーチャネル"
+
+msgid "Key ID"
+msgstr "キーID"
+
+msgid "Keyboard shortcuts"
+msgstr "キーボードショートカット"
+
+msgid "King's Birthday"
+msgstr "国王誕生日"
+
+msgid "Klinger Oscillator"
+msgstr "クリンガーオシレーター"
+
+msgid "Know Sure Thing"
+msgstr "ノウ・シュア・シング"
+
+msgid "Korea Exchange"
+msgstr ""
+
+msgid "Korean National Foundation Day"
+msgstr "開天節"
+
+#, message
+msgid "Kraken has no {0} bars"
+msgstr "Krakenに{0}足はありません"
+
+msgid "Labels on price scale"
+msgstr "価格スケール上のラベル"
+
+msgid "Labels position"
+msgstr "ラベルの位置"
+
+msgid "Labor Day"
+msgstr "レイバー・デー"
+
+msgid "Labor Thanksgiving Day"
+msgstr "勤労感謝の日"
+
+msgid "Labour Day"
+msgstr "メーデー"
+
+msgid "Lagging Span"
+msgstr "遅行スパン"
+
+msgid "Lakhs, crores"
+msgstr "ラーク、クロール"
+
+msgid "Language"
+msgstr "言語"
+
+msgid "Large numbers"
+msgstr "大きな数"
+
+msgid "Largest losing trade"
+msgstr "最大負けトレード"
+
+msgid "Largest losing trade, % of gross loss"
+msgstr "最大負けトレード (総損失比 %)"
+
+msgid "Largest winning trade"
+msgstr "最大勝ちトレード"
+
+msgid "Largest winning trade, % of gross profit"
+msgstr "最大勝ちトレード (総利益比 %)"
+
+msgid "Last"
+msgstr "現在値"
+
+#, message
+msgid "Last rebalanced {0}."
+msgstr "前回のリバランス: {0}。"
+
+msgid "Layout {n}"
+msgstr "レイアウト {n}"
+
+msgid "Layouts"
+msgstr "レイアウト"
+
+msgid "Leading Span A"
+msgstr "先行スパンA"
+
+msgid "Leading Span B"
+msgstr "先行スパンB"
+
+msgid "Leading Span B Length"
+msgstr "先行スパンBの期間"
+
+msgid "Least Squares Moving Average"
+msgstr "最小二乗移動平均"
+
+#, message
+msgid "Leave members out of {0}"
+msgstr "{0}の構成銘柄を除外"
+
+msgid "Leave out of the index"
+msgstr "指数から除外"
+
+msgid "Left"
+msgstr "左"
+
+msgid "Left Bars"
+msgstr "左の足数"
+
+#, message
+msgid "Left members out of {0}"
+msgstr "{0}の構成銘柄を除外しました"
+
+msgid "Length"
+msgstr "期間"
+
+msgid "Less than"
+msgstr "より小さい"
+
+msgid "Levels"
+msgstr "水準"
+
+msgid "Levels format"
+msgstr "水準の形式"
+
+msgid "Leverage"
+msgstr "レバレッジ"
+
+msgid "Like 15, 4h, D, W or 3M"
+msgstr "例: 15, 4h, D, W, 3M"
+
+msgid "Limit"
+msgstr "指値"
+
+msgid "Limit price"
+msgstr "指値価格"
+
+msgid "Line"
+msgstr "ライン"
+
+msgid "Line break"
+msgstr "新値足"
+
+msgid "Line color"
+msgstr "線の色"
+
+msgid "Line width"
+msgstr "線の太さ"
+
+msgid "Line with breaks"
+msgstr "途切れのある線"
+
+msgid "Line with markers"
+msgstr "マーカー付きライン"
+
+msgid "Linear Regression Channel"
+msgstr "線形回帰チャネル"
+
+msgid "Lips"
+msgstr "リップス"
+
+msgid "Lips Length"
+msgstr "リップスの期間"
+
+msgid "Lips Offset"
+msgstr "リップスのオフセット"
+
+msgid "List"
+msgstr "リスト"
+
+msgid "List menu (double-click to rename)"
+msgstr "リストメニュー (ダブルクリックで名前を変更)"
+
+msgid "List of trades"
+msgstr "トレード一覧"
+
+msgid "List the indices"
+msgstr "指数を一覧表示"
+
+msgid "List your scripts"
+msgstr "スクリプトを一覧表示"
+
+msgid "List {0}"
+msgstr "リスト {0}"
+
+msgid "Listed the indices"
+msgstr "指数を一覧表示しました"
+
+msgid "Listed your scripts"
+msgstr "スクリプトを一覧表示しました"
+
+msgid "Live"
+msgstr "ライブ"
+
+msgid "Ln {line}, Col {col}      Spaces: {0}      UTF-8      {1}"
+msgstr "{line}行、{col}列      スペース: {0}      UTF-8      {1}"
+
+#, message
+msgid "Loaded {0} of {1}…"
+msgstr "{1}件中{0}件を読み込み済み…"
+
+msgid "Loading models"
+msgstr "モデルを読み込み中"
+
+#, message
+msgid "Loading {0} symbols…"
+msgstr "{0}銘柄を読み込み中…"
+
+msgid "Loading…"
+msgstr "読み込み中…"
+
+msgid "Local"
+msgstr "ローカル"
+
+msgid "Lock"
+msgstr "ロック"
+
+msgid "Lock all drawings"
+msgstr "すべての描画をロック"
+
+msgid "Log"
+msgstr "対数"
+
+msgid "Log scale"
+msgstr "対数スケール"
+
+msgid "Log scale (Alt L)"
+msgstr "対数スケール (Alt L)"
+
+msgid "London"
+msgstr "ロンドン"
+
+msgid "London Stock Exchange"
+msgstr ""
+
+msgid "Long"
+msgstr "ロング"
+
+msgid "Long Length"
+msgstr "長期期間"
+
+msgid "Long MA"
+msgstr "長期MA"
+
+msgid "Long MA length"
+msgstr "長期MAの期間"
+
+msgid "Long RCI"
+msgstr "長期RCI"
+
+msgid "Long RCI Length"
+msgstr "長期RCIの期間"
+
+msgid "Long RoC Length"
+msgstr "長期RoCの期間"
+
+msgid "Long position"
+msgstr "買いポジション"
+
+msgid "Look at the chart"
+msgstr "チャートを見る"
+
+msgid "Look at the drawings"
+msgstr "描画を見る"
+
+msgid "Look at the paper account"
+msgstr "デモ口座を見る"
+
+#, message
+msgid "Look at {0}"
+msgstr "{0}を見る"
+
+msgid "Look up indicators"
+msgstr "インジケーターを調べる"
+
+msgid "Looked at the chart"
+msgstr "チャートを見ました"
+
+msgid "Looked at the drawings"
+msgstr "描画を見ました"
+
+msgid "Looked at the paper account"
+msgstr "デモ口座を見ました"
+
+#, message
+msgid "Looked at {0}"
+msgstr "{0}を見ました"
+
+msgid "Looked up indicators"
+msgstr "インジケーターを調べました"
+
+msgid "Looking for your other device"
+msgstr "もう一方のデバイスを探しています"
+
+msgid "Losers"
+msgstr "値下がり"
+
+msgid "Losing streak"
+msgstr "連敗"
+
+msgid "Losing streak, worst 5%"
+msgstr "連敗 (ワースト5%)"
+
+msgid "Losing trades"
+msgstr "負けトレード"
+
+msgid "Lower"
+msgstr "下限"
+
+msgid "Lower Band"
+msgstr "下限バンド"
+
+msgid "Lower Band #1"
+msgstr "下限バンド 1"
+
+msgid "Lower Band #2"
+msgstr "下限バンド 2"
+
+msgid "Lower Band #3"
+msgstr "下限バンド 3"
+
+msgid "Lower color"
+msgstr "下側の色"
+
+msgid "Lower deviation"
+msgstr "下側の偏差"
+
+msgid "Lower length"
+msgstr "下側の期間"
+
+msgid "Lower multiplier"
+msgstr "下側の倍率"
+
+msgid "Lower offset"
+msgstr "下側のオフセット"
+
+msgid "Low|price"
+msgstr "安値"
+
+msgid "Lunar New Year"
+msgstr "旧正月"
+
+msgid "MA"
+msgstr ""
+
+msgid "MA #1"
+msgstr "MA 1"
+
+msgid "MA #1 Length"
+msgstr "MA 1 の期間"
+
+msgid "MA #2"
+msgstr "MA 2"
+
+msgid "MA #2 Length"
+msgstr "MA 2 の期間"
+
+msgid "MA #3"
+msgstr "MA 3"
+
+msgid "MA #3 Length"
+msgstr "MA 3 の期間"
+
+msgid "MA #4"
+msgstr "MA 4"
+
+msgid "MA #4 Length"
+msgstr "MA 4 の期間"
+
+msgid "MA Cross"
+msgstr "MA クロス"
+
+msgid "MA Length"
+msgstr "MA 期間"
+
+msgid "MA Type"
+msgstr "MA タイプ"
+
+msgid "MACD"
+msgstr ""
+
+msgid "MF"
+msgstr ""
+
+msgid "MINUTES"
+msgstr "分"
+
+msgid "MR"
+msgstr ""
+
+#, message
+msgid "Made the index {0}"
+msgstr "指数{0}を作成しました"
+
+#, message
+msgid "Made {name}."
+msgstr "{name}を作成しました。"
+
+msgid "Magnet mode: snap to open, high, low, close"
+msgstr "マグネット: 始値、高値、安値、終値に吸着"
+
+msgid "Maharashtra Day"
+msgstr "マハラシュトラの日"
+
+msgid "Mahashivratri"
+msgstr "マハー・シヴァラートリー"
+
+msgid "Mahatma Gandhi Jayanti"
+msgstr ""
+
+msgid "Majority Rule"
+msgstr "多数決ルール"
+
+msgid "Make a copy"
+msgstr "コピーを作成"
+
+msgid "Make a copy to edit"
+msgstr "編集用のコピーを作成"
+
+msgid "Make another account first"
+msgstr "先に別の口座を作成してください"
+
+#, message
+msgid "Make the index {0}"
+msgstr "指数{0}を作成"
+
+msgid "Make the panel taller to see the equity curve."
+msgstr "パネルを高くすると資産曲線が表示されます。"
+
+msgid "Map"
+msgstr "マップ"
+
+msgid "Map of every index"
+msgstr "全指数のマップ"
+
+msgid "Mar"
+msgstr "3月"
+
+msgid "March"
+msgstr "3月"
+
+msgid "Margin"
+msgstr "証拠金"
+
+msgid "Margin calls"
+msgstr "マージンコール"
+
+msgid "Margin efficiency"
+msgstr "証拠金効率"
+
+msgid "Margin for long positions"
+msgstr "買いポジションの証拠金"
+
+msgid "Margin for short positions"
+msgstr "売りポジションの証拠金"
+
+msgid "Margin in use {0}{unit} · Buying power {1}{unit}"
+msgstr "使用証拠金 {0}{unit} · 買付余力 {1}{unit}"
+
+msgid "Marine Day"
+msgstr "海の日"
+
+msgid "Market"
+msgstr "成行"
+
+msgid "Market cap"
+msgstr "時価総額"
+
+msgid "Market caps didn't load, so every tile is the same size"
+msgstr "時価総額を読み込めなかったため、すべて同じ大きさです"
+
+msgid "Market closed{when}"
+msgstr "市場は閉場{when}"
+
+msgid "Market holiday"
+msgstr "市場休業日"
+
+msgid "Market open"
+msgstr "市場は開場中"
+
+msgid "Market overview"
+msgstr "マーケット概要"
+
+msgid "Market overview (Alt M)"
+msgstr "マーケット概要 (Alt M)"
+
+msgid "Martin Luther King Jr. Day"
+msgstr "キング牧師記念日"
+
+msgid "Mass Index"
+msgstr "マスインデックス"
+
+msgid "Max DD"
+msgstr "最大DD"
+
+msgid "Max contracts held"
+msgstr "最大保有枚数"
+
+msgid "Max drawdown"
+msgstr "最大ドローダウン"
+
+msgid "Max drawdown %"
+msgstr "最大ドローダウン %"
+
+msgid "Max drawdown, worst 5%"
+msgstr "最大ドローダウン (ワースト5%)"
+
+msgid "Max equity drawdown"
+msgstr "最大資産ドローダウン"
+
+msgid "Max equity run-up"
+msgstr "最大資産ランアップ"
+
+msgid "Max margin used"
+msgstr "最大使用証拠金"
+
+msgid "Max value"
+msgstr "最大値"
+
+msgid "Maximize"
+msgstr "最大化する指標"
+
+msgid "Maximize panel"
+msgstr "パネルを最大化"
+
+msgid "May"
+msgstr "5月"
+
+msgid "McGinley Dynamic"
+msgstr "マクギンリーダイナミック"
+
+msgid "Measure"
+msgstr "計測"
+
+msgid "Measure (or Shift+drag)"
+msgstr "計測 (または Shift+ドラッグ)"
+
+msgid "Median"
+msgstr "中央値"
+
+msgid "Median EMA"
+msgstr "中央値EMA"
+
+msgid "Median Length"
+msgstr "中央値の期間"
+
+msgid "Median P&L"
+msgstr "損益の中央値"
+
+msgid "Median max drawdown"
+msgstr "最大ドローダウンの中央値"
+
+msgid "Memorial Day"
+msgstr "戦没将兵追悼記念日"
+
+msgid "Merge"
+msgstr "統合"
+
+msgid "Message"
+msgstr "メッセージ"
+
+msgid "Method"
+msgstr "方法"
+
+msgid "Middle"
+msgstr "中央"
+
+msgid "Middle Band"
+msgstr "中央バンド"
+
+msgid "Middle Length"
+msgstr "中央の期間"
+
+msgid "Middle RCI"
+msgstr "中期RCI"
+
+msgid "Middle RCI Length"
+msgstr "中期RCIの期間"
+
+msgid "Millions, billions"
+msgstr "百万、十億"
+
+msgid "Minutes"
+msgstr "分"
+
+msgid "Model"
+msgstr "モデル"
+
+msgid "Momentum"
+msgstr "モメンタム"
+
+msgid "Mon"
+msgstr "月"
+
+msgid "Monday"
+msgstr "月曜日"
+
+msgid "Money Flow Index"
+msgstr "マネーフローインデックス"
+
+msgid "Monte Carlo"
+msgstr "モンテカルロ"
+
+#, message
+msgid "Monte Carlo needs at least two closed trades."
+msgstr "モンテカルロには決済済みトレードが2件以上必要です。"
+
+msgid "Month"
+msgstr "月"
+
+msgid "Monthly"
+msgstr "月次"
+
+msgid "Monthly limit"
+msgstr "月間の上限"
+
+msgid "Months"
+msgstr "月"
+
+msgid "Moon Phases"
+msgstr "月の満ち欠け"
+
+msgid "More"
+msgstr "その他"
+
+msgid "More intervals"
+msgstr "その他の時間足"
+
+msgid "Mountain Day"
+msgstr "山の日"
+
+msgid "Move the pointer over the chart."
+msgstr "チャート上にカーソルを移動してください。"
+
+msgid "Move to top"
+msgstr "一番上へ移動"
+
+#, message
+msgid "Moved to {0}."
+msgstr "{0}に移動しました。"
+
+msgid "Moving Average Adaptive"
+msgstr "適応移動平均"
+
+msgid "Moving Average Channel"
+msgstr "移動平均チャネル"
+
+msgid "Moving Average Exponential"
+msgstr "指数平滑移動平均"
+
+msgid "Moving Average Hamming"
+msgstr "ハミング移動平均"
+
+msgid "Moving Average Ribbon"
+msgstr "移動平均リボン"
+
+msgid "Moving Average Simple"
+msgstr "単純移動平均"
+
+msgid "Moving Average Weighted"
+msgstr "加重移動平均"
+
+msgid "Moving averages"
+msgstr "移動平均"
+
+msgid "Muharram"
+msgstr "ムハッラム"
+
+msgid "Muhurat trading"
+msgstr "ムフーラト取引"
+
+msgid "Multiplier"
+msgstr "倍率"
+
+msgid "Multiplier #1"
+msgstr "倍率 1"
+
+msgid "Multiplier #2"
+msgstr "倍率 2"
+
+msgid "Multiplier #3"
+msgstr "倍率 3"
+
+msgid "Municipal Corporation Elections (Maharashtra)"
+msgstr "自治体選挙 (マハラシュトラ)"
+
+msgid "My plan includes SIP"
+msgstr "プランにSIPが含まれる"
+
+msgid "NEW SCRIPT HERE"
+msgstr "ここに新規スクリプト"
+
+msgid "NIFTY 500"
+msgstr ""
+
+msgid "NSE · BSE"
+msgstr ""
+
+msgid "NYSE · NASDAQ"
+msgstr ""
+
+msgid "Name"
+msgstr "名前"
+
+#, message
+msgid "Nasdaq sent no earnings."
+msgstr "Nasdaqから決算が届きませんでした。"
+
+msgid "National Day"
+msgstr "建国記念日"
+
+msgid "National Day of the Republic of China"
+msgstr "中華民国国慶日"
+
+msgid "National Foundation Day"
+msgstr "建国記念の日"
+
+msgid "National Liberation Day"
+msgstr "光復節"
+
+msgid "Net P&L"
+msgstr "純損益"
+
+msgid "Net P&L %"
+msgstr "純損益 %"
+
+msgid "Net P&L (every run)"
+msgstr "純損益 (全実行)"
+
+msgid "Net Volume"
+msgstr "純出来高"
+
+msgid "Net profit"
+msgstr "純利益"
+
+msgid "Net profit as % of largest loss"
+msgstr "純利益 (最大損失比 %)"
+
+msgid "Net profit ÷ max drawdown"
+msgstr "純利益 ÷ 最大ドローダウン"
+
+msgid "Never"
+msgstr "なし"
+
+msgid "New Moon"
+msgstr "新月"
+
+msgid "New Year's Day"
+msgstr "元日"
+
+msgid "New Year's Eve"
+msgstr "大晦日"
+
+msgid "New Year's Holiday"
+msgstr "年始休業日"
+
+msgid "New account"
+msgstr "新しい口座"
+
+msgid "New chat"
+msgstr "新しいチャット"
+
+msgid "New folder"
+msgstr "新しいフォルダー"
+
+msgid "New index"
+msgstr "新しい指数"
+
+msgid "New layout"
+msgstr "新しいレイアウト"
+
+msgid "New line"
+msgstr "改行"
+
+msgid "New list"
+msgstr "新しいリスト"
+
+msgid "New pane"
+msgstr "新しいペイン"
+
+msgid "New paper account"
+msgstr "新しいデモ口座"
+
+msgid "New price scale"
+msgstr "新しい価格スケール"
+
+msgid "New script"
+msgstr "新しいスクリプト"
+
+msgid "New section"
+msgstr "新しいセクション"
+
+msgid "News"
+msgstr "ニュース"
+
+msgid "Next earnings {0}\nEstimate {1}"
+msgstr "次の決算 {0}\n予想 {1}"
+
+#, message
+msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr "次回のリバランス: {0}(4月1日と10月1日)。"
+
+msgid "No alerts yet"
+msgstr "アラートはまだありません"
+
+msgid "No bars came back."
+msgstr "足が届きませんでした。"
+
+msgid "No chat mentions that."
+msgstr "該当するチャットはありません。"
+
+msgid "No chats yet"
+msgstr "チャットはまだありません"
+
+msgid "No closed trades yet."
+msgstr "決済済みトレードはまだありません。"
+
+#, message
+msgid "No coin prices came this time. Try again in a minute."
+msgstr "今回はコインの価格が届きませんでした。1分後にお試しください。"
+
+#, message
+msgid "No company fundamentals for this market."
+msgstr "この市場の企業ファンダメンタルズはありません。"
+
+msgid "No daily history for this symbol."
+msgstr "この銘柄の日足履歴はありません。"
+
+msgid "No favorites yet"
+msgstr "お気に入りはまだありません"
+
+msgid "No file open"
+msgstr "ファイルが開かれていません"
+
+#, message
+msgid "No funding rate for this symbol."
+msgstr "この銘柄の資金調達率はありません。"
+
+msgid "No headlines right now."
+msgstr "今は見出しがありません。"
+
+msgid "No holidays in the next four months."
+msgstr "今後4か月に休場日はありません。"
+
+msgid "No indices yet"
+msgstr "指数はまだありません"
+
+msgid "No lists match"
+msgstr "一致するリストはありません"
+
+msgid "No matches"
+msgstr "一致なし"
+
+msgid "No monthly history"
+msgstr "月次履歴なし"
+
+msgid "No monthly history for this symbol."
+msgstr "この銘柄の月次履歴はありません。"
+
+msgid "No new prices for {0}"
+msgstr "{0}間、新しい価格がありません"
+
+msgid "No open positions."
+msgstr "保有ポジションはありません。"
+
+#, message
+msgid "No price yet for this symbol."
+msgstr "この銘柄の価格はまだありません。"
+
+msgid "No prices came back."
+msgstr "価格が届きませんでした。"
+
+#, message
+msgid "No prices came this time."
+msgstr "今回は価格が届きませんでした。"
+
+msgid "No prices: the ticker may have been renamed or delisted. Left out of the index."
+msgstr "価格なし: ティッカーの変更または上場廃止の可能性があります。指数から除外しました。"
+
+msgid "No problems. Running on the chart."
+msgstr "問題はありません。チャートで実行中です。"
+
+msgid "No run met the conditions (too few trades, or the script failed)."
+msgstr "条件を満たす実行はありませんでした(トレードが少なすぎるか、スクリプトが失敗)。"
+
+msgid "No script"
+msgstr "スクリプトなし"
+
+msgid "No scripts yet. Press + to start one."
+msgstr "スクリプトはまだありません。+を押して始めましょう。"
+
+msgid "No section"
+msgstr "セクションなし"
+
+msgid "No strategy on the chart"
+msgstr "チャートにストラテジーがありません"
+
+msgid "No symbol could be tested."
+msgstr "テストできた銘柄はありません。"
+
+msgid "No symbols match."
+msgstr "一致する銘柄はありません。"
+
+msgid "No symbols yet"
+msgstr "銘柄はまだありません"
+
+msgid "No working orders."
+msgstr "有効な注文はありません。"
+
+#, message
+msgid "No {0}/{1} exchange rate yet."
+msgstr "{0}/{1}の為替レートはまだありません。"
+
+#, message
+msgid "No {0}/{1} exchange rate yet; try again in a moment."
+msgstr "{0}/{1}の為替レートはまだありません。少し待ってお試しください。"
+
+msgid "None"
+msgstr "なし"
+
+msgid "Not answered"
+msgstr "未回答"
+
+msgid "Not connecting? Your other device has to reach this one. Windows will ask for permission."
+msgstr "つながりませんか? もう一方のデバイスからこのデバイスに届く必要があります。Windowsが許可を求めます。"
+
+#, message
+msgid "Not enough bars: each step needs {0} in-sample bars and some after them, and there are {1}."
+msgstr "足が足りません。各ステップにはインサンプル{0}本とその後の数本が必要ですが、{1}本しかありません。"
+
+#, message
+msgid "Not enough buying power for this order."
+msgstr "この注文には買付余力が足りません。"
+
+msgid "Not installed"
+msgstr "未インストール"
+
+msgid "Not yet tried with a real account. Compare its prices with another source before relying on them."
+msgstr "実口座ではまだ試されていません。頼る前に別のデータ元と価格を比べてください。"
+
+msgid "Nothing defined yet."
+msgstr "まだ定義がありません。"
+
+msgid "Nothing found"
+msgstr "見つかりません"
+
+msgid "Nothing has fired yet"
+msgstr "まだ発動していません"
+
+msgid "Nothing matches"
+msgstr "一致なし"
+
+msgid "Nothing on the chart yet"
+msgstr "チャートにはまだ何もありません"
+
+msgid "Nothing traded yet."
+msgstr "まだ取引がありません。"
+
+msgid "Notification"
+msgstr "通知"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "Notify me"
+msgstr "通知方法"
+
+msgid "Nov"
+msgstr "11月"
+
+msgid "November"
+msgstr "11月"
+
+msgid "Number of lines"
+msgstr "線の数"
+
+msgid "Number of pivots back"
+msgstr "さかのぼるピボット数"
+
+msgid "Number of rows"
+msgstr "行数"
+
+msgid "Number of years"
+msgstr "年数"
+
+#, message
+msgid "OANDA has no {0} bars"
+msgstr "OANDAに{0}足はありません"
+
+#, message
+msgid "OANDA refused the token. Check it in Settings → Data providers."
+msgstr "OANDAがトークンを拒否しました。設定 → データプロバイダーで確認してください。"
+
+msgid "OANDA · forex and CFDs"
+msgstr "OANDA · FXとCFD"
+
+msgid "OBJECT TREE"
+msgstr "オブジェクトツリー"
+
+#, message
+msgid "OKX has no {0} bars"
+msgstr "OKXに{0}足はありません"
+
+#, message
+msgid "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+msgstr "OKXの無期限板は枚数表示のため表示されません。BinanceとBybitの無期限にはあります。"
+
+msgid "OPEN LAYOUT"
+msgstr "レイアウトを開く"
+
+msgid "OUTLINE"
+msgstr "アウトライン"
+
+msgid "OUTPUT"
+msgstr "出力"
+
+msgid "Object tree and data window"
+msgstr "オブジェクトツリーとデータウィンドウ"
+
+msgid "Oct"
+msgstr "10月"
+
+msgid "October"
+msgstr "10月"
+
+msgid "Of each fill's value"
+msgstr "各約定金額に対して"
+
+msgid "Off"
+msgstr "オフ"
+
+msgid "Offset"
+msgstr "オフセット"
+
+msgid "Ok"
+msgstr "OK"
+
+msgid "Older"
+msgstr "それ以前"
+
+msgid "On"
+msgstr "オン"
+
+msgid "On Balance Volume"
+msgstr "オンバランスボリューム"
+
+msgid "On the chart"
+msgstr "チャート上"
+
+msgid "OnBalanceVolume"
+msgstr "オンバランスボリューム"
+
+msgid "Once per bar"
+msgstr "足ごとに1回"
+
+msgid "Once per bar close"
+msgstr "足の確定時に1回"
+
+msgid "Only once"
+msgstr "1回のみ"
+
+msgid "Opacity"
+msgstr "不透明度"
+
+msgid "Open Local Network settings"
+msgstr "ローカルネットワーク設定を開く"
+
+msgid "Open P&L"
+msgstr "評価損益"
+
+msgid "Open chart"
+msgstr "チャートを開く"
+
+msgid "Open folder"
+msgstr "フォルダーを開く"
+
+msgid "Open in your editor"
+msgstr "外部エディターで開く"
+
+msgid "Open in your file manager"
+msgstr "ファイルマネージャーで開く"
+
+msgid "Open on the chart"
+msgstr "チャートで開く"
+
+msgid "Open page"
+msgstr "ページを開く"
+
+msgid "Open panel"
+msgstr "パネルを開く"
+
+msgid "Open snapshots folder"
+msgstr "スナップショットフォルダーを開く"
+
+msgid "Open the scripts folder"
+msgstr "スクリプトフォルダーを開く"
+
+msgid "Open this formula"
+msgstr "この式を開く"
+
+#, message
+msgid "Open {0}"
+msgstr "{0}を開く"
+
+#, message
+msgid "Open {0} in the editor"
+msgstr "{0}をエディターで開く"
+
+msgid "Open {f} in the Script Editor"
+msgstr "{f}をスクリプトエディターで開く"
+
+msgid "Open, high, low and close values"
+msgstr "始値、高値、安値、終値"
+
+#, message
+msgid "Opened {0}"
+msgstr "{0}を開きました"
+
+#, message
+msgid "Opened {0} in the editor"
+msgstr "{0}をエディターで開きました"
+
+msgid "Opentern couldn't start"
+msgstr "Openternを起動できませんでした"
+
+msgid "Opentern export"
+msgstr "Openternエクスポート"
+
+msgid "Opentern is open in another window. Close it, then import."
+msgstr "Openternが別のウィンドウで開いています。閉じてからインポートしてください。"
+
+msgid "Opentern is up to date"
+msgstr "Openternは最新です"
+
+msgid "Opentern {0}"
+msgstr ""
+
+msgid "Opentern {0} is available. Click to update."
+msgstr "Opentern {0}が利用できます。クリックで更新します。"
+
+msgid "Opentern {0} is available. {why}."
+msgstr "Opentern {0}が利用できます。{why}。"
+
+msgid "Opentern {0} is installed. Click to restart."
+msgstr "Opentern {0}をインストールしました。クリックで再起動します。"
+
+#, message
+msgid "Opentern {0} is installed. Restart to use it."
+msgstr "Opentern {0}をインストールしました。再起動すると使えます。"
+
+#, message
+msgid "Opentern {0} is ready to install from the rail."
+msgstr "Opentern {0}はサイドのバーからインストールできます。"
+
+msgid "Opentern {version}"
+msgstr ""
+
+msgid "Open|price"
+msgstr "始値"
+
+msgid "Optimize"
+msgstr "最適化"
+
+msgid "Order cancelled."
+msgstr "注文を取り消しました。"
+
+#, message
+msgid "Order moved to {0}."
+msgstr "注文を{0}に移動しました。"
+
+msgid "Order placed."
+msgstr "注文を出しました。"
+
+msgid "Order size"
+msgstr "注文サイズ"
+
+msgid "Orders {0}"
+msgstr "注文 {0}"
+
+msgid "Oscillator MA Type"
+msgstr "オシレーターのMAタイプ"
+
+msgid "Oscillators"
+msgstr "オシレーター"
+
+msgid "Other device"
+msgstr "もう一方のデバイス"
+
+msgid "Our Lady of Aparecida"
+msgstr "聖母アパレシーダの日"
+
+msgid "Out of sample"
+msgstr "アウトオブサンプル"
+
+msgid "Out-of-sample P&L"
+msgstr "アウトオブサンプル損益"
+
+msgid "Out-of-sample bars"
+msgstr "アウトオブサンプル足数"
+
+msgid "Output"
+msgstr "出力"
+
+msgid "Outputs"
+msgstr "出力"
+
+msgid "Over the chart, with its own scale"
+msgstr "チャートに重ね、独自スケール"
+
+msgid "Overbought"
+msgstr "買われすぎ"
+
+msgid "Oversold"
+msgstr "売られすぎ"
+
+msgid "Overview"
+msgstr "概要"
+
+msgid "P&L, worst 5%"
+msgstr "損益 (ワースト5%)"
+
+msgid "PAT"
+msgstr "純利益"
+
+msgid "PAT margin"
+msgstr "純利益率"
+
+msgid "POC"
+msgstr ""
+
+msgid "PROBLEMS"
+msgstr "問題"
+
+msgid "PVT"
+msgstr ""
+
+msgid "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts."
+msgstr "カウントダウン終了時にロングとショートの間で支払われます。プラスならロングがショートに支払います。"
+
+msgid "Paper Trading"
+msgstr "デモ取引"
+
+msgid "Paper account"
+msgstr "デモ口座"
+
+msgid "Paper account {k}"
+msgstr "デモ口座 {k}"
+
+msgid "Paper accounts"
+msgstr "デモ口座"
+
+msgid "Paper trading"
+msgstr "デモ取引"
+
+#, message
+msgid "Paper trading: {a}"
+msgstr "デモ取引: {a}"
+
+#, message
+msgid "Paper {0} {1} {2}"
+msgstr "デモ {0} {1} {2}"
+
+msgid "Parabolic SAR"
+msgstr "パラボリックSAR"
+
+msgid "ParabolicSAR"
+msgstr "パラボリックSAR"
+
+msgid "Parallel channel"
+msgstr "平行チャネル"
+
+msgid "Paris"
+msgstr "パリ"
+
+msgid "Password"
+msgstr "パスワード"
+
+msgid "Paste an image"
+msgstr "画像を貼り付け"
+
+msgid "Paste it anywhere."
+msgstr "どこにでも貼り付けられます。"
+
+msgid "Paste the code, if asked"
+msgstr "求められたらコードを貼り付け"
+
+msgid "Paste the email password (an app password), or turn email off."
+msgstr "メールのパスワード(アプリパスワード)を貼り付けるか、メールをオフにしてください。"
+
+msgid "Paste your Telegram bot token, or turn Telegram off."
+msgstr "Telegramボットのトークンを貼り付けるか、Telegramをオフにしてください。"
+
+#, message
+msgid "Pasted {dest}."
+msgstr "{dest}を貼り付けました。"
+
+msgid "Path"
+msgstr "パス"
+
+msgid "Patterns"
+msgstr "パターン"
+
+msgid "Pause"
+msgstr "一時停止"
+
+msgid "Pause alerts"
+msgstr "アラートを停止"
+
+msgid "Peace Memorial Day"
+msgstr "平和記念日"
+
+msgid "Per contract"
+msgstr "1枚あたり"
+
+msgid "Per order"
+msgstr "注文あたり"
+
+msgid "Percent"
+msgstr "パーセント"
+
+msgid "Percent change, on the chart's scale"
+msgstr "変化率、チャートのスケール上"
+
+msgid "Percent profitable"
+msgstr "勝率"
+
+msgid "Percent scale"
+msgstr "パーセントスケール"
+
+msgid "Percent scale (Alt P)"
+msgstr "パーセントスケール (Alt P)"
+
+msgid "Percentage"
+msgstr "割合"
+
+msgid "Perf 1M %"
+msgstr "騰落1M %"
+
+msgid "Perf 1W %"
+msgstr "騰落1W %"
+
+msgid "Perf 1Y %"
+msgstr "騰落1Y %"
+
+msgid "Perf 6M %"
+msgstr "騰落6M %"
+
+msgid "Performance"
+msgstr "パフォーマンス"
+
+msgid "Periods"
+msgstr "期間数"
+
+msgid "Pick a new starting bar"
+msgstr "新しい開始足を選択"
+
+#, message
+msgid "Pick at least one input to optimize."
+msgstr "最適化する入力を1つ以上選んでください。"
+
+msgid "Pick two different inputs."
+msgstr "異なる入力を2つ選んでください。"
+
+msgid "Pick your agent"
+msgstr "エージェントを選択"
+
+msgid "Pick your first chart"
+msgstr "最初のチャートを選択"
+
+msgid "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives."
+msgstr "Pine、Luau、JavaScriptのスクリプトはOpentern内に隔離されます。より安全な選択肢です。"
+
+msgid "Pitchfork"
+msgstr "ピッチフォーク"
+
+msgid "Pivot High"
+msgstr "ピボット高値"
+
+msgid "Pivot Low"
+msgstr "ピボット安値"
+
+msgid "Pivot Points High Low"
+msgstr "ピボットポイント 高値/安値"
+
+msgid "Pivot Points Standard"
+msgstr "ピボットポイント 標準"
+
+msgid "Pivot legs"
+msgstr "ピボットの足数"
+
+msgid "Pivots timeframe"
+msgstr "ピボットの時間枠"
+
+msgid "Placed"
+msgstr "発注時刻"
+
+msgid "Placement"
+msgstr "配置"
+
+msgid "Play"
+msgstr "再生"
+
+msgid "Plot"
+msgstr "プロット"
+
+msgid "Plots Background"
+msgstr "プロットの背景"
+
+msgid "Point & figure"
+msgstr "ポイント&フィギュア"
+
+msgid "Port"
+msgstr "ポート"
+
+msgid "Portfolio"
+msgstr "ポートフォリオ"
+
+msgid "Positions {0}"
+msgstr "ポジション {0}"
+
+msgid "Practice"
+msgstr "デモ"
+
+msgid "Prakash Gurpurb Sri Guru Nanak Dev"
+msgstr ""
+
+msgid "Pre-market"
+msgstr "プレマーケット"
+
+msgid "Pre/post market price label"
+msgstr "時間外価格ラベル"
+
+msgid "Pre/post market price line"
+msgstr "時間外価格ライン"
+
+msgid "Precision"
+msgstr "精度"
+
+msgid "Press Enter for {0}"
+msgstr "Enterで{0}に変更"
+
+msgid "Previous 7 days"
+msgstr "過去7日間"
+
+msgid "Price"
+msgstr "価格"
+
+msgid "Price Oscillator"
+msgstr "価格オシレーター"
+
+msgid "Price Volume Trend"
+msgstr "価格出来高トレンド"
+
+msgid "Price cache"
+msgstr "価格キャッシュ"
+
+msgid "Price deviation for reversals (%)"
+msgstr "反転の価格偏差 (%)"
+
+msgid "Price labels"
+msgstr "価格ラベル"
+
+msgid "Price over trailing earnings. For the index: total market cap over total earnings"
+msgstr "株価 ÷ 直近12か月の利益。指数では合計時価総額 ÷ 合計利益"
+
+msgid "Price range"
+msgstr "価格範囲"
+
+msgid "Price scale"
+msgstr "価格スケール"
+
+#, message
+msgid "Price {0} the line"
+msgstr "価格 {0} ライン"
+
+#, message
+msgid "Price {0} {1}"
+msgstr "価格 {0} {1}"
+
+#, message
+msgid "Price: {0}"
+msgstr "価格: {0}"
+
+msgid "Prices"
+msgstr "価格"
+
+msgid "Prices since {0}"
+msgstr "{0}からの価格"
+
+msgid "Profit"
+msgstr "損益"
+
+msgid "Profit and loss in other currencies is converted at live rates"
+msgstr "他通貨の損益は最新レートで換算されます"
+
+msgid "Profit and loss made so far is kept"
+msgstr "これまでの損益は保持されます"
+
+msgid "Profit factor"
+msgstr "プロフィットファクター"
+
+msgid "Profitable"
+msgstr "利益あり"
+
+msgid "Profitable trades"
+msgstr "勝ちトレード"
+
+msgid "Profitable windows"
+msgstr "利益が出た期間"
+
+msgid "Properties"
+msgstr "プロパティ"
+
+msgid "Put the best inputs on the chart's strategy"
+msgstr "最良の入力をチャートのストラテジーに適用"
+
+msgid "Pyramiding"
+msgstr "ピラミッディング"
+
+msgid "Python script not started"
+msgstr "Pythonスクリプトは開始されていません"
+
+msgid "Python scripts run on your computer"
+msgstr "Pythonスクリプトはこのコンピューターで動きます"
+
+msgid "Python scripts' alerts need Opentern open."
+msgstr "Pythonスクリプトのアラートには、Openternを開いておく必要があります。"
+
+msgid "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+msgstr "Pythonのストラテジーは別プロセスで動くため、ラボではまだ再実行できません。Pine、Luau、JavaScriptは使えます。"
+
+msgid "Qty"
+msgstr "数量"
+
+msgid "Quantity"
+msgstr "数量"
+
+msgid "Quarter"
+msgstr "四半期"
+
+msgid "Quarterly"
+msgstr "四半期"
+
+msgid "Queue (Enter)"
+msgstr "待ち列に追加 (Enter)"
+
+msgid "RCI"
+msgstr ""
+
+msgid "RCI Ribbon"
+msgstr "RCI リボン"
+
+msgid "RMA"
+msgstr ""
+
+msgid "ROC"
+msgstr ""
+
+msgid "ROC Length"
+msgstr "ROC 期間"
+
+msgid "ROC Length #1"
+msgstr "ROC 期間 1"
+
+msgid "ROC Length #2"
+msgstr "ROC 期間 2"
+
+msgid "ROC Length #3"
+msgstr "ROC 期間 3"
+
+msgid "ROC Length #4"
+msgstr "ROC 期間 4"
+
+msgid "RSI"
+msgstr ""
+
+msgid "RSI (14)"
+msgstr ""
+
+msgid "RSI Length"
+msgstr "RSI 期間"
+
+msgid "RSI Settings"
+msgstr "RSI 設定"
+
+msgid "RSI-based MA"
+msgstr "RSI ベースのMA"
+
+msgid "RVGI"
+msgstr ""
+
+msgid "RVI"
+msgstr ""
+
+msgid "Ran the Strategy Lab"
+msgstr "ストラテジーラボを実行しました"
+
+msgid "Ran the screener"
+msgstr "スクリーナーを実行しました"
+
+#, message
+msgid "Ran {0}"
+msgstr "{0}を実行しました"
+
+msgid "Random"
+msgstr "ランダム"
+
+msgid "Range"
+msgstr "範囲"
+
+msgid "Rank Correlation Index"
+msgstr "順位相関指数"
+
+msgid "Rate Of Change"
+msgstr "変化率 (ROC)"
+
+msgid "Ratio avg win / avg loss"
+msgstr "平均利益 / 平均損失"
+
+msgid "Ratios"
+msgstr "比率"
+
+msgid "Ray"
+msgstr "レイ"
+
+msgid "Read from cache"
+msgstr "キャッシュから読み込み"
+
+msgid "Read the Strategy Report"
+msgstr "ストラテジーレポートを読む"
+
+msgid "Read the chart's bars"
+msgstr "チャートの足を読む"
+
+msgid "Read the scripting guide"
+msgstr "スクリプトガイドを読む"
+
+msgid "Read the seasonality"
+msgstr "季節性を読む"
+
+#, message
+msgid "Read {0}"
+msgstr "{0}を読む"
+
+msgid "Real time"
+msgstr "リアルタイム"
+
+msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
+msgstr "Upstox口座によるインドのリアルタイム価格。upstox.com/developer でアプリを作り、アクセストークンを貼り付けます(翌朝まで有効)。"
+
+msgid "Realized"
+msgstr "実現"
+
+msgid "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+msgstr "今すぐリバランス: 本日の株式数を取得してウェイトを設定し、指数値は維持します"
+
+#, message
+msgid "Rebalance {0}"
+msgstr "{0}をリバランス"
+
+#, message
+msgid "Rebalanced {0}"
+msgstr "{0}をリバランスしました"
+
+msgid "Rebalancing…"
+msgstr "リバランス中…"
+
+msgid "Receive"
+msgstr "受信"
+
+msgid "Receiving from {peer}"
+msgstr "{peer}から受信中"
+
+msgid "Recent colour"
+msgstr "最近の色"
+
+msgid "Rectangle"
+msgstr "長方形"
+
+msgid "Redo"
+msgstr "やり直す"
+
+msgid "Redo ({0})"
+msgstr "やり直す ({0})"
+
+msgid "Refresh"
+msgstr "更新"
+
+msgid "Rel volume"
+msgstr "相対出来高"
+
+msgid "Relative Strength Index"
+msgstr "相対力指数 (RSI)"
+
+msgid "Relative Strength Index, 14 days"
+msgstr "相対力指数、14日"
+
+msgid "Relative Vigor Index"
+msgstr "相対活力指数"
+
+msgid "Relative Volatility Index"
+msgstr "相対ボラティリティ指数"
+
+msgid "Release notes"
+msgstr "リリースノート"
+
+#, message
+msgid "Reloaded {file}: it changed on disk."
+msgstr "{file}を再読み込みしました: ディスク上で変更されました。"
+
+msgid "Remove"
+msgstr "削除"
+
+msgid "Remove (Delete)"
+msgstr "削除 (Delete)"
+
+msgid "Remove 1 drawing"
+msgstr "描画を1件削除"
+
+msgid "Remove 1 indicator"
+msgstr "インジケーターを1件削除"
+
+msgid "Remove drawings"
+msgstr "描画を削除"
+
+msgid "Remove drawings or indicators"
+msgstr "描画またはインジケーターを削除"
+
+msgid "Remove filter"
+msgstr "フィルターを削除"
+
+msgid "Remove from favorites"
+msgstr "お気に入りから削除"
+
+msgid "Remove from the top bar"
+msgstr "上部バーから削除"
+
+msgid "Remove from watchlist"
+msgstr "ウォッチリストから削除"
+
+msgid "Remove from watchlist (Shift+Enter)"
+msgstr "ウォッチリストから削除 (Shift+Enter)"
+
+msgid "Remove section"
+msgstr "セクションを削除"
+
+#, message
+msgid "Remove {0}"
+msgstr "{0}を削除"
+
+msgid "Remove {k} indicators"
+msgstr "インジケーターを{k}件削除"
+
+msgid "Remove {n} drawings"
+msgstr "描画を{n}件削除"
+
+msgid "Removed drawings"
+msgstr "描画を削除しました"
+
+#, message
+msgid "Removed {0}"
+msgstr "{0}を削除しました"
+
+msgid "Removes what's here for the items ticked above. A backup is saved first."
+msgstr "上でチェックした項目の既存データを削除します。先にバックアップを保存します。"
+
+msgid "Rename"
+msgstr "名前を変更"
+
+msgid "Renko"
+msgstr "練行足"
+
+msgid "Replace"
+msgstr "置き換え"
+
+msgid "Replace and restart"
+msgstr "置き換えて再起動"
+
+msgid "Replay"
+msgstr "リプレイ"
+
+#, message
+msgid "Replay: {a}"
+msgstr "リプレイ: {a}"
+
+msgid "Republic Day"
+msgstr "共和国記念日"
+
+msgid "Republic Proclamation Day"
+msgstr "共和制宣言記念日"
+
+msgid "Reset"
+msgstr "リセット"
+
+msgid "Reset account"
+msgstr "口座をリセット"
+
+msgid "Reset settings"
+msgstr "設定をリセット"
+
+msgid "Reset the account to change its currency"
+msgstr "通貨を変えるには口座をリセットしてください"
+
+msgid "Reset the chart view"
+msgstr "チャート表示をリセット"
+
+msgid "Resets {0}"
+msgstr "{0}にリセット"
+
+msgid "Respect for the Aged Day"
+msgstr "敬老の日"
+
+msgid "Restart"
+msgstr "再開"
+
+msgid "Restart Opentern"
+msgstr "Openternを再起動"
+
+msgid "Restore factory defaults"
+msgstr "初期設定に戻す"
+
+msgid "Restore panel"
+msgstr "パネルを元に戻す"
+
+msgid "Return"
+msgstr "リターン"
+
+msgid "Return of max drawdown"
+msgstr "最大ドローダウン比リターン"
+
+msgid "Return on account size required"
+msgstr "必要口座資金比リターン"
+
+msgid "Return on initial capital"
+msgstr "初期資金比リターン"
+
+msgid "Returns"
+msgstr "リターン"
+
+msgid "Rev growth"
+msgstr "増収率"
+
+msgid "Revenue growth"
+msgstr "増収率"
+
+msgid "Revenue, year on year. For the index: the members' revenue together"
+msgstr "売上高の前年比。指数では構成銘柄の売上合計"
+
+msgid "Reversal"
+msgstr "反転"
+
+msgid "Reversal amount"
+msgstr "反転幅"
+
+msgid "Reverse"
+msgstr "反転"
+
+msgid "Reverse split 1:{0}"
+msgstr "株式併合 1:{0}"
+
+msgid "Right"
+msgstr "右"
+
+msgid "Right Bars"
+msgstr "右の足数"
+
+msgid "Rises and falls"
+msgstr "上昇と下落"
+
+msgid "Risk/performance ratios"
+msgstr "リスク/パフォーマンス比率"
+
+msgid "Risk/reward ratio: {rr}"
+msgstr "リスクリワード比: {rr}"
+
+msgid "Ruin at drawdown"
+msgstr "破産とみなすドローダウン"
+
+msgid "Run"
+msgstr "実行"
+
+msgid "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR market-data subscriptions."
+msgstr "IBKRのClient Portalゲートウェイを起動してログインし、IBKR:AAPL のような銘柄を使います。IBKRの市場データ契約が必要です。"
+
+msgid "Run a command"
+msgstr "コマンドを実行"
+
+msgid "Run the Strategy Lab"
+msgstr "ストラテジーラボを実行"
+
+msgid "Run the screener"
+msgstr "スクリーナーを実行"
+
+msgid "Run-up"
+msgstr "ランアップ"
+
+msgid "Running…"
+msgstr "実行中…"
+
+msgid "Runs"
+msgstr "実行回数"
+
+msgid "S&P 500"
+msgstr ""
+
+msgid "SAVED"
+msgstr "保存済み"
+
+msgid "SCALE"
+msgstr "スケール"
+
+msgid "SCRIPTS"
+msgstr "スクリプト"
+
+msgid "SIP: prices from all US exchanges, not just IEX"
+msgstr "SIP: IEXだけでなく全米取引所の価格"
+
+msgid "SIX Swiss Exchange"
+msgstr ""
+
+msgid "SMA"
+msgstr ""
+
+msgid "SMA Length #1"
+msgstr "SMA 期間 1"
+
+msgid "SMA Length #2"
+msgstr "SMA 期間 2"
+
+msgid "SMA Length #3"
+msgstr "SMA 期間 3"
+
+msgid "SMA Length #4"
+msgstr "SMA 期間 4"
+
+msgid "SMI"
+msgstr ""
+
+msgid "SMI Ergodic Indicator"
+msgstr "SMIエルゴディック指標"
+
+msgid "SMI Ergodic Oscillator"
+msgstr "SMIエルゴディックオシレーター"
+
+msgid "SMI-based EMA"
+msgstr "SMIベースのEMA"
+
+msgid "SMMA (RMA)"
+msgstr ""
+
+msgid "SMTP server"
+msgstr "SMTPサーバー"
+
+msgid "Same % scale"
+msgstr "同じ%スケール"
+
+msgid "Sat"
+msgstr "土"
+
+msgid "Saturday"
+msgstr "土曜日"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Save a snapshot"
+msgstr "スナップショットを保存"
+
+msgid "Save and add to the chart ({0})"
+msgstr "保存してチャートに追加 ({0})"
+
+msgid "Save and update the chart ({0})"
+msgstr "保存してチャートを更新 ({0})"
+
+msgid "Save as"
+msgstr "名前を付けて保存"
+
+msgid "Save as default"
+msgstr "既定として保存"
+
+msgid "Save chart template"
+msgstr "チャートテンプレートを保存"
+
+msgid "Save indicator template"
+msgstr "インジケーターテンプレートを保存"
+
+msgid "Save layout"
+msgstr "レイアウトを保存"
+
+msgid "Save the results as CSV"
+msgstr "結果をCSVで保存"
+
+msgid "Save the results as JSON"
+msgstr "結果をJSONで保存"
+
+msgid "Saved in your keychain (paste to replace)"
+msgstr "キーチェーンに保存済み (貼り付けで置き換え)"
+
+#, message
+msgid "Saved to {0}"
+msgstr "{0}に保存しました"
+
+#, message
+msgid "Saved {file}."
+msgstr "{file}を保存しました。"
+
+msgid "Saved."
+msgstr "保存しました。"
+
+msgid "Scale and more"
+msgstr "スケールなど"
+
+msgid "Scales"
+msgstr "スケール"
+
+msgid "Scales and lines"
+msgstr "スケールと線"
+
+msgid "Scales text"
+msgstr "スケールの文字"
+
+msgid "Screener"
+msgstr "スクリーナー"
+
+msgid "Screener settings"
+msgstr "スクリーナー設定"
+
+msgid "Script"
+msgstr "スクリプト"
+
+msgid "Script Editor"
+msgstr "スクリプトエディター"
+
+msgid "Script failed"
+msgstr "スクリプト失敗"
+
+msgid "Scripts"
+msgstr "スクリプト"
+
+msgid "Scroll to the most recent bar"
+msgstr "最新の足へスクロール"
+
+msgid "Search"
+msgstr "検索"
+
+msgid "Search chats"
+msgstr "チャットを検索"
+
+#, message
+msgid "Search for {0}"
+msgstr "{0}を検索"
+
+msgid "Search lists"
+msgstr "リストを検索"
+
+msgid "Search shows prices"
+msgstr "検索に価格を表示"
+
+#, message
+msgid "Search symbols: {0}"
+msgstr "銘柄を検索: {0}"
+
+#, message
+msgid "Search the web: {0}"
+msgstr "ウェブを検索: {0}"
+
+#, message
+msgid "Searched for {0}"
+msgstr "{0}を検索しました"
+
+#, message
+msgid "Searched symbols: {0}"
+msgstr "銘柄を検索しました: {0}"
+
+#, message
+msgid "Searched the web: {0}"
+msgstr "ウェブを検索しました: {0}"
+
+msgid "Seasonality"
+msgstr "季節性"
+
+msgid "Seconds"
+msgstr "秒"
+
+msgid "Secret key"
+msgstr "シークレットキー"
+
+msgid "Select all"
+msgstr "すべて選択"
+
+msgid "Select bar"
+msgstr "足を選択"
+
+msgid "Select layout"
+msgstr "レイアウトを選択"
+
+msgid "Select none"
+msgstr "選択を解除"
+
+msgid "Sell"
+msgstr "売り"
+
+msgid "Sell order filled."
+msgstr "売り注文が約定しました。"
+
+msgid "Send"
+msgstr "送信"
+
+msgid "Send (Enter)"
+msgstr "送信 (Enter)"
+
+msgid "Send a test email"
+msgstr "テストメールを送信"
+
+msgid "Send to"
+msgstr "送信先"
+
+msgid "Send to another device"
+msgstr "別のデバイスに送信"
+
+msgid "Sending to {peer}"
+msgstr "{peer}に送信中"
+
+msgid "Sending…"
+msgstr "送信中…"
+
+msgid "Sent to {peer}"
+msgstr "{peer}に送信しました"
+
+msgid "Sent. Check your inbox."
+msgstr "送信しました。受信トレイを確認してください。"
+
+msgid "Seoul"
+msgstr "ソウル"
+
+msgid "Sep"
+msgstr "9月"
+
+msgid "September"
+msgstr "9月"
+
+msgid "Session"
+msgstr "セッション"
+
+msgid "Session Volume Profile"
+msgstr "セッション出来高プロファイル"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Settings → Export and import → Import → Receive"
+msgstr "設定 → エクスポートとインポート → インポート → 受信"
+
+msgid "Shanghai"
+msgstr "上海"
+
+msgid "Shanghai Stock Exchange"
+msgstr ""
+
+msgid "Shapes"
+msgstr "図形"
+
+msgid "Sharpe"
+msgstr "シャープ"
+
+msgid "Sharpe ratio"
+msgstr "シャープレシオ"
+
+msgid "Short"
+msgstr "ショート"
+
+msgid "Short Length"
+msgstr "短期期間"
+
+msgid "Short MA"
+msgstr "短期MA"
+
+msgid "Short MA length"
+msgstr "短期MAの期間"
+
+msgid "Short RCI"
+msgstr "短期RCI"
+
+msgid "Short RCI Length"
+msgstr "短期RCIの期間"
+
+msgid "Short RoC Length"
+msgstr "短期RoCの期間"
+
+msgid "Short position"
+msgstr "売りポジション"
+
+msgid "Show"
+msgstr "表示"
+
+msgid "Show POC"
+msgstr "POCを表示"
+
+msgid "Show Pearson's R"
+msgstr "ピアソンのRを表示"
+
+msgid "Show files ({0})"
+msgstr "ファイルを表示 ({0})"
+
+msgid "Show in folder"
+msgstr "フォルダーで表示"
+
+msgid "Show in the top bar"
+msgstr "上部バーに表示"
+
+msgid "Show labels"
+msgstr "ラベルを表示"
+
+msgid "Show on intervals"
+msgstr "表示する時間足"
+
+msgid "Show prices"
+msgstr "価格を表示"
+
+msgid "Show symbol logos"
+msgstr "銘柄ロゴを表示"
+
+msgid "Show the drawing toolbar"
+msgstr "描画ツールバーを表示"
+
+msgid "Show value area high and low"
+msgstr "バリューエリアの高値と安値を表示"
+
+msgid "Showa Day"
+msgstr "昭和の日"
+
+#, message
+msgid "Showing {te}'s {td} instead."
+msgstr "代わりに{te}の{td}を表示しています。"
+
+msgid "Shows after your first message."
+msgstr "最初のメッセージの後に表示されます。"
+
+msgid "Shri Mahavir Jayanti"
+msgstr ""
+
+msgid "Shri Ram Navami"
+msgstr ""
+
+msgid "Shuffle the order"
+msgstr "順序をシャッフル"
+
+msgid "Side"
+msgstr "売買"
+
+msgid "Sigma"
+msgstr "シグマ"
+
+msgid "Sign in"
+msgstr "サインイン"
+
+msgid "Sign in to {0}"
+msgstr "{0}にサインイン"
+
+msgid "Signal"
+msgstr "シグナル"
+
+msgid "Signal Length"
+msgstr "シグナルの期間"
+
+msgid "Signal Line Length"
+msgstr "シグナル線の期間"
+
+msgid "Signal Line MA Type"
+msgstr "シグナル線のMAタイプ"
+
+msgid "Signal Smoothing"
+msgstr "シグナルの平滑化"
+
+msgid "Signal line"
+msgstr "シグナル線"
+
+msgid "Singapore"
+msgstr "シンガポール"
+
+msgid "Singapore Exchange"
+msgstr ""
+
+msgid "Size"
+msgstr "サイズ"
+
+msgid "Sized by 24h volume, from {0}"
+msgstr "24時間出来高による大きさ、{0}"
+
+msgid "Sized by market cap, from {0}"
+msgstr "時価総額による大きさ、{0}"
+
+msgid "Slippage"
+msgstr "スリッページ"
+
+msgid "Slow Length"
+msgstr "長期期間"
+
+msgid "Slow length"
+msgstr "長期期間"
+
+msgid "Smallest max drawdown"
+msgstr "最小の最大ドローダウン"
+
+msgid "Smoothed Moving Average"
+msgstr "平滑移動平均"
+
+msgid "Smoothing"
+msgstr "平滑化"
+
+msgid "Smoothing Length"
+msgstr "平滑化期間"
+
+msgid "Snapshot copied"
+msgstr "スナップショットをコピーしました"
+
+msgid "Snapshot saved"
+msgstr "スナップショットを保存しました"
+
+msgid "Snapshots"
+msgstr "スナップショット"
+
+#, message
+msgid "Sold {qty} {sym} at {price}"
+msgstr "{sym}を{qty}、{price}で売りました"
+
+msgid "Solid"
+msgstr "実線"
+
+msgid "Someone entered the wrong code."
+msgstr "誤ったコードが入力されました。"
+
+msgid "Something went wrong in the run."
+msgstr "実行中に問題が発生しました。"
+
+msgid "Sort"
+msgstr "並べ替え"
+
+msgid "Sort by name"
+msgstr "名前順"
+
+msgid "Sort by weight"
+msgstr "ウェイト順"
+
+msgid "Sortino ratio"
+msgstr "ソルティノレシオ"
+
+msgid "Sound"
+msgstr "サウンド"
+
+msgid "Source"
+msgstr "ソース"
+
+msgid "Source code"
+msgstr "ソースコード"
+
+msgid "Special hours"
+msgstr "特別時間"
+
+msgid "Special session"
+msgstr "特別セッション"
+
+msgid "Speed: time per bar (click to change)"
+msgstr "速度: 足あたりの時間 (クリックで変更)"
+
+msgid "Split"
+msgstr "分割"
+
+msgid "Split or bonus"
+msgstr "分割または無償交付"
+
+msgid "Sports Day"
+msgstr "スポーツの日"
+
+msgid "Spring Bank Holiday"
+msgstr "春の銀行休業日"
+
+msgid "StDev"
+msgstr "標準偏差"
+
+msgid "Standard Deviation"
+msgstr "標準偏差"
+
+msgid "Standard Error"
+msgstr "標準誤差"
+
+msgid "Standard Error Bands"
+msgstr "標準誤差バンド"
+
+msgid "Start"
+msgstr "開始"
+
+#, message
+msgid "Start a helper: {0}"
+msgstr "ヘルパーを起動: {0}"
+
+#, message
+msgid "Start a replay at {0}"
+msgstr "{0}からリプレイを開始"
+
+msgid "Start again"
+msgstr "最初からやり直す"
+
+#, message
+msgid "Started a helper: {0}"
+msgstr "ヘルパーを起動しました: {0}"
+
+#, message
+msgid "Started a replay at {0}"
+msgstr "{0}からリプレイを開始しました"
+
+msgid "Starting capital"
+msgstr "開始資金"
+
+msgid "Status"
+msgstr "状態"
+
+msgid "Status line"
+msgstr "ステータスライン"
+
+msgid "Stay in drawing mode"
+msgstr "描画モードを維持"
+
+msgid "StdDev"
+msgstr "標準偏差"
+
+msgid "Step line"
+msgstr "ステップライン"
+
+msgid "Step one bar"
+msgstr "1本進める"
+
+msgid "Step the replay"
+msgstr "リプレイを進める"
+
+msgid "Stepped the replay"
+msgstr "リプレイを進めました"
+
+msgid "Stochastic"
+msgstr "ストキャスティクス"
+
+msgid "Stochastic Length"
+msgstr "ストキャスティクスの期間"
+
+msgid "Stochastic Momentum Index"
+msgstr "ストキャスティクスモメンタム指数"
+
+msgid "Stochastic RSI"
+msgstr "ストキャスティクスRSI"
+
+msgid "Stocks"
+msgstr "株式"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Stop Length"
+msgstr "ストップの期間"
+
+msgid "Stop Long"
+msgstr "ロングのストップ"
+
+msgid "Stop Short"
+msgstr "ショートのストップ"
+
+msgid "Stop limit"
+msgstr "ストップリミット"
+
+msgid "Stop loss"
+msgstr "ストップロス"
+
+msgid "Stop price"
+msgstr "逆指値価格"
+
+msgid "Stop using as default"
+msgstr "既定から外す"
+
+msgid "Stop: {0} ({1})"
+msgstr "ストップ: {0} ({1})"
+
+msgid "Stopped"
+msgstr "停止中"
+
+msgid "Stopped."
+msgstr "停止しました。"
+
+msgid "Stop|order"
+msgstr "逆指値"
+
+msgid "Strategy Lab"
+msgstr "ストラテジーラボ"
+
+msgid "Strategy Lab settings"
+msgstr "ストラテジーラボ設定"
+
+msgid "Strategy Report"
+msgstr "ストラテジーレポート"
+
+msgid "Strategy outperformance"
+msgstr "ストラテジーの超過収益"
+
+msgid "Strategy settings"
+msgstr "ストラテジー設定"
+
+msgid "Strategy settings: capital, order size, commission, slippage and margin"
+msgstr "ストラテジー設定: 資金、注文サイズ、手数料、スリッページ、証拠金"
+
+msgid "Style"
+msgstr "スタイル"
+
+msgid "Summer Bank Holiday"
+msgstr "夏の銀行休業日"
+
+msgid "Sun"
+msgstr "日"
+
+msgid "Sunday"
+msgstr "日曜日"
+
+msgid "Supertrend"
+msgstr "スーパートレンド"
+
+msgid "Swatches"
+msgstr "スウォッチ"
+
+msgid "Swiss National Day"
+msgstr "スイス建国記念日"
+
+msgid "Switch to dark theme"
+msgstr "ダークテーマに切り替え"
+
+msgid "Switch to light theme"
+msgstr "ライトテーマに切り替え"
+
+#, message
+msgid "Switch to {0}"
+msgstr "{0}に切り替え"
+
+#, message
+msgid "Switched to {0}"
+msgstr "{0}に切り替えました"
+
+msgid "Sydney"
+msgstr "シドニー"
+
+msgid "Symbol"
+msgstr "銘柄"
+
+msgid "Symbol last price label"
+msgstr "現在値ラベル"
+
+msgid "Symbol last price line"
+msgstr "現在値ライン"
+
+msgid "Symbol logos"
+msgstr "銘柄ロゴ"
+
+msgid "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+msgstr "銘柄または式 (例: BTCUSDT, AAPL, BTCUSDT/ETHUSDT)"
+
+msgid "Symbol search"
+msgstr "銘柄検索"
+
+msgid "Symbol search (start typing anywhere)"
+msgstr "銘柄検索 (どこでも入力を開始)"
+
+msgid "Symbol watermark"
+msgstr "銘柄の透かし"
+
+msgid "Symbols"
+msgstr "銘柄"
+
+msgid "System ({0})"
+msgstr "システム ({0})"
+
+msgid "São Paulo"
+msgstr "サンパウロ"
+
+msgid "THIS LAYOUT"
+msgstr "このレイアウト"
+
+msgid "TRIX"
+msgstr ""
+
+msgid "TWAP"
+msgstr ""
+
+msgid "Table"
+msgstr "表"
+
+msgid "Taipei"
+msgstr "台北"
+
+msgid "Taiwan Restoration Day"
+msgstr "台湾光復節"
+
+msgid "Taiwan Stock Exchange"
+msgstr ""
+
+msgid "Take a picture of the chart"
+msgstr "チャートの画像を撮る"
+
+msgid "Take a snapshot (Alt+S)"
+msgstr "スナップショットを撮る (Alt+S)"
+
+msgid "Take it off the chart before moving it."
+msgstr "移動する前にチャートから外してください。"
+
+msgid "Take its scripts off the chart before renaming it."
+msgstr "名前を変える前に、そのスクリプトをチャートから外してください。"
+
+msgid "Take profit"
+msgstr "テイクプロフィット"
+
+msgid "Target: {0} ({1})"
+msgstr "目標: {0} ({1})"
+
+msgid "Teachers' Day"
+msgstr "教師の日"
+
+msgid "Technicals"
+msgstr "テクニカル"
+
+msgid "Teeth"
+msgstr "ティース"
+
+msgid "Teeth Length"
+msgstr "ティースの期間"
+
+msgid "Teeth Offset"
+msgstr "ティースのオフセット"
+
+msgid "Telegram"
+msgstr ""
+
+msgid "Telegram bot token"
+msgstr "Telegramボットトークン"
+
+msgid "Telegram chat id"
+msgstr "TelegramチャットID"
+
+msgid "Template  {0}"
+msgstr "テンプレート  {0}"
+
+msgid "Templates"
+msgstr "テンプレート"
+
+msgid "Text"
+msgstr "テキスト"
+
+msgid "Thanksgiving"
+msgstr "感謝祭"
+
+msgid "Thanksgiving Day"
+msgstr "感謝祭"
+
+msgid "That code doesn't match. Check the other device and try again."
+msgstr "コードが一致しません。もう一方のデバイスを確認して再度お試しください。"
+
+#, message
+msgid "That file is damaged. Export it again."
+msgstr "ファイルが破損しています。再度エクスポートしてください。"
+
+#, message
+msgid "That file is too big to import."
+msgstr "ファイルが大きすぎてインポートできません。"
+
+#, message
+msgid "That isn't an Opentern export file."
+msgstr "Openternのエクスポートファイルではありません。"
+
+msgid "That list has no symbols."
+msgstr "そのリストに銘柄がありません。"
+
+#, message
+msgid "That price isn't valid."
+msgstr "その価格は無効です。"
+
+#, message
+msgid "That's {0} combinations per window, more than the grid's {1}. Narrow the ranges or use Random or Bayesian."
+msgstr "期間あたり{0}通りで、グリッドの上限{1}を超えています。範囲を狭めるか、ランダムまたはベイズを使ってください。"
+
+#, message
+msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr "{combos}通りで、グリッドの上限{MAX_GRID}を超えています。範囲を狭めるか、ランダムまたはベイズを使ってください。"
+
+msgid "The account was reset."
+msgstr "口座をリセットしました。"
+
+msgid "The chart reloads when you save there"
+msgstr "そこで保存するとチャートが再読み込みされます"
+
+msgid "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB."
+msgstr "カラーピッカーに「カスタム」タブを追加。スペクトラム、色相バー、hexとRGB。"
+
+msgid "The connection dropped. The code still works."
+msgstr "接続が切れました。コードはまだ有効です。"
+
+msgid "The connection dropped. Try again."
+msgstr "接続が切れました。もう一度お試しください。"
+
+#, message
+msgid "The data service answered with an error ({c})."
+msgstr "データサービスがエラーを返しました ({c})。"
+
+#, message
+msgid "The data service refused the key. Check it in Settings → Data providers."
+msgstr "データサービスがキーを拒否しました。設定 → データプロバイダーで確認してください。"
+
+msgid "The gateway URL should look like https://localhost:5000"
+msgstr "ゲートウェイURLは https://localhost:5000 の形式です"
+
+msgid "The other device runs a different version of Opentern. Update both, then try again."
+msgstr "もう一方のデバイスのOpenternはバージョンが異なります。両方を更新して再度お試しください。"
+
+msgid "The port should be a number, usually 587 or 465."
+msgstr "ポートは数字です。通常は587か465です。"
+
+msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
+msgstr "同じ動作に加え、コンピューターへのログイン時にも起動するため、再起動後もアラートが続きます。"
+
+msgid "The script crashed."
+msgstr "スクリプトがクラッシュしました。"
+
+msgid "The script failed on this symbol."
+msgstr "この銘柄でスクリプトが失敗しました。"
+
+#, message
+msgid "The scripts folder is too big to export."
+msgstr "スクリプトフォルダーが大きすぎてエクスポートできません。"
+
+#, message
+msgid "The stop-loss has to be {0} the entry price."
+msgstr "ストップロスは建値より{0}にしてください。"
+
+msgid "The strategy isn't on the chart any more."
+msgstr "ストラテジーはもうチャートにありません。"
+
+#, message
+msgid "The take-profit has to be {0} the entry price."
+msgstr "テイクプロフィットは建値より{0}にしてください。"
+
+msgid "The webhook URL should start with https://"
+msgstr "Webhook URLは https:// で始めてください"
+
+msgid "Theme"
+msgstr "テーマ"
+
+#, message
+msgid "There are no bars to test on yet."
+msgstr "テストする足がまだありません。"
+
+msgid "There's already an account with this name."
+msgstr "この名前の口座はすでにあります。"
+
+#, message
+msgid "There's already something called {name} there."
+msgstr "{name}という名前のものがすでにあります。"
+
+#, message
+msgid "There's no free order book for this market. The DOM works for crypto exchanges."
+msgstr "この市場には無料の板情報がありません。板は暗号資産取引所で使えます。"
+
+msgid "There's no image or file on the clipboard."
+msgstr "クリップボードに画像もファイルもありません。"
+
+msgid "Thinking"
+msgstr "考え中"
+
+msgid "This device"
+msgstr "このデバイス"
+
+msgid "This file has a Python script"
+msgstr "このファイルにはPythonスクリプトが1個あります"
+
+msgid "This file has nothing in it to import."
+msgstr "このファイルにはインポートするものがありません。"
+
+msgid "This file has {0} Python scripts"
+msgstr "このファイルにはPythonスクリプトが{0}個あります"
+
+#, message
+msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
+msgstr "このファイルは新しいバージョンのOpenternで作られています。Openternを更新するとインポートできます。"
+
+msgid "This is a library: import it from another script."
+msgstr "これはライブラリです。別のスクリプトからインポートしてください。"
+
+msgid "This strategy can't be compiled for other symbols."
+msgstr "このストラテジーは他の銘柄向けにコンパイルできません。"
+
+msgid "This strategy has no inputs to vary."
+msgstr "このストラテジーには変化させる入力がありません。"
+
+msgid "Thu"
+msgstr "木"
+
+msgid "Thursday"
+msgstr "木曜日"
+
+#, message
+msgid "Tick members of {0}"
+msgstr "{0}の構成銘柄を選択"
+
+msgid "Tick the inputs to vary."
+msgstr "変化させる入力にチェックを入れてください。"
+
+#, message
+msgid "Ticked members of {0}"
+msgstr "{0}の構成銘柄を選択しました"
+
+msgid "Tiles show the regular session. Hover one for its extended-hours price."
+msgstr "タイルは通常取引の値です。カーソルを合わせると時間外価格を表示します。"
+
+msgid "Time"
+msgstr "時刻"
+
+msgid "Time Weighted Average Price"
+msgstr "時間加重平均価格"
+
+msgid "Timeframe"
+msgstr "時間枠"
+
+msgid "Timezone"
+msgstr "タイムゾーン"
+
+msgid "Tiradentes"
+msgstr "チラデンテス"
+
+msgid "Title"
+msgstr "名称"
+
+msgid "Today"
+msgstr "今日"
+
+msgid "Today's weight in the index"
+msgstr "指数における本日のウェイト"
+
+msgid "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."
+msgstr "トークン: OANDA → My Services → Manage API Access。OANDA:EURUSD のような銘柄を使います。"
+
+msgid "Tokyo"
+msgstr "東京"
+
+msgid "Tomorrow"
+msgstr "明日"
+
+msgid "Too many wrong codes. Start again."
+msgstr "誤ったコードが多すぎます。最初からやり直してください。"
+
+msgid "Took a picture of the chart"
+msgstr "チャートの画像を撮りました"
+
+msgid "Top 150"
+msgstr "上位150"
+
+msgid "Toronto"
+msgstr "トロント"
+
+msgid "Toronto Stock Exchange"
+msgstr ""
+
+msgid "Total"
+msgstr "合計"
+
+msgid "Total P&L"
+msgstr "総損益"
+
+msgid "Total open trades"
+msgstr "未決済トレード数"
+
+msgid "Total trades"
+msgstr "総トレード数"
+
+msgid "Trade #"
+msgstr "トレード番号"
+
+msgid "Trades"
+msgstr "トレード"
+
+msgid "Trades analysis"
+msgstr "トレード分析"
+
+msgid "Trading Sessions"
+msgstr "取引セッション"
+
+msgid "Trading range"
+msgstr "取引期間"
+
+msgid "Traditional"
+msgstr "従来型"
+
+msgid "Trail by"
+msgstr "追従幅"
+
+msgid "Trailing stop"
+msgstr "トレーリングストップ"
+
+msgid "Trailing twelve months. For the index: weighted by revenue"
+msgstr "直近12か月。指数では売上高で加重"
+
+msgid "Trend"
+msgstr "トレンド"
+
+msgid "Trend Strength Index"
+msgstr "トレンド強度指数"
+
+msgid "Trend line"
+msgstr "トレンドライン"
+
+msgid "Trend line tools"
+msgstr "トレンドラインツール"
+
+msgid "Trend-based fib extension"
+msgstr "トレンドベースのフィボエクステンション"
+
+msgid "Triangle"
+msgstr "三角形"
+
+msgid "Tries all {0} choices"
+msgstr "{0}個の選択肢をすべて試します"
+
+msgid "Tries on and off"
+msgstr "オンとオフを試します"
+
+msgid "Trigger"
+msgstr "発動頻度"
+
+msgid "Triggered"
+msgstr "発動済み"
+
+msgid "Triple EMA"
+msgstr "三重EMA"
+
+msgid "True Range"
+msgstr "トゥルーレンジ"
+
+msgid "True Strength Index"
+msgstr "真の強度指数"
+
+msgid "Try again"
+msgstr "再試行"
+
+msgid "Tue"
+msgstr "火"
+
+msgid "Tuesday"
+msgstr "火曜日"
+
+msgid "Type"
+msgstr "種類"
+
+msgid "Type a number"
+msgstr "数字を入力"
+
+msgid "Type anywhere"
+msgstr "どこでも入力"
+
+msgid "UO"
+msgstr ""
+
+msgid "US Markets"
+msgstr "米国市場"
+
+msgid "US large caps"
+msgstr "米国大型株"
+
+msgid "Ultimate Oscillator"
+msgstr "アルティメットオシレーター"
+
+msgid "Undo"
+msgstr "元に戻す"
+
+msgid "Undo ({0})"
+msgstr "元に戻す ({0})"
+
+msgid "Union Budget session"
+msgstr "連邦予算セッション"
+
+msgid "Unrealized"
+msgstr "未実現"
+
+msgid "Untitled"
+msgstr "無題"
+
+msgid "Up"
+msgstr "上"
+
+msgid "Up / down"
+msgstr "上 / 下"
+
+msgid "Up Trend"
+msgstr "上昇トレンド"
+
+msgid "Up volume"
+msgstr "上昇出来高"
+
+msgid "Up/Down"
+msgstr "上/下"
+
+msgid "UpDown Length"
+msgstr "UpDown 期間"
+
+msgid "Update available"
+msgstr "更新があります"
+
+msgid "Update failed"
+msgstr "更新に失敗しました"
+
+msgid "Update installed"
+msgstr "更新をインストールしました"
+
+msgid "Update on chart"
+msgstr "チャート上で更新"
+
+msgid "Update to {0}"
+msgstr "{0}に更新"
+
+#, message
+msgid "Updated {file} on the chart."
+msgstr "チャート上の{file}を更新しました。"
+
+msgid "Updates"
+msgstr "更新"
+
+msgid "Updating to {0}"
+msgstr "{0}に更新中"
+
+msgid "Updating to {0} ({1}%)"
+msgstr "{0}に更新中 ({1}%)"
+
+msgid "Upper"
+msgstr "上限"
+
+msgid "Upper Band"
+msgstr "上限バンド"
+
+msgid "Upper Band #1"
+msgstr "上限バンド 1"
+
+msgid "Upper Band #2"
+msgstr "上限バンド 2"
+
+msgid "Upper Band #3"
+msgstr "上限バンド 3"
+
+msgid "Upper color"
+msgstr "上側の色"
+
+msgid "Upper deviation"
+msgstr "上側の偏差"
+
+msgid "Upper length"
+msgstr "上側の期間"
+
+msgid "Upper multiplier"
+msgstr "上側の倍率"
+
+msgid "Upper offset"
+msgstr "上側のオフセット"
+
+#, message
+msgid "Upstox doesn't list {0}."
+msgstr "Upstoxに{0}はありません。"
+
+#, message
+msgid "Upstox has no {0} bars"
+msgstr "Upstoxに{0}足はありません"
+
+msgid "Upstox · NSE and BSE"
+msgstr "Upstox · NSEとBSE"
+
+#, message
+msgid "Upstox: couldn't read the instrument list."
+msgstr "Upstox: 銘柄一覧を読み込めませんでした。"
+
+#, message
+msgid "Upstox: no quote for this symbol."
+msgstr "Upstox: この銘柄の気配がありません。"
+
+msgid "Uptrend Highlighter"
+msgstr "上昇トレンドの強調"
+
+msgid "Usage shows after your first message."
+msgstr "使用量は最初のメッセージの後に表示されます。"
+
+msgid "Use Exponential MA"
+msgstr "指数MAを使う"
+
+msgid "Use for new charts"
+msgstr "新しいチャートに使う"
+
+msgid "Use the Strategy Lab"
+msgstr "ストラテジーラボを使う"
+
+msgid "Use the default folder"
+msgstr "既定のフォルダーを使う"
+
+msgid "Use the gateway"
+msgstr "ゲートウェイを使う"
+
+msgid "Use the indices"
+msgstr "指数を使う"
+
+msgid "Use the screener"
+msgstr "スクリーナーを使う"
+
+msgid "Use this style for new drawings of this kind"
+msgstr "この種類の新しい描画にこのスタイルを使う"
+
+msgid "Used the Strategy Lab"
+msgstr "ストラテジーラボを使いました"
+
+msgid "Used the indices"
+msgstr "指数を使いました"
+
+msgid "Used the screener"
+msgstr "スクリーナーを使いました"
+
+#, message
+msgid "Using {0}."
+msgstr "{0}を使用中。"
+
+msgid "VI +"
+msgstr ""
+
+msgid "VI -"
+msgstr ""
+
+msgid "VWAP"
+msgstr ""
+
+msgid "VWAP Settings"
+msgstr "VWAP 設定"
+
+msgid "VWMA"
+msgstr ""
+
+msgid "Valuation"
+msgstr "バリュエーション"
+
+msgid "Value"
+msgstr "値"
+
+msgid "Value area down"
+msgstr "バリューエリア下落"
+
+msgid "Value area up"
+msgstr "バリューエリア上昇"
+
+msgid "Value area volume %"
+msgstr "バリューエリア出来高 %"
+
+msgid "Values"
+msgstr "値"
+
+msgid "Vert grid lines"
+msgstr "縦グリッド線"
+
+msgid "Vertical line"
+msgstr "垂直線"
+
+msgid "Victoria Day"
+msgstr "ビクトリア・デー"
+
+msgid "Visibility"
+msgstr "表示"
+
+msgid "Visible Average Price"
+msgstr "可視平均価格"
+
+msgid "Vol {0}"
+msgstr "出来高 {0}"
+
+msgid "Volatility"
+msgstr "ボラティリティ"
+
+msgid "Volatility Stop"
+msgstr "ボラティリティストップ"
+
+msgid "Volume"
+msgstr "出来高"
+
+msgid "Volume MA"
+msgstr "出来高MA"
+
+msgid "Volume Osc"
+msgstr "出来高OSC"
+
+msgid "Volume Oscillator"
+msgstr "出来高オシレーター"
+
+msgid "Volume Profile Visible Range"
+msgstr "表示範囲の出来高プロファイル"
+
+msgid "Volume Weighted Moving Average"
+msgstr "出来高加重移動平均"
+
+msgid "Volume leaders"
+msgstr "出来高上位"
+
+msgid "Vortex Indicator"
+msgstr "ボルテックス指標"
+
+msgid "WMA"
+msgstr ""
+
+msgid "WMA Length"
+msgstr "WMA 期間"
+
+msgid "Waiting for Windows"
+msgstr "Windowsを待っています"
+
+msgid "Waiting for the other device"
+msgstr "もう一方のデバイスを待っています"
+
+msgid "Waiting for your answer"
+msgstr "回答を待っています"
+
+msgid "Walk-forward"
+msgstr "ウォークフォワード"
+
+msgid "Washington's Birthday"
+msgstr "ワシントン誕生日"
+
+msgid "Watch"
+msgstr "監視対象"
+
+msgid "Watchlist"
+msgstr "ウォッチリスト"
+
+#, message
+msgid "Watchlist: {0}"
+msgstr "ウォッチリスト: {0}"
+
+msgid "Watchlists"
+msgstr "ウォッチリスト"
+
+msgid "Webhook"
+msgstr "Webhook"
+
+msgid "Webhook URL"
+msgstr "Webhook URL"
+
+msgid "Wed"
+msgstr "水"
+
+msgid "Wednesday"
+msgstr "水曜日"
+
+msgid "Week"
+msgstr "週"
+
+msgid "Weekly"
+msgstr "週次"
+
+msgid "Weekly (Opus)"
+msgstr "週 (Opus)"
+
+msgid "Weekly (Sonnet)"
+msgstr "週 (Sonnet)"
+
+msgid "Weekly limit"
+msgstr "週間の上限"
+
+msgid "Weeks"
+msgstr "週"
+
+msgid "Weight"
+msgstr "ウェイト"
+
+msgid "Weighted equally for now: a member has no share count."
+msgstr "株式数のない構成銘柄があるため、当面は均等ウェイトです。"
+
+msgid "Weighting"
+msgstr "加重方法"
+
+msgid "What do you trade?"
+msgstr "何を取引しますか?"
+
+msgid "What was here is saved in the backups folder."
+msgstr "以前の内容はバックアップフォルダーに保存されています。"
+
+msgid "What's new"
+msgstr "新機能"
+
+msgid "When Opentern is closed"
+msgstr "Opentern終了時"
+
+msgid "When it's"
+msgstr "条件"
+
+msgid "When the price is"
+msgstr "価格が次のとき"
+
+msgid "Which plot to show (0 is the first)"
+msgstr "表示するプロット (0が最初)"
+
+msgid "Whit Monday"
+msgstr "聖霊降臨祭の月曜日"
+
+msgid "Wick"
+msgstr "ヒゲ"
+
+msgid "Width %"
+msgstr "幅 %"
+
+msgid "Williams %R"
+msgstr "ウィリアムズ %R"
+
+msgid "Williams Alligator"
+msgstr "ウィリアムズ・アリゲーター"
+
+msgid "Williams Fractals"
+msgstr "ウィリアムズ・フラクタル"
+
+msgid "Win %"
+msgstr "勝率 %"
+
+msgid "Windows didn't allow it. Try again"
+msgstr "Windowsが許可しませんでした。再試行"
+
+#, message
+msgid "Windows refused the rule."
+msgstr "Windowsがルールを拒否しました。"
+
+msgid "Winning trades"
+msgstr "勝ちトレード"
+
+msgid "Women and Children's Day"
+msgstr "女性と子供の日"
+
+msgid "Woodie"
+msgstr "ウッディー"
+
+msgid "Woodies CCI"
+msgstr "ウッディーズCCI"
+
+msgid "Working"
+msgstr "作業中"
+
+#, message
+msgid "Wrote {0}"
+msgstr "{0}を書き込みました"
+
+msgid "Xetra"
+msgstr ""
+
+msgid "YTD"
+msgstr "年初来"
+
+#, message
+msgid "Yahoo answered with an error ({c})."
+msgstr "Yahooがエラーを返しました ({c})。"
+
+#, message
+msgid "Yahoo answered with an error ({status})."
+msgstr "Yahooがエラーを返しました ({status})。"
+
+#, message
+msgid "Yahoo didn't send a list this time. Try again later."
+msgstr "今回はYahooから一覧が届きませんでした。後でお試しください。"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again in a minute."
+msgstr "今回はYahooから価格が届きませんでした。1分後にお試しください。"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again later."
+msgstr "今回はYahooから価格が届きませんでした。後でお試しください。"
+
+#, message
+msgid "Yahoo didn't start a session."
+msgstr "Yahooのセッションを開始できませんでした。"
+
+#, message
+msgid "Yahoo has no daily history for this BSE listing. NSE:{0} has it."
+msgstr "このBSE銘柄の日足履歴はYahooにありません。NSE:{0}にはあります。"
+
+#, message
+msgid "Yahoo has no data for this symbol"
+msgstr "この銘柄のデータはYahooにありません"
+
+#, message
+msgid "Yahoo has no {0} bars"
+msgstr "Yahooに{0}足はありません"
+
+#, message
+msgid "Yahoo is limiting requests right now."
+msgstr "Yahooが現在リクエストを制限しています。"
+
+#, message
+msgid "Yahoo is limiting requests; try again in a minute."
+msgstr "Yahooがリクエストを制限しています。1分後にお試しください。"
+
+#, message
+msgid "Yahoo is too slow to answer right now."
+msgstr "現在Yahooの応答が遅すぎます。"
+
+#, message
+msgid "Yahoo isn't answering right now (error {c})."
+msgstr "現在Yahooが応答していません (エラー {c})。"
+
+msgid "Yahoo no longer has {0} ({what} renamed or delisted?). They count at their last price. Replace them with Edit."
+msgstr "Yahooに{0}がなくなりました({what} 名称変更または上場廃止?)。最後の価格で計算しています。編集から置き換えてください。"
+
+#, message
+msgid "Yahoo sent {g} bars instead of {iv}."
+msgstr "Yahooが{iv}の代わりに{g}足を送りました。"
+
+#, message
+msgid "Yahoo's prices skip {name} on {0}: it isn't on this chart."
+msgstr "Yahooの価格には{0}の{name}がなく、このチャートにも表示されません。"
+
+msgid "Year"
+msgstr "年"
+
+msgid "Yearly"
+msgstr "年次"
+
+msgid "Yes, reset"
+msgstr "リセットする"
+
+msgid "Your address"
+msgstr "自分のアドレス"
+
+msgid "Your chat id (e.g. from @userinfobot)"
+msgstr "チャットID (例: @userinfobot で取得)"
+
+msgid "Your conversations with your agents show up here."
+msgstr "エージェントとの会話がここに表示されます。"
+
+msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
+msgstr "ウォッチリスト、レイアウト、描画、アラート、スクリプトは残ります。"
+
+msgid "Zero"
+msgstr "ゼロ"
+
+msgid "Zero Line"
+msgstr "ゼロライン"
+
+msgid "Zig Zag"
+msgstr "ジグザグ"
+
+msgid "Zoom in"
+msgstr "拡大"
+
+msgid "Zoom in (drag a range)"
+msgstr "拡大 (範囲をドラッグ)"
+
+msgid "Zurich"
+msgstr "チューリッヒ"
+
+msgid "[Ln {l}]"
+msgstr "[{l}行]"
+
+msgid "a drawing"
+msgstr "描画"
+
+msgid "above"
+msgstr "上"
+
+msgid "at {0}"
+msgstr "{0}"
+
+msgid "auto"
+msgstr "自動"
+
+msgid "below"
+msgstr "下"
+
+msgid "buy"
+msgstr "買い"
+
+msgid "by"
+msgstr "刻み"
+
+msgid "chart layout"
+msgstr "チャート配置"
+
+#, message
+msgid "chart type to {0}"
+msgstr "チャートタイプを{0}に"
+
+msgid "chart view"
+msgstr "チャート表示"
+
+msgid "close"
+msgstr "終値"
+
+msgid "e.g. Nifty Auto"
+msgstr "例: Nifty Auto"
+
+msgid "e.g. Swing setup"
+msgstr "例: スイング設定"
+
+msgid "e.g. {{ticker}} crossed at {{close}}"
+msgstr "例: {{ticker}} が {{close}} で交差"
+
+msgid "from"
+msgstr "開始"
+
+msgid "high"
+msgstr "高値"
+
+msgid "hl2"
+msgstr ""
+
+msgid "hlc3"
+msgstr ""
+
+msgid "hlcc4"
+msgstr ""
+
+msgid "https://…"
+msgstr ""
+
+msgid "in use"
+msgstr "使用中"
+
+msgid "in {0} weeks"
+msgstr "{0}週間後"
+
+msgid "in {n} days"
+msgstr "{n}日後"
+
+msgid "log"
+msgstr "対数"
+
+msgid "low"
+msgstr "安値"
+
+msgid "macOS asks once. If Opentern isn't allowed, turn it on here, then try again."
+msgstr "macOSは一度だけ確認します。Openternが許可されていない場合は、ここでオンにして再度お試しください。"
+
+msgid "ohlc4"
+msgstr ""
+
+msgid "open"
+msgstr "始値"
+
+msgid "sell"
+msgstr "売り"
+
+msgid "to"
+msgstr "終了"
+
+#, message
+msgid "view to {0}"
+msgstr "表示を{0}に"
+
+msgid "vs 200 SMA"
+msgstr "対 200 SMA"
+
+msgid "vs 50 SMA"
+msgstr "対 50 SMA"
+
+msgid "vs SMA 200 %"
+msgstr "対 SMA 200 %"
+
+msgid "vs SMA 50 %"
+msgstr "対 SMA 50 %"
+
+msgid "your other device"
+msgstr "もう一方のデバイス"
+
+msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
+msgstr "{0}\n資産  {1}\nバイ&ホールド  {2}\nドローダウン  {3}"
+
+msgid "{0}\nNo new price for {1}"
+msgstr "{0}\n{1}間、新しい価格がありません"
+
+msgid "{0}\n{1}% of the map\n{2}: {3}"
+msgstr "{0}\nマップの{1}%\n{2}: {3}"
+
+msgid "{0}   Move to section"
+msgstr "{0}   セクションへ移動"
+
+msgid "{0}  (default)"
+msgstr "{0}  (既定)"
+
+msgid "{0}  Add a watchlist"
+msgstr "{0}  ウォッチリストを追加"
+
+msgid "{0}  Back"
+msgstr "{0}  戻る"
+
+msgid "{0}  Not on the chart"
+msgstr "{0}  チャート外"
+
+msgid "{0}  On the chart"
+msgstr "{0}  チャート上"
+
+msgid "{0}  Saving replaces the template with this name."
+msgstr "{0}  保存すると同名のテンプレートを置き換えます。"
+
+msgid "{0}  Search symbols to add"
+msgstr "{0}  追加する銘柄を検索"
+
+msgid "{0}  insert"
+msgstr "{0}  挿入"
+
+msgid "{0} ({1})\n{bars} bars, {time}"
+msgstr "{0} ({1})\n{bars}本、{time}"
+
+msgid "{0} MB of prices on this computer"
+msgstr "このコンピューターに{0} MBの価格"
+
+msgid "{0} alerts fired"
+msgstr "{0}件のアラートが発動"
+
+#, message
+msgid "{0} bars aren't available for this symbol."
+msgstr "この銘柄では{0}足を利用できません。"
+
+#, message
+msgid "{0} bars aren't available for {1}."
+msgstr "{1}では{0}足を利用できません。"
+
+#, message
+msgid "{0} comparison"
+msgstr "{0}との比較"
+
+msgid "{0} contracts"
+msgstr "{0}枚"
+
+msgid "{0} copy"
+msgstr "{0} コピー"
+
+msgid "{0} days"
+msgstr "{0}日"
+
+msgid "{0} h {1} min"
+msgstr "{0}時間{1}分"
+
+#, message
+msgid "{0} has no values to try."
+msgstr "{0}に試す値がありません。"
+
+#, message
+msgid "{0} has unsaved changes: close again to discard them."
+msgstr "{0}に未保存の変更があります。もう一度閉じると破棄します。"
+
+msgid "{0} isn't installed"
+msgstr "{0}はインストールされていません"
+
+msgid "{0} min"
+msgstr "{0}分"
+
+msgid "{0} per contract"
+msgstr "1枚あたり {0}"
+
+msgid "{0} per order"
+msgstr "注文あたり {0}"
+
+#, message
+msgid "{0} runs in {took}."
+msgstr "{took}で{0}回実行。"
+
+msgid "{0} steps"
+msgstr "{0}ステップ"
+
+msgid "{0} symbols"
+msgstr "{0}銘柄"
+
+#, message
+msgid "{0} symbols in {took}."
+msgstr "{took}で{0}銘柄。"
+
+#, message
+msgid "{0} symbols in {took}; {1} couldn't run."
+msgstr "{took}で{0}銘柄、{1}銘柄は実行できませんでした。"
+
+#, message
+msgid "{0} windows in {took}."
+msgstr "{took}で{0}期間。"
+
+msgid "{0} {1} {2} at {3}"
+msgstr "{0} {1} {2} @ {3}"
+
+#, message
+msgid "{0} {p}. Paste it into a folder with Ctrl+V."
+msgstr "{0} {p}。Ctrl+Vでフォルダーに貼り付けます。"
+
+msgid "{0} · {1} symbols"
+msgstr "{0} · {1}銘柄"
+
+msgid "{0} — properties"
+msgstr "{0} — プロパティ"
+
+msgid "{0}% of equity"
+msgstr "資産の{0}%"
+
+msgid "{0}% opacity"
+msgstr "不透明度 {0}%"
+
+#, message
+msgid "{0}, base {1}."
+msgstr "{0}、基準値 {1}。"
+
+msgid "{0}-day limit"
+msgstr "{0}日間の上限"
+
+msgid "{0}-hour limit"
+msgstr "{0}時間の上限"
+
+msgid "{0}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit."
+msgstr "{0}: Yahooにこの銘柄がなくなりました。名称変更または上場廃止の可能性があります。最後の価格で計算しています。編集から置き換えてください。"
+
+#, message
+msgid "{0}: any alert() call"
+msgstr "{0}: 任意のalert()呼び出し"
+
+msgid "{0}: {1}% used"
+msgstr "{0}: {1}% 使用済み"
+
+msgid "{0}d ago"
+msgstr "{0}日前"
+
+msgid "{0}h ago"
+msgstr "{0}時間前"
+
+msgid "{0}m ago"
+msgstr "{0}分前"
+
+msgid "{0}px"
+msgstr ""
+
+msgid "{0}{plus} mo"
+msgstr "{0}{plus}か月"
+
+#, message
+msgid "{GONE}. It may have been renamed or delisted."
+msgstr "{GONE}。名称変更または上場廃止の可能性があります。"
+
+#, message
+msgid "{account}: Bought {qty} {sym} at {price}"
+msgstr "{account}: {sym}を{qty}、{price}で買いました"
+
+#, message
+msgid "{account}: Sold {qty} {sym} at {price}"
+msgstr "{account}: {sym}を{qty}、{price}で売りました"
+
+msgid "{bars} bars, {time}"
+msgstr "{bars}本、{time}"
+
+msgid "{combos} combinations: too many for every combination. Use Random or Bayesian."
+msgstr "{combos}通りは多すぎて総当たりできません。ランダムまたはベイズを使ってください。"
+
+#, message
+msgid "{dir} already has a {0}."
+msgstr "{dir}にはすでに{0}があります。"
+
+#, message
+msgid "{dir} isn't empty: move or delete what's in it first."
+msgstr "{dir}は空ではありません。先に中身を移動または削除してください。"
+
+#, message
+msgid "{done} of {0} done…"
+msgstr "{0}件中{done}件完了…"
+
+#, message
+msgid "{e} Left out of the index."
+msgstr "{e} 指数から除外しました。"
+
+#, message
+msgid "{fe} no longer trades {fd}"
+msgstr "{fe}は{fd}の取引を終了しました"
+
+#, message
+msgid "{file} is a library."
+msgstr "{file}はライブラリです。"
+
+#, message
+msgid "{file} isn't a script"
+msgstr "{file}はスクリプトではありません"
+
+#, message
+msgid "{file} isn't in the scripts folder"
+msgstr "{file}はスクリプトフォルダーにありません"
+
+#, message
+msgid "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+msgstr "{file}はインポートされたもので、Pythonはこのコンピューターに完全にアクセスできます。信頼できる場合はもう一度「実行」を押してください。"
+
+#, message
+msgid "{file} was imported. To run it, open it in the Script Editor and press Run."
+msgstr "{file}をインポートしました。実行するにはスクリプトエディターで開いて「実行」を押してください。"
+
+msgid "{left} left"
+msgstr "残り{left}"
+
+msgid "{m}-minute limit"
+msgstr "{m}分間の上限"
+
+#, message
+msgid "{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again."
+msgstr "{name}はサインインしていません。ターミナルで{cmd}を一度実行してサインインし、再度お試しください。"
+
+#, message
+msgid "{name} stopped unexpectedly. Send your message again to pick up where it left off."
+msgstr "{name}が予期せず停止しました。もう一度メッセージを送ると続きから再開します。"
+
+#, message
+msgid "{name} stopped: {err}"
+msgstr "{name}が停止しました: {err}"
+
+#, message
+msgid "{n} alerts fired while Opentern was closed"
+msgstr "Opentern終了中に{n}件のアラートが発動しました"
+
+msgid "{n} charts"
+msgstr "{n}チャート"
+
+msgid "{n} days"
+msgstr "{n}日"
+
+#, message
+msgid "{n} drawings"
+msgstr "描画{n}件"
+
+msgid "{n} hours"
+msgstr "{n}時間"
+
+msgid "{n} minutes"
+msgstr "{n}分"
+
+msgid "{n} months"
+msgstr "{n}か月"
+
+msgid "{n} seconds"
+msgstr "{n}秒"
+
+msgid "{n} symbols"
+msgstr "{n}銘柄"
+
+msgid "{n} weeks"
+msgstr "{n}週間"
+
+msgid "{n}{plus} yr"
+msgstr "{n}{plus}年"
+
+msgid "{n}{plus} yrs"
+msgstr "{n}{plus}年"
+
+msgid "{p} runs of {combos} combinations on the chart's {n} bars."
+msgstr "チャートの{n}本で、{combos}通りのうち{p}回実行。"
+
+msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr "{sign}{0} ({1}) {sign}{2}\n{nb}本、{time}"
+
+msgid "{state} · {0} · fired {1}×"
+msgstr "{state} · {0} · {1}回発動"
+
+#, message
+msgid "{study}: any alert() call"
+msgstr "{study}: 任意のalert()呼び出し"
+
+msgid "{text}\n{0}\nEarlier prices adjusted"
+msgstr "{text}\n{0}\n過去の価格は調整済み"
+
+msgid "{tip}\nClick to put the best of these on the chart"
+msgstr "{tip}\nクリックで最良の値をチャートに適用"
+
+msgid "{tip} {0} at {1}"
+msgstr "{tip} {0} @ {1}"
+
+#, message
+msgid "{title} {0} the price"
+msgstr "{title} {0} 価格"
+
+msgid "{unsaved} scripts have unsaved changes. Save them to include them."
+msgstr "{unsaved}個のスクリプトに未保存の変更があります。含めるには保存してください。"
+
+msgid "{what} placed."
+msgstr "{what}を発注しました。"
+
+msgid "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
+msgstr "{what}。Pythonはこのコンピューターに完全にアクセスできます。スクリプトエディターで「実行」を押すまで何も実行されません。"
+
+msgid "{w} windows × {p} runs on the chart's {n} bars."
+msgstr "チャートの{n}本で、{w}期間 × {p}回。"
+
+msgid "{w}px"
+msgstr ""

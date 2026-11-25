@@ -10,6 +10,7 @@
 //! then look for `.claude.json` inside it).
 
 use super::Agent;
+use crate::i18n::nt;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -76,7 +77,7 @@ fn is_account(agent: Agent, dir: &Path) -> bool {
 pub fn list(agent: Agent) -> Vec<Account> {
     let mut out = vec![Account {
         dir: String::new(),
-        label: "Default".into(),
+        label: nt!("Default").into(),
     }];
     let mut add = |dir: String| {
         if !dir.is_empty() && !out.iter().any(|a| a.dir == dir) {
@@ -112,7 +113,7 @@ pub fn list(agent: Agent) -> Vec<Account> {
 /// The name shown for an account folder.
 pub fn label(agent: Agent, dir: &str) -> String {
     if dir.is_empty() {
-        return "Default".into();
+        return nt!("Default").into();
     }
     let name = Path::new(dir)
         .file_name()

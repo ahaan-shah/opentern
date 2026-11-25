@@ -8,6 +8,7 @@ use crate::app::App;
 use crate::chart::draw::{Group, Tool};
 use crate::chart::style::SeriesKind;
 use crate::dialogs::{Modal, TemplateKind};
+use crate::i18n::{nt, tr, trf, trm};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -76,15 +77,15 @@ impl Widget {
 
     pub fn title(self) -> &'static str {
         match self {
-            Widget::Watchlist => "Watchlist",
-            Widget::Alerts => "Alerts",
-            Widget::ObjectTree => "Object tree and data window",
-            Widget::Hotlists => "Hotlists",
-            Widget::Dom => "Depth of market",
-            Widget::Calendar => "Calendar",
-            Widget::News => "News",
-            Widget::Notifications => "Notifications",
-            Widget::Claude => "Agent",
+            Widget::Watchlist => nt!("Watchlist"),
+            Widget::Alerts => nt!("Alerts"),
+            Widget::ObjectTree => nt!("Object tree and data window"),
+            Widget::Hotlists => nt!("Hotlists"),
+            Widget::Dom => nt!("Depth of market"),
+            Widget::Calendar => nt!("Calendar"),
+            Widget::News => nt!("News"),
+            Widget::Notifications => nt!("Notifications"),
+            Widget::Claude => nt!("Agent"),
         }
     }
 }
@@ -119,14 +120,14 @@ impl Tab {
 
     pub fn title(self) -> &'static str {
         match self {
-            Tab::Screener => "Screener",
-            Tab::Seasonality => "Seasonality",
-            Tab::Indices => "Indices",
-            Tab::Editor => "Script Editor",
-            Tab::Report => "Strategy Report",
-            Tab::Lab => "Strategy Lab",
-            Tab::Paper => "Paper Trading",
-            Tab::AlertLog => "Alerts log",
+            Tab::Screener => nt!("Screener"),
+            Tab::Seasonality => nt!("Seasonality"),
+            Tab::Indices => nt!("Indices"),
+            Tab::Editor => nt!("Script Editor"),
+            Tab::Report => nt!("Strategy Report"),
+            Tab::Lab => nt!("Strategy Lab"),
+            Tab::Paper => nt!("Paper Trading"),
+            Tab::AlertLog => nt!("Alerts log"),
         }
     }
 }
@@ -346,26 +347,26 @@ impl App {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             let open = self.settings.is_some();
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "Settings", open).clicked() {
+            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", tr("Settings"), open).clicked() {
                 if open {
                     self.settings = None;
                 } else {
                     self.open_settings(crate::settings::Cat::General);
                 }
             }
-            let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", "Take a snapshot (Alt+S)", false);
+            let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", tr("Take a snapshot (Alt+S)"), false);
             egui::Popup::menu(&snap).show(|ui| {
                 ui.set_width(220.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
-                if w::menu_item(ui, t, Some(ph::DOWNLOAD_SIMPLE), "Download image", "", false).clicked() {
+                if w::menu_item(ui, t, Some(ph::DOWNLOAD_SIMPLE), tr("Download image"), "", false).clicked() {
                     self.take_snapshot(crate::snapshot::Snap::Save);
                     ui.close();
                 }
-                if w::menu_item(ui, t, Some(ph::COPY), "Copy image", "", false).clicked() {
+                if w::menu_item(ui, t, Some(ph::COPY), tr("Copy image"), "", false).clicked() {
                     self.take_snapshot(crate::snapshot::Snap::Copy);
                     ui.close();
                 }
-                if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open snapshots folder", "", false).clicked() {
+                if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), tr("Open snapshots folder"), "", false).clicked() {
                     let dir = self.snapshots_dir();
                     let _ = std::fs::create_dir_all(&dir);
                     crate::app::open_path(&dir.join("."));
@@ -374,7 +375,7 @@ impl App {
             });
             let full = ui.ctx().input(|i| i.viewport().fullscreen.unwrap_or(false));
             let glyph = if full { ph::CORNERS_IN } else { ph::CORNERS_OUT };
-            if w::bar_button(ui, t, Some(glyph), "", "Fullscreen mode (Shift F)", full).clicked() {
+            if w::bar_button(ui, t, Some(glyph), "", tr("Fullscreen mode (Shift F)"), full).clicked() {
                 ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
             }
             w::vdivider(ui, t);
@@ -382,15 +383,22 @@ impl App {
             // icon when the bar is short of room.
             let name = elide(&self.layout_name, 18);
             let resp = if compact {
-                w::bar_button(ui, t, Some(ph::FOLDER_SIMPLE), "", "Layouts", false)
+                w::bar_button(ui, t, Some(ph::FOLDER_SIMPLE), "", tr("Layouts"), false)
             } else {
-                w::bar_button(ui, t, None, &format!("{name}  {}", ph::CARET_DOWN), "Layouts", false)
+                w::bar_button(
+                    ui,
+                    t,
+                    None,
+                    &format!("{name}  {}", ph::CARET_DOWN),
+                    tr("Layouts"),
+                    false,
+                )
             };
             self.still_open(ui, &resp, "layout");
             egui::Popup::menu(&resp)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.layout_menu(ui, t));
-            let resp = w::bar_button(ui, t, Some(ph::LAYOUT), "", "Select layout", self.chart_count() > 1);
+            let resp = w::bar_button(ui, t, Some(ph::LAYOUT), "", tr("Select layout"), self.chart_count() > 1);
             egui::Popup::menu(&resp)
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.grid_menu(ui, t));
@@ -413,7 +421,7 @@ impl App {
                     t,
                     Some(ph::MAGNIFYING_GLASS),
                     &ticker,
-                    "Symbol search (start typing anywhere)",
+                    tr("Symbol search (start typing anywhere)"),
                     false,
                 )
                 .clicked()
@@ -425,7 +433,7 @@ impl App {
                 if self.overview_open() {
                     ui.disable();
                 }
-                if w::bar_button(ui, t, Some(ph::PLUS_CIRCLE), "", "Compare or add symbol", false).clicked() {
+                if w::bar_button(ui, t, Some(ph::PLUS_CIRCLE), "", tr("Compare or add symbol"), false).clicked() {
                     self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::for_compare()));
                 }
                 w::vdivider(ui, t);
@@ -448,8 +456,8 @@ impl App {
                     ui,
                     t,
                     Some(ph::FUNCTION),
-                    "Indicators",
-                    "Indicators, metrics and strategies (/)",
+                    tr("Indicators"),
+                    tr("Indicators, metrics and strategies (/)"),
                     false,
                 )
                 .clicked()
@@ -459,15 +467,24 @@ impl App {
                 }
                 self.templates_menu(ui, t);
                 w::vdivider(ui, t);
-                if w::bar_button(ui, t, Some(ph::ALARM), label("Alert"), "Create alert (Alt+A)", false).clicked() {
+                if w::bar_button(
+                    ui,
+                    t,
+                    Some(ph::ALARM),
+                    label(tr("Alert")),
+                    tr("Create alert (Alt+A)"),
+                    false,
+                )
+                .clicked()
+                {
                     self.open_alert_dialog(None);
                 }
                 if w::bar_button(
                     ui,
                     t,
                     Some(ph::REWIND),
-                    label("Replay"),
-                    "Bar replay",
+                    label(tr("Replay")),
+                    tr("Bar replay"),
                     self.chart.replay.is_some(),
                 )
                 .clicked()
@@ -478,7 +495,7 @@ impl App {
                 let undo = egui::Button::new(ph::ARROW_U_UP_LEFT).frame(false);
                 if ui
                     .add_enabled(self.chart.can_undo(), undo)
-                    .on_hover_text(concat!("Undo (", shortcut!("Z"), ")"))
+                    .on_hover_text(trf!("Undo ({})", shortcut!("Z")))
                     .clicked()
                 {
                     self.chart.undo();
@@ -486,7 +503,7 @@ impl App {
                 let redo = egui::Button::new(ph::ARROW_U_UP_RIGHT).frame(false);
                 if ui
                     .add_enabled(self.chart.can_redo(), redo)
-                    .on_hover_text(concat!("Redo (", shortcut!("Y"), ")"))
+                    .on_hover_text(trf!("Redo ({})", shortcut!("Y")))
                     .clicked()
                 {
                     self.chart.redo();
@@ -499,7 +516,7 @@ impl App {
     /// beside each to pin it to the top bar, and a field for a custom one
     /// ("7m", "3h").
     fn interval_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        let resp = w::bar_button(ui, t, Some(ph::CARET_DOWN), "", "More intervals", false);
+        let resp = w::bar_button(ui, t, Some(ph::CARET_DOWN), "", tr("More intervals"), false);
         self.still_open(ui, &resp, "interval");
         egui::Popup::menu(&resp)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
@@ -510,9 +527,9 @@ impl App {
                 let mut last = None;
                 for tf in Timeframe::STANDARD {
                     let unit = match tf.unit {
-                        Unit::Second | Unit::Minute => "MINUTES",
-                        Unit::Hour => "HOURS",
-                        _ => "DAYS",
+                        Unit::Second | Unit::Minute => tr("MINUTES"),
+                        Unit::Hour => tr("HOURS"),
+                        _ => tr("DAYS"),
                     };
                     if last != Some(unit) {
                         if last.is_some() {
@@ -535,7 +552,7 @@ impl App {
                 let mut text: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
                 let r = ui.add(
                     w::field(&mut text)
-                        .hint_text("Custom: 7m, 3h, 2D")
+                        .hint_text(tr("Custom: 7m, 3h, 2D"))
                         .desired_width(f32::INFINITY),
                 );
                 if r.lost_focus()
@@ -552,7 +569,7 @@ impl App {
 
     fn chart_type_menu(&mut self, ui: &mut Ui, t: &Theme) {
         let kind = self.chart.style.kind;
-        let resp = w::bar_icon_button(ui, t, "Bars style", |p, r, c| {
+        let resp = w::bar_icon_button(ui, t, tr("Bars style"), |p, r, c| {
             crate::chart::style::paint_kind_icon(p, r, kind, c)
         });
         self.still_open(ui, &resp, "type");
@@ -566,7 +583,7 @@ impl App {
                 let on = self.chart.style.kind == k;
                 let paint =
                     |p: &egui::Painter, r: Rect, c: egui::Color32| crate::chart::style::paint_kind_icon(p, r, k, c);
-                if w::menu_item_painted(ui, t, paint, k.name(), on).clicked() {
+                if w::menu_item_painted(ui, t, paint, tr(k.name()), on).clicked() {
                     let mut s = self.chart.style.clone();
                     s.kind = k;
                     self.set_chart_style(s);
@@ -579,14 +596,14 @@ impl App {
     /// Indicator templates: save the current set, apply, star or delete
     /// saved ones. Starred ones sit beside the button.
     fn templates_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        let resp = w::bar_button(ui, t, Some(ph::SQUARES_FOUR), "", "Indicator templates", false);
+        let resp = w::bar_button(ui, t, Some(ph::SQUARES_FOUR), "", tr("Indicator templates"), false);
         self.still_open(ui, &resp, "templates");
         egui::Popup::menu(&resp)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
                 ui.set_width(250.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
-                if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save indicator template", "", false).clicked() {
+                if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), tr("Save indicator template"), "", false).clicked() {
                     self.modal = Some(Modal::SaveTemplate {
                         kind: TemplateKind::Indicators,
                         name: String::new(),
@@ -635,14 +652,14 @@ impl App {
                     }
                     if star
                         .on_hover_text(if fav {
-                            "Remove from the top bar"
+                            tr("Remove from the top bar")
                         } else {
-                            "Show in the top bar"
+                            tr("Show in the top bar")
                         })
                         .clicked()
                     {
                         self.toggle_favorite(TEMPLATE_FAVS, &n);
-                    } else if b.on_hover_text("Delete template").clicked() {
+                    } else if b.on_hover_text(tr("Delete template")).clicked() {
                         if fav {
                             self.toggle_favorite(TEMPLATE_FAVS, &n);
                         }
@@ -687,7 +704,7 @@ impl App {
                 ui,
                 t,
                 ph::RULER,
-                "Measure (or Shift+drag)",
+                tr("Measure (or Shift+drag)"),
                 self.layout.tool == measure,
                 36.0,
             )
@@ -699,7 +716,7 @@ impl App {
                 ui,
                 t,
                 ph::MAGNIFYING_GLASS_PLUS,
-                "Zoom in (drag a range)",
+                tr("Zoom in (drag a range)"),
                 self.layout.tool == Tool::Zoom,
                 36.0,
             )
@@ -713,7 +730,7 @@ impl App {
                 ui,
                 t,
                 ph::MAGNET,
-                "Magnet mode: snap to open, high, low, close",
+                tr("Magnet mode: snap to open, high, low, close"),
                 l.magnet,
                 36.0,
             )
@@ -721,7 +738,16 @@ impl App {
             {
                 l.magnet = !l.magnet;
             }
-            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Stay in drawing mode", l.stay_drawing, 36.0).clicked() {
+            if w::tool_button(
+                ui,
+                t,
+                ph::PENCIL_SIMPLE,
+                tr("Stay in drawing mode"),
+                l.stay_drawing,
+                36.0,
+            )
+            .clicked()
+            {
                 l.stay_drawing = !l.stay_drawing;
             }
             let lock = if l.lock_drawings {
@@ -729,7 +755,7 @@ impl App {
             } else {
                 ph::LOCK_SIMPLE_OPEN
             };
-            if w::tool_button(ui, t, lock, "Lock all drawings", l.lock_drawings, 36.0).clicked() {
+            if w::tool_button(ui, t, lock, tr("Lock all drawings"), l.lock_drawings, 36.0).clicked() {
                 l.lock_drawings = !l.lock_drawings;
             }
             let eye = if l.hide_drawings { ph::EYE_SLASH } else { ph::EYE };
@@ -737,7 +763,7 @@ impl App {
                 ui,
                 t,
                 eye,
-                concat!("Hide all drawings (", shortcut!("Alt H"), ")"),
+                &trf!("Hide all drawings ({})", shortcut!("Alt H")),
                 l.hide_drawings,
                 36.0,
             )
@@ -746,12 +772,16 @@ impl App {
                 l.hide_drawings = !l.hide_drawings;
             }
             w::hdivider(ui, t, TOOLBAR_W);
-            let resp = w::tool_button(ui, t, ph::TRASH, "Remove drawings or indicators", false, 36.0);
+            let resp = w::tool_button(ui, t, ph::TRASH, tr("Remove drawings or indicators"), false, 36.0);
             egui::Popup::menu(&resp).show(|ui| {
                 ui.set_width(220.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
                 let n = self.chart.drawings.len();
-                let label = format!("Remove {n} drawing{}", if n == 1 { "" } else { "s" });
+                let label = if n == 1 {
+                    tr("Remove 1 drawing").to_string()
+                } else {
+                    trf!("Remove {n} drawings")
+                };
                 if w::menu_row(ui, t, Some(ph::PENCIL_SIMPLE_SLASH), &label, "", false, n > 0).clicked() {
                     self.chart.push_undo();
                     self.chart.drawings.clear();
@@ -759,7 +789,11 @@ impl App {
                     ui.close();
                 }
                 let k = self.chart.studies.len();
-                let label = format!("Remove {k} indicator{}", if k == 1 { "" } else { "s" });
+                let label = if k == 1 {
+                    tr("Remove 1 indicator").to_string()
+                } else {
+                    trf!("Remove {k} indicators")
+                };
                 if w::menu_row(ui, t, Some(ph::FUNCTION), &label, "", false, k > 0).clicked() {
                     let ids: Vec<u64> = self.chart.studies.iter().map(|s| s.uid).collect();
                     for id in ids {
@@ -799,7 +833,7 @@ impl App {
             ui,
             t,
             shown.icon(),
-            &format!("{} ({})", shown.name(), g.name()),
+            &format!("{} ({})", tr(shown.name()), tr(g.name())),
             active,
             36.0,
         );
@@ -833,10 +867,10 @@ impl App {
             .show(|ui| {
                 ui.set_width(230.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
-                w::menu_heading(ui, t, &g.name().to_uppercase());
+                w::menu_heading(ui, t, &tr(g.name()).to_uppercase());
                 for tool in g.tools() {
                     let on = self.layout.tool == *tool;
-                    if w::menu_item(ui, t, Some(tool.icon()), tool.name(), tool.shortcut(), on).clicked() {
+                    if w::menu_item(ui, t, Some(tool.icon()), tr(tool.name()), tool.shortcut(), on).clicked() {
                         self.pick_tool(*tool);
                     }
                 }
@@ -851,9 +885,9 @@ impl App {
             for wd in Widget::ALL {
                 let active = self.layout.widget == Some(wd);
                 let resp = if wd == Widget::Claude {
-                    crate::claude::mark::rail_button(ui, t, wd.title(), active, 34.0)
+                    crate::claude::mark::rail_button(ui, t, tr(wd.title()), active, 34.0)
                 } else {
-                    w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0)
+                    w::tool_button(ui, t, wd.icon(), tr(wd.title()), active, 34.0)
                 };
                 if wd == Widget::Notifications && self.notes.unread > 0 {
                     let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
@@ -867,9 +901,9 @@ impl App {
                 ui.spacing_mut().item_spacing.y = 4.0;
                 let dark = t.dark;
                 let tip = if dark {
-                    "Switch to light theme"
+                    tr("Switch to light theme")
                 } else {
-                    "Switch to dark theme"
+                    tr("Switch to dark theme")
                 };
                 if w::tool_button(ui, t, if dark { ph::SUN } else { ph::MOON }, tip, false, 34.0).clicked() {
                     self.toggle_dark(ui.ctx());
@@ -878,7 +912,7 @@ impl App {
                     .settings
                     .as_ref()
                     .is_some_and(|s| s.cat == crate::settings::Cat::Shortcuts);
-                if w::tool_button(ui, t, ph::KEYBOARD, "Keyboard shortcuts", on, 34.0).clicked() {
+                if w::tool_button(ui, t, ph::KEYBOARD, tr("Keyboard shortcuts"), on, 34.0).clicked() {
                     self.open_settings(crate::settings::Cat::Shortcuts);
                 }
                 if self.updater.prompt() {
@@ -894,10 +928,10 @@ impl App {
     fn update_button(&mut self, ui: &mut Ui, t: &Theme) {
         use crate::updater::Phase;
         let tip = match &self.updater.phase {
-            Phase::Available(r) => format!("Opentern {} is available. Click to update.", r.version),
-            Phase::Manual(r, why) => format!("Opentern {} is available. {why}.", r.version),
-            Phase::Installing(r) => format!("Updating to {} ({:.0}%)", r.version, self.updater.progress * 100.0),
-            Phase::Ready(r) => format!("Opentern {} is installed. Click to restart.", r.version),
+            Phase::Available(r) => trf!("Opentern {} is available. Click to update.", r.version),
+            Phase::Manual(r, why) => trf!("Opentern {} is available. {why}.", r.version, why = trm(why)),
+            Phase::Installing(r) => trf!("Updating to {} ({:.0}%)", r.version, self.updater.progress * 100.0),
+            Phase::Ready(r) => trf!("Opentern {} is installed. Click to restart.", r.version),
             _ => String::new(),
         };
         let size = 34.0;
@@ -995,10 +1029,10 @@ impl App {
                 if !matches!(widget, Widget::Watchlist | Widget::Alerts | Widget::Claude) {
                     ui.horizontal(|ui| {
                         ui.set_height(26.0);
-                        ui.label(egui::RichText::new(widget.title()).font(theme::semibold(14.0)));
+                        ui.label(egui::RichText::new(tr(widget.title())).font(theme::semibold(14.0)));
                         if widget == Widget::Notifications && !self.notes.list.is_empty() {
                             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                if small_button(ui, t, "Clear all", false).clicked() {
+                                if small_button(ui, t, tr("Clear all"), false).clicked() {
                                     self.notes.list.clear();
                                 }
                             });
@@ -1050,36 +1084,36 @@ impl App {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
             let auto = self.chart.panes.first().is_some_and(|p| p.scale.auto);
-            if small_button(ui, t, "auto", auto)
-                .on_hover_text("Auto, fits data to screen (Alt U)")
+            if small_button(ui, t, tr("auto"), auto)
+                .on_hover_text(tr("Auto, fits data to screen (Alt U)"))
                 .clicked()
             {
                 self.toggle_auto_scale();
             }
-            if small_button(ui, t, "log", self.chart.log)
-                .on_hover_text("Log scale (Alt L)")
+            if small_button(ui, t, tr("log"), self.chart.log)
+                .on_hover_text(tr("Log scale (Alt L)"))
                 .clicked()
             {
                 self.toggle_log_scale();
             }
             let has_divs = self.chart.corporate.as_ref().is_some_and(|c| !c.dividends.is_empty());
             if has_divs
-                && small_button(ui, t, "ADJ", self.chart.adj)
-                    .on_hover_text("Adjust prices for dividends")
+                && small_button(ui, t, tr("ADJ"), self.chart.adj)
+                    .on_hover_text(tr("Adjust prices for dividends"))
                     .clicked()
             {
                 let on = !self.chart.adj;
                 self.chart.set_adj(on);
             }
             if self.chart.can_ext()
-                && small_button(ui, t, "EXT", self.chart.ext)
-                    .on_hover_text("Extended trading hours")
+                && small_button(ui, t, tr("EXT"), self.chart.ext)
+                    .on_hover_text(tr("Extended trading hours"))
                     .clicked()
             {
                 self.toggle_ext();
             }
             if small_button(ui, t, "%", self.chart.percent)
-                .on_hover_text("Percent scale (Alt P)")
+                .on_hover_text(tr("Percent scale (Alt P)"))
                 .clicked()
             {
                 self.toggle_percent_scale();
@@ -1121,9 +1155,9 @@ impl App {
                 // The ranges then start where the chart does.
                 let shown = self.layout.toolbar;
                 let (glyph, tip) = if shown {
-                    (ph::CARET_DOUBLE_LEFT, "Hide the drawing toolbar")
+                    (ph::CARET_DOUBLE_LEFT, tr("Hide the drawing toolbar"))
                 } else {
-                    (ph::CARET_DOUBLE_RIGHT, "Show the drawing toolbar")
+                    (ph::CARET_DOUBLE_RIGHT, tr("Show the drawing toolbar"))
                 };
                 let col = TOOLBAR_W - 8.0;
                 ui.add_space(((col - 26.0) / 2.0).max(0.0));
@@ -1139,12 +1173,12 @@ impl App {
                     ("1M", "30m", 30),
                     ("3M", "1h", 91),
                     ("6M", "2h", 182),
-                    ("YTD", "1D", 0),
+                    (nt!("YTD"), "1D", 0),
                     ("1Y", "1D", 365),
                     ("5Y", "1W", 1826),
-                    ("All", "1M", -1),
+                    (nt!("All"), "1M", -1),
                 ] {
-                    if small_button(ui, t, label, false).clicked()
+                    if small_button(ui, t, tr(label), false).clicked()
                         && let Some(tf) = Timeframe::parse(tf)
                     {
                         self.set_interval_synced(tf);
@@ -1188,24 +1222,31 @@ impl App {
         ui.scope_builder(egui::UiBuilder::new().max_rect(strip.shrink2(vec2(8.0, 0.0))), |ui| {
             ui.horizontal_centered(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                for tab in Tab::ALL {
-                    let active = self.layout.tab == Some(tab);
-                    if small_button(ui, t, tab.title(), active).clicked() {
-                        self.layout.tab = if active { None } else { Some(tab) };
+                let room = (ui.available_width() - 64.0).max(60.0);
+                w::tab_scroll(ui, "panel-tabs", self.layout.tab, room, |ui, reveal| {
+                    for tab in Tab::ALL {
+                        let active = self.layout.tab == Some(tab);
+                        let r = small_button(ui, t, tr(tab.title()), active);
+                        if active && reveal {
+                            r.scroll_to_me(Some(Align::Center));
+                        }
+                        if r.clicked() {
+                            self.layout.tab = if active { None } else { Some(tab) };
+                        }
                     }
-                }
+                });
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     let open = self.layout.tab.is_some();
                     let glyph = if open { ph::CARET_DOWN } else { ph::CARET_UP };
-                    let tip = if open { "Collapse panel" } else { "Open panel" };
+                    let tip = if open { tr("Collapse panel") } else { tr("Open panel") };
                     if w::tool_button(ui, t, glyph, tip, false, 26.0).clicked() {
                         self.layout.tab = if open { None } else { Some(self.last_tab) };
                     }
                     let max = self.layout.panel_max;
                     let (g, tip) = if max {
-                        (ph::ARROWS_IN_SIMPLE, "Restore panel")
+                        (ph::ARROWS_IN_SIMPLE, tr("Restore panel"))
                     } else {
-                        (ph::ARROWS_OUT_SIMPLE, "Maximize panel")
+                        (ph::ARROWS_OUT_SIMPLE, tr("Maximize panel"))
                     };
                     if w::tool_button(ui, t, g, tip, max, 26.0).clicked() {
                         self.layout.panel_max = !max;
@@ -1326,15 +1367,21 @@ pub(crate) fn small_button(ui: &mut Ui, t: &Theme, text: &str, active: bool) -> 
 
 /// "1 minute", "3 hours", "1 week": TradingView's long interval names.
 fn interval_name(tf: Timeframe) -> String {
-    let unit = match tf.unit {
-        Unit::Second => "second",
-        Unit::Minute => "minute",
-        Unit::Hour => "hour",
-        Unit::Day => "day",
-        Unit::Week => "week",
-        Unit::Month => "month",
-    };
-    format!("{} {unit}{}", tf.count, if tf.count == 1 { "" } else { "s" })
+    let n = tf.count;
+    match (tf.unit, n) {
+        (Unit::Second, 1) => tr("1 second").into(),
+        (Unit::Second, _) => trf!("{n} seconds"),
+        (Unit::Minute, 1) => tr("1 minute").into(),
+        (Unit::Minute, _) => trf!("{n} minutes"),
+        (Unit::Hour, 1) => tr("1 hour").into(),
+        (Unit::Hour, _) => trf!("{n} hours"),
+        (Unit::Day, 1) => tr("1 day").into(),
+        (Unit::Day, _) => trf!("{n} days"),
+        (Unit::Week, 1) => tr("1 week").into(),
+        (Unit::Week, _) => trf!("{n} weeks"),
+        (Unit::Month, 1) => tr("1 month").into(),
+        (Unit::Month, _) => trf!("{n} months"),
+    }
 }
 
 /// One row of the interval menu. The star sits just right of the name
@@ -1380,9 +1427,9 @@ fn interval_row(ui: &mut Ui, t: &Theme, tf: Timeframe, current: bool, fav: bool)
     }
     let star = star
         .on_hover_text(if fav {
-            "Remove from the top bar"
+            tr("Remove from the top bar")
         } else {
-            "Show in the top bar"
+            tr("Show in the top bar")
         })
         .on_hover_cursor(egui::CursorIcon::PointingHand);
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);

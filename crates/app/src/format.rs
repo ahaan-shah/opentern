@@ -1,5 +1,6 @@
 //! Number and time formatting for scales, legends and the watchlist.
 
+use crate::i18n::{date, tr, trf};
 use opentern_core::{Symbol, Timeframe};
 use opentern_data::overview::Market;
 
@@ -249,10 +250,10 @@ pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String 
         ts.to_zoned(jiff::tz::TimeZone::UTC)
     };
     match tf.unit {
-        opentern_core::Unit::Month => z.strftime("%b '%y").to_string(),
-        opentern_core::Unit::Day | opentern_core::Unit::Week => z.strftime("%a %d %b '%y").to_string(),
-        opentern_core::Unit::Second => z.strftime("%a %d %b '%y %H:%M:%S").to_string(),
-        _ => z.strftime("%a %d %b '%y %H:%M").to_string(),
+        opentern_core::Unit::Month => date(&z, "%b '%y"),
+        opentern_core::Unit::Day | opentern_core::Unit::Week => date(&z, "%a %d %b '%y"),
+        opentern_core::Unit::Second => date(&z, "%a %d %b '%y %H:%M:%S"),
+        _ => date(&z, "%a %d %b '%y %H:%M"),
     }
 }
 
@@ -260,11 +261,11 @@ pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String 
 pub fn span(d: std::time::Duration) -> String {
     let m = d.as_secs() / 60;
     match m {
-        0..=59 => format!("{} min", m.max(1)),
+        0..=59 => trf!("{} min", m.max(1)),
         60..=1439 if m.is_multiple_of(60) => format!("{} h", m / 60),
-        60..=1439 => format!("{} h {} min", m / 60, m % 60),
-        1440..=2879 => "1 day".into(),
-        _ => format!("{} days", m / 1440),
+        60..=1439 => trf!("{} h {} min", m / 60, m % 60),
+        1440..=2879 => tr("1 day").into(),
+        _ => trf!("{} days", m / 1440),
     }
 }
 

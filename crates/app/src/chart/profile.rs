@@ -7,6 +7,7 @@ use super::paint::{XMap, YMap, polyline, rect_mesh};
 use super::style::c32;
 use super::{Chart, StudyView};
 use crate::format;
+use crate::i18n::{nt, tr};
 use crate::theme;
 use egui::epaint::Mesh;
 use egui::{Align2, Color32, Painter, Rect, Stroke, pos2};
@@ -262,14 +263,25 @@ pub fn paint_seasonality(p: &Painter, years: &[SeasonYear], y: &YMap, rect: Rect
         polyline(p, pts, Stroke::new(if newest { 2.0 } else { 1.25 }, col));
     }
     const MONTHS: [&str; 12] = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+        nt!("Jan"),
+        nt!("Feb"),
+        nt!("Mar"),
+        nt!("Apr"),
+        nt!("May"),
+        nt!("Jun"),
+        nt!("Jul"),
+        nt!("Aug"),
+        nt!("Sep"),
+        nt!("Oct"),
+        nt!("Nov"),
+        nt!("Dec"),
     ];
     for (m, name) in MONTHS.iter().enumerate() {
         let xx = plot.left() + plot.width() * (m as f32 + 0.5) / 12.0;
         p.text(
             pos2(xx, rect.bottom() - 4.0),
             Align2::CENTER_BOTTOM,
-            *name,
+            tr(name),
             theme::regular(10.5),
             text,
         );

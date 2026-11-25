@@ -3,6 +3,7 @@
 //! overrides (an indicator's Style tab). All serialisable, so they can be
 //! saved in layouts, chart templates and indicator defaults.
 
+use crate::i18n::nt;
 use crate::theme::Theme;
 use egui::Color32;
 use opentern_series::Rgba;
@@ -70,21 +71,21 @@ impl SeriesKind {
 
     pub fn name(self) -> &'static str {
         match self {
-            SeriesKind::Candles => "Candles",
-            SeriesKind::HollowCandles => "Hollow candles",
-            SeriesKind::Bars => "Bars",
-            SeriesKind::HeikinAshi => "Heikin Ashi",
-            SeriesKind::Line => "Line",
-            SeriesKind::LineMarkers => "Line with markers",
-            SeriesKind::StepLine => "Step line",
-            SeriesKind::Area => "Area",
-            SeriesKind::Baseline => "Baseline",
-            SeriesKind::Columns => "Columns",
-            SeriesKind::HighLow => "High-low",
-            SeriesKind::Renko => "Renko",
-            SeriesKind::LineBreak => "Line break",
-            SeriesKind::Kagi => "Kagi",
-            SeriesKind::PointFigure => "Point & figure",
+            SeriesKind::Candles => nt!("Candles"),
+            SeriesKind::HollowCandles => nt!("Hollow candles"),
+            SeriesKind::Bars => nt!("Bars"),
+            SeriesKind::HeikinAshi => nt!("Heikin Ashi"),
+            SeriesKind::Line => nt!("Line"),
+            SeriesKind::LineMarkers => nt!("Line with markers"),
+            SeriesKind::StepLine => nt!("Step line"),
+            SeriesKind::Area => nt!("Area"),
+            SeriesKind::Baseline => nt!("Baseline"),
+            SeriesKind::Columns => nt!("Columns"),
+            SeriesKind::HighLow => nt!("High-low"),
+            SeriesKind::Renko => nt!("Renko"),
+            SeriesKind::LineBreak => nt!("Line break"),
+            SeriesKind::Kagi => nt!("Kagi"),
+            SeriesKind::PointFigure => nt!("Point & figure"),
         }
     }
 
@@ -374,7 +375,14 @@ fn all_units() -> [bool; 6] {
     [true; 6]
 }
 
-pub const UNIT_NAMES: [&str; 6] = ["Seconds", "Minutes", "Hours", "Days", "Weeks", "Months"];
+pub const UNIT_NAMES: [&str; 6] = [
+    nt!("Seconds"),
+    nt!("Minutes"),
+    nt!("Hours"),
+    nt!("Days"),
+    nt!("Weeks"),
+    nt!("Months"),
+];
 
 pub fn unit_index(u: opentern_core::Unit) -> usize {
     use opentern_core::Unit::*;

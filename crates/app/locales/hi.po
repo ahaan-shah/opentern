@@ -1,0 +1,6172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Opentern\n"
+"Language: hi\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "\nSurprise {0}{1}%"
+msgstr "\nसरप्राइज़ {0}{1}%"
+
+msgid "\nVol {0}"
+msgstr "\nवॉल्यूम {0}"
+
+msgid "\n{0}: {1}% used"
+msgstr "\n{0}: {1}% इस्तेमाल"
+
+msgid " What can I help you with?"
+msgstr " मैं क्या मदद करूँ?"
+
+msgid " · opens {0}"
+msgstr " · {0} पर खुलेगा"
+
+#, message
+msgid "\"{0}\" isn't an email address."
+msgstr "\"{0}\" ईमेल पता नहीं है।"
+
+msgid "% of equity"
+msgstr "इक्विटी का %"
+
+msgid "%D"
+msgstr ""
+
+msgid "%D Length"
+msgstr "%D लंबाई"
+
+msgid "%D Smoothing"
+msgstr "%D स्मूदिंग"
+
+msgid "%K"
+msgstr ""
+
+msgid "%K Length"
+msgstr "%K लंबाई"
+
+msgid "%K Smoothing"
+msgstr "%K स्मूदिंग"
+
+msgid "%R"
+msgstr ""
+
+msgid "%a %H:%M"
+msgstr ""
+
+msgid "%a %d %b '%y"
+msgstr "%a %-d %b '%y"
+
+msgid "%a %d %b '%y %H:%M"
+msgstr "%a %-d %b '%y %H:%M"
+
+msgid "%a %d %b '%y %H:%M:%S"
+msgstr "%a %-d %b '%y %H:%M:%S"
+
+msgid "%b %-d"
+msgstr "%-d %b"
+
+msgid "%b '%y"
+msgstr "%b '%y"
+
+msgid "%d %b"
+msgstr "%-d %b"
+
+msgid "%d %b %Y"
+msgstr "%-d %b %Y"
+
+msgid "+DI"
+msgstr ""
+
+msgid "-DI"
+msgstr ""
+
+msgid "1 chart"
+msgstr "1 चार्ट"
+
+msgid "1 day"
+msgstr "1 दिन"
+
+msgid "1 hour"
+msgstr "1 घंटा"
+
+msgid "1 minute"
+msgstr "1 मिनट"
+
+msgid "1 month"
+msgstr "1 महीना"
+
+msgid "1 script has unsaved changes. Save it to include them."
+msgstr "1 स्क्रिप्ट में बिना सहेजे बदलाव हैं। शामिल करने के लिए सहेजें।"
+
+msgid "1 second"
+msgstr "1 सेकंड"
+
+msgid "1 symbol"
+msgstr "1 सिंबल"
+
+msgid "1 week"
+msgstr "1 सप्ताह"
+
+msgid "1M return"
+msgstr "1 माह रिटर्न"
+
+msgid "1Y return"
+msgstr "1 वर्ष रिटर्न"
+
+msgid "1× is cash only. Below half the margin in use, every position is closed"
+msgstr "1× मतलब केवल नकद। इस्तेमाल मार्जिन के आधे से नीचे जाने पर सभी पोज़िशन बंद हो जाती हैं"
+
+msgid "200 SMA"
+msgstr "200 SMA"
+
+msgid "24-hour Volume"
+msgstr "24 घंटे का वॉल्यूम"
+
+msgid "24h Volume"
+msgstr "24घं वॉल्यूम"
+
+msgid "24h volume"
+msgstr "24घं वॉल्यूम"
+
+msgid "3M return"
+msgstr "3 माह रिटर्न"
+
+msgid "5-hour limit"
+msgstr "5 घंटे की सीमा"
+
+msgid "50 SMA"
+msgstr "50 SMA"
+
+msgid "6M return"
+msgstr "6 माह रिटर्न"
+
+msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
+msgstr "Python स्क्रिप्ट आपके सिस्टम के Python में चलती है। कोड के अनुसार यह आपकी फ़ाइलें पढ़ और बदल सकती है और इंटरनेट पर जा सकती है; एजेंट का लिखा कोड भी। केवल भरोसेमंद स्क्रिप्ट चलाएँ।"
+
+msgid "A fast, local-first market analysis terminal."
+msgstr "तेज़, लोकल-फ़र्स्ट मार्केट विश्लेषण टर्मिनल।"
+
+#, message
+msgid "A market order has no price to move."
+msgstr "मार्केट ऑर्डर में बदलने के लिए कोई भाव नहीं होता।"
+
+msgid "A sharper, calmer look"
+msgstr "ज़्यादा साफ़ और शांत रूप"
+
+msgid "A small helper keeps checking your alerts and notifies you. It stops when you open Opentern again, or when no alert is left."
+msgstr "एक छोटा सहायक आपके अलर्ट जाँचता रहता है और सूचना देता है। Opentern दोबारा खोलने पर या कोई अलर्ट न बचने पर यह रुक जाता है।"
+
+msgid "A special session"
+msgstr "विशेष सत्र"
+
+#, message
+msgid "A trailing stop follows the price; it can't be moved."
+msgstr "ट्रेलिंग स्टॉप भाव के साथ चलता है; इसे हटाया नहीं जा सकता।"
+
+msgid "A value"
+msgstr "एक मान"
+
+msgid "ACCOUNTS"
+msgstr "खाते"
+
+msgid "ADJ"
+msgstr "समायोजित"
+
+msgid "ADR"
+msgstr ""
+
+msgid "ADX"
+msgstr ""
+
+msgid "ADX Smoothing"
+msgstr "ADX स्मूदिंग"
+
+msgid "AO"
+msgstr ""
+
+msgid "API keys and passwords aren't included."
+msgstr "API कुंजियाँ और पासवर्ड शामिल नहीं हैं।"
+
+msgid "API price equivalent"
+msgstr "API मूल्य के बराबर"
+
+msgid "API token"
+msgstr "API टोकन"
+
+msgid "ASX"
+msgstr ""
+
+msgid "ATR"
+msgstr ""
+
+msgid "ATR %"
+msgstr ""
+
+msgid "ATR Coefficient"
+msgstr "ATR गुणांक"
+
+msgid "ATR Length"
+msgstr "ATR लंबाई"
+
+msgid "ATR Multiplier"
+msgstr "ATR गुणक"
+
+msgid "ATR length"
+msgstr "ATR लंबाई"
+
+msgid "About"
+msgstr "परिचय"
+
+msgid "About {0}"
+msgstr "{0} के बारे में"
+
+msgid "Absolute"
+msgstr "निरपेक्ष"
+
+msgid "Access token"
+msgstr "एक्सेस टोकन"
+
+msgid "Account"
+msgstr "खाता"
+
+msgid "Account ID"
+msgstr "खाता आईडी"
+
+msgid "Account settings"
+msgstr "खाता सेटिंग्स"
+
+msgid "Account size required"
+msgstr "आवश्यक खाता आकार"
+
+msgid "Accumulation/Distribution"
+msgstr "संचय/वितरण"
+
+msgid "Across"
+msgstr "क्षैतिज अक्ष"
+
+msgid "Active"
+msgstr "सक्रिय"
+
+msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
+
+msgid "Add files"
+msgstr "फ़ाइलें जोड़ें"
+
+msgid "Add filter"
+msgstr "फ़िल्टर जोड़ें"
+
+msgid "Add section"
+msgstr "सेक्शन जोड़ें"
+
+msgid "Add symbol"
+msgstr "सिंबल जोड़ें"
+
+msgid "Add to chart"
+msgstr "चार्ट पर जोड़ें"
+
+msgid "Add to favorites"
+msgstr "पसंदीदा में जोड़ें"
+
+msgid "Add to watchlist"
+msgstr "वॉचलिस्ट में जोड़ें"
+
+msgid "Add to watchlist (Shift+Enter)"
+msgstr "वॉचलिस्ट में जोड़ें (Shift+Enter)"
+
+#, message
+msgid "Add {0}"
+msgstr "{0} जोड़ें"
+
+#, message
+msgid "Add {0} to the chart"
+msgstr "{0} को चार्ट पर जोड़ें"
+
+#, message
+msgid "Added {0}"
+msgstr "{0} जोड़ा गया"
+
+#, message
+msgid "Added {0} to the chart"
+msgstr "{0} चार्ट पर जोड़ा गया"
+
+#, message
+msgid "Added {file} to the chart."
+msgstr "{file} चार्ट पर जोड़ी गई।"
+
+msgid "Address, like 192.168.1.20"
+msgstr "पता, जैसे 192.168.1.20"
+
+msgid "Adjust prices for dividends"
+msgstr "लाभांश के अनुसार भाव समायोजित करें"
+
+msgid "After"
+msgstr "इसके बाद"
+
+msgid "After hours"
+msgstr "बाज़ार के बाद"
+
+msgid "After trade {0}"
+msgstr "ट्रेड {0} के बाद"
+
+msgid "Against market, stop and trailing fills; limits fill at their price"
+msgstr "मार्केट, स्टॉप और ट्रेलिंग ऑर्डर पर लागू; लिमिट अपने भाव पर भरते हैं"
+
+msgid "Agent"
+msgstr "एजेंट"
+
+msgid "Agent panel"
+msgstr "एजेंट पैनल"
+
+msgid "Alert"
+msgstr "अलर्ट"
+
+msgid "Alerts"
+msgstr "अलर्ट"
+
+msgid "Alerts in this file send to {0}."
+msgstr "इस फ़ाइल के अलर्ट {0} पर भेजे जाते हैं।"
+
+msgid "Alerts log"
+msgstr "अलर्ट लॉग"
+
+msgid "Alerts only fire while Opentern is open."
+msgstr "अलर्ट तभी चलते हैं जब Opentern खुला हो।"
+
+#, message
+msgid "Alerts: {0}"
+msgstr "अलर्ट: {0}"
+
+msgid "All"
+msgstr "सभी"
+
+msgid "All Souls' Day"
+msgstr "ऑल सोल्स डे"
+
+msgid "All caught up"
+msgstr "सब देख लिया"
+
+msgid "All sectors (Esc)"
+msgstr "सभी सेक्टर (Esc)"
+
+msgid "Allow"
+msgstr "अनुमति दें"
+
+msgid "Allow for this chat"
+msgstr "इस चैट के लिए अनुमति दें"
+
+msgid "Allow through Windows Firewall"
+msgstr "Windows फ़ायरवॉल में अनुमति दें"
+
+msgid "Allow {0} to do this?"
+msgstr "{0} को यह करने दें?"
+
+msgid "Allowed"
+msgstr "अनुमति दी गई"
+
+msgid "Allowed through Windows Firewall"
+msgstr "Windows फ़ायरवॉल में अनुमति दी गई"
+
+#, message
+msgid "Alpaca has no {0} bars"
+msgstr "Alpaca के पास {0} बार नहीं हैं"
+
+msgid "Alpaca · US stocks"
+msgstr "Alpaca · अमेरिकी शेयर"
+
+msgid "Americas"
+msgstr "अमेरिका"
+
+msgid "An alert fired while Opentern was closed"
+msgstr "Opentern बंद रहते एक अलर्ट चला"
+
+msgid "An app password, not your login"
+msgstr "ऐप पासवर्ड, आपका लॉगिन नहीं"
+
+msgid "An empty list"
+msgstr "खाली सूची"
+
+msgid "Anchor Period"
+msgstr "एंकर अवधि"
+
+msgid "Anchored"
+msgstr "एंकर्ड"
+
+msgid "Anchored VWAP"
+msgstr "एंकर्ड VWAP"
+
+msgid "Anchored volume profile"
+msgstr "एंकर्ड वॉल्यूम प्रोफ़ाइल"
+
+msgid "Annotation tools"
+msgstr "टिप्पणी टूल"
+
+msgid "Answer a prompt"
+msgstr "प्रश्न का उत्तर दें"
+
+msgid "Any colour you like"
+msgstr "जो रंग चाहें"
+
+msgid "Anzac Day"
+msgstr "एंज़ैक दिवस"
+
+msgid "Applied a lab result"
+msgstr "लैब का परिणाम लागू किया"
+
+msgid "Applied to the chart."
+msgstr "चार्ट पर लागू किया गया।"
+
+msgid "Apply a lab result"
+msgstr "लैब का परिणाम लागू करें"
+
+msgid "Apply best"
+msgstr "सर्वोत्तम लागू करें"
+
+msgid "Apply defaults"
+msgstr "डिफ़ॉल्ट लागू करें"
+
+msgid "Apr"
+msgstr "अप्रैल"
+
+msgid "April"
+msgstr "अप्रैल"
+
+msgid "Area"
+msgstr "एरिया"
+
+msgid "Arnaud Legoux Moving Average"
+msgstr "आर्नो लेगू मूविंग एवरेज"
+
+msgid "Aroon"
+msgstr "अरून"
+
+msgid "Aroon Down"
+msgstr "अरून डाउन"
+
+msgid "Aroon Up"
+msgstr "अरून अप"
+
+msgid "Arrow"
+msgstr "तीर"
+
+msgid "Arrow mark down"
+msgstr "नीचे तीर चिह्न"
+
+msgid "Arrow mark up"
+msgstr "ऊपर तीर चिह्न"
+
+msgid "Ascension Day"
+msgstr "असेंशन दिवस"
+
+msgid "Asia-Pacific"
+msgstr "एशिया-प्रशांत"
+
+msgid "Ask"
+msgstr "आस्क"
+
+msgid "Ask first"
+msgstr "पहले पूछें"
+
+msgid "Attach files"
+msgstr "फ़ाइलें जोड़ें"
+
+msgid "Aug"
+msgstr "अग"
+
+msgid "August"
+msgstr "अगस्त"
+
+msgid "Australia Day"
+msgstr "ऑस्ट्रेलिया दिवस"
+
+msgid "Auto"
+msgstr "ऑटो"
+
+msgid "Auto (fits data to screen)"
+msgstr "ऑटो (डेटा स्क्रीन पर फ़िट)"
+
+msgid "Auto Fib Extension"
+msgstr "ऑटो फ़िब एक्सटेंशन"
+
+msgid "Auto Fib Retracement"
+msgstr "ऑटो फ़िब रिट्रेसमेंट"
+
+msgid "Auto, fits data to screen (Alt U)"
+msgstr "ऑटो, डेटा स्क्रीन पर फ़िट करता है (Alt U)"
+
+msgid "Average"
+msgstr "औसत"
+
+msgid "Average Day Range"
+msgstr "औसत दैनिक रेंज"
+
+msgid "Average Directional Index"
+msgstr "औसत दिशात्मक सूचकांक (ADX)"
+
+msgid "Average True Range"
+msgstr "औसत ट्रू रेंज (ATR)"
+
+msgid "Avg"
+msgstr "औसत"
+
+msgid "Avg # bars in losing trades"
+msgstr "हानि वाले ट्रेड में औसत बार"
+
+msgid "Avg # bars in trades"
+msgstr "ट्रेड में औसत बार"
+
+msgid "Avg # bars in winning trades"
+msgstr "लाभ वाले ट्रेड में औसत बार"
+
+msgid "Avg P&L"
+msgstr "औसत लाभ-हानि"
+
+msgid "Avg P&L %"
+msgstr "औसत लाभ-हानि %"
+
+msgid "Avg drawdown duration (bars)"
+msgstr "औसत ड्रॉडाउन अवधि (बार)"
+
+msgid "Avg equity drawdown"
+msgstr "औसत इक्विटी ड्रॉडाउन"
+
+msgid "Avg equity run-up"
+msgstr "औसत इक्विटी रन-अप"
+
+msgid "Avg losing trade"
+msgstr "औसत हानि वाला ट्रेड"
+
+msgid "Avg margin used"
+msgstr "औसत इस्तेमाल मार्जिन"
+
+msgid "Avg price"
+msgstr "औसत भाव"
+
+msgid "Avg run-up duration (bars)"
+msgstr "औसत रन-अप अवधि (बार)"
+
+msgid "Avg winning trade"
+msgstr "औसत लाभ वाला ट्रेड"
+
+msgid "Awesome Oscillator"
+msgstr "ऑसम ऑसिलेटर"
+
+msgid "BBPower"
+msgstr ""
+
+msgid "BOP"
+msgstr ""
+
+msgid "BUILT-IN INDICATORS"
+msgstr "अंतर्निहित इंडिकेटर"
+
+msgid "Back"
+msgstr "पीछे"
+
+msgid "Background"
+msgstr "पृष्ठभूमि"
+
+msgid "Backtest's max drawdown"
+msgstr "बैकटेस्ट का अधिकतम ड्रॉडाउन"
+
+msgid "Bakri Id"
+msgstr "बकरीद"
+
+msgid "Balance"
+msgstr "शेष"
+
+msgid "Balance of Power"
+msgstr "बैलेंस ऑफ़ पावर"
+
+msgid "Bands Calculation Mode"
+msgstr "बैंड गणना मोड"
+
+msgid "Bands Fill #1"
+msgstr "बैंड भराव 1"
+
+msgid "Bands Fill #2"
+msgstr "बैंड भराव 2"
+
+msgid "Bands Fill #3"
+msgstr "बैंड भराव 3"
+
+msgid "Bands Multiplier #1"
+msgstr "बैंड गुणक 1"
+
+msgid "Bands Multiplier #2"
+msgstr "बैंड गुणक 2"
+
+msgid "Bands Multiplier #3"
+msgstr "बैंड गुणक 3"
+
+msgid "Bands Settings"
+msgstr "बैंड सेटिंग्स"
+
+msgid "Bands Style"
+msgstr "बैंड शैली"
+
+msgid "Bands and channels"
+msgstr "बैंड और चैनल"
+
+msgid "Bar change values"
+msgstr "बार बदलाव के मान"
+
+msgid "Bar replay"
+msgstr "बार रीप्ले"
+
+msgid "Bars"
+msgstr "बार"
+
+msgid "Bars per symbol"
+msgstr "प्रति सिंबल बार"
+
+msgid "Bars style"
+msgstr "बार शैली"
+
+msgid "Base Line"
+msgstr "बेस लाइन"
+
+msgid "Base Line Length"
+msgstr "बेस लाइन लंबाई"
+
+msgid "Base level"
+msgstr "आधार स्तर"
+
+msgid "Baseline"
+msgstr "बेसलाइन"
+
+msgid "Basis"
+msgstr "आधार"
+
+msgid "Basis MA Type"
+msgstr "आधार MA प्रकार"
+
+msgid "Bayesian"
+msgstr "बेज़ियन"
+
+msgid "Begin"
+msgstr "शुरू करें"
+
+msgid "Berchtold's Day"
+msgstr "बेर्श्टोल्ड दिवस"
+
+msgid "Best: {0}  →  {1} ({2}), {3} trades"
+msgstr "सर्वोत्तम: {0}  →  {1} ({2}), {3} ट्रेड"
+
+msgid "Beta"
+msgstr "बीटा"
+
+msgid "Bid"
+msgstr "बिड"
+
+#, message
+msgid "Binance has no {0} bars"
+msgstr "Binance के पास {0} बार नहीं हैं"
+
+msgid "Black Consciousness Day"
+msgstr "अश्वेत चेतना दिवस"
+
+msgid "Body"
+msgstr "बॉडी"
+
+msgid "Body Middle"
+msgstr "बॉडी का मध्य"
+
+msgid "Bollinger BandWidth"
+msgstr "बोलिंजर बैंड चौड़ाई"
+
+msgid "Bollinger Bands"
+msgstr "बोलिंजर बैंड"
+
+msgid "Bollinger Bands %B"
+msgstr "बोलिंजर बैंड %B"
+
+msgid "Borders"
+msgstr "किनारे"
+
+#, message
+msgid "Bought {qty} {sym} at {price}"
+msgstr "{qty} {sym} {price} पर खरीदा"
+
+msgid "Box size"
+msgstr "बॉक्स आकार"
+
+msgid "Boxing Day"
+msgstr "बॉक्सिंग डे"
+
+msgid "Brush"
+msgstr "ब्रश"
+
+msgid "Buddha's Birthday"
+msgstr "बुद्ध जयंती"
+
+msgid "Built-in source, read-only. Make a copy to change and run it."
+msgstr "अंतर्निहित स्रोत, केवल पढ़ने योग्य। बदलने और चलाने के लिए प्रति बनाएँ।"
+
+msgid "Built-ins"
+msgstr "अंतर्निहित"
+
+msgid "Bull Bear Power"
+msgstr "बुल बेयर पावर"
+
+msgid "Buy"
+msgstr "खरीदें"
+
+msgid "Buy & hold"
+msgstr "खरीदें और रखें"
+
+msgid "Buy & hold return"
+msgstr "खरीदें और रखें रिटर्न"
+
+msgid "Buy order filled."
+msgstr "खरीद ऑर्डर भरा गया।"
+
+#, message
+msgid "Bybit has no {0} bars"
+msgstr "Bybit के पास {0} बार नहीं हैं"
+
+msgid "CAGR"
+msgstr ""
+
+msgid "CCI"
+msgstr ""
+
+msgid "CCI Histogram"
+msgstr "CCI हिस्टोग्राम"
+
+msgid "CCI Length"
+msgstr "CCI लंबाई"
+
+msgid "CCI Turbo"
+msgstr "CCI टर्बो"
+
+msgid "CCI Turbo Length"
+msgstr "CCI टर्बो लंबाई"
+
+msgid "CHARTS IN THIS WINDOW"
+msgstr "इस विंडो के चार्ट"
+
+msgid "CHOP"
+msgstr ""
+
+msgid "CRSI"
+msgstr ""
+
+msgid "CSV"
+msgstr ""
+
+msgid "Calendar"
+msgstr "कैलेंडर"
+
+msgid "Camarilla"
+msgstr "कैमरिला"
+
+msgid "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
+msgstr "आपका दूसरा डिवाइस नहीं मिला। उस पर कोड दिखने दें और जाँचें कि दोनों एक ही नेटवर्क पर हैं और कोई फ़ायरवॉल Opentern को नहीं रोक रहा।"
+
+#, message
+msgid "Can't reach the IBKR gateway. Start the Client Portal gateway and log in, then try again."
+msgstr "IBKR गेटवे से संपर्क नहीं हो रहा। Client Portal गेटवे शुरू करके लॉग इन करें और फिर कोशिश करें।"
+
+msgid "Canada Day"
+msgstr "कनाडा दिवस"
+
+msgid "Cancel"
+msgstr "रद्द करें"
+
+msgid "Candles"
+msgstr "कैंडल"
+
+msgid "Canvas"
+msgstr "कैनवास"
+
+msgid "Capital and size"
+msgstr "पूँजी और आकार"
+
+msgid "Carnival"
+msgstr "कार्निवल"
+
+msgid "Cash"
+msgstr "नकद"
+
+msgid "Categories"
+msgstr "श्रेणियाँ"
+
+msgid "Centered"
+msgstr "केंद्रित"
+
+msgid "Chaikin Money Flow"
+msgstr "चाइकिन मनी फ़्लो"
+
+msgid "Chaikin Oscillator"
+msgstr "चाइकिन ऑसिलेटर"
+
+msgid "Chance of a loss"
+msgstr "हानि की संभावना"
+
+msgid "Chance of ruin"
+msgstr "बर्बादी की संभावना"
+
+msgid "Chande Kroll Stop"
+msgstr "चांडे क्रोल स्टॉप"
+
+msgid "Chande MO"
+msgstr "चांडे MO"
+
+msgid "Chande Momentum Oscillator"
+msgstr "चांडे मोमेंटम ऑसिलेटर"
+
+msgid "Change"
+msgstr "बदलाव"
+
+msgid "Change %"
+msgstr "बदलाव %"
+
+msgid "Change interval"
+msgstr "अंतराल बदलें"
+
+msgid "Change over the last 24 hours"
+msgstr "पिछले 24 घंटों में बदलाव"
+
+msgid "Change over the last month"
+msgstr "पिछले महीने में बदलाव"
+
+msgid "Change over the last six months"
+msgstr "पिछले छह महीनों में बदलाव"
+
+msgid "Change over the last three months"
+msgstr "पिछले तीन महीनों में बदलाव"
+
+msgid "Change over the last year"
+msgstr "पिछले वर्ष में बदलाव"
+
+msgid "Change since the last close"
+msgstr "पिछले बंद से बदलाव"
+
+msgid "Change since the previous close"
+msgstr "पूर्व बंद भाव से बदलाव"
+
+msgid "Change the interval"
+msgstr "अंतराल बदलें"
+
+msgid "Change the strategy settings"
+msgstr "स्ट्रैटेजी सेटिंग्स बदलें"
+
+#, message
+msgid "Change the {what}"
+msgstr "{what} बदलें"
+
+msgid "Change {0}"
+msgstr "{0} बदलें"
+
+#, message
+msgid "Change {0}'s inputs"
+msgstr "{0} के इनपुट बदलें"
+
+#, message
+msgid "Changed the {what}"
+msgstr "{what} बदला"
+
+#, message
+msgid "Changed {0}'s inputs"
+msgstr "{0} के इनपुट बदले"
+
+msgid "Change|button"
+msgstr "बदलें"
+
+msgid "Channel settings"
+msgstr "चैनल सेटिंग्स"
+
+msgid "Chart"
+msgstr "चार्ट"
+
+msgid "Chart basic styles"
+msgstr "चार्ट की मूल शैलियाँ"
+
+msgid "Chart settings"
+msgstr "चार्ट सेटिंग्स"
+
+msgid "Chart type"
+msgstr "चार्ट प्रकार"
+
+msgid "Charts download their prices again when you open them. Older minute and hour bars may not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back either."
+msgstr "चार्ट खोलने पर भाव फिर डाउनलोड होते हैं। पुराने मिनट और घंटे के बार शायद वापस न आएँ: डेटा स्रोत केवल हाल के रखते हैं (Yahoo: 1 मिनट के बार लगभग एक सप्ताह, 15 मिनट के 60 दिन)। लाइव रिकॉर्ड किए मुहूर्त और अन्य विशेष सत्र भी वापस नहीं आएँगे।"
+
+msgid "Charts, scripts and backtests. All on your own machine."
+msgstr "चार्ट, स्क्रिप्ट और बैकटेस्ट। सब आपकी अपनी मशीन पर।"
+
+msgid "Chats"
+msgstr "चैट"
+
+msgid "Check again"
+msgstr "फिर जाँचें"
+
+msgid "Check for updates"
+msgstr "अपडेट जाँचें"
+
+msgid "Check for updates when Opentern starts"
+msgstr "Opentern शुरू होने पर अपडेट जाँचें"
+
+#, message
+msgid "Check {0}"
+msgstr "{0} जाँचें"
+
+#, message
+msgid "Checked {0}"
+msgstr "{0} जाँचा"
+
+msgid "Checking"
+msgstr "जाँच रहे हैं"
+
+msgid "Chg%"
+msgstr "बदल%"
+
+msgid "Chg% 24h"
+msgstr "बदल% 24घं"
+
+msgid "Chg% today"
+msgstr "बदल% आज"
+
+msgid "Children's Day"
+msgstr "बाल दिवस"
+
+msgid "Choose a scripts folder"
+msgstr "स्क्रिप्ट फ़ोल्डर चुनें"
+
+msgid "Choose a snapshots folder"
+msgstr "स्नैपशॉट फ़ोल्डर चुनें"
+
+msgid "Choose file"
+msgstr "फ़ाइल चुनें"
+
+msgid "Chop Zone"
+msgstr "चॉप ज़ोन"
+
+msgid "Choppiness Index"
+msgstr "चॉपीनेस इंडेक्स"
+
+msgid "Christmas"
+msgstr "क्रिसमस"
+
+msgid "Christmas Day"
+msgstr "क्रिसमस"
+
+msgid "Christmas Eve"
+msgstr "क्रिसमस की पूर्व संध्या"
+
+msgid "Chuseok"
+msgstr "चुसेओक"
+
+msgid "Circles"
+msgstr "वृत्त"
+
+msgid "Civic Holiday"
+msgstr "सिविक अवकाश"
+
+msgid "Classic"
+msgstr "क्लासिक"
+
+msgid "Claude Code decides what's safe and asks only when it isn't sure."
+msgstr "Claude Code खुद तय करता है कि क्या सुरक्षित है और शंका होने पर ही पूछता है।"
+
+msgid "Claude asks before it edits files or runs commands."
+msgstr "Claude फ़ाइल बदलने या कमांड चलाने से पहले पूछता है।"
+
+msgid "Clear all"
+msgstr "सब साफ़ करें"
+
+msgid "Clear cache"
+msgstr "कैश साफ़ करें"
+
+msgid "Clear everything?"
+msgstr "सब साफ़ करें?"
+
+msgid "Clear log"
+msgstr "लॉग साफ़ करें"
+
+msgid "Clear price cache"
+msgstr "भाव कैश साफ़ करें"
+
+msgid "Clear saved logos"
+msgstr "सहेजे लोगो हटाएँ"
+
+msgid "Clear the price cache?"
+msgstr "भाव कैश साफ़ करें?"
+
+msgid "Clearing…"
+msgstr "साफ़ हो रहा है…"
+
+msgid "Click a bar to start from it"
+msgstr "जहाँ से शुरू करना हो उस बार पर क्लिक करें"
+
+msgid "Close"
+msgstr "बंद करें"
+
+msgid "Close (Esc)"
+msgstr "बंद करें (Esc)"
+
+msgid "Close ({0})"
+msgstr "बंद करें ({0})"
+
+msgid "Close replay"
+msgstr "रीप्ले बंद करें"
+
+msgid "Closed"
+msgstr "बंद"
+
+#, message
+msgid "Closed {0}."
+msgstr "{0} बंद किया।"
+
+msgid "Closes {0}"
+msgstr "{0} पर बंद"
+
+msgid "Close|price"
+msgstr "बंद"
+
+msgid "Codex asks before it edits files or runs anything it doesn't know is safe."
+msgstr "Codex फ़ाइल बदलने या अनिश्चित चीज़ चलाने से पहले पूछता है।"
+
+msgid "Codex works freely in your scripts folder and asks before going outside it."
+msgstr "Codex आपके स्क्रिप्ट फ़ोल्डर में खुलकर काम करता है और बाहर जाने से पहले पूछता है।"
+
+#, message
+msgid "Coinbase has no {0} bars"
+msgstr "Coinbase के पास {0} बार नहीं हैं"
+
+msgid "Collapse panel"
+msgstr "पैनल समेटें"
+
+msgid "Color"
+msgstr "रंग"
+
+msgid "Color bars based on previous close"
+msgstr "पिछले बंद भाव से बार रंगें"
+
+msgid "Color based on previous close"
+msgstr "पिछले बंद भाव से रंग"
+
+msgid "Colours"
+msgstr "रंग"
+
+msgid "Columns"
+msgstr "कॉलम"
+
+msgid "Coming of Age Day"
+msgstr "वयस्कता दिवस"
+
+msgid "Commission"
+msgstr "कमीशन"
+
+msgid "Commission paid"
+msgstr "दिया गया कमीशन"
+
+msgid "Commodities"
+msgstr "कमोडिटी"
+
+msgid "Commodity Channel Index"
+msgstr "कमोडिटी चैनल इंडेक्स (CCI)"
+
+msgid "Compare"
+msgstr "तुलना"
+
+msgid "Compare indices"
+msgstr "सूचकांकों की तुलना"
+
+msgid "Compare or add symbol"
+msgstr "तुलना करें या सिंबल जोड़ें"
+
+msgid "Compare symbol"
+msgstr "सिंबल की तुलना"
+
+msgid "Compare the indices"
+msgstr "सूचकांकों की तुलना करें"
+
+msgid "Compared the indices"
+msgstr "सूचकांकों की तुलना की"
+
+msgid "Compared with"
+msgstr "इससे तुलना"
+
+msgid "Connors RSI"
+msgstr "कॉनर्स RSI"
+
+msgid "Constitution Day"
+msgstr "संविधान दिवस"
+
+msgid "Constitution Memorial Day"
+msgstr "संविधान स्मृति दिवस"
+
+msgid "Context now"
+msgstr "वर्तमान संदर्भ"
+
+msgid "Continue"
+msgstr "जारी रखें"
+
+msgid "Contracts"
+msgstr "कॉन्ट्रैक्ट"
+
+msgid "Conversion Line"
+msgstr "कन्वर्ज़न लाइन"
+
+msgid "Conversion Line Length"
+msgstr "कन्वर्ज़न लाइन लंबाई"
+
+msgid "Copied"
+msgstr "कॉपी हुआ"
+
+#, message
+msgid "Copied to {name}."
+msgstr "{name} में कॉपी हुआ।"
+
+msgid "Coppock Curve"
+msgstr "कॉपॉक कर्व"
+
+msgid "Copy"
+msgstr "कॉपी करें"
+
+msgid "Copy code"
+msgstr "कोड कॉपी करें"
+
+msgid "Copy image"
+msgstr "चित्र कॉपी करें"
+
+msgid "Corpus Christi"
+msgstr "कॉर्पस क्रिस्टी"
+
+msgid "Costs"
+msgstr "लागत"
+
+msgid "Couldn't check for updates right now. Try again later."
+msgstr "अभी अपडेट नहीं जाँच सके। बाद में कोशिश करें।"
+
+msgid "Couldn't check. Make sure you are connected to the internet."
+msgstr "जाँच नहीं हो सकी। इंटरनेट कनेक्शन देखें।"
+
+#, message
+msgid "Couldn't connect. Check your internet connection."
+msgstr "कनेक्ट नहीं हो सका। अपना इंटरनेट कनेक्शन जाँचें।"
+
+#, message
+msgid "Couldn't copy it: {e}"
+msgstr "कॉपी नहीं हो सका: {e}"
+
+#, message
+msgid "Couldn't delete it: {e}"
+msgstr "हटाया नहीं जा सका: {e}"
+
+msgid "Couldn't export."
+msgstr "निर्यात नहीं हो सका।"
+
+#, message
+msgid "Couldn't export: {e}"
+msgstr "निर्यात नहीं हो सका: {e}"
+
+msgid "Couldn't get the import ready."
+msgstr "आयात तैयार नहीं हो सका।"
+
+msgid "Couldn't get your data ready."
+msgstr "आपका डेटा तैयार नहीं हो सका।"
+
+#, message
+msgid "Couldn't get your data ready: {e}"
+msgstr "आपका डेटा तैयार नहीं हो सका: {e}"
+
+msgid "Couldn't import"
+msgstr "आयात नहीं हो सका"
+
+msgid "Couldn't make a code on this computer."
+msgstr "इस कंप्यूटर पर कोड नहीं बन सका।"
+
+#, message
+msgid "Couldn't make the folder: {e}"
+msgstr "फ़ोल्डर नहीं बन सका: {e}"
+
+#, message
+msgid "Couldn't move it: {e}"
+msgstr "स्थानांतरित नहीं हो सका: {e}"
+
+#, message
+msgid "Couldn't open the clipboard: {e}"
+msgstr "क्लिपबोर्ड नहीं खुल सका: {e}"
+
+#, message
+msgid "Couldn't paste it: {e}"
+msgstr "पेस्ट नहीं हो सका: {e}"
+
+#, message
+msgid "Couldn't reach Yahoo."
+msgstr "Yahoo से संपर्क नहीं हो सका।"
+
+#, message
+msgid "Couldn't reach the data service."
+msgstr "डेटा सेवा से संपर्क नहीं हो सका।"
+
+#, message
+msgid "Couldn't reach {0}: {err}"
+msgstr "{0} से संपर्क नहीं हो सका: {err}"
+
+#, message
+msgid "Couldn't read {0}: {e}"
+msgstr "{0} नहीं पढ़ा जा सका: {e}"
+
+#, message
+msgid "Couldn't read {file}: {e}"
+msgstr "{file} नहीं पढ़ी जा सकी: {e}"
+
+#, message
+msgid "Couldn't rename it: {e}"
+msgstr "नाम नहीं बदला जा सका: {e}"
+
+#, message
+msgid "Couldn't save the chat id: {e}"
+msgstr "चैट आईडी नहीं सहेजी जा सकी: {e}"
+
+#, message
+msgid "Couldn't save the email settings: {e}"
+msgstr "ईमेल सेटिंग्स नहीं सहेजी जा सकीं: {e}"
+
+#, message
+msgid "Couldn't save the password in your keychain: {e}"
+msgstr "पासवर्ड कीचेन में नहीं सहेजा जा सका: {e}"
+
+msgid "Couldn't save the snapshot"
+msgstr "स्नैपशॉट नहीं सहेजा जा सका"
+
+#, message
+msgid "Couldn't save the token in your keychain: {e}"
+msgstr "टोकन कीचेन में नहीं सहेजा जा सका: {e}"
+
+#, message
+msgid "Couldn't save to your keychain: {e}"
+msgstr "कीचेन में नहीं सहेजा जा सका: {e}"
+
+#, message
+msgid "Couldn't save: {e}"
+msgstr "सहेजा नहीं जा सका: {e}"
+
+#, message
+msgid "Couldn't set Opentern to start at login: {e}"
+msgstr "लॉगिन पर Opentern शुरू होना सेट नहीं हो सका: {e}"
+
+msgid "Couldn't start the run."
+msgstr "रन शुरू नहीं हो सका।"
+
+#, message
+msgid "Couldn't start {0}: {e}"
+msgstr "{0} शुरू नहीं हो सका: {e}"
+
+#, message
+msgid "Couldn't update: {e}"
+msgstr "अपडेट नहीं हो सका: {e}"
+
+msgid "Count in the index"
+msgstr "सूचकांक में गिनें"
+
+msgid "Countdown to bar close"
+msgstr "बार बंद होने की उलटी गिनती"
+
+msgid "Counts all of a company's shares."
+msgstr "कंपनी के सभी शेयर गिनता है।"
+
+msgid "Counts only the shares the public can trade, as NSE does."
+msgstr "NSE की तरह केवल आम लोगों के ट्रेड योग्य शेयर गिनता है।"
+
+msgid "Create"
+msgstr "बनाएँ"
+
+msgid "Create alert"
+msgstr "अलर्ट बनाएँ"
+
+msgid "Create alert (Alt+A)"
+msgstr "अलर्ट बनाएँ (Alt+A)"
+
+msgid "Create an alert"
+msgstr "अलर्ट बनाएँ"
+
+#, message
+msgid "Create {0}"
+msgstr "{0} बनाएँ"
+
+msgid "Cross"
+msgstr "क्रॉस"
+
+msgid "Cross line"
+msgstr "क्रॉस लाइन"
+
+msgid "Crosshair"
+msgstr "क्रॉसहेयर"
+
+msgid "Crossing"
+msgstr "पार करे"
+
+msgid "Crossing down"
+msgstr "नीचे पार करे"
+
+msgid "Crossing up"
+msgstr "ऊपर पार करे"
+
+msgid "Crypto"
+msgstr "क्रिप्टो"
+
+msgid "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source that needs an account. Keys stay in your system keychain."
+msgstr "क्रिप्टो (Binance, Bybit, OKX, Coinbase, Kraken) और Yahoo के लिए कुछ नहीं चाहिए। खाते वाले स्रोत के लिए कुंजी जोड़ें। कुंजियाँ सिस्टम कीचेन में रहती हैं।"
+
+msgid "Crypto majors"
+msgstr "प्रमुख क्रिप्टो"
+
+msgid "Culture Day"
+msgstr "संस्कृति दिवस"
+
+msgid "Cum. profit"
+msgstr "संचयी लाभ"
+
+msgid "Currency"
+msgstr "मुद्रा"
+
+msgid "Cursors"
+msgstr "कर्सर"
+
+msgid "Custom"
+msgstr "कस्टम"
+
+msgid "Custom indices"
+msgstr "कस्टम सूचकांक"
+
+msgid "Custom: 7m, 3h, 2D"
+msgstr "कस्टम: 7m, 3h, 2D"
+
+msgid "DATA WINDOW"
+msgstr "डेटा विंडो"
+
+msgid "DAYS"
+msgstr "दिन"
+
+msgid "DI Length"
+msgstr "DI लंबाई"
+
+msgid "DM"
+msgstr ""
+
+msgid "Daily"
+msgstr "दैनिक"
+
+msgid "Dashed"
+msgstr "डैश वाली"
+
+msgid "Data modification"
+msgstr "डेटा संशोधन"
+
+msgid "Data providers"
+msgstr "डेटा प्रदाता"
+
+msgid "Date"
+msgstr "तारीख"
+
+msgid "Date and price range"
+msgstr "तारीख और भाव सीमा"
+
+msgid "Date range"
+msgstr "तारीख सीमा"
+
+msgid "Date/Time"
+msgstr "तारीख/समय"
+
+msgid "Days"
+msgstr "दिन"
+
+msgid "Dec"
+msgstr "दिस"
+
+msgid "December"
+msgstr "दिसंबर"
+
+msgid "Declined"
+msgstr "अस्वीकृत"
+
+msgid "Deeper layers, hairline borders, a fresher green, and dialogs, menus and controls redrawn to match, in dark and light."
+msgstr "गहरी परतें, बारीक किनारे, ताज़ा हरा रंग, और डार्क व लाइट दोनों में नए सिरे से बने डायलॉग, मेन्यू और कंट्रोल।"
+
+msgid "Default"
+msgstr "डिफ़ॉल्ट"
+
+msgid "Defaults  {0}"
+msgstr "डिफ़ॉल्ट  {0}"
+
+msgid "Delayed {min} min"
+msgstr "{min} मिनट की देरी"
+
+msgid "Delete"
+msgstr "हटाएँ"
+
+msgid "Delete chat"
+msgstr "चैट हटाएँ"
+
+msgid "Delete folder (if empty)"
+msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
+
+msgid "Delete for good"
+msgstr "हमेशा के लिए हटाएँ"
+
+msgid "Delete layout"
+msgstr "लेआउट हटाएँ"
+
+msgid "Delete list"
+msgstr "सूची हटाएँ"
+
+msgid "Delete template"
+msgstr "टेम्पलेट हटाएँ"
+
+msgid "Delete the selected drawing"
+msgstr "चुनी ड्रॉइंग हटाएँ"
+
+msgid "Delete this account"
+msgstr "यह खाता हटाएँ"
+
+#, message
+msgid "Delete {0}"
+msgstr "{0} हटाएँ"
+
+#, message
+msgid "Delete {f}? Choose Delete again to confirm."
+msgstr "{f} हटाएँ? पुष्टि के लिए फिर हटाएँ चुनें।"
+
+#, message
+msgid "Deleted the folder {dir}."
+msgstr "फ़ोल्डर {dir} हटाया गया।"
+
+#, message
+msgid "Deleted {0}"
+msgstr "{0} हटाया"
+
+#, message
+msgid "Deleted {0}."
+msgstr "{0} हटाया गया।"
+
+#, message
+msgid "Deleted {f}."
+msgstr "{f} हटाई गई।"
+
+msgid "Deny"
+msgstr "मना करें"
+
+msgid "Depth"
+msgstr "गहराई"
+
+msgid "Depth of market"
+msgstr "बाज़ार की गहराई"
+
+msgid "Detrended Price Oscillator"
+msgstr "डीट्रेंडेड प्राइस ऑसिलेटर"
+
+msgid "Deviation"
+msgstr "विचलन"
+
+msgid "Difference"
+msgstr "अंतर"
+
+msgid "Directional Movement Index"
+msgstr "दिशात्मक गति सूचकांक"
+
+msgid "Display cumulative volume"
+msgstr "संचयी वॉल्यूम दिखाएँ"
+
+msgid "Display reversal price"
+msgstr "रिवर्सल भाव दिखाएँ"
+
+msgid "Display reversal price change"
+msgstr "रिवर्सल भाव बदलाव दिखाएँ"
+
+msgid "Display settings"
+msgstr "प्रदर्शन सेटिंग्स"
+
+msgid "Dividend"
+msgstr "लाभांश"
+
+msgid "Dividend {0} {1}\nEx-date {2}"
+msgstr "लाभांश {0} {1}\nएक्स-तारीख {2}"
+
+msgid "Dividends and splits"
+msgstr "लाभांश और स्प्लिट"
+
+msgid "Divisor"
+msgstr "भाजक"
+
+msgid "Diwali Balipratipada"
+msgstr "दिवाली बलिप्रतिपदा"
+
+msgid "Diwali Laxmi Pujan"
+msgstr "दिवाली लक्ष्मी पूजन"
+
+msgid "Donchian Channels"
+msgstr "डोनचियन चैनल"
+
+msgid "Done"
+msgstr "हो गया"
+
+msgid "Done."
+msgstr "हो गया।"
+
+#, message
+msgid "Done. {errors} couldn't load (hover them to see why)."
+msgstr "हो गया। {errors} लोड नहीं हुए (कारण देखने के लिए ऊपर ले जाएँ)।"
+
+msgid "Dotted"
+msgstr "बिंदीदार"
+
+msgid "Double EMA"
+msgstr "डबल EMA"
+
+msgid "Double-click to put these inputs on the chart"
+msgstr "ये इनपुट चार्ट पर लगाने के लिए डबल-क्लिक करें"
+
+msgid "Double-click to rename"
+msgstr "नाम बदलने के लिए डबल-क्लिक करें"
+
+msgid "Down"
+msgstr "नीचे"
+
+msgid "Down Trend"
+msgstr "गिरावट का ट्रेंड"
+
+msgid "Down volume"
+msgstr "गिरावट वॉल्यूम"
+
+msgid "Download image"
+msgstr "चित्र डाउनलोड करें"
+
+msgid "Download {0}"
+msgstr "{0} डाउनलोड करें"
+
+msgid "Downtrend Highlighter"
+msgstr "डाउनट्रेंड हाइलाइटर"
+
+msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr "डॉ. बाबासाहेब आंबेडकर जयंती"
+
+msgid "Drag to scale · double-click to fit · right-click for options"
+msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
+
+msgid "Draw with replacement"
+msgstr "वापसी के साथ चयन"
+
+#, message
+msgid "Draw {what}"
+msgstr "{what} बनाएँ"
+
+msgid "Drawdown"
+msgstr "ड्रॉडाउन"
+
+msgid "Drawing tools"
+msgstr "ड्रॉइंग टूल"
+
+#, message
+msgid "Drawing: {0} #{1}"
+msgstr "ड्रॉइंग: {0} #{1}"
+
+msgid "Drawings"
+msgstr "ड्रॉइंग"
+
+#, message
+msgid "Drew {what}"
+msgstr "{what} बनाई"
+
+msgid "Drop files to attach"
+msgstr "जोड़ने के लिए फ़ाइलें छोड़ें"
+
+msgid "Duplicate"
+msgstr "प्रतिलिपि"
+
+msgid "Dussehra"
+msgstr "दशहरा"
+
+msgid "EBIT"
+msgstr ""
+
+msgid "EBIT margin"
+msgstr "EBIT मार्जिन"
+
+msgid "EBITDA"
+msgstr ""
+
+msgid "EBITDA margin"
+msgstr "EBITDA मार्जिन"
+
+msgid "EMA"
+msgstr ""
+
+msgid "EMA Cross"
+msgstr "EMA क्रॉस"
+
+msgid "EMA Length"
+msgstr "EMA लंबाई"
+
+msgid "EOM"
+msgstr ""
+
+msgid "EV/EBITDA"
+msgstr ""
+
+msgid "EXPLORER"
+msgstr "एक्सप्लोरर"
+
+msgid "EXT"
+msgstr ""
+
+msgid "Each symbol's own"
+msgstr "हर सिंबल की अपनी"
+
+msgid "Early May Bank Holiday"
+msgstr "मई का बैंक अवकाश"
+
+msgid "Early close"
+msgstr "जल्दी बंद"
+
+msgid "Earnings {0}\nReported EPS {1}\nEstimate {2}"
+msgstr "नतीजे {0}\nघोषित EPS {1}\nअनुमान {2}"
+
+msgid "Ease of Movement"
+msgstr "ईज़ ऑफ़ मूवमेंट"
+
+msgid "Easter Monday"
+msgstr "ईस्टर सोमवार"
+
+msgid "Edit"
+msgstr "संपादित करें"
+
+msgid "Edit alert"
+msgstr "अलर्ट संपादित करें"
+
+msgid "Edit index"
+msgstr "सूचकांक संपादित करें"
+
+#, message
+msgid "Edit {0}"
+msgstr "{0} संपादित करें"
+
+#, message
+msgid "Edited {0}"
+msgstr "{0} संपादित किया"
+
+msgid "Efficiency"
+msgstr "दक्षता"
+
+msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr "दक्षता: नमूने के बाहर प्रति बार लाभ, नमूने के भीतर प्रति बार लाभ के अनुपात में। 50% से ऊपर आमतौर पर मज़बूत माना जाता है।"
+
+msgid "Elder Force Index"
+msgstr "एल्डर फ़ोर्स इंडेक्स"
+
+msgid "Ellipse"
+msgstr "दीर्घवृत्त"
+
+msgid "Email"
+msgstr "ईमेल"
+
+msgid "Emperor Naruhito's Birthday"
+msgstr "सम्राट नारुहितो का जन्मदिन"
+
+msgid "End of Year Holiday"
+msgstr "वर्षांत अवकाश"
+
+msgid "End the replay"
+msgstr "रीप्ले समाप्त करें"
+
+msgid "Ended the replay"
+msgstr "रीप्ले समाप्त किया"
+
+msgid "Enter Opentern"
+msgstr "Opentern में जाएँ"
+
+#, message
+msgid "Enter a price."
+msgstr "भाव डालें।"
+
+#, message
+msgid "Enter a quantity above zero."
+msgstr "शून्य से अधिक मात्रा डालें।"
+
+msgid "Enter address"
+msgstr "पता डालें"
+
+#, message
+msgid "Enter both the stop and the limit price."
+msgstr "स्टॉप और लिमिट दोनों भाव डालें।"
+
+#, message
+msgid "Enter how far the stop trails the price."
+msgstr "डालें कि स्टॉप भाव से कितना पीछे रहे।"
+
+msgid "Enter the Telegram chat id to send alerts to."
+msgstr "Telegram चैट आईडी डालें जहाँ अलर्ट भेजने हैं।"
+
+msgid "Enter the code from your other device"
+msgstr "दूसरे डिवाइस का कोड डालें"
+
+msgid "Enter this code on your other device"
+msgstr "यह कोड दूसरे डिवाइस पर डालें"
+
+msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
+msgstr "पिछले बारह महीनों के EBITDA पर उद्यम मूल्य। सूचकांक के लिए: कुल EV बटा कुल EBITDA"
+
+msgid "Entry {side}"
+msgstr "प्रवेश {side}"
+
+msgid "Envelope"
+msgstr "एनवेलप"
+
+msgid "Equal"
+msgstr "बराबर"
+
+msgid "Equal weight"
+msgstr "बराबर भार"
+
+msgid "Equity"
+msgstr "इक्विटी"
+
+msgid "Eraser"
+msgstr "रबर"
+
+msgid "Euronext Paris"
+msgstr ""
+
+msgid "Europe"
+msgstr "यूरोप"
+
+msgid "Even trades"
+msgstr "बराबरी वाले ट्रेड"
+
+msgid "Every combination"
+msgstr "हर संयोजन"
+
+msgid "Every in-sample window starts at the first bar"
+msgstr "हर इन-सैंपल विंडो पहले बार से शुरू होती है"
+
+msgid "Every index (Esc)"
+msgstr "सभी सूचकांक (Esc)"
+
+msgid "Every result has its price and day change. Star one into your watchlist, and find coins by name (\"bitcoin\") even with a typo."
+msgstr "हर नतीजे में भाव और दिन का बदलाव दिखता है। तारे से वॉचलिस्ट में जोड़ें और कॉइन नाम से (\"bitcoin\") खोजें, वर्तनी गलत हो तब भी।"
+
+msgid "Every stock starts with the same weight."
+msgstr "हर शेयर समान भार से शुरू होता है।"
+
+msgid "Every time"
+msgstr "हर बार"
+
+#, message
+msgid "Everything else came in, but this computer can't save these scripts: {0}. Rename them on the other device and export again."
+msgstr "बाकी सब आ गया, पर यह कंप्यूटर ये स्क्रिप्ट नहीं सहेज सकता: {0}। दूसरे डिवाइस पर नाम बदलकर फिर निर्यात करें।"
+
+msgid "Exchange"
+msgstr "एक्सचेंज"
+
+msgid "Exit {side}"
+msgstr "निकास {side}"
+
+msgid "Expected payoff"
+msgstr "अपेक्षित लाभ"
+
+msgid "Expired"
+msgstr "समाप्त"
+
+msgid "Expires"
+msgstr "समाप्ति"
+
+msgid "Exponential"
+msgstr "एक्सपोनेंशियल"
+
+msgid "Export"
+msgstr "निर्यात"
+
+msgid "Export and import"
+msgstr "निर्यात और आयात"
+
+msgid "Export: save the list of trades as a CSV file"
+msgstr "निर्यात: ट्रेड सूची CSV फ़ाइल में सहेजें"
+
+msgid "Exported {when} · Opentern {0}"
+msgstr "{when} को निर्यात · Opentern {0}"
+
+msgid "Exporting"
+msgstr "निर्यात हो रहा है"
+
+msgid "Extend left"
+msgstr "बाएँ बढ़ाएँ"
+
+msgid "Extend lines left"
+msgstr "रेखाएँ बाएँ बढ़ाएँ"
+
+msgid "Extend lines right"
+msgstr "रेखाएँ दाएँ बढ़ाएँ"
+
+msgid "Extend right"
+msgstr "दाएँ बढ़ाएँ"
+
+msgid "Extend to last bar"
+msgstr "अंतिम बार तक बढ़ाएँ"
+
+msgid "Extended line"
+msgstr "विस्तारित रेखा"
+
+msgid "Extended trading hours"
+msgstr "विस्तारित ट्रेडिंग घंटे"
+
+msgid "Factor"
+msgstr "फ़ैक्टर"
+
+msgid "Family Day"
+msgstr "परिवार दिवस"
+
+msgid "Fast Length"
+msgstr "तेज़ लंबाई"
+
+msgid "Fast length"
+msgstr "तेज़ लंबाई"
+
+msgid "Favorites"
+msgstr "पसंदीदा"
+
+msgid "Feb"
+msgstr "फ़र"
+
+msgid "February"
+msgstr "फ़रवरी"
+
+msgid "Feed"
+msgstr "फ़ीड"
+
+msgid "Fetch and measure every symbol"
+msgstr "हर सिंबल लाएँ और मापें"
+
+msgid "Fewest trades"
+msgstr "न्यूनतम ट्रेड"
+
+msgid "Fib retracement"
+msgstr "फ़िब रिट्रेसमेंट"
+
+msgid "Fibonacci"
+msgstr "फ़िबोनाची"
+
+msgid "Fill"
+msgstr "भराव"
+
+msgid "Fill in every field first."
+msgstr "पहले सभी फ़ील्ड भरें।"
+
+msgid "Fill in the SMTP server, your address and where to send, or turn email off."
+msgstr "SMTP सर्वर, अपना पता और प्राप्तकर्ता भरें, या ईमेल बंद करें।"
+
+msgid "Fill orders on bar close"
+msgstr "बार बंद होने पर ऑर्डर भरें"
+
+msgid "Fills"
+msgstr "भराव"
+
+msgid "Filter"
+msgstr "फ़िल्टर"
+
+msgid "Filter files"
+msgstr "फ़ाइलें फ़िल्टर करें"
+
+#, message
+msgid "Find files: {0}"
+msgstr "फ़ाइलें खोजें: {0}"
+
+msgid "Finish signing in in your browser."
+msgstr "ब्राउज़र में साइन-इन पूरा करें।"
+
+msgid "Fisher"
+msgstr "फ़िशर"
+
+msgid "Fisher Transform"
+msgstr "फ़िशर ट्रांसफ़ॉर्म"
+
+msgid "Fixed range volume profile"
+msgstr "निश्चित रेंज वॉल्यूम प्रोफ़ाइल"
+
+msgid "Floor"
+msgstr "फ़्लोर"
+
+msgid "Folders"
+msgstr "फ़ोल्डर"
+
+msgid "Follow the app theme"
+msgstr "ऐप थीम के अनुसार"
+
+msgid "Font"
+msgstr "फ़ॉन्ट"
+
+msgid "Forecasting and measurement tools"
+msgstr "पूर्वानुमान और माप टूल"
+
+msgid "Forex"
+msgstr "फ़ॉरेक्स"
+
+msgid "Forward one bar"
+msgstr "एक बार आगे"
+
+#, message
+msgid "Found files: {0}"
+msgstr "फ़ाइलें मिलीं: {0}"
+
+msgid "Frankfurt"
+msgstr "फ़्रैंकफ़र्ट"
+
+msgid "Free float"
+msgstr "फ़्री फ़्लोट"
+
+msgid "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."
+msgstr "मुफ़्त रियल-टाइम भाव (IEX)। कुंजियाँ: app.alpaca.markets → API keys।"
+
+msgid "Free-float market cap"
+msgstr "फ़्री-फ़्लोट मार्केट कैप"
+
+msgid "Fri"
+msgstr "शुक्र"
+
+msgid "Friday"
+msgstr "शुक्रवार"
+
+msgid "From @BotFather"
+msgstr "@BotFather से"
+
+msgid "From a file"
+msgstr "फ़ाइल से"
+
+msgid "From another device"
+msgstr "दूसरे डिवाइस से"
+
+msgid "Full Moon"
+msgstr "पूर्णिमा"
+
+msgid "Full market cap"
+msgstr "पूर्ण मार्केट कैप"
+
+msgid "Full release notes"
+msgstr "पूरे रिलीज़ नोट"
+
+msgid "Full screen"
+msgstr "पूर्ण स्क्रीन"
+
+msgid "Fullscreen mode (Shift F)"
+msgstr "पूर्ण स्क्रीन मोड (Shift F)"
+
+#, message
+msgid "Fundamentals: {e}"
+msgstr "फ़ंडामेंटल: {e}"
+
+msgid "Funding"
+msgstr "फ़ंडिंग"
+
+msgid "Funds"
+msgstr "फ़ंड"
+
+msgid "Futures"
+msgstr "फ़्यूचर्स"
+
+msgid "Futures prices from free sources are about 10 minutes behind the exchange. Daily closes are the official settlements."
+msgstr "मुफ़्त स्रोतों के फ़्यूचर्स भाव एक्सचेंज से लगभग 10 मिनट पीछे हैं। दैनिक बंद भाव आधिकारिक सेटलमेंट हैं।"
+
+msgid "Gainers"
+msgstr "बढ़त वाले"
+
+msgid "Ganesh Chaturthi"
+msgstr "गणेश चतुर्थी"
+
+msgid "Gann and Fibonacci tools"
+msgstr "गैन और फ़िबोनाची टूल"
+
+msgid "Gateway URL"
+msgstr "गेटवे URL"
+
+msgid "General"
+msgstr "सामान्य"
+
+msgid "Geometric shapes"
+msgstr "ज्यामितीय आकृतियाँ"
+
+msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
+msgstr "Gmail, Outlook और अधिकतर सेवाओं में ऐप पासवर्ड चाहिए: अपने खाते की सुरक्षा सेटिंग्स में बनाएँ।"
+
+msgid "Good Friday"
+msgstr "गुड फ़्राइडे"
+
+msgid "Got it"
+msgstr "समझ गया"
+
+msgid "Gradient"
+msgstr "ग्रेडिएंट"
+
+msgid "Greater than"
+msgstr "से अधिक"
+
+msgid "Greenery Day"
+msgstr "हरियाली दिवस"
+
+msgid "Grid (every combination)"
+msgstr "ग्रिड (हर संयोजन)"
+
+msgid "Gross"
+msgstr "सकल"
+
+msgid "Gross loss"
+msgstr "सकल हानि"
+
+msgid "Gross margin"
+msgstr "सकल मार्जिन"
+
+msgid "Gross profit"
+msgstr "सकल लाभ"
+
+msgid "Growth and margins"
+msgstr "वृद्धि और मार्जिन"
+
+msgid "HOURS"
+msgstr "घंटे"
+
+msgid "HV"
+msgstr ""
+
+msgid "Hangul Proclamation Day"
+msgstr "हंगुल दिवस"
+
+msgid "Heatmap"
+msgstr "हीटमैप"
+
+msgid "Heikin Ashi"
+msgstr "हाइकिन आशी"
+
+msgid "Hidden"
+msgstr "छिपा हुआ"
+
+msgid "Hide"
+msgstr "छिपाएँ"
+
+msgid "Hide VWAP on 1D or Above"
+msgstr "1D या ऊपर VWAP छिपाएँ"
+
+msgid "Hide all drawings"
+msgstr "सभी ड्रॉइंग छिपाएँ"
+
+msgid "Hide all drawings ({0})"
+msgstr "सभी ड्रॉइंग छिपाएँ ({0})"
+
+msgid "Hide the drawing toolbar"
+msgstr "ड्रॉइंग टूलबार छिपाएँ"
+
+msgid "Hide the sidebar"
+msgstr "साइडबार छिपाएँ"
+
+msgid "High-low"
+msgstr "उच्च-निम्न"
+
+msgid "High|price"
+msgstr "उच्च"
+
+msgid "Histogram"
+msgstr "हिस्टोग्राम"
+
+msgid "Historical Volatility"
+msgstr "ऐतिहासिक अस्थिरता"
+
+msgid "History"
+msgstr "इतिहास"
+
+msgid "History {0}"
+msgstr "इतिहास {0}"
+
+msgid "Holi"
+msgstr "होली"
+
+msgid "Hollow candles"
+msgstr "खोखली कैंडल"
+
+msgid "Hong Kong"
+msgstr "हांगकांग"
+
+msgid "Hong Kong Exchanges"
+msgstr ""
+
+msgid "Hong Kong Special Region Establishment Day"
+msgstr "हांगकांग विशेष क्षेत्र स्थापना दिवस"
+
+msgid "Horizontal line"
+msgstr "क्षैतिज रेखा"
+
+msgid "Horizontal ray"
+msgstr "क्षैतिज किरण"
+
+msgid "Horz grid lines"
+msgstr "क्षैतिज ग्रिड"
+
+msgid "Hotlists"
+msgstr "हॉटलिस्ट"
+
+msgid "Hours"
+msgstr "घंटे"
+
+msgid "How far back its prices go"
+msgstr "भाव कितने पीछे तक हैं"
+
+msgid "How far the price is above or below its 200-day average"
+msgstr "भाव अपने 200-दिन औसत से कितना ऊपर या नीचे है"
+
+msgid "How far the price is above or below its 50-day average"
+msgstr "भाव अपने 50-दिन औसत से कितना ऊपर या नीचे है"
+
+msgid "Hull Moving Average"
+msgstr "हल मूविंग एवरेज"
+
+#, message
+msgid "IBKR doesn't know {0}."
+msgstr "IBKR को {0} नहीं मिला।"
+
+#, message
+msgid "IBKR has no {0} bars"
+msgstr "IBKR के पास {0} बार नहीं हैं"
+
+msgid "IN {0}"
+msgstr "{0} में"
+
+msgid "INCLUDE"
+msgstr "शामिल करें"
+
+msgid "INPUTS TO VARY"
+msgstr "बदलने वाले इनपुट"
+
+msgid "Ichimoku Cloud"
+msgstr "इचिमोकू क्लाउड"
+
+msgid "Icons"
+msgstr "आइकन"
+
+msgid "Id-Ul-Fitr"
+msgstr "ईद-उल-फ़ित्र"
+
+msgid "Import"
+msgstr "आयात"
+
+msgid "Import and restart"
+msgstr "आयात करके फिर शुरू करें"
+
+msgid "Import finished"
+msgstr "आयात पूरा"
+
+msgid "Import from {0}"
+msgstr "{0} से आयात"
+
+msgid "Imported. Press Run in the Script Editor to start it."
+msgstr "आयात हुआ। शुरू करने के लिए स्क्रिप्ट एडिटर में चलाएँ दबाएँ।"
+
+msgid "Importing"
+msgstr "आयात हो रहा है"
+
+msgid "In a pane of its own, below"
+msgstr "नीचे अपने अलग पेन में"
+
+msgid "In-sample P&L"
+msgstr "इन-सैंपल लाभ-हानि"
+
+msgid "In-sample bars"
+msgstr "इन-सैंपल बार"
+
+msgid "Increment"
+msgstr "वृद्धि"
+
+msgid "Independence Day"
+msgstr "स्वतंत्रता दिवस"
+
+msgid "Independence Movement Day"
+msgstr "स्वतंत्रता आंदोलन दिवस"
+
+msgid "Index"
+msgstr "सूचकांक"
+
+msgid "Indian Markets"
+msgstr "भारतीय बाज़ार"
+
+msgid "Indian large caps"
+msgstr "भारतीय लार्ज कैप"
+
+msgid "Indicator inputs"
+msgstr "इंडिकेटर इनपुट"
+
+msgid "Indicator templates"
+msgstr "इंडिकेटर टेम्पलेट"
+
+msgid "Indicator titles"
+msgstr "इंडिकेटर शीर्षक"
+
+msgid "Indicator value labels"
+msgstr "इंडिकेटर मान लेबल"
+
+msgid "Indicator values"
+msgstr "इंडिकेटर मान"
+
+msgid "Indicators"
+msgstr "इंडिकेटर"
+
+msgid "Indicators, metrics and strategies (/)"
+msgstr "इंडिकेटर, मेट्रिक और स्ट्रैटेजी (/)"
+
+msgid "Indices"
+msgstr "सूचकांक"
+
+msgid "Initial capital"
+msgstr "प्रारंभिक पूँजी"
+
+msgid "Input"
+msgstr "इनपुट"
+
+msgid "Inputs"
+msgstr "इनपुट"
+
+msgid "Install {0}"
+msgstr "{0} इंस्टॉल करें"
+
+msgid "Interactive Brokers"
+msgstr ""
+
+msgid "Interval"
+msgstr "अंतराल"
+
+#, message
+msgid "It ended with code {n}."
+msgstr "कोड {n} के साथ समाप्त हुआ।"
+
+msgid "JSON"
+msgstr ""
+
+msgid "Jan"
+msgstr "जन"
+
+msgid "January"
+msgstr "जनवरी"
+
+msgid "Japan Exchange Group"
+msgstr ""
+
+msgid "Jaw"
+msgstr "जॉ"
+
+msgid "Jaw Length"
+msgstr "जॉ लंबाई"
+
+msgid "Jaw Offset"
+msgstr "जॉ ऑफ़सेट"
+
+msgid "Jul"
+msgstr "जुल"
+
+msgid "July"
+msgstr "जुलाई"
+
+msgid "Jump to real time"
+msgstr "रियल टाइम पर जाएँ"
+
+msgid "Jun"
+msgstr "जून"
+
+msgid "June"
+msgstr "जून"
+
+msgid "Juneteenth"
+msgstr "जूनटीन्थ"
+
+msgid "KEEP IN SYNC"
+msgstr "सिंक में रखें"
+
+msgid "KST"
+msgstr ""
+
+msgid "Kagi"
+msgstr "कागी"
+
+msgid "Keep checking alerts"
+msgstr "अलर्ट जाँचते रहें"
+
+msgid "Keep checking, even after a restart"
+msgstr "जाँचते रहें, रीस्टार्ट के बाद भी"
+
+msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
+msgstr "मौजूद चीज़ें रखता है और समान नाम वाली अपडेट करता है। पहले बैकअप सहेजा जाता है।"
+
+msgid "Keltner Channels"
+msgstr "केल्टनर चैनल"
+
+msgid "Key ID"
+msgstr "कुंजी आईडी"
+
+msgid "Keyboard shortcuts"
+msgstr "कीबोर्ड शॉर्टकट"
+
+msgid "King's Birthday"
+msgstr "राजा का जन्मदिन"
+
+msgid "Klinger Oscillator"
+msgstr "क्लिंगर ऑसिलेटर"
+
+msgid "Know Sure Thing"
+msgstr "नो श्योर थिंग"
+
+msgid "Korea Exchange"
+msgstr ""
+
+msgid "Korean National Foundation Day"
+msgstr "कोरिया स्थापना दिवस"
+
+#, message
+msgid "Kraken has no {0} bars"
+msgstr "Kraken के पास {0} बार नहीं हैं"
+
+msgid "Labels on price scale"
+msgstr "भाव स्केल पर लेबल"
+
+msgid "Labels position"
+msgstr "लेबल की जगह"
+
+msgid "Labor Day"
+msgstr "श्रम दिवस"
+
+msgid "Labor Thanksgiving Day"
+msgstr "श्रम आभार दिवस"
+
+msgid "Labour Day"
+msgstr "मज़दूर दिवस"
+
+msgid "Lagging Span"
+msgstr "लैगिंग स्पैन"
+
+msgid "Lakhs, crores"
+msgstr "लाख, करोड़"
+
+msgid "Language"
+msgstr "भाषा"
+
+msgid "Large numbers"
+msgstr "बड़ी संख्याएँ"
+
+msgid "Largest losing trade"
+msgstr "सबसे बड़ा हानि ट्रेड"
+
+msgid "Largest losing trade, % of gross loss"
+msgstr "सबसे बड़ा हानि ट्रेड, सकल हानि का %"
+
+msgid "Largest winning trade"
+msgstr "सबसे बड़ा लाभ ट्रेड"
+
+msgid "Largest winning trade, % of gross profit"
+msgstr "सबसे बड़ा लाभ ट्रेड, सकल लाभ का %"
+
+msgid "Last"
+msgstr "अंतिम"
+
+#, message
+msgid "Last rebalanced {0}."
+msgstr "पिछला पुनर्संतुलन {0}।"
+
+msgid "Layout {n}"
+msgstr "लेआउट {n}"
+
+msgid "Layouts"
+msgstr "लेआउट"
+
+msgid "Leading Span A"
+msgstr "लीडिंग स्पैन A"
+
+msgid "Leading Span B"
+msgstr "लीडिंग स्पैन B"
+
+msgid "Leading Span B Length"
+msgstr "लीडिंग स्पैन B लंबाई"
+
+msgid "Least Squares Moving Average"
+msgstr "न्यूनतम वर्ग मूविंग एवरेज"
+
+#, message
+msgid "Leave members out of {0}"
+msgstr "{0} के सदस्य छोड़ें"
+
+msgid "Leave out of the index"
+msgstr "सूचकांक से बाहर रखें"
+
+msgid "Left"
+msgstr "बाएँ"
+
+msgid "Left Bars"
+msgstr "बाएँ बार"
+
+#, message
+msgid "Left members out of {0}"
+msgstr "{0} के सदस्य छोड़े"
+
+msgid "Length"
+msgstr "लंबाई"
+
+msgid "Less than"
+msgstr "से कम"
+
+msgid "Levels"
+msgstr "स्तर"
+
+msgid "Levels format"
+msgstr "स्तर प्रारूप"
+
+msgid "Leverage"
+msgstr "लीवरेज"
+
+msgid "Like 15, 4h, D, W or 3M"
+msgstr "जैसे 15, 4h, D, W या 3M"
+
+msgid "Limit"
+msgstr "लिमिट"
+
+msgid "Limit price"
+msgstr "लिमिट भाव"
+
+msgid "Line"
+msgstr "रेखा"
+
+msgid "Line break"
+msgstr "लाइन ब्रेक"
+
+msgid "Line color"
+msgstr "रेखा का रंग"
+
+msgid "Line width"
+msgstr "रेखा की मोटाई"
+
+msgid "Line with breaks"
+msgstr "टूटी रेखा"
+
+msgid "Line with markers"
+msgstr "मार्कर वाली रेखा"
+
+msgid "Linear Regression Channel"
+msgstr "रैखिक प्रतिगमन चैनल"
+
+msgid "Lips"
+msgstr "लिप्स"
+
+msgid "Lips Length"
+msgstr "लिप्स लंबाई"
+
+msgid "Lips Offset"
+msgstr "लिप्स ऑफ़सेट"
+
+msgid "List"
+msgstr "सूची"
+
+msgid "List menu (double-click to rename)"
+msgstr "सूची मेन्यू (नाम बदलने के लिए डबल-क्लिक)"
+
+msgid "List of trades"
+msgstr "ट्रेड की सूची"
+
+msgid "List the indices"
+msgstr "सूचकांक दिखाएँ"
+
+msgid "List your scripts"
+msgstr "अपनी स्क्रिप्ट दिखाएँ"
+
+msgid "List {0}"
+msgstr "सूची {0}"
+
+msgid "Listed the indices"
+msgstr "सूचकांक दिखाए"
+
+msgid "Listed your scripts"
+msgstr "आपकी स्क्रिप्ट दिखाईं"
+
+msgid "Live"
+msgstr "लाइव"
+
+msgid "Ln {line}, Col {col}      Spaces: {0}      UTF-8      {1}"
+msgstr "पंक्ति {line}, स्तंभ {col}      स्पेस: {0}      UTF-8      {1}"
+
+#, message
+msgid "Loaded {0} of {1}…"
+msgstr "{1} में से {0} लोड हुए…"
+
+msgid "Loading models"
+msgstr "मॉडल लोड हो रहे हैं"
+
+#, message
+msgid "Loading {0} symbols…"
+msgstr "{0} सिंबल लोड हो रहे हैं…"
+
+msgid "Loading…"
+msgstr "लोड हो रहा है…"
+
+msgid "Local"
+msgstr "स्थानीय"
+
+msgid "Lock"
+msgstr "लॉक करें"
+
+msgid "Lock all drawings"
+msgstr "सभी ड्रॉइंग लॉक करें"
+
+msgid "Log"
+msgstr "लॉग"
+
+msgid "Log scale"
+msgstr "लॉग स्केल"
+
+msgid "Log scale (Alt L)"
+msgstr "लॉग स्केल (Alt L)"
+
+msgid "London"
+msgstr "लंदन"
+
+msgid "London Stock Exchange"
+msgstr ""
+
+msgid "Long"
+msgstr "लॉन्ग"
+
+msgid "Long Length"
+msgstr "लंबी अवधि लंबाई"
+
+msgid "Long MA"
+msgstr "लंबी अवधि MA"
+
+msgid "Long MA length"
+msgstr "लंबी अवधि MA लंबाई"
+
+msgid "Long RCI"
+msgstr "लंबी अवधि RCI"
+
+msgid "Long RCI Length"
+msgstr "लंबी अवधि RCI लंबाई"
+
+msgid "Long RoC Length"
+msgstr "लंबी अवधि RoC लंबाई"
+
+msgid "Long position"
+msgstr "लॉन्ग पोज़िशन"
+
+msgid "Look at the chart"
+msgstr "चार्ट देखें"
+
+msgid "Look at the drawings"
+msgstr "ड्रॉइंग देखें"
+
+msgid "Look at the paper account"
+msgstr "पेपर खाता देखें"
+
+#, message
+msgid "Look at {0}"
+msgstr "{0} देखें"
+
+msgid "Look up indicators"
+msgstr "इंडिकेटर खोजें"
+
+msgid "Looked at the chart"
+msgstr "चार्ट देखा"
+
+msgid "Looked at the drawings"
+msgstr "ड्रॉइंग देखीं"
+
+msgid "Looked at the paper account"
+msgstr "पेपर खाता देखा"
+
+#, message
+msgid "Looked at {0}"
+msgstr "{0} देखा"
+
+msgid "Looked up indicators"
+msgstr "इंडिकेटर खोजे"
+
+msgid "Looking for your other device"
+msgstr "आपका दूसरा डिवाइस खोज रहे हैं"
+
+msgid "Losers"
+msgstr "गिरावट वाले"
+
+msgid "Losing streak"
+msgstr "लगातार हानि"
+
+msgid "Losing streak, worst 5%"
+msgstr "लगातार हानि, सबसे खराब 5%"
+
+msgid "Losing trades"
+msgstr "हानि वाले ट्रेड"
+
+msgid "Lower"
+msgstr "निचला"
+
+msgid "Lower Band"
+msgstr "निचला बैंड"
+
+msgid "Lower Band #1"
+msgstr "निचला बैंड 1"
+
+msgid "Lower Band #2"
+msgstr "निचला बैंड 2"
+
+msgid "Lower Band #3"
+msgstr "निचला बैंड 3"
+
+msgid "Lower color"
+msgstr "निचला रंग"
+
+msgid "Lower deviation"
+msgstr "निचला विचलन"
+
+msgid "Lower length"
+msgstr "निचली लंबाई"
+
+msgid "Lower multiplier"
+msgstr "निचला गुणक"
+
+msgid "Lower offset"
+msgstr "निचला ऑफ़सेट"
+
+msgid "Low|price"
+msgstr "निम्न"
+
+msgid "Lunar New Year"
+msgstr "चंद्र नव वर्ष"
+
+msgid "MA"
+msgstr ""
+
+msgid "MA #1"
+msgstr "MA 1"
+
+msgid "MA #1 Length"
+msgstr "MA 1 लंबाई"
+
+msgid "MA #2"
+msgstr "MA 2"
+
+msgid "MA #2 Length"
+msgstr "MA 2 लंबाई"
+
+msgid "MA #3"
+msgstr "MA 3"
+
+msgid "MA #3 Length"
+msgstr "MA 3 लंबाई"
+
+msgid "MA #4"
+msgstr "MA 4"
+
+msgid "MA #4 Length"
+msgstr "MA 4 लंबाई"
+
+msgid "MA Cross"
+msgstr "MA क्रॉस"
+
+msgid "MA Length"
+msgstr "MA लंबाई"
+
+msgid "MA Type"
+msgstr "MA प्रकार"
+
+msgid "MACD"
+msgstr ""
+
+msgid "MF"
+msgstr ""
+
+msgid "MINUTES"
+msgstr "मिनट"
+
+msgid "MR"
+msgstr ""
+
+#, message
+msgid "Made the index {0}"
+msgstr "सूचकांक {0} बनाया"
+
+#, message
+msgid "Made {name}."
+msgstr "{name} बनाया गया।"
+
+msgid "Magnet mode: snap to open, high, low, close"
+msgstr "मैग्नेट मोड: खुला, उच्च, निम्न, बंद से चिपके"
+
+msgid "Maharashtra Day"
+msgstr "महाराष्ट्र दिवस"
+
+msgid "Mahashivratri"
+msgstr "महाशिवरात्रि"
+
+msgid "Mahatma Gandhi Jayanti"
+msgstr "महात्मा गांधी जयंती"
+
+msgid "Majority Rule"
+msgstr "बहुमत नियम"
+
+msgid "Make a copy"
+msgstr "प्रति बनाएँ"
+
+msgid "Make a copy to edit"
+msgstr "संपादन के लिए प्रति बनाएँ"
+
+msgid "Make another account first"
+msgstr "पहले दूसरा खाता बनाएँ"
+
+#, message
+msgid "Make the index {0}"
+msgstr "सूचकांक {0} बनाएँ"
+
+msgid "Make the panel taller to see the equity curve."
+msgstr "इक्विटी कर्व देखने के लिए पैनल ऊँचा करें।"
+
+msgid "Map"
+msgstr "मानचित्र"
+
+msgid "Map of every index"
+msgstr "सभी सूचकांकों का मानचित्र"
+
+msgid "Mar"
+msgstr "मार्च"
+
+msgid "March"
+msgstr "मार्च"
+
+msgid "Margin"
+msgstr "मार्जिन"
+
+msgid "Margin calls"
+msgstr "मार्जिन कॉल"
+
+msgid "Margin efficiency"
+msgstr "मार्जिन दक्षता"
+
+msgid "Margin for long positions"
+msgstr "लॉन्ग पोज़िशन का मार्जिन"
+
+msgid "Margin for short positions"
+msgstr "शॉर्ट पोज़िशन का मार्जिन"
+
+msgid "Margin in use {0}{unit} · Buying power {1}{unit}"
+msgstr "इस्तेमाल मार्जिन {0}{unit} · क्रय शक्ति {1}{unit}"
+
+msgid "Marine Day"
+msgstr "समुद्र दिवस"
+
+msgid "Market"
+msgstr "मार्केट"
+
+msgid "Market cap"
+msgstr "मार्केट कैप"
+
+msgid "Market caps didn't load, so every tile is the same size"
+msgstr "मार्केट कैप लोड नहीं हुए, इसलिए सभी टाइल समान आकार की हैं"
+
+msgid "Market closed{when}"
+msgstr "बाज़ार बंद{when}"
+
+msgid "Market holiday"
+msgstr "बाज़ार अवकाश"
+
+msgid "Market open"
+msgstr "बाज़ार खुला"
+
+msgid "Market overview"
+msgstr "बाज़ार अवलोकन"
+
+msgid "Market overview (Alt M)"
+msgstr "बाज़ार अवलोकन (Alt M)"
+
+msgid "Martin Luther King Jr. Day"
+msgstr "मार्टिन लूथर किंग जूनियर दिवस"
+
+msgid "Mass Index"
+msgstr "मास इंडेक्स"
+
+msgid "Max DD"
+msgstr "अधि. DD"
+
+msgid "Max contracts held"
+msgstr "अधिकतम रखे कॉन्ट्रैक्ट"
+
+msgid "Max drawdown"
+msgstr "अधिकतम ड्रॉडाउन"
+
+msgid "Max drawdown %"
+msgstr "अधिकतम ड्रॉडाउन %"
+
+msgid "Max drawdown, worst 5%"
+msgstr "अधिकतम ड्रॉडाउन, सबसे खराब 5%"
+
+msgid "Max equity drawdown"
+msgstr "अधिकतम इक्विटी ड्रॉडाउन"
+
+msgid "Max equity run-up"
+msgstr "अधिकतम इक्विटी रन-अप"
+
+msgid "Max margin used"
+msgstr "अधिकतम इस्तेमाल मार्जिन"
+
+msgid "Max value"
+msgstr "अधिकतम मान"
+
+msgid "Maximize"
+msgstr "अधिकतम करें"
+
+msgid "Maximize panel"
+msgstr "पैनल बड़ा करें"
+
+msgid "May"
+msgstr "मई"
+
+msgid "McGinley Dynamic"
+msgstr "मैकगिनली डायनामिक"
+
+msgid "Measure"
+msgstr "मापें"
+
+msgid "Measure (or Shift+drag)"
+msgstr "मापें (या Shift+खींचें)"
+
+msgid "Median"
+msgstr "माध्यिका"
+
+msgid "Median EMA"
+msgstr "माध्यिका EMA"
+
+msgid "Median Length"
+msgstr "माध्यिका लंबाई"
+
+msgid "Median P&L"
+msgstr "माध्यिका लाभ-हानि"
+
+msgid "Median max drawdown"
+msgstr "माध्यिका अधिकतम ड्रॉडाउन"
+
+msgid "Memorial Day"
+msgstr "मेमोरियल डे"
+
+msgid "Merge"
+msgstr "मिलाएँ"
+
+msgid "Message"
+msgstr "संदेश"
+
+msgid "Method"
+msgstr "विधि"
+
+msgid "Middle"
+msgstr "मध्य"
+
+msgid "Middle Band"
+msgstr "मध्य बैंड"
+
+msgid "Middle Length"
+msgstr "मध्य लंबाई"
+
+msgid "Middle RCI"
+msgstr "मध्य RCI"
+
+msgid "Middle RCI Length"
+msgstr "मध्य RCI लंबाई"
+
+msgid "Millions, billions"
+msgstr "मिलियन, बिलियन"
+
+msgid "Minutes"
+msgstr "मिनट"
+
+msgid "Model"
+msgstr "मॉडल"
+
+msgid "Momentum"
+msgstr "मोमेंटम"
+
+msgid "Mon"
+msgstr "सोम"
+
+msgid "Monday"
+msgstr "सोमवार"
+
+msgid "Money Flow Index"
+msgstr "मनी फ़्लो इंडेक्स"
+
+msgid "Monte Carlo"
+msgstr "मोंटे कार्लो"
+
+#, message
+msgid "Monte Carlo needs at least two closed trades."
+msgstr "मोंटे कार्लो के लिए कम से कम दो बंद ट्रेड चाहिए।"
+
+msgid "Month"
+msgstr "महीना"
+
+msgid "Monthly"
+msgstr "मासिक"
+
+msgid "Monthly limit"
+msgstr "मासिक सीमा"
+
+msgid "Months"
+msgstr "महीने"
+
+msgid "Moon Phases"
+msgstr "चंद्र कलाएँ"
+
+msgid "More"
+msgstr "और"
+
+msgid "More intervals"
+msgstr "और अंतराल"
+
+msgid "Mountain Day"
+msgstr "पर्वत दिवस"
+
+msgid "Move the pointer over the chart."
+msgstr "पॉइंटर चार्ट पर ले जाएँ।"
+
+msgid "Move to top"
+msgstr "सबसे ऊपर ले जाएँ"
+
+#, message
+msgid "Moved to {0}."
+msgstr "{0} में ले जाया गया।"
+
+msgid "Moving Average Adaptive"
+msgstr "अनुकूली मूविंग एवरेज"
+
+msgid "Moving Average Channel"
+msgstr "मूविंग एवरेज चैनल"
+
+msgid "Moving Average Exponential"
+msgstr "एक्सपोनेंशियल मूविंग एवरेज"
+
+msgid "Moving Average Hamming"
+msgstr "हैमिंग मूविंग एवरेज"
+
+msgid "Moving Average Ribbon"
+msgstr "मूविंग एवरेज रिबन"
+
+msgid "Moving Average Simple"
+msgstr "सरल मूविंग एवरेज"
+
+msgid "Moving Average Weighted"
+msgstr "भारित मूविंग एवरेज"
+
+msgid "Moving averages"
+msgstr "मूविंग एवरेज"
+
+msgid "Muharram"
+msgstr "मुहर्रम"
+
+msgid "Muhurat trading"
+msgstr "मुहूर्त ट्रेडिंग"
+
+msgid "Multiplier"
+msgstr "गुणक"
+
+msgid "Multiplier #1"
+msgstr "गुणक 1"
+
+msgid "Multiplier #2"
+msgstr "गुणक 2"
+
+msgid "Multiplier #3"
+msgstr "गुणक 3"
+
+msgid "Municipal Corporation Elections (Maharashtra)"
+msgstr "नगर निगम चुनाव (महाराष्ट्र)"
+
+msgid "My plan includes SIP"
+msgstr "मेरे प्लान में SIP है"
+
+msgid "NEW SCRIPT HERE"
+msgstr "यहाँ नई स्क्रिप्ट"
+
+msgid "NIFTY 500"
+msgstr ""
+
+msgid "NSE · BSE"
+msgstr ""
+
+msgid "NYSE · NASDAQ"
+msgstr ""
+
+msgid "Name"
+msgstr "नाम"
+
+#, message
+msgid "Nasdaq sent no earnings."
+msgstr "Nasdaq ने नतीजे नहीं भेजे।"
+
+msgid "National Day"
+msgstr "राष्ट्रीय दिवस"
+
+msgid "National Day of the Republic of China"
+msgstr "चीन गणराज्य राष्ट्रीय दिवस"
+
+msgid "National Foundation Day"
+msgstr "राष्ट्र स्थापना दिवस"
+
+msgid "National Liberation Day"
+msgstr "राष्ट्रीय मुक्ति दिवस"
+
+msgid "Net P&L"
+msgstr "शुद्ध लाभ-हानि"
+
+msgid "Net P&L %"
+msgstr "शुद्ध लाभ-हानि %"
+
+msgid "Net P&L (every run)"
+msgstr "शुद्ध लाभ-हानि (हर रन)"
+
+msgid "Net Volume"
+msgstr "शुद्ध वॉल्यूम"
+
+msgid "Net profit"
+msgstr "शुद्ध लाभ"
+
+msgid "Net profit as % of largest loss"
+msgstr "सबसे बड़ी हानि के % में शुद्ध लाभ"
+
+msgid "Net profit ÷ max drawdown"
+msgstr "शुद्ध लाभ ÷ अधिकतम ड्रॉडाउन"
+
+msgid "Never"
+msgstr "कभी नहीं"
+
+msgid "New Moon"
+msgstr "अमावस्या"
+
+msgid "New Year's Day"
+msgstr "नव वर्ष दिवस"
+
+msgid "New Year's Eve"
+msgstr "नव वर्ष की पूर्व संध्या"
+
+msgid "New Year's Holiday"
+msgstr "नव वर्ष अवकाश"
+
+msgid "New account"
+msgstr "नया खाता"
+
+msgid "New chat"
+msgstr "नई चैट"
+
+msgid "New folder"
+msgstr "नया फ़ोल्डर"
+
+msgid "New index"
+msgstr "नया सूचकांक"
+
+msgid "New layout"
+msgstr "नया लेआउट"
+
+msgid "New line"
+msgstr "नई पंक्ति"
+
+msgid "New list"
+msgstr "नई सूची"
+
+msgid "New pane"
+msgstr "नया पेन"
+
+msgid "New paper account"
+msgstr "नया पेपर खाता"
+
+msgid "New price scale"
+msgstr "नया भाव स्केल"
+
+msgid "New script"
+msgstr "नई स्क्रिप्ट"
+
+msgid "New section"
+msgstr "नया सेक्शन"
+
+msgid "News"
+msgstr "समाचार"
+
+msgid "Next earnings {0}\nEstimate {1}"
+msgstr "अगले नतीजे {0}\nअनुमान {1}"
+
+#, message
+msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr "अगला पुनर्संतुलन {0} (1 अप्रैल और 1 अक्टूबर)।"
+
+msgid "No alerts yet"
+msgstr "अभी कोई अलर्ट नहीं"
+
+msgid "No bars came back."
+msgstr "कोई बार नहीं आया।"
+
+msgid "No chat mentions that."
+msgstr "किसी चैट में यह नहीं है।"
+
+msgid "No chats yet"
+msgstr "अभी कोई चैट नहीं"
+
+msgid "No closed trades yet."
+msgstr "अभी कोई बंद ट्रेड नहीं।"
+
+#, message
+msgid "No coin prices came this time. Try again in a minute."
+msgstr "इस बार कॉइन भाव नहीं आए। एक मिनट में फिर कोशिश करें।"
+
+#, message
+msgid "No company fundamentals for this market."
+msgstr "इस बाज़ार के लिए कंपनी फ़ंडामेंटल नहीं हैं।"
+
+msgid "No daily history for this symbol."
+msgstr "इस सिंबल का दैनिक इतिहास नहीं है।"
+
+msgid "No favorites yet"
+msgstr "अभी कोई पसंदीदा नहीं"
+
+msgid "No file open"
+msgstr "कोई फ़ाइल नहीं खुली"
+
+#, message
+msgid "No funding rate for this symbol."
+msgstr "इस सिंबल की फ़ंडिंग दर नहीं है।"
+
+msgid "No headlines right now."
+msgstr "अभी कोई सुर्खी नहीं।"
+
+msgid "No holidays in the next four months."
+msgstr "अगले चार महीनों में कोई अवकाश नहीं।"
+
+msgid "No indices yet"
+msgstr "अभी कोई सूचकांक नहीं"
+
+msgid "No lists match"
+msgstr "कोई सूची मेल नहीं खाती"
+
+msgid "No matches"
+msgstr "कोई मेल नहीं"
+
+msgid "No monthly history"
+msgstr "मासिक इतिहास नहीं"
+
+msgid "No monthly history for this symbol."
+msgstr "इस सिंबल का मासिक इतिहास नहीं है।"
+
+msgid "No new prices for {0}"
+msgstr "{0} से नया भाव नहीं"
+
+msgid "No open positions."
+msgstr "कोई खुली पोज़िशन नहीं।"
+
+#, message
+msgid "No price yet for this symbol."
+msgstr "इस सिंबल का भाव अभी नहीं है।"
+
+msgid "No prices came back."
+msgstr "कोई भाव नहीं आया।"
+
+#, message
+msgid "No prices came this time."
+msgstr "इस बार भाव नहीं आए।"
+
+msgid "No prices: the ticker may have been renamed or delisted. Left out of the index."
+msgstr "भाव नहीं: टिकर का नाम बदला या डीलिस्ट हुआ हो सकता है। सूचकांक से बाहर रखा गया।"
+
+msgid "No problems. Running on the chart."
+msgstr "कोई समस्या नहीं। चार्ट पर चल रही है।"
+
+msgid "No run met the conditions (too few trades, or the script failed)."
+msgstr "कोई रन शर्तें पूरी नहीं कर सका (ट्रेड बहुत कम या स्क्रिप्ट विफल)।"
+
+msgid "No script"
+msgstr "कोई स्क्रिप्ट नहीं"
+
+msgid "No scripts yet. Press + to start one."
+msgstr "अभी कोई स्क्रिप्ट नहीं। शुरू करने के लिए + दबाएँ।"
+
+msgid "No section"
+msgstr "कोई सेक्शन नहीं"
+
+msgid "No strategy on the chart"
+msgstr "चार्ट पर कोई स्ट्रैटेजी नहीं"
+
+msgid "No symbol could be tested."
+msgstr "किसी सिंबल की जाँच नहीं हो सकी।"
+
+msgid "No symbols match."
+msgstr "कोई सिंबल मेल नहीं खाता।"
+
+msgid "No symbols yet"
+msgstr "अभी कोई सिंबल नहीं"
+
+msgid "No working orders."
+msgstr "कोई सक्रिय ऑर्डर नहीं।"
+
+#, message
+msgid "No {0}/{1} exchange rate yet."
+msgstr "{0}/{1} विनिमय दर अभी नहीं है।"
+
+#, message
+msgid "No {0}/{1} exchange rate yet; try again in a moment."
+msgstr "{0}/{1} विनिमय दर अभी नहीं है; थोड़ी देर में कोशिश करें।"
+
+msgid "None"
+msgstr "कोई नहीं"
+
+msgid "Not answered"
+msgstr "उत्तर नहीं दिया"
+
+msgid "Not connecting? Your other device has to reach this one. Windows will ask for permission."
+msgstr "कनेक्ट नहीं हो रहा? दूसरे डिवाइस को इस तक पहुँचना होगा। Windows अनुमति माँगेगा।"
+
+#, message
+msgid "Not enough bars: each step needs {0} in-sample bars and some after them, and there are {1}."
+msgstr "बार कम हैं: हर चरण को {0} इन-सैंपल बार और उसके बाद कुछ चाहिए, जबकि {1} हैं।"
+
+#, message
+msgid "Not enough buying power for this order."
+msgstr "इस ऑर्डर के लिए क्रय शक्ति कम है।"
+
+msgid "Not installed"
+msgstr "इंस्टॉल नहीं"
+
+msgid "Not yet tried with a real account. Compare its prices with another source before relying on them."
+msgstr "अभी असली खाते से नहीं जाँचा गया। भरोसा करने से पहले भाव दूसरे स्रोत से मिलाएँ।"
+
+msgid "Nothing defined yet."
+msgstr "अभी कुछ परिभाषित नहीं।"
+
+msgid "Nothing found"
+msgstr "कुछ नहीं मिला"
+
+msgid "Nothing has fired yet"
+msgstr "अभी कुछ नहीं चला"
+
+msgid "Nothing matches"
+msgstr "कोई मेल नहीं"
+
+msgid "Nothing on the chart yet"
+msgstr "चार्ट पर अभी कुछ नहीं"
+
+msgid "Nothing traded yet."
+msgstr "अभी कोई ट्रेड नहीं।"
+
+msgid "Notification"
+msgstr "सूचना"
+
+msgid "Notifications"
+msgstr "सूचनाएँ"
+
+msgid "Notify me"
+msgstr "मुझे बताएँ"
+
+msgid "Nov"
+msgstr "नव"
+
+msgid "November"
+msgstr "नवंबर"
+
+msgid "Number of lines"
+msgstr "रेखाओं की संख्या"
+
+msgid "Number of pivots back"
+msgstr "पीछे के पिवट की संख्या"
+
+msgid "Number of rows"
+msgstr "पंक्तियों की संख्या"
+
+msgid "Number of years"
+msgstr "वर्षों की संख्या"
+
+#, message
+msgid "OANDA has no {0} bars"
+msgstr "OANDA के पास {0} बार नहीं हैं"
+
+#, message
+msgid "OANDA refused the token. Check it in Settings → Data providers."
+msgstr "OANDA ने टोकन अस्वीकार किया। सेटिंग्स → डेटा प्रदाता में जाँचें।"
+
+msgid "OANDA · forex and CFDs"
+msgstr "OANDA · फ़ॉरेक्स और CFD"
+
+msgid "OBJECT TREE"
+msgstr "ऑब्जेक्ट ट्री"
+
+#, message
+msgid "OKX has no {0} bars"
+msgstr "OKX के पास {0} बार नहीं हैं"
+
+#, message
+msgid "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+msgstr "OKX की परपेचुअल ऑर्डर बुक कॉन्ट्रैक्ट गिनती है, इसलिए नहीं दिखाई जाती। Binance और Bybit परपेचुअल में है।"
+
+msgid "OPEN LAYOUT"
+msgstr "लेआउट खोलें"
+
+msgid "OUTLINE"
+msgstr "रूपरेखा"
+
+msgid "OUTPUT"
+msgstr "आउटपुट"
+
+msgid "Object tree and data window"
+msgstr "ऑब्जेक्ट ट्री और डेटा विंडो"
+
+msgid "Oct"
+msgstr "अक्टू"
+
+msgid "October"
+msgstr "अक्टूबर"
+
+msgid "Of each fill's value"
+msgstr "हर फ़िल के मूल्य का"
+
+msgid "Off"
+msgstr "बंद"
+
+msgid "Offset"
+msgstr "ऑफ़सेट"
+
+msgid "Ok"
+msgstr "ठीक है"
+
+msgid "Older"
+msgstr "पुराने"
+
+msgid "On"
+msgstr "चालू"
+
+msgid "On Balance Volume"
+msgstr "ऑन बैलेंस वॉल्यूम"
+
+msgid "On the chart"
+msgstr "चार्ट पर"
+
+msgid "OnBalanceVolume"
+msgstr "ऑन बैलेंस वॉल्यूम"
+
+msgid "Once per bar"
+msgstr "प्रति बार एक बार"
+
+msgid "Once per bar close"
+msgstr "बार बंद होने पर एक बार"
+
+msgid "Only once"
+msgstr "केवल एक बार"
+
+msgid "Opacity"
+msgstr "अपारदर्शिता"
+
+msgid "Open Local Network settings"
+msgstr "स्थानीय नेटवर्क सेटिंग्स खोलें"
+
+msgid "Open P&L"
+msgstr "खुला लाभ-हानि"
+
+msgid "Open chart"
+msgstr "चार्ट खोलें"
+
+msgid "Open folder"
+msgstr "फ़ोल्डर खोलें"
+
+msgid "Open in your editor"
+msgstr "अपने एडिटर में खोलें"
+
+msgid "Open in your file manager"
+msgstr "फ़ाइल मैनेजर में खोलें"
+
+msgid "Open on the chart"
+msgstr "चार्ट पर खोलें"
+
+msgid "Open page"
+msgstr "पेज खोलें"
+
+msgid "Open panel"
+msgstr "पैनल खोलें"
+
+msgid "Open snapshots folder"
+msgstr "स्नैपशॉट फ़ोल्डर खोलें"
+
+msgid "Open the scripts folder"
+msgstr "स्क्रिप्ट फ़ोल्डर खोलें"
+
+msgid "Open this formula"
+msgstr "यह सूत्र खोलें"
+
+#, message
+msgid "Open {0}"
+msgstr "{0} खोलें"
+
+#, message
+msgid "Open {0} in the editor"
+msgstr "{0} एडिटर में खोलें"
+
+msgid "Open {f} in the Script Editor"
+msgstr "{f} स्क्रिप्ट एडिटर में खोलें"
+
+msgid "Open, high, low and close values"
+msgstr "खुला, उच्च, निम्न और बंद मान"
+
+#, message
+msgid "Opened {0}"
+msgstr "{0} खोला"
+
+#, message
+msgid "Opened {0} in the editor"
+msgstr "{0} एडिटर में खोला"
+
+msgid "Opentern couldn't start"
+msgstr "Opentern शुरू नहीं हो सका"
+
+msgid "Opentern export"
+msgstr "Opentern निर्यात"
+
+msgid "Opentern is open in another window. Close it, then import."
+msgstr "Opentern दूसरी विंडो में खुला है। उसे बंद करके आयात करें।"
+
+msgid "Opentern is up to date"
+msgstr "Opentern अद्यतन है"
+
+msgid "Opentern {0}"
+msgstr ""
+
+msgid "Opentern {0} is available. Click to update."
+msgstr "Opentern {0} उपलब्ध है। अपडेट के लिए क्लिक करें।"
+
+msgid "Opentern {0} is available. {why}."
+msgstr "Opentern {0} उपलब्ध है। {why}।"
+
+msgid "Opentern {0} is installed. Click to restart."
+msgstr "Opentern {0} इंस्टॉल हुआ। रीस्टार्ट के लिए क्लिक करें।"
+
+#, message
+msgid "Opentern {0} is installed. Restart to use it."
+msgstr "Opentern {0} इंस्टॉल हुआ। इस्तेमाल के लिए रीस्टार्ट करें।"
+
+#, message
+msgid "Opentern {0} is ready to install from the rail."
+msgstr "Opentern {0} साइड बार से इंस्टॉल के लिए तैयार है।"
+
+msgid "Opentern {version}"
+msgstr ""
+
+msgid "Open|price"
+msgstr "खुला"
+
+msgid "Optimize"
+msgstr "ऑप्टिमाइज़"
+
+msgid "Order cancelled."
+msgstr "ऑर्डर रद्द हुआ।"
+
+#, message
+msgid "Order moved to {0}."
+msgstr "ऑर्डर {0} पर ले जाया गया।"
+
+msgid "Order placed."
+msgstr "ऑर्डर लगाया गया।"
+
+msgid "Order size"
+msgstr "ऑर्डर आकार"
+
+msgid "Orders {0}"
+msgstr "ऑर्डर {0}"
+
+msgid "Oscillator MA Type"
+msgstr "ऑसिलेटर MA प्रकार"
+
+msgid "Oscillators"
+msgstr "ऑसिलेटर"
+
+msgid "Other device"
+msgstr "दूसरा डिवाइस"
+
+msgid "Our Lady of Aparecida"
+msgstr "आवर लेडी ऑफ़ अपारेसिडा"
+
+msgid "Out of sample"
+msgstr "आउट-ऑफ़-सैंपल"
+
+msgid "Out-of-sample P&L"
+msgstr "आउट-ऑफ़-सैंपल लाभ-हानि"
+
+msgid "Out-of-sample bars"
+msgstr "आउट-ऑफ़-सैंपल बार"
+
+msgid "Output"
+msgstr "आउटपुट"
+
+msgid "Outputs"
+msgstr "आउटपुट"
+
+msgid "Over the chart, with its own scale"
+msgstr "चार्ट के ऊपर, अपने स्केल के साथ"
+
+msgid "Overbought"
+msgstr "ओवरबॉट"
+
+msgid "Oversold"
+msgstr "ओवरसोल्ड"
+
+msgid "Overview"
+msgstr "अवलोकन"
+
+msgid "P&L, worst 5%"
+msgstr "लाभ-हानि, सबसे खराब 5%"
+
+msgid "PAT"
+msgstr "शुद्ध लाभ"
+
+msgid "PAT margin"
+msgstr "शुद्ध मार्जिन"
+
+msgid "POC"
+msgstr ""
+
+msgid "PROBLEMS"
+msgstr "समस्याएँ"
+
+msgid "PVT"
+msgstr ""
+
+msgid "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts."
+msgstr "उलटी गिनती के अंत में लॉन्ग और शॉर्ट के बीच भुगतान। धनात्मक: लॉन्ग शॉर्ट को देते हैं।"
+
+msgid "Paper Trading"
+msgstr "पेपर ट्रेडिंग"
+
+msgid "Paper account"
+msgstr "पेपर खाता"
+
+msgid "Paper account {k}"
+msgstr "पेपर खाता {k}"
+
+msgid "Paper accounts"
+msgstr "पेपर खाते"
+
+msgid "Paper trading"
+msgstr "पेपर ट्रेडिंग"
+
+#, message
+msgid "Paper trading: {a}"
+msgstr "पेपर ट्रेडिंग: {a}"
+
+#, message
+msgid "Paper {0} {1} {2}"
+msgstr "पेपर {0} {1} {2}"
+
+msgid "Parabolic SAR"
+msgstr "पैराबोलिक SAR"
+
+msgid "ParabolicSAR"
+msgstr "पैराबोलिक SAR"
+
+msgid "Parallel channel"
+msgstr "समानांतर चैनल"
+
+msgid "Paris"
+msgstr "पेरिस"
+
+msgid "Password"
+msgstr "पासवर्ड"
+
+msgid "Paste an image"
+msgstr "चित्र पेस्ट करें"
+
+msgid "Paste it anywhere."
+msgstr "कहीं भी पेस्ट करें।"
+
+msgid "Paste the code, if asked"
+msgstr "पूछे जाने पर कोड पेस्ट करें"
+
+msgid "Paste the email password (an app password), or turn email off."
+msgstr "ईमेल पासवर्ड (ऐप पासवर्ड) पेस्ट करें, या ईमेल बंद करें।"
+
+msgid "Paste your Telegram bot token, or turn Telegram off."
+msgstr "Telegram बॉट टोकन पेस्ट करें, या Telegram बंद करें।"
+
+#, message
+msgid "Pasted {dest}."
+msgstr "{dest} पेस्ट किया गया।"
+
+msgid "Path"
+msgstr "पथ"
+
+msgid "Patterns"
+msgstr "पैटर्न"
+
+msgid "Pause"
+msgstr "रोकें"
+
+msgid "Pause alerts"
+msgstr "अलर्ट रोकें"
+
+msgid "Peace Memorial Day"
+msgstr "शांति स्मृति दिवस"
+
+msgid "Per contract"
+msgstr "प्रति कॉन्ट्रैक्ट"
+
+msgid "Per order"
+msgstr "प्रति ऑर्डर"
+
+msgid "Percent"
+msgstr "प्रतिशत"
+
+msgid "Percent change, on the chart's scale"
+msgstr "प्रतिशत बदलाव, चार्ट के स्केल पर"
+
+msgid "Percent profitable"
+msgstr "लाभप्रद प्रतिशत"
+
+msgid "Percent scale"
+msgstr "प्रतिशत स्केल"
+
+msgid "Percent scale (Alt P)"
+msgstr "प्रतिशत स्केल (Alt P)"
+
+msgid "Percentage"
+msgstr "प्रतिशत"
+
+msgid "Perf 1M %"
+msgstr "प्रदर्शन 1M %"
+
+msgid "Perf 1W %"
+msgstr "प्रदर्शन 1W %"
+
+msgid "Perf 1Y %"
+msgstr "प्रदर्शन 1Y %"
+
+msgid "Perf 6M %"
+msgstr "प्रदर्शन 6M %"
+
+msgid "Performance"
+msgstr "प्रदर्शन"
+
+msgid "Periods"
+msgstr "अवधियाँ"
+
+msgid "Pick a new starting bar"
+msgstr "नया प्रारंभिक बार चुनें"
+
+#, message
+msgid "Pick at least one input to optimize."
+msgstr "ऑप्टिमाइज़ के लिए कम से कम एक इनपुट चुनें।"
+
+msgid "Pick two different inputs."
+msgstr "दो अलग इनपुट चुनें।"
+
+msgid "Pick your agent"
+msgstr "अपना एजेंट चुनें"
+
+msgid "Pick your first chart"
+msgstr "अपना पहला चार्ट चुनें"
+
+msgid "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives."
+msgstr "Pine, Luau और JavaScript स्क्रिप्ट Opentern के भीतर सीमित रहती हैं। ये ज़्यादा सुरक्षित विकल्प हैं।"
+
+msgid "Pitchfork"
+msgstr "पिचफ़ोर्क"
+
+msgid "Pivot High"
+msgstr "पिवट उच्च"
+
+msgid "Pivot Low"
+msgstr "पिवट निम्न"
+
+msgid "Pivot Points High Low"
+msgstr "पिवट पॉइंट उच्च निम्न"
+
+msgid "Pivot Points Standard"
+msgstr "पिवट पॉइंट मानक"
+
+msgid "Pivot legs"
+msgstr "पिवट लेग"
+
+msgid "Pivots timeframe"
+msgstr "पिवट टाइमफ़्रेम"
+
+msgid "Placed"
+msgstr "लगाया गया"
+
+msgid "Placement"
+msgstr "स्थान"
+
+msgid "Play"
+msgstr "चलाएँ"
+
+msgid "Plot"
+msgstr "प्लॉट"
+
+msgid "Plots Background"
+msgstr "प्लॉट पृष्ठभूमि"
+
+msgid "Point & figure"
+msgstr "पॉइंट और फ़िगर"
+
+msgid "Port"
+msgstr "पोर्ट"
+
+msgid "Portfolio"
+msgstr "पोर्टफ़ोलियो"
+
+msgid "Positions {0}"
+msgstr "पोज़िशन {0}"
+
+msgid "Practice"
+msgstr "अभ्यास"
+
+msgid "Prakash Gurpurb Sri Guru Nanak Dev"
+msgstr "प्रकाश गुरुपर्व श्री गुरु नानक देव"
+
+msgid "Pre-market"
+msgstr "बाज़ार से पहले"
+
+msgid "Pre/post market price label"
+msgstr "बाज़ार से पहले/बाद भाव लेबल"
+
+msgid "Pre/post market price line"
+msgstr "बाज़ार से पहले/बाद भाव रेखा"
+
+msgid "Precision"
+msgstr "परिशुद्धता"
+
+msgid "Press Enter for {0}"
+msgstr "{0} के लिए Enter दबाएँ"
+
+msgid "Previous 7 days"
+msgstr "पिछले 7 दिन"
+
+msgid "Price"
+msgstr "भाव"
+
+msgid "Price Oscillator"
+msgstr "प्राइस ऑसिलेटर"
+
+msgid "Price Volume Trend"
+msgstr "प्राइस वॉल्यूम ट्रेंड"
+
+msgid "Price cache"
+msgstr "भाव कैश"
+
+msgid "Price deviation for reversals (%)"
+msgstr "रिवर्सल के लिए भाव विचलन (%)"
+
+msgid "Price labels"
+msgstr "भाव लेबल"
+
+msgid "Price over trailing earnings. For the index: total market cap over total earnings"
+msgstr "पिछले बारह महीनों की कमाई पर भाव। सूचकांक के लिए: कुल मार्केट कैप बटा कुल कमाई"
+
+msgid "Price range"
+msgstr "भाव सीमा"
+
+msgid "Price scale"
+msgstr "भाव स्केल"
+
+#, message
+msgid "Price {0} the line"
+msgstr "भाव रेखा को {0}"
+
+#, message
+msgid "Price {0} {1}"
+msgstr "भाव {0} {1}"
+
+#, message
+msgid "Price: {0}"
+msgstr "भाव: {0}"
+
+msgid "Prices"
+msgstr "भाव"
+
+msgid "Prices since {0}"
+msgstr "{0} से भाव"
+
+msgid "Profit"
+msgstr "लाभ"
+
+msgid "Profit and loss in other currencies is converted at live rates"
+msgstr "अन्य मुद्राओं का लाभ-हानि लाइव दर पर बदला जाता है"
+
+msgid "Profit and loss made so far is kept"
+msgstr "अब तक का लाभ-हानि रखा जाता है"
+
+msgid "Profit factor"
+msgstr "लाभ कारक"
+
+msgid "Profitable"
+msgstr "लाभप्रद"
+
+msgid "Profitable trades"
+msgstr "लाभप्रद ट्रेड"
+
+msgid "Profitable windows"
+msgstr "लाभप्रद विंडो"
+
+msgid "Properties"
+msgstr "गुण"
+
+msgid "Put the best inputs on the chart's strategy"
+msgstr "सर्वोत्तम इनपुट चार्ट की स्ट्रैटेजी पर लगाएँ"
+
+msgid "Pyramiding"
+msgstr "पिरामिडिंग"
+
+msgid "Python script not started"
+msgstr "Python स्क्रिप्ट शुरू नहीं हुई"
+
+msgid "Python scripts run on your computer"
+msgstr "Python स्क्रिप्ट आपके कंप्यूटर पर चलती हैं"
+
+msgid "Python scripts' alerts need Opentern open."
+msgstr "Python स्क्रिप्ट के अलर्ट के लिए Opentern खुला होना चाहिए।"
+
+msgid "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+msgstr "Python स्ट्रैटेजी अलग प्रोसेस में चलती हैं, इसलिए लैब उन्हें अभी दोबारा नहीं चला सकती। Pine, Luau और JavaScript चलती हैं।"
+
+msgid "Qty"
+msgstr "मात्रा"
+
+msgid "Quantity"
+msgstr "मात्रा"
+
+msgid "Quarter"
+msgstr "तिमाही"
+
+msgid "Quarterly"
+msgstr "त्रैमासिक"
+
+msgid "Queue (Enter)"
+msgstr "कतार में डालें (Enter)"
+
+msgid "RCI"
+msgstr ""
+
+msgid "RCI Ribbon"
+msgstr "RCI रिबन"
+
+msgid "RMA"
+msgstr ""
+
+msgid "ROC"
+msgstr ""
+
+msgid "ROC Length"
+msgstr "ROC लंबाई"
+
+msgid "ROC Length #1"
+msgstr "ROC लंबाई 1"
+
+msgid "ROC Length #2"
+msgstr "ROC लंबाई 2"
+
+msgid "ROC Length #3"
+msgstr "ROC लंबाई 3"
+
+msgid "ROC Length #4"
+msgstr "ROC लंबाई 4"
+
+msgid "RSI"
+msgstr ""
+
+msgid "RSI (14)"
+msgstr ""
+
+msgid "RSI Length"
+msgstr "RSI लंबाई"
+
+msgid "RSI Settings"
+msgstr "RSI सेटिंग्स"
+
+msgid "RSI-based MA"
+msgstr "RSI-आधारित MA"
+
+msgid "RVGI"
+msgstr ""
+
+msgid "RVI"
+msgstr ""
+
+msgid "Ran the Strategy Lab"
+msgstr "स्ट्रैटेजी लैब चलाई"
+
+msgid "Ran the screener"
+msgstr "स्क्रीनर चलाया"
+
+#, message
+msgid "Ran {0}"
+msgstr "{0} चलाया"
+
+msgid "Random"
+msgstr "यादृच्छिक"
+
+msgid "Range"
+msgstr "रेंज"
+
+msgid "Rank Correlation Index"
+msgstr "रैंक सहसंबंध सूचकांक"
+
+msgid "Rate Of Change"
+msgstr "परिवर्तन दर"
+
+msgid "Ratio avg win / avg loss"
+msgstr "औसत लाभ / औसत हानि अनुपात"
+
+msgid "Ratios"
+msgstr "अनुपात"
+
+msgid "Ray"
+msgstr "किरण"
+
+msgid "Read from cache"
+msgstr "कैश से पढ़ा"
+
+msgid "Read the Strategy Report"
+msgstr "स्ट्रैटेजी रिपोर्ट पढ़ें"
+
+msgid "Read the chart's bars"
+msgstr "चार्ट के बार पढ़ें"
+
+msgid "Read the scripting guide"
+msgstr "स्क्रिप्टिंग गाइड पढ़ें"
+
+msgid "Read the seasonality"
+msgstr "मौसमी रुझान पढ़ें"
+
+#, message
+msgid "Read {0}"
+msgstr "{0} पढ़ें"
+
+msgid "Real time"
+msgstr "रियल टाइम"
+
+msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
+msgstr "Upstox खाते से भारतीय रियल-टाइम भाव। upstox.com/developer पर ऐप बनाकर उसका एक्सेस टोकन पेस्ट करें (अगली सुबह तक चलता है)।"
+
+msgid "Realized"
+msgstr "प्राप्त"
+
+msgid "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+msgstr "अभी पुनर्संतुलन: आज की शेयर संख्या लाकर उससे भार तय करें, स्तर वही रहता है"
+
+#, message
+msgid "Rebalance {0}"
+msgstr "{0} पुनर्संतुलित करें"
+
+#, message
+msgid "Rebalanced {0}"
+msgstr "{0} पुनर्संतुलित किया"
+
+msgid "Rebalancing…"
+msgstr "पुनर्संतुलन हो रहा है…"
+
+msgid "Receive"
+msgstr "प्राप्त करें"
+
+msgid "Receiving from {peer}"
+msgstr "{peer} से प्राप्त हो रहा है"
+
+msgid "Recent colour"
+msgstr "हाल का रंग"
+
+msgid "Rectangle"
+msgstr "आयत"
+
+msgid "Redo"
+msgstr "फिर करें"
+
+msgid "Redo ({0})"
+msgstr "फिर करें ({0})"
+
+msgid "Refresh"
+msgstr "ताज़ा करें"
+
+msgid "Rel volume"
+msgstr "सापेक्ष वॉल्यूम"
+
+msgid "Relative Strength Index"
+msgstr "सापेक्ष शक्ति सूचकांक (RSI)"
+
+msgid "Relative Strength Index, 14 days"
+msgstr "सापेक्ष शक्ति सूचकांक, 14 दिन"
+
+msgid "Relative Vigor Index"
+msgstr "सापेक्ष ओज सूचकांक"
+
+msgid "Relative Volatility Index"
+msgstr "सापेक्ष अस्थिरता सूचकांक"
+
+msgid "Release notes"
+msgstr "रिलीज़ नोट"
+
+#, message
+msgid "Reloaded {file}: it changed on disk."
+msgstr "{file} फिर लोड हुई: डिस्क पर बदली थी।"
+
+msgid "Remove"
+msgstr "हटाएँ"
+
+msgid "Remove (Delete)"
+msgstr "हटाएँ (Delete)"
+
+msgid "Remove 1 drawing"
+msgstr "1 ड्रॉइंग हटाएँ"
+
+msgid "Remove 1 indicator"
+msgstr "1 इंडिकेटर हटाएँ"
+
+msgid "Remove drawings"
+msgstr "ड्रॉइंग हटाएँ"
+
+msgid "Remove drawings or indicators"
+msgstr "ड्रॉइंग या इंडिकेटर हटाएँ"
+
+msgid "Remove filter"
+msgstr "फ़िल्टर हटाएँ"
+
+msgid "Remove from favorites"
+msgstr "पसंदीदा से हटाएँ"
+
+msgid "Remove from the top bar"
+msgstr "ऊपरी बार से हटाएँ"
+
+msgid "Remove from watchlist"
+msgstr "वॉचलिस्ट से हटाएँ"
+
+msgid "Remove from watchlist (Shift+Enter)"
+msgstr "वॉचलिस्ट से हटाएँ (Shift+Enter)"
+
+msgid "Remove section"
+msgstr "सेक्शन हटाएँ"
+
+#, message
+msgid "Remove {0}"
+msgstr "{0} हटाएँ"
+
+msgid "Remove {k} indicators"
+msgstr "{k} इंडिकेटर हटाएँ"
+
+msgid "Remove {n} drawings"
+msgstr "{n} ड्रॉइंग हटाएँ"
+
+msgid "Removed drawings"
+msgstr "ड्रॉइंग हटाईं"
+
+#, message
+msgid "Removed {0}"
+msgstr "{0} हटाया"
+
+msgid "Removes what's here for the items ticked above. A backup is saved first."
+msgstr "ऊपर चुनी चीज़ों का मौजूदा डेटा हटाता है। पहले बैकअप सहेजा जाता है।"
+
+msgid "Rename"
+msgstr "नाम बदलें"
+
+msgid "Renko"
+msgstr "रेन्को"
+
+msgid "Replace"
+msgstr "बदलें"
+
+msgid "Replace and restart"
+msgstr "बदलकर फिर शुरू करें"
+
+msgid "Replay"
+msgstr "रीप्ले"
+
+#, message
+msgid "Replay: {a}"
+msgstr "रीप्ले: {a}"
+
+msgid "Republic Day"
+msgstr "गणतंत्र दिवस"
+
+msgid "Republic Proclamation Day"
+msgstr "गणतंत्र घोषणा दिवस"
+
+msgid "Reset"
+msgstr "रीसेट"
+
+msgid "Reset account"
+msgstr "खाता रीसेट करें"
+
+msgid "Reset settings"
+msgstr "सेटिंग्स रीसेट करें"
+
+msgid "Reset the account to change its currency"
+msgstr "मुद्रा बदलने के लिए खाता रीसेट करें"
+
+msgid "Reset the chart view"
+msgstr "चार्ट दृश्य रीसेट करें"
+
+msgid "Resets {0}"
+msgstr "{0} रीसेट होगा"
+
+msgid "Respect for the Aged Day"
+msgstr "वृद्ध सम्मान दिवस"
+
+msgid "Restart"
+msgstr "फिर चालू करें"
+
+msgid "Restart Opentern"
+msgstr "Opentern रीस्टार्ट करें"
+
+msgid "Restore factory defaults"
+msgstr "फ़ैक्टरी डिफ़ॉल्ट लौटाएँ"
+
+msgid "Restore panel"
+msgstr "पैनल पहले जैसा करें"
+
+msgid "Return"
+msgstr "रिटर्न"
+
+msgid "Return of max drawdown"
+msgstr "अधिकतम ड्रॉडाउन पर रिटर्न"
+
+msgid "Return on account size required"
+msgstr "आवश्यक खाता आकार पर रिटर्न"
+
+msgid "Return on initial capital"
+msgstr "प्रारंभिक पूँजी पर रिटर्न"
+
+msgid "Returns"
+msgstr "रिटर्न"
+
+msgid "Rev growth"
+msgstr "आय वृद्धि"
+
+msgid "Revenue growth"
+msgstr "आय वृद्धि"
+
+msgid "Revenue, year on year. For the index: the members' revenue together"
+msgstr "आय, साल-दर-साल। सूचकांक के लिए: सदस्यों की कुल आय"
+
+msgid "Reversal"
+msgstr "रिवर्सल"
+
+msgid "Reversal amount"
+msgstr "रिवर्सल मात्रा"
+
+msgid "Reverse"
+msgstr "उलटा"
+
+msgid "Reverse split 1:{0}"
+msgstr "रिवर्स स्प्लिट 1:{0}"
+
+msgid "Right"
+msgstr "दाएँ"
+
+msgid "Right Bars"
+msgstr "दाएँ बार"
+
+msgid "Rises and falls"
+msgstr "उतार-चढ़ाव"
+
+msgid "Risk/performance ratios"
+msgstr "जोखिम/प्रदर्शन अनुपात"
+
+msgid "Risk/reward ratio: {rr}"
+msgstr "जोखिम/लाभ अनुपात: {rr}"
+
+msgid "Ruin at drawdown"
+msgstr "इस ड्रॉडाउन पर बर्बादी"
+
+msgid "Run"
+msgstr "चलाएँ"
+
+msgid "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR market-data subscriptions."
+msgstr "IBKR का Client Portal गेटवे चलाकर लॉग इन करें; फिर IBKR:AAPL जैसे सिंबल इस्तेमाल करें। IBKR मार्केट-डेटा सदस्यता चाहिए।"
+
+msgid "Run a command"
+msgstr "कमांड चलाएँ"
+
+msgid "Run the Strategy Lab"
+msgstr "स्ट्रैटेजी लैब चलाएँ"
+
+msgid "Run the screener"
+msgstr "स्क्रीनर चलाएँ"
+
+msgid "Run-up"
+msgstr "रन-अप"
+
+msgid "Running…"
+msgstr "चल रहा है…"
+
+msgid "Runs"
+msgstr "रन"
+
+msgid "S&P 500"
+msgstr ""
+
+msgid "SAVED"
+msgstr "सहेजे हुए"
+
+msgid "SCALE"
+msgstr "स्केल"
+
+msgid "SCRIPTS"
+msgstr "स्क्रिप्ट"
+
+msgid "SIP: prices from all US exchanges, not just IEX"
+msgstr "SIP: केवल IEX नहीं, सभी अमेरिकी एक्सचेंजों के भाव"
+
+msgid "SIX Swiss Exchange"
+msgstr ""
+
+msgid "SMA"
+msgstr ""
+
+msgid "SMA Length #1"
+msgstr "SMA लंबाई 1"
+
+msgid "SMA Length #2"
+msgstr "SMA लंबाई 2"
+
+msgid "SMA Length #3"
+msgstr "SMA लंबाई 3"
+
+msgid "SMA Length #4"
+msgstr "SMA लंबाई 4"
+
+msgid "SMI"
+msgstr ""
+
+msgid "SMI Ergodic Indicator"
+msgstr "SMI एर्गोडिक इंडिकेटर"
+
+msgid "SMI Ergodic Oscillator"
+msgstr "SMI एर्गोडिक ऑसिलेटर"
+
+msgid "SMI-based EMA"
+msgstr "SMI-आधारित EMA"
+
+msgid "SMMA (RMA)"
+msgstr ""
+
+msgid "SMTP server"
+msgstr "SMTP सर्वर"
+
+msgid "Same % scale"
+msgstr "समान % स्केल"
+
+msgid "Sat"
+msgstr "शनि"
+
+msgid "Saturday"
+msgstr "शनिवार"
+
+msgid "Save"
+msgstr "सहेजें"
+
+msgid "Save a snapshot"
+msgstr "स्नैपशॉट सहेजें"
+
+msgid "Save and add to the chart ({0})"
+msgstr "सहेजें और चार्ट पर जोड़ें ({0})"
+
+msgid "Save and update the chart ({0})"
+msgstr "सहेजें और चार्ट अपडेट करें ({0})"
+
+msgid "Save as"
+msgstr "इस रूप में सहेजें"
+
+msgid "Save as default"
+msgstr "डिफ़ॉल्ट के रूप में सहेजें"
+
+msgid "Save chart template"
+msgstr "चार्ट टेम्पलेट सहेजें"
+
+msgid "Save indicator template"
+msgstr "इंडिकेटर टेम्पलेट सहेजें"
+
+msgid "Save layout"
+msgstr "लेआउट सहेजें"
+
+msgid "Save the results as CSV"
+msgstr "परिणाम CSV में सहेजें"
+
+msgid "Save the results as JSON"
+msgstr "परिणाम JSON में सहेजें"
+
+msgid "Saved in your keychain (paste to replace)"
+msgstr "कीचेन में सहेजा है (बदलने के लिए पेस्ट करें)"
+
+#, message
+msgid "Saved to {0}"
+msgstr "{0} में सहेजा गया"
+
+#, message
+msgid "Saved {file}."
+msgstr "{file} सहेजी गई।"
+
+msgid "Saved."
+msgstr "सहेजा गया।"
+
+msgid "Scale and more"
+msgstr "स्केल और अन्य"
+
+msgid "Scales"
+msgstr "स्केल"
+
+msgid "Scales and lines"
+msgstr "स्केल और रेखाएँ"
+
+msgid "Scales text"
+msgstr "स्केल टेक्स्ट"
+
+msgid "Screener"
+msgstr "स्क्रीनर"
+
+msgid "Screener settings"
+msgstr "स्क्रीनर सेटिंग्स"
+
+msgid "Script"
+msgstr "स्क्रिप्ट"
+
+msgid "Script Editor"
+msgstr "स्क्रिप्ट एडिटर"
+
+msgid "Script failed"
+msgstr "स्क्रिप्ट विफल"
+
+msgid "Scripts"
+msgstr "स्क्रिप्ट"
+
+msgid "Scroll to the most recent bar"
+msgstr "नवीनतम बार पर जाएँ"
+
+msgid "Search"
+msgstr "खोजें"
+
+msgid "Search chats"
+msgstr "चैट खोजें"
+
+#, message
+msgid "Search for {0}"
+msgstr "{0} खोजें"
+
+msgid "Search lists"
+msgstr "सूचियाँ खोजें"
+
+msgid "Search shows prices"
+msgstr "खोज में भाव दिखते हैं"
+
+#, message
+msgid "Search symbols: {0}"
+msgstr "सिंबल खोजें: {0}"
+
+#, message
+msgid "Search the web: {0}"
+msgstr "वेब पर खोजें: {0}"
+
+#, message
+msgid "Searched for {0}"
+msgstr "{0} खोजा"
+
+#, message
+msgid "Searched symbols: {0}"
+msgstr "सिंबल खोजे: {0}"
+
+#, message
+msgid "Searched the web: {0}"
+msgstr "वेब पर खोजा: {0}"
+
+msgid "Seasonality"
+msgstr "मौसमी रुझान"
+
+msgid "Seconds"
+msgstr "सेकंड"
+
+msgid "Secret key"
+msgstr "गुप्त कुंजी"
+
+msgid "Select all"
+msgstr "सभी चुनें"
+
+msgid "Select bar"
+msgstr "बार चुनें"
+
+msgid "Select layout"
+msgstr "लेआउट चुनें"
+
+msgid "Select none"
+msgstr "कुछ न चुनें"
+
+msgid "Sell"
+msgstr "बेचें"
+
+msgid "Sell order filled."
+msgstr "बिक्री ऑर्डर भरा गया।"
+
+msgid "Send"
+msgstr "भेजें"
+
+msgid "Send (Enter)"
+msgstr "भेजें (Enter)"
+
+msgid "Send a test email"
+msgstr "परीक्षण ईमेल भेजें"
+
+msgid "Send to"
+msgstr "प्राप्तकर्ता"
+
+msgid "Send to another device"
+msgstr "दूसरे डिवाइस पर भेजें"
+
+msgid "Sending to {peer}"
+msgstr "{peer} को भेज रहे हैं"
+
+msgid "Sending…"
+msgstr "भेज रहे हैं…"
+
+msgid "Sent to {peer}"
+msgstr "{peer} को भेजा गया"
+
+msgid "Sent. Check your inbox."
+msgstr "भेजा गया। अपना इनबॉक्स देखें।"
+
+msgid "Seoul"
+msgstr "सोल"
+
+msgid "Sep"
+msgstr "सित"
+
+msgid "September"
+msgstr "सितंबर"
+
+msgid "Session"
+msgstr "सत्र"
+
+msgid "Session Volume Profile"
+msgstr "सत्र वॉल्यूम प्रोफ़ाइल"
+
+msgid "Settings"
+msgstr "सेटिंग्स"
+
+msgid "Settings → Export and import → Import → Receive"
+msgstr "सेटिंग्स → निर्यात और आयात → आयात → प्राप्त करें"
+
+msgid "Shanghai"
+msgstr "शंघाई"
+
+msgid "Shanghai Stock Exchange"
+msgstr ""
+
+msgid "Shapes"
+msgstr "आकृतियाँ"
+
+msgid "Sharpe"
+msgstr "शार्प"
+
+msgid "Sharpe ratio"
+msgstr "शार्प अनुपात"
+
+msgid "Short"
+msgstr "शॉर्ट"
+
+msgid "Short Length"
+msgstr "छोटी अवधि लंबाई"
+
+msgid "Short MA"
+msgstr "छोटी अवधि MA"
+
+msgid "Short MA length"
+msgstr "छोटी अवधि MA लंबाई"
+
+msgid "Short RCI"
+msgstr "छोटी अवधि RCI"
+
+msgid "Short RCI Length"
+msgstr "छोटी अवधि RCI लंबाई"
+
+msgid "Short RoC Length"
+msgstr "छोटी अवधि RoC लंबाई"
+
+msgid "Short position"
+msgstr "शॉर्ट पोज़िशन"
+
+msgid "Show"
+msgstr "दिखाएँ"
+
+msgid "Show POC"
+msgstr "POC दिखाएँ"
+
+msgid "Show Pearson's R"
+msgstr "पियर्सन R दिखाएँ"
+
+msgid "Show files ({0})"
+msgstr "फ़ाइलें दिखाएँ ({0})"
+
+msgid "Show in folder"
+msgstr "फ़ोल्डर में दिखाएँ"
+
+msgid "Show in the top bar"
+msgstr "ऊपरी बार में दिखाएँ"
+
+msgid "Show labels"
+msgstr "लेबल दिखाएँ"
+
+msgid "Show on intervals"
+msgstr "इन अंतरालों पर दिखाएँ"
+
+msgid "Show prices"
+msgstr "भाव दिखाएँ"
+
+msgid "Show symbol logos"
+msgstr "सिंबल लोगो दिखाएँ"
+
+msgid "Show the drawing toolbar"
+msgstr "ड्रॉइंग टूलबार दिखाएँ"
+
+msgid "Show value area high and low"
+msgstr "वैल्यू एरिया उच्च और निम्न दिखाएँ"
+
+msgid "Showa Day"
+msgstr "शोवा दिवस"
+
+#, message
+msgid "Showing {te}'s {td} instead."
+msgstr "इसके बजाय {te} का {td} दिखा रहे हैं।"
+
+msgid "Shows after your first message."
+msgstr "आपके पहले संदेश के बाद दिखेगा।"
+
+msgid "Shri Mahavir Jayanti"
+msgstr "श्री महावीर जयंती"
+
+msgid "Shri Ram Navami"
+msgstr "श्री राम नवमी"
+
+msgid "Shuffle the order"
+msgstr "क्रम मिलाएँ"
+
+msgid "Side"
+msgstr "पक्ष"
+
+msgid "Sigma"
+msgstr "सिग्मा"
+
+msgid "Sign in"
+msgstr "साइन इन"
+
+msgid "Sign in to {0}"
+msgstr "{0} में साइन इन करें"
+
+msgid "Signal"
+msgstr "सिग्नल"
+
+msgid "Signal Length"
+msgstr "सिग्नल लंबाई"
+
+msgid "Signal Line Length"
+msgstr "सिग्नल लाइन लंबाई"
+
+msgid "Signal Line MA Type"
+msgstr "सिग्नल लाइन MA प्रकार"
+
+msgid "Signal Smoothing"
+msgstr "सिग्नल स्मूदिंग"
+
+msgid "Signal line"
+msgstr "सिग्नल लाइन"
+
+msgid "Singapore"
+msgstr "सिंगापुर"
+
+msgid "Singapore Exchange"
+msgstr ""
+
+msgid "Size"
+msgstr "आकार"
+
+msgid "Sized by 24h volume, from {0}"
+msgstr "24घं वॉल्यूम के अनुसार आकार, {0}"
+
+msgid "Sized by market cap, from {0}"
+msgstr "मार्केट कैप के अनुसार आकार, {0}"
+
+msgid "Slippage"
+msgstr "स्लिपेज"
+
+msgid "Slow Length"
+msgstr "धीमी लंबाई"
+
+msgid "Slow length"
+msgstr "धीमी लंबाई"
+
+msgid "Smallest max drawdown"
+msgstr "सबसे कम अधिकतम ड्रॉडाउन"
+
+msgid "Smoothed Moving Average"
+msgstr "स्मूद मूविंग एवरेज"
+
+msgid "Smoothing"
+msgstr "स्मूदिंग"
+
+msgid "Smoothing Length"
+msgstr "स्मूदिंग लंबाई"
+
+msgid "Snapshot copied"
+msgstr "स्नैपशॉट कॉपी हुआ"
+
+msgid "Snapshot saved"
+msgstr "स्नैपशॉट सहेजा गया"
+
+msgid "Snapshots"
+msgstr "स्नैपशॉट"
+
+#, message
+msgid "Sold {qty} {sym} at {price}"
+msgstr "{qty} {sym} {price} पर बेचा"
+
+msgid "Solid"
+msgstr "ठोस"
+
+msgid "Someone entered the wrong code."
+msgstr "किसी ने गलत कोड डाला।"
+
+msgid "Something went wrong in the run."
+msgstr "रन में कुछ गड़बड़ हुई।"
+
+msgid "Sort"
+msgstr "क्रमबद्ध करें"
+
+msgid "Sort by name"
+msgstr "नाम से क्रम"
+
+msgid "Sort by weight"
+msgstr "भार से क्रम"
+
+msgid "Sortino ratio"
+msgstr "सॉर्टिनो अनुपात"
+
+msgid "Sound"
+msgstr "ध्वनि"
+
+msgid "Source"
+msgstr "स्रोत"
+
+msgid "Source code"
+msgstr "स्रोत कोड"
+
+msgid "Special hours"
+msgstr "विशेष समय"
+
+msgid "Special session"
+msgstr "विशेष सत्र"
+
+msgid "Speed: time per bar (click to change)"
+msgstr "गति: प्रति बार समय (बदलने के लिए क्लिक करें)"
+
+msgid "Split"
+msgstr "स्प्लिट"
+
+msgid "Split or bonus"
+msgstr "स्प्लिट या बोनस"
+
+msgid "Sports Day"
+msgstr "खेल दिवस"
+
+msgid "Spring Bank Holiday"
+msgstr "वसंत बैंक अवकाश"
+
+msgid "StDev"
+msgstr "मानक विचलन"
+
+msgid "Standard Deviation"
+msgstr "मानक विचलन"
+
+msgid "Standard Error"
+msgstr "मानक त्रुटि"
+
+msgid "Standard Error Bands"
+msgstr "मानक त्रुटि बैंड"
+
+msgid "Start"
+msgstr "प्रारंभ"
+
+#, message
+msgid "Start a helper: {0}"
+msgstr "सहायक शुरू करें: {0}"
+
+#, message
+msgid "Start a replay at {0}"
+msgstr "{0} से रीप्ले शुरू करें"
+
+msgid "Start again"
+msgstr "फिर से शुरू करें"
+
+#, message
+msgid "Started a helper: {0}"
+msgstr "सहायक शुरू किया: {0}"
+
+#, message
+msgid "Started a replay at {0}"
+msgstr "{0} से रीप्ले शुरू किया"
+
+msgid "Starting capital"
+msgstr "आरंभिक पूँजी"
+
+msgid "Status"
+msgstr "स्थिति"
+
+msgid "Status line"
+msgstr "स्टेटस लाइन"
+
+msgid "Stay in drawing mode"
+msgstr "ड्रॉइंग मोड में रहें"
+
+msgid "StdDev"
+msgstr "मानक विचलन"
+
+msgid "Step line"
+msgstr "स्टेप लाइन"
+
+msgid "Step one bar"
+msgstr "एक बार आगे"
+
+msgid "Step the replay"
+msgstr "रीप्ले आगे बढ़ाएँ"
+
+msgid "Stepped the replay"
+msgstr "रीप्ले आगे बढ़ाया"
+
+msgid "Stochastic"
+msgstr "स्टोकेस्टिक"
+
+msgid "Stochastic Length"
+msgstr "स्टोकेस्टिक लंबाई"
+
+msgid "Stochastic Momentum Index"
+msgstr "स्टोकेस्टिक मोमेंटम इंडेक्स"
+
+msgid "Stochastic RSI"
+msgstr "स्टोकेस्टिक RSI"
+
+msgid "Stocks"
+msgstr "शेयर"
+
+msgid "Stop"
+msgstr "रोकें"
+
+msgid "Stop Length"
+msgstr "स्टॉप लंबाई"
+
+msgid "Stop Long"
+msgstr "लॉन्ग स्टॉप"
+
+msgid "Stop Short"
+msgstr "शॉर्ट स्टॉप"
+
+msgid "Stop limit"
+msgstr "स्टॉप लिमिट"
+
+msgid "Stop loss"
+msgstr "स्टॉप लॉस"
+
+msgid "Stop price"
+msgstr "स्टॉप भाव"
+
+msgid "Stop using as default"
+msgstr "डिफ़ॉल्ट से हटाएँ"
+
+msgid "Stop: {0} ({1})"
+msgstr "स्टॉप: {0} ({1})"
+
+msgid "Stopped"
+msgstr "रुका हुआ"
+
+msgid "Stopped."
+msgstr "रुका।"
+
+msgid "Stop|order"
+msgstr "स्टॉप"
+
+msgid "Strategy Lab"
+msgstr "स्ट्रैटेजी लैब"
+
+msgid "Strategy Lab settings"
+msgstr "स्ट्रैटेजी लैब सेटिंग्स"
+
+msgid "Strategy Report"
+msgstr "स्ट्रैटेजी रिपोर्ट"
+
+msgid "Strategy outperformance"
+msgstr "स्ट्रैटेजी का बेहतर प्रदर्शन"
+
+msgid "Strategy settings"
+msgstr "स्ट्रैटेजी सेटिंग्स"
+
+msgid "Strategy settings: capital, order size, commission, slippage and margin"
+msgstr "स्ट्रैटेजी सेटिंग्स: पूँजी, ऑर्डर आकार, कमीशन, स्लिपेज और मार्जिन"
+
+msgid "Style"
+msgstr "शैली"
+
+msgid "Summer Bank Holiday"
+msgstr "ग्रीष्म बैंक अवकाश"
+
+msgid "Sun"
+msgstr "रवि"
+
+msgid "Sunday"
+msgstr "रविवार"
+
+msgid "Supertrend"
+msgstr "सुपरट्रेंड"
+
+msgid "Swatches"
+msgstr "स्वॉच"
+
+msgid "Swiss National Day"
+msgstr "स्विस राष्ट्रीय दिवस"
+
+msgid "Switch to dark theme"
+msgstr "डार्क थीम पर जाएँ"
+
+msgid "Switch to light theme"
+msgstr "लाइट थीम पर जाएँ"
+
+#, message
+msgid "Switch to {0}"
+msgstr "{0} पर जाएँ"
+
+#, message
+msgid "Switched to {0}"
+msgstr "{0} पर गए"
+
+msgid "Sydney"
+msgstr "सिडनी"
+
+msgid "Symbol"
+msgstr "सिंबल"
+
+msgid "Symbol last price label"
+msgstr "सिंबल अंतिम भाव लेबल"
+
+msgid "Symbol last price line"
+msgstr "सिंबल अंतिम भाव रेखा"
+
+msgid "Symbol logos"
+msgstr "सिंबल लोगो"
+
+msgid "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+msgstr "सिंबल या सूत्र, जैसे BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+
+msgid "Symbol search"
+msgstr "सिंबल खोज"
+
+msgid "Symbol search (start typing anywhere)"
+msgstr "सिंबल खोज (कहीं भी टाइप करें)"
+
+msgid "Symbol watermark"
+msgstr "सिंबल वॉटरमार्क"
+
+msgid "Symbols"
+msgstr "सिंबल"
+
+msgid "System ({0})"
+msgstr "सिस्टम ({0})"
+
+msgid "São Paulo"
+msgstr "साओ पाउलो"
+
+msgid "THIS LAYOUT"
+msgstr "यह लेआउट"
+
+msgid "TRIX"
+msgstr ""
+
+msgid "TWAP"
+msgstr ""
+
+msgid "Table"
+msgstr "तालिका"
+
+msgid "Taipei"
+msgstr "ताइपे"
+
+msgid "Taiwan Restoration Day"
+msgstr "ताइवान पुनर्स्थापना दिवस"
+
+msgid "Taiwan Stock Exchange"
+msgstr ""
+
+msgid "Take a picture of the chart"
+msgstr "चार्ट का चित्र लें"
+
+msgid "Take a snapshot (Alt+S)"
+msgstr "स्नैपशॉट लें (Alt+S)"
+
+msgid "Take it off the chart before moving it."
+msgstr "ले जाने से पहले चार्ट से हटाएँ।"
+
+msgid "Take its scripts off the chart before renaming it."
+msgstr "नाम बदलने से पहले इसकी स्क्रिप्ट चार्ट से हटाएँ।"
+
+msgid "Take profit"
+msgstr "टेक प्रॉफ़िट"
+
+msgid "Target: {0} ({1})"
+msgstr "लक्ष्य: {0} ({1})"
+
+msgid "Teachers' Day"
+msgstr "शिक्षक दिवस"
+
+msgid "Technicals"
+msgstr "तकनीकी"
+
+msgid "Teeth"
+msgstr "टीथ"
+
+msgid "Teeth Length"
+msgstr "टीथ लंबाई"
+
+msgid "Teeth Offset"
+msgstr "टीथ ऑफ़सेट"
+
+msgid "Telegram"
+msgstr ""
+
+msgid "Telegram bot token"
+msgstr "Telegram बॉट टोकन"
+
+msgid "Telegram chat id"
+msgstr "Telegram चैट आईडी"
+
+msgid "Template  {0}"
+msgstr "टेम्पलेट  {0}"
+
+msgid "Templates"
+msgstr "टेम्पलेट"
+
+msgid "Text"
+msgstr "टेक्स्ट"
+
+msgid "Thanksgiving"
+msgstr "थैंक्सगिविंग"
+
+msgid "Thanksgiving Day"
+msgstr "थैंक्सगिविंग दिवस"
+
+msgid "That code doesn't match. Check the other device and try again."
+msgstr "कोड मेल नहीं खाता। दूसरा डिवाइस देखकर फिर कोशिश करें।"
+
+#, message
+msgid "That file is damaged. Export it again."
+msgstr "फ़ाइल खराब है। फिर निर्यात करें।"
+
+#, message
+msgid "That file is too big to import."
+msgstr "फ़ाइल आयात के लिए बहुत बड़ी है।"
+
+#, message
+msgid "That isn't an Opentern export file."
+msgstr "यह Opentern की निर्यात फ़ाइल नहीं है।"
+
+msgid "That list has no symbols."
+msgstr "उस सूची में कोई सिंबल नहीं है।"
+
+#, message
+msgid "That price isn't valid."
+msgstr "यह भाव मान्य नहीं है।"
+
+#, message
+msgid "That's {0} combinations per window, more than the grid's {1}. Narrow the ranges or use Random or Bayesian."
+msgstr "प्रति विंडो {0} संयोजन हैं, ग्रिड की सीमा {1} से अधिक। रेंज घटाएँ या यादृच्छिक या बेज़ियन चुनें।"
+
+#, message
+msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr "{combos} संयोजन हैं, ग्रिड की सीमा {MAX_GRID} से अधिक। रेंज घटाएँ या यादृच्छिक या बेज़ियन चुनें।"
+
+msgid "The account was reset."
+msgstr "खाता रीसेट हुआ।"
+
+msgid "The chart reloads when you save there"
+msgstr "वहाँ सहेजने पर चार्ट फिर लोड होता है"
+
+msgid "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB."
+msgstr "रंग चयनकर्ता में कस्टम टैब है: स्पेक्ट्रम, ह्यू बार, hex और RGB।"
+
+msgid "The connection dropped. The code still works."
+msgstr "कनेक्शन टूट गया। कोड अब भी मान्य है।"
+
+msgid "The connection dropped. Try again."
+msgstr "कनेक्शन टूट गया। फिर कोशिश करें।"
+
+#, message
+msgid "The data service answered with an error ({c})."
+msgstr "डेटा सेवा ने त्रुटि दी ({c})।"
+
+#, message
+msgid "The data service refused the key. Check it in Settings → Data providers."
+msgstr "डेटा सेवा ने कुंजी अस्वीकार की। सेटिंग्स → डेटा प्रदाता में जाँचें।"
+
+msgid "The gateway URL should look like https://localhost:5000"
+msgstr "गेटवे URL https://localhost:5000 जैसा होना चाहिए"
+
+msgid "The other device runs a different version of Opentern. Update both, then try again."
+msgstr "दूसरे डिवाइस पर Opentern का अलग संस्करण है। दोनों अपडेट करके फिर कोशिश करें।"
+
+msgid "The port should be a number, usually 587 or 465."
+msgstr "पोर्ट संख्या होनी चाहिए, आमतौर पर 587 या 465।"
+
+msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
+msgstr "वही, और कंप्यूटर में लॉग इन करने पर भी शुरू होता है, ताकि रीस्टार्ट के बाद अलर्ट चलते रहें।"
+
+msgid "The script crashed."
+msgstr "स्क्रिप्ट क्रैश हुई।"
+
+msgid "The script failed on this symbol."
+msgstr "इस सिंबल पर स्क्रिप्ट विफल हुई।"
+
+#, message
+msgid "The scripts folder is too big to export."
+msgstr "स्क्रिप्ट फ़ोल्डर निर्यात के लिए बहुत बड़ा है।"
+
+#, message
+msgid "The stop-loss has to be {0} the entry price."
+msgstr "स्टॉप-लॉस प्रवेश भाव से {0} होना चाहिए।"
+
+msgid "The strategy isn't on the chart any more."
+msgstr "स्ट्रैटेजी अब चार्ट पर नहीं है।"
+
+#, message
+msgid "The take-profit has to be {0} the entry price."
+msgstr "टेक-प्रॉफ़िट प्रवेश भाव से {0} होना चाहिए।"
+
+msgid "The webhook URL should start with https://"
+msgstr "वेबहुक URL https:// से शुरू होना चाहिए"
+
+msgid "Theme"
+msgstr "थीम"
+
+#, message
+msgid "There are no bars to test on yet."
+msgstr "अभी जाँच के लिए बार नहीं हैं।"
+
+msgid "There's already an account with this name."
+msgstr "इस नाम का खाता पहले से है।"
+
+#, message
+msgid "There's already something called {name} there."
+msgstr "वहाँ {name} नाम से पहले से कुछ है।"
+
+#, message
+msgid "There's no free order book for this market. The DOM works for crypto exchanges."
+msgstr "इस बाज़ार की मुफ़्त ऑर्डर बुक नहीं है। बाज़ार की गहराई क्रिप्टो एक्सचेंजों पर चलती है।"
+
+msgid "There's no image or file on the clipboard."
+msgstr "क्लिपबोर्ड पर चित्र या फ़ाइल नहीं है।"
+
+msgid "Thinking"
+msgstr "सोच रहा है"
+
+msgid "This device"
+msgstr "यह डिवाइस"
+
+msgid "This file has a Python script"
+msgstr "इस फ़ाइल में एक Python स्क्रिप्ट है"
+
+msgid "This file has nothing in it to import."
+msgstr "इस फ़ाइल में आयात के लिए कुछ नहीं है।"
+
+msgid "This file has {0} Python scripts"
+msgstr "इस फ़ाइल में {0} Python स्क्रिप्ट हैं"
+
+#, message
+msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
+msgstr "यह फ़ाइल Opentern के नए संस्करण से बनी है। आयात के लिए Opentern अपडेट करें।"
+
+msgid "This is a library: import it from another script."
+msgstr "यह लाइब्रेरी है: दूसरी स्क्रिप्ट से आयात करें।"
+
+msgid "This strategy can't be compiled for other symbols."
+msgstr "यह स्ट्रैटेजी दूसरे सिंबल के लिए कंपाइल नहीं हो सकती।"
+
+msgid "This strategy has no inputs to vary."
+msgstr "इस स्ट्रैटेजी में बदलने योग्य इनपुट नहीं हैं।"
+
+msgid "Thu"
+msgstr "गुरु"
+
+msgid "Thursday"
+msgstr "गुरुवार"
+
+#, message
+msgid "Tick members of {0}"
+msgstr "{0} के सदस्य चुनें"
+
+msgid "Tick the inputs to vary."
+msgstr "बदलने वाले इनपुट चुनें।"
+
+#, message
+msgid "Ticked members of {0}"
+msgstr "{0} के सदस्य चुने"
+
+msgid "Tiles show the regular session. Hover one for its extended-hours price."
+msgstr "टाइल नियमित सत्र दिखाती हैं। विस्तारित घंटों का भाव देखने के लिए ऊपर ले जाएँ।"
+
+msgid "Time"
+msgstr "समय"
+
+msgid "Time Weighted Average Price"
+msgstr "समय भारित औसत भाव"
+
+msgid "Timeframe"
+msgstr "टाइमफ़्रेम"
+
+msgid "Timezone"
+msgstr "समय क्षेत्र"
+
+msgid "Tiradentes"
+msgstr "तिरादेंतेस"
+
+msgid "Title"
+msgstr "शीर्षक"
+
+msgid "Today"
+msgstr "आज"
+
+msgid "Today's weight in the index"
+msgstr "सूचकांक में आज का भार"
+
+msgid "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."
+msgstr "टोकन: OANDA → My Services → Manage API Access। OANDA:EURUSD जैसे सिंबल इस्तेमाल करें।"
+
+msgid "Tokyo"
+msgstr "टोक्यो"
+
+msgid "Tomorrow"
+msgstr "कल"
+
+msgid "Too many wrong codes. Start again."
+msgstr "बहुत अधिक गलत कोड। फिर से शुरू करें।"
+
+msgid "Took a picture of the chart"
+msgstr "चार्ट का चित्र लिया"
+
+msgid "Top 150"
+msgstr "शीर्ष 150"
+
+msgid "Toronto"
+msgstr "टोरंटो"
+
+msgid "Toronto Stock Exchange"
+msgstr ""
+
+msgid "Total"
+msgstr "कुल"
+
+msgid "Total P&L"
+msgstr "कुल लाभ-हानि"
+
+msgid "Total open trades"
+msgstr "कुल खुले ट्रेड"
+
+msgid "Total trades"
+msgstr "कुल ट्रेड"
+
+msgid "Trade #"
+msgstr "ट्रेड सं."
+
+msgid "Trades"
+msgstr "ट्रेड"
+
+msgid "Trades analysis"
+msgstr "ट्रेड विश्लेषण"
+
+msgid "Trading Sessions"
+msgstr "ट्रेडिंग सत्र"
+
+msgid "Trading range"
+msgstr "ट्रेडिंग अवधि"
+
+msgid "Traditional"
+msgstr "पारंपरिक"
+
+msgid "Trail by"
+msgstr "पीछा दूरी"
+
+msgid "Trailing stop"
+msgstr "ट्रेलिंग स्टॉप"
+
+msgid "Trailing twelve months. For the index: weighted by revenue"
+msgstr "पिछले बारह महीने। सूचकांक के लिए: आय के अनुसार भारित"
+
+msgid "Trend"
+msgstr "ट्रेंड"
+
+msgid "Trend Strength Index"
+msgstr "ट्रेंड शक्ति सूचकांक"
+
+msgid "Trend line"
+msgstr "ट्रेंड लाइन"
+
+msgid "Trend line tools"
+msgstr "ट्रेंड लाइन टूल"
+
+msgid "Trend-based fib extension"
+msgstr "ट्रेंड-आधारित फ़िब एक्सटेंशन"
+
+msgid "Triangle"
+msgstr "त्रिभुज"
+
+msgid "Tries all {0} choices"
+msgstr "सभी {0} विकल्प आज़माता है"
+
+msgid "Tries on and off"
+msgstr "चालू और बंद आज़माता है"
+
+msgid "Trigger"
+msgstr "ट्रिगर"
+
+msgid "Triggered"
+msgstr "चल चुका"
+
+msgid "Triple EMA"
+msgstr "ट्रिपल EMA"
+
+msgid "True Range"
+msgstr "ट्रू रेंज"
+
+msgid "True Strength Index"
+msgstr "ट्रू स्ट्रेंथ इंडेक्स"
+
+msgid "Try again"
+msgstr "फिर कोशिश करें"
+
+msgid "Tue"
+msgstr "मंगल"
+
+msgid "Tuesday"
+msgstr "मंगलवार"
+
+msgid "Type"
+msgstr "प्रकार"
+
+msgid "Type a number"
+msgstr "संख्या टाइप करें"
+
+msgid "Type anywhere"
+msgstr "कहीं भी टाइप करें"
+
+msgid "UO"
+msgstr ""
+
+msgid "US Markets"
+msgstr "अमेरिकी बाज़ार"
+
+msgid "US large caps"
+msgstr "अमेरिकी लार्ज कैप"
+
+msgid "Ultimate Oscillator"
+msgstr "अल्टीमेट ऑसिलेटर"
+
+msgid "Undo"
+msgstr "पूर्ववत करें"
+
+msgid "Undo ({0})"
+msgstr "पूर्ववत करें ({0})"
+
+msgid "Union Budget session"
+msgstr "केंद्रीय बजट सत्र"
+
+msgid "Unrealized"
+msgstr "अप्राप्त"
+
+msgid "Untitled"
+msgstr "शीर्षकहीन"
+
+msgid "Up"
+msgstr "ऊपर"
+
+msgid "Up / down"
+msgstr "ऊपर / नीचे"
+
+msgid "Up Trend"
+msgstr "बढ़त का ट्रेंड"
+
+msgid "Up volume"
+msgstr "बढ़त वॉल्यूम"
+
+msgid "Up/Down"
+msgstr "ऊपर/नीचे"
+
+msgid "UpDown Length"
+msgstr "UpDown लंबाई"
+
+msgid "Update available"
+msgstr "अपडेट उपलब्ध"
+
+msgid "Update failed"
+msgstr "अपडेट विफल"
+
+msgid "Update installed"
+msgstr "अपडेट इंस्टॉल हुआ"
+
+msgid "Update on chart"
+msgstr "चार्ट पर अपडेट करें"
+
+msgid "Update to {0}"
+msgstr "{0} पर अपडेट करें"
+
+#, message
+msgid "Updated {file} on the chart."
+msgstr "{file} चार्ट पर अपडेट हुई।"
+
+msgid "Updates"
+msgstr "अपडेट"
+
+msgid "Updating to {0}"
+msgstr "{0} पर अपडेट हो रहा है"
+
+msgid "Updating to {0} ({1}%)"
+msgstr "{0} पर अपडेट हो रहा है ({1}%)"
+
+msgid "Upper"
+msgstr "ऊपरी"
+
+msgid "Upper Band"
+msgstr "ऊपरी बैंड"
+
+msgid "Upper Band #1"
+msgstr "ऊपरी बैंड 1"
+
+msgid "Upper Band #2"
+msgstr "ऊपरी बैंड 2"
+
+msgid "Upper Band #3"
+msgstr "ऊपरी बैंड 3"
+
+msgid "Upper color"
+msgstr "ऊपरी रंग"
+
+msgid "Upper deviation"
+msgstr "ऊपरी विचलन"
+
+msgid "Upper length"
+msgstr "ऊपरी लंबाई"
+
+msgid "Upper multiplier"
+msgstr "ऊपरी गुणक"
+
+msgid "Upper offset"
+msgstr "ऊपरी ऑफ़सेट"
+
+#, message
+msgid "Upstox doesn't list {0}."
+msgstr "Upstox में {0} नहीं है।"
+
+#, message
+msgid "Upstox has no {0} bars"
+msgstr "Upstox के पास {0} बार नहीं हैं"
+
+msgid "Upstox · NSE and BSE"
+msgstr "Upstox · NSE और BSE"
+
+#, message
+msgid "Upstox: couldn't read the instrument list."
+msgstr "Upstox: सिंबल सूची नहीं पढ़ी जा सकी।"
+
+#, message
+msgid "Upstox: no quote for this symbol."
+msgstr "Upstox: इस सिंबल का भाव नहीं है।"
+
+msgid "Uptrend Highlighter"
+msgstr "अपट्रेंड हाइलाइटर"
+
+msgid "Usage shows after your first message."
+msgstr "उपयोग आपके पहले संदेश के बाद दिखेगा।"
+
+msgid "Use Exponential MA"
+msgstr "एक्सपोनेंशियल MA इस्तेमाल करें"
+
+msgid "Use for new charts"
+msgstr "नए चार्ट के लिए इस्तेमाल करें"
+
+msgid "Use the Strategy Lab"
+msgstr "स्ट्रैटेजी लैब इस्तेमाल करें"
+
+msgid "Use the default folder"
+msgstr "डिफ़ॉल्ट फ़ोल्डर इस्तेमाल करें"
+
+msgid "Use the gateway"
+msgstr "गेटवे इस्तेमाल करें"
+
+msgid "Use the indices"
+msgstr "सूचकांक इस्तेमाल करें"
+
+msgid "Use the screener"
+msgstr "स्क्रीनर इस्तेमाल करें"
+
+msgid "Use this style for new drawings of this kind"
+msgstr "इस प्रकार की नई ड्रॉइंग के लिए यह शैली रखें"
+
+msgid "Used the Strategy Lab"
+msgstr "स्ट्रैटेजी लैब इस्तेमाल की"
+
+msgid "Used the indices"
+msgstr "सूचकांक इस्तेमाल किए"
+
+msgid "Used the screener"
+msgstr "स्क्रीनर इस्तेमाल किया"
+
+#, message
+msgid "Using {0}."
+msgstr "{0} इस्तेमाल में।"
+
+msgid "VI +"
+msgstr ""
+
+msgid "VI -"
+msgstr ""
+
+msgid "VWAP"
+msgstr ""
+
+msgid "VWAP Settings"
+msgstr "VWAP सेटिंग्स"
+
+msgid "VWMA"
+msgstr ""
+
+msgid "Valuation"
+msgstr "मूल्यांकन"
+
+msgid "Value"
+msgstr "मान"
+
+msgid "Value area down"
+msgstr "वैल्यू एरिया नीचे"
+
+msgid "Value area up"
+msgstr "वैल्यू एरिया ऊपर"
+
+msgid "Value area volume %"
+msgstr "वैल्यू एरिया वॉल्यूम %"
+
+msgid "Values"
+msgstr "मान"
+
+msgid "Vert grid lines"
+msgstr "लंबवत ग्रिड"
+
+msgid "Vertical line"
+msgstr "लंबवत रेखा"
+
+msgid "Victoria Day"
+msgstr "विक्टोरिया दिवस"
+
+msgid "Visibility"
+msgstr "दृश्यता"
+
+msgid "Visible Average Price"
+msgstr "दृश्य औसत भाव"
+
+msgid "Vol {0}"
+msgstr "वॉल्यूम {0}"
+
+msgid "Volatility"
+msgstr "अस्थिरता"
+
+msgid "Volatility Stop"
+msgstr "अस्थिरता स्टॉप"
+
+msgid "Volume"
+msgstr "वॉल्यूम"
+
+msgid "Volume MA"
+msgstr "वॉल्यूम MA"
+
+msgid "Volume Osc"
+msgstr "वॉल्यूम ऑसि"
+
+msgid "Volume Oscillator"
+msgstr "वॉल्यूम ऑसिलेटर"
+
+msgid "Volume Profile Visible Range"
+msgstr "दृश्य रेंज वॉल्यूम प्रोफ़ाइल"
+
+msgid "Volume Weighted Moving Average"
+msgstr "वॉल्यूम भारित मूविंग एवरेज"
+
+msgid "Volume leaders"
+msgstr "वॉल्यूम में आगे"
+
+msgid "Vortex Indicator"
+msgstr "वॉर्टेक्स इंडिकेटर"
+
+msgid "WMA"
+msgstr ""
+
+msgid "WMA Length"
+msgstr "WMA लंबाई"
+
+msgid "Waiting for Windows"
+msgstr "Windows की प्रतीक्षा"
+
+msgid "Waiting for the other device"
+msgstr "दूसरे डिवाइस की प्रतीक्षा"
+
+msgid "Waiting for your answer"
+msgstr "आपके उत्तर की प्रतीक्षा"
+
+msgid "Walk-forward"
+msgstr "वॉक-फ़ॉरवर्ड"
+
+msgid "Washington's Birthday"
+msgstr "वॉशिंगटन जयंती"
+
+msgid "Watch"
+msgstr "निगरानी"
+
+msgid "Watchlist"
+msgstr "वॉचलिस्ट"
+
+#, message
+msgid "Watchlist: {0}"
+msgstr "वॉचलिस्ट: {0}"
+
+msgid "Watchlists"
+msgstr "वॉचलिस्ट"
+
+msgid "Webhook"
+msgstr "वेबहुक"
+
+msgid "Webhook URL"
+msgstr "वेबहुक URL"
+
+msgid "Wed"
+msgstr "बुध"
+
+msgid "Wednesday"
+msgstr "बुधवार"
+
+msgid "Week"
+msgstr "सप्ताह"
+
+msgid "Weekly"
+msgstr "साप्ताहिक"
+
+msgid "Weekly (Opus)"
+msgstr "साप्ताहिक (Opus)"
+
+msgid "Weekly (Sonnet)"
+msgstr "साप्ताहिक (Sonnet)"
+
+msgid "Weekly limit"
+msgstr "साप्ताहिक सीमा"
+
+msgid "Weeks"
+msgstr "सप्ताह"
+
+msgid "Weight"
+msgstr "भार"
+
+msgid "Weighted equally for now: a member has no share count."
+msgstr "फ़िलहाल बराबर भार: एक सदस्य की शेयर संख्या नहीं है।"
+
+msgid "Weighting"
+msgstr "भार विधि"
+
+msgid "What do you trade?"
+msgstr "आप क्या ट्रेड करते हैं?"
+
+msgid "What was here is saved in the backups folder."
+msgstr "पहले जो था वह बैकअप फ़ोल्डर में सहेजा है।"
+
+msgid "What's new"
+msgstr "नया क्या है"
+
+msgid "When Opentern is closed"
+msgstr "जब Opentern बंद हो"
+
+msgid "When it's"
+msgstr "जब यह"
+
+msgid "When the price is"
+msgstr "जब भाव"
+
+msgid "Which plot to show (0 is the first)"
+msgstr "कौन-सा प्लॉट दिखाएँ (0 पहला है)"
+
+msgid "Whit Monday"
+msgstr "व्हिट सोमवार"
+
+msgid "Wick"
+msgstr "बत्ती"
+
+msgid "Width %"
+msgstr "चौड़ाई %"
+
+msgid "Williams %R"
+msgstr "विलियम्स %R"
+
+msgid "Williams Alligator"
+msgstr "विलियम्स एलिगेटर"
+
+msgid "Williams Fractals"
+msgstr "विलियम्स फ़्रैक्टल"
+
+msgid "Win %"
+msgstr "जीत %"
+
+msgid "Windows didn't allow it. Try again"
+msgstr "Windows ने अनुमति नहीं दी। फिर कोशिश करें"
+
+#, message
+msgid "Windows refused the rule."
+msgstr "Windows ने नियम अस्वीकार किया।"
+
+msgid "Winning trades"
+msgstr "लाभ वाले ट्रेड"
+
+msgid "Women and Children's Day"
+msgstr "महिला एवं बाल दिवस"
+
+msgid "Woodie"
+msgstr "वुडी"
+
+msgid "Woodies CCI"
+msgstr "वुडीज़ CCI"
+
+msgid "Working"
+msgstr "काम कर रहा है"
+
+#, message
+msgid "Wrote {0}"
+msgstr "{0} लिखा"
+
+msgid "Xetra"
+msgstr ""
+
+msgid "YTD"
+msgstr "वर्ष से अब तक"
+
+#, message
+msgid "Yahoo answered with an error ({c})."
+msgstr "Yahoo ने त्रुटि दी ({c})।"
+
+#, message
+msgid "Yahoo answered with an error ({status})."
+msgstr "Yahoo ने त्रुटि दी ({status})।"
+
+#, message
+msgid "Yahoo didn't send a list this time. Try again later."
+msgstr "Yahoo ने इस बार सूची नहीं भेजी। बाद में कोशिश करें।"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again in a minute."
+msgstr "Yahoo ने इस बार भाव नहीं भेजे। एक मिनट में फिर कोशिश करें।"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again later."
+msgstr "Yahoo ने इस बार भाव नहीं भेजे। बाद में कोशिश करें।"
+
+#, message
+msgid "Yahoo didn't start a session."
+msgstr "Yahoo ने सत्र शुरू नहीं किया।"
+
+#, message
+msgid "Yahoo has no daily history for this BSE listing. NSE:{0} has it."
+msgstr "Yahoo के पास इस BSE शेयर का दैनिक इतिहास नहीं है। NSE:{0} के पास है।"
+
+#, message
+msgid "Yahoo has no data for this symbol"
+msgstr "Yahoo के पास इस सिंबल का डेटा नहीं है"
+
+#, message
+msgid "Yahoo has no {0} bars"
+msgstr "Yahoo के पास {0} बार नहीं हैं"
+
+#, message
+msgid "Yahoo is limiting requests right now."
+msgstr "Yahoo अभी अनुरोध सीमित कर रहा है।"
+
+#, message
+msgid "Yahoo is limiting requests; try again in a minute."
+msgstr "Yahoo अनुरोध सीमित कर रहा है; एक मिनट में फिर कोशिश करें।"
+
+#, message
+msgid "Yahoo is too slow to answer right now."
+msgstr "Yahoo अभी बहुत धीमा जवाब दे रहा है।"
+
+#, message
+msgid "Yahoo isn't answering right now (error {c})."
+msgstr "Yahoo अभी जवाब नहीं दे रहा (त्रुटि {c})।"
+
+msgid "Yahoo no longer has {0} ({what} renamed or delisted?). They count at their last price. Replace them with Edit."
+msgstr "Yahoo के पास अब {0} नहीं है ({what} नाम बदला या डीलिस्ट?)। ये अंतिम भाव पर गिने जाते हैं। संपादित करें से बदलें।"
+
+#, message
+msgid "Yahoo sent {g} bars instead of {iv}."
+msgstr "Yahoo ने {iv} के बजाय {g} बार भेजे।"
+
+#, message
+msgid "Yahoo's prices skip {name} on {0}: it isn't on this chart."
+msgstr "Yahoo के भावों में {0} का {name} नहीं है: इस चार्ट पर नहीं दिखेगा।"
+
+msgid "Year"
+msgstr "वर्ष"
+
+msgid "Yearly"
+msgstr "वार्षिक"
+
+msgid "Yes, reset"
+msgstr "हाँ, रीसेट करें"
+
+msgid "Your address"
+msgstr "आपका पता"
+
+msgid "Your chat id (e.g. from @userinfobot)"
+msgstr "आपकी चैट आईडी (जैसे @userinfobot से)"
+
+msgid "Your conversations with your agents show up here."
+msgstr "एजेंटों से आपकी बातचीत यहाँ दिखेगी।"
+
+msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
+msgstr "आपकी वॉचलिस्ट, लेआउट, ड्रॉइंग, अलर्ट और स्क्रिप्ट बने रहेंगे।"
+
+msgid "Zero"
+msgstr "शून्य"
+
+msgid "Zero Line"
+msgstr "शून्य रेखा"
+
+msgid "Zig Zag"
+msgstr "ज़िग ज़ैग"
+
+msgid "Zoom in"
+msgstr "ज़ूम इन"
+
+msgid "Zoom in (drag a range)"
+msgstr "ज़ूम इन (रेंज खींचें)"
+
+msgid "Zurich"
+msgstr "ज़्यूरिख"
+
+msgid "[Ln {l}]"
+msgstr "[पंक्ति {l}]"
+
+msgid "a drawing"
+msgstr "एक ड्रॉइंग"
+
+msgid "above"
+msgstr "ऊपर"
+
+msgid "at {0}"
+msgstr "{0} बजे"
+
+msgid "auto"
+msgstr "ऑटो"
+
+msgid "below"
+msgstr "नीचे"
+
+msgid "buy"
+msgstr "खरीद"
+
+msgid "by"
+msgstr "चरण"
+
+msgid "chart layout"
+msgstr "चार्ट लेआउट"
+
+#, message
+msgid "chart type to {0}"
+msgstr "चार्ट प्रकार {0}"
+
+msgid "chart view"
+msgstr "चार्ट दृश्य"
+
+msgid "close"
+msgstr "बंद"
+
+msgid "e.g. Nifty Auto"
+msgstr "जैसे Nifty Auto"
+
+msgid "e.g. Swing setup"
+msgstr "जैसे स्विंग सेटअप"
+
+msgid "e.g. {{ticker}} crossed at {{close}}"
+msgstr "जैसे {{ticker}} ने {{close}} पर पार किया"
+
+msgid "from"
+msgstr "से"
+
+msgid "high"
+msgstr "उच्च"
+
+msgid "hl2"
+msgstr ""
+
+msgid "hlc3"
+msgstr ""
+
+msgid "hlcc4"
+msgstr ""
+
+msgid "https://…"
+msgstr ""
+
+msgid "in use"
+msgstr "इस्तेमाल में"
+
+msgid "in {0} weeks"
+msgstr "{0} सप्ताह में"
+
+msgid "in {n} days"
+msgstr "{n} दिन में"
+
+msgid "log"
+msgstr "लॉग"
+
+msgid "low"
+msgstr "निम्न"
+
+msgid "macOS asks once. If Opentern isn't allowed, turn it on here, then try again."
+msgstr "macOS एक बार पूछता है। अगर Opentern को अनुमति नहीं है, तो यहाँ चालू करके फिर कोशिश करें।"
+
+msgid "ohlc4"
+msgstr ""
+
+msgid "open"
+msgstr "खुला"
+
+msgid "sell"
+msgstr "बिक्री"
+
+msgid "to"
+msgstr "तक"
+
+#, message
+msgid "view to {0}"
+msgstr "दृश्य {0} पर"
+
+msgid "vs 200 SMA"
+msgstr "200 SMA से"
+
+msgid "vs 50 SMA"
+msgstr "50 SMA से"
+
+msgid "vs SMA 200 %"
+msgstr "SMA 200 से %"
+
+msgid "vs SMA 50 %"
+msgstr "SMA 50 से %"
+
+msgid "your other device"
+msgstr "आपका दूसरा डिवाइस"
+
+msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
+msgstr "{0}\nइक्विटी  {1}\nखरीदें और रखें  {2}\nड्रॉडाउन  {3}"
+
+msgid "{0}\nNo new price for {1}"
+msgstr "{0}\n{1} से नया भाव नहीं"
+
+msgid "{0}\n{1}% of the map\n{2}: {3}"
+msgstr "{0}\nमानचित्र का {1}%\n{2}: {3}"
+
+msgid "{0}   Move to section"
+msgstr "{0}   सेक्शन में ले जाएँ"
+
+msgid "{0}  (default)"
+msgstr "{0}  (डिफ़ॉल्ट)"
+
+msgid "{0}  Add a watchlist"
+msgstr "{0}  वॉचलिस्ट जोड़ें"
+
+msgid "{0}  Back"
+msgstr "{0}  पीछे"
+
+msgid "{0}  Not on the chart"
+msgstr "{0}  चार्ट पर नहीं"
+
+msgid "{0}  On the chart"
+msgstr "{0}  चार्ट पर"
+
+msgid "{0}  Saving replaces the template with this name."
+msgstr "{0}  सहेजने पर इस नाम का टेम्पलेट बदल जाएगा।"
+
+msgid "{0}  Search symbols to add"
+msgstr "{0}  जोड़ने के लिए सिंबल खोजें"
+
+msgid "{0}  insert"
+msgstr "{0}  डालें"
+
+msgid "{0} ({1})\n{bars} bars, {time}"
+msgstr "{0} ({1})\n{bars} बार, {time}"
+
+msgid "{0} MB of prices on this computer"
+msgstr "इस कंप्यूटर पर {0} MB भाव"
+
+msgid "{0} alerts fired"
+msgstr "{0} अलर्ट चले"
+
+#, message
+msgid "{0} bars aren't available for this symbol."
+msgstr "इस सिंबल के लिए {0} बार उपलब्ध नहीं हैं।"
+
+#, message
+msgid "{0} bars aren't available for {1}."
+msgstr "{1} के लिए {0} बार उपलब्ध नहीं हैं।"
+
+#, message
+msgid "{0} comparison"
+msgstr "{0} से तुलना"
+
+msgid "{0} contracts"
+msgstr "{0} कॉन्ट्रैक्ट"
+
+msgid "{0} copy"
+msgstr "{0} प्रति"
+
+msgid "{0} days"
+msgstr "{0} दिन"
+
+msgid "{0} h {1} min"
+msgstr "{0} घं {1} मि"
+
+#, message
+msgid "{0} has no values to try."
+msgstr "{0} में आज़माने के लिए मान नहीं हैं।"
+
+#, message
+msgid "{0} has unsaved changes: close again to discard them."
+msgstr "{0} में बिना सहेजे बदलाव हैं: छोड़ने के लिए फिर बंद करें।"
+
+msgid "{0} isn't installed"
+msgstr "{0} इंस्टॉल नहीं है"
+
+msgid "{0} min"
+msgstr "{0} मिनट"
+
+msgid "{0} per contract"
+msgstr "{0} प्रति कॉन्ट्रैक्ट"
+
+msgid "{0} per order"
+msgstr "{0} प्रति ऑर्डर"
+
+#, message
+msgid "{0} runs in {took}."
+msgstr "{took} में {0} रन।"
+
+msgid "{0} steps"
+msgstr "{0} चरण"
+
+msgid "{0} symbols"
+msgstr "{0} सिंबल"
+
+#, message
+msgid "{0} symbols in {took}."
+msgstr "{took} में {0} सिंबल।"
+
+#, message
+msgid "{0} symbols in {took}; {1} couldn't run."
+msgstr "{took} में {0} सिंबल; {1} नहीं चल सके।"
+
+#, message
+msgid "{0} windows in {took}."
+msgstr "{took} में {0} विंडो।"
+
+msgid "{0} {1} {2} at {3}"
+msgstr "{0} {1} {2} @ {3}"
+
+#, message
+msgid "{0} {p}. Paste it into a folder with Ctrl+V."
+msgstr "{0} {p}। Ctrl+V से फ़ोल्डर में पेस्ट करें।"
+
+msgid "{0} · {1} symbols"
+msgstr "{0} · {1} सिंबल"
+
+msgid "{0} — properties"
+msgstr "{0} — गुण"
+
+msgid "{0}% of equity"
+msgstr "इक्विटी का {0}%"
+
+msgid "{0}% opacity"
+msgstr "{0}% अपारदर्शिता"
+
+#, message
+msgid "{0}, base {1}."
+msgstr "{0}, आधार {1}।"
+
+msgid "{0}-day limit"
+msgstr "{0}-दिन की सीमा"
+
+msgid "{0}-hour limit"
+msgstr "{0}-घंटे की सीमा"
+
+msgid "{0}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit."
+msgstr "{0}: Yahoo के पास यह सिंबल नहीं रहा; नाम बदला या डीलिस्ट हुआ हो सकता है। यह अंतिम भाव पर गिना जाता है। संपादित करें से बदलें।"
+
+#, message
+msgid "{0}: any alert() call"
+msgstr "{0}: कोई भी alert() कॉल"
+
+msgid "{0}: {1}% used"
+msgstr "{0}: {1}% इस्तेमाल"
+
+msgid "{0}d ago"
+msgstr "{0} दिन पहले"
+
+msgid "{0}h ago"
+msgstr "{0} घं पहले"
+
+msgid "{0}m ago"
+msgstr "{0} मि पहले"
+
+msgid "{0}px"
+msgstr ""
+
+msgid "{0}{plus} mo"
+msgstr "{0}{plus} माह"
+
+#, message
+msgid "{GONE}. It may have been renamed or delisted."
+msgstr "{GONE}। नाम बदला या डीलिस्ट हुआ हो सकता है।"
+
+#, message
+msgid "{account}: Bought {qty} {sym} at {price}"
+msgstr "{account}: {qty} {sym} {price} पर खरीदा"
+
+#, message
+msgid "{account}: Sold {qty} {sym} at {price}"
+msgstr "{account}: {qty} {sym} {price} पर बेचा"
+
+msgid "{bars} bars, {time}"
+msgstr "{bars} बार, {time}"
+
+msgid "{combos} combinations: too many for every combination. Use Random or Bayesian."
+msgstr "{combos} संयोजन: सबको आज़माने के लिए बहुत अधिक। यादृच्छिक या बेज़ियन चुनें।"
+
+#, message
+msgid "{dir} already has a {0}."
+msgstr "{dir} में {0} पहले से है।"
+
+#, message
+msgid "{dir} isn't empty: move or delete what's in it first."
+msgstr "{dir} खाली नहीं है: पहले उसकी सामग्री ले जाएँ या हटाएँ।"
+
+#, message
+msgid "{done} of {0} done…"
+msgstr "{0} में से {done} पूरे…"
+
+#, message
+msgid "{e} Left out of the index."
+msgstr "{e} सूचकांक से बाहर रखा गया।"
+
+#, message
+msgid "{fe} no longer trades {fd}"
+msgstr "{fe} पर {fd} अब ट्रेड नहीं होता"
+
+#, message
+msgid "{file} is a library."
+msgstr "{file} लाइब्रेरी है।"
+
+#, message
+msgid "{file} isn't a script"
+msgstr "{file} स्क्रिप्ट नहीं है"
+
+#, message
+msgid "{file} isn't in the scripts folder"
+msgstr "{file} स्क्रिप्ट फ़ोल्डर में नहीं है"
+
+#, message
+msgid "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+msgstr "{file} आयात की गई थी, और Python की इस कंप्यूटर पर पूरी पहुँच है। भरोसा हो तो फिर चलाएँ दबाएँ।"
+
+#, message
+msgid "{file} was imported. To run it, open it in the Script Editor and press Run."
+msgstr "{file} आयात की गई। चलाने के लिए स्क्रिप्ट एडिटर में खोलकर चलाएँ दबाएँ।"
+
+msgid "{left} left"
+msgstr "{left} बाकी"
+
+msgid "{m}-minute limit"
+msgstr "{m}-मिनट की सीमा"
+
+#, message
+msgid "{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again."
+msgstr "{name} में साइन इन नहीं है। साइन इन के लिए टर्मिनल में एक बार {cmd} चलाएँ, फिर कोशिश करें।"
+
+#, message
+msgid "{name} stopped unexpectedly. Send your message again to pick up where it left off."
+msgstr "{name} अचानक रुक गया। वहीं से जारी रखने के लिए संदेश फिर भेजें।"
+
+#, message
+msgid "{name} stopped: {err}"
+msgstr "{name} रुक गया: {err}"
+
+#, message
+msgid "{n} alerts fired while Opentern was closed"
+msgstr "Opentern बंद रहते {n} अलर्ट चले"
+
+msgid "{n} charts"
+msgstr "{n} चार्ट"
+
+msgid "{n} days"
+msgstr "{n} दिन"
+
+#, message
+msgid "{n} drawings"
+msgstr "{n} ड्रॉइंग"
+
+msgid "{n} hours"
+msgstr "{n} घंटे"
+
+msgid "{n} minutes"
+msgstr "{n} मिनट"
+
+msgid "{n} months"
+msgstr "{n} महीने"
+
+msgid "{n} seconds"
+msgstr "{n} सेकंड"
+
+msgid "{n} symbols"
+msgstr "{n} सिंबल"
+
+msgid "{n} weeks"
+msgstr "{n} सप्ताह"
+
+msgid "{n}{plus} yr"
+msgstr "{n}{plus} वर्ष"
+
+msgid "{n}{plus} yrs"
+msgstr "{n}{plus} वर्ष"
+
+msgid "{p} runs of {combos} combinations on the chart's {n} bars."
+msgstr "चार्ट के {n} बार पर {combos} संयोजनों में से {p} रन।"
+
+msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} बार, {time}"
+
+msgid "{state} · {0} · fired {1}×"
+msgstr "{state} · {0} · {1} बार चला"
+
+#, message
+msgid "{study}: any alert() call"
+msgstr "{study}: कोई भी alert() कॉल"
+
+msgid "{text}\n{0}\nEarlier prices adjusted"
+msgstr "{text}\n{0}\nपिछले भाव समायोजित"
+
+msgid "{tip}\nClick to put the best of these on the chart"
+msgstr "{tip}\nइनमें से सर्वोत्तम चार्ट पर लगाने के लिए क्लिक करें"
+
+msgid "{tip} {0} at {1}"
+msgstr "{tip} {0} @ {1}"
+
+#, message
+msgid "{title} {0} the price"
+msgstr "{title} {0} भाव"
+
+msgid "{unsaved} scripts have unsaved changes. Save them to include them."
+msgstr "{unsaved} स्क्रिप्ट में बिना सहेजे बदलाव हैं। शामिल करने के लिए सहेजें।"
+
+msgid "{what} placed."
+msgstr "{what} लगाया गया।"
+
+msgid "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
+msgstr "{what}, और Python की इस कंप्यूटर पर पूरी पहुँच है। स्क्रिप्ट एडिटर में चलाएँ दबाने तक कुछ नहीं चलेगा।"
+
+msgid "{w} windows × {p} runs on the chart's {n} bars."
+msgstr "चार्ट के {n} बार पर {w} विंडो × {p} रन।"
+
+msgid "{w}px"
+msgstr ""

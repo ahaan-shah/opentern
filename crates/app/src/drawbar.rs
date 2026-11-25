@@ -4,6 +4,7 @@
 use crate::app::App;
 use crate::chart::draw::Tool;
 use crate::dialogs::color::color_button;
+use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::theme;
 use egui::{CornerRadius, Margin, Stroke, vec2};
@@ -43,7 +44,7 @@ impl App {
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.label(
-                                egui::RichText::new(d.tool.name())
+                                egui::RichText::new(tr(d.tool.name()))
                                     .font(theme::medium(12.5))
                                     .color(t.text2),
                             );
@@ -64,16 +65,16 @@ impl App {
                             }
                             crate::widgets::combo("draw-width")
                                 .width(50.0)
-                                .selected_text(format!("{}px", edit.style.width))
+                                .selected_text(trf!("{}px", edit.style.width))
                                 .show_ui(ui, |ui| {
                                     for w in 1..=4u8 {
-                                        crate::widgets::option_value(ui, &mut edit.style.width, w, format!("{w}px"));
+                                        crate::widgets::option_value(ui, &mut edit.style.width, w, trf!("{w}px"));
                                     }
                                 });
                             let name = |s: LineStyle| match s {
-                                LineStyle::Solid => "Solid",
-                                LineStyle::Dashed => "Dashed",
-                                LineStyle::Dotted => "Dotted",
+                                LineStyle::Solid => tr("Solid"),
+                                LineStyle::Dashed => tr("Dashed"),
+                                LineStyle::Dotted => tr("Dotted"),
                             };
                             crate::widgets::combo("draw-line")
                                 .width(70.0)
@@ -86,26 +87,26 @@ impl App {
                             if matches!(d.tool, Tool::Text | Tool::ArrowUp | Tool::ArrowDown) {
                                 ui.add(
                                     crate::widgets::field(&mut edit.text)
-                                        .hint_text("Text")
+                                        .hint_text(tr("Text"))
                                         .desired_width(140.0),
                                 );
                             }
                             if matches!(d.tool, Tool::TrendLine | Tool::Arrow) {
                                 ui.toggle_value(&mut edit.style.extend_left, ph::ARROW_LINE_LEFT)
-                                    .on_hover_text("Extend left");
+                                    .on_hover_text(tr("Extend left"));
                                 ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
-                                    .on_hover_text("Extend right");
+                                    .on_hover_text(tr("Extend right"));
                             }
                             if matches!(d.tool, Tool::FibRetracement | Tool::FibExtension) {
                                 ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
-                                    .on_hover_text("Extend lines right");
+                                    .on_hover_text(tr("Extend lines right"));
                             }
                             if matches!(
                                 d.tool,
                                 Tool::HorizontalLine | Tool::HorizontalRay | Tool::FibRetracement | Tool::FibExtension
                             ) {
                                 ui.toggle_value(&mut edit.style.labels, ph::TAG)
-                                    .on_hover_text("Price labels");
+                                    .on_hover_text(tr("Price labels"));
                             }
                             ui.separator();
                             let lock = if edit.locked {
@@ -113,15 +114,15 @@ impl App {
                             } else {
                                 ph::LOCK_SIMPLE_OPEN
                             };
-                            ui.toggle_value(&mut edit.locked, lock).on_hover_text("Lock");
+                            ui.toggle_value(&mut edit.locked, lock).on_hover_text(tr("Lock"));
                             if ui
                                 .button(ph::STAR)
-                                .on_hover_text("Use this style for new drawings of this kind")
+                                .on_hover_text(tr("Use this style for new drawings of this kind"))
                                 .clicked()
                             {
                                 save_default = true;
                             }
-                            if ui.button(ph::TRASH).on_hover_text("Remove (Delete)").clicked() {
+                            if ui.button(ph::TRASH).on_hover_text(tr("Remove (Delete)")).clicked() {
                                 delete = true;
                             }
                         });

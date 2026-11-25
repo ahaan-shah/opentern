@@ -4,6 +4,7 @@
 //! strategy's trades appear as the replay reaches them.
 
 use super::Chart;
+use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -186,18 +187,18 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         measure(text, theme::medium(12.5)) + 18.0
     };
     let w = if selecting && !has_full {
-        8.0 + btn(ph::SCISSORS, "Select bar")
+        8.0 + btn(ph::SCISSORS, tr("Select bar"))
             + 8.0
-            + measure("Click a bar to start from it".into(), theme::regular(12.5))
+            + measure(tr("Click a bar to start from it").into(), theme::regular(12.5))
             + 44.0
     } else {
-        8.0 + btn(ph::SCISSORS, "Select bar")
+        8.0 + btn(ph::SCISSORS, tr("Select bar"))
             + btn(ph::PAUSE, "")
             + btn(ph::SKIP_FORWARD, "")
             + btn(ph::GAUGE, speed_label)
-            + btn(ph::FAST_FORWARD, "Real time")
+            + btn(ph::FAST_FORWARD, tr("Real time"))
             + 6.0
-            + measure(format!("{left} left"), theme::regular(11.5))
+            + measure(trf!("{left} left"), theme::regular(11.5))
             + 44.0
     };
     let bar = Rect::from_center_size(pos2(pane.center().x, pane.bottom() - 30.0), vec2(w, 36.0));
@@ -246,8 +247,8 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
     if button(
         ui,
         ph::SCISSORS,
-        "Select bar",
-        "Pick a new starting bar",
+        tr("Select bar"),
+        tr("Pick a new starting bar"),
         selecting,
         "select",
     ) && let Some(r) = chart.replay.as_mut()
@@ -259,7 +260,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         ui.painter().text(
             pos2(x + 8.0, bar.center().y),
             Align2::LEFT_CENTER,
-            "Click a bar to start from it",
+            tr("Click a bar to start from it"),
             theme::regular(12.5),
             t.text2,
         );
@@ -272,15 +273,15 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
             theme::regular(14.0),
             t.text2,
         );
-        if resp.on_hover_text("Close replay").clicked() {
+        if resp.on_hover_text(tr("Close replay")).clicked() {
             chart.replay = None;
         }
         return;
     }
     let (glyph, tip) = if playing {
-        (ph::PAUSE, "Pause")
+        (ph::PAUSE, tr("Pause"))
     } else {
-        (ph::PLAY, "Play")
+        (ph::PLAY, tr("Play"))
     };
     if button(ui, glyph, "", tip, false, "play")
         && let Some(r) = chart.replay.as_mut()
@@ -288,7 +289,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         r.playing = !r.playing && r.cut < r.full.len();
         r.selecting = false;
     }
-    if button(ui, ph::SKIP_FORWARD, "", "Forward one bar", false, "step") {
+    if button(ui, ph::SKIP_FORWARD, "", tr("Forward one bar"), false, "step") {
         if let Some(r) = chart.replay.as_mut() {
             r.selecting = false;
         }
@@ -298,21 +299,28 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         ui,
         ph::GAUGE,
         speed_label,
-        "Speed: time per bar (click to change)",
+        tr("Speed: time per bar (click to change)"),
         false,
         "speed",
     ) && let Some(r) = chart.replay.as_mut()
     {
         r.speed = (r.speed + 1) % SPEEDS.len();
     }
-    if button(ui, ph::FAST_FORWARD, "Real time", "Jump to real time", false, "live") {
+    if button(
+        ui,
+        ph::FAST_FORWARD,
+        tr("Real time"),
+        tr("Jump to real time"),
+        false,
+        "live",
+    ) {
         chart.exit_replay();
         return;
     }
     ui.painter().text(
         pos2(x + 6.0, bar.center().y),
         Align2::LEFT_CENTER,
-        format!("{left} left"),
+        trf!("{left} left"),
         theme::regular(11.5),
         t.text3,
     );
@@ -325,7 +333,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         theme::regular(14.0),
         t.text2,
     );
-    if resp.on_hover_text("Close replay").clicked() {
+    if resp.on_hover_text(tr("Close replay")).clicked() {
         chart.exit_replay();
     }
 }

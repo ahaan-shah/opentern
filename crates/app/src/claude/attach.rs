@@ -3,6 +3,7 @@
 //! inline with their path (so it can still edit them), anything else as a
 //! path to read.
 
+use crate::i18n::{msg, nt, tr};
 use crate::icons::ph;
 use base64::Engine;
 use crossbeam_channel::Receiver;
@@ -139,7 +140,7 @@ pub fn pasted_files(text: &str) -> Option<Vec<PathBuf>> {
 /// The clipboard's files, or its image saved as a PNG in `dir`.
 #[cfg_attr(test, allow(dead_code))]
 pub fn from_clipboard(dir: &Path) -> Result<Vec<PathBuf>, String> {
-    let mut cb = arboard::Clipboard::new().map_err(|e| format!("Couldn't open the clipboard: {e}"))?;
+    let mut cb = arboard::Clipboard::new().map_err(|e| msg!("Couldn't open the clipboard: {e}"))?;
     if let Ok(files) = cb.get().file_list()
         && !files.is_empty()
     {
@@ -147,7 +148,7 @@ pub fn from_clipboard(dir: &Path) -> Result<Vec<PathBuf>, String> {
     }
     let img = cb
         .get_image()
-        .map_err(|_| "There's no image or file on the clipboard.".to_string())?;
+        .map_err(|_| nt!("There's no image or file on the clipboard.").to_string())?;
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let path = dir.join(format!("pasted-{}.png", jiff::Timestamp::now().as_millisecond()));
     let file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
@@ -164,7 +165,7 @@ pub fn from_clipboard(dir: &Path) -> Result<Vec<PathBuf>, String> {
 pub fn pick() -> Receiver<Vec<PathBuf>> {
     let (tx, rx) = crossbeam_channel::bounded(1);
     // Made here (some platforms need the UI thread), awaited on another.
-    let fut = rfd::AsyncFileDialog::new().set_title("Attach files").pick_files();
+    let fut = rfd::AsyncFileDialog::new().set_title(tr("Attach files")).pick_files();
     std::thread::spawn(move || {
         let files = pollster::block_on(fut)
             .unwrap_or_default()

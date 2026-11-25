@@ -6,6 +6,7 @@ use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
 use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
+use crate::i18n::{msg, nt, tr};
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
 use crate::updater::{Phase, Updater};
@@ -154,6 +155,7 @@ impl App {
     /// Builds the app against any egui context (the real window, or a
     /// headless one in tests).
     pub(crate) fn with_context(ctx: &egui::Context, layout: Arrangement, store: Store, demo: bool) -> App {
+        crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
         let theme = ThemeState::new(ctx, &store.settings().theme);
         let wake_ctx = ctx.clone();
@@ -177,7 +179,7 @@ impl App {
         let (layout_id, layout_name) = current
             .as_ref()
             .map(|l| (l.id, l.name.clone()))
-            .unwrap_or((1, "Untitled".to_string()));
+            .unwrap_or((1, tr("Untitled").to_string()));
         let saved = current
             .and_then(|l| store.layout_json(l.id).ok().flatten())
             .and_then(|j| crate::multi::LayoutState::parse(&j));
@@ -327,9 +329,12 @@ impl App {
     /// `script:<file>` puts a workspace script on the chart, `add:<id>` a
     /// built-in.
     fn still(&mut self) {
-        let Ok(what) = std::env::var("OPENTERN_STILL") else {
-            return;
-        };
+        if let Ok(what) = std::env::var("OPENTERN_STILL") {
+            self.open_still(&what);
+        }
+    }
+
+    pub(crate) fn open_still(&mut self, what: &str) {
         // Several at once: "script:x.pine,tab:report".
         let mut rest = Vec::new();
         for part in what.split(',') {
@@ -430,6 +435,12 @@ impl App {
                     let w = w.to_lowercase();
                     x.title().to_lowercase().starts_with(&w) || format!("{x:?}").to_lowercase() == w
                 });
+            } else if let Some(l) = part.strip_prefix("lang:") {
+                let ctx = self.egui_ctx.clone();
+                self.set_language(
+                    crate::i18n::Lang::from_code(l).unwrap_or(crate::i18n::Lang::English),
+                    &ctx,
+                );
             } else if part == "screen" {
                 self.layout.tab = Some(crate::shell::Tab::Screener);
                 self.run_screener();
@@ -1020,29 +1031,29 @@ impl App {
                     use crate::chart::CompareMode as M;
                     use crate::icons::ph;
                     use crate::widgets as w;
-                    w::menu_heading(ui, &t, "SCALE");
+                    w::menu_heading(ui, &t, tr("SCALE"));
                     for (m, icon) in [
                         (M::Percent, ph::PERCENT),
                         (M::Scale, ph::ARROWS_DOWN_UP),
                         (M::Pane, ph::ROWS),
                     ] {
-                        if w::menu_item(ui, &t, Some(icon), m.label(), "", mode == m).clicked() {
+                        if w::menu_item(ui, &t, Some(icon), tr(m.label()), "", mode == m).clicked() {
                             self.chart.set_compare_mode(i, m);
                             close = true;
                         }
                     }
                     w::menu_rule(ui, &t);
                     let (icon, label) = if visible {
-                        (ph::EYE_SLASH, "Hide")
+                        (ph::EYE_SLASH, tr("Hide"))
                     } else {
-                        (ph::EYE, "Show")
+                        (ph::EYE, tr("Show"))
                     };
                     if w::menu_item(ui, &t, Some(icon), label, "", false).clicked() {
                         self.chart.compares[i].visible = !visible;
                         self.chart.touch();
                         close = true;
                     }
-                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), tr("Remove")).clicked() {
                         self.remove_compare(i);
                         close = true;
                     }
@@ -1074,18 +1085,27 @@ impl App {
                     ui.spacing_mut().item_spacing.y = 1.0;
                     use crate::icons::ph;
                     use crate::widgets as w;
-                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), "Settings", "", false).clicked() {
+                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), tr("Settings"), "", false).clicked() {
                         self.chart_actions(vec![Action::StudySettings(uid)]);
                         close = true;
                     }
-                    if w::menu_item(ui, &t, Some(ph::FLOPPY_DISK), "Save as default", "", false).clicked() {
+                    if w::menu_item(ui, &t, Some(ph::FLOPPY_DISK), tr("Save as default"), "", false).clicked() {
                         if let Some(s) = self.chart.studies.iter().find(|s| s.uid == uid) {
                             let (i, l) = (s.inst.inputs.clone(), s.look.clone());
                             self.save_study_default(meta, &i, &l);
                         }
                         close = true;
                     }
-                    if w::menu_item(ui, &t, Some(ph::ARROW_COUNTER_CLOCKWISE), "Reset settings", "", false).clicked() {
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROW_COUNTER_CLOCKWISE),
+                        tr("Reset settings"),
+                        "",
+                        false,
+                    )
+                    .clicked()
+                    {
                         let (i, l) = self.study_defaults(meta);
                         self.chart.set_inputs(uid, &i);
                         if let Some(s) = self.chart.study_mut(uid) {
@@ -1094,13 +1114,13 @@ impl App {
                         close = true;
                     }
                     if Self::has_source(meta.id)
-                        && w::menu_item(ui, &t, Some(ph::CODE), "Source code", "", false).clicked()
+                        && w::menu_item(ui, &t, Some(ph::CODE), tr("Source code"), "", false).clicked()
                     {
                         self.open_study_source(uid);
                         close = true;
                     }
                     w::menu_rule(ui, &t);
-                    if w::menu_danger(ui, &t, Some(ph::TRASH), "Remove").clicked() {
+                    if w::menu_danger(ui, &t, Some(ph::TRASH), tr("Remove")).clicked() {
                         self.chart.remove_study(uid);
                         close = true;
                     }
@@ -1481,16 +1501,16 @@ impl App {
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {
             let (title, body) = match note {
-                Ok(m) => ("Update installed", m),
-                Err(m) => ("Update failed", m),
+                Ok(m) => (nt!("Update installed"), m),
+                Err(m) => (nt!("Update failed"), m),
             };
             self.notify(crate::icons::ph::ARROW_CIRCLE_UP, title, &body, None, false);
         }
         if !was_prompt && let crate::updater::Phase::Available(r) = &self.updater.phase {
-            let body = format!("Opentern {} is ready to install from the rail.", r.version);
+            let body = msg!("Opentern {} is ready to install from the rail.", r.version);
             self.notify(
                 crate::icons::ph::ARROW_CIRCLE_UP,
-                "Update available",
+                nt!("Update available"),
                 &body,
                 None,
                 false,

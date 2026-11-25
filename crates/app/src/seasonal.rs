@@ -11,6 +11,7 @@
 //! chart only once it's shown.
 
 use crate::app::App;
+use crate::i18n::{nt, tr, trm};
 use crate::icons::ph;
 use crate::motion::lerp_color;
 use crate::theme::{self, Theme};
@@ -28,18 +29,18 @@ const MONTHS: usize = 600;
 const DAYS: usize = 366 * 40;
 
 const NAMES: [&str; 12] = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    nt!("January"),
+    nt!("February"),
+    nt!("March"),
+    nt!("April"),
+    nt!("May"),
+    nt!("June"),
+    nt!("July"),
+    nt!("August"),
+    nt!("September"),
+    nt!("October"),
+    nt!("November"),
+    nt!("December"),
 ];
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -124,7 +125,7 @@ impl App {
         if seq == SEQ_BASE + s.daily_seq && id == s.daily_for {
             s.daily = Some(match result {
                 Ok(bars) if !bars.is_empty() => Ok(seasonality(&bars, &tz, usize::MAX)),
-                Ok(_) => Err("No daily history for this symbol.".into()),
+                Ok(_) => Err(nt!("No daily history for this symbol.").into()),
                 Err(e) => Err(e),
             });
             return;
@@ -135,7 +136,7 @@ impl App {
         s.loading = false;
         match result {
             Ok(bars) if !bars.is_empty() => s.rows = monthly_returns(&bars, &tz),
-            Ok(_) => s.error = Some("No monthly history for this symbol.".into()),
+            Ok(_) => s.error = Some(nt!("No monthly history for this symbol.").into()),
             Err(e) => s.error = Some(e),
         }
     }
@@ -158,7 +159,7 @@ impl App {
             return Some(Err(e.clone()));
         }
         let (Some(newest), Some(oldest)) = (s.rows.first().map(|r| r.year), s.rows.last().map(|r| r.year)) else {
-            return Some(Err("No monthly history for this symbol.".into()));
+            return Some(Err(nt!("No monthly history for this symbol.").into()));
         };
         let span = s.years.unwrap_or(6).max(1) - 1;
         let shown = s.range.unwrap_or(((newest - span).max(oldest), newest));
@@ -236,11 +237,11 @@ impl App {
             return;
         }
         if let Some(e) = &s.error {
-            crate::widgets::empty_state(ui, t, ph::CALENDAR_X, e);
+            crate::widgets::empty_state(ui, t, ph::CALENDAR_X, &trm(e));
             return;
         }
         let (Some(newest), Some(oldest)) = (s.rows.first().map(|r| r.year), s.rows.last().map(|r| r.year)) else {
-            crate::widgets::empty_state(ui, t, ph::CALENDAR_BLANK, "No monthly history");
+            crate::widgets::empty_state(ui, t, ph::CALENDAR_BLANK, tr("No monthly history"));
             return;
         };
         let span = s.years.unwrap_or(6).max(1) - 1;
@@ -267,7 +268,7 @@ impl App {
                     ui.add_space(40.0);
                     ui.vertical_centered(|ui| ui.spinner());
                 }
-                Some(Err(e)) => crate::widgets::empty_state(ui, t, ph::CALENDAR_X, e),
+                Some(Err(e)) => crate::widgets::empty_state(ui, t, ph::CALENDAR_X, &trm(e)),
                 Some(Ok(all)) => {
                     let years: Vec<&SeasonYear> =
                         all.iter().filter(|y| y.year >= range.0 && y.year <= range.1).collect();
@@ -334,7 +335,9 @@ fn tint(t: &Theme, v: f64, strong: bool) -> Color32 {
 fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
     // A little room on the right so the Year column doesn't touch the edge.
     let width = ui.available_width() - 4.0;
-    let first = 84.0_f32.min(width * 0.1);
+    // Wide enough for its own texts, whatever the language.
+    let label = crate::widgets::widest(ui, theme::semibold(12.5), [tr("Average"), tr("Date"), "2026"]) + 20.0;
+    let first = 84.0_f32.min(width * 0.1).max(label);
     // Columns never get narrower than their widest number. When two
     // decimals don't fit, fewer do; past that the table scrolls sideways.
     let widest = |dp: usize| {
@@ -372,18 +375,18 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(head.min, vec2(first, row_h)),
-            "Date",
+            tr("Date"),
             true,
             font.clone(),
             t.text3,
         );
         for (k, n) in NAMES.iter().enumerate() {
             let r = Rect::from_min_size(head.min + vec2(x_of(k), 0.0), vec2(col, row_h));
-            let name = if full { n.to_string() } else { n[..3].to_string() };
-            cell_text(p, r, &name, false, font.clone(), t.text3);
+            let name = tr(if full { n } else { &n[..3] });
+            cell_text(p, r, name, false, font.clone(), t.text3);
         }
         let yr = Rect::from_min_size(head.min + vec2(x_of(12), 0.0), vec2(col, row_h));
-        cell_text(p, yr, "Year", false, theme::semibold(12.5), t.text2);
+        cell_text(p, yr, tr("Year"), false, theme::semibold(12.5), t.text2);
         p.hline(head.x_range(), head.bottom(), border);
         // The footer (average, rises and falls) keeps its place under the years.
         let body_h = (ui.available_height() - 2.0 * row_h - 2.0).max(row_h);
@@ -442,7 +445,7 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(avg_row.min, vec2(first, row_h)),
-            "Average",
+            tr("Average"),
             true,
             theme::semibold(12.5),
             t.text2,
@@ -476,7 +479,7 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
         cell_text(
             p,
             Rect::from_min_size(foot.min, vec2(first, row_h)),
-            if full { "Rises and falls" } else { "Up / down" },
+            if full { tr("Rises and falls") } else { tr("Up / down") },
             true,
             theme::semibold(12.5),
             t.text2,
@@ -614,7 +617,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
                 rect.bottom() - 4.0,
             ),
             Align2::CENTER_BOTTOM,
-            &name[..3],
+            tr(&name[..3]),
             axis_font.clone(),
             t.text3,
         );
@@ -663,7 +666,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
         })
         .collect();
     if let Some((_, v)) = avg.last() {
-        tags.push((y_of(*v), "Avg".into(), crate::format::signed_pct(*v), t.text2));
+        tags.push((y_of(*v), tr("Avg").into(), crate::format::signed_pct(*v), t.text2));
     }
     tags.sort_by(|a, b| a.0.total_cmp(&b.0));
     let (top, bottom) = (rect.top() + tag_h / 2.0, plot.bottom() + month_h - tag_h / 2.0);
@@ -722,7 +725,7 @@ fn year_chart(ui: &mut Ui, t: &Theme, years: &[&SeasonYear]) {
         }
     }
     if let Some(v) = avg.iter().find(|(a, _)| (a - f).abs() < 1e-9).map(|(_, v)| *v) {
-        lines.push(("Avg".into(), v, t.text2));
+        lines.push((tr("Avg").into(), v, t.text2));
     }
     if lines.is_empty() {
         return;

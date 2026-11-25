@@ -568,6 +568,51 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     add(&mut fonts, "ui-semibold", f.semibold);
     add(&mut fonts, "ui-display", f.display);
 
+    // Cyrillic, Devanagari, Japanese and Chinese, subset to the catalogs
+    // (scripts/i18n-fonts.py). The Japanese and Chinese share characters
+    // drawn differently, so the language's own comes first.
+    let mut scripts = [
+        (
+            "cyrillic",
+            include_bytes!("../assets/fonts/i18n/cyrillic-Regular.ttf").as_slice(),
+            include_bytes!("../assets/fonts/i18n/cyrillic-Medium.ttf").as_slice(),
+        ),
+        (
+            "devanagari",
+            include_bytes!("../assets/fonts/i18n/devanagari-Regular.ttf"),
+            include_bytes!("../assets/fonts/i18n/devanagari-Medium.ttf"),
+        ),
+        (
+            "japanese",
+            include_bytes!("../assets/fonts/i18n/japanese-Regular.ttf"),
+            include_bytes!("../assets/fonts/i18n/japanese-Medium.ttf"),
+        ),
+        (
+            "chinese",
+            include_bytes!("../assets/fonts/i18n/chinese-Regular.ttf"),
+            include_bytes!("../assets/fonts/i18n/chinese-Medium.ttf"),
+        ),
+    ];
+    if crate::i18n::current() == crate::i18n::Lang::Chinese {
+        scripts.swap(2, 3);
+    }
+    for (name, regular, medium) in scripts {
+        // Noto Sans Devanagari leaves room above for its marks, which puts
+        // the letters high beside Latin.
+        let y_offset_factor = if name == "devanagari" { 0.1 } else { 0.0 };
+        let mut add = |key: String, bytes: &'static [u8]| {
+            let tweak = egui::FontTweak {
+                y_offset_factor,
+                ..Default::default()
+            };
+            fonts
+                .font_data
+                .insert(key, FontData::from_static(bytes).tweak(tweak).into());
+        };
+        add(name.to_string(), regular);
+        add(format!("{name}-medium"), medium);
+    }
+
     let fallbacks: Vec<String> = fonts
         .families
         .get(&FontFamily::Proportional)
@@ -575,6 +620,12 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
         .unwrap_or_default();
     let family = |main: &str| {
         let mut v = vec![main.to_string()];
+        let heavy = if main == "ui" || main.starts_with("preview:") {
+            ""
+        } else {
+            "-medium"
+        };
+        v.extend(scripts.map(|(n, ..)| format!("{n}{heavy}")));
         v.extend(fallbacks.iter().cloned());
         v
     };
@@ -599,6 +650,9 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     add(&mut fonts, "code", font_by_name("JetBrains Mono").regular);
     if let Some(v) = fonts.families.get_mut(&FontFamily::Monospace) {
         v.insert(0, "code".into());
+        for (i, (n, ..)) in scripts.iter().enumerate() {
+            v.insert(i + 1, (*n).into());
+        }
     }
     // Phosphor icons as a fallback in every family so icons mix into text.
     let phosphor = egui_phosphor::Variant::Regular.font_bytes();

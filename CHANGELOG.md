@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Opentern in your language.** German, Spanish, French, Portuguese (Brazil), Swedish, Russian, Hindi, Japanese and Simplified Chinese, besides English. It follows your system's language; pick another in Settings → General → Language. Your scripts, saved names and tickers stay as they are.
+
+### Changed
+- **"Theme" beside a colour** in chart settings is a plain underlined link.
+
+### Fixed
+- **Panels in narrow windows.** Every bottom panel fits half a laptop screen: tabs scroll sideways with the open one in view, Paper Trading and the Strategy Lab stack, and the Strategy Report, screener, seasonality table, Script Editor and alerts log no longer run past their edges or overlap.
+- **Dividend, split and earnings details** no longer show through a dialog.
+- **The opacity slider's handle** covers the end of its line at 100%.
+
 ## 0.3.4 (2026-11-24)
 
 A sharper, calmer look throughout, symbol search with prices, a custom colour picker, a keyboard-friendly script explorer and three new indicators.

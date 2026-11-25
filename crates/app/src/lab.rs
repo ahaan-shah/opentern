@@ -9,6 +9,7 @@
 //! their own process and aren't rerun here.
 
 use crate::app::App;
+use crate::i18n::{msg, nt, tr, trf, trm};
 use crate::icons::ph;
 use crate::shell::small_button;
 use crate::strategy::{Fmt, closed_broker, kpi, num, pct, table, time_text, tone};
@@ -43,10 +44,10 @@ impl Mode {
 
     fn title(self) -> &'static str {
         match self {
-            Mode::Optimize => "Optimize",
-            Mode::WalkForward => "Walk-forward",
-            Mode::MonteCarlo => "Monte Carlo",
-            Mode::Portfolio => "Portfolio",
+            Mode::Optimize => nt!("Optimize"),
+            Mode::WalkForward => nt!("Walk-forward"),
+            Mode::MonteCarlo => nt!("Monte Carlo"),
+            Mode::Portfolio => nt!("Portfolio"),
         }
     }
 
@@ -312,7 +313,7 @@ impl App {
     fn lab_target(&self) -> Result<Target, String> {
         let Some(run) = self.strategies.current() else {
             return Err(
-                "Add a strategy to the chart first. A strategy is a script that starts with strategy(…).".into(),
+                nt!("Add a strategy to the chart first. A strategy is a script that starts with strategy(…).").into(),
             );
         };
         let study = self
@@ -320,10 +321,10 @@ impl App {
             .studies
             .iter()
             .find(|s| s.uid == run.uid)
-            .ok_or("The strategy isn't on the chart any more.")?;
+            .ok_or(nt!("The strategy isn't on the chart any more."))?;
         let Some(factory) = study.inst.factory() else {
             return Err(
-                "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+                nt!("Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work.")
                     .into(),
             );
         };
@@ -422,12 +423,12 @@ impl App {
         let ctx = self.egui_ctx.clone();
         let spawned = std::thread::Builder::new().name("lab".into()).spawn(move || {
             let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(p)));
-            let done = r.unwrap_or_else(|_| Done::Opt(Err("Something went wrong in the run.".into())));
+            let done = r.unwrap_or_else(|_| Done::Opt(Err(nt!("Something went wrong in the run.").into())));
             let _ = tx.send(done);
             ctx.request_repaint();
         });
         if spawned.is_err() {
-            self.lab.status = "Couldn't start the run.".into();
+            self.lab.status = nt!("Couldn't start the run.").into();
             return;
         }
         self.lab.job = Some(Job {
@@ -435,7 +436,7 @@ impl App {
             rx,
             started: Instant::now(),
         });
-        self.lab.status = "Running…".into();
+        self.lab.status = nt!("Running…").into();
     }
 
     pub(crate) fn lab_run(&mut self) {
@@ -486,7 +487,7 @@ impl App {
 
     fn lab_portfolio(&mut self, target: Target) {
         if target.build.is_none() {
-            self.lab.status = "This strategy can't be compiled for other symbols.".into();
+            self.lab.status = nt!("This strategy can't be compiled for other symbols.").into();
             return;
         }
         let symbols = match &self.lab.setup.universe {
@@ -499,7 +500,7 @@ impl App {
             crate::screener::Universe::Preset(name) => crate::screener::preset(name),
         };
         if symbols.is_empty() {
-            self.lab.status = "That list has no symbols.".into();
+            self.lab.status = nt!("That list has no symbols.").into();
             return;
         }
         let capital = self
@@ -518,7 +519,7 @@ impl App {
                 count: self.lab.setup.port_bars.clamp(100, 20_000),
             });
         }
-        self.lab.status = format!("Loading {} symbols…", symbols.len());
+        self.lab.status = msg!("Loading {} symbols…", symbols.len());
         self.lab.fetch = Some(PortFetch {
             seq_base,
             tf,
@@ -542,7 +543,7 @@ impl App {
             return;
         }
         f.got.push((sym, result));
-        self.lab.status = format!("Loaded {} of {}…", f.got.len(), f.want.len());
+        self.lab.status = msg!("Loaded {} of {}…", f.got.len(), f.want.len());
         if f.got.len() < f.want.len() {
             return;
         }
@@ -560,13 +561,13 @@ impl App {
                 .map(|(sym, bars)| {
                     let r = bars.and_then(|bars| {
                         if p.cancelled() {
-                            return Err("Stopped.".into());
+                            return Err(nt!("Stopped.").into());
                         }
                         let (meta, factory) = build(&sym, &extra)?;
                         let tz = jiff::tz::TimeZone::get(&sym.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
                         let ins = f.target.inputs.normalized(meta);
                         let b = run_study(meta, &ins, &factory, &bars, f.tf, &tz, None)
-                            .ok_or("The script failed on this symbol.")?;
+                            .ok_or(nt!("The script failed on this symbol."))?;
                         Ok((bars, b))
                     });
                     p.tick();
@@ -585,7 +586,7 @@ impl App {
                 })
                 .collect();
             if ok.is_empty() {
-                return Done::Port(Err("No symbol could be tested.".into()));
+                return Done::Port(Err(nt!("No symbol could be tested.").into()));
             }
             let legs: Vec<portfolio::Leg> = ok
                 .iter()
@@ -644,7 +645,7 @@ impl App {
         let stopped = if cancelled { "Stopped. " } else { "" };
         self.lab.status = match done {
             Done::Opt(Ok((s, o))) => {
-                let msg = format!("{stopped}{} runs in {took}.", o.trials.len());
+                let msg = format!("{stopped}{}", msg!("{} runs in {took}.", o.trials.len()));
                 let uid = self.lab.pending_uid;
                 if s.params.len() >= 2 {
                     self.lab.heat = (0, 1);
@@ -653,20 +654,20 @@ impl App {
                 msg
             }
             Done::Walk(Ok((s, r))) => {
-                let msg = format!("{stopped}{} windows in {took}.", r.windows.len());
+                let msg = format!("{stopped}{}", msg!("{} windows in {took}.", r.windows.len()));
                 self.lab.walk = Some((s, r));
                 msg
             }
             Done::Mc(Ok(r)) => {
-                let msg = format!("{} runs in {took}.", r.runs);
+                let msg = msg!("{} runs in {took}.", r.runs);
                 self.lab.mc = Some(r);
                 msg
             }
             Done::Port(Ok((r, errors))) => {
                 let msg = if errors.is_empty() {
-                    format!("{} symbols in {took}.", r.legs.len())
+                    msg!("{} symbols in {took}.", r.legs.len())
                 } else {
-                    format!("{} symbols in {took}; {} couldn't run.", r.legs.len(), errors.len())
+                    msg!("{} symbols in {took}; {} couldn't run.", r.legs.len(), errors.len())
                 };
                 self.lab.port = Some(r);
                 self.lab.port_errors = errors;
@@ -680,13 +681,13 @@ impl App {
     fn lab_apply(&mut self, values: &[PValue]) {
         let Some((setup, _, uid)) = &self.lab.opt else { return };
         let Some(s) = self.chart.studies.iter().find(|s| s.uid == *uid) else {
-            self.lab.status = "The strategy isn't on the chart any more.".into();
+            self.lab.status = nt!("The strategy isn't on the chart any more.").into();
             return;
         };
         let ins = inputs_with(s.inst.meta, &s.inst.inputs, &setup.params, values);
         let uid = *uid;
         self.chart.set_inputs(uid, &ins);
-        self.lab.status = "Applied to the chart.".into();
+        self.lab.status = nt!("Applied to the chart.").into();
     }
 
     fn lab_export(&mut self, json: bool) {
@@ -717,8 +718,8 @@ impl App {
         let path = dir.join(format!("{} {}.{ext}", safe_name(&name), mode.file()));
         let r = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&path, text));
         self.lab.status = match r {
-            Ok(()) => format!("Saved to {}", path.display()),
-            Err(e) => format!("Couldn't save: {e}"),
+            Ok(()) => msg!("Saved to {}", path.display()),
+            Err(e) => msg!("Couldn't save: {e}"),
         };
     }
 
@@ -733,7 +734,7 @@ impl App {
             j.progress.cancel.store(true, Ordering::Relaxed);
         }
         if self.lab.fetch.take().is_some() {
-            self.lab.status = "Stopped.".into();
+            self.lab.status = nt!("Stopped.").into();
         }
     }
 
@@ -979,7 +980,7 @@ impl App {
             (t.values.clone(), title.join(", "))
         };
         self.lab_apply(&values);
-        if self.lab.status == "Applied to the chart." {
+        if self.lab.status == nt!("Applied to the chart.") {
             Ok(format!("Applied {title} to the strategy on the chart."))
         } else {
             Err(self.lab.status.clone())
@@ -993,11 +994,23 @@ impl App {
         let running = self.lab.job.is_some() || self.lab.fetch.is_some();
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
-            for m in Mode::ALL {
-                if small_button(ui, t, m.title(), self.lab.setup.mode == m).clicked() {
-                    self.lab.setup.mode = m;
-                }
-            }
+            // Run keeps its room; the modes scroll in what's left.
+            let run = crate::widgets::widest(ui, theme::medium(13.0), [tr("Run"), tr("Stop")]) + 56.0;
+            let room = (ui.available_width() - run).max(60.0);
+            crate::widgets::tab_scroll(ui, "lab-modes", self.lab.setup.mode as u8, room, |ui, reveal| {
+                ui.horizontal(|ui| {
+                    for m in Mode::ALL {
+                        let on = self.lab.setup.mode == m;
+                        let r = small_button(ui, t, tr(m.title()), on);
+                        if on && reveal {
+                            r.scroll_to_me(Some(Align::Center));
+                        }
+                        if r.clicked() {
+                            self.lab.setup.mode = m;
+                        }
+                    }
+                });
+            });
             ui.add_space(10.0);
             if let Some(r) = self.strategies.current()
                 && ui.available_width() > 760.0
@@ -1007,12 +1020,12 @@ impl App {
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 6.0;
                 if running {
-                    if small_button(ui, t, "Stop", false).clicked() {
+                    if small_button(ui, t, tr("Stop"), false).clicked() {
                         if let Some(j) = &self.lab.job {
                             j.progress.cancel.store(true, Ordering::Relaxed);
                         }
                         if self.lab.fetch.take().is_some() {
-                            self.lab.status = "Stopped.".into();
+                            self.lab.status = nt!("Stopped.").into();
                         }
                     }
                     let frac = self.lab.job.as_ref().map(|j| j.progress.fraction()).unwrap_or(0.0);
@@ -1026,7 +1039,8 @@ impl App {
                     );
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
                 } else {
-                    if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), "Run").clicked()
+                    if crate::widgets::button(ui, crate::widgets::Kind::Primary, true, Some(ph::PLAY), tr("Run"))
+                        .clicked()
                     {
                         self.lab_run();
                     }
@@ -1037,28 +1051,49 @@ impl App {
                         Mode::Portfolio => self.lab.port.is_some(),
                     };
                     if has {
-                        if small_button(ui, t, "JSON", false)
-                            .on_hover_text("Save the results as JSON")
+                        if small_button(ui, t, tr("JSON"), false)
+                            .on_hover_text(tr("Save the results as JSON"))
                             .clicked()
                         {
                             self.lab_export(true);
                         }
-                        if small_button(ui, t, "CSV", false)
-                            .on_hover_text("Save the results as CSV")
+                        if small_button(ui, t, tr("CSV"), false)
+                            .on_hover_text(tr("Save the results as CSV"))
                             .clicked()
                         {
                             self.lab_export(false);
                         }
                     }
                 }
-                ui.add(egui::Label::new(egui::RichText::new(&self.lab.status).color(t.text3).size(11.5)).truncate());
+                let status = match self.lab.status.strip_prefix("Stopped. ") {
+                    Some(rest) => format!("{} {}", tr("Stopped."), trm(rest)),
+                    None => trm(&self.lab.status).into_owned(),
+                };
+                ui.add(egui::Label::new(egui::RichText::new(status).color(t.text3).size(11.5)).truncate());
             });
         });
         ui.add_space(6.0);
         let target = self.lab_target();
         let meta = target.as_ref().ok().map(|t| t.meta);
         if self.strategies.runs.is_empty() {
-            crate::widgets::empty_state(ui, t, ph::FLASK, "No strategy on the chart");
+            crate::widgets::empty_state(ui, t, ph::FLASK, tr("No strategy on the chart"));
+            return;
+        }
+        // No room side by side: the setup, then the results below it, the
+        // whole scrolling when the panel is short.
+        if ui.available_width() < crate::paper::STACKED {
+            egui::ScrollArea::vertical()
+                .id_salt("lab-stacked")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    let size = vec2(ui.available_width(), ui.available_height().max(560.0));
+                    let (full, _) = ui.allocate_exact_size(size, Sense::hover());
+                    let top = Rect::from_min_size(full.min, vec2(full.width(), full.height() * 0.5));
+                    let below = Rect::from_min_max(pos2(full.left(), top.bottom() + 14.0), full.max);
+                    ui.painter()
+                        .hline(full.x_range(), top.bottom() + 7.0, Stroke::new(1.0, t.border));
+                    self.lab_halves(ui, t, (top, below), running, meta, &target);
+                });
             return;
         }
         let full = ui.available_rect_before_wrap();
@@ -1067,11 +1102,26 @@ impl App {
         let right = Rect::from_min_max(pos2(left.right() + 14.0, full.top()), full.max);
         ui.painter()
             .vline(left.right() + 7.0, full.y_range(), Stroke::new(1.0, t.border));
+        self.lab_halves(ui, t, (left, right), running, meta, &target);
+        ui.allocate_rect(full, Sense::hover());
+    }
+
+    /// The setup in `left` and the results in `right`.
+    fn lab_halves(
+        &mut self,
+        ui: &mut Ui,
+        t: &Theme,
+        (left, right): (Rect, Rect),
+        running: bool,
+        meta: Option<&'static Meta>,
+        target: &Result<Target, String>,
+    ) {
+        let setup_w = left.width();
         let mut lu = ui.new_child(egui::UiBuilder::new().max_rect(left));
         lu.set_clip_rect(left.intersect(ui.clip_rect()));
         egui::ScrollArea::vertical().id_salt("lab-setup").show(&mut lu, |ui| {
             ui.set_width(setup_w - 12.0);
-            ui.add_enabled_ui(!running, |ui| self.lab_setup_ui(ui, t, meta, &target));
+            ui.add_enabled_ui(!running, |ui| self.lab_setup_ui(ui, t, meta, target));
         });
         let mut ru = ui.new_child(egui::UiBuilder::new().max_rect(right));
         ru.set_clip_rect(right.intersect(ui.clip_rect()));
@@ -1090,7 +1140,6 @@ impl App {
                     });
             }
         }
-        ui.allocate_rect(full, Sense::hover());
     }
 
     /// Charts take about half the results area.
@@ -1114,7 +1163,7 @@ impl App {
         if let Err(e) = target
             && mode != Mode::MonteCarlo
         {
-            ui.label(egui::RichText::new(e).color(t.text3));
+            ui.label(egui::RichText::new(trm(e)).color(t.text3));
             return;
         }
         match mode {
@@ -1123,48 +1172,50 @@ impl App {
                 self.param_table(ui, t, meta);
                 ui.add_space(8.0);
                 let s = &mut self.lab.setup;
-                row(ui, t, "Maximize", |ui| {
+                row(ui, t, tr("Maximize"), |ui| {
                     crate::widgets::combo("lab-objective")
-                        .selected_text(s.objective.name())
-                        .width(150.0)
+                        .selected_text(tr(s.objective.name()))
+                        .width(ui.available_width().min(150.0))
+                        .truncate()
                         .show_ui(ui, |ui| {
                             for o in Objective::ALL {
-                                crate::widgets::option_value(ui, &mut s.objective, o, o.name());
+                                crate::widgets::option_value(ui, &mut s.objective, o, tr(o.name()));
                             }
                         });
                 });
-                row(ui, t, "Search", |ui| {
+                row(ui, t, tr("Search"), |ui| {
                     crate::widgets::combo("lab-method")
                         .selected_text(match s.method {
-                            MethodKind::Grid => "Every combination",
-                            MethodKind::Random => "Random",
-                            MethodKind::Bayesian => "Bayesian",
+                            MethodKind::Grid => tr("Every combination"),
+                            MethodKind::Random => tr("Random"),
+                            MethodKind::Bayesian => tr("Bayesian"),
                         })
-                        .width(150.0)
+                        .width(ui.available_width().min(150.0))
+                        .truncate()
                         .show_ui(ui, |ui| {
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Grid, "Every combination");
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Random, "Random");
-                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Bayesian, "Bayesian");
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Grid, tr("Every combination"));
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Random, tr("Random"));
+                            crate::widgets::option_value(ui, &mut s.method, MethodKind::Bayesian, tr("Bayesian"));
                         });
                 });
                 if s.method != MethodKind::Grid {
-                    row(ui, t, "Runs", |ui| {
+                    row(ui, t, tr("Runs"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.trials).range(10..=5000));
                     });
                 }
-                row(ui, t, "Fewest trades", |ui| {
+                row(ui, t, tr("Fewest trades"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.min_trades).range(0..=10_000));
                 });
                 if mode == Mode::WalkForward {
-                    row(ui, t, "In-sample bars", |ui| {
+                    row(ui, t, tr("In-sample bars"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.in_sample).range(20..=1_000_000).speed(5));
                     });
-                    row(ui, t, "Out-of-sample bars", |ui| {
+                    row(ui, t, tr("Out-of-sample bars"), |ui| {
                         ui.add(egui::DragValue::new(&mut s.out_sample).range(5..=1_000_000).speed(2));
                     });
-                    row(ui, t, "Anchored", |ui| {
+                    row(ui, t, tr("Anchored"), |ui| {
                         crate::widgets::checkbox(ui, &mut s.anchored, "")
-                            .on_hover_text("Every in-sample window starts at the first bar");
+                            .on_hover_text(tr("Every in-sample window starts at the first bar"));
                     });
                 }
                 let setup = self.lab_opt_setup(meta);
@@ -1172,9 +1223,9 @@ impl App {
                 let per = optimize::planned(&setup);
                 let n = self.chart.bars.len();
                 let text = match (setup.params.len(), per) {
-                    (0, _) => "Tick the inputs to vary.".to_string(),
+                    (0, _) => tr("Tick the inputs to vary.").to_string(),
                     (_, None) => {
-                        format!("{combos} combinations: too many for every combination. Use Random or Bayesian.")
+                        trf!("{combos} combinations: too many for every combination. Use Random or Bayesian.")
                     }
                     (_, Some(p)) if mode == Mode::WalkForward => {
                         let w = walkforward::windows(
@@ -1187,36 +1238,37 @@ impl App {
                             },
                         )
                         .len();
-                        format!("{w} windows × {p} runs on the chart's {n} bars.")
+                        trf!("{w} windows × {p} runs on the chart's {n} bars.")
                     }
-                    (_, Some(p)) => format!("{p} runs of {combos} combinations on the chart's {n} bars."),
+                    (_, Some(p)) => trf!("{p} runs of {combos} combinations on the chart's {n} bars."),
                 };
                 ui.add_space(6.0);
                 ui.label(egui::RichText::new(text).color(t.text3).size(11.5));
             }
             Mode::MonteCarlo => {
                 let s = &mut self.lab.setup.mc;
-                row(ui, t, "Runs", |ui| {
+                row(ui, t, tr("Runs"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.runs).range(100..=100_000).speed(10));
                 });
-                row(ui, t, "Method", |ui| {
+                row(ui, t, tr("Method"), |ui| {
                     crate::widgets::combo("lab-mc")
                         .selected_text(match s.method {
-                            Resample::Shuffle => "Shuffle the order",
-                            Resample::Bootstrap => "Draw with replacement",
+                            Resample::Shuffle => tr("Shuffle the order"),
+                            Resample::Bootstrap => tr("Draw with replacement"),
                         })
-                        .width(150.0)
+                        .width(ui.available_width().min(150.0))
+                        .truncate()
                         .show_ui(ui, |ui| {
-                            crate::widgets::option_value(ui, &mut s.method, Resample::Shuffle, "Shuffle the order");
+                            crate::widgets::option_value(ui, &mut s.method, Resample::Shuffle, tr("Shuffle the order"));
                             crate::widgets::option_value(
                                 ui,
                                 &mut s.method,
                                 Resample::Bootstrap,
-                                "Draw with replacement",
+                                tr("Draw with replacement"),
                             );
                         });
                 });
-                row(ui, t, "Ruin at drawdown", |ui| {
+                row(ui, t, tr("Ruin at drawdown"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.ruin_pct).range(1.0..=100.0).suffix(" %"));
                 });
             }
@@ -1232,10 +1284,11 @@ impl App {
                 };
                 let lists = self.watchlists.clone();
                 let s = &mut self.lab.setup;
-                row(ui, t, "Symbols", |ui| {
+                row(ui, t, tr("Symbols"), |ui| {
                     crate::widgets::combo("lab-universe")
                         .selected_text(current)
-                        .width(150.0)
+                        .width(ui.available_width().min(150.0))
+                        .truncate()
                         .show_ui(ui, |ui| {
                             for (name, _) in crate::screener::presets() {
                                 let u = crate::screener::Universe::Preset(name.into());
@@ -1258,7 +1311,7 @@ impl App {
                             }
                         });
                 });
-                row(ui, t, "Bars per symbol", |ui| {
+                row(ui, t, tr("Bars per symbol"), |ui| {
                     ui.add(egui::DragValue::new(&mut s.port_bars).range(100..=20_000).speed(10));
                 });
                 ui.add_space(6.0);
@@ -1268,14 +1321,14 @@ impl App {
 
     fn param_table(&mut self, ui: &mut Ui, t: &Theme, meta: &'static Meta) {
         ui.label(
-            egui::RichText::new("INPUTS TO VARY")
+            egui::RichText::new(tr("INPUTS TO VARY"))
                 .font(theme::semibold(11.0))
                 .color(t.text3),
         );
         ui.add_space(2.0);
         let rows = self.lab_params(meta);
         if rows.is_empty() {
-            ui.label(egui::RichText::new("This strategy has no inputs to vary.").color(t.text3));
+            ui.label(egui::RichText::new(tr("This strategy has no inputs to vary.")).color(t.text3));
             return;
         }
         for r in rows.iter_mut() {
@@ -1293,19 +1346,19 @@ impl App {
                 };
                 match &mut r.range {
                     Range::Int { from, to, step } => {
-                        word(ui, "from");
+                        word(ui, tr("from"));
                         ui.add(egui::DragValue::new(from).speed(0.2));
-                        word(ui, "to");
+                        word(ui, tr("to"));
                         ui.add(egui::DragValue::new(to).speed(0.2));
-                        word(ui, "by");
+                        word(ui, tr("by"));
                         ui.add(egui::DragValue::new(step).range(1..=1_000_000).speed(0.1));
                     }
                     Range::Float { from, to, step } => {
-                        word(ui, "from");
+                        word(ui, tr("from"));
                         ui.add(egui::DragValue::new(from).speed(0.01).max_decimals(6));
-                        word(ui, "to");
+                        word(ui, tr("to"));
                         ui.add(egui::DragValue::new(to).speed(0.01).max_decimals(6));
-                        word(ui, "by");
+                        word(ui, tr("by"));
                         ui.add(
                             egui::DragValue::new(step)
                                 .range(1e-9..=1e9)
@@ -1313,8 +1366,8 @@ impl App {
                                 .max_decimals(6),
                         );
                     }
-                    Range::Bool => word(ui, "Tries on and off"),
-                    Range::Choice(c) => word(ui, &format!("Tries all {} choices", c.len())),
+                    Range::Bool => word(ui, tr("Tries on and off")),
+                    Range::Choice(c) => word(ui, &trf!("Tries all {} choices", c.len())),
                 }
             });
             ui.add_space(2.0);
@@ -1333,10 +1386,10 @@ impl App {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             if setup.params.len() >= 2 {
-                if small_button(ui, t, "List", self.lab.view == OptView::List).clicked() {
+                if small_button(ui, t, tr("List"), self.lab.view == OptView::List).clicked() {
                     self.lab.view = OptView::List;
                 }
-                if small_button(ui, t, "Heatmap", self.lab.view == OptView::Heatmap).clicked() {
+                if small_button(ui, t, tr("Heatmap"), self.lab.view == OptView::Heatmap).clicked() {
                     self.lab.view = OptView::Heatmap;
                 }
                 ui.add_space(8.0);
@@ -1350,14 +1403,14 @@ impl App {
                         .map(|(p, v)| format!("{} {v}", p.title))
                         .collect();
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if small_button(ui, t, "Apply best", false)
-                            .on_hover_text("Put the best inputs on the chart's strategy")
+                        if small_button(ui, t, tr("Apply best"), false)
+                            .on_hover_text(tr("Put the best inputs on the chart's strategy"))
                             .clicked()
                         {
                             apply = Some(b.values.clone());
                         }
                         ui.add_space(6.0);
-                        let text = format!(
+                        let text = trf!(
                             "Best: {}  →  {} ({}), {} trades",
                             vals.join(" · "),
                             crate::strategy::grouped(b.summary.net_profit, 2),
@@ -1372,7 +1425,7 @@ impl App {
                 }
                 None => {
                     ui.label(
-                        egui::RichText::new("No run met the conditions (too few trades, or the script failed).")
+                        egui::RichText::new(tr("No run met the conditions (too few trades, or the script failed)."))
                             .color(t.text3),
                     );
                 }
@@ -1408,11 +1461,17 @@ impl App {
         let score_col = setup.objective != Objective::NetProfit;
         let heads: Vec<String> = std::iter::once("#".to_string())
             .chain(setup.params.iter().map(|p| p.title.clone()))
-            .chain(score_col.then(|| setup.objective.name().to_string()))
+            .chain(score_col.then(|| tr(setup.objective.name()).to_string()))
             .chain(
-                ["Net P&L", "Trades", "Win %", "Profit factor", "Max DD"]
-                    .iter()
-                    .map(|s| s.to_string()),
+                [
+                    tr("Net P&L"),
+                    tr("Trades"),
+                    tr("Win %"),
+                    tr("Profit factor"),
+                    tr("Max DD"),
+                ]
+                .iter()
+                .map(|s| s.to_string()),
             )
             .collect();
         let w = ui.available_width();
@@ -1457,7 +1516,7 @@ impl App {
                 .auto_shrink([false, false])
                 .show_rows(ui, row_h, outcome.trials.len(), |ui, range| {
                     for i in range {
-                        let tr = &outcome.trials[i];
+                        let trial = &outcome.trials[i];
                         let (r, resp) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::click());
                         let p = ui.painter();
                         if self.lab.selected == Some(i) {
@@ -1465,14 +1524,14 @@ impl App {
                         } else if resp.hovered() {
                             p.rect_filled(r, CornerRadius::same(4), t.hover_wash());
                         }
-                        let s = &tr.summary;
+                        let s = &trial.summary;
                         let mut cells: Vec<(String, Color32)> = vec![((i + 1).to_string(), t.text3)];
-                        cells.extend(tr.values.iter().map(|v| (v.to_string(), t.text)));
-                        if tr.failed {
-                            cells.push(("Script failed".into(), t.text3));
+                        cells.extend(trial.values.iter().map(|v| (v.to_string(), t.text)));
+                        if trial.failed {
+                            cells.push((tr("Script failed").into(), t.text3));
                         } else {
                             if score_col {
-                                cells.push((num(tr.score, 2), t.text));
+                                cells.push((num(trial.score, 2), t.text));
                             }
                             cells.extend([
                                 (crate::strategy::grouped(s.net_profit, 2), tone(t, s.net_profit)),
@@ -1492,11 +1551,11 @@ impl App {
                             );
                         }
                         if resp.double_clicked() {
-                            apply = Some(tr.values.clone());
+                            apply = Some(trial.values.clone());
                         } else if resp.clicked() {
                             self.lab.selected = Some(i);
                         }
-                        resp.on_hover_text("Double-click to put these inputs on the chart");
+                        resp.on_hover_text(tr("Double-click to put these inputs on the chart"));
                     }
                 });
         });
@@ -1509,7 +1568,7 @@ impl App {
         px = px.min(n - 1);
         py = py.min(n - 1);
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Across").color(t.text3));
+            ui.label(egui::RichText::new(tr("Across")).color(t.text3));
             crate::widgets::combo("heat-x")
                 .selected_text(&setup.params[px].title)
                 .show_ui(ui, |ui| {
@@ -1528,7 +1587,7 @@ impl App {
         });
         self.lab.heat = (px, py);
         if px == py {
-            ui.label(egui::RichText::new("Pick two different inputs.").color(t.text3));
+            ui.label(egui::RichText::new(tr("Pick two different inputs.")).color(t.text3));
             return None;
         }
         let (_, outcome, _) = self.lab.opt.as_ref()?;
@@ -1617,16 +1676,18 @@ impl App {
                 heat.xs[x],
                 setup.params[py].title,
                 heat.ys[y],
-                setup.objective.name(),
+                tr(setup.objective.name()),
                 if v.is_nan() { "not run".into() } else { num(v, 2) }
             );
-            let resp = resp.on_hover_text(format!("{tip}\nClick to put the best of these on the chart"));
+            let resp = resp.on_hover_text(trf!("{tip}\nClick to put the best of these on the chart"));
             if resp.clicked() && !v.is_nan() {
                 apply = outcome
                     .trials
                     .iter()
-                    .find(|tr| tr.values.get(px) == Some(&heat.xs[x]) && tr.values.get(py) == Some(&heat.ys[y]))
-                    .map(|tr| tr.values.clone());
+                    .find(|trial| {
+                        trial.values.get(px) == Some(&heat.xs[x]) && trial.values.get(py) == Some(&heat.ys[y])
+                    })
+                    .map(|trial| trial.values.clone());
             }
         }
         apply
@@ -1638,14 +1699,16 @@ impl App {
         };
         let f = self.fmt();
         let cards = [
-            ("Out-of-sample P&L", f.money(r.out_net), tone(t, r.out_net)),
-            ("Efficiency", pct(r.efficiency), t.text),
-            ("Profitable windows", pct(r.profitable_windows), t.text),
-            ("Trades", r.out_trades.to_string(), t.text),
-            ("Max drawdown", f.money(r.out_max_drawdown), t.text),
+            (tr("Out-of-sample P&L"), f.money(r.out_net), tone(t, r.out_net)),
+            (tr("Efficiency"), pct(r.efficiency), t.text),
+            (tr("Profitable windows"), pct(r.profitable_windows), t.text),
+            (tr("Trades"), r.out_trades.to_string(), t.text),
+            (tr("Max drawdown"), f.money(r.out_max_drawdown), t.text),
         ];
         cards_row(ui, t, &cards);
-        let tips = "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust.";
+        let tips = tr(
+            "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust.",
+        );
         ui.label(egui::RichText::new(tips).color(t.text3).size(11.5));
         ui.add_space(4.0);
         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), self.chart_h()), Sense::hover());
@@ -1663,9 +1726,9 @@ impl App {
             &|x| time_text(x as i64, &f.tz),
         );
         ui.add_space(6.0);
-        let mut heads = vec!["Out of sample".to_string()];
+        let mut heads = vec![tr("Out of sample").to_string()];
         heads.extend(setup.params.iter().map(|p| p.title.clone()));
-        heads.extend(["In-sample P&L", "Out-of-sample P&L", "Trades"].map(String::from));
+        heads.extend([tr("In-sample P&L"), tr("Out-of-sample P&L"), tr("Trades")].map(String::from));
         let rows: Vec<Vec<(String, Color32)>> = r
             .windows
             .iter()
@@ -1696,24 +1759,28 @@ impl App {
         let cards = if self.lab.setup.mc.method == Resample::Shuffle {
             vec![
                 (
-                    "Net P&L (every run)",
+                    tr("Net P&L (every run)"),
                     f.money(r.net_profit.p50),
                     tone(t, r.net_profit.p50),
                 ),
-                ("Backtest's max drawdown", f.money(r.actual_max_drawdown), t.text),
-                ("Median max drawdown", pct(r.max_drawdown_pct.p50), t.text),
-                ("Max drawdown, worst 5%", pct(r.max_drawdown_pct.p95), t.text),
-                ("Losing streak, worst 5%", num(r.longest_losing_streak.p95, 0), t.text),
-                ("Chance of ruin", pct(r.prob_ruin), t.text),
+                (tr("Backtest's max drawdown"), f.money(r.actual_max_drawdown), t.text),
+                (tr("Median max drawdown"), pct(r.max_drawdown_pct.p50), t.text),
+                (tr("Max drawdown, worst 5%"), pct(r.max_drawdown_pct.p95), t.text),
+                (
+                    tr("Losing streak, worst 5%"),
+                    num(r.longest_losing_streak.p95, 0),
+                    t.text,
+                ),
+                (tr("Chance of ruin"), pct(r.prob_ruin), t.text),
             ]
         } else {
             vec![
-                ("Median P&L", f.money(r.net_profit.p50), tone(t, r.net_profit.p50)),
-                ("P&L, worst 5%", f.money(r.net_profit.p5), tone(t, r.net_profit.p5)),
-                ("Median max drawdown", pct(r.max_drawdown_pct.p50), t.text),
-                ("Max drawdown, worst 5%", pct(r.max_drawdown_pct.p95), t.text),
-                ("Chance of a loss", pct(r.prob_loss), t.text),
-                ("Chance of ruin", pct(r.prob_ruin), t.text),
+                (tr("Median P&L"), f.money(r.net_profit.p50), tone(t, r.net_profit.p50)),
+                (tr("P&L, worst 5%"), f.money(r.net_profit.p5), tone(t, r.net_profit.p5)),
+                (tr("Median max drawdown"), pct(r.max_drawdown_pct.p50), t.text),
+                (tr("Max drawdown, worst 5%"), pct(r.max_drawdown_pct.p95), t.text),
+                (tr("Chance of a loss"), pct(r.prob_loss), t.text),
+                (tr("Chance of ruin"), pct(r.prob_ruin), t.text),
             ]
         };
         cards_row(ui, t, &cards);
@@ -1736,7 +1803,7 @@ impl App {
             Some((&lo, &hi)),
             r.initial_capital,
             resp.hover_pos(),
-            &|x| format!("After trade {}", x as usize),
+            &|x| trf!("After trade {}", x as usize),
         );
         let right = if side {
             Rect::from_min_max(
@@ -1750,10 +1817,10 @@ impl App {
         };
         let mut cu = ui.new_child(egui::UiBuilder::new().max_rect(right));
         let rows = [
-            ("Net profit", &r.net_profit, true),
-            ("Max drawdown", &r.max_drawdown, true),
-            ("Max drawdown %", &r.max_drawdown_pct, false),
-            ("Losing streak", &r.longest_losing_streak, false),
+            (tr("Net profit"), &r.net_profit, true),
+            (tr("Max drawdown"), &r.max_drawdown, true),
+            (tr("Max drawdown %"), &r.max_drawdown_pct, false),
+            (tr("Losing streak"), &r.longest_losing_streak, false),
         ];
         let rows: Vec<(&str, Vec<(String, Color32)>)> = rows
             .iter()
@@ -1770,7 +1837,7 @@ impl App {
                 (*name, vec![v(s.p5), v(s.p50), v(s.p95)])
             })
             .collect();
-        table(&mut cu, t, "lab-mc", &["5th", "Median", "95th"], &rows);
+        table(&mut cu, t, "lab-mc", &["5th", tr("Median"), "95th"], &rows);
     }
 
     fn lab_port_results(&mut self, ui: &mut Ui, t: &Theme) {
@@ -1779,12 +1846,12 @@ impl App {
         };
         let f = self.fmt();
         let cards = [
-            ("Total P&L", f.money(r.net_profit), tone(t, r.net_profit)),
-            ("Return", pct(r.net_profit_pct), tone(t, r.net_profit_pct)),
-            ("Max drawdown", pct(r.max_drawdown_pct), t.text),
-            ("Trades", r.total_trades.to_string(), t.text),
-            ("Sharpe", num(r.sharpe, 3), t.text),
-            ("Buy & hold", pct(r.buy_hold_pct), tone(t, r.buy_hold_pct)),
+            (tr("Total P&L"), f.money(r.net_profit), tone(t, r.net_profit)),
+            (tr("Return"), pct(r.net_profit_pct), tone(t, r.net_profit_pct)),
+            (tr("Max drawdown"), pct(r.max_drawdown_pct), t.text),
+            (tr("Trades"), r.total_trades.to_string(), t.text),
+            (tr("Sharpe"), num(r.sharpe, 3), t.text),
+            (tr("Buy & hold"), pct(r.buy_hold_pct), tone(t, r.buy_hold_pct)),
         ];
         cards_row(ui, t, &cards);
         if !self.lab.port_errors.is_empty() {
@@ -1812,13 +1879,13 @@ impl App {
         );
         ui.add_space(6.0);
         let heads: Vec<String> = [
-            "Symbol",
-            "Net profit",
-            "Return",
-            "Trades",
-            "Profitable",
-            "Max drawdown",
-            "Buy & hold",
+            tr("Symbol"),
+            tr("Net profit"),
+            tr("Return"),
+            tr("Trades"),
+            tr("Profitable"),
+            tr("Max drawdown"),
+            tr("Buy & hold"),
         ]
         .map(String::from)
         .to_vec();
@@ -1868,11 +1935,30 @@ fn runner(target: &Target, params: &[Param]) -> impl Fn(&[PValue], &[Bar]) -> Op
 
 fn row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
-        let (r, _) = ui.allocate_exact_size(vec2(118.0, 24.0), Sense::hover());
+        // The label column fits the longest label, in any language.
+        let labels = [
+            tr("Maximize"),
+            tr("Search"),
+            tr("Runs"),
+            tr("Fewest trades"),
+            tr("In-sample bars"),
+            tr("Out-of-sample bars"),
+            tr("Anchored"),
+            tr("Method"),
+            tr("Ruin at drawdown"),
+            tr("Symbols"),
+            tr("Bars per symbol"),
+        ];
+        let w = (crate::widgets::widest(ui, theme::regular(13.0), labels) + 10.0).clamp(118.0, 175.0);
+        let (r, resp) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+        let text = crate::format::elide_to(ui.painter(), label, &theme::regular(13.0), w - 6.0);
+        if text != label {
+            resp.on_hover_text(label);
+        }
         ui.painter().text(
             r.left_center(),
             Align2::LEFT_CENTER,
-            label,
+            text,
             theme::regular(13.0),
             t.text2,
         );

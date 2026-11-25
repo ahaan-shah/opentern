@@ -5,6 +5,7 @@
 use super::paint::{XMap, YMap, styled_hline};
 use super::style::c32;
 use crate::format;
+use crate::i18n::{nt, tr, trf};
 use crate::icons::ph;
 use crate::theme;
 use egui::epaint::{PathShape, PathStroke};
@@ -79,14 +80,14 @@ impl Group {
 
     pub fn name(self) -> &'static str {
         match self {
-            Group::Cursors => "Cursors",
-            Group::Lines => "Trend line tools",
-            Group::Fib => "Gann and Fibonacci tools",
-            Group::Patterns => "Patterns",
-            Group::Forecast => "Forecasting and measurement tools",
-            Group::Shapes => "Geometric shapes",
-            Group::Text => "Annotation tools",
-            Group::Icons => "Icons",
+            Group::Cursors => nt!("Cursors"),
+            Group::Lines => nt!("Trend line tools"),
+            Group::Fib => nt!("Gann and Fibonacci tools"),
+            Group::Patterns => nt!("Patterns"),
+            Group::Forecast => nt!("Forecasting and measurement tools"),
+            Group::Shapes => nt!("Geometric shapes"),
+            Group::Text => nt!("Annotation tools"),
+            Group::Icons => nt!("Icons"),
         }
     }
 
@@ -221,38 +222,38 @@ impl Tool {
     pub fn name(self) -> &'static str {
         use Tool::*;
         match self {
-            Cross => "Cross",
-            Eraser => "Eraser",
-            Zoom => "Zoom in",
-            TrendLine => "Trend line",
-            Ray => "Ray",
-            ExtendedLine => "Extended line",
-            Arrow => "Arrow",
-            HorizontalLine => "Horizontal line",
-            HorizontalRay => "Horizontal ray",
-            VerticalLine => "Vertical line",
-            CrossLine => "Cross line",
-            ParallelChannel => "Parallel channel",
-            FibRetracement => "Fib retracement",
-            FibExtension => "Trend-based fib extension",
-            Pitchfork => "Pitchfork",
-            Path => "Path",
-            Triangle => "Triangle",
-            LongPosition => "Long position",
-            ShortPosition => "Short position",
-            Measure => "Measure",
-            PriceRange => "Price range",
-            DateRange => "Date range",
-            DatePriceRange => "Date and price range",
-            Rectangle => "Rectangle",
-            Ellipse => "Ellipse",
-            Brush => "Brush",
-            Text => "Text",
-            ArrowUp => "Arrow mark up",
-            ArrowDown => "Arrow mark down",
-            AnchoredVwap => "Anchored VWAP",
-            FixedRangeVolumeProfile => "Fixed range volume profile",
-            AnchoredVolumeProfile => "Anchored volume profile",
+            Cross => nt!("Cross"),
+            Eraser => nt!("Eraser"),
+            Zoom => nt!("Zoom in"),
+            TrendLine => nt!("Trend line"),
+            Ray => nt!("Ray"),
+            ExtendedLine => nt!("Extended line"),
+            Arrow => nt!("Arrow"),
+            HorizontalLine => nt!("Horizontal line"),
+            HorizontalRay => nt!("Horizontal ray"),
+            VerticalLine => nt!("Vertical line"),
+            CrossLine => nt!("Cross line"),
+            ParallelChannel => nt!("Parallel channel"),
+            FibRetracement => nt!("Fib retracement"),
+            FibExtension => nt!("Trend-based fib extension"),
+            Pitchfork => nt!("Pitchfork"),
+            Path => nt!("Path"),
+            Triangle => nt!("Triangle"),
+            LongPosition => nt!("Long position"),
+            ShortPosition => nt!("Short position"),
+            Measure => nt!("Measure"),
+            PriceRange => nt!("Price range"),
+            DateRange => nt!("Date range"),
+            DatePriceRange => nt!("Date and price range"),
+            Rectangle => nt!("Rectangle"),
+            Ellipse => nt!("Ellipse"),
+            Brush => nt!("Brush"),
+            Text => nt!("Text"),
+            ArrowUp => nt!("Arrow mark up"),
+            ArrowDown => nt!("Arrow mark down"),
+            AnchoredVwap => nt!("Anchored VWAP"),
+            FixedRangeVolumeProfile => nt!("Fixed range volume profile"),
+            AnchoredVolumeProfile => nt!("Anchored volume profile"),
         }
     }
 
@@ -830,7 +831,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     pos2(cx, yt + if up_t { -4.0 } else { 4.0 }),
                     place(up_t),
-                    &format!(
+                    &trf!(
                         "Target: {} ({})",
                         format::price(t, g.decimals),
                         format::signed_pct(pct(t))
@@ -842,7 +843,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     pos2(cx, ys + if up_s { -4.0 } else { 4.0 }),
                     place(up_s),
-                    &format!(
+                    &trf!(
                         "Stop: {} ({})",
                         format::price(st, g.decimals),
                         format::signed_pct(pct(st))
@@ -854,7 +855,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     pos2(x1 + 6.0, ye),
                     Align2::LEFT_CENTER,
-                    &format!("Risk/reward ratio: {rr:.2}"),
+                    &trf!("Risk/reward ratio: {rr:.2}"),
                     Color32::WHITE,
                     Color32::from_gray(90),
                 );
@@ -873,7 +874,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p,
                     *end + vec2(6.0, 0.0),
                     Align2::LEFT_CENTER,
-                    "VWAP",
+                    tr("VWAP"),
                     Color32::WHITE,
                     s.color,
                 );
@@ -896,7 +897,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             }
         }
         Text if !pts.is_empty() => {
-            let text = if d.text.is_empty() { "Text" } else { d.text.as_str() };
+            let text = if d.text.is_empty() { tr("Text") } else { d.text.as_str() };
             p.text(
                 pts[0],
                 Align2::LEFT_BOTTOM,
@@ -1017,8 +1018,8 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
     };
     let text = match d.tool {
         Tool::PriceRange => format!("{} ({})", format::price(dp, g.decimals), format::signed_pct(pct)),
-        Tool::DateRange => format!("{bars} bars, {time}"),
-        _ => format!(
+        Tool::DateRange => trf!("{bars} bars, {time}"),
+        _ => trf!(
             "{} ({})\n{bars} bars, {time}",
             format::price(dp, g.decimals),
             format::signed_pct(pct)
@@ -1096,14 +1097,14 @@ pub fn paint_measure(
         .map(|b| b.volume)
         .sum();
     let sign = if dp >= 0.0 { "" } else { "−" };
-    let mut text = format!(
+    let mut text = trf!(
         "{sign}{} ({}) {sign}{}\n{nb} bars, {time}",
         format::grouped(dp.abs(), g.decimals),
         format::signed_pct(pct),
         format::grouped(ticks.abs(), 0),
     );
     if vol > 0.0 {
-        text.push_str(&format!("\nVol {}", format::compact_for(vol, sym)));
+        text.push_str(&trf!("\nVol {}", format::compact_for(vol, sym)));
     }
     let mut job = egui::text::LayoutJob::simple(text, theme::medium(12.0), Color32::WHITE, f32::INFINITY);
     job.halign = egui::Align::Center;

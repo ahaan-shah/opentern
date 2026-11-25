@@ -5,6 +5,7 @@
 //! logo's greens whatever the theme.
 
 use crate::app::App;
+use crate::i18n::{nt, tr, trf};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -56,11 +57,11 @@ impl Market {
 
     pub fn name(self) -> &'static str {
         match self {
-            Market::Crypto => "Crypto",
-            Market::Us => "US Markets",
-            Market::India => "Indian Markets",
-            Market::Forex => "Forex",
-            Market::Commodities => "Commodities",
+            Market::Crypto => nt!("Crypto"),
+            Market::Us => nt!("US Markets"),
+            Market::India => nt!("Indian Markets"),
+            Market::Forex => nt!("Forex"),
+            Market::Commodities => nt!("Commodities"),
         }
     }
 
@@ -364,7 +365,7 @@ impl App {
             .enumerate()
             .map(|(k, m)| Watchlist {
                 id: k as i64 + 1,
-                name: m.name().into(),
+                name: tr(m.name()).into(),
                 items: m.symbols().into_iter().map(Item::Symbol).collect(),
             })
             .collect();
@@ -621,7 +622,7 @@ fn welcome(ui: &mut Ui, t: &Theme, shown: f64) -> Act {
     p.text(
         pos2(c.x, y + 56.0),
         Align2::CENTER_TOP,
-        "Charts, scripts and backtests. All on your own machine.",
+        tr("Charts, scripts and backtests. All on your own machine."),
         theme::regular(16.0),
         motion::with_alpha(t.text2, words),
     );
@@ -629,7 +630,7 @@ fn welcome(ui: &mut Ui, t: &Theme, shown: f64) -> Act {
     let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(r));
     // Multiplied, so the button fades with its step when Begin is pressed.
     ui.multiply_opacity(button);
-    let go = cta(&mut ui, "onb-begin", r, "Begin", true);
+    let go = cta(&mut ui, "onb-begin", r, tr("Begin"), true);
     let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
     if go || (enter && button > 0.5) {
         Act::Step(1)
@@ -651,7 +652,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
     p.text(
         pos2(full.center().x, top),
         Align2::CENTER_TOP,
-        "What do you trade?",
+        tr("What do you trade?"),
         theme::display(30.0),
         t.text,
     );
@@ -679,7 +680,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
         p.text(
             pos2(r.center().x, r.top() + 100.0),
             Align2::CENTER_TOP,
-            m.name(),
+            tr(m.name()),
             theme::semibold(15.0),
             t.text,
         );
@@ -716,7 +717,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
         act = Act::Step(0);
     }
     let r = Rect::from_center_size(pos2(full.center().x + 50.0, by + 22.0), vec2(168.0, 44.0));
-    if cta(ui, "onb-continue", r, "Continue", ready) || (ready && ui.input(|i| i.key_pressed(egui::Key::Enter))) {
+    if cta(ui, "onb-continue", r, tr("Continue"), ready) || (ready && ui.input(|i| i.key_pressed(egui::Key::Enter))) {
         act = Act::Step(2);
     }
     act
@@ -737,7 +738,7 @@ fn first_chart(
     p.text(
         pos2(full.center().x, full.top() + 48.0),
         Align2::CENTER_TOP,
-        "Pick your first chart",
+        tr("Pick your first chart"),
         theme::display(30.0),
         t.text,
     );
@@ -763,7 +764,7 @@ fn first_chart(
                 ui.painter().text(
                     pos2(head.left() + 8.0, head.center().y),
                     Align2::LEFT_CENTER,
-                    format!("{}  {}", m.glyph(), m.name()),
+                    format!("{}  {}", m.glyph(), tr(m.name())),
                     theme::medium(13.0),
                     t.text2,
                 );
@@ -848,7 +849,8 @@ fn first_chart(
     }
     let ready = st.pick.is_some();
     let r = Rect::from_center_size(pos2(full.center().x + 50.0, by), vec2(168.0, 44.0));
-    if cta(ui, "onb-enter", r, "Enter Opentern", ready) || (ready && ui.input(|i| i.key_pressed(egui::Key::Enter))) {
+    if cta(ui, "onb-enter", r, tr("Enter Opentern"), ready) || (ready && ui.input(|i| i.key_pressed(egui::Key::Enter)))
+    {
         act = Act::Enter;
     }
     act
@@ -961,7 +963,7 @@ fn back(ui: &mut Ui, t: &Theme, r: Rect) -> bool {
     p.text(
         r.center(),
         Align2::CENTER_CENTER,
-        format!("{}  Back", ph::ARROW_LEFT),
+        trf!("{}  Back", ph::ARROW_LEFT),
         theme::medium(14.0),
         motion::lerp_color(t.text2, t.text, h),
     );

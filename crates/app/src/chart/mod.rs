@@ -4,6 +4,7 @@
 
 pub mod draw;
 pub mod drawing_ui;
+use crate::i18n::{msg, nt};
 mod paint;
 pub mod profile;
 pub mod replay;
@@ -80,9 +81,9 @@ pub enum CompareMode {
 impl CompareMode {
     pub fn label(self) -> &'static str {
         match self {
-            CompareMode::Percent => "Same % scale",
-            CompareMode::Scale => "New price scale",
-            CompareMode::Pane => "New pane",
+            CompareMode::Percent => nt!("Same % scale"),
+            CompareMode::Scale => nt!("New price scale"),
+            CompareMode::Pane => nt!("New pane"),
         }
     }
 }
@@ -945,7 +946,7 @@ impl Chart {
             return None;
         }
         if exchange == "BSE" && !self.tf.is_intraday() && self.raw.len() <= 2 {
-            return Some(format!(
+            return Some(msg!(
                 "Yahoo has no daily history for this BSE listing. NSE:{} has it.",
                 self.symbol.ticker()
             ));
@@ -967,8 +968,8 @@ impl Chart {
         if has {
             return None;
         }
-        let name = calendar::special(Market::India, day).map_or("A special session", |s| s.2);
-        Some(format!(
+        let name = calendar::special(Market::India, day).map_or(nt!("A special session"), |s| s.2);
+        Some(msg!(
             "Yahoo's prices skip {name} on {}: it isn't on this chart.",
             day.strftime("%-d %b %Y")
         ))

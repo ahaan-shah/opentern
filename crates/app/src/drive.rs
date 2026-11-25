@@ -69,7 +69,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -99,7 +99,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -127,7 +127,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -153,7 +153,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -180,7 +180,7 @@ impl Driver {
         }
         self.time += 1.0 / 60.0;
         let raw = RawInput {
-            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, vec2(1400.0, 900.0))),
+            screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
             ..Default::default()
         };
@@ -1851,4 +1851,143 @@ mod formula_tests {
         d.app.chart.take_quote(p * 2.0, now + 2 * tf);
         assert_eq!(d.app.chart.last_price(), Some(p));
     }
+
+    /// Too narrow for the bottom tabs: the open one is scrolled into view,
+    /// clear of the panel's own buttons.
+    #[test]
+    fn the_open_panel_tab_is_in_view_in_a_narrow_window() {
+        use crate::icons::ph;
+        use crate::shell::Tab;
+        let mut d = Driver::new("narrow-tabs");
+        d.screen = vec2(760.0, 640.0);
+        d.app.layout.widget = Some(crate::shell::Widget::Watchlist);
+        for tab in [Tab::AlertLog, Tab::Screener, Tab::ALL[4]] {
+            d.app.layout.tab = Some(tab);
+            for _ in 0..60 {
+                d.frame(vec![]);
+            }
+            let title = crate::i18n::tr(tab.title());
+            let max = d.text_rects(ph::ARROWS_OUT_SIMPLE);
+            let shown = d
+                .labelled_rects()
+                .into_iter()
+                .any(|(s, r, clip)| s == title && clip.contains_rect(r) && max.iter().any(|m| r.right() < m.left()));
+            assert!(shown, "{tab:?}");
+        }
+    }
+
+    /// A dividend's details show when its mark is hovered, but not through
+    /// a dialog lying over it.
+    #[test]
+    fn dividend_details_dont_show_through_a_dialog() {
+        let mut d = Driver::new("dividend-tip");
+        let at = d.app.chart.bars[d.app.chart.bars.len() - 60].time;
+        d.app.chart.corporate = Some(opentern_data::yahoo::Corporate {
+            dividends: vec![(at, 13.0)],
+            splits: Vec::new(),
+            earnings: Vec::new(),
+        });
+        for _ in 0..30 {
+            d.frame(vec![]);
+        }
+        let mark = d.text_rect("D").expect("the dividend's mark").center();
+        let tip = |d: &mut Driver| {
+            d.move_to(mark);
+            for _ in 0..30 {
+                d.frame(vec![]);
+            }
+            d.texts().iter().any(|t| t.starts_with("Dividend 13"))
+        };
+        assert!(tip(&mut d));
+        d.app.modal = Some(crate::dialogs::Modal::ChartSettings(
+            crate::dialogs::ChartSettings::new(&d.app),
+        ));
+        assert!(!tip(&mut d), "through a dialog");
+        d.app.modal = None;
+        assert!(tip(&mut d), "and back after it closes");
+    }
+
+    /// However narrow the panel, the report's values stay inside it.
+    #[test]
+    fn the_report_fits_a_narrow_panel() {
+        use crate::shell::Tab;
+        let mut d = Driver::new("narrow-report");
+        let dir = d.dir.join("scripts");
+        std::fs::create_dir_all(&dir).unwrap();
+        let long = STRATEGY.replace("EMA Cross", "A strategy with quite a long name");
+        std::fs::write(dir.join("a.pine"), STRATEGY).unwrap();
+        std::fs::write(dir.join("b.pine"), long).unwrap();
+        d.app.add_script("a.pine");
+        d.app.add_script("b.pine");
+        d.app.layout.tab = Some(Tab::Report);
+        d.app.layout.panel_h = 420.0;
+        for lang in crate::i18n::Lang::ALL {
+            let ctx = d.ctx.clone();
+            d.app.set_language(lang, &ctx);
+            for w in [700.0, 760.0, 1000.0, 1400.0] {
+                d.screen = vec2(w, 900.0);
+                for _ in 0..40 {
+                    d.frame(vec![]);
+                }
+                let rects = d.labelled_rects();
+                let profit = crate::i18n::tr("Total P&L");
+                assert!(rects.iter().any(|(s, ..)| s == profit), "{lang:?} at {w}");
+                for (s, r, clip) in &rects {
+                    // The values on the cards ("2,289.73 USDT", "31.43%").
+                    if s.ends_with(" USDT") || (s.ends_with('%') && s.len() > 4 && !s.starts_with(['+', '-'])) {
+                        assert!(r.right() <= clip.right() + 1.0, "{lang:?} at {w}: {s}");
+                    }
+                }
+            }
+        }
+        crate::i18n::set(crate::i18n::Lang::English);
+    }
+
+    /// In half a laptop screen, in every language: nothing a panel draws
+    /// is cut off at its edge (tables that scroll sideways aside).
+    #[test]
+    fn every_panel_fits_half_a_screen() {
+        use crate::shell::Tab;
+        let mut d = Driver::new("half-screen");
+        let dir = d.dir.join("scripts");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("s.pine"), STRATEGY).unwrap();
+        d.app.add_script("s.pine");
+        d.app.layout.panel_h = 420.0;
+        let mut bad = Vec::new();
+        for lang in crate::i18n::Lang::ALL {
+            let ctx = d.ctx.clone();
+            d.app.set_language(lang, &ctx);
+            for w in [710.0, 1000.0] {
+                d.screen = vec2(w, 900.0);
+                for tab in Tab::ALL {
+                    d.app.layout.tab = Some(tab);
+                    for _ in 0..30 {
+                        d.frame(vec![]);
+                    }
+                    let panel = 900.0 - d.app.layout.panel_h;
+                    // The panel's own right edge: its tab strip's buttons.
+                    let edge = d
+                        .text_rects(crate::icons::ph::CARET_DOWN)
+                        .into_iter()
+                        .filter(|r| (r.center().y - panel).abs() < 40.0)
+                        .map(|r| r.right())
+                        .fold(0.0, f32::max);
+                    for (s, r, clip) in d.labelled_rects() {
+                        // Scrolled content is cut by its own, narrower clip.
+                        let out = r.right() > clip.right() + 1.0 && r.left() < clip.right();
+                        let scrolls =
+                            clip.right() < edge - 8.0 || matches!(tab, Tab::Seasonality | Tab::Screener | Tab::Editor);
+                        if r.top() > panel + 40.0 && out && !scrolls && s.trim().chars().count() > 1 {
+                            bad.push(format!("{lang:?} {w} {tab:?}: {s}"));
+                        }
+                    }
+                }
+            }
+        }
+        crate::i18n::set(crate::i18n::Lang::English);
+        assert!(bad.is_empty(), "{bad:#?}");
+    }
+
+    const STRATEGY: &str = "//@version=6\nstrategy(\"EMA Cross\", overlay=true)\nf = ta.ema(close, input.int(9, \"Fast\"))\ns = ta.ema(close, input.int(21, \"Slow\"))\nif ta.crossover(f, s)\n    strategy.entry(\"Long\", strategy.long)\nif ta.crossunder(f, s)\n    strategy.entry(\"Short\", strategy.short)\n";
 }

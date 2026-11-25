@@ -1,0 +1,6172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Opentern\n"
+"Language: sv\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "\nSurprise {0}{1}%"
+msgstr "\nÖverraskning {0}{1} %"
+
+msgid "\nVol {0}"
+msgstr "\nVol {0}"
+
+msgid "\n{0}: {1}% used"
+msgstr "\n{0}: {1} % använt"
+
+msgid " What can I help you with?"
+msgstr " Vad kan jag hjälpa dig med?"
+
+msgid " · opens {0}"
+msgstr " · öppnar {0}"
+
+#, message
+msgid "\"{0}\" isn't an email address."
+msgstr "\"{0}\" är ingen e-postadress."
+
+msgid "% of equity"
+msgstr "% av kapitalet"
+
+msgid "%D"
+msgstr ""
+
+msgid "%D Length"
+msgstr "%D-längd"
+
+msgid "%D Smoothing"
+msgstr "%D-utjämning"
+
+msgid "%K"
+msgstr ""
+
+msgid "%K Length"
+msgstr "%K-längd"
+
+msgid "%K Smoothing"
+msgstr "%K-utjämning"
+
+msgid "%R"
+msgstr ""
+
+msgid "%a %H:%M"
+msgstr ""
+
+msgid "%a %d %b '%y"
+msgstr "%a %-d %b '%y"
+
+msgid "%a %d %b '%y %H:%M"
+msgstr "%a %-d %b '%y %H:%M"
+
+msgid "%a %d %b '%y %H:%M:%S"
+msgstr "%a %-d %b '%y %H:%M:%S"
+
+msgid "%b %-d"
+msgstr "%-d %b"
+
+msgid "%b '%y"
+msgstr "%b '%y"
+
+msgid "%d %b"
+msgstr "%-d %b"
+
+msgid "%d %b %Y"
+msgstr "%-d %b %Y"
+
+msgid "+DI"
+msgstr ""
+
+msgid "-DI"
+msgstr ""
+
+msgid "1 chart"
+msgstr "1 diagram"
+
+msgid "1 day"
+msgstr "1 dag"
+
+msgid "1 hour"
+msgstr "1 timme"
+
+msgid "1 minute"
+msgstr "1 minut"
+
+msgid "1 month"
+msgstr "1 månad"
+
+msgid "1 script has unsaved changes. Save it to include them."
+msgstr "1 skript har osparade ändringar. Spara det för att ta med dem."
+
+msgid "1 second"
+msgstr "1 sekund"
+
+msgid "1 symbol"
+msgstr "1 symbol"
+
+msgid "1 week"
+msgstr "1 vecka"
+
+msgid "1M return"
+msgstr "Avkastning 1M"
+
+msgid "1Y return"
+msgstr "Avkastning 1Å"
+
+msgid "1× is cash only. Below half the margin in use, every position is closed"
+msgstr "1× är bara kontanter. Under halva den använda marginalen stängs alla positioner"
+
+msgid "200 SMA"
+msgstr "SMA 200"
+
+msgid "24-hour Volume"
+msgstr "24-timmarsvolym"
+
+msgid "24h Volume"
+msgstr "24h-volym"
+
+msgid "24h volume"
+msgstr "24h-volym"
+
+msgid "3M return"
+msgstr "Avkastning 3M"
+
+msgid "5-hour limit"
+msgstr "5-timmarsgräns"
+
+msgid "50 SMA"
+msgstr "SMA 50"
+
+msgid "6M return"
+msgstr "Avkastning 6M"
+
+msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
+msgstr "Ett Python-skript körs i ditt eget systems Python. Beroende på koden kan det läsa och ändra dina filer och gå ut på nätet, även kod som en agent skriver åt dig. Kör bara skript du litar på."
+
+msgid "A fast, local-first market analysis terminal."
+msgstr "En snabb, lokal terminal för marknadsanalys."
+
+#, message
+msgid "A market order has no price to move."
+msgstr "En marknadsorder har inget pris att flytta."
+
+msgid "A sharper, calmer look"
+msgstr "Ett skarpare, lugnare utseende"
+
+msgid "A small helper keeps checking your alerts and notifies you. It stops when you open Opentern again, or when no alert is left."
+msgstr "En liten hjälpare fortsätter bevaka dina larm och meddelar dig. Den slutar när du öppnar Opentern igen eller när inga larm finns kvar."
+
+msgid "A special session"
+msgstr "En särskild handelsdag"
+
+#, message
+msgid "A trailing stop follows the price; it can't be moved."
+msgstr "En släpande stopp följer priset; den kan inte flyttas."
+
+msgid "A value"
+msgstr "Ett värde"
+
+msgid "ACCOUNTS"
+msgstr "KONTON"
+
+msgid "ADJ"
+msgstr "JUST"
+
+msgid "ADR"
+msgstr ""
+
+msgid "ADX"
+msgstr ""
+
+msgid "ADX Smoothing"
+msgstr "ADX-utjämning"
+
+msgid "AO"
+msgstr ""
+
+msgid "API keys and passwords aren't included."
+msgstr "API-nycklar och lösenord ingår inte."
+
+msgid "API price equivalent"
+msgstr "Motsvarande API-pris"
+
+msgid "API token"
+msgstr "API-token"
+
+msgid "ASX"
+msgstr ""
+
+msgid "ATR"
+msgstr ""
+
+msgid "ATR %"
+msgstr ""
+
+msgid "ATR Coefficient"
+msgstr "ATR-koefficient"
+
+msgid "ATR Length"
+msgstr "ATR-längd"
+
+msgid "ATR Multiplier"
+msgstr "ATR-multiplikator"
+
+msgid "ATR length"
+msgstr "ATR-längd"
+
+msgid "About"
+msgstr "Om"
+
+msgid "About {0}"
+msgstr "Om {0}"
+
+msgid "Absolute"
+msgstr "Absolut"
+
+msgid "Access token"
+msgstr "Åtkomsttoken"
+
+msgid "Account"
+msgstr "Konto"
+
+msgid "Account ID"
+msgstr "Konto-ID"
+
+msgid "Account settings"
+msgstr "Kontoinställningar"
+
+msgid "Account size required"
+msgstr "Nödvändig kontostorlek"
+
+msgid "Accumulation/Distribution"
+msgstr "Ackumulation/distribution"
+
+msgid "Across"
+msgstr "Tvärs över"
+
+msgid "Active"
+msgstr "Aktivt"
+
+msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
+
+msgid "Add files"
+msgstr "Lägg till filer"
+
+msgid "Add filter"
+msgstr "Lägg till filter"
+
+msgid "Add section"
+msgstr "Lägg till avsnitt"
+
+msgid "Add symbol"
+msgstr "Lägg till symbol"
+
+msgid "Add to chart"
+msgstr "Lägg till i diagrammet"
+
+msgid "Add to favorites"
+msgstr "Lägg till i favoriter"
+
+msgid "Add to watchlist"
+msgstr "Lägg till i bevakningslistan"
+
+msgid "Add to watchlist (Shift+Enter)"
+msgstr "Lägg till i bevakningslistan (Skift+Retur)"
+
+#, message
+msgid "Add {0}"
+msgstr "Lägg till {0}"
+
+#, message
+msgid "Add {0} to the chart"
+msgstr "Lägg till {0} i diagrammet"
+
+#, message
+msgid "Added {0}"
+msgstr "Lade till {0}"
+
+#, message
+msgid "Added {0} to the chart"
+msgstr "Lade till {0} i diagrammet"
+
+#, message
+msgid "Added {file} to the chart."
+msgstr "{file} har lagts till i diagrammet."
+
+msgid "Address, like 192.168.1.20"
+msgstr "Adress, t.ex. 192.168.1.20"
+
+msgid "Adjust prices for dividends"
+msgstr "Justera priser för utdelningar"
+
+msgid "After"
+msgstr "Efter"
+
+msgid "After hours"
+msgstr "Efterhandel"
+
+msgid "After trade {0}"
+msgstr "Efter affär {0}"
+
+msgid "Against market, stop and trailing fills; limits fill at their price"
+msgstr "Mot marknads-, stopp- och släpande avslut; limitorder fylls till sitt pris"
+
+msgid "Agent"
+msgstr "Agent"
+
+msgid "Agent panel"
+msgstr "Agentpanel"
+
+msgid "Alert"
+msgstr "Larm"
+
+msgid "Alerts"
+msgstr "Larm"
+
+msgid "Alerts in this file send to {0}."
+msgstr "Larm i den här filen skickas till {0}."
+
+msgid "Alerts log"
+msgstr "Larmlogg"
+
+msgid "Alerts only fire while Opentern is open."
+msgstr "Larm utlöses bara när Opentern är öppet."
+
+#, message
+msgid "Alerts: {0}"
+msgstr "Larm: {0}"
+
+msgid "All"
+msgstr "Alla"
+
+msgid "All Souls' Day"
+msgstr "Alla själars dag"
+
+msgid "All caught up"
+msgstr "Allt är läst"
+
+msgid "All sectors (Esc)"
+msgstr "Alla sektorer (Esc)"
+
+msgid "Allow"
+msgstr "Tillåt"
+
+msgid "Allow for this chat"
+msgstr "Tillåt för den här chatten"
+
+msgid "Allow through Windows Firewall"
+msgstr "Tillåt i Windows-brandväggen"
+
+msgid "Allow {0} to do this?"
+msgstr "Låta {0} göra detta?"
+
+msgid "Allowed"
+msgstr "Tillåtet"
+
+msgid "Allowed through Windows Firewall"
+msgstr "Tillåtet i Windows-brandväggen"
+
+#, message
+msgid "Alpaca has no {0} bars"
+msgstr "Alpaca har inga {0}-staplar"
+
+msgid "Alpaca · US stocks"
+msgstr "Alpaca · amerikanska aktier"
+
+msgid "Americas"
+msgstr "Amerika"
+
+msgid "An alert fired while Opentern was closed"
+msgstr "Ett larm utlöstes medan Opentern var stängt"
+
+msgid "An app password, not your login"
+msgstr "Ett applösenord, inte din inloggning"
+
+msgid "An empty list"
+msgstr "En tom lista"
+
+msgid "Anchor Period"
+msgstr "Ankarperiod"
+
+msgid "Anchored"
+msgstr "Förankrad"
+
+msgid "Anchored VWAP"
+msgstr "Förankrad VWAP"
+
+msgid "Anchored volume profile"
+msgstr "Förankrad volymprofil"
+
+msgid "Annotation tools"
+msgstr "Anteckningsverktyg"
+
+msgid "Answer a prompt"
+msgstr "Svara på en fråga"
+
+msgid "Any colour you like"
+msgstr "Vilken färg du vill"
+
+msgid "Anzac Day"
+msgstr "Anzacdagen"
+
+msgid "Applied a lab result"
+msgstr "Använde ett labbresultat"
+
+msgid "Applied to the chart."
+msgstr "Använt i diagrammet."
+
+msgid "Apply a lab result"
+msgstr "Använd ett labbresultat"
+
+msgid "Apply best"
+msgstr "Använd bästa"
+
+msgid "Apply defaults"
+msgstr "Använd standard"
+
+msgid "Apr"
+msgstr "apr"
+
+msgid "April"
+msgstr "april"
+
+msgid "Area"
+msgstr "Yta"
+
+msgid "Arnaud Legoux Moving Average"
+msgstr "Arnaud Legoux-medelvärde"
+
+msgid "Aroon"
+msgstr "Aroon"
+
+msgid "Aroon Down"
+msgstr "Aroon ned"
+
+msgid "Aroon Up"
+msgstr "Aroon upp"
+
+msgid "Arrow"
+msgstr "Pil"
+
+msgid "Arrow mark down"
+msgstr "Pilmarkering ned"
+
+msgid "Arrow mark up"
+msgstr "Pilmarkering upp"
+
+msgid "Ascension Day"
+msgstr "Kristi himmelsfärdsdag"
+
+msgid "Asia-Pacific"
+msgstr "Asien och Stillahavsområdet"
+
+msgid "Ask"
+msgstr "Sälj"
+
+msgid "Ask first"
+msgstr "Fråga först"
+
+msgid "Attach files"
+msgstr "Bifoga filer"
+
+msgid "Aug"
+msgstr "aug"
+
+msgid "August"
+msgstr "augusti"
+
+msgid "Australia Day"
+msgstr "Australiens nationaldag"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "Auto (fits data to screen)"
+msgstr "Auto (passar in data)"
+
+msgid "Auto Fib Extension"
+msgstr "Automatisk Fib-förlängning"
+
+msgid "Auto Fib Retracement"
+msgstr "Automatisk Fib-rekyl"
+
+msgid "Auto, fits data to screen (Alt U)"
+msgstr "Auto, passar in data på skärmen (Alt U)"
+
+msgid "Average"
+msgstr "Medelvärde"
+
+msgid "Average Day Range"
+msgstr "Genomsnittligt dagsintervall"
+
+msgid "Average Directional Index"
+msgstr "Genomsnittligt riktningsindex (ADX)"
+
+msgid "Average True Range"
+msgstr "Genomsnittligt sant intervall (ATR)"
+
+msgid "Avg"
+msgstr "Medel"
+
+msgid "Avg # bars in losing trades"
+msgstr "Medel staplar i förlustaffärer"
+
+msgid "Avg # bars in trades"
+msgstr "Medel staplar i affärer"
+
+msgid "Avg # bars in winning trades"
+msgstr "Medel staplar i vinstaffärer"
+
+msgid "Avg P&L"
+msgstr "Medelresultat"
+
+msgid "Avg P&L %"
+msgstr "Medelresultat %"
+
+msgid "Avg drawdown duration (bars)"
+msgstr "Medellängd på nedgång (staplar)"
+
+msgid "Avg equity drawdown"
+msgstr "Genomsnittlig kapitalnedgång"
+
+msgid "Avg equity run-up"
+msgstr "Genomsnittlig kapitaluppgång"
+
+msgid "Avg losing trade"
+msgstr "Genomsnittlig förlustaffär"
+
+msgid "Avg margin used"
+msgstr "Genomsnittligt använd marginal"
+
+msgid "Avg price"
+msgstr "Snittpris"
+
+msgid "Avg run-up duration (bars)"
+msgstr "Medellängd på uppgång (staplar)"
+
+msgid "Avg winning trade"
+msgstr "Genomsnittlig vinstaffär"
+
+msgid "Awesome Oscillator"
+msgstr "Awesome-oscillator"
+
+msgid "BBPower"
+msgstr ""
+
+msgid "BOP"
+msgstr ""
+
+msgid "BUILT-IN INDICATORS"
+msgstr "INBYGGDA INDIKATORER"
+
+msgid "Back"
+msgstr "Tillbaka"
+
+msgid "Background"
+msgstr "Bakgrund"
+
+msgid "Backtest's max drawdown"
+msgstr "Backtestets största nedgång"
+
+msgid "Bakri Id"
+msgstr ""
+
+msgid "Balance"
+msgstr "Saldo"
+
+msgid "Balance of Power"
+msgstr "Balance of Power"
+
+msgid "Bands Calculation Mode"
+msgstr "Beräkningsläge för band"
+
+msgid "Bands Fill #1"
+msgstr "Bandfyllning 1"
+
+msgid "Bands Fill #2"
+msgstr "Bandfyllning 2"
+
+msgid "Bands Fill #3"
+msgstr "Bandfyllning 3"
+
+msgid "Bands Multiplier #1"
+msgstr "Bandmultiplikator 1"
+
+msgid "Bands Multiplier #2"
+msgstr "Bandmultiplikator 2"
+
+msgid "Bands Multiplier #3"
+msgstr "Bandmultiplikator 3"
+
+msgid "Bands Settings"
+msgstr "Bandinställningar"
+
+msgid "Bands Style"
+msgstr "Bandstil"
+
+msgid "Bands and channels"
+msgstr "Band och kanaler"
+
+msgid "Bar change values"
+msgstr "Stapelns förändring"
+
+msgid "Bar replay"
+msgstr "Stapelrepris"
+
+msgid "Bars"
+msgstr "Staplar"
+
+msgid "Bars per symbol"
+msgstr "Staplar per symbol"
+
+msgid "Bars style"
+msgstr "Stapelstil"
+
+msgid "Base Line"
+msgstr "Baslinje"
+
+msgid "Base Line Length"
+msgstr "Baslinjens längd"
+
+msgid "Base level"
+msgstr "Basnivå"
+
+msgid "Baseline"
+msgstr "Baslinje"
+
+msgid "Basis"
+msgstr "Bas"
+
+msgid "Basis MA Type"
+msgstr "Basens medelvärdestyp"
+
+msgid "Bayesian"
+msgstr "Bayesiansk"
+
+msgid "Begin"
+msgstr "Börja"
+
+msgid "Berchtold's Day"
+msgstr "Berchtoldsdagen"
+
+msgid "Best: {0}  →  {1} ({2}), {3} trades"
+msgstr "Bäst: {0}  →  {1} ({2}), {3} affärer"
+
+msgid "Beta"
+msgstr "Beta"
+
+msgid "Bid"
+msgstr "Köp"
+
+#, message
+msgid "Binance has no {0} bars"
+msgstr "Binance har inga {0}-staplar"
+
+msgid "Black Consciousness Day"
+msgstr "Svarta medvetandets dag"
+
+msgid "Body"
+msgstr "Kropp"
+
+msgid "Body Middle"
+msgstr "Kroppens mitt"
+
+msgid "Bollinger BandWidth"
+msgstr "Bollingerbandens bredd"
+
+msgid "Bollinger Bands"
+msgstr "Bollingerband"
+
+msgid "Bollinger Bands %B"
+msgstr "Bollingerband %B"
+
+msgid "Borders"
+msgstr "Kanter"
+
+#, message
+msgid "Bought {qty} {sym} at {price}"
+msgstr "Köpte {qty} {sym} för {price}"
+
+msgid "Box size"
+msgstr "Boxstorlek"
+
+msgid "Boxing Day"
+msgstr "Annandag jul"
+
+msgid "Brush"
+msgstr "Pensel"
+
+msgid "Buddha's Birthday"
+msgstr "Buddhas födelsedag"
+
+msgid "Built-in source, read-only. Make a copy to change and run it."
+msgstr "Inbyggd källkod, skrivskyddad. Gör en kopia för att ändra och köra den."
+
+msgid "Built-ins"
+msgstr "Inbyggda"
+
+msgid "Bull Bear Power"
+msgstr "Bull Bear Power"
+
+msgid "Buy"
+msgstr "Köp"
+
+msgid "Buy & hold"
+msgstr "Köp och behåll"
+
+msgid "Buy & hold return"
+msgstr "Avkastning för köp och behåll"
+
+msgid "Buy order filled."
+msgstr "Köpordern utförd."
+
+#, message
+msgid "Bybit has no {0} bars"
+msgstr "Bybit har inga {0}-staplar"
+
+msgid "CAGR"
+msgstr ""
+
+msgid "CCI"
+msgstr ""
+
+msgid "CCI Histogram"
+msgstr "CCI-histogram"
+
+msgid "CCI Length"
+msgstr "CCI-längd"
+
+msgid "CCI Turbo"
+msgstr "CCI Turbo"
+
+msgid "CCI Turbo Length"
+msgstr "CCI Turbo-längd"
+
+msgid "CHARTS IN THIS WINDOW"
+msgstr "DIAGRAM I DETTA FÖNSTER"
+
+msgid "CHOP"
+msgstr ""
+
+msgid "CRSI"
+msgstr ""
+
+msgid "CSV"
+msgstr ""
+
+msgid "Calendar"
+msgstr "Kalender"
+
+msgid "Camarilla"
+msgstr ""
+
+msgid "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
+msgstr "Hittar inte din andra enhet. Låt koden visas där och kontrollera att båda är på samma nätverk och att ingen brandvägg blockerar Opentern."
+
+#, message
+msgid "Can't reach the IBKR gateway. Start the Client Portal gateway and log in, then try again."
+msgstr "Når inte IBKR-gatewayen. Starta Client Portal-gatewayen, logga in och försök igen."
+
+msgid "Canada Day"
+msgstr "Kanadas nationaldag"
+
+msgid "Cancel"
+msgstr "Avbryt"
+
+msgid "Candles"
+msgstr "Ljus"
+
+msgid "Canvas"
+msgstr "Rityta"
+
+msgid "Capital and size"
+msgstr "Kapital och storlek"
+
+msgid "Carnival"
+msgstr "Karneval"
+
+msgid "Cash"
+msgstr "Kontanter"
+
+msgid "Categories"
+msgstr "Kategorier"
+
+msgid "Centered"
+msgstr "Centrerad"
+
+msgid "Chaikin Money Flow"
+msgstr "Chaikins penningflöde"
+
+msgid "Chaikin Oscillator"
+msgstr "Chaikin-oscillator"
+
+msgid "Chance of a loss"
+msgstr "Förlustrisk"
+
+msgid "Chance of ruin"
+msgstr "Ruinrisk"
+
+msgid "Chande Kroll Stop"
+msgstr "Chande Kroll-stopp"
+
+msgid "Chande MO"
+msgstr "Chande MO"
+
+msgid "Chande Momentum Oscillator"
+msgstr "Chandes momentumoscillator"
+
+msgid "Change"
+msgstr "Förändring"
+
+msgid "Change %"
+msgstr "Förändring %"
+
+msgid "Change interval"
+msgstr "Ändra intervall"
+
+msgid "Change over the last 24 hours"
+msgstr "Förändring senaste 24 timmarna"
+
+msgid "Change over the last month"
+msgstr "Förändring senaste månaden"
+
+msgid "Change over the last six months"
+msgstr "Förändring senaste sex månaderna"
+
+msgid "Change over the last three months"
+msgstr "Förändring senaste tre månaderna"
+
+msgid "Change over the last year"
+msgstr "Förändring senaste året"
+
+msgid "Change since the last close"
+msgstr "Förändring sedan senaste stängning"
+
+msgid "Change since the previous close"
+msgstr "Förändring sedan föregående stängning"
+
+msgid "Change the interval"
+msgstr "Ändra intervallet"
+
+msgid "Change the strategy settings"
+msgstr "Ändra strategiinställningarna"
+
+#, message
+msgid "Change the {what}"
+msgstr "Ändra: {what}"
+
+msgid "Change {0}"
+msgstr "Ändra {0}"
+
+#, message
+msgid "Change {0}'s inputs"
+msgstr "Ändra indata för {0}"
+
+#, message
+msgid "Changed the {what}"
+msgstr "Ändrade: {what}"
+
+#, message
+msgid "Changed {0}'s inputs"
+msgstr "Ändrade indata för {0}"
+
+msgid "Change|button"
+msgstr "Ändra"
+
+msgid "Channel settings"
+msgstr "Kanalinställningar"
+
+msgid "Chart"
+msgstr "Diagram"
+
+msgid "Chart basic styles"
+msgstr "Diagrammets grundstilar"
+
+msgid "Chart settings"
+msgstr "Diagraminställningar"
+
+msgid "Chart type"
+msgstr "Diagramtyp"
+
+msgid "Charts download their prices again when you open them. Older minute and hour bars may not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back either."
+msgstr "Diagrammen laddar ner sina priser igen när du öppnar dem. Äldre minut- och timstaplar kommer kanske inte tillbaka: datakällor sparar bara de senaste (Yahoo: ungefär en vecka av 1-minutsstaplar, 60 dagar av 15-minuters). Muhurat och andra särskilda handelsdagar som spelats in live kommer inte heller tillbaka."
+
+msgid "Charts, scripts and backtests. All on your own machine."
+msgstr "Diagram, skript och backtester. Allt på din egen dator."
+
+msgid "Chats"
+msgstr "Chattar"
+
+msgid "Check again"
+msgstr "Kontrollera igen"
+
+msgid "Check for updates"
+msgstr "Sök efter uppdateringar"
+
+msgid "Check for updates when Opentern starts"
+msgstr "Sök efter uppdateringar när Opentern startar"
+
+#, message
+msgid "Check {0}"
+msgstr "Kontrollera {0}"
+
+#, message
+msgid "Checked {0}"
+msgstr "Kontrollerade {0}"
+
+msgid "Checking"
+msgstr "Kontrollerar"
+
+msgid "Chg%"
+msgstr "Förä.%"
+
+msgid "Chg% 24h"
+msgstr "Förä.% 24h"
+
+msgid "Chg% today"
+msgstr "Förä.% idag"
+
+msgid "Children's Day"
+msgstr "Barnens dag"
+
+msgid "Choose a scripts folder"
+msgstr "Välj en skriptmapp"
+
+msgid "Choose a snapshots folder"
+msgstr "Välj en mapp för ögonblicksbilder"
+
+msgid "Choose file"
+msgstr "Välj fil"
+
+msgid "Chop Zone"
+msgstr "Chop Zone"
+
+msgid "Choppiness Index"
+msgstr "Choppiness-index"
+
+msgid "Christmas"
+msgstr "Jul"
+
+msgid "Christmas Day"
+msgstr "Juldagen"
+
+msgid "Christmas Eve"
+msgstr "Julafton"
+
+msgid "Chuseok"
+msgstr ""
+
+msgid "Circles"
+msgstr "Cirklar"
+
+msgid "Civic Holiday"
+msgstr "Civic Holiday"
+
+msgid "Classic"
+msgstr "Klassisk"
+
+msgid "Claude Code decides what's safe and asks only when it isn't sure."
+msgstr "Claude Code avgör vad som är säkert och frågar bara när det är osäkert."
+
+msgid "Claude asks before it edits files or runs commands."
+msgstr "Claude frågar innan det redigerar filer eller kör kommandon."
+
+msgid "Clear all"
+msgstr "Rensa allt"
+
+msgid "Clear cache"
+msgstr "Töm cache"
+
+msgid "Clear everything?"
+msgstr "Rensa allt?"
+
+msgid "Clear log"
+msgstr "Rensa logg"
+
+msgid "Clear price cache"
+msgstr "Töm priscachen"
+
+msgid "Clear saved logos"
+msgstr "Rensa sparade logotyper"
+
+msgid "Clear the price cache?"
+msgstr "Tömma priscachen?"
+
+msgid "Clearing…"
+msgstr "Rensar…"
+
+msgid "Click a bar to start from it"
+msgstr "Klicka på en stapel för att börja där"
+
+msgid "Close"
+msgstr "Stäng"
+
+msgid "Close (Esc)"
+msgstr "Stäng (Esc)"
+
+msgid "Close ({0})"
+msgstr "Stäng ({0})"
+
+msgid "Close replay"
+msgstr "Stäng reprisen"
+
+msgid "Closed"
+msgstr "Stängd"
+
+#, message
+msgid "Closed {0}."
+msgstr "Stängde {0}."
+
+msgid "Closes {0}"
+msgstr "Stänger {0}"
+
+msgid "Close|price"
+msgstr "Stängning"
+
+msgid "Codex asks before it edits files or runs anything it doesn't know is safe."
+msgstr "Codex frågar innan det redigerar filer eller kör något det inte vet är säkert."
+
+msgid "Codex works freely in your scripts folder and asks before going outside it."
+msgstr "Codex arbetar fritt i din skriptmapp och frågar innan det lämnar den."
+
+#, message
+msgid "Coinbase has no {0} bars"
+msgstr "Coinbase har inga {0}-staplar"
+
+msgid "Collapse panel"
+msgstr "Fäll ihop panelen"
+
+msgid "Color"
+msgstr "Färg"
+
+msgid "Color bars based on previous close"
+msgstr "Färga staplar efter föregående stängning"
+
+msgid "Color based on previous close"
+msgstr "Färg efter föregående stängning"
+
+msgid "Colours"
+msgstr "Färger"
+
+msgid "Columns"
+msgstr "Kolumner"
+
+msgid "Coming of Age Day"
+msgstr "Myndighetsdagen"
+
+msgid "Commission"
+msgstr "Courtage"
+
+msgid "Commission paid"
+msgstr "Betalt courtage"
+
+msgid "Commodities"
+msgstr "Råvaror"
+
+msgid "Commodity Channel Index"
+msgstr "Råvarukanalindex (CCI)"
+
+msgid "Compare"
+msgstr "Jämför"
+
+msgid "Compare indices"
+msgstr "Jämför index"
+
+msgid "Compare or add symbol"
+msgstr "Jämför eller lägg till symbol"
+
+msgid "Compare symbol"
+msgstr "Jämför symbol"
+
+msgid "Compare the indices"
+msgstr "Jämför indexen"
+
+msgid "Compared the indices"
+msgstr "Jämförde indexen"
+
+msgid "Compared with"
+msgstr "Jämfört med"
+
+msgid "Connors RSI"
+msgstr "Connors RSI"
+
+msgid "Constitution Day"
+msgstr "Grundlagsdagen"
+
+msgid "Constitution Memorial Day"
+msgstr "Grundlagsdagen"
+
+msgid "Context now"
+msgstr "Kontext nu"
+
+msgid "Continue"
+msgstr "Fortsätt"
+
+msgid "Contracts"
+msgstr "Kontrakt"
+
+msgid "Conversion Line"
+msgstr "Konverteringslinje"
+
+msgid "Conversion Line Length"
+msgstr "Konverteringslinjens längd"
+
+msgid "Copied"
+msgstr "Kopierat"
+
+#, message
+msgid "Copied to {name}."
+msgstr "Kopierat till {name}."
+
+msgid "Coppock Curve"
+msgstr "Coppock-kurva"
+
+msgid "Copy"
+msgstr "Kopiera"
+
+msgid "Copy code"
+msgstr "Kopiera kod"
+
+msgid "Copy image"
+msgstr "Kopiera bild"
+
+msgid "Corpus Christi"
+msgstr "Kristi lekamens fest"
+
+msgid "Costs"
+msgstr "Kostnader"
+
+msgid "Couldn't check for updates right now. Try again later."
+msgstr "Det gick inte att söka efter uppdateringar just nu. Försök igen senare."
+
+msgid "Couldn't check. Make sure you are connected to the internet."
+msgstr "Det gick inte att kontrollera. Se till att du är ansluten till internet."
+
+#, message
+msgid "Couldn't connect. Check your internet connection."
+msgstr "Det gick inte att ansluta. Kontrollera internetanslutningen."
+
+#, message
+msgid "Couldn't copy it: {e}"
+msgstr "Det gick inte att kopiera: {e}"
+
+#, message
+msgid "Couldn't delete it: {e}"
+msgstr "Det gick inte att ta bort: {e}"
+
+msgid "Couldn't export."
+msgstr "Det gick inte att exportera."
+
+#, message
+msgid "Couldn't export: {e}"
+msgstr "Det gick inte att exportera: {e}"
+
+msgid "Couldn't get the import ready."
+msgstr "Det gick inte att förbereda importen."
+
+msgid "Couldn't get your data ready."
+msgstr "Det gick inte att förbereda dina data."
+
+#, message
+msgid "Couldn't get your data ready: {e}"
+msgstr "Det gick inte att förbereda dina data: {e}"
+
+msgid "Couldn't import"
+msgstr "Det gick inte att importera"
+
+msgid "Couldn't make a code on this computer."
+msgstr "Det gick inte att skapa en kod på den här datorn."
+
+#, message
+msgid "Couldn't make the folder: {e}"
+msgstr "Det gick inte att skapa mappen: {e}"
+
+#, message
+msgid "Couldn't move it: {e}"
+msgstr "Det gick inte att flytta: {e}"
+
+#, message
+msgid "Couldn't open the clipboard: {e}"
+msgstr "Det gick inte att öppna urklipp: {e}"
+
+#, message
+msgid "Couldn't paste it: {e}"
+msgstr "Det gick inte att klistra in: {e}"
+
+#, message
+msgid "Couldn't reach Yahoo."
+msgstr "Når inte Yahoo."
+
+#, message
+msgid "Couldn't reach the data service."
+msgstr "Når inte datatjänsten."
+
+#, message
+msgid "Couldn't reach {0}: {err}"
+msgstr "Når inte {0}: {err}"
+
+#, message
+msgid "Couldn't read {0}: {e}"
+msgstr "Det gick inte att läsa {0}: {e}"
+
+#, message
+msgid "Couldn't read {file}: {e}"
+msgstr "Det gick inte att läsa {file}: {e}"
+
+#, message
+msgid "Couldn't rename it: {e}"
+msgstr "Det gick inte att byta namn: {e}"
+
+#, message
+msgid "Couldn't save the chat id: {e}"
+msgstr "Det gick inte att spara chatt-id: {e}"
+
+#, message
+msgid "Couldn't save the email settings: {e}"
+msgstr "Det gick inte att spara e-postinställningarna: {e}"
+
+#, message
+msgid "Couldn't save the password in your keychain: {e}"
+msgstr "Det gick inte att spara lösenordet i din nyckelring: {e}"
+
+msgid "Couldn't save the snapshot"
+msgstr "Det gick inte att spara ögonblicksbilden"
+
+#, message
+msgid "Couldn't save the token in your keychain: {e}"
+msgstr "Det gick inte att spara token i din nyckelring: {e}"
+
+#, message
+msgid "Couldn't save to your keychain: {e}"
+msgstr "Det gick inte att spara i din nyckelring: {e}"
+
+#, message
+msgid "Couldn't save: {e}"
+msgstr "Det gick inte att spara: {e}"
+
+#, message
+msgid "Couldn't set Opentern to start at login: {e}"
+msgstr "Det gick inte att låta Opentern starta vid inloggning: {e}"
+
+msgid "Couldn't start the run."
+msgstr "Det gick inte att starta körningen."
+
+#, message
+msgid "Couldn't start {0}: {e}"
+msgstr "Det gick inte att starta {0}: {e}"
+
+#, message
+msgid "Couldn't update: {e}"
+msgstr "Det gick inte att uppdatera: {e}"
+
+msgid "Count in the index"
+msgstr "Räkna med i indexet"
+
+msgid "Countdown to bar close"
+msgstr "Nedräkning till stapelns stängning"
+
+msgid "Counts all of a company's shares."
+msgstr "Räknar alla bolagets aktier."
+
+msgid "Counts only the shares the public can trade, as NSE does."
+msgstr "Räknar bara aktier som allmänheten kan handla, som NSE gör."
+
+msgid "Create"
+msgstr "Skapa"
+
+msgid "Create alert"
+msgstr "Skapa larm"
+
+msgid "Create alert (Alt+A)"
+msgstr "Skapa larm (Alt+A)"
+
+msgid "Create an alert"
+msgstr "Skapa ett larm"
+
+#, message
+msgid "Create {0}"
+msgstr "Skapa {0}"
+
+msgid "Cross"
+msgstr "Kors"
+
+msgid "Cross line"
+msgstr "Korslinje"
+
+msgid "Crosshair"
+msgstr "Hårkors"
+
+msgid "Crossing"
+msgstr "Korsar"
+
+msgid "Crossing down"
+msgstr "Korsar nedåt"
+
+msgid "Crossing up"
+msgstr "Korsar uppåt"
+
+msgid "Crypto"
+msgstr "Krypto"
+
+msgid "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source that needs an account. Keys stay in your system keychain."
+msgstr "Krypto (Binance, Bybit, OKX, Coinbase, Kraken) och Yahoo kräver inget. Lägg till en nyckel för att använda en källa som kräver konto. Nycklarna stannar i systemets nyckelring."
+
+msgid "Crypto majors"
+msgstr "Stora kryptovalutor"
+
+msgid "Culture Day"
+msgstr "Kulturdagen"
+
+msgid "Cum. profit"
+msgstr "Ack. vinst"
+
+msgid "Currency"
+msgstr "Valuta"
+
+msgid "Cursors"
+msgstr "Markörer"
+
+msgid "Custom"
+msgstr "Anpassad"
+
+msgid "Custom indices"
+msgstr "Egna index"
+
+msgid "Custom: 7m, 3h, 2D"
+msgstr "Eget: 7m, 3h, 2D"
+
+msgid "DATA WINDOW"
+msgstr "DATAFÖNSTER"
+
+msgid "DAYS"
+msgstr "DAGAR"
+
+msgid "DI Length"
+msgstr "DI-längd"
+
+msgid "DM"
+msgstr ""
+
+msgid "Daily"
+msgstr "Dagligen"
+
+msgid "Dashed"
+msgstr "Streckad"
+
+msgid "Data modification"
+msgstr "Datajustering"
+
+msgid "Data providers"
+msgstr "Dataleverantörer"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Date and price range"
+msgstr "Datum- och prisintervall"
+
+msgid "Date range"
+msgstr "Datumintervall"
+
+msgid "Date/Time"
+msgstr "Datum/tid"
+
+msgid "Days"
+msgstr "Dagar"
+
+msgid "Dec"
+msgstr "dec"
+
+msgid "December"
+msgstr "december"
+
+msgid "Declined"
+msgstr "Nekat"
+
+msgid "Deeper layers, hairline borders, a fresher green, and dialogs, menus and controls redrawn to match, in dark and light."
+msgstr "Djupare lager, tunna kanter, en friskare grön, och dialoger, menyer och kontroller omritade så att de passar, i mörkt och ljust."
+
+msgid "Default"
+msgstr "Standard"
+
+msgid "Defaults  {0}"
+msgstr "Standard  {0}"
+
+msgid "Delayed {min} min"
+msgstr "{min} min fördröjt"
+
+msgid "Delete"
+msgstr "Ta bort"
+
+msgid "Delete chat"
+msgstr "Ta bort chatten"
+
+msgid "Delete folder (if empty)"
+msgstr "Ta bort mappen (om den är tom)"
+
+msgid "Delete for good"
+msgstr "Ta bort för gott"
+
+msgid "Delete layout"
+msgstr "Ta bort layout"
+
+msgid "Delete list"
+msgstr "Ta bort lista"
+
+msgid "Delete template"
+msgstr "Ta bort mall"
+
+msgid "Delete the selected drawing"
+msgstr "Ta bort den valda ritningen"
+
+msgid "Delete this account"
+msgstr "Ta bort det här kontot"
+
+#, message
+msgid "Delete {0}"
+msgstr "Ta bort {0}"
+
+#, message
+msgid "Delete {f}? Choose Delete again to confirm."
+msgstr "Ta bort {f}? Välj Ta bort igen för att bekräfta."
+
+#, message
+msgid "Deleted the folder {dir}."
+msgstr "Tog bort mappen {dir}."
+
+#, message
+msgid "Deleted {0}"
+msgstr "Tog bort {0}"
+
+#, message
+msgid "Deleted {0}."
+msgstr "Tog bort {0}."
+
+#, message
+msgid "Deleted {f}."
+msgstr "Tog bort {f}."
+
+msgid "Deny"
+msgstr "Neka"
+
+msgid "Depth"
+msgstr "Djup"
+
+msgid "Depth of market"
+msgstr "Marknadsdjup"
+
+msgid "Detrended Price Oscillator"
+msgstr "Trendrensad prisoscillator"
+
+msgid "Deviation"
+msgstr "Avvikelse"
+
+msgid "Difference"
+msgstr "Skillnad"
+
+msgid "Directional Movement Index"
+msgstr "Riktningsindex (DMI)"
+
+msgid "Display cumulative volume"
+msgstr "Visa ackumulerad volym"
+
+msgid "Display reversal price"
+msgstr "Visa vändpris"
+
+msgid "Display reversal price change"
+msgstr "Visa vändprisets förändring"
+
+msgid "Display settings"
+msgstr "Visningsinställningar"
+
+msgid "Dividend"
+msgstr "Utdelning"
+
+msgid "Dividend {0} {1}\nEx-date {2}"
+msgstr "Utdelning {0} {1}\nX-dag {2}"
+
+msgid "Dividends and splits"
+msgstr "Utdelningar och splittar"
+
+msgid "Divisor"
+msgstr "Divisor"
+
+msgid "Diwali Balipratipada"
+msgstr ""
+
+msgid "Diwali Laxmi Pujan"
+msgstr ""
+
+msgid "Donchian Channels"
+msgstr "Donchiankanaler"
+
+msgid "Done"
+msgstr "Klar"
+
+msgid "Done."
+msgstr "Klart."
+
+#, message
+msgid "Done. {errors} couldn't load (hover them to see why)."
+msgstr "Klart. {errors} kunde inte laddas (håll pekaren över för att se varför)."
+
+msgid "Dotted"
+msgstr "Prickad"
+
+msgid "Double EMA"
+msgstr "Dubbel EMA"
+
+msgid "Double-click to put these inputs on the chart"
+msgstr "Dubbelklicka för att använda dessa indata i diagrammet"
+
+msgid "Double-click to rename"
+msgstr "Dubbelklicka för att byta namn"
+
+msgid "Down"
+msgstr "Ned"
+
+msgid "Down Trend"
+msgstr "Nedåtgående trend"
+
+msgid "Down volume"
+msgstr "Nedåtvolym"
+
+msgid "Download image"
+msgstr "Ladda ner bild"
+
+msgid "Download {0}"
+msgstr "Ladda ner {0}"
+
+msgid "Downtrend Highlighter"
+msgstr "Markering av nedåttrend"
+
+msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr ""
+
+msgid "Drag to scale · double-click to fit · right-click for options"
+msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
+
+msgid "Draw with replacement"
+msgstr "Dragning med återläggning"
+
+#, message
+msgid "Draw {what}"
+msgstr "Rita {what}"
+
+msgid "Drawdown"
+msgstr "Nedgång"
+
+msgid "Drawing tools"
+msgstr "Ritverktyg"
+
+#, message
+msgid "Drawing: {0} #{1}"
+msgstr "Ritning: {0} #{1}"
+
+msgid "Drawings"
+msgstr "Ritningar"
+
+#, message
+msgid "Drew {what}"
+msgstr "Ritade {what}"
+
+msgid "Drop files to attach"
+msgstr "Släpp filer för att bifoga"
+
+msgid "Duplicate"
+msgstr "Duplicera"
+
+msgid "Dussehra"
+msgstr ""
+
+msgid "EBIT"
+msgstr ""
+
+msgid "EBIT margin"
+msgstr "EBIT-marginal"
+
+msgid "EBITDA"
+msgstr ""
+
+msgid "EBITDA margin"
+msgstr "EBITDA-marginal"
+
+msgid "EMA"
+msgstr ""
+
+msgid "EMA Cross"
+msgstr "EMA-korsning"
+
+msgid "EMA Length"
+msgstr "EMA-längd"
+
+msgid "EOM"
+msgstr ""
+
+msgid "EV/EBITDA"
+msgstr ""
+
+msgid "EXPLORER"
+msgstr "UTFORSKARE"
+
+msgid "EXT"
+msgstr ""
+
+msgid "Each symbol's own"
+msgstr "Varje symbols egen"
+
+msgid "Early May Bank Holiday"
+msgstr "Brittisk helgdag i maj"
+
+msgid "Early close"
+msgstr "Tidig stängning"
+
+msgid "Earnings {0}\nReported EPS {1}\nEstimate {2}"
+msgstr "Rapport {0}\nRapporterad vinst per aktie {1}\nPrognos {2}"
+
+msgid "Ease of Movement"
+msgstr "Ease of Movement"
+
+msgid "Easter Monday"
+msgstr "Annandag påsk"
+
+msgid "Edit"
+msgstr "Redigera"
+
+msgid "Edit alert"
+msgstr "Redigera larm"
+
+msgid "Edit index"
+msgstr "Redigera index"
+
+#, message
+msgid "Edit {0}"
+msgstr "Redigera {0}"
+
+#, message
+msgid "Edited {0}"
+msgstr "Redigerade {0}"
+
+msgid "Efficiency"
+msgstr "Effektivitet"
+
+msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr "Effektivitet: vinst per stapel utanför urvalet jämfört med inom urvalet. Över 50 % brukar ses som robust."
+
+msgid "Elder Force Index"
+msgstr "Elders kraftindex"
+
+msgid "Ellipse"
+msgstr "Ellips"
+
+msgid "Email"
+msgstr "E-post"
+
+msgid "Emperor Naruhito's Birthday"
+msgstr "Kejsar Naruhitos födelsedag"
+
+msgid "End of Year Holiday"
+msgstr "Helgdag vid årets slut"
+
+msgid "End the replay"
+msgstr "Avsluta reprisen"
+
+msgid "Ended the replay"
+msgstr "Avslutade reprisen"
+
+msgid "Enter Opentern"
+msgstr "Gå in i Opentern"
+
+#, message
+msgid "Enter a price."
+msgstr "Ange ett pris."
+
+#, message
+msgid "Enter a quantity above zero."
+msgstr "Ange en kvantitet över noll."
+
+msgid "Enter address"
+msgstr "Ange adress"
+
+#, message
+msgid "Enter both the stop and the limit price."
+msgstr "Ange både stopp- och limitpris."
+
+#, message
+msgid "Enter how far the stop trails the price."
+msgstr "Ange hur långt efter priset stoppen följer."
+
+msgid "Enter the Telegram chat id to send alerts to."
+msgstr "Ange det Telegram-chatt-id som larmen ska skickas till."
+
+msgid "Enter the code from your other device"
+msgstr "Ange koden från din andra enhet"
+
+msgid "Enter this code on your other device"
+msgstr "Ange den här koden på din andra enhet"
+
+msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
+msgstr "Företagsvärde genom EBITDA för tolv månader. För indexet: totalt EV genom totalt EBITDA"
+
+msgid "Entry {side}"
+msgstr "Ingång {side}"
+
+msgid "Envelope"
+msgstr "Kuvert"
+
+msgid "Equal"
+msgstr "Lika"
+
+msgid "Equal weight"
+msgstr "Lika vikt"
+
+msgid "Equity"
+msgstr "Kapital"
+
+msgid "Eraser"
+msgstr "Suddgummi"
+
+msgid "Euronext Paris"
+msgstr ""
+
+msgid "Europe"
+msgstr "Europa"
+
+msgid "Even trades"
+msgstr "Nollaffärer"
+
+msgid "Every combination"
+msgstr "Alla kombinationer"
+
+msgid "Every in-sample window starts at the first bar"
+msgstr "Varje urvalsfönster börjar vid första stapeln"
+
+msgid "Every index (Esc)"
+msgstr "Alla index (Esc)"
+
+msgid "Every result has its price and day change. Star one into your watchlist, and find coins by name (\"bitcoin\") even with a typo."
+msgstr "Varje träff visar pris och dagens förändring. Stjärnmärk en till bevakningslistan, och hitta mynt efter namn (\"bitcoin\") även med stavfel."
+
+msgid "Every stock starts with the same weight."
+msgstr "Alla aktier börjar med samma vikt."
+
+msgid "Every time"
+msgstr "Varje gång"
+
+#, message
+msgid "Everything else came in, but this computer can't save these scripts: {0}. Rename them on the other device and export again."
+msgstr "Allt annat importerades, men den här datorn kan inte spara dessa skript: {0}. Byt namn på dem på den andra enheten och exportera igen."
+
+msgid "Exchange"
+msgstr "Börs"
+
+msgid "Exit {side}"
+msgstr "Utgång {side}"
+
+msgid "Expected payoff"
+msgstr "Förväntat utfall"
+
+msgid "Expired"
+msgstr "Utgånget"
+
+msgid "Expires"
+msgstr "Upphör"
+
+msgid "Exponential"
+msgstr "Exponentiell"
+
+msgid "Export"
+msgstr "Exportera"
+
+msgid "Export and import"
+msgstr "Exportera och importera"
+
+msgid "Export: save the list of trades as a CSV file"
+msgstr "Exportera: spara affärslistan som CSV-fil"
+
+msgid "Exported {when} · Opentern {0}"
+msgstr "Exporterad {when} · Opentern {0}"
+
+msgid "Exporting"
+msgstr "Exporterar"
+
+msgid "Extend left"
+msgstr "Förläng åt vänster"
+
+msgid "Extend lines left"
+msgstr "Förläng linjer åt vänster"
+
+msgid "Extend lines right"
+msgstr "Förläng linjer åt höger"
+
+msgid "Extend right"
+msgstr "Förläng åt höger"
+
+msgid "Extend to last bar"
+msgstr "Förläng till sista stapeln"
+
+msgid "Extended line"
+msgstr "Förlängd linje"
+
+msgid "Extended trading hours"
+msgstr "Förlängda handelstider"
+
+msgid "Factor"
+msgstr "Faktor"
+
+msgid "Family Day"
+msgstr "Familjedagen"
+
+msgid "Fast Length"
+msgstr "Snabb längd"
+
+msgid "Fast length"
+msgstr "Snabb längd"
+
+msgid "Favorites"
+msgstr "Favoriter"
+
+msgid "Feb"
+msgstr "feb"
+
+msgid "February"
+msgstr "februari"
+
+msgid "Feed"
+msgstr "Flöde"
+
+msgid "Fetch and measure every symbol"
+msgstr "Hämta och mät varje symbol"
+
+msgid "Fewest trades"
+msgstr "Minsta antal affärer"
+
+msgid "Fib retracement"
+msgstr "Fib-rekyl"
+
+msgid "Fibonacci"
+msgstr "Fibonacci"
+
+msgid "Fill"
+msgstr "Fyllning"
+
+msgid "Fill in every field first."
+msgstr "Fyll i alla fält först."
+
+msgid "Fill in the SMTP server, your address and where to send, or turn email off."
+msgstr "Fyll i SMTP-server, din adress och mottagare, eller stäng av e-post."
+
+msgid "Fill orders on bar close"
+msgstr "Fyll order vid stapelns stängning"
+
+msgid "Fills"
+msgstr "Fyllningar"
+
+msgid "Filter"
+msgstr "Filter"
+
+msgid "Filter files"
+msgstr "Filtrera filer"
+
+#, message
+msgid "Find files: {0}"
+msgstr "Hitta filer: {0}"
+
+msgid "Finish signing in in your browser."
+msgstr "Slutför inloggningen i webbläsaren."
+
+msgid "Fisher"
+msgstr "Fisher"
+
+msgid "Fisher Transform"
+msgstr "Fisher-transform"
+
+msgid "Fixed range volume profile"
+msgstr "Volymprofil med fast intervall"
+
+msgid "Floor"
+msgstr "Floor"
+
+msgid "Folders"
+msgstr "Mappar"
+
+msgid "Follow the app theme"
+msgstr "Följ appens tema"
+
+msgid "Font"
+msgstr "Typsnitt"
+
+msgid "Forecasting and measurement tools"
+msgstr "Prognos- och mätverktyg"
+
+msgid "Forex"
+msgstr "Valuta"
+
+msgid "Forward one bar"
+msgstr "Framåt en stapel"
+
+#, message
+msgid "Found files: {0}"
+msgstr "Hittade filer: {0}"
+
+msgid "Frankfurt"
+msgstr ""
+
+msgid "Free float"
+msgstr "Fri handel"
+
+msgid "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."
+msgstr "Gratis realtidspriser (IEX). Nycklar: app.alpaca.markets → API keys."
+
+msgid "Free-float market cap"
+msgstr "Börsvärde (fri handel)"
+
+msgid "Fri"
+msgstr "fre"
+
+msgid "Friday"
+msgstr "fredag"
+
+msgid "From @BotFather"
+msgstr "Från @BotFather"
+
+msgid "From a file"
+msgstr "Från en fil"
+
+msgid "From another device"
+msgstr "Från en annan enhet"
+
+msgid "Full Moon"
+msgstr "Fullmåne"
+
+msgid "Full market cap"
+msgstr "Fullt börsvärde"
+
+msgid "Full release notes"
+msgstr "Fullständiga versionsnyheter"
+
+msgid "Full screen"
+msgstr "Helskärm"
+
+msgid "Fullscreen mode (Shift F)"
+msgstr "Helskärmsläge (Skift F)"
+
+#, message
+msgid "Fundamentals: {e}"
+msgstr "Fundamenta: {e}"
+
+msgid "Funding"
+msgstr "Finansiering"
+
+msgid "Funds"
+msgstr "Fonder"
+
+msgid "Futures"
+msgstr "Terminer"
+
+msgid "Futures prices from free sources are about 10 minutes behind the exchange. Daily closes are the official settlements."
+msgstr "Terminspriser från gratiskällor ligger cirka 10 minuter efter börsen. Dagsstängningar är de officiella avräkningspriserna."
+
+msgid "Gainers"
+msgstr "Vinnare"
+
+msgid "Ganesh Chaturthi"
+msgstr ""
+
+msgid "Gann and Fibonacci tools"
+msgstr "Gann- och Fibonacciverktyg"
+
+msgid "Gateway URL"
+msgstr "Gateway-URL"
+
+msgid "General"
+msgstr "Allmänt"
+
+msgid "Geometric shapes"
+msgstr "Geometriska former"
+
+msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
+msgstr "Gmail, Outlook och de flesta leverantörer kräver ett applösenord: skapa ett i kontots säkerhetsinställningar."
+
+msgid "Good Friday"
+msgstr "Långfredagen"
+
+msgid "Got it"
+msgstr "Jag förstår"
+
+msgid "Gradient"
+msgstr "Toning"
+
+msgid "Greater than"
+msgstr "Större än"
+
+msgid "Greenery Day"
+msgstr "Grönskans dag"
+
+msgid "Grid (every combination)"
+msgstr "Rutnät (alla kombinationer)"
+
+msgid "Gross"
+msgstr "Brutto"
+
+msgid "Gross loss"
+msgstr "Bruttoförlust"
+
+msgid "Gross margin"
+msgstr "Bruttomarginal"
+
+msgid "Gross profit"
+msgstr "Bruttovinst"
+
+msgid "Growth and margins"
+msgstr "Tillväxt och marginaler"
+
+msgid "HOURS"
+msgstr "TIMMAR"
+
+msgid "HV"
+msgstr ""
+
+msgid "Hangul Proclamation Day"
+msgstr "Hanguldagen"
+
+msgid "Heatmap"
+msgstr "Värmekarta"
+
+msgid "Heikin Ashi"
+msgstr "Heikin Ashi"
+
+msgid "Hidden"
+msgstr "Dold"
+
+msgid "Hide"
+msgstr "Dölj"
+
+msgid "Hide VWAP on 1D or Above"
+msgstr "Dölj VWAP på 1D eller högre"
+
+msgid "Hide all drawings"
+msgstr "Dölj alla ritningar"
+
+msgid "Hide all drawings ({0})"
+msgstr "Dölj alla ritningar ({0})"
+
+msgid "Hide the drawing toolbar"
+msgstr "Dölj ritverktygsfältet"
+
+msgid "Hide the sidebar"
+msgstr "Dölj sidofältet"
+
+msgid "High-low"
+msgstr "Högsta-lägsta"
+
+msgid "High|price"
+msgstr "Högsta"
+
+msgid "Histogram"
+msgstr "Histogram"
+
+msgid "Historical Volatility"
+msgstr "Historisk volatilitet"
+
+msgid "History"
+msgstr "Historik"
+
+msgid "History {0}"
+msgstr "Historik {0}"
+
+msgid "Holi"
+msgstr ""
+
+msgid "Hollow candles"
+msgstr "Ihåliga ljus"
+
+msgid "Hong Kong"
+msgstr ""
+
+msgid "Hong Kong Exchanges"
+msgstr ""
+
+msgid "Hong Kong Special Region Establishment Day"
+msgstr "Hongkongs SAR-dag"
+
+msgid "Horizontal line"
+msgstr "Horisontell linje"
+
+msgid "Horizontal ray"
+msgstr "Horisontell stråle"
+
+msgid "Horz grid lines"
+msgstr "Horis. rutnät"
+
+msgid "Hotlists"
+msgstr "Topplistor"
+
+msgid "Hours"
+msgstr "Timmar"
+
+msgid "How far back its prices go"
+msgstr "Hur långt tillbaka priserna går"
+
+msgid "How far the price is above or below its 200-day average"
+msgstr "Hur långt priset är över eller under sitt 200-dagarsmedelvärde"
+
+msgid "How far the price is above or below its 50-day average"
+msgstr "Hur långt priset är över eller under sitt 50-dagarsmedelvärde"
+
+msgid "Hull Moving Average"
+msgstr "Hull-medelvärde"
+
+#, message
+msgid "IBKR doesn't know {0}."
+msgstr "IBKR känner inte till {0}."
+
+#, message
+msgid "IBKR has no {0} bars"
+msgstr "IBKR har inga {0}-staplar"
+
+msgid "IN {0}"
+msgstr "I {0}"
+
+msgid "INCLUDE"
+msgstr "INKLUDERA"
+
+msgid "INPUTS TO VARY"
+msgstr "INDATA ATT VARIERA"
+
+msgid "Ichimoku Cloud"
+msgstr "Ichimoku-moln"
+
+msgid "Icons"
+msgstr "Ikoner"
+
+msgid "Id-Ul-Fitr"
+msgstr "Id al-fitr"
+
+msgid "Import"
+msgstr "Importera"
+
+msgid "Import and restart"
+msgstr "Importera och starta om"
+
+msgid "Import finished"
+msgstr "Importen är klar"
+
+msgid "Import from {0}"
+msgstr "Importera från {0}"
+
+msgid "Imported. Press Run in the Script Editor to start it."
+msgstr "Importerat. Tryck på Kör i Skriptredigeraren för att starta."
+
+msgid "Importing"
+msgstr "Importerar"
+
+msgid "In a pane of its own, below"
+msgstr "I en egen ruta under"
+
+msgid "In-sample P&L"
+msgstr "Resultat inom urvalet"
+
+msgid "In-sample bars"
+msgstr "Staplar inom urvalet"
+
+msgid "Increment"
+msgstr "Steg"
+
+msgid "Independence Day"
+msgstr "Självständighetsdagen"
+
+msgid "Independence Movement Day"
+msgstr "Självständighetsrörelsens dag"
+
+msgid "Index"
+msgstr "Index"
+
+msgid "Indian Markets"
+msgstr "Indiska marknader"
+
+msgid "Indian large caps"
+msgstr "Stora indiska bolag"
+
+msgid "Indicator inputs"
+msgstr "Indikatorers indata"
+
+msgid "Indicator templates"
+msgstr "Indikatormallar"
+
+msgid "Indicator titles"
+msgstr "Indikatortitlar"
+
+msgid "Indicator value labels"
+msgstr "Etiketter för indikatorvärden"
+
+msgid "Indicator values"
+msgstr "Indikatorvärden"
+
+msgid "Indicators"
+msgstr "Indikatorer"
+
+msgid "Indicators, metrics and strategies (/)"
+msgstr "Indikatorer, mått och strategier (/)"
+
+msgid "Indices"
+msgstr "Index"
+
+msgid "Initial capital"
+msgstr "Startkapital"
+
+msgid "Input"
+msgstr "Indata"
+
+msgid "Inputs"
+msgstr "Indata"
+
+msgid "Install {0}"
+msgstr "Installera {0}"
+
+msgid "Interactive Brokers"
+msgstr ""
+
+msgid "Interval"
+msgstr "Intervall"
+
+#, message
+msgid "It ended with code {n}."
+msgstr "Det slutade med kod {n}."
+
+msgid "JSON"
+msgstr ""
+
+msgid "Jan"
+msgstr "jan"
+
+msgid "January"
+msgstr "januari"
+
+msgid "Japan Exchange Group"
+msgstr ""
+
+msgid "Jaw"
+msgstr "Käke"
+
+msgid "Jaw Length"
+msgstr "Käkens längd"
+
+msgid "Jaw Offset"
+msgstr "Käkens förskjutning"
+
+msgid "Jul"
+msgstr "jul"
+
+msgid "July"
+msgstr "juli"
+
+msgid "Jump to real time"
+msgstr "Hoppa till realtid"
+
+msgid "Jun"
+msgstr "jun"
+
+msgid "June"
+msgstr "juni"
+
+msgid "Juneteenth"
+msgstr ""
+
+msgid "KEEP IN SYNC"
+msgstr "HÅLL SYNKADE"
+
+msgid "KST"
+msgstr ""
+
+msgid "Kagi"
+msgstr "Kagi"
+
+msgid "Keep checking alerts"
+msgstr "Fortsätt bevaka larm"
+
+msgid "Keep checking, even after a restart"
+msgstr "Fortsätt bevaka, även efter omstart"
+
+msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
+msgstr "Behåller det som finns och uppdaterar allt med samma namn. En säkerhetskopia sparas först."
+
+msgid "Keltner Channels"
+msgstr "Keltnerkanaler"
+
+msgid "Key ID"
+msgstr "Nyckel-ID"
+
+msgid "Keyboard shortcuts"
+msgstr "Kortkommandon"
+
+msgid "King's Birthday"
+msgstr "Kungens födelsedag"
+
+msgid "Klinger Oscillator"
+msgstr "Klinger-oscillator"
+
+msgid "Know Sure Thing"
+msgstr "Know Sure Thing"
+
+msgid "Korea Exchange"
+msgstr ""
+
+msgid "Korean National Foundation Day"
+msgstr "Koreas grundande"
+
+#, message
+msgid "Kraken has no {0} bars"
+msgstr "Kraken har inga {0}-staplar"
+
+msgid "Labels on price scale"
+msgstr "Etiketter på prisskalan"
+
+msgid "Labels position"
+msgstr "Etiketternas plats"
+
+msgid "Labor Day"
+msgstr "Arbetets dag"
+
+msgid "Labor Thanksgiving Day"
+msgstr "Arbetets tacksägelsedag"
+
+msgid "Labour Day"
+msgstr "Första maj"
+
+msgid "Lagging Span"
+msgstr "Eftersläpande linje"
+
+msgid "Lakhs, crores"
+msgstr "Lakh, crore"
+
+msgid "Language"
+msgstr "Språk"
+
+msgid "Large numbers"
+msgstr "Stora tal"
+
+msgid "Largest losing trade"
+msgstr "Största förlustaffär"
+
+msgid "Largest losing trade, % of gross loss"
+msgstr "Största förlustaffär, % av bruttoförlust"
+
+msgid "Largest winning trade"
+msgstr "Största vinstaffär"
+
+msgid "Largest winning trade, % of gross profit"
+msgstr "Största vinstaffär, % av bruttovinst"
+
+msgid "Last"
+msgstr "Senast"
+
+#, message
+msgid "Last rebalanced {0}."
+msgstr "Senast omviktat {0}."
+
+msgid "Layout {n}"
+msgstr "Layout {n}"
+
+msgid "Layouts"
+msgstr "Layouter"
+
+msgid "Leading Span A"
+msgstr "Ledande linje A"
+
+msgid "Leading Span B"
+msgstr "Ledande linje B"
+
+msgid "Leading Span B Length"
+msgstr "Längd på ledande linje B"
+
+msgid "Least Squares Moving Average"
+msgstr "Minsta kvadrat-medelvärde"
+
+#, message
+msgid "Leave members out of {0}"
+msgstr "Utelämna medlemmar ur {0}"
+
+msgid "Leave out of the index"
+msgstr "Utelämna ur indexet"
+
+msgid "Left"
+msgstr "Vänster"
+
+msgid "Left Bars"
+msgstr "Staplar till vänster"
+
+#, message
+msgid "Left members out of {0}"
+msgstr "Utelämnade medlemmar ur {0}"
+
+msgid "Length"
+msgstr "Längd"
+
+msgid "Less than"
+msgstr "Mindre än"
+
+msgid "Levels"
+msgstr "Nivåer"
+
+msgid "Levels format"
+msgstr "Nivåformat"
+
+msgid "Leverage"
+msgstr "Hävstång"
+
+msgid "Like 15, 4h, D, W or 3M"
+msgstr "Till exempel 15, 4h, D, W eller 3M"
+
+msgid "Limit"
+msgstr "Limit"
+
+msgid "Limit price"
+msgstr "Limitpris"
+
+msgid "Line"
+msgstr "Linje"
+
+msgid "Line break"
+msgstr "Linjebrott"
+
+msgid "Line color"
+msgstr "Linjefärg"
+
+msgid "Line width"
+msgstr "Linjebredd"
+
+msgid "Line with breaks"
+msgstr "Linje med avbrott"
+
+msgid "Line with markers"
+msgstr "Linje med markörer"
+
+msgid "Linear Regression Channel"
+msgstr "Linjär regressionskanal"
+
+msgid "Lips"
+msgstr "Läppar"
+
+msgid "Lips Length"
+msgstr "Läpparnas längd"
+
+msgid "Lips Offset"
+msgstr "Läpparnas förskjutning"
+
+msgid "List"
+msgstr "Lista"
+
+msgid "List menu (double-click to rename)"
+msgstr "Listmeny (dubbelklicka för att byta namn)"
+
+msgid "List of trades"
+msgstr "Affärslista"
+
+msgid "List the indices"
+msgstr "Lista indexen"
+
+msgid "List your scripts"
+msgstr "Lista dina skript"
+
+msgid "List {0}"
+msgstr "Lista {0}"
+
+msgid "Listed the indices"
+msgstr "Listade indexen"
+
+msgid "Listed your scripts"
+msgstr "Listade dina skript"
+
+msgid "Live"
+msgstr "Live"
+
+msgid "Ln {line}, Col {col}      Spaces: {0}      UTF-8      {1}"
+msgstr "Rad {line}, kol {col}      Blanksteg: {0}      UTF-8      {1}"
+
+#, message
+msgid "Loaded {0} of {1}…"
+msgstr "Laddat {0} av {1}…"
+
+msgid "Loading models"
+msgstr "Laddar modeller"
+
+#, message
+msgid "Loading {0} symbols…"
+msgstr "Laddar {0} symboler…"
+
+msgid "Loading…"
+msgstr "Laddar…"
+
+msgid "Local"
+msgstr "Lokal"
+
+msgid "Lock"
+msgstr "Lås"
+
+msgid "Lock all drawings"
+msgstr "Lås alla ritningar"
+
+msgid "Log"
+msgstr "Log"
+
+msgid "Log scale"
+msgstr "Logskala"
+
+msgid "Log scale (Alt L)"
+msgstr "Logskala (Alt L)"
+
+msgid "London"
+msgstr ""
+
+msgid "London Stock Exchange"
+msgstr ""
+
+msgid "Long"
+msgstr "Lång"
+
+msgid "Long Length"
+msgstr "Lång längd"
+
+msgid "Long MA"
+msgstr "Långt MA"
+
+msgid "Long MA length"
+msgstr "Längd på långt MA"
+
+msgid "Long RCI"
+msgstr "Lång RCI"
+
+msgid "Long RCI Length"
+msgstr "Längd på lång RCI"
+
+msgid "Long RoC Length"
+msgstr "Längd på lång RoC"
+
+msgid "Long position"
+msgstr "Lång position"
+
+msgid "Look at the chart"
+msgstr "Titta på diagrammet"
+
+msgid "Look at the drawings"
+msgstr "Titta på ritningarna"
+
+msgid "Look at the paper account"
+msgstr "Titta på övningskontot"
+
+#, message
+msgid "Look at {0}"
+msgstr "Titta på {0}"
+
+msgid "Look up indicators"
+msgstr "Slå upp indikatorer"
+
+msgid "Looked at the chart"
+msgstr "Tittade på diagrammet"
+
+msgid "Looked at the drawings"
+msgstr "Tittade på ritningarna"
+
+msgid "Looked at the paper account"
+msgstr "Tittade på övningskontot"
+
+#, message
+msgid "Looked at {0}"
+msgstr "Tittade på {0}"
+
+msgid "Looked up indicators"
+msgstr "Slog upp indikatorer"
+
+msgid "Looking for your other device"
+msgstr "Söker efter din andra enhet"
+
+msgid "Losers"
+msgstr "Förlorare"
+
+msgid "Losing streak"
+msgstr "Förlustsvit"
+
+msgid "Losing streak, worst 5%"
+msgstr "Förlustsvit, sämsta 5 %"
+
+msgid "Losing trades"
+msgstr "Förlustaffärer"
+
+msgid "Lower"
+msgstr "Nedre"
+
+msgid "Lower Band"
+msgstr "Nedre band"
+
+msgid "Lower Band #1"
+msgstr "Nedre band 1"
+
+msgid "Lower Band #2"
+msgstr "Nedre band 2"
+
+msgid "Lower Band #3"
+msgstr "Nedre band 3"
+
+msgid "Lower color"
+msgstr "Nedre färg"
+
+msgid "Lower deviation"
+msgstr "Nedre avvikelse"
+
+msgid "Lower length"
+msgstr "Nedre längd"
+
+msgid "Lower multiplier"
+msgstr "Nedre multiplikator"
+
+msgid "Lower offset"
+msgstr "Nedre förskjutning"
+
+msgid "Low|price"
+msgstr "Lägsta"
+
+msgid "Lunar New Year"
+msgstr "Månnyår"
+
+msgid "MA"
+msgstr ""
+
+msgid "MA #1"
+msgstr "MA 1"
+
+msgid "MA #1 Length"
+msgstr "Längd MA 1"
+
+msgid "MA #2"
+msgstr "MA 2"
+
+msgid "MA #2 Length"
+msgstr "Längd MA 2"
+
+msgid "MA #3"
+msgstr "MA 3"
+
+msgid "MA #3 Length"
+msgstr "Längd MA 3"
+
+msgid "MA #4"
+msgstr "MA 4"
+
+msgid "MA #4 Length"
+msgstr "Längd MA 4"
+
+msgid "MA Cross"
+msgstr "MA-korsning"
+
+msgid "MA Length"
+msgstr "MA-längd"
+
+msgid "MA Type"
+msgstr "MA-typ"
+
+msgid "MACD"
+msgstr ""
+
+msgid "MF"
+msgstr ""
+
+msgid "MINUTES"
+msgstr "MINUTER"
+
+msgid "MR"
+msgstr ""
+
+#, message
+msgid "Made the index {0}"
+msgstr "Skapade indexet {0}"
+
+#, message
+msgid "Made {name}."
+msgstr "Skapade {name}."
+
+msgid "Magnet mode: snap to open, high, low, close"
+msgstr "Magnetläge: fäst vid öppning, högsta, lägsta, stängning"
+
+msgid "Maharashtra Day"
+msgstr "Maharashtradagen"
+
+msgid "Mahashivratri"
+msgstr ""
+
+msgid "Mahatma Gandhi Jayanti"
+msgstr ""
+
+msgid "Majority Rule"
+msgstr "Majoritetsregel"
+
+msgid "Make a copy"
+msgstr "Gör en kopia"
+
+msgid "Make a copy to edit"
+msgstr "Gör en kopia att redigera"
+
+msgid "Make another account first"
+msgstr "Skapa ett annat konto först"
+
+#, message
+msgid "Make the index {0}"
+msgstr "Skapa indexet {0}"
+
+msgid "Make the panel taller to see the equity curve."
+msgstr "Gör panelen högre för att se kapitalkurvan."
+
+msgid "Map"
+msgstr "Karta"
+
+msgid "Map of every index"
+msgstr "Karta över alla index"
+
+msgid "Mar"
+msgstr "mar"
+
+msgid "March"
+msgstr "mars"
+
+msgid "Margin"
+msgstr "Marginal"
+
+msgid "Margin calls"
+msgstr "Marginalkrav"
+
+msgid "Margin efficiency"
+msgstr "Marginaleffektivitet"
+
+msgid "Margin for long positions"
+msgstr "Marginal för långa positioner"
+
+msgid "Margin for short positions"
+msgstr "Marginal för korta positioner"
+
+msgid "Margin in use {0}{unit} · Buying power {1}{unit}"
+msgstr "Använd marginal {0}{unit} · Köpkraft {1}{unit}"
+
+msgid "Marine Day"
+msgstr "Havets dag"
+
+msgid "Market"
+msgstr "Marknad"
+
+msgid "Market cap"
+msgstr "Börsvärde"
+
+msgid "Market caps didn't load, so every tile is the same size"
+msgstr "Börsvärdena laddades inte, så alla rutor är lika stora"
+
+msgid "Market closed{when}"
+msgstr "Marknaden stängd{when}"
+
+msgid "Market holiday"
+msgstr "Börsfri dag"
+
+msgid "Market open"
+msgstr "Marknaden öppen"
+
+msgid "Market overview"
+msgstr "Marknadsöversikt"
+
+msgid "Market overview (Alt M)"
+msgstr "Marknadsöversikt (Alt M)"
+
+msgid "Martin Luther King Jr. Day"
+msgstr "Martin Luther King-dagen"
+
+msgid "Mass Index"
+msgstr "Mass Index"
+
+msgid "Max DD"
+msgstr "Max nedg."
+
+msgid "Max contracts held"
+msgstr "Max antal kontrakt"
+
+msgid "Max drawdown"
+msgstr "Största nedgång"
+
+msgid "Max drawdown %"
+msgstr "Största nedgång %"
+
+msgid "Max drawdown, worst 5%"
+msgstr "Största nedgång, sämsta 5 %"
+
+msgid "Max equity drawdown"
+msgstr "Största kapitalnedgång"
+
+msgid "Max equity run-up"
+msgstr "Största kapitaluppgång"
+
+msgid "Max margin used"
+msgstr "Mest använd marginal"
+
+msgid "Max value"
+msgstr "Maxvärde"
+
+msgid "Maximize"
+msgstr "Maximera"
+
+msgid "Maximize panel"
+msgstr "Maximera panelen"
+
+msgid "May"
+msgstr "maj"
+
+msgid "McGinley Dynamic"
+msgstr "McGinley Dynamic"
+
+msgid "Measure"
+msgstr "Mät"
+
+msgid "Measure (or Shift+drag)"
+msgstr "Mät (eller Skift+dra)"
+
+msgid "Median"
+msgstr "Median"
+
+msgid "Median EMA"
+msgstr "Median-EMA"
+
+msgid "Median Length"
+msgstr "Medianlängd"
+
+msgid "Median P&L"
+msgstr "Medianresultat"
+
+msgid "Median max drawdown"
+msgstr "Median av största nedgång"
+
+msgid "Memorial Day"
+msgstr "Memorial Day"
+
+msgid "Merge"
+msgstr "Slå ihop"
+
+msgid "Message"
+msgstr "Meddelande"
+
+msgid "Method"
+msgstr "Metod"
+
+msgid "Middle"
+msgstr "Mitten"
+
+msgid "Middle Band"
+msgstr "Mittband"
+
+msgid "Middle Length"
+msgstr "Mittenlängd"
+
+msgid "Middle RCI"
+msgstr "Mellan-RCI"
+
+msgid "Middle RCI Length"
+msgstr "Längd på mellan-RCI"
+
+msgid "Millions, billions"
+msgstr "Miljoner, miljarder"
+
+msgid "Minutes"
+msgstr "Minuter"
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "Momentum"
+msgstr "Momentum"
+
+msgid "Mon"
+msgstr "mån"
+
+msgid "Monday"
+msgstr "måndag"
+
+msgid "Money Flow Index"
+msgstr "Penningflödesindex"
+
+msgid "Monte Carlo"
+msgstr "Monte Carlo"
+
+#, message
+msgid "Monte Carlo needs at least two closed trades."
+msgstr "Monte Carlo kräver minst två stängda affärer."
+
+msgid "Month"
+msgstr "Månad"
+
+msgid "Monthly"
+msgstr "Månadsvis"
+
+msgid "Monthly limit"
+msgstr "Månadsgräns"
+
+msgid "Months"
+msgstr "Månader"
+
+msgid "Moon Phases"
+msgstr "Månfaser"
+
+msgid "More"
+msgstr "Mer"
+
+msgid "More intervals"
+msgstr "Fler intervall"
+
+msgid "Mountain Day"
+msgstr "Bergens dag"
+
+msgid "Move the pointer over the chart."
+msgstr "Flytta pekaren över diagrammet."
+
+msgid "Move to top"
+msgstr "Flytta överst"
+
+#, message
+msgid "Moved to {0}."
+msgstr "Flyttat till {0}."
+
+msgid "Moving Average Adaptive"
+msgstr "Adaptivt glidande medelvärde"
+
+msgid "Moving Average Channel"
+msgstr "Kanal av glidande medelvärden"
+
+msgid "Moving Average Exponential"
+msgstr "Exponentiellt glidande medelvärde"
+
+msgid "Moving Average Hamming"
+msgstr "Hamming-medelvärde"
+
+msgid "Moving Average Ribbon"
+msgstr "Band av glidande medelvärden"
+
+msgid "Moving Average Simple"
+msgstr "Enkelt glidande medelvärde"
+
+msgid "Moving Average Weighted"
+msgstr "Viktat glidande medelvärde"
+
+msgid "Moving averages"
+msgstr "Glidande medelvärden"
+
+msgid "Muharram"
+msgstr ""
+
+msgid "Muhurat trading"
+msgstr "Muhurathandel"
+
+msgid "Multiplier"
+msgstr "Multiplikator"
+
+msgid "Multiplier #1"
+msgstr "Multiplikator 1"
+
+msgid "Multiplier #2"
+msgstr "Multiplikator 2"
+
+msgid "Multiplier #3"
+msgstr "Multiplikator 3"
+
+msgid "Municipal Corporation Elections (Maharashtra)"
+msgstr "Kommunalval (Maharashtra)"
+
+msgid "My plan includes SIP"
+msgstr "Mitt abonnemang har SIP"
+
+msgid "NEW SCRIPT HERE"
+msgstr "NYTT SKRIPT HÄR"
+
+msgid "NIFTY 500"
+msgstr ""
+
+msgid "NSE · BSE"
+msgstr ""
+
+msgid "NYSE · NASDAQ"
+msgstr ""
+
+msgid "Name"
+msgstr "Namn"
+
+#, message
+msgid "Nasdaq sent no earnings."
+msgstr "Nasdaq skickade inga rapporter."
+
+msgid "National Day"
+msgstr "Nationaldagen"
+
+msgid "National Day of the Republic of China"
+msgstr "Republiken Kinas nationaldag"
+
+msgid "National Foundation Day"
+msgstr "Nationens grundande"
+
+msgid "National Liberation Day"
+msgstr "Nationella befrielsedagen"
+
+msgid "Net P&L"
+msgstr "Nettoresultat"
+
+msgid "Net P&L %"
+msgstr "Nettoresultat %"
+
+msgid "Net P&L (every run)"
+msgstr "Nettoresultat (varje körning)"
+
+msgid "Net Volume"
+msgstr "Nettovolym"
+
+msgid "Net profit"
+msgstr "Nettovinst"
+
+msgid "Net profit as % of largest loss"
+msgstr "Nettovinst i % av största förlust"
+
+msgid "Net profit ÷ max drawdown"
+msgstr "Nettovinst ÷ största nedgång"
+
+msgid "Never"
+msgstr "Aldrig"
+
+msgid "New Moon"
+msgstr "Nymåne"
+
+msgid "New Year's Day"
+msgstr "Nyårsdagen"
+
+msgid "New Year's Eve"
+msgstr "Nyårsafton"
+
+msgid "New Year's Holiday"
+msgstr "Nyårshelg"
+
+msgid "New account"
+msgstr "Nytt konto"
+
+msgid "New chat"
+msgstr "Ny chatt"
+
+msgid "New folder"
+msgstr "Ny mapp"
+
+msgid "New index"
+msgstr "Nytt index"
+
+msgid "New layout"
+msgstr "Ny layout"
+
+msgid "New line"
+msgstr "Ny rad"
+
+msgid "New list"
+msgstr "Ny lista"
+
+msgid "New pane"
+msgstr "Ny ruta"
+
+msgid "New paper account"
+msgstr "Nytt övningskonto"
+
+msgid "New price scale"
+msgstr "Ny prisskala"
+
+msgid "New script"
+msgstr "Nytt skript"
+
+msgid "New section"
+msgstr "Nytt avsnitt"
+
+msgid "News"
+msgstr "Nyheter"
+
+msgid "Next earnings {0}\nEstimate {1}"
+msgstr "Nästa rapport {0}\nPrognos {1}"
+
+#, message
+msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr "Nästa omviktning {0} (1 april och 1 oktober)."
+
+msgid "No alerts yet"
+msgstr "Inga larm än"
+
+msgid "No bars came back."
+msgstr "Inga staplar kom tillbaka."
+
+msgid "No chat mentions that."
+msgstr "Ingen chatt nämner det."
+
+msgid "No chats yet"
+msgstr "Inga chattar än"
+
+msgid "No closed trades yet."
+msgstr "Inga stängda affärer än."
+
+#, message
+msgid "No coin prices came this time. Try again in a minute."
+msgstr "Inga myntpriser kom den här gången. Försök igen om en minut."
+
+#, message
+msgid "No company fundamentals for this market."
+msgstr "Inga bolagsfundamenta för den här marknaden."
+
+msgid "No daily history for this symbol."
+msgstr "Ingen daglig historik för symbolen."
+
+msgid "No favorites yet"
+msgstr "Inga favoriter än"
+
+msgid "No file open"
+msgstr "Ingen fil öppen"
+
+#, message
+msgid "No funding rate for this symbol."
+msgstr "Ingen finansieringsränta för symbolen."
+
+msgid "No headlines right now."
+msgstr "Inga rubriker just nu."
+
+msgid "No holidays in the next four months."
+msgstr "Inga helgdagar de närmaste fyra månaderna."
+
+msgid "No indices yet"
+msgstr "Inga index än"
+
+msgid "No lists match"
+msgstr "Inga listor matchar"
+
+msgid "No matches"
+msgstr "Inga träffar"
+
+msgid "No monthly history"
+msgstr "Ingen månadshistorik"
+
+msgid "No monthly history for this symbol."
+msgstr "Ingen månadshistorik för symbolen."
+
+msgid "No new prices for {0}"
+msgstr "Inga nya priser på {0}"
+
+msgid "No open positions."
+msgstr "Inga öppna positioner."
+
+#, message
+msgid "No price yet for this symbol."
+msgstr "Inget pris för symbolen än."
+
+msgid "No prices came back."
+msgstr "Inga priser kom tillbaka."
+
+#, message
+msgid "No prices came this time."
+msgstr "Inga priser kom den här gången."
+
+msgid "No prices: the ticker may have been renamed or delisted. Left out of the index."
+msgstr "Inga priser: symbolen kan ha bytt namn eller avnoterats. Utelämnad ur indexet."
+
+msgid "No problems. Running on the chart."
+msgstr "Inga problem. Körs i diagrammet."
+
+msgid "No run met the conditions (too few trades, or the script failed)."
+msgstr "Ingen körning uppfyllde villkoren (för få affärer, eller så misslyckades skriptet)."
+
+msgid "No script"
+msgstr "Inget skript"
+
+msgid "No scripts yet. Press + to start one."
+msgstr "Inga skript än. Tryck på + för att börja."
+
+msgid "No section"
+msgstr "Inget avsnitt"
+
+msgid "No strategy on the chart"
+msgstr "Ingen strategi i diagrammet"
+
+msgid "No symbol could be tested."
+msgstr "Ingen symbol kunde testas."
+
+msgid "No symbols match."
+msgstr "Inga symboler matchar."
+
+msgid "No symbols yet"
+msgstr "Inga symboler än"
+
+msgid "No working orders."
+msgstr "Inga aktiva order."
+
+#, message
+msgid "No {0}/{1} exchange rate yet."
+msgstr "Ingen växelkurs {0}/{1} än."
+
+#, message
+msgid "No {0}/{1} exchange rate yet; try again in a moment."
+msgstr "Ingen växelkurs {0}/{1} än; försök igen om en stund."
+
+msgid "None"
+msgstr "Ingen"
+
+msgid "Not answered"
+msgstr "Inte besvarat"
+
+msgid "Not connecting? Your other device has to reach this one. Windows will ask for permission."
+msgstr "Ingen anslutning? Din andra enhet måste nå den här. Windows ber om lov."
+
+#, message
+msgid "Not enough bars: each step needs {0} in-sample bars and some after them, and there are {1}."
+msgstr "För få staplar: varje steg kräver {0} staplar inom urvalet och några efter dem, och det finns {1}."
+
+#, message
+msgid "Not enough buying power for this order."
+msgstr "Inte tillräcklig köpkraft för ordern."
+
+msgid "Not installed"
+msgstr "Inte installerat"
+
+msgid "Not yet tried with a real account. Compare its prices with another source before relying on them."
+msgstr "Ännu inte provat med ett riktigt konto. Jämför priserna med en annan källa innan du förlitar dig på dem."
+
+msgid "Nothing defined yet."
+msgstr "Inget definierat än."
+
+msgid "Nothing found"
+msgstr "Inget hittades"
+
+msgid "Nothing has fired yet"
+msgstr "Inget har utlösts än"
+
+msgid "Nothing matches"
+msgstr "Inga träffar"
+
+msgid "Nothing on the chart yet"
+msgstr "Inget i diagrammet än"
+
+msgid "Nothing traded yet."
+msgstr "Inget har handlats än."
+
+msgid "Notification"
+msgstr "Avisering"
+
+msgid "Notifications"
+msgstr "Aviseringar"
+
+msgid "Notify me"
+msgstr "Meddela mig"
+
+msgid "Nov"
+msgstr "nov"
+
+msgid "November"
+msgstr "november"
+
+msgid "Number of lines"
+msgstr "Antal linjer"
+
+msgid "Number of pivots back"
+msgstr "Antal pivåer bakåt"
+
+msgid "Number of rows"
+msgstr "Antal rader"
+
+msgid "Number of years"
+msgstr "Antal år"
+
+#, message
+msgid "OANDA has no {0} bars"
+msgstr "OANDA har inga {0}-staplar"
+
+#, message
+msgid "OANDA refused the token. Check it in Settings → Data providers."
+msgstr "OANDA nekade token. Kontrollera den i Inställningar → Dataleverantörer."
+
+msgid "OANDA · forex and CFDs"
+msgstr "OANDA · valuta och CFD"
+
+msgid "OBJECT TREE"
+msgstr "OBJEKTTRÄD"
+
+#, message
+msgid "OKX has no {0} bars"
+msgstr "OKX har inga {0}-staplar"
+
+#, message
+msgid "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+msgstr "Orderboken för OKX-perpetuals räknar kontrakt, så den visas inte. Binance- och Bybit-perpetuals har en."
+
+msgid "OPEN LAYOUT"
+msgstr "ÖPPNA LAYOUT"
+
+msgid "OUTLINE"
+msgstr "DISPOSITION"
+
+msgid "OUTPUT"
+msgstr "UTDATA"
+
+msgid "Object tree and data window"
+msgstr "Objektträd och datafönster"
+
+msgid "Oct"
+msgstr "okt"
+
+msgid "October"
+msgstr "oktober"
+
+msgid "Of each fill's value"
+msgstr "Av varje avsluts värde"
+
+msgid "Off"
+msgstr "Av"
+
+msgid "Offset"
+msgstr "Förskjutning"
+
+msgid "Ok"
+msgstr "OK"
+
+msgid "Older"
+msgstr "Äldre"
+
+msgid "On"
+msgstr "På"
+
+msgid "On Balance Volume"
+msgstr "On Balance-volym"
+
+msgid "On the chart"
+msgstr "I diagrammet"
+
+msgid "OnBalanceVolume"
+msgstr "On Balance-volym"
+
+msgid "Once per bar"
+msgstr "En gång per stapel"
+
+msgid "Once per bar close"
+msgstr "En gång vid stapelns stängning"
+
+msgid "Only once"
+msgstr "Bara en gång"
+
+msgid "Opacity"
+msgstr "Opacitet"
+
+msgid "Open Local Network settings"
+msgstr "Öppna inställningar för lokalt nätverk"
+
+msgid "Open P&L"
+msgstr "Öppet resultat"
+
+msgid "Open chart"
+msgstr "Öppna diagram"
+
+msgid "Open folder"
+msgstr "Öppna mapp"
+
+msgid "Open in your editor"
+msgstr "Öppna i din redigerare"
+
+msgid "Open in your file manager"
+msgstr "Öppna i filhanteraren"
+
+msgid "Open on the chart"
+msgstr "Öppna i diagrammet"
+
+msgid "Open page"
+msgstr "Öppna sidan"
+
+msgid "Open panel"
+msgstr "Öppna panelen"
+
+msgid "Open snapshots folder"
+msgstr "Öppna mappen för ögonblicksbilder"
+
+msgid "Open the scripts folder"
+msgstr "Öppna skriptmappen"
+
+msgid "Open this formula"
+msgstr "Öppna den här formeln"
+
+#, message
+msgid "Open {0}"
+msgstr "Öppna {0}"
+
+#, message
+msgid "Open {0} in the editor"
+msgstr "Öppna {0} i redigeraren"
+
+msgid "Open {f} in the Script Editor"
+msgstr "Öppna {f} i Skriptredigeraren"
+
+msgid "Open, high, low and close values"
+msgstr "Öppnings-, högsta, lägsta och stängningsvärden"
+
+#, message
+msgid "Opened {0}"
+msgstr "Öppnade {0}"
+
+#, message
+msgid "Opened {0} in the editor"
+msgstr "Öppnade {0} i redigeraren"
+
+msgid "Opentern couldn't start"
+msgstr "Opentern kunde inte starta"
+
+msgid "Opentern export"
+msgstr "Opentern-export"
+
+msgid "Opentern is open in another window. Close it, then import."
+msgstr "Opentern är öppet i ett annat fönster. Stäng det och importera sedan."
+
+msgid "Opentern is up to date"
+msgstr "Opentern är uppdaterat"
+
+msgid "Opentern {0}"
+msgstr ""
+
+msgid "Opentern {0} is available. Click to update."
+msgstr "Opentern {0} finns. Klicka för att uppdatera."
+
+msgid "Opentern {0} is available. {why}."
+msgstr "Opentern {0} finns. {why}."
+
+msgid "Opentern {0} is installed. Click to restart."
+msgstr "Opentern {0} är installerat. Klicka för att starta om."
+
+#, message
+msgid "Opentern {0} is installed. Restart to use it."
+msgstr "Opentern {0} är installerat. Starta om för att använda det."
+
+#, message
+msgid "Opentern {0} is ready to install from the rail."
+msgstr "Opentern {0} kan installeras från sidofältet."
+
+msgid "Opentern {version}"
+msgstr ""
+
+msgid "Open|price"
+msgstr "Öppning"
+
+msgid "Optimize"
+msgstr "Optimera"
+
+msgid "Order cancelled."
+msgstr "Ordern avbröts."
+
+#, message
+msgid "Order moved to {0}."
+msgstr "Ordern flyttades till {0}."
+
+msgid "Order placed."
+msgstr "Ordern är lagd."
+
+msgid "Order size"
+msgstr "Orderstorlek"
+
+msgid "Orders {0}"
+msgstr "Order {0}"
+
+msgid "Oscillator MA Type"
+msgstr "Oscillatorns medelvärdestyp"
+
+msgid "Oscillators"
+msgstr "Oscillatorer"
+
+msgid "Other device"
+msgstr "Annan enhet"
+
+msgid "Our Lady of Aparecida"
+msgstr "Vår Fru av Aparecida"
+
+msgid "Out of sample"
+msgstr "Utanför urvalet"
+
+msgid "Out-of-sample P&L"
+msgstr "Resultat utanför urvalet"
+
+msgid "Out-of-sample bars"
+msgstr "Staplar utanför urvalet"
+
+msgid "Output"
+msgstr "Utdata"
+
+msgid "Outputs"
+msgstr "Utdata"
+
+msgid "Over the chart, with its own scale"
+msgstr "Över diagrammet, med egen skala"
+
+msgid "Overbought"
+msgstr "Överköpt"
+
+msgid "Oversold"
+msgstr "Översålt"
+
+msgid "Overview"
+msgstr "Översikt"
+
+msgid "P&L, worst 5%"
+msgstr "Resultat, sämsta 5 %"
+
+msgid "PAT"
+msgstr "Nettoresultat"
+
+msgid "PAT margin"
+msgstr "Nettomarginal"
+
+msgid "POC"
+msgstr ""
+
+msgid "PROBLEMS"
+msgstr "PROBLEM"
+
+msgid "PVT"
+msgstr ""
+
+msgid "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts."
+msgstr "Betalas mellan långa och korta när nedräkningen tar slut. Positivt: långa betalar korta."
+
+msgid "Paper Trading"
+msgstr "Övningshandel"
+
+msgid "Paper account"
+msgstr "Övningskonto"
+
+msgid "Paper account {k}"
+msgstr "Övningskonto {k}"
+
+msgid "Paper accounts"
+msgstr "Övningskonton"
+
+msgid "Paper trading"
+msgstr "Övningshandel"
+
+#, message
+msgid "Paper trading: {a}"
+msgstr "Övningshandel: {a}"
+
+#, message
+msgid "Paper {0} {1} {2}"
+msgstr "Övning {0} {1} {2}"
+
+msgid "Parabolic SAR"
+msgstr "Parabolisk SAR"
+
+msgid "ParabolicSAR"
+msgstr "Parabolisk SAR"
+
+msgid "Parallel channel"
+msgstr "Parallell kanal"
+
+msgid "Paris"
+msgstr ""
+
+msgid "Password"
+msgstr "Lösenord"
+
+msgid "Paste an image"
+msgstr "Klistra in en bild"
+
+msgid "Paste it anywhere."
+msgstr "Klistra in den var som helst."
+
+msgid "Paste the code, if asked"
+msgstr "Klistra in koden om du tillfrågas"
+
+msgid "Paste the email password (an app password), or turn email off."
+msgstr "Klistra in e-postlösenordet (ett applösenord) eller stäng av e-post."
+
+msgid "Paste your Telegram bot token, or turn Telegram off."
+msgstr "Klistra in din Telegram-bots token eller stäng av Telegram."
+
+#, message
+msgid "Pasted {dest}."
+msgstr "Klistrade in {dest}."
+
+msgid "Path"
+msgstr "Bana"
+
+msgid "Patterns"
+msgstr "Mönster"
+
+msgid "Pause"
+msgstr "Paus"
+
+msgid "Pause alerts"
+msgstr "Pausa larm"
+
+msgid "Peace Memorial Day"
+msgstr "Fredens minnesdag"
+
+msgid "Per contract"
+msgstr "Per kontrakt"
+
+msgid "Per order"
+msgstr "Per order"
+
+msgid "Percent"
+msgstr "Procent"
+
+msgid "Percent change, on the chart's scale"
+msgstr "Procentuell förändring, på diagrammets skala"
+
+msgid "Percent profitable"
+msgstr "Procent vinst"
+
+msgid "Percent scale"
+msgstr "Procentskala"
+
+msgid "Percent scale (Alt P)"
+msgstr "Procentskala (Alt P)"
+
+msgid "Percentage"
+msgstr "Procentandel"
+
+msgid "Perf 1M %"
+msgstr "Utv. 1M %"
+
+msgid "Perf 1W %"
+msgstr "Utv. 1V %"
+
+msgid "Perf 1Y %"
+msgstr "Utv. 1Å %"
+
+msgid "Perf 6M %"
+msgstr "Utv. 6M %"
+
+msgid "Performance"
+msgstr "Utveckling"
+
+msgid "Periods"
+msgstr "Perioder"
+
+msgid "Pick a new starting bar"
+msgstr "Välj en ny startstapel"
+
+#, message
+msgid "Pick at least one input to optimize."
+msgstr "Välj minst en indata att optimera."
+
+msgid "Pick two different inputs."
+msgstr "Välj två olika indata."
+
+msgid "Pick your agent"
+msgstr "Välj din agent"
+
+msgid "Pick your first chart"
+msgstr "Välj ditt första diagram"
+
+msgid "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives."
+msgstr "Pine-, Luau- och JavaScript-skript hålls inneslutna i Opentern. De är säkrare alternativ."
+
+msgid "Pitchfork"
+msgstr "Högaffel"
+
+msgid "Pivot High"
+msgstr "Pivåhögsta"
+
+msgid "Pivot Low"
+msgstr "Pivålägsta"
+
+msgid "Pivot Points High Low"
+msgstr "Pivåpunkter högsta/lägsta"
+
+msgid "Pivot Points Standard"
+msgstr "Pivåpunkter standard"
+
+msgid "Pivot legs"
+msgstr "Pivåben"
+
+msgid "Pivots timeframe"
+msgstr "Pivåernas tidsram"
+
+msgid "Placed"
+msgstr "Lagd"
+
+msgid "Placement"
+msgstr "Placering"
+
+msgid "Play"
+msgstr "Spela"
+
+msgid "Plot"
+msgstr "Plott"
+
+msgid "Plots Background"
+msgstr "Plottarnas bakgrund"
+
+msgid "Point & figure"
+msgstr "Punkt och figur"
+
+msgid "Port"
+msgstr "Port"
+
+msgid "Portfolio"
+msgstr "Portfölj"
+
+msgid "Positions {0}"
+msgstr "Positioner {0}"
+
+msgid "Practice"
+msgstr "Övning"
+
+msgid "Prakash Gurpurb Sri Guru Nanak Dev"
+msgstr ""
+
+msgid "Pre-market"
+msgstr "Förhandel"
+
+msgid "Pre/post market price label"
+msgstr "Prisetikett för för-/efterhandel"
+
+msgid "Pre/post market price line"
+msgstr "Prislinje för för-/efterhandel"
+
+msgid "Precision"
+msgstr "Precision"
+
+msgid "Press Enter for {0}"
+msgstr "Tryck på Retur för {0}"
+
+msgid "Previous 7 days"
+msgstr "Senaste 7 dagarna"
+
+msgid "Price"
+msgstr "Pris"
+
+msgid "Price Oscillator"
+msgstr "Prisoscillator"
+
+msgid "Price Volume Trend"
+msgstr "Pris-volymtrend"
+
+msgid "Price cache"
+msgstr "Priscache"
+
+msgid "Price deviation for reversals (%)"
+msgstr "Prisavvikelse för vändning (%)"
+
+msgid "Price labels"
+msgstr "Prisetiketter"
+
+msgid "Price over trailing earnings. For the index: total market cap over total earnings"
+msgstr "Pris genom tolv månaders vinst. För indexet: totalt börsvärde genom total vinst"
+
+msgid "Price range"
+msgstr "Prisintervall"
+
+msgid "Price scale"
+msgstr "Prisskala"
+
+#, message
+msgid "Price {0} the line"
+msgstr "Pris {0} linjen"
+
+#, message
+msgid "Price {0} {1}"
+msgstr "Pris {0} {1}"
+
+#, message
+msgid "Price: {0}"
+msgstr "Pris: {0}"
+
+msgid "Prices"
+msgstr "Priser"
+
+msgid "Prices since {0}"
+msgstr "Priser sedan {0}"
+
+msgid "Profit"
+msgstr "Vinst"
+
+msgid "Profit and loss in other currencies is converted at live rates"
+msgstr "Vinst och förlust i andra valutor omräknas till aktuell kurs"
+
+msgid "Profit and loss made so far is kept"
+msgstr "Vinst och förlust hittills behålls"
+
+msgid "Profit factor"
+msgstr "Vinstfaktor"
+
+msgid "Profitable"
+msgstr "Lönsamma"
+
+msgid "Profitable trades"
+msgstr "Lönsamma affärer"
+
+msgid "Profitable windows"
+msgstr "Lönsamma fönster"
+
+msgid "Properties"
+msgstr "Egenskaper"
+
+msgid "Put the best inputs on the chart's strategy"
+msgstr "Använd bästa indata i diagrammets strategi"
+
+msgid "Pyramiding"
+msgstr "Pyramidering"
+
+msgid "Python script not started"
+msgstr "Python-skriptet startades inte"
+
+msgid "Python scripts run on your computer"
+msgstr "Python-skript körs på din dator"
+
+msgid "Python scripts' alerts need Opentern open."
+msgstr "Larm från Python-skript kräver att Opentern är öppet."
+
+msgid "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+msgstr "Python-strategier körs i en egen process, så labbet kan inte köra om dem än. Pine-, Luau- och JavaScript-strategier fungerar."
+
+msgid "Qty"
+msgstr "Antal"
+
+msgid "Quantity"
+msgstr "Kvantitet"
+
+msgid "Quarter"
+msgstr "Kvartal"
+
+msgid "Quarterly"
+msgstr "Kvartalsvis"
+
+msgid "Queue (Enter)"
+msgstr "Köa (Retur)"
+
+msgid "RCI"
+msgstr ""
+
+msgid "RCI Ribbon"
+msgstr "RCI-band"
+
+msgid "RMA"
+msgstr ""
+
+msgid "ROC"
+msgstr ""
+
+msgid "ROC Length"
+msgstr "ROC-längd"
+
+msgid "ROC Length #1"
+msgstr "ROC-längd 1"
+
+msgid "ROC Length #2"
+msgstr "ROC-längd 2"
+
+msgid "ROC Length #3"
+msgstr "ROC-längd 3"
+
+msgid "ROC Length #4"
+msgstr "ROC-längd 4"
+
+msgid "RSI"
+msgstr ""
+
+msgid "RSI (14)"
+msgstr ""
+
+msgid "RSI Length"
+msgstr "RSI-längd"
+
+msgid "RSI Settings"
+msgstr "RSI-inställningar"
+
+msgid "RSI-based MA"
+msgstr "RSI-baserat MA"
+
+msgid "RVGI"
+msgstr ""
+
+msgid "RVI"
+msgstr ""
+
+msgid "Ran the Strategy Lab"
+msgstr "Körde Strategilabbet"
+
+msgid "Ran the screener"
+msgstr "Körde aktiefiltret"
+
+#, message
+msgid "Ran {0}"
+msgstr "Körde {0}"
+
+msgid "Random"
+msgstr "Slumpmässig"
+
+msgid "Range"
+msgstr "Intervall"
+
+msgid "Rank Correlation Index"
+msgstr "Rangkorrelationsindex"
+
+msgid "Rate Of Change"
+msgstr "Förändringstakt"
+
+msgid "Ratio avg win / avg loss"
+msgstr "Kvot medelvinst / medelförlust"
+
+msgid "Ratios"
+msgstr "Nyckeltal"
+
+msgid "Ray"
+msgstr "Stråle"
+
+msgid "Read from cache"
+msgstr "Läst från cache"
+
+msgid "Read the Strategy Report"
+msgstr "Läs strategirapporten"
+
+msgid "Read the chart's bars"
+msgstr "Läs diagrammets staplar"
+
+msgid "Read the scripting guide"
+msgstr "Läs skriptguiden"
+
+msgid "Read the seasonality"
+msgstr "Läs säsongsmönstret"
+
+#, message
+msgid "Read {0}"
+msgstr "Läs {0}"
+
+msgid "Real time"
+msgstr "Realtid"
+
+msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
+msgstr "Indiska realtidspriser med ett Upstox-konto. Skapa en app på upstox.com/developer och klistra in dess åtkomsttoken (den gäller till nästa morgon)."
+
+msgid "Realized"
+msgstr "Realiserat"
+
+msgid "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+msgstr "Vikta om nu: hämta dagens antal aktier och sätt vikterna efter dem, med samma nivå"
+
+#, message
+msgid "Rebalance {0}"
+msgstr "Vikta om {0}"
+
+#, message
+msgid "Rebalanced {0}"
+msgstr "Viktade om {0}"
+
+msgid "Rebalancing…"
+msgstr "Viktar om…"
+
+msgid "Receive"
+msgstr "Ta emot"
+
+msgid "Receiving from {peer}"
+msgstr "Tar emot från {peer}"
+
+msgid "Recent colour"
+msgstr "Senaste färg"
+
+msgid "Rectangle"
+msgstr "Rektangel"
+
+msgid "Redo"
+msgstr "Gör om"
+
+msgid "Redo ({0})"
+msgstr "Gör om ({0})"
+
+msgid "Refresh"
+msgstr "Uppdatera"
+
+msgid "Rel volume"
+msgstr "Rel. volym"
+
+msgid "Relative Strength Index"
+msgstr "Relativt styrkeindex (RSI)"
+
+msgid "Relative Strength Index, 14 days"
+msgstr "Relativt styrkeindex, 14 dagar"
+
+msgid "Relative Vigor Index"
+msgstr "Relativt vigörindex"
+
+msgid "Relative Volatility Index"
+msgstr "Relativt volatilitetsindex"
+
+msgid "Release notes"
+msgstr "Versionsnyheter"
+
+#, message
+msgid "Reloaded {file}: it changed on disk."
+msgstr "Laddade om {file}: den ändrades på disken."
+
+msgid "Remove"
+msgstr "Ta bort"
+
+msgid "Remove (Delete)"
+msgstr "Ta bort (Delete)"
+
+msgid "Remove 1 drawing"
+msgstr "Ta bort 1 ritning"
+
+msgid "Remove 1 indicator"
+msgstr "Ta bort 1 indikator"
+
+msgid "Remove drawings"
+msgstr "Ta bort ritningar"
+
+msgid "Remove drawings or indicators"
+msgstr "Ta bort ritningar eller indikatorer"
+
+msgid "Remove filter"
+msgstr "Ta bort filter"
+
+msgid "Remove from favorites"
+msgstr "Ta bort från favoriter"
+
+msgid "Remove from the top bar"
+msgstr "Ta bort från översta fältet"
+
+msgid "Remove from watchlist"
+msgstr "Ta bort från bevakningslistan"
+
+msgid "Remove from watchlist (Shift+Enter)"
+msgstr "Ta bort från bevakningslistan (Skift+Retur)"
+
+msgid "Remove section"
+msgstr "Ta bort avsnitt"
+
+#, message
+msgid "Remove {0}"
+msgstr "Ta bort {0}"
+
+msgid "Remove {k} indicators"
+msgstr "Ta bort {k} indikatorer"
+
+msgid "Remove {n} drawings"
+msgstr "Ta bort {n} ritningar"
+
+msgid "Removed drawings"
+msgstr "Tog bort ritningar"
+
+#, message
+msgid "Removed {0}"
+msgstr "Tog bort {0}"
+
+msgid "Removes what's here for the items ticked above. A backup is saved first."
+msgstr "Tar bort det som finns för de markerade posterna ovan. En säkerhetskopia sparas först."
+
+msgid "Rename"
+msgstr "Byt namn"
+
+msgid "Renko"
+msgstr "Renko"
+
+msgid "Replace"
+msgstr "Ersätt"
+
+msgid "Replace and restart"
+msgstr "Ersätt och starta om"
+
+msgid "Replay"
+msgstr "Repris"
+
+#, message
+msgid "Replay: {a}"
+msgstr "Repris: {a}"
+
+msgid "Republic Day"
+msgstr "Republikens dag"
+
+msgid "Republic Proclamation Day"
+msgstr "Republikens utropande"
+
+msgid "Reset"
+msgstr "Återställ"
+
+msgid "Reset account"
+msgstr "Återställ konto"
+
+msgid "Reset settings"
+msgstr "Återställ inställningar"
+
+msgid "Reset the account to change its currency"
+msgstr "Återställ kontot för att byta valuta"
+
+msgid "Reset the chart view"
+msgstr "Återställ diagramvyn"
+
+msgid "Resets {0}"
+msgstr "Återställs {0}"
+
+msgid "Respect for the Aged Day"
+msgstr "De äldres dag"
+
+msgid "Restart"
+msgstr "Starta om"
+
+msgid "Restart Opentern"
+msgstr "Starta om Opentern"
+
+msgid "Restore factory defaults"
+msgstr "Återställ fabriksinställningar"
+
+msgid "Restore panel"
+msgstr "Återställ panelen"
+
+msgid "Return"
+msgstr "Avkastning"
+
+msgid "Return of max drawdown"
+msgstr "Avkastning på största nedgång"
+
+msgid "Return on account size required"
+msgstr "Avkastning på nödvändig kontostorlek"
+
+msgid "Return on initial capital"
+msgstr "Avkastning på startkapital"
+
+msgid "Returns"
+msgstr "Avkastning"
+
+msgid "Rev growth"
+msgstr "Oms.tillväxt"
+
+msgid "Revenue growth"
+msgstr "Omsättningstillväxt"
+
+msgid "Revenue, year on year. For the index: the members' revenue together"
+msgstr "Omsättning år för år. För indexet: medlemmarnas omsättning tillsammans"
+
+msgid "Reversal"
+msgstr "Vändning"
+
+msgid "Reversal amount"
+msgstr "Vändningsbelopp"
+
+msgid "Reverse"
+msgstr "Omvänd"
+
+msgid "Reverse split 1:{0}"
+msgstr "Omvänd split 1:{0}"
+
+msgid "Right"
+msgstr "Höger"
+
+msgid "Right Bars"
+msgstr "Staplar till höger"
+
+msgid "Rises and falls"
+msgstr "Upp- och nedgångar"
+
+msgid "Risk/performance ratios"
+msgstr "Risk- och resultatmått"
+
+msgid "Risk/reward ratio: {rr}"
+msgstr "Risk/vinst-kvot: {rr}"
+
+msgid "Ruin at drawdown"
+msgstr "Ruin vid nedgång"
+
+msgid "Run"
+msgstr "Kör"
+
+msgid "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR market-data subscriptions."
+msgstr "Kör IBKR:s Client Portal-gateway och logga in; använd sedan symboler som IBKR:AAPL. Kräver IBKR:s marknadsdataprenumerationer."
+
+msgid "Run a command"
+msgstr "Kör ett kommando"
+
+msgid "Run the Strategy Lab"
+msgstr "Kör Strategilabbet"
+
+msgid "Run the screener"
+msgstr "Kör aktiefiltret"
+
+msgid "Run-up"
+msgstr "Uppgång"
+
+msgid "Running…"
+msgstr "Kör…"
+
+msgid "Runs"
+msgstr "Körningar"
+
+msgid "S&P 500"
+msgstr ""
+
+msgid "SAVED"
+msgstr "SPARADE"
+
+msgid "SCALE"
+msgstr "SKALA"
+
+msgid "SCRIPTS"
+msgstr "SKRIPT"
+
+msgid "SIP: prices from all US exchanges, not just IEX"
+msgstr "SIP: priser från alla USA-börser, inte bara IEX"
+
+msgid "SIX Swiss Exchange"
+msgstr ""
+
+msgid "SMA"
+msgstr ""
+
+msgid "SMA Length #1"
+msgstr "SMA-längd 1"
+
+msgid "SMA Length #2"
+msgstr "SMA-längd 2"
+
+msgid "SMA Length #3"
+msgstr "SMA-längd 3"
+
+msgid "SMA Length #4"
+msgstr "SMA-längd 4"
+
+msgid "SMI"
+msgstr ""
+
+msgid "SMI Ergodic Indicator"
+msgstr "SMI Ergodic-indikator"
+
+msgid "SMI Ergodic Oscillator"
+msgstr "SMI Ergodic-oscillator"
+
+msgid "SMI-based EMA"
+msgstr "SMI-baserad EMA"
+
+msgid "SMMA (RMA)"
+msgstr ""
+
+msgid "SMTP server"
+msgstr "SMTP-server"
+
+msgid "Same % scale"
+msgstr "Samma %-skala"
+
+msgid "Sat"
+msgstr "lör"
+
+msgid "Saturday"
+msgstr "lördag"
+
+msgid "Save"
+msgstr "Spara"
+
+msgid "Save a snapshot"
+msgstr "Spara en ögonblicksbild"
+
+msgid "Save and add to the chart ({0})"
+msgstr "Spara och lägg till i diagrammet ({0})"
+
+msgid "Save and update the chart ({0})"
+msgstr "Spara och uppdatera diagrammet ({0})"
+
+msgid "Save as"
+msgstr "Spara som"
+
+msgid "Save as default"
+msgstr "Spara som standard"
+
+msgid "Save chart template"
+msgstr "Spara diagrammall"
+
+msgid "Save indicator template"
+msgstr "Spara indikatormall"
+
+msgid "Save layout"
+msgstr "Spara layout"
+
+msgid "Save the results as CSV"
+msgstr "Spara resultaten som CSV"
+
+msgid "Save the results as JSON"
+msgstr "Spara resultaten som JSON"
+
+msgid "Saved in your keychain (paste to replace)"
+msgstr "Sparat i din nyckelring (klistra in för att ersätta)"
+
+#, message
+msgid "Saved to {0}"
+msgstr "Sparat i {0}"
+
+#, message
+msgid "Saved {file}."
+msgstr "Sparade {file}."
+
+msgid "Saved."
+msgstr "Sparat."
+
+msgid "Scale and more"
+msgstr "Skala med mera"
+
+msgid "Scales"
+msgstr "Skalor"
+
+msgid "Scales and lines"
+msgstr "Skalor och linjer"
+
+msgid "Scales text"
+msgstr "Skalornas text"
+
+msgid "Screener"
+msgstr "Aktiefilter"
+
+msgid "Screener settings"
+msgstr "Filterinställningar"
+
+msgid "Script"
+msgstr "Skript"
+
+msgid "Script Editor"
+msgstr "Skriptredigerare"
+
+msgid "Script failed"
+msgstr "Skriptet misslyckades"
+
+msgid "Scripts"
+msgstr "Skript"
+
+msgid "Scroll to the most recent bar"
+msgstr "Rulla till den senaste stapeln"
+
+msgid "Search"
+msgstr "Sök"
+
+msgid "Search chats"
+msgstr "Sök chattar"
+
+#, message
+msgid "Search for {0}"
+msgstr "Sök efter {0}"
+
+msgid "Search lists"
+msgstr "Sök listor"
+
+msgid "Search shows prices"
+msgstr "Sökningen visar priser"
+
+#, message
+msgid "Search symbols: {0}"
+msgstr "Sök symboler: {0}"
+
+#, message
+msgid "Search the web: {0}"
+msgstr "Sök på webben: {0}"
+
+#, message
+msgid "Searched for {0}"
+msgstr "Sökte efter {0}"
+
+#, message
+msgid "Searched symbols: {0}"
+msgstr "Sökte symboler: {0}"
+
+#, message
+msgid "Searched the web: {0}"
+msgstr "Sökte på webben: {0}"
+
+msgid "Seasonality"
+msgstr "Säsongsmönster"
+
+msgid "Seconds"
+msgstr "Sekunder"
+
+msgid "Secret key"
+msgstr "Hemlig nyckel"
+
+msgid "Select all"
+msgstr "Markera alla"
+
+msgid "Select bar"
+msgstr "Välj stapel"
+
+msgid "Select layout"
+msgstr "Välj layout"
+
+msgid "Select none"
+msgstr "Avmarkera alla"
+
+msgid "Sell"
+msgstr "Sälj"
+
+msgid "Sell order filled."
+msgstr "Säljordern utförd."
+
+msgid "Send"
+msgstr "Skicka"
+
+msgid "Send (Enter)"
+msgstr "Skicka (Retur)"
+
+msgid "Send a test email"
+msgstr "Skicka ett testmejl"
+
+msgid "Send to"
+msgstr "Skicka till"
+
+msgid "Send to another device"
+msgstr "Skicka till en annan enhet"
+
+msgid "Sending to {peer}"
+msgstr "Skickar till {peer}"
+
+msgid "Sending…"
+msgstr "Skickar…"
+
+msgid "Sent to {peer}"
+msgstr "Skickat till {peer}"
+
+msgid "Sent. Check your inbox."
+msgstr "Skickat. Kolla din inkorg."
+
+msgid "Seoul"
+msgstr "Söul"
+
+msgid "Sep"
+msgstr "sep"
+
+msgid "September"
+msgstr "september"
+
+msgid "Session"
+msgstr "Session"
+
+msgid "Session Volume Profile"
+msgstr "Volymprofil per session"
+
+msgid "Settings"
+msgstr "Inställningar"
+
+msgid "Settings → Export and import → Import → Receive"
+msgstr "Inställningar → Exportera och importera → Importera → Ta emot"
+
+msgid "Shanghai"
+msgstr ""
+
+msgid "Shanghai Stock Exchange"
+msgstr ""
+
+msgid "Shapes"
+msgstr "Former"
+
+msgid "Sharpe"
+msgstr "Sharpe"
+
+msgid "Sharpe ratio"
+msgstr "Sharpekvot"
+
+msgid "Short"
+msgstr "Kort"
+
+msgid "Short Length"
+msgstr "Kort längd"
+
+msgid "Short MA"
+msgstr "Kort MA"
+
+msgid "Short MA length"
+msgstr "Längd på kort MA"
+
+msgid "Short RCI"
+msgstr "Kort RCI"
+
+msgid "Short RCI Length"
+msgstr "Längd på kort RCI"
+
+msgid "Short RoC Length"
+msgstr "Längd på kort RoC"
+
+msgid "Short position"
+msgstr "Kort position"
+
+msgid "Show"
+msgstr "Visa"
+
+msgid "Show POC"
+msgstr "Visa POC"
+
+msgid "Show Pearson's R"
+msgstr "Visa Pearsons R"
+
+msgid "Show files ({0})"
+msgstr "Visa filer ({0})"
+
+msgid "Show in folder"
+msgstr "Visa i mapp"
+
+msgid "Show in the top bar"
+msgstr "Visa i översta fältet"
+
+msgid "Show labels"
+msgstr "Visa etiketter"
+
+msgid "Show on intervals"
+msgstr "Visa på intervall"
+
+msgid "Show prices"
+msgstr "Visa priser"
+
+msgid "Show symbol logos"
+msgstr "Visa symbollogotyper"
+
+msgid "Show the drawing toolbar"
+msgstr "Visa ritverktygsfältet"
+
+msgid "Show value area high and low"
+msgstr "Visa värdeområdets högsta och lägsta"
+
+msgid "Showa Day"
+msgstr "Showadagen"
+
+#, message
+msgid "Showing {te}'s {td} instead."
+msgstr "Visar {te}:s {td} i stället."
+
+msgid "Shows after your first message."
+msgstr "Visas efter ditt första meddelande."
+
+msgid "Shri Mahavir Jayanti"
+msgstr ""
+
+msgid "Shri Ram Navami"
+msgstr ""
+
+msgid "Shuffle the order"
+msgstr "Blanda ordningen"
+
+msgid "Side"
+msgstr "Sida"
+
+msgid "Sigma"
+msgstr "Sigma"
+
+msgid "Sign in"
+msgstr "Logga in"
+
+msgid "Sign in to {0}"
+msgstr "Logga in på {0}"
+
+msgid "Signal"
+msgstr "Signal"
+
+msgid "Signal Length"
+msgstr "Signallängd"
+
+msgid "Signal Line Length"
+msgstr "Signallinjens längd"
+
+msgid "Signal Line MA Type"
+msgstr "Signallinjens medelvärdestyp"
+
+msgid "Signal Smoothing"
+msgstr "Signalutjämning"
+
+msgid "Signal line"
+msgstr "Signallinje"
+
+msgid "Singapore"
+msgstr ""
+
+msgid "Singapore Exchange"
+msgstr ""
+
+msgid "Size"
+msgstr "Storlek"
+
+msgid "Sized by 24h volume, from {0}"
+msgstr "Storlek efter 24h-volym, från {0}"
+
+msgid "Sized by market cap, from {0}"
+msgstr "Storlek efter börsvärde, från {0}"
+
+msgid "Slippage"
+msgstr "Glidning"
+
+msgid "Slow Length"
+msgstr "Långsam längd"
+
+msgid "Slow length"
+msgstr "Långsam längd"
+
+msgid "Smallest max drawdown"
+msgstr "Minsta största nedgång"
+
+msgid "Smoothed Moving Average"
+msgstr "Utjämnat glidande medelvärde"
+
+msgid "Smoothing"
+msgstr "Utjämning"
+
+msgid "Smoothing Length"
+msgstr "Utjämningslängd"
+
+msgid "Snapshot copied"
+msgstr "Ögonblicksbild kopierad"
+
+msgid "Snapshot saved"
+msgstr "Ögonblicksbild sparad"
+
+msgid "Snapshots"
+msgstr "Ögonblicksbilder"
+
+#, message
+msgid "Sold {qty} {sym} at {price}"
+msgstr "Sålde {qty} {sym} för {price}"
+
+msgid "Solid"
+msgstr "Heldragen"
+
+msgid "Someone entered the wrong code."
+msgstr "Någon angav fel kod."
+
+msgid "Something went wrong in the run."
+msgstr "Något gick fel i körningen."
+
+msgid "Sort"
+msgstr "Sortera"
+
+msgid "Sort by name"
+msgstr "Sortera efter namn"
+
+msgid "Sort by weight"
+msgstr "Sortera efter vikt"
+
+msgid "Sortino ratio"
+msgstr "Sortinokvot"
+
+msgid "Sound"
+msgstr "Ljud"
+
+msgid "Source"
+msgstr "Källa"
+
+msgid "Source code"
+msgstr "Källkod"
+
+msgid "Special hours"
+msgstr "Särskilda tider"
+
+msgid "Special session"
+msgstr "Särskild session"
+
+msgid "Speed: time per bar (click to change)"
+msgstr "Hastighet: tid per stapel (klicka för att ändra)"
+
+msgid "Split"
+msgstr "Split"
+
+msgid "Split or bonus"
+msgstr "Split eller fondemission"
+
+msgid "Sports Day"
+msgstr "Idrottens dag"
+
+msgid "Spring Bank Holiday"
+msgstr "Brittisk vårhelgdag"
+
+msgid "StDev"
+msgstr "Std.avv."
+
+msgid "Standard Deviation"
+msgstr "Standardavvikelse"
+
+msgid "Standard Error"
+msgstr "Standardfel"
+
+msgid "Standard Error Bands"
+msgstr "Standardfelsband"
+
+msgid "Start"
+msgstr "Start"
+
+#, message
+msgid "Start a helper: {0}"
+msgstr "Starta en hjälpare: {0}"
+
+#, message
+msgid "Start a replay at {0}"
+msgstr "Starta en repris vid {0}"
+
+msgid "Start again"
+msgstr "Börja om"
+
+#, message
+msgid "Started a helper: {0}"
+msgstr "Startade en hjälpare: {0}"
+
+#, message
+msgid "Started a replay at {0}"
+msgstr "Startade en repris vid {0}"
+
+msgid "Starting capital"
+msgstr "Startkapital"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Status line"
+msgstr "Statusrad"
+
+msgid "Stay in drawing mode"
+msgstr "Stanna i ritläge"
+
+msgid "StdDev"
+msgstr "Std.avv."
+
+msgid "Step line"
+msgstr "Trappstegslinje"
+
+msgid "Step one bar"
+msgstr "Stega en stapel"
+
+msgid "Step the replay"
+msgstr "Stega reprisen"
+
+msgid "Stepped the replay"
+msgstr "Stegade reprisen"
+
+msgid "Stochastic"
+msgstr "Stokastik"
+
+msgid "Stochastic Length"
+msgstr "Stokastiklängd"
+
+msgid "Stochastic Momentum Index"
+msgstr "Stokastiskt momentumindex"
+
+msgid "Stochastic RSI"
+msgstr "Stokastisk RSI"
+
+msgid "Stocks"
+msgstr "Aktier"
+
+msgid "Stop"
+msgstr "Stoppa"
+
+msgid "Stop Length"
+msgstr "Stopplängd"
+
+msgid "Stop Long"
+msgstr "Stopp lång"
+
+msgid "Stop Short"
+msgstr "Stopp kort"
+
+msgid "Stop limit"
+msgstr "Stopplimit"
+
+msgid "Stop loss"
+msgstr "Stop loss"
+
+msgid "Stop price"
+msgstr "Stoppris"
+
+msgid "Stop using as default"
+msgstr "Sluta använda som standard"
+
+msgid "Stop: {0} ({1})"
+msgstr "Stopp: {0} ({1})"
+
+msgid "Stopped"
+msgstr "Stoppat"
+
+msgid "Stopped."
+msgstr "Stoppat."
+
+msgid "Stop|order"
+msgstr "Stopp"
+
+msgid "Strategy Lab"
+msgstr "Strategilabb"
+
+msgid "Strategy Lab settings"
+msgstr "Inställningar för Strategilabbet"
+
+msgid "Strategy Report"
+msgstr "Strategirapport"
+
+msgid "Strategy outperformance"
+msgstr "Strategins överavkastning"
+
+msgid "Strategy settings"
+msgstr "Strategiinställningar"
+
+msgid "Strategy settings: capital, order size, commission, slippage and margin"
+msgstr "Strategiinställningar: kapital, orderstorlek, courtage, glidning och marginal"
+
+msgid "Style"
+msgstr "Stil"
+
+msgid "Summer Bank Holiday"
+msgstr "Brittisk sommarhelgdag"
+
+msgid "Sun"
+msgstr "sön"
+
+msgid "Sunday"
+msgstr "söndag"
+
+msgid "Supertrend"
+msgstr "Supertrend"
+
+msgid "Swatches"
+msgstr "Färgprover"
+
+msgid "Swiss National Day"
+msgstr "Schweiz nationaldag"
+
+msgid "Switch to dark theme"
+msgstr "Byt till mörkt tema"
+
+msgid "Switch to light theme"
+msgstr "Byt till ljust tema"
+
+#, message
+msgid "Switch to {0}"
+msgstr "Byt till {0}"
+
+#, message
+msgid "Switched to {0}"
+msgstr "Bytte till {0}"
+
+msgid "Sydney"
+msgstr ""
+
+msgid "Symbol"
+msgstr "Symbol"
+
+msgid "Symbol last price label"
+msgstr "Etikett för senaste pris"
+
+msgid "Symbol last price line"
+msgstr "Linje för senaste pris"
+
+msgid "Symbol logos"
+msgstr "Symbollogotyper"
+
+msgid "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+msgstr "Symbol eller formel, t.ex. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+
+msgid "Symbol search"
+msgstr "Symbolsökning"
+
+msgid "Symbol search (start typing anywhere)"
+msgstr "Symbolsökning (börja skriva var som helst)"
+
+msgid "Symbol watermark"
+msgstr "Symbolens vattenstämpel"
+
+msgid "Symbols"
+msgstr "Symboler"
+
+msgid "System ({0})"
+msgstr "System ({0})"
+
+msgid "São Paulo"
+msgstr ""
+
+msgid "THIS LAYOUT"
+msgstr "DEN HÄR LAYOUTEN"
+
+msgid "TRIX"
+msgstr ""
+
+msgid "TWAP"
+msgstr ""
+
+msgid "Table"
+msgstr "Tabell"
+
+msgid "Taipei"
+msgstr ""
+
+msgid "Taiwan Restoration Day"
+msgstr "Taiwans återlämnande"
+
+msgid "Taiwan Stock Exchange"
+msgstr ""
+
+msgid "Take a picture of the chart"
+msgstr "Ta en bild av diagrammet"
+
+msgid "Take a snapshot (Alt+S)"
+msgstr "Ta en ögonblicksbild (Alt+S)"
+
+msgid "Take it off the chart before moving it."
+msgstr "Ta bort det från diagrammet innan du flyttar det."
+
+msgid "Take its scripts off the chart before renaming it."
+msgstr "Ta bort dess skript från diagrammet innan du byter namn."
+
+msgid "Take profit"
+msgstr "Ta hem vinst"
+
+msgid "Target: {0} ({1})"
+msgstr "Mål: {0} ({1})"
+
+msgid "Teachers' Day"
+msgstr "Lärarnas dag"
+
+msgid "Technicals"
+msgstr "Teknisk analys"
+
+msgid "Teeth"
+msgstr "Tänder"
+
+msgid "Teeth Length"
+msgstr "Tändernas längd"
+
+msgid "Teeth Offset"
+msgstr "Tändernas förskjutning"
+
+msgid "Telegram"
+msgstr ""
+
+msgid "Telegram bot token"
+msgstr "Telegram-botens token"
+
+msgid "Telegram chat id"
+msgstr "Telegram-chatt-id"
+
+msgid "Template  {0}"
+msgstr "Mall  {0}"
+
+msgid "Templates"
+msgstr "Mallar"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Thanksgiving"
+msgstr ""
+
+msgid "Thanksgiving Day"
+msgstr "Thanksgiving"
+
+msgid "That code doesn't match. Check the other device and try again."
+msgstr "Koden stämmer inte. Kontrollera den andra enheten och försök igen."
+
+#, message
+msgid "That file is damaged. Export it again."
+msgstr "Filen är skadad. Exportera den igen."
+
+#, message
+msgid "That file is too big to import."
+msgstr "Filen är för stor för att importeras."
+
+#, message
+msgid "That isn't an Opentern export file."
+msgstr "Det är ingen exportfil från Opentern."
+
+msgid "That list has no symbols."
+msgstr "Listan har inga symboler."
+
+#, message
+msgid "That price isn't valid."
+msgstr "Priset är inte giltigt."
+
+#, message
+msgid "That's {0} combinations per window, more than the grid's {1}. Narrow the ranges or use Random or Bayesian."
+msgstr "Det blir {0} kombinationer per fönster, fler än rutnätets {1}. Minska intervallen eller använd Slumpmässig eller Bayesiansk."
+
+#, message
+msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr "Det blir {combos} kombinationer, fler än rutnätets {MAX_GRID}. Minska intervallen eller använd Slumpmässig eller Bayesiansk."
+
+msgid "The account was reset."
+msgstr "Kontot återställdes."
+
+msgid "The chart reloads when you save there"
+msgstr "Diagrammet laddas om när du sparar där"
+
+msgid "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB."
+msgstr "Färgväljaren har en flik Anpassad: ett spektrum, en nyansrad, och hex och RGB."
+
+msgid "The connection dropped. The code still works."
+msgstr "Anslutningen bröts. Koden gäller fortfarande."
+
+msgid "The connection dropped. Try again."
+msgstr "Anslutningen bröts. Försök igen."
+
+#, message
+msgid "The data service answered with an error ({c})."
+msgstr "Datatjänsten svarade med ett fel ({c})."
+
+#, message
+msgid "The data service refused the key. Check it in Settings → Data providers."
+msgstr "Datatjänsten nekade nyckeln. Kontrollera den i Inställningar → Dataleverantörer."
+
+msgid "The gateway URL should look like https://localhost:5000"
+msgstr "Gateway-URL:en ska se ut som https://localhost:5000"
+
+msgid "The other device runs a different version of Opentern. Update both, then try again."
+msgstr "Den andra enheten kör en annan version av Opentern. Uppdatera båda och försök igen."
+
+msgid "The port should be a number, usually 587 or 465."
+msgstr "Porten ska vara ett tal, oftast 587 eller 465."
+
+msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
+msgstr "Samma sak, och den startar även när du loggar in på datorn, så att larmen fortsätter efter en omstart."
+
+msgid "The script crashed."
+msgstr "Skriptet kraschade."
+
+msgid "The script failed on this symbol."
+msgstr "Skriptet misslyckades för symbolen."
+
+#, message
+msgid "The scripts folder is too big to export."
+msgstr "Skriptmappen är för stor för att exporteras."
+
+#, message
+msgid "The stop-loss has to be {0} the entry price."
+msgstr "Stop loss måste ligga {0} ingångspriset."
+
+msgid "The strategy isn't on the chart any more."
+msgstr "Strategin finns inte längre i diagrammet."
+
+#, message
+msgid "The take-profit has to be {0} the entry price."
+msgstr "Vinsthemtagningen måste ligga {0} ingångspriset."
+
+msgid "The webhook URL should start with https://"
+msgstr "Webhook-URL:en ska börja med https://"
+
+msgid "Theme"
+msgstr "Tema"
+
+#, message
+msgid "There are no bars to test on yet."
+msgstr "Det finns inga staplar att testa på än."
+
+msgid "There's already an account with this name."
+msgstr "Det finns redan ett konto med det namnet."
+
+#, message
+msgid "There's already something called {name} there."
+msgstr "Det finns redan något som heter {name} där."
+
+#, message
+msgid "There's no free order book for this market. The DOM works for crypto exchanges."
+msgstr "Det finns ingen gratis orderbok för den här marknaden. Marknadsdjupet fungerar för kryptobörser."
+
+msgid "There's no image or file on the clipboard."
+msgstr "Ingen bild eller fil i urklipp."
+
+msgid "Thinking"
+msgstr "Tänker"
+
+msgid "This device"
+msgstr "Den här enheten"
+
+msgid "This file has a Python script"
+msgstr "Filen innehåller ett Python-skript"
+
+msgid "This file has nothing in it to import."
+msgstr "Filen innehåller inget att importera."
+
+msgid "This file has {0} Python scripts"
+msgstr "Filen innehåller {0} Python-skript"
+
+#, message
+msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
+msgstr "Filen skapades av en nyare version av Opentern. Uppdatera Opentern för att importera den."
+
+msgid "This is a library: import it from another script."
+msgstr "Det är ett bibliotek: importera det från ett annat skript."
+
+msgid "This strategy can't be compiled for other symbols."
+msgstr "Strategin kan inte kompileras för andra symboler."
+
+msgid "This strategy has no inputs to vary."
+msgstr "Strategin har inga indata att variera."
+
+msgid "Thu"
+msgstr "tor"
+
+msgid "Thursday"
+msgstr "torsdag"
+
+#, message
+msgid "Tick members of {0}"
+msgstr "Markera medlemmar i {0}"
+
+msgid "Tick the inputs to vary."
+msgstr "Markera indata att variera."
+
+#, message
+msgid "Ticked members of {0}"
+msgstr "Markerade medlemmar i {0}"
+
+msgid "Tiles show the regular session. Hover one for its extended-hours price."
+msgstr "Rutorna visar den ordinarie handeln. Håll pekaren över en för priset utanför ordinarie tider."
+
+msgid "Time"
+msgstr "Tid"
+
+msgid "Time Weighted Average Price"
+msgstr "Tidsviktat snittpris"
+
+msgid "Timeframe"
+msgstr "Tidsram"
+
+msgid "Timezone"
+msgstr "Tidszon"
+
+msgid "Tiradentes"
+msgstr ""
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "Today"
+msgstr "Idag"
+
+msgid "Today's weight in the index"
+msgstr "Dagens vikt i indexet"
+
+msgid "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."
+msgstr "Token: OANDA → My Services → Manage API Access. Använd symboler som OANDA:EURUSD."
+
+msgid "Tokyo"
+msgstr ""
+
+msgid "Tomorrow"
+msgstr "Imorgon"
+
+msgid "Too many wrong codes. Start again."
+msgstr "För många felaktiga koder. Börja om."
+
+msgid "Took a picture of the chart"
+msgstr "Tog en bild av diagrammet"
+
+msgid "Top 150"
+msgstr "Topp 150"
+
+msgid "Toronto"
+msgstr ""
+
+msgid "Toronto Stock Exchange"
+msgstr ""
+
+msgid "Total"
+msgstr "Totalt"
+
+msgid "Total P&L"
+msgstr "Totalt resultat"
+
+msgid "Total open trades"
+msgstr "Totalt öppna affärer"
+
+msgid "Total trades"
+msgstr "Totalt antal affärer"
+
+msgid "Trade #"
+msgstr "Affär nr"
+
+msgid "Trades"
+msgstr "Affärer"
+
+msgid "Trades analysis"
+msgstr "Affärsanalys"
+
+msgid "Trading Sessions"
+msgstr "Handelssessioner"
+
+msgid "Trading range"
+msgstr "Handelsperiod"
+
+msgid "Traditional"
+msgstr "Traditionell"
+
+msgid "Trail by"
+msgstr "Följ med"
+
+msgid "Trailing stop"
+msgstr "Släpande stopp"
+
+msgid "Trailing twelve months. For the index: weighted by revenue"
+msgstr "Senaste tolv månaderna. För indexet: viktat efter omsättning"
+
+msgid "Trend"
+msgstr "Trend"
+
+msgid "Trend Strength Index"
+msgstr "Trendstyrkeindex"
+
+msgid "Trend line"
+msgstr "Trendlinje"
+
+msgid "Trend line tools"
+msgstr "Trendlinjeverktyg"
+
+msgid "Trend-based fib extension"
+msgstr "Trendbaserad Fib-förlängning"
+
+msgid "Triangle"
+msgstr "Triangel"
+
+msgid "Tries all {0} choices"
+msgstr "Provar alla {0} val"
+
+msgid "Tries on and off"
+msgstr "Provar på och av"
+
+msgid "Trigger"
+msgstr "Utlösare"
+
+msgid "Triggered"
+msgstr "Utlöst"
+
+msgid "Triple EMA"
+msgstr "Trippel EMA"
+
+msgid "True Range"
+msgstr "Sant intervall"
+
+msgid "True Strength Index"
+msgstr "Sant styrkeindex"
+
+msgid "Try again"
+msgstr "Försök igen"
+
+msgid "Tue"
+msgstr "tis"
+
+msgid "Tuesday"
+msgstr "tisdag"
+
+msgid "Type"
+msgstr "Typ"
+
+msgid "Type a number"
+msgstr "Skriv ett tal"
+
+msgid "Type anywhere"
+msgstr "Skriv var som helst"
+
+msgid "UO"
+msgstr ""
+
+msgid "US Markets"
+msgstr "USA-marknader"
+
+msgid "US large caps"
+msgstr "Stora USA-bolag"
+
+msgid "Ultimate Oscillator"
+msgstr "Ultimate-oscillator"
+
+msgid "Undo"
+msgstr "Ångra"
+
+msgid "Undo ({0})"
+msgstr "Ångra ({0})"
+
+msgid "Union Budget session"
+msgstr "Budgetsession"
+
+msgid "Unrealized"
+msgstr "Orealiserat"
+
+msgid "Untitled"
+msgstr "Namnlös"
+
+msgid "Up"
+msgstr "Upp"
+
+msgid "Up / down"
+msgstr "Upp / ned"
+
+msgid "Up Trend"
+msgstr "Uppåtgående trend"
+
+msgid "Up volume"
+msgstr "Uppåtvolym"
+
+msgid "Up/Down"
+msgstr "Upp/ned"
+
+msgid "UpDown Length"
+msgstr "UpDown-längd"
+
+msgid "Update available"
+msgstr "Uppdatering finns"
+
+msgid "Update failed"
+msgstr "Uppdateringen misslyckades"
+
+msgid "Update installed"
+msgstr "Uppdateringen är installerad"
+
+msgid "Update on chart"
+msgstr "Uppdatera i diagrammet"
+
+msgid "Update to {0}"
+msgstr "Uppdatera till {0}"
+
+#, message
+msgid "Updated {file} on the chart."
+msgstr "Uppdaterade {file} i diagrammet."
+
+msgid "Updates"
+msgstr "Uppdateringar"
+
+msgid "Updating to {0}"
+msgstr "Uppdaterar till {0}"
+
+msgid "Updating to {0} ({1}%)"
+msgstr "Uppdaterar till {0} ({1} %)"
+
+msgid "Upper"
+msgstr "Övre"
+
+msgid "Upper Band"
+msgstr "Övre band"
+
+msgid "Upper Band #1"
+msgstr "Övre band 1"
+
+msgid "Upper Band #2"
+msgstr "Övre band 2"
+
+msgid "Upper Band #3"
+msgstr "Övre band 3"
+
+msgid "Upper color"
+msgstr "Övre färg"
+
+msgid "Upper deviation"
+msgstr "Övre avvikelse"
+
+msgid "Upper length"
+msgstr "Övre längd"
+
+msgid "Upper multiplier"
+msgstr "Övre multiplikator"
+
+msgid "Upper offset"
+msgstr "Övre förskjutning"
+
+#, message
+msgid "Upstox doesn't list {0}."
+msgstr "Upstox har inte {0}."
+
+#, message
+msgid "Upstox has no {0} bars"
+msgstr "Upstox har inga {0}-staplar"
+
+msgid "Upstox · NSE and BSE"
+msgstr "Upstox · NSE och BSE"
+
+#, message
+msgid "Upstox: couldn't read the instrument list."
+msgstr "Upstox: instrumentlistan kunde inte läsas."
+
+#, message
+msgid "Upstox: no quote for this symbol."
+msgstr "Upstox: ingen kurs för symbolen."
+
+msgid "Uptrend Highlighter"
+msgstr "Markering av uppåttrend"
+
+msgid "Usage shows after your first message."
+msgstr "Användningen visas efter ditt första meddelande."
+
+msgid "Use Exponential MA"
+msgstr "Använd exponentiellt MA"
+
+msgid "Use for new charts"
+msgstr "Använd för nya diagram"
+
+msgid "Use the Strategy Lab"
+msgstr "Använd Strategilabbet"
+
+msgid "Use the default folder"
+msgstr "Använd standardmappen"
+
+msgid "Use the gateway"
+msgstr "Använd gatewayen"
+
+msgid "Use the indices"
+msgstr "Använd indexen"
+
+msgid "Use the screener"
+msgstr "Använd aktiefiltret"
+
+msgid "Use this style for new drawings of this kind"
+msgstr "Använd stilen för nya ritningar av det här slaget"
+
+msgid "Used the Strategy Lab"
+msgstr "Använde Strategilabbet"
+
+msgid "Used the indices"
+msgstr "Använde indexen"
+
+msgid "Used the screener"
+msgstr "Använde aktiefiltret"
+
+#, message
+msgid "Using {0}."
+msgstr "Använder {0}."
+
+msgid "VI +"
+msgstr ""
+
+msgid "VI -"
+msgstr ""
+
+msgid "VWAP"
+msgstr ""
+
+msgid "VWAP Settings"
+msgstr "VWAP-inställningar"
+
+msgid "VWMA"
+msgstr ""
+
+msgid "Valuation"
+msgstr "Värdering"
+
+msgid "Value"
+msgstr "Värde"
+
+msgid "Value area down"
+msgstr "Värdeområde ned"
+
+msgid "Value area up"
+msgstr "Värdeområde upp"
+
+msgid "Value area volume %"
+msgstr "Värdeområdets volym %"
+
+msgid "Values"
+msgstr "Värden"
+
+msgid "Vert grid lines"
+msgstr "Vert. rutnät"
+
+msgid "Vertical line"
+msgstr "Vertikal linje"
+
+msgid "Victoria Day"
+msgstr "Victoriadagen"
+
+msgid "Visibility"
+msgstr "Synlighet"
+
+msgid "Visible Average Price"
+msgstr "Synligt snittpris"
+
+msgid "Vol {0}"
+msgstr "Vol {0}"
+
+msgid "Volatility"
+msgstr "Volatilitet"
+
+msgid "Volatility Stop"
+msgstr "Volatilitetsstopp"
+
+msgid "Volume"
+msgstr "Volym"
+
+msgid "Volume MA"
+msgstr "Volym-MA"
+
+msgid "Volume Osc"
+msgstr "Volymosc."
+
+msgid "Volume Oscillator"
+msgstr "Volymoscillator"
+
+msgid "Volume Profile Visible Range"
+msgstr "Volymprofil för synligt intervall"
+
+msgid "Volume Weighted Moving Average"
+msgstr "Volymviktat glidande medelvärde"
+
+msgid "Volume leaders"
+msgstr "Volymledare"
+
+msgid "Vortex Indicator"
+msgstr "Vortexindikator"
+
+msgid "WMA"
+msgstr ""
+
+msgid "WMA Length"
+msgstr "WMA-längd"
+
+msgid "Waiting for Windows"
+msgstr "Väntar på Windows"
+
+msgid "Waiting for the other device"
+msgstr "Väntar på den andra enheten"
+
+msgid "Waiting for your answer"
+msgstr "Väntar på ditt svar"
+
+msgid "Walk-forward"
+msgstr "Walk-forward"
+
+msgid "Washington's Birthday"
+msgstr "Washingtons födelsedag"
+
+msgid "Watch"
+msgstr "Bevaka"
+
+msgid "Watchlist"
+msgstr "Bevakningslista"
+
+#, message
+msgid "Watchlist: {0}"
+msgstr "Bevakningslista: {0}"
+
+msgid "Watchlists"
+msgstr "Bevakningslistor"
+
+msgid "Webhook"
+msgstr "Webhook"
+
+msgid "Webhook URL"
+msgstr "Webhook-URL"
+
+msgid "Wed"
+msgstr "ons"
+
+msgid "Wednesday"
+msgstr "onsdag"
+
+msgid "Week"
+msgstr "Vecka"
+
+msgid "Weekly"
+msgstr "Veckovis"
+
+msgid "Weekly (Opus)"
+msgstr "Vecka (Opus)"
+
+msgid "Weekly (Sonnet)"
+msgstr "Vecka (Sonnet)"
+
+msgid "Weekly limit"
+msgstr "Veckogräns"
+
+msgid "Weeks"
+msgstr "Veckor"
+
+msgid "Weight"
+msgstr "Vikt"
+
+msgid "Weighted equally for now: a member has no share count."
+msgstr "Lika viktat tills vidare: en medlem saknar antal aktier."
+
+msgid "Weighting"
+msgstr "Viktning"
+
+msgid "What do you trade?"
+msgstr "Vad handlar du?"
+
+msgid "What was here is saved in the backups folder."
+msgstr "Det som fanns är sparat i mappen för säkerhetskopior."
+
+msgid "What's new"
+msgstr "Nyheter"
+
+msgid "When Opentern is closed"
+msgstr "När Opentern är stängt"
+
+msgid "When it's"
+msgstr "När det är"
+
+msgid "When the price is"
+msgstr "När priset är"
+
+msgid "Which plot to show (0 is the first)"
+msgstr "Vilken plott som visas (0 är den första)"
+
+msgid "Whit Monday"
+msgstr "Annandag pingst"
+
+msgid "Wick"
+msgstr "Veke"
+
+msgid "Width %"
+msgstr "Bredd %"
+
+msgid "Williams %R"
+msgstr "Williams %R"
+
+msgid "Williams Alligator"
+msgstr "Williams Alligator"
+
+msgid "Williams Fractals"
+msgstr "Williams fraktaler"
+
+msgid "Win %"
+msgstr "Vinst %"
+
+msgid "Windows didn't allow it. Try again"
+msgstr "Windows tillät det inte. Försök igen"
+
+#, message
+msgid "Windows refused the rule."
+msgstr "Windows nekade regeln."
+
+msgid "Winning trades"
+msgstr "Vinstaffärer"
+
+msgid "Women and Children's Day"
+msgstr "Kvinnornas och barnens dag"
+
+msgid "Woodie"
+msgstr "Woodie"
+
+msgid "Woodies CCI"
+msgstr "Woodies CCI"
+
+msgid "Working"
+msgstr "Arbetar"
+
+#, message
+msgid "Wrote {0}"
+msgstr "Skrev {0}"
+
+msgid "Xetra"
+msgstr ""
+
+msgid "YTD"
+msgstr "I år"
+
+#, message
+msgid "Yahoo answered with an error ({c})."
+msgstr "Yahoo svarade med ett fel ({c})."
+
+#, message
+msgid "Yahoo answered with an error ({status})."
+msgstr "Yahoo svarade med ett fel ({status})."
+
+#, message
+msgid "Yahoo didn't send a list this time. Try again later."
+msgstr "Yahoo skickade ingen lista den här gången. Försök igen senare."
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again in a minute."
+msgstr "Yahoo skickade inga priser den här gången. Försök igen om en minut."
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again later."
+msgstr "Yahoo skickade inga priser den här gången. Försök igen senare."
+
+#, message
+msgid "Yahoo didn't start a session."
+msgstr "Yahoo startade ingen session."
+
+#, message
+msgid "Yahoo has no daily history for this BSE listing. NSE:{0} has it."
+msgstr "Yahoo har ingen daglig historik för den här BSE-noteringen. NSE:{0} har det."
+
+#, message
+msgid "Yahoo has no data for this symbol"
+msgstr "Yahoo har inga data för symbolen"
+
+#, message
+msgid "Yahoo has no {0} bars"
+msgstr "Yahoo har inga {0}-staplar"
+
+#, message
+msgid "Yahoo is limiting requests right now."
+msgstr "Yahoo begränsar förfrågningar just nu."
+
+#, message
+msgid "Yahoo is limiting requests; try again in a minute."
+msgstr "Yahoo begränsar förfrågningar; försök igen om en minut."
+
+#, message
+msgid "Yahoo is too slow to answer right now."
+msgstr "Yahoo svarar för långsamt just nu."
+
+#, message
+msgid "Yahoo isn't answering right now (error {c})."
+msgstr "Yahoo svarar inte just nu (fel {c})."
+
+msgid "Yahoo no longer has {0} ({what} renamed or delisted?). They count at their last price. Replace them with Edit."
+msgstr "Yahoo har inte längre {0} ({what} bytt namn eller avnoterats?). De räknas med sitt senaste pris. Ersätt dem med Redigera."
+
+#, message
+msgid "Yahoo sent {g} bars instead of {iv}."
+msgstr "Yahoo skickade {g}-staplar i stället för {iv}."
+
+#, message
+msgid "Yahoo's prices skip {name} on {0}: it isn't on this chart."
+msgstr "Yahoos priser hoppar över {name} den {0}: den finns inte i diagrammet."
+
+msgid "Year"
+msgstr "År"
+
+msgid "Yearly"
+msgstr "Årsvis"
+
+msgid "Yes, reset"
+msgstr "Ja, återställ"
+
+msgid "Your address"
+msgstr "Din adress"
+
+msgid "Your chat id (e.g. from @userinfobot)"
+msgstr "Ditt chatt-id (t.ex. från @userinfobot)"
+
+msgid "Your conversations with your agents show up here."
+msgstr "Dina samtal med agenterna visas här."
+
+msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
+msgstr "Dina bevakningslistor, layouter, ritningar, larm och skript finns kvar."
+
+msgid "Zero"
+msgstr "Noll"
+
+msgid "Zero Line"
+msgstr "Nollinje"
+
+msgid "Zig Zag"
+msgstr "Zig Zag"
+
+msgid "Zoom in"
+msgstr "Zooma in"
+
+msgid "Zoom in (drag a range)"
+msgstr "Zooma in (dra ett intervall)"
+
+msgid "Zurich"
+msgstr ""
+
+msgid "[Ln {l}]"
+msgstr "[Rad {l}]"
+
+msgid "a drawing"
+msgstr "en ritning"
+
+msgid "above"
+msgstr "över"
+
+msgid "at {0}"
+msgstr "kl. {0}"
+
+msgid "auto"
+msgstr "auto"
+
+msgid "below"
+msgstr "under"
+
+msgid "buy"
+msgstr "köp"
+
+msgid "by"
+msgstr "steg"
+
+msgid "chart layout"
+msgstr "diagramlayout"
+
+#, message
+msgid "chart type to {0}"
+msgstr "diagramtyp till {0}"
+
+msgid "chart view"
+msgstr "diagramvy"
+
+msgid "close"
+msgstr "stängning"
+
+msgid "e.g. Nifty Auto"
+msgstr "t.ex. Nifty Auto"
+
+msgid "e.g. Swing setup"
+msgstr "t.ex. Swingupplägg"
+
+msgid "e.g. {{ticker}} crossed at {{close}}"
+msgstr "t.ex. {{ticker}} korsade vid {{close}}"
+
+msgid "from"
+msgstr "från"
+
+msgid "high"
+msgstr "högsta"
+
+msgid "hl2"
+msgstr ""
+
+msgid "hlc3"
+msgstr ""
+
+msgid "hlcc4"
+msgstr ""
+
+msgid "https://…"
+msgstr ""
+
+msgid "in use"
+msgstr "används"
+
+msgid "in {0} weeks"
+msgstr "om {0} veckor"
+
+msgid "in {n} days"
+msgstr "om {n} dagar"
+
+msgid "log"
+msgstr "log"
+
+msgid "low"
+msgstr "lägsta"
+
+msgid "macOS asks once. If Opentern isn't allowed, turn it on here, then try again."
+msgstr "macOS frågar en gång. Om Opentern inte är tillåtet, slå på det här och försök igen."
+
+msgid "ohlc4"
+msgstr ""
+
+msgid "open"
+msgstr "öppning"
+
+msgid "sell"
+msgstr "sälj"
+
+msgid "to"
+msgstr "till"
+
+#, message
+msgid "view to {0}"
+msgstr "vy till {0}"
+
+msgid "vs 200 SMA"
+msgstr "mot SMA 200"
+
+msgid "vs 50 SMA"
+msgstr "mot SMA 50"
+
+msgid "vs SMA 200 %"
+msgstr "mot SMA 200 %"
+
+msgid "vs SMA 50 %"
+msgstr "mot SMA 50 %"
+
+msgid "your other device"
+msgstr "din andra enhet"
+
+msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
+msgstr "{0}\nKapital  {1}\nKöp och behåll  {2}\nNedgång  {3}"
+
+msgid "{0}\nNo new price for {1}"
+msgstr "{0}\nInget nytt pris på {1}"
+
+msgid "{0}\n{1}% of the map\n{2}: {3}"
+msgstr "{0}\n{1} % av kartan\n{2}: {3}"
+
+msgid "{0}   Move to section"
+msgstr "{0}   Flytta till avsnitt"
+
+msgid "{0}  (default)"
+msgstr "{0}  (standard)"
+
+msgid "{0}  Add a watchlist"
+msgstr "{0}  Lägg till en bevakningslista"
+
+msgid "{0}  Back"
+msgstr "{0}  Tillbaka"
+
+msgid "{0}  Not on the chart"
+msgstr "{0}  Inte i diagrammet"
+
+msgid "{0}  On the chart"
+msgstr "{0}  I diagrammet"
+
+msgid "{0}  Saving replaces the template with this name."
+msgstr "{0}  Om du sparar ersätts mallen med det namnet."
+
+msgid "{0}  Search symbols to add"
+msgstr "{0}  Sök symboler att lägga till"
+
+msgid "{0}  insert"
+msgstr "{0}  infoga"
+
+msgid "{0} ({1})\n{bars} bars, {time}"
+msgstr "{0} ({1})\n{bars} staplar, {time}"
+
+msgid "{0} MB of prices on this computer"
+msgstr "{0} MB priser på den här datorn"
+
+msgid "{0} alerts fired"
+msgstr "{0} larm utlöstes"
+
+#, message
+msgid "{0} bars aren't available for this symbol."
+msgstr "{0}-staplar finns inte för symbolen."
+
+#, message
+msgid "{0} bars aren't available for {1}."
+msgstr "{0}-staplar finns inte för {1}."
+
+#, message
+msgid "{0} comparison"
+msgstr "jämförelse med {0}"
+
+msgid "{0} contracts"
+msgstr "{0} kontrakt"
+
+msgid "{0} copy"
+msgstr "{0} kopia"
+
+msgid "{0} days"
+msgstr "{0} dagar"
+
+msgid "{0} h {1} min"
+msgstr "{0} h {1} min"
+
+#, message
+msgid "{0} has no values to try."
+msgstr "{0} har inga värden att prova."
+
+#, message
+msgid "{0} has unsaved changes: close again to discard them."
+msgstr "{0} har osparade ändringar: stäng igen för att kasta dem."
+
+msgid "{0} isn't installed"
+msgstr "{0} är inte installerat"
+
+msgid "{0} min"
+msgstr "{0} min"
+
+msgid "{0} per contract"
+msgstr "{0} per kontrakt"
+
+msgid "{0} per order"
+msgstr "{0} per order"
+
+#, message
+msgid "{0} runs in {took}."
+msgstr "{0} körningar på {took}."
+
+msgid "{0} steps"
+msgstr "{0} steg"
+
+msgid "{0} symbols"
+msgstr "{0} symboler"
+
+#, message
+msgid "{0} symbols in {took}."
+msgstr "{0} symboler på {took}."
+
+#, message
+msgid "{0} symbols in {took}; {1} couldn't run."
+msgstr "{0} symboler på {took}; {1} kunde inte köras."
+
+#, message
+msgid "{0} windows in {took}."
+msgstr "{0} fönster på {took}."
+
+msgid "{0} {1} {2} at {3}"
+msgstr "{0} {1} {2} för {3}"
+
+#, message
+msgid "{0} {p}. Paste it into a folder with Ctrl+V."
+msgstr "{0} {p}. Klistra in det i en mapp med Ctrl+V."
+
+msgid "{0} · {1} symbols"
+msgstr "{0} · {1} symboler"
+
+msgid "{0} — properties"
+msgstr "{0} — egenskaper"
+
+msgid "{0}% of equity"
+msgstr "{0} % av kapitalet"
+
+msgid "{0}% opacity"
+msgstr "{0} % opacitet"
+
+#, message
+msgid "{0}, base {1}."
+msgstr "{0}, bas {1}."
+
+msgid "{0}-day limit"
+msgstr "{0}-dagarsgräns"
+
+msgid "{0}-hour limit"
+msgstr "{0}-timmarsgräns"
+
+msgid "{0}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit."
+msgstr "{0}: Yahoo har inte längre symbolen; den kan ha bytt namn eller avnoterats. Den räknas med sitt senaste pris. Ersätt den med Redigera."
+
+#, message
+msgid "{0}: any alert() call"
+msgstr "{0}: valfritt alert()-anrop"
+
+msgid "{0}: {1}% used"
+msgstr "{0}: {1} % använt"
+
+msgid "{0}d ago"
+msgstr "{0} d sedan"
+
+msgid "{0}h ago"
+msgstr "{0} h sedan"
+
+msgid "{0}m ago"
+msgstr "{0} min sedan"
+
+msgid "{0}px"
+msgstr ""
+
+msgid "{0}{plus} mo"
+msgstr "{0}{plus} mån"
+
+#, message
+msgid "{GONE}. It may have been renamed or delisted."
+msgstr "{GONE}. Den kan ha bytt namn eller avnoterats."
+
+#, message
+msgid "{account}: Bought {qty} {sym} at {price}"
+msgstr "{account}: köpte {qty} {sym} för {price}"
+
+#, message
+msgid "{account}: Sold {qty} {sym} at {price}"
+msgstr "{account}: sålde {qty} {sym} för {price}"
+
+msgid "{bars} bars, {time}"
+msgstr "{bars} staplar, {time}"
+
+msgid "{combos} combinations: too many for every combination. Use Random or Bayesian."
+msgstr "{combos} kombinationer: för många för att prova alla. Använd Slumpmässig eller Bayesiansk."
+
+#, message
+msgid "{dir} already has a {0}."
+msgstr "{dir} har redan {0}."
+
+#, message
+msgid "{dir} isn't empty: move or delete what's in it first."
+msgstr "{dir} är inte tom: flytta eller ta bort innehållet först."
+
+#, message
+msgid "{done} of {0} done…"
+msgstr "{done} av {0} klara…"
+
+#, message
+msgid "{e} Left out of the index."
+msgstr "{e} Utelämnad ur indexet."
+
+#, message
+msgid "{fe} no longer trades {fd}"
+msgstr "{fe} handlar inte längre {fd}"
+
+#, message
+msgid "{file} is a library."
+msgstr "{file} är ett bibliotek."
+
+#, message
+msgid "{file} isn't a script"
+msgstr "{file} är inget skript"
+
+#, message
+msgid "{file} isn't in the scripts folder"
+msgstr "{file} finns inte i skriptmappen"
+
+#, message
+msgid "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+msgstr "{file} importerades, och Python har full åtkomst till datorn. Tryck på Kör igen om du litar på det."
+
+#, message
+msgid "{file} was imported. To run it, open it in the Script Editor and press Run."
+msgstr "{file} importerades. Öppna det i Skriptredigeraren och tryck på Kör för att köra det."
+
+msgid "{left} left"
+msgstr "{left} kvar"
+
+msgid "{m}-minute limit"
+msgstr "{m}-minutersgräns"
+
+#, message
+msgid "{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again."
+msgstr "{name} är inte inloggat. Kör {cmd} en gång i en terminal för att logga in och försök sedan igen."
+
+#, message
+msgid "{name} stopped unexpectedly. Send your message again to pick up where it left off."
+msgstr "{name} avslutades oväntat. Skicka meddelandet igen för att fortsätta där det slutade."
+
+#, message
+msgid "{name} stopped: {err}"
+msgstr "{name} avslutades: {err}"
+
+#, message
+msgid "{n} alerts fired while Opentern was closed"
+msgstr "{n} larm utlöstes medan Opentern var stängt"
+
+msgid "{n} charts"
+msgstr "{n} diagram"
+
+msgid "{n} days"
+msgstr "{n} dagar"
+
+#, message
+msgid "{n} drawings"
+msgstr "{n} ritningar"
+
+msgid "{n} hours"
+msgstr "{n} timmar"
+
+msgid "{n} minutes"
+msgstr "{n} minuter"
+
+msgid "{n} months"
+msgstr "{n} månader"
+
+msgid "{n} seconds"
+msgstr "{n} sekunder"
+
+msgid "{n} symbols"
+msgstr "{n} symboler"
+
+msgid "{n} weeks"
+msgstr "{n} veckor"
+
+msgid "{n}{plus} yr"
+msgstr "{n}{plus} år"
+
+msgid "{n}{plus} yrs"
+msgstr "{n}{plus} år"
+
+msgid "{p} runs of {combos} combinations on the chart's {n} bars."
+msgstr "{p} körningar av {combos} kombinationer på diagrammets {n} staplar."
+
+msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} staplar, {time}"
+
+msgid "{state} · {0} · fired {1}×"
+msgstr "{state} · {0} · utlöst {1}×"
+
+#, message
+msgid "{study}: any alert() call"
+msgstr "{study}: valfritt alert()-anrop"
+
+msgid "{text}\n{0}\nEarlier prices adjusted"
+msgstr "{text}\n{0}\nTidigare priser justerade"
+
+msgid "{tip}\nClick to put the best of these on the chart"
+msgstr "{tip}\nKlicka för att använda de bästa i diagrammet"
+
+msgid "{tip} {0} at {1}"
+msgstr "{tip} {0} vid {1}"
+
+#, message
+msgid "{title} {0} the price"
+msgstr "{title} {0} priset"
+
+msgid "{unsaved} scripts have unsaved changes. Save them to include them."
+msgstr "{unsaved} skript har osparade ändringar. Spara dem för att ta med dem."
+
+msgid "{what} placed."
+msgstr "{what}: lagd."
+
+msgid "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
+msgstr "{what}, och Python har full åtkomst till datorn. Inget körs förrän du trycker på Kör i Skriptredigeraren."
+
+msgid "{w} windows × {p} runs on the chart's {n} bars."
+msgstr "{w} fönster × {p} körningar på diagrammets {n} staplar."
+
+msgid "{w}px"
+msgstr ""

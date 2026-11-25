@@ -3,6 +3,7 @@
 
 use crate::app::App;
 use crate::chart::{Chart, StudyLook};
+use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::multi::{Grid, LayoutState};
 use crate::theme::Theme;
@@ -55,7 +56,7 @@ impl App {
             c.add_study(v, &v.default_inputs(), StudyLook::defaults(v), None);
         }
         let n = self.store.layouts().len() + 1;
-        self.layout_name = format!("Layout {n}");
+        self.layout_name = trf!("Layout {n}");
         let state = LayoutState {
             version: 2,
             grid: Grid::One,
@@ -73,7 +74,7 @@ impl App {
 
     pub fn copy_layout(&mut self) {
         self.save_layout_now();
-        let name = format!("{} copy", self.layout_name);
+        let name = trf!("{} copy", self.layout_name);
         if let Ok(id) = self.store.create_layout(&name, &self.chart_json()) {
             self.layout_id = id;
             self.layout_name = name;
@@ -91,7 +92,7 @@ impl App {
         use crate::widgets as w;
         ui.set_width(270.0);
         ui.spacing_mut().item_spacing.y = 1.0;
-        w::menu_heading(ui, t, "THIS LAYOUT");
+        w::menu_heading(ui, t, tr("THIS LAYOUT"));
         let id = ui.id().with("rename");
         let mut name: String = ui.data(|d| d.get_temp(id)).unwrap_or_else(|| self.layout_name.clone());
         ui.add_space(3.0);
@@ -100,21 +101,21 @@ impl App {
             let can = !name.trim().is_empty() && name.trim() != self.layout_name;
             let r = ui.add(w::field(&mut name).desired_width(ui.available_width() - 100.0));
             let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if (w::button(ui, w::Kind::Secondary, can, None, "Rename").clicked() || enter) && can {
+            if (w::button(ui, w::Kind::Secondary, can, None, tr("Rename")).clicked() || enter) && can {
                 self.rename_layout(name.trim());
             }
         });
         ui.add_space(4.0);
         ui.data_mut(|d| d.insert_temp(id, name));
-        if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save layout", "", false).clicked() {
+        if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), tr("Save layout"), "", false).clicked() {
             self.save_layout_now();
             ui.close();
         }
-        if w::menu_item(ui, t, Some(ph::COPY), "Make a copy", "", false).clicked() {
+        if w::menu_item(ui, t, Some(ph::COPY), tr("Make a copy"), "", false).clicked() {
             self.copy_layout();
             ui.close();
         }
-        if w::menu_item(ui, t, Some(ph::FILE_PLUS), "New layout", "", false).clicked() {
+        if w::menu_item(ui, t, Some(ph::FILE_PLUS), tr("New layout"), "", false).clicked() {
             self.new_layout();
             ui.close();
         }
@@ -123,7 +124,7 @@ impl App {
         let mut delete = None;
         if others.len() > 1 {
             w::menu_rule(ui, t);
-            w::menu_heading(ui, t, "OPEN LAYOUT");
+            w::menu_heading(ui, t, tr("OPEN LAYOUT"));
             for l in others.iter() {
                 let on = l.id == self.layout_id;
                 let resp = w::menu_item(ui, t, Some(ph::LAYOUT), &l.name, "", on);
@@ -143,7 +144,7 @@ impl App {
                             if b.hovered() { t.neg } else { t.text3 },
                         );
                     }
-                    if b.on_hover_text("Delete layout").clicked() {
+                    if b.on_hover_text(tr("Delete layout")).clicked() {
                         delete = Some(l.id);
                     } else if resp.clicked() {
                         open = Some(l.id);

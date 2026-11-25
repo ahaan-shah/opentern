@@ -6,6 +6,7 @@
 //! rows.
 
 use crate::app::App;
+use crate::i18n::{nt, tr, trf, trm};
 use crate::theme::{self, Theme};
 use egui::{Align2, CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_data::Request;
@@ -46,7 +47,7 @@ impl App {
         let sym = self.chart.symbol.id.clone();
         let last = self.last_price(&sym);
         let Some(last) = last else {
-            self.paper.status = "No price yet for this symbol.".into();
+            self.paper.status = nt!("No price yet for this symbol.").into();
             return;
         };
         // Below the market a buy is a limit, above it a stop (and the other
@@ -65,10 +66,10 @@ impl App {
             take_profit: None,
             stop_loss: None,
         };
-        let what = format!(
+        let what = trf!(
             "{} {} {} at {}",
-            if buy { "Buy" } else { "Sell" },
-            kind.name().to_lowercase(),
+            if buy { tr("Buy") } else { tr("Sell") },
+            crate::paper::order_name(kind.name()).to_lowercase(),
             self.dom.qty,
             crate::format::price(price, self.chart.symbol.precision())
         );
@@ -78,7 +79,7 @@ impl App {
             .place(ticket, Some(last), jiff::Timestamp::now().as_millisecond())
         {
             Ok(_) => {
-                self.paper.status = format!("{what} placed.");
+                self.paper.status = trf!("{what} placed.");
                 self.save_paper_now();
             }
             Err(e) => self.paper.status = e,
@@ -115,17 +116,17 @@ impl App {
                         .speed(0.1)
                         .max_decimals(6),
                 );
-                ui.label(egui::RichText::new("Qty").color(t.text3));
+                ui.label(egui::RichText::new(tr("Qty")).color(t.text3));
             });
         });
         ui.add_space(4.0);
         let book = match &self.dom.book {
             None => {
-                ui.label(egui::RichText::new("Loading…").color(t.text3));
+                ui.label(egui::RichText::new(tr("Loading…")).color(t.text3));
                 return;
             }
             Some(Err(e)) => {
-                ui.label(egui::RichText::new(e).color(t.text3));
+                ui.label(egui::RichText::new(trm(e)).color(t.text3));
                 return;
             }
             Some(Ok(b)) => b.clone(),
@@ -148,7 +149,7 @@ impl App {
                 Some(a)
             })
             .collect();
-        let head = ["Buy", "Bid", "Price", "Ask", "Sell"];
+        let head = [tr("Buy"), tr("Bid"), tr("Price"), tr("Ask"), tr("Sell")];
         let (hr, _) = ui.allocate_exact_size(vec2(w, ROW_H), Sense::hover());
         for (k, h) in head.iter().enumerate() {
             ui.painter().text(
@@ -257,13 +258,9 @@ impl App {
                         egui::StrokeKind::Inside,
                     );
                 }
-                let tip = if buy { "Buy" } else { "Sell" };
+                let tip = if buy { tr("Buy") } else { tr("Sell") };
                 if resp
-                    .on_hover_text(format!(
-                        "{tip} {} at {}",
-                        self.dom.qty,
-                        crate::format::price(price, prec)
-                    ))
+                    .on_hover_text(trf!("{tip} {} at {}", self.dom.qty, crate::format::price(price, prec)))
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .clicked()
                 {
@@ -291,7 +288,7 @@ impl App {
         }
         if !self.paper.status.is_empty() {
             ui.add_space(4.0);
-            ui.label(egui::RichText::new(&self.paper.status).color(t.text3).size(11.5));
+            ui.label(egui::RichText::new(trm(&self.paper.status)).color(t.text3).size(11.5));
         }
     }
 }

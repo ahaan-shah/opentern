@@ -2,6 +2,7 @@
 //! TradingView's list). Picked from the clock in the range bar or in Chart
 //! settings → Symbol.
 
+use crate::i18n::tr;
 use egui::Ui;
 use jiff::tz::TimeZone;
 
@@ -117,9 +118,9 @@ pub fn city(name: &str) -> &str {
 /// What the choice is called in menus and buttons.
 pub fn choice_name(c: &TimeZoneChoice) -> String {
     match c {
-        TimeZoneChoice::Exchange => "Exchange".into(),
+        TimeZoneChoice::Exchange => tr("Exchange").into(),
         TimeZoneChoice::Utc => "UTC".into(),
-        TimeZoneChoice::Local => "Local".into(),
+        TimeZoneChoice::Local => tr("Local").into(),
         TimeZoneChoice::Zone(z) => city(z).to_string(),
     }
 }
@@ -130,7 +131,7 @@ pub fn choice_name(c: &TimeZoneChoice) -> String {
 pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice, exchange: &TimeZone) -> bool {
     let mut changed = false;
     let mut query: String = ui.data(|d| d.get_temp(id)).unwrap_or_default();
-    let r = w::search_field(ui, t, &mut query, "Search", ui.available_width());
+    let r = w::search_field(ui, t, &mut query, tr("Search"), ui.available_width());
     if !r.has_focus() && query.is_empty() && ui.memory(|m| m.focused().is_none()) {
         r.request_focus();
     }
@@ -156,9 +157,9 @@ pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice
         ui.spacing_mut().item_spacing.y = 1.0;
         let mut any = false;
         let fixed = [
-            (TimeZoneChoice::Exchange, "Exchange", offset_label(exchange)),
+            (TimeZoneChoice::Exchange, tr("Exchange"), offset_label(exchange)),
             (TimeZoneChoice::Utc, "UTC", "UTC".to_string()),
-            (TimeZoneChoice::Local, "Local", offset_label(&TimeZone::system())),
+            (TimeZoneChoice::Local, tr("Local"), offset_label(&TimeZone::system())),
         ];
         for (choice, label, offset) in fixed {
             if hit(label, "", &offset) {
@@ -184,7 +185,7 @@ pub fn picker(ui: &mut Ui, t: &Theme, id: egui::Id, current: &mut TimeZoneChoice
         }
         if !any && cities.is_empty() {
             ui.add_space(8.0);
-            ui.vertical_centered(|ui| ui.label(egui::RichText::new("No matches").color(t.text3)));
+            ui.vertical_centered(|ui| ui.label(egui::RichText::new(tr("No matches")).color(t.text3)));
             ui.add_space(8.0);
         }
     });

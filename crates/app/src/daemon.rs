@@ -150,6 +150,7 @@ pub fn run(dir: PathBuf, demo: bool) -> i32 {
     if !background_on(&store) {
         return 0;
     }
+    crate::i18n::set(crate::i18n::Lang::saved(&store));
     let scripts = crate::settings::Folders::load(&store)
         .scripts
         .unwrap_or_else(|| dir.join("scripts"));

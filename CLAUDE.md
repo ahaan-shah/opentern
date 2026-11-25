@@ -29,6 +29,7 @@ refers to a section of `docs/design.md`.
 | `docs/notes/markets.md` | Market overview, custom indices, Seasonality |
 | `docs/notes/agents.md` | The agent panel: Claude Code and Codex protocols, tools, look, attachments, sign-in, accounts |
 | `docs/notes/transfer-security.md` | Export and import, device handoff, untrusted-input rules, fuzzing, cargo-deny |
+| `docs/notes/i18n.md` | Languages: how text is translated, catalogs, fonts, adding a text or a language |
 | `docs/notes/release.md` | CI and packaging, website and screenshots, the release checklist |
 | `docs/indicators.md`, `docs/ta-semantics.md`, `docs/metrics.md`, `docs/scripting.md`, `docs/ui-backlog.md`, `docs/ideas.md` | Built-in status, `ta.*` semantics, report formulas, the script API, UI backlog, future ideas |
 | `CHANGELOG.md` | Release history |
@@ -64,6 +65,10 @@ refers to a section of `docs/design.md`.
   `opentern_core::config_dir()` keeps it from showing again on that
   computer, in any workspace. Don't add
   either unless asked.
+- **The interface is translated** (the maintainer, 25 Nov 2026): wrap every new text
+  (`tr`, `trf!`; `nt!`/`msg!` when stored) and update the catalogs. English is the key;
+  user's names, scripts, tickers and everything the agent reads stay as they are.
+  Read `docs/notes/i18n.md` first.
 - **Every standard TradingView built-in ships by default**, plus licence-checked
   open-source community scripts. They're ported from Pine to Rust with exact numerical
   parity (§6a).
@@ -151,6 +156,7 @@ crates/series    opentern-series  series runtime: bar-by-bar execution model, St
 crates/pine      opentern-pine    native Pine v5/v6 engine: lexer → parser → type check → bytecode VM on opentern-series
 crates/script    opentern-script  language hosts: Python (subprocess), Luau (mlua), JS/TS (rquickjs); WASM skipped for now
 crates/engine    opentern-engine  backtester, paper broker, optimizer, alert evaluator
+crates/i18n-macros               `trf!`, the translated `format!`
 crates/app       opentern         egui app: chart engine, panels, editor, strategy tester
 python/opentern  pip SDK          the Python side of the script protocol (vectorized + on_bar APIs)
 ```
@@ -271,7 +277,7 @@ MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer rand
 Stills also take `compare:<ticker>:scale|pane`, `measure` (a quick measure once
 bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
 maximized), `trades` (Strategy Report → List of trades), `gradient` (gradient canvas), `replay:play` (a replay under way) and
-`settings:<general|chart|providers|shortcuts|about>` (add `scroll-end` to start at the bottom).
+`lang:<code>` (e.g. `lang:ja`) and `settings:<general|chart|providers|shortcuts|about>` (add `scroll-end` to start at the bottom).
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
 data): use it for interaction tests. `OPENTERN_STILL=indicators|symbol|chart-settings|
 study:<id>|save-template` opens a dialog at launch for screenshots; `script:<file>` puts a

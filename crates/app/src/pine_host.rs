@@ -5,6 +5,7 @@
 
 use crate::app::App;
 use crate::chart::StudyLook;
+use crate::i18n::{msg, nt};
 use crate::scripting::Lang;
 use opentern_core::AssetKind;
 use opentern_pine::{Env, Kind, PineStudy};
@@ -145,14 +146,14 @@ pub(crate) fn instance_for_file(
     sym: &opentern_core::Symbol,
     inputs: &opentern_series::study::Inputs,
 ) -> Result<Instance, String> {
-    let lang = Lang::of(file).ok_or_else(|| format!("{file} isn't a script"))?;
+    let lang = Lang::of(file).ok_or_else(|| msg!("{file} isn't a script"))?;
     if !lang.in_process() {
-        return Err("Python scripts' alerts need Opentern open.".into());
+        return Err(nt!("Python scripts' alerts need Opentern open.").into());
     }
     if !opentern_core::transfer::stays_inside(file) {
-        return Err(format!("{file} isn't in the scripts folder"));
+        return Err(msg!("{file} isn't in the scripts folder"));
     }
-    let src = std::fs::read_to_string(dir.join(file)).map_err(|e| format!("Couldn't read {file}: {e}"))?;
+    let src = std::fs::read_to_string(dir.join(file)).map_err(|e| msg!("Couldn't read {file}: {e}"))?;
     let compiled = match lang {
         Lang::Pine => {
             let env = Env {
@@ -168,7 +169,7 @@ pub(crate) fn instance_for_file(
             .map_err(|e| e.to_string())?,
     };
     if compiled.kind() == Kind::Library {
-        return Err(format!("{file} is a library."));
+        return Err(msg!("{file} is a library."));
     }
     Ok(Instance::with_factory(compiled.meta(), inputs, compiled.factory()))
 }
@@ -218,7 +219,7 @@ impl App {
         let src = match std::fs::read_to_string(&path) {
             Ok(s) => s,
             Err(e) => {
-                run.compile_error = Some(format!("Couldn't read {}: {e}", run.file));
+                run.compile_error = Some(msg!("Couldn't read {}: {e}", run.file));
                 run.error = run.compile_error.clone();
                 return;
             }
@@ -262,7 +263,7 @@ impl App {
         };
         let run = &mut self.scripts[i];
         if script.kind() == Kind::Library {
-            run.compile_error = Some("This is a library: import it from another script.".into());
+            run.compile_error = Some(nt!("This is a library: import it from another script.").into());
             run.error = run.compile_error.clone();
             return;
         }

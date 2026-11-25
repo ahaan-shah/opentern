@@ -17,6 +17,7 @@ macro_rules! shortcut {
     };
 }
 
+use crate::i18n::tr;
 mod alerts;
 mod app;
 mod chart;
@@ -29,6 +30,7 @@ mod drawbar;
 mod editor;
 mod feeds;
 mod format;
+mod i18n;
 mod icons;
 mod indices;
 mod lab;
@@ -286,7 +288,7 @@ fn fatal(msg: &str) -> ! {
             .unwrap_or_default();
         let _ = rfd::MessageDialog::new()
             .set_level(rfd::MessageLevel::Error)
-            .set_title("Opentern couldn't start")
+            .set_title(tr("Opentern couldn't start"))
             .set_description(format!("{msg}{log}"))
             .set_buttons(rfd::MessageButtons::Ok)
             .show();

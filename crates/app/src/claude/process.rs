@@ -4,6 +4,7 @@
 //! (`--permission-prompt-tool stdio`), and the app's own tools are an
 //! in-process MCP server the CLI reaches over the same pipe (`mcp_message`).
 
+use crate::i18n::{nt, tr, trf};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use serde_json::{Value, json};
 use std::io::{BufRead, BufReader, Read, Write};
@@ -566,7 +567,7 @@ pub fn parse(v: &Value) -> Vec<Event> {
             let message = if !error {
                 String::new()
             } else if s("subtype") == "error_during_execution" {
-                "Stopped.".to_string()
+                nt!("Stopped.").to_string()
             } else {
                 let r = s("result");
                 if r.is_empty() {
@@ -643,19 +644,19 @@ fn order(name: &str) -> u8 {
 pub fn window_name(name: &str) -> String {
     if let Some(m) = name.strip_prefix('w').and_then(|m| m.parse::<i64>().ok()) {
         return match m {
-            300 => "5-hour limit".into(),
-            10080 => "Weekly limit".into(),
-            43200 => "Monthly limit".into(),
-            m if m % 1440 == 0 => format!("{}-day limit", m / 1440),
-            m if m % 60 == 0 => format!("{}-hour limit", m / 60),
-            m => format!("{m}-minute limit"),
+            300 => tr("5-hour limit").into(),
+            10080 => tr("Weekly limit").into(),
+            43200 => tr("Monthly limit").into(),
+            m if m % 1440 == 0 => trf!("{}-day limit", m / 1440),
+            m if m % 60 == 0 => trf!("{}-hour limit", m / 60),
+            m => trf!("{m}-minute limit"),
         };
     }
     match name {
-        "five_hour" => "5-hour limit".into(),
-        "seven_day" => "Weekly limit".into(),
-        "seven_day_opus" => "Weekly (Opus)".into(),
-        "seven_day_sonnet" => "Weekly (Sonnet)".into(),
+        "five_hour" => tr("5-hour limit").into(),
+        "seven_day" => tr("Weekly limit").into(),
+        "seven_day_opus" => tr("Weekly (Opus)").into(),
+        "seven_day_sonnet" => tr("Weekly (Sonnet)").into(),
         other => other.replace('_', " "),
     }
 }

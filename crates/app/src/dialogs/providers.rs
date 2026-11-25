@@ -4,6 +4,7 @@
 
 use super::{Done, frame};
 use crate::app::App;
+use crate::i18n::{msg, nt, tr, trm};
 use crate::theme::Theme;
 use egui::Ui;
 use opentern_core::secrets;
@@ -109,7 +110,7 @@ impl App {
 
 fn secret_field(ui: &mut Ui, value: &mut String, saved: bool, hint: &str) {
     let hint = if saved {
-        "Saved in your keychain (paste to replace)"
+        tr("Saved in your keychain (paste to replace)")
     } else {
         hint
     };
@@ -129,30 +130,32 @@ impl Providers {
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
         let mut done = Done::Keep;
         let max_h = (ui.ctx().content_rect().height() - 190.0).max(200.0);
-        let close = frame(ui, t, "Data providers", 480.0, |ui| {
+        let close = frame(ui, t, tr("Data providers"), 480.0, |ui| {
             note(
                 ui,
                 t,
-                "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
+                tr(
+                    "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
                  that needs an account. Keys stay in your system keychain.",
+                ),
             );
             egui::ScrollArea::vertical()
                 .max_height(max_h)
                 .show(ui, |ui| self.fields(ui, t));
             if !self.error.is_empty() {
                 ui.add_space(4.0);
-                ui.label(egui::RichText::new(&self.error).color(t.neg));
+                ui.label(egui::RichText::new(trm(&self.error)).color(t.neg));
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if crate::widgets::primary(ui, "Save").clicked() {
+                    if crate::widgets::primary(ui, tr("Save")).clicked() {
                         match self.save(app) {
                             Ok(()) => done = Done::Close,
                             Err(e) => self.error = e,
                         }
                     }
-                    if crate::widgets::secondary(ui, "Cancel").clicked() {
+                    if crate::widgets::secondary(ui, tr("Cancel")).clicked() {
                         done = Done::Close;
                     }
                 });
@@ -172,64 +175,68 @@ impl Providers {
         let form_row = |ui: &mut Ui, t: &Theme, label: &str, control: &mut dyn FnMut(&mut Ui)| {
             super::form_row_w(ui, t, lw, label, |ui| control(ui))
         };
-        super::section_beta(ui, t, "Alpaca · US stocks");
+        super::section_beta(ui, t, tr("Alpaca · US stocks"));
         note(
             ui,
             t,
-            "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys.",
+            tr("Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."),
         );
-        form_row(ui, t, "Key ID", &mut |ui| {
+        form_row(ui, t, tr("Key ID"), &mut |ui| {
             secret_field(ui, &mut self.alpaca_key, self.have[0], "PK…")
         });
-        form_row(ui, t, "Secret key", &mut |ui| {
+        form_row(ui, t, tr("Secret key"), &mut |ui| {
             secret_field(ui, &mut self.alpaca_secret, self.have[1], "")
         });
-        form_row(ui, t, "Feed", &mut |ui| {
-            crate::widgets::checkbox(ui, &mut self.alpaca_sip, "My plan includes SIP")
-                .on_hover_text("SIP: prices from all US exchanges, not just IEX");
+        form_row(ui, t, tr("Feed"), &mut |ui| {
+            crate::widgets::checkbox(ui, &mut self.alpaca_sip, tr("My plan includes SIP"))
+                .on_hover_text(tr("SIP: prices from all US exchanges, not just IEX"));
         });
-        super::section_beta(ui, t, "OANDA · forex and CFDs");
+        super::section_beta(ui, t, tr("OANDA · forex and CFDs"));
         note(
             ui,
             t,
-            "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD.",
+            tr("Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."),
         );
-        form_row(ui, t, "API token", &mut |ui| {
+        form_row(ui, t, tr("API token"), &mut |ui| {
             secret_field(ui, &mut self.oanda_token, self.have[2], "")
         });
-        form_row(ui, t, "Account ID", &mut |ui| {
+        form_row(ui, t, tr("Account ID"), &mut |ui| {
             ui.add(
                 crate::widgets::field(&mut self.oanda_account)
                     .hint_text("101-…")
                     .desired_width(ui.available_width().min(260.0)),
             );
         });
-        form_row(ui, t, "Account", &mut |ui| {
-            crate::widgets::radio(ui, &mut self.oanda_live, false, "Practice");
-            crate::widgets::radio(ui, &mut self.oanda_live, true, "Live");
+        form_row(ui, t, tr("Account"), &mut |ui| {
+            crate::widgets::radio(ui, &mut self.oanda_live, false, tr("Practice"));
+            crate::widgets::radio(ui, &mut self.oanda_live, true, tr("Live"));
         });
-        super::section_beta(ui, t, "Upstox · NSE and BSE");
+        super::section_beta(ui, t, tr("Upstox · NSE and BSE"));
         note(
             ui,
             t,
-            "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste \
+            tr(
+                "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste \
                  its access token (it lasts until the next morning).",
+            ),
         );
-        form_row(ui, t, "Access token", &mut |ui| {
+        form_row(ui, t, tr("Access token"), &mut |ui| {
             secret_field(ui, &mut self.upstox_token, self.have[3], "")
         });
-        super::section_beta(ui, t, "Interactive Brokers");
+        super::section_beta(ui, t, tr("Interactive Brokers"));
         note(
             ui,
             t,
-            "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR \
+            tr(
+                "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR \
                  market-data subscriptions.",
+            ),
         );
-        form_row(ui, t, "Use the gateway", &mut |ui| {
+        form_row(ui, t, tr("Use the gateway"), &mut |ui| {
             crate::widgets::checkbox(ui, &mut self.ibkr_on, "");
         });
         if self.ibkr_on {
-            form_row(ui, t, "Gateway URL", &mut |ui| {
+            form_row(ui, t, tr("Gateway URL"), &mut |ui| {
                 ui.add(crate::widgets::field(&mut self.ibkr_url).desired_width(ui.available_width().min(260.0)));
             });
         }
@@ -240,8 +247,10 @@ impl Providers {
         note(
             ui,
             t,
-            "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
+            tr(
+                "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source \
              that needs an account. Keys stay in your system keychain.",
+            ),
         );
         let before = (
             self.alpaca_key.clone(),
@@ -262,7 +271,7 @@ impl Providers {
         }
         ui.add_space(12.0);
         ui.horizontal(|ui| {
-            if crate::widgets::primary(ui, "Save").clicked() {
+            if crate::widgets::primary(ui, tr("Save")).clicked() {
                 match self.save(app) {
                     Ok(()) => {
                         self.saved = true;
@@ -272,16 +281,15 @@ impl Providers {
                 }
             }
             if !self.error.is_empty() {
-                ui.label(egui::RichText::new(&self.error).color(t.neg));
+                ui.label(egui::RichText::new(trm(&self.error)).color(t.neg));
             } else if self.saved {
-                ui.label(egui::RichText::new("Saved.").color(t.text3));
+                ui.label(egui::RichText::new(tr("Saved.")).color(t.text3));
             }
         });
     }
 
     fn save(&mut self, app: &mut App) -> Result<(), String> {
-        let put =
-            |k: &str, v: &str| secrets::set(k, v.trim()).map_err(|e| format!("Couldn't save to your keychain: {e}"));
+        let put = |k: &str, v: &str| secrets::set(k, v.trim()).map_err(|e| msg!("Couldn't save to your keychain: {e}"));
         if !self.alpaca_key.trim().is_empty() {
             put(keys::ALPACA_KEY, &self.alpaca_key)?;
         }
@@ -296,7 +304,7 @@ impl Providers {
         }
         let url = if self.ibkr_on { self.ibkr_url.trim() } else { "" };
         if self.ibkr_on && !url.starts_with("http") {
-            return Err("The gateway URL should look like https://localhost:5000".into());
+            return Err(nt!("The gateway URL should look like https://localhost:5000").into());
         }
         let flag = |b: bool| if b { "1" } else { "0" };
         for (k, v) in [
@@ -305,7 +313,7 @@ impl Providers {
             (OANDA_LIVE, flag(self.oanda_live)),
             (IBKR_URL, url),
         ] {
-            app.store.set_value(k, v).map_err(|e| format!("Couldn't save: {e}"))?;
+            app.store.set_value(k, v).map_err(|e| msg!("Couldn't save: {e}"))?;
         }
         // New keys take effect at once: hand them over and reopen the chart.
         let c = load_credentials(&app.provider_settings());

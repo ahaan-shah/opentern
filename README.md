@@ -136,6 +136,7 @@ choose to add a paid provider.
 
 **Everything else.**
 - 16 themes, 8 light and 8 dark, that crossfade when you switch, and 9 interface fonts.
+- In English, German, Spanish, French, Portuguese, Swedish, Russian, Hindi, Japanese and Simplified Chinese.
 - A screener over any watchlist, with 1-week to 1-year performance columns and an
   optional script column.
 - Watchlists with sections, laid out like TradingView's, plus hotlists (crypto, US

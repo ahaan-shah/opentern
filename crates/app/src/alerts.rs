@@ -7,6 +7,7 @@
 
 use crate::app::App;
 use crate::chart::draw::Tool;
+use crate::i18n::{msg, nt, tr, trf, trm};
 use crate::shell::small_button;
 use crate::theme::{self, Theme};
 use crossbeam_channel::{Sender, unbounded};
@@ -44,10 +45,8 @@ pub fn send_email(e: &EmailTo, password: &str, subject: &str, body: &str) -> Res
     let from = e
         .user
         .parse()
-        .map_err(|_| format!("\"{}\" isn't an email address.", e.user))?;
-    let to =
-        e.to.parse()
-            .map_err(|_| format!("\"{}\" isn't an email address.", e.to))?;
+        .map_err(|_| msg!("\"{}\" isn't an email address.", e.user))?;
+    let to = e.to.parse().map_err(|_| msg!("\"{}\" isn't an email address.", e.to))?;
     let msg = Message::builder()
         .from(from)
         .to(to)
@@ -60,7 +59,7 @@ pub fn send_email(e: &EmailTo, password: &str, subject: &str, body: &str) -> Res
     } else {
         SmtpTransport::starttls_relay(&e.host)
     }
-    .map_err(|err| format!("Couldn't reach {}: {err}", e.host))?;
+    .map_err(|err| msg!("Couldn't reach {}: {err}", e.host))?;
     let mailer = builder
         .port(e.port)
         .credentials(Credentials::new(e.user.clone(), password.to_string()))
@@ -334,6 +333,12 @@ impl Alerts {
         } else {
             opentern_engine::alerts::fill_message(&a.message, &ticker, &exchange, &a.tf, price, &time)
         };
+        // Kept in English, sent in the interface's language.
+        let body = if message == format!("{ticker} — {}", a.condition.summary()) {
+            format!("{ticker} — {}", condition(&a.condition))
+        } else {
+            message.clone()
+        };
         let name = if a.name.is_empty() {
             ticker.clone()
         } else {
@@ -363,7 +368,7 @@ impl Alerts {
             let email = a.email.then(|| email_to(store)).flatten();
             let _ = tx.send(Delivery {
                 title: format!("Opentern: {name}"),
-                body: message,
+                body,
                 notify: a.notify,
                 sound: a.sound,
                 webhook: a.webhook.clone(),
@@ -373,6 +378,40 @@ impl Alerts {
         }
         self.save(store, a);
         f
+    }
+}
+
+/// [`Condition::summary`] in the interface's language.
+pub(crate) fn condition(c: &Condition) -> String {
+    let op = |o: &opentern_engine::alerts::Op| tr(o.name()).to_lowercase();
+    match c {
+        Condition::Price { op: o, value } => trf!("Price {} {}", op(o), num(*value)),
+        Condition::Line { op: o, .. } => trf!("Price {} the line", op(o)),
+        Condition::Plot {
+            title,
+            op: o,
+            value: Some(v),
+            ..
+        } => format!("{title} {} {}", op(o), num(*v)),
+        Condition::Plot { title, op: o, .. } => trf!("{title} {} the price", op(o)),
+        Condition::Script { study, title: None, .. } => trf!("{study}: any alert() call"),
+        Condition::Script { .. } => c.summary(),
+    }
+}
+
+fn num(v: f64) -> String {
+    let s = format!("{v:.8}");
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+/// A fired alert's message as people read it: the default one ("BTCUSDT —
+/// Price crossing 81650") is kept in English and translated here; the
+/// user's own and a script's stay as written.
+pub(crate) fn shown(symbol: &str, message: &str) -> String {
+    let ticker = symbol.rsplit(':').next().unwrap_or(symbol);
+    match message.split_once(" — ") {
+        Some((t, rest)) if t == ticker => format!("{t} — {}", trm(rest)),
+        _ => message.to_string(),
     }
 }
 
@@ -566,7 +605,8 @@ impl App {
             .unwrap_or(f64::NAN);
         let f = self.alerts.fire(&mut self.store, i, price, script_message);
         self.alerts.toasts.push((f.clone(), Instant::now()));
-        self.notify(crate::icons::ph::ALARM, &f.name, &f.message, None, false);
+        let body = shown(&f.symbol, &f.message);
+        self.notify(crate::icons::ph::ALARM, &f.name, &body, None, false);
         self.egui_ctx.request_repaint();
     }
 
@@ -579,9 +619,9 @@ impl App {
         }
         let _ = self.store.set_value(key, "0");
         let title = if n == 1 {
-            "An alert fired while Opentern was closed".to_string()
+            nt!("An alert fired while Opentern was closed").to_string()
         } else {
-            format!("{n} alerts fired while Opentern was closed")
+            msg!("{n} alerts fired while Opentern was closed")
         };
         self.notify(crate::icons::ph::ALARM, &title, "", None, true);
     }
@@ -637,7 +677,11 @@ impl App {
                                 );
                                 ui.label(egui::RichText::new(&f.name).font(theme::semibold(13.0)));
                             });
-                            ui.label(egui::RichText::new(&f.message).color(t.text2).size(12.5));
+                            ui.label(
+                                egui::RichText::new(shown(&f.symbol, &f.message))
+                                    .color(t.text2)
+                                    .size(12.5),
+                            );
                         });
                     if r.response.interact(Sense::click()).clicked() {
                         dismiss = Some(k);
@@ -653,9 +697,9 @@ impl App {
     /// The Alerts widget: every alert, its state, and what it does.
     pub(crate) fn alerts_widget(&mut self, ui: &mut Ui, t: &Theme) {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new("Alerts").font(theme::semibold(14.0)));
+            ui.label(egui::RichText::new(tr("Alerts")).font(theme::semibold(14.0)));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if crate::widgets::tool_button(ui, t, crate::icons::ph::PLUS, "Create alert (Alt+A)", false, 26.0)
+                if crate::widgets::tool_button(ui, t, crate::icons::ph::PLUS, tr("Create alert (Alt+A)"), false, 26.0)
                     .clicked()
                 {
                     self.open_alert_dialog(None);
@@ -664,7 +708,7 @@ impl App {
         });
         ui.add_space(6.0);
         if self.alerts.list.is_empty() {
-            crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, "No alerts yet");
+            crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, tr("No alerts yet"));
             return;
         }
         let mut edit = None;
@@ -681,13 +725,13 @@ impl App {
                     p.rect_filled(r, CornerRadius::same(6), t.hover_wash());
                 }
                 let (state, c) = if a.expired(now) {
-                    ("Expired", t.text3)
+                    (tr("Expired"), t.text3)
                 } else if a.active {
-                    ("Active", t.pos)
+                    (tr("Active"), t.pos)
                 } else if a.fired > 0 && a.freq == Freq::Once {
-                    ("Triggered", t.warn)
+                    (tr("Triggered"), t.warn)
                 } else {
-                    ("Stopped", t.text3)
+                    (tr("Stopped"), t.text3)
                 };
                 p.circle_filled(pos2(r.left() + 10.0, r.top() + 15.0), 4.0, c);
                 let name = if a.name.is_empty() {
@@ -705,13 +749,13 @@ impl App {
                 p.text(
                     pos2(r.left() + 22.0, r.top() + 33.0),
                     Align2::LEFT_CENTER,
-                    a.condition.summary(),
+                    condition(&a.condition),
                     theme::regular(12.0),
                     t.text2,
                 );
                 let (line, c) = match self.alerts.watcher.error(a.id) {
-                    Some(e) if a.active => (e.to_string(), t.warn),
-                    _ => (format!("{state} · {} · fired {}×", a.freq.name(), a.fired), t.text3),
+                    Some(e) if a.active => (trm(e).into_owned(), t.warn),
+                    _ => (trf!("{state} · {} · fired {}×", tr(a.freq.name()), a.fired), t.text3),
                 };
                 p.text(
                     pos2(r.left() + 22.0, r.top() + 48.0),
@@ -724,15 +768,15 @@ impl App {
                     // Pause/resume, edit and delete, on hover.
                     let mut x = r.right() - 4.0;
                     for (glyph, tip, what) in [
-                        (crate::icons::ph::TRASH, "Delete", 2),
-                        (crate::icons::ph::PENCIL_SIMPLE, "Edit", 1),
+                        (crate::icons::ph::TRASH, tr("Delete"), 2),
+                        (crate::icons::ph::PENCIL_SIMPLE, tr("Edit"), 1),
                         (
                             if a.active {
                                 crate::icons::ph::PAUSE
                             } else {
                                 crate::icons::ph::PLAY
                             },
-                            if a.active { "Stop" } else { "Restart" },
+                            if a.active { tr("Stop") } else { tr("Restart") },
                             0,
                         ),
                     ] {
@@ -781,9 +825,9 @@ impl App {
     /// The Alerts log tab.
     pub(crate) fn alert_log_tab(&mut self, ui: &mut Ui, t: &Theme) {
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("{} alerts fired", self.alerts.log.len())).color(t.text2));
+            ui.label(egui::RichText::new(trf!("{} alerts fired", self.alerts.log.len())).color(t.text2));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if !self.alerts.log.is_empty() && small_button(ui, t, "Clear log", false).clicked() {
+                if !self.alerts.log.is_empty() && small_button(ui, t, tr("Clear log"), false).clicked() {
                     if let Err(e) = self.store.clear_alert_log() {
                         crate::diag::crumb(format!("couldn't clear the alert log: {e}"));
                     }
@@ -797,64 +841,72 @@ impl App {
                 ui,
                 t,
                 crate::icons::ph::CLOCK_COUNTER_CLOCKWISE,
-                "Nothing has fired yet",
+                tr("Nothing has fired yet"),
             );
             return;
         }
-        let cols = [("Time", 150.0), ("Alert", 160.0), ("Symbol", 120.0), ("Message", 480.0)];
+        let cols = [
+            (tr("Time"), 150.0),
+            (tr("Alert"), 160.0),
+            (tr("Symbol"), 120.0),
+            (tr("Message"), 480.0),
+        ];
         let w: f32 = cols.iter().map(|c| c.1).sum();
-        let (hr, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-        let mut x = hr.left();
-        for (name, cw) in cols {
-            ui.painter().text(
-                pos2(x + 8.0, hr.center().y),
-                Align2::LEFT_CENTER,
-                name,
-                theme::medium(12.0),
-                t.text3,
-            );
-            x += cw;
-        }
-        ui.painter()
-            .hline(hr.x_range(), hr.bottom(), Stroke::new(1.0, t.border));
-        let tz = self.chart.tz.clone();
-        let n = self.alerts.log.len();
-        egui::ScrollArea::vertical()
-            .id_salt("alert-log")
-            .auto_shrink([false; 2])
-            .show_rows(ui, 24.0, n, |ui, range| {
-                for k in range {
-                    let f = &self.alerts.log[k];
-                    let (r, resp) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-                    if resp.hovered() {
-                        ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
+        // As wide as its columns; scrolls sideways in a narrow panel.
+        egui::ScrollArea::horizontal().id_salt("alert-log-h").show(ui, |ui| {
+            let (hr, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+            let mut x = hr.left();
+            for (name, cw) in cols {
+                ui.painter().text(
+                    pos2(x + 8.0, hr.center().y),
+                    Align2::LEFT_CENTER,
+                    name,
+                    theme::medium(12.0),
+                    t.text3,
+                );
+                x += cw;
+            }
+            ui.painter()
+                .hline(hr.x_range(), hr.bottom(), Stroke::new(1.0, t.border));
+            let tz = self.chart.tz.clone();
+            let n = self.alerts.log.len();
+            egui::ScrollArea::vertical()
+                .id_salt("alert-log")
+                .auto_shrink([false; 2])
+                .show_rows(ui, 24.0, n, |ui, range| {
+                    for k in range {
+                        let f = &self.alerts.log[k];
+                        let (r, resp) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+                        if resp.hovered() {
+                            ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
+                        }
+                        let time = jiff::Timestamp::from_millisecond(f.time)
+                            .map(|ts| ts.to_zoned(tz.clone()).strftime("%Y-%m-%d %H:%M:%S").to_string())
+                            .unwrap_or_default();
+                        let sym = f.symbol.rsplit(':').next().unwrap_or(&f.symbol).to_string();
+                        let cells: [(String, Color32); 4] = [
+                            (time, t.text2),
+                            (f.name.clone(), t.text),
+                            (sym, t.text),
+                            (shown(&f.symbol, &f.message), t.text2),
+                        ];
+                        let mut x = r.left();
+                        for ((_, cw), (text, c)) in cols.iter().zip(cells) {
+                            let cell = egui::Rect::from_min_size(pos2(x, r.top()), vec2(cw - 8.0, 24.0));
+                            ui.painter_at(cell).text(
+                                pos2(x + 8.0, r.center().y),
+                                Align2::LEFT_CENTER,
+                                text,
+                                theme::regular(12.5),
+                                c,
+                            );
+                            x += cw;
+                        }
+                        ui.painter()
+                            .hline(r.x_range(), r.bottom(), Stroke::new(1.0, t.border.gamma_multiply(0.5)));
                     }
-                    let time = jiff::Timestamp::from_millisecond(f.time)
-                        .map(|ts| ts.to_zoned(tz.clone()).strftime("%Y-%m-%d %H:%M:%S").to_string())
-                        .unwrap_or_default();
-                    let sym = f.symbol.rsplit(':').next().unwrap_or(&f.symbol).to_string();
-                    let cells: [(String, Color32); 4] = [
-                        (time, t.text2),
-                        (f.name.clone(), t.text),
-                        (sym, t.text),
-                        (f.message.clone(), t.text2),
-                    ];
-                    let mut x = r.left();
-                    for ((_, cw), (text, c)) in cols.iter().zip(cells) {
-                        let cell = egui::Rect::from_min_size(pos2(x, r.top()), vec2(cw - 8.0, 24.0));
-                        ui.painter_at(cell).text(
-                            pos2(x + 8.0, r.center().y),
-                            Align2::LEFT_CENTER,
-                            text,
-                            theme::regular(12.5),
-                            c,
-                        );
-                        x += cw;
-                    }
-                    ui.painter()
-                        .hline(r.x_range(), r.bottom(), Stroke::new(1.0, t.border.gamma_multiply(0.5)));
-                }
-            });
+                });
+        });
     }
 }
 

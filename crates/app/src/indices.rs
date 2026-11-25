@@ -26,6 +26,7 @@
 
 use crate::app::App;
 use crate::dialogs::{Done, Modal, frame};
+use crate::i18n::{msg, nt, tr, trf, trm};
 use crate::icons::ph;
 use crate::motion::lerp_color;
 use crate::theme::{self, Theme};
@@ -69,9 +70,9 @@ pub enum Weighting {
 impl Weighting {
     pub fn name(self) -> &'static str {
         match self {
-            Weighting::FreeFloat => "Free-float market cap",
-            Weighting::MarketCap => "Full market cap",
-            Weighting::Equal => "Equal weight",
+            Weighting::FreeFloat => nt!("Free-float market cap"),
+            Weighting::MarketCap => nt!("Full market cap"),
+            Weighting::Equal => nt!("Equal weight"),
         }
     }
 }
@@ -283,20 +284,20 @@ impl Metric {
 
     pub fn name(self) -> &'static str {
         match self {
-            Metric::Ret1M => "1M return",
-            Metric::Ret3M => "3M return",
-            Metric::Ret6M => "6M return",
-            Metric::Ret1Y => "1Y return",
+            Metric::Ret1M => nt!("1M return"),
+            Metric::Ret3M => nt!("3M return"),
+            Metric::Ret6M => nt!("6M return"),
+            Metric::Ret1Y => nt!("1Y return"),
             Metric::Pe => "P/E",
-            Metric::EvEbitda => "EV/EBITDA",
-            Metric::RevGrowth => "Revenue growth",
-            Metric::GrossMargin => "Gross margin",
-            Metric::EbitdaMargin => "EBITDA margin",
-            Metric::EbitMargin => "EBIT margin",
-            Metric::PatMargin => "PAT margin",
-            Metric::Rsi => "RSI (14)",
-            Metric::Sma50 => "vs 50 SMA",
-            Metric::Sma200 => "vs 200 SMA",
+            Metric::EvEbitda => nt!("EV/EBITDA"),
+            Metric::RevGrowth => nt!("Revenue growth"),
+            Metric::GrossMargin => nt!("Gross margin"),
+            Metric::EbitdaMargin => nt!("EBITDA margin"),
+            Metric::EbitMargin => nt!("EBIT margin"),
+            Metric::PatMargin => nt!("PAT margin"),
+            Metric::Rsi => nt!("RSI (14)"),
+            Metric::Sma50 => nt!("vs 50 SMA"),
+            Metric::Sma200 => nt!("vs 200 SMA"),
         }
     }
 
@@ -307,44 +308,44 @@ impl Metric {
             Metric::Ret3M => "3M",
             Metric::Ret6M => "6M",
             Metric::Ret1Y => "1Y",
-            Metric::RevGrowth => "Rev growth",
-            Metric::GrossMargin => "Gross",
-            Metric::EbitdaMargin => "EBITDA",
-            Metric::EbitMargin => "EBIT",
-            Metric::PatMargin => "PAT",
-            Metric::Rsi => "RSI",
-            Metric::Sma50 => "50 SMA",
-            Metric::Sma200 => "200 SMA",
+            Metric::RevGrowth => nt!("Rev growth"),
+            Metric::GrossMargin => nt!("Gross"),
+            Metric::EbitdaMargin => nt!("EBITDA"),
+            Metric::EbitMargin => nt!("EBIT"),
+            Metric::PatMargin => nt!("PAT"),
+            Metric::Rsi => nt!("RSI"),
+            Metric::Sma50 => nt!("50 SMA"),
+            Metric::Sma200 => nt!("200 SMA"),
             m => m.name(),
         }
     }
 
     fn group(self) -> &'static str {
         match self {
-            Metric::Ret1M | Metric::Ret3M | Metric::Ret6M | Metric::Ret1Y => "Returns",
-            Metric::Pe | Metric::EvEbitda => "Valuation",
+            Metric::Ret1M | Metric::Ret3M | Metric::Ret6M | Metric::Ret1Y => nt!("Returns"),
+            Metric::Pe | Metric::EvEbitda => nt!("Valuation"),
             Metric::RevGrowth | Metric::GrossMargin | Metric::EbitdaMargin | Metric::EbitMargin | Metric::PatMargin => {
-                "Growth and margins"
+                nt!("Growth and margins")
             }
-            Metric::Rsi | Metric::Sma50 | Metric::Sma200 => "Technicals",
+            Metric::Rsi | Metric::Sma50 | Metric::Sma200 => nt!("Technicals"),
         }
     }
 
     fn tip(self) -> &'static str {
         match self {
-            Metric::Ret1M => "Change over the last month",
-            Metric::Ret3M => "Change over the last three months",
-            Metric::Ret6M => "Change over the last six months",
-            Metric::Ret1Y => "Change over the last year",
-            Metric::Pe => "Price over trailing earnings. For the index: total market cap over total earnings",
-            Metric::EvEbitda => "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA",
-            Metric::RevGrowth => "Revenue, year on year. For the index: the members' revenue together",
+            Metric::Ret1M => nt!("Change over the last month"),
+            Metric::Ret3M => nt!("Change over the last three months"),
+            Metric::Ret6M => nt!("Change over the last six months"),
+            Metric::Ret1Y => nt!("Change over the last year"),
+            Metric::Pe => nt!("Price over trailing earnings. For the index: total market cap over total earnings"),
+            Metric::EvEbitda => nt!("Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"),
+            Metric::RevGrowth => nt!("Revenue, year on year. For the index: the members' revenue together"),
             Metric::GrossMargin | Metric::EbitdaMargin | Metric::EbitMargin | Metric::PatMargin => {
-                "Trailing twelve months. For the index: weighted by revenue"
+                nt!("Trailing twelve months. For the index: weighted by revenue")
             }
-            Metric::Rsi => "Relative Strength Index, 14 days",
-            Metric::Sma50 => "How far the price is above or below its 50-day average",
-            Metric::Sma200 => "How far the price is above or below its 200-day average",
+            Metric::Rsi => nt!("Relative Strength Index, 14 days"),
+            Metric::Sma50 => nt!("How far the price is above or below its 50-day average"),
+            Metric::Sma200 => nt!("How far the price is above or below its 200-day average"),
         }
     }
 
@@ -1086,12 +1087,12 @@ fn board_for(
                     caps.push((board.rows.len(), s.units[k] * row.price));
                 }
             }
-            Some(Ok(_)) => row.error = Some("No prices came back.".into()),
+            Some(Ok(_)) => row.error = Some(nt!("No prices came back.").into()),
             Some(Err(e)) => {
                 row.error = Some(if e.contains("(404)") || e.contains(opentern_data::provider::GONE) {
-                    "No prices: the ticker may have been renamed or delisted. Left out of the index.".into()
+                    nt!("No prices: the ticker may have been renamed or delisted. Left out of the index.").into()
                 } else {
-                    format!("{e} Left out of the index.")
+                    msg!("{e} Left out of the index.")
                 })
             }
             None => board.waiting += 1,
@@ -1109,7 +1110,7 @@ fn board_for(
                     funds.push((f, held));
                 }
             }
-            Some(Err(e)) if row.error.is_none() => row.error = Some(format!("Fundamentals: {e}")),
+            Some(Err(e)) if row.error.is_none() => row.error = Some(msg!("Fundamentals: {e}")),
             None if d.and_then(|d| d.bars.as_ref()).is_some() => board.waiting += 1,
             _ => {}
         }
@@ -1910,9 +1911,9 @@ impl App {
                 self.index_dashboard(ui, t);
             } else {
                 ui.add_space(20.0);
-                w::empty_state(ui, t, ph::CHART_PIE_SLICE, "No indices yet");
+                w::empty_state(ui, t, ph::CHART_PIE_SLICE, tr("No indices yet"));
                 ui.vertical_centered(|ui| {
-                    if w::button(ui, w::Kind::Primary, true, Some(ph::PLUS), "New index").clicked() {
+                    if w::button(ui, w::Kind::Primary, true, Some(ph::PLUS), tr("New index")).clicked() {
                         self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                     }
                 });
@@ -1930,16 +1931,16 @@ impl App {
             // The title gives way to the buttons in a narrow pane.
             let buttons = if self.indices.defs.is_empty() { 30.0 } else { 62.0 };
             if wide >= buttons + 64.0 {
-                ui.label(egui::RichText::new("Indices").font(theme::semibold(13.5)));
+                ui.label(egui::RichText::new(tr("Indices")).font(theme::semibold(13.5)));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if w::tool_button(ui, t, ph::PLUS, "New index", false, 26.0).clicked() {
+                if w::tool_button(ui, t, ph::PLUS, tr("New index"), false, 26.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                 }
                 // A toggle: off again goes back to the page it covered
                 // (Compare or an index), as the market overview does.
                 if !self.indices.defs.is_empty()
-                    && crate::overview::map_button(ui, t, self.indices.map, 26.0, "Map of every index").clicked()
+                    && crate::overview::map_button(ui, t, self.indices.map, 26.0, tr("Map of every index")).clicked()
                 {
                     self.indices.map = !self.indices.map;
                 }
@@ -1958,7 +1959,7 @@ impl App {
                     let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::hover());
                     let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
                     let text = self.indices.search.get_or_insert_default();
-                    let resp = w::search_field(&mut f, t, text, "Search", r.width());
+                    let resp = w::search_field(&mut f, t, text, tr("Search"), r.width());
                     let id = Id::new("indices-search");
                     // Focus once, when it opens.
                     if !f.data(|d| d.get_temp::<bool>(id).unwrap_or(false)) {
@@ -1985,7 +1986,7 @@ impl App {
                         t.text2,
                     );
                     if fr
-                        .on_hover_text("Search")
+                        .on_hover_text(tr("Search"))
                         .on_hover_cursor(egui::CursorIcon::PointingHand)
                         .clicked()
                     {
@@ -2003,7 +2004,7 @@ impl App {
                     p.text(
                         r.left_center() + vec2(34.0, 0.0),
                         Align2::LEFT_CENTER,
-                        "Compare",
+                        tr("Compare"),
                         theme::medium(13.0),
                         t.text,
                     );
@@ -2049,7 +2050,7 @@ impl App {
                             p.text(
                                 pos2(r.left() + 12.0, y),
                                 Align2::LEFT_CENTER,
-                                format!("{} symbols", d.members.len()),
+                                trf!("{} symbols", d.members.len()),
                                 theme::regular(12.0),
                                 t.text3,
                             );
@@ -2100,13 +2101,13 @@ impl App {
         hc.set_clip_rect(row(0.0).intersect(ui.clip_rect()));
         hc.scope(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "Edit index", false, 28.0).clicked() {
+            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, tr("Edit index"), false, 28.0).clicked() {
                 self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
             }
             let tip = if spinning {
-                "Rebalancing…"
+                tr("Rebalancing…")
             } else {
-                "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+                tr("Rebalance now: fetch today's share counts and set the weights from them, keeping the level")
             };
             if w::spin_button(ui, t, ph::ARROWS_CLOCKWISE, tip, spinning).clicked() && !spinning {
                 rebalance = true;
@@ -2123,7 +2124,7 @@ impl App {
                         .sense(Sense::click()),
                 );
                 if name
-                    .on_hover_text("Open on the chart")
+                    .on_hover_text(tr("Open on the chart"))
                     .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .clicked()
                     && def.ready()
@@ -2147,7 +2148,7 @@ impl App {
                     (ph::INFO, t.text3)
                 };
                 ui.label(egui::RichText::new(icon).color(color))
-                    .on_hover_text(method_note(&def));
+                    .on_hover_text(method_note(&def).lines().map(trm).collect::<Vec<_>>().join("\n"));
                 // Members the source no longer has, flagged for replacing.
                 let gone: Vec<&str> = def
                     .members
@@ -2158,7 +2159,7 @@ impl App {
                 if !gone.is_empty() {
                     let what = if gone.len() == 1 { "symbol" } else { "symbols" };
                     ui.label(egui::RichText::new(ph::WARNING_CIRCLE).color(t.warn))
-                        .on_hover_text(format!(
+                        .on_hover_text(trf!(
                             "Yahoo no longer has {} ({what} renamed or delisted?). They count at their last price. \
                          Replace them with Edit.",
                             gone.join(", ")
@@ -2187,7 +2188,7 @@ impl App {
         ui.add_space(10.0);
         let rows: Vec<TRow> = board.rows.iter().map(TRow::of).collect();
         let pinned = TRow {
-            label: "Index".into(),
+            label: tr("Index").into(),
             included: None,
             history: board.history,
             symbol: None,
@@ -2246,14 +2247,14 @@ impl App {
         hc.scope(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             for p in Period::ALL {
-                if w::bar_button(ui, t, None, p.label(), "", self.indices.period == p).clicked() {
+                if w::bar_button(ui, t, None, tr(p.label()), "", self.indices.period == p).clicked() {
                     self.indices.period = p;
                 }
             }
             if let Some(z) = self.indices.zoom.clone() {
                 w::vdivider(ui, t);
                 let label = format!("{z}  {}", ph::X);
-                if w::bar_button(ui, t, None, &label, "Every index (Esc)", false).clicked() {
+                if w::bar_button(ui, t, None, &label, tr("Every index (Esc)"), false).clicked() {
                     self.indices.zoom = None;
                 }
             }
@@ -2341,7 +2342,9 @@ impl App {
         view_switch(&mut hc, t, &mut self.indices.view, &mut self.indices.metric);
         if hc.available_width() > 150.0 {
             hc.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                ui.add(egui::Label::new(egui::RichText::new("Compare indices").font(theme::semibold(16.0))).truncate());
+                ui.add(
+                    egui::Label::new(egui::RichText::new(tr("Compare indices")).font(theme::semibold(16.0))).truncate(),
+                );
             });
         }
         let body_rect = Rect::from_min_max(pos2(whole.left(), head.bottom() + 10.0), whole.max);
@@ -2470,11 +2473,11 @@ fn weighting_help(ui: &mut Ui, t: &Theme) {
     ui.spacing_mut().item_spacing.y = 2.0;
     let items = [
         (
-            "Free float",
-            "Counts only the shares the public can trade, as NSE does.",
+            tr("Free float"),
+            tr("Counts only the shares the public can trade, as NSE does."),
         ),
-        ("Full market cap", "Counts all of a company's shares."),
-        ("Equal", "Every stock starts with the same weight."),
+        (tr("Full market cap"), tr("Counts all of a company's shares.")),
+        (tr("Equal"), tr("Every stock starts with the same weight.")),
     ];
     for (k, (name, what)) in items.iter().enumerate() {
         if k > 0 {
@@ -2492,20 +2495,23 @@ pub(crate) fn method_note(def: &IndexDef) -> String {
             .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%-d %b %Y").to_string())
             .unwrap_or_default()
     };
-    let mut s = format!("{}, base {}.", def.weighting.name(), def.base);
+    let mut s = msg!("{}, base {}.", def.weighting.name(), def.base);
     if def.equal_fallback {
-        s.push_str("\nWeighted equally for now: a member has no share count.");
+        s.push('\n');
+        s.push_str(nt!("Weighted equally for now: a member has no share count."));
     }
     if let Some(last) = def.segments.last() {
         if last.from != i64::MIN {
-            s.push_str(&format!("\nLast rebalanced {}.", date(last.from)));
+            s.push('\n');
+            s.push_str(&msg!("Last rebalanced {}.", date(last.from)));
         }
         let now = jiff::Timestamp::now().as_millisecond();
         if let Some(next) = (1..=8)
             .map(|k| now + k * 46 * 86_400_000)
             .find_map(|t| rebalance_due(now, t))
         {
-            s.push_str(&format!("\nNext rebalance {} (1 April and 1 October).", date(next)));
+            s.push('\n');
+            s.push_str(&msg!("Next rebalance {} (1 April and 1 October).", date(next)));
         }
     }
     s
@@ -2550,16 +2556,16 @@ fn change_pill(p: &egui::Painter, t: &Theme, at: egui::Pos2, ch: f64) {
 
 /// Table | Map, and the metric the map colours by.
 fn view_switch(ui: &mut Ui, t: &Theme, view: &mut View, metric: &mut Metric) {
-    w::segmented(ui, t, view, &[(View::Table, "Table"), (View::Map, "Map")]);
+    w::segmented(ui, t, view, &[(View::Table, tr("Table")), (View::Map, tr("Map"))]);
     if *view == View::Map {
         // Narrower in a narrow pane (laid out either way round).
         let room = ui.available_width() - 4.0;
         w::combo("index-map-metric")
-            .selected_text(metric.name())
+            .selected_text(tr(metric.name()))
             .width(room.clamp(96.0, 150.0))
             .show_ui(ui, |ui| {
                 for m in Metric::ALL {
-                    w::option_value(ui, metric, m, m.name());
+                    w::option_value(ui, metric, m, tr(m.name()));
                 }
             });
     }
@@ -2574,7 +2580,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
         .iter()
         .map(|m| {
             ui.painter()
-                .layout_no_wrap(m.name().to_string(), label_font.clone(), t.text)
+                .layout_no_wrap(tr(m.name()).to_string(), label_font.clone(), t.text)
                 .size()
                 .x
         })
@@ -2597,7 +2603,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
                     Stroke::new(1.0, t.border.gamma_multiply(0.6)),
                     egui::StrokeKind::Inside,
                 );
-                let label = crate::format::elide_to(p, m.name(), &label_font, r.width() - 22.0);
+                let label = crate::format::elide_to(p, tr(m.name()), &label_font, r.width() - 22.0);
                 p.text(
                     r.left_top() + vec2(11.0, 10.0),
                     Align2::LEFT_TOP,
@@ -2629,7 +2635,7 @@ fn kpi_strip(ui: &mut Ui, t: &Theme, values: &HashMap<Metric, f64>) {
                     theme::semibold(15.0),
                     c,
                 );
-                resp.on_hover_text(m.tip());
+                resp.on_hover_text(tr(m.tip()));
             }
         });
         ui.add_space(gap - ui.spacing().item_spacing.y);
@@ -2664,16 +2670,16 @@ fn metric_table(
     let lead_w = if boxes { 196.0 } else { 170.0 };
     let mut fixed: Vec<(&str, f32)> = Vec::new();
     if weights {
-        fixed.push(("Weight", 112.0));
+        fixed.push((nt!("Weight"), 112.0));
     }
     if boxes {
-        fixed.push(("History", 86.0));
+        fixed.push((nt!("History"), 86.0));
     }
-    fixed.push((if weights { "Price" } else { "Value" }, 92.0));
+    fixed.push((if weights { nt!("Price") } else { nt!("Value") }, 92.0));
     fixed.push(("1D", 78.0));
     let mut widths: Vec<f32> = Metric::ALL
         .iter()
-        .map(|m| (measure(m.short()) + 26.0).max(76.0))
+        .map(|m| (measure(tr(m.short())) + 26.0).max(76.0))
         .collect();
     let used: f32 = lead_w + fixed.iter().map(|f| f.1).sum::<f32>() + widths.iter().sum::<f32>();
     let spare = (ui.available_width() - used).max(0.0) / widths.len() as f32;
@@ -2762,8 +2768,12 @@ fn metric_table(
                 sorted = Some(key);
             }
         };
-        let lead_title = if weights { "Symbol" } else { "Index" };
-        let lead_tip = if weights { "Sort by weight" } else { "Sort by name" };
+        let lead_title = if weights { tr("Symbol") } else { tr("Index") };
+        let lead_tip = if weights {
+            tr("Sort by weight")
+        } else {
+            tr("Sort by name")
+        };
         title(
             ui,
             Rect::from_min_size(head.min, vec2(lead_w, row_h)),
@@ -2776,18 +2786,18 @@ fn metric_table(
         for (name, wd) in &fixed {
             let r = Rect::from_min_size(head.min + vec2(x, 0.0), vec2(*wd, row_h));
             let tip = match *name {
-                "Weight" => "Today's weight in the index",
-                "History" => "How far back its prices go",
-                "1D" => "Change since the last close",
+                "Weight" => tr("Today's weight in the index"),
+                "History" => tr("How far back its prices go"),
+                "1D" => tr("Change since the last close"),
                 _ => "",
             };
             if *name == "Weight" {
-                title(ui, r, name, None, tip, false);
+                title(ui, r, tr(name), None, tip, false);
             } else {
                 ui.painter().text(
                     r.right_center() - vec2(10.0, 0.0),
                     Align2::RIGHT_CENTER,
-                    *name,
+                    tr(name),
                     head_font.clone(),
                     t.text3,
                 );
@@ -2800,7 +2810,14 @@ fn metric_table(
         }
         for (k, m) in Metric::ALL.iter().enumerate() {
             let r = Rect::from_min_size(head.min + vec2(xs[k], 0.0), vec2(widths[k], row_h));
-            title(ui, r, m.short(), Some(*m), &format!("{}: {}", m.name(), m.tip()), false);
+            title(
+                ui,
+                r,
+                tr(m.short()),
+                Some(*m),
+                &format!("{}: {}", tr(m.name()), tr(m.tip())),
+                false,
+            );
         }
         if let Some(key) = sorted {
             *sort = (key, if sort.0 == key { !sort.1 } else { true });
@@ -2837,9 +2854,9 @@ fn metric_table(
                         let b = Rect::from_center_size(pos2(r.left() + 19.0, r.center().y), vec2(17.0, 24.0));
                         let mut v = on;
                         let tip = if on {
-                            "Leave out of the index"
+                            tr("Leave out of the index")
                         } else {
-                            "Count in the index"
+                            tr("Count in the index")
                         };
                         if ui
                             .put(b, |ui: &mut Ui| w::checkbox(ui, &mut v, ""))
@@ -2936,7 +2953,7 @@ fn metric_table(
                                         t.text2,
                                     );
                                     ui.interact(cell, ui.id().with((salt, "hist", &row.label)), Sense::hover())
-                                        .on_hover_text(format!("Prices since {}", day_label(a)));
+                                        .on_hover_text(trf!("Prices since {}", day_label(a)));
                                 }
                             }
                             "1D" if row.change.is_finite() => {
@@ -2957,7 +2974,7 @@ fn metric_table(
                         p.text(
                             r.left_center() + vec2(x0 + 10.0, 0.0),
                             Align2::LEFT_CENTER,
-                            row.error.as_deref().unwrap_or_default(),
+                            trm(row.error.as_deref().unwrap_or_default()),
                             theme::regular(12.0),
                             t.text3,
                         );
@@ -2988,8 +3005,8 @@ fn metric_table(
                         p.hline(r.x_range(), r.bottom(), hair);
                     }
                     let tip = match (&row.error, &row.symbol) {
-                        (Some(e), _) => Some(e.clone()),
-                        (None, Some(s)) if opentern_data::hub::is_gone(&s.id) => Some(format!(
+                        (Some(e), _) => Some(trm(e).into_owned()),
+                        (None, Some(s)) if opentern_data::hub::is_gone(&s.id) => Some(trf!(
                             "{}: Yahoo no longer has this symbol; it may have been renamed or delisted. \
                              It counts at its last price. Replace it with Edit.",
                             s.id
@@ -3016,7 +3033,7 @@ fn span_label(first: i64, last: i64, capped: bool) -> String {
     let days = (last - first) as f64 / 86_400_000.0;
     let plus = if capped { "+" } else { "" };
     if days < 365.0 {
-        return format!("{}{plus} mo", (days / 30.44).round().max(1.0));
+        return trf!("{}{plus} mo", (days / 30.44).round().max(1.0));
     }
     let y = days / 365.25;
     let n = if y < 10.0 {
@@ -3029,8 +3046,11 @@ fn span_label(first: i64, last: i64, capped: bool) -> String {
     } else {
         format!("{:.0}", y.round())
     };
-    let unit = if n == "1" { "yr" } else { "yrs" };
-    format!("{n}{plus} {unit}")
+    if n == "1" {
+        trf!("{n}{plus} yr")
+    } else {
+        trf!("{n}{plus} yrs")
+    }
 }
 
 /// "3 Jan 2006".
@@ -3136,18 +3156,18 @@ impl IndexEditor {
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
         let mut done = Done::Keep;
         let title = if self.editing.is_some() {
-            "Edit index"
+            tr("Edit index")
         } else {
-            "New index"
+            tr("New index")
         };
         if frame(ui, t, title, 520.0, |ui| {
             let label = |ui: &mut Ui, s: &str| {
                 ui.label(egui::RichText::new(s).font(theme::medium(12.0)).color(t.text2));
             };
-            label(ui, "Name");
+            label(ui, tr("Name"));
             let name = ui.add(
                 w::field(&mut self.name)
-                    .hint_text("e.g. Nifty Auto")
+                    .hint_text(tr("e.g. Nifty Auto"))
                     .desired_width(f32::INFINITY),
             );
             if !self.focused {
@@ -3158,10 +3178,10 @@ impl IndexEditor {
             }
             ui.add_space(10.0);
             ui.horizontal(|ui| {
-                label(ui, "Symbols");
+                label(ui, tr("Symbols"));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     w::combo("index-from-watchlist")
-                        .selected_text(format!("{}  Add a watchlist", ph::LIST_BULLETS))
+                        .selected_text(trf!("{}  Add a watchlist", ph::LIST_BULLETS))
                         .width(170.0)
                         .show_ui(ui, |ui| {
                             for wl in app.watchlists.clone() {
@@ -3184,7 +3204,7 @@ impl IndexEditor {
             });
             let search = ui.add(
                 w::field(&mut self.query)
-                    .hint_text(format!("{}  Search symbols to add", ph::MAGNIFYING_GLASS))
+                    .hint_text(trf!("{}  Search symbols to add", ph::MAGNIFYING_GLASS))
                     .desired_width(f32::INFINITY),
             );
             let q = self.query.trim().to_string();
@@ -3260,7 +3280,7 @@ impl IndexEditor {
             ui.add_space(8.0);
             // Members as chips.
             if self.members.is_empty() {
-                ui.label(egui::RichText::new("No symbols yet").color(t.text3).size(12.5));
+                ui.label(egui::RichText::new(tr("No symbols yet")).color(t.text3).size(12.5));
             } else {
                 let mut remove = None;
                 // Rows laid out by hand from the chips' widths (the
@@ -3314,7 +3334,7 @@ impl IndexEditor {
                                     let xr = ui
                                         .interact(x, ui.id().with(("index-chip-x", k)), Sense::click())
                                         .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                        .on_hover_text("Remove");
+                                        .on_hover_text(tr("Remove"));
                                     if xr.hovered() {
                                         ui.painter().rect_filled(x, 4, t.hover_wash());
                                     }
@@ -3339,7 +3359,7 @@ impl IndexEditor {
             }
             ui.add_space(12.0);
             ui.horizontal(|ui| {
-                label(ui, "Weighting");
+                label(ui, tr("Weighting"));
                 ui.label(egui::RichText::new(ph::INFO).color(t.text3))
                     .on_hover_ui(|ui| weighting_help(ui, t));
             });
@@ -3348,18 +3368,18 @@ impl IndexEditor {
                 t,
                 &mut self.weighting,
                 &[
-                    (Weighting::FreeFloat, "Free float"),
-                    (Weighting::MarketCap, "Full market cap"),
-                    (Weighting::Equal, "Equal"),
+                    (Weighting::FreeFloat, tr("Free float")),
+                    (Weighting::MarketCap, tr("Full market cap")),
+                    (Weighting::Equal, tr("Equal")),
                 ],
             );
             ui.add_space(16.0);
             ui.horizontal(|ui| {
                 if let Some(ticker) = self.editing.clone() {
                     let label = if self.confirm_delete {
-                        "Delete for good"
+                        tr("Delete for good")
                     } else {
-                        "Delete"
+                        tr("Delete")
                     };
                     if w::button(ui, w::Kind::Danger, true, Some(ph::TRASH), label).clicked() {
                         if self.confirm_delete {
@@ -3371,11 +3391,15 @@ impl IndexEditor {
                     }
                 }
                 ui.add_space((ui.available_width() - 154.0).max(0.0));
-                if w::secondary(ui, "Cancel").clicked() {
+                if w::secondary(ui, tr("Cancel")).clicked() {
                     done = Done::Close;
                 }
                 let ok = !self.name.trim().is_empty() && !self.members.is_empty();
-                let verb = if self.editing.is_some() { "Save" } else { "Create" };
+                let verb = if self.editing.is_some() {
+                    tr("Save")
+                } else {
+                    tr("Create")
+                };
                 if w::button(ui, w::Kind::Primary, ok, None, verb).clicked() && ok {
                     app.save_index(self);
                     done = Done::Close;
@@ -3457,11 +3481,11 @@ fn treemap(
             }
         }
         if hot {
-            let tip = format!(
+            let tip = trf!(
                 "{}\n{:.1}% of the map\n{}: {}",
                 row.symbol.as_ref().map_or(row.label.clone(), |s| s.id.clone()),
                 wgt / total * 100.0,
-                metric.name(),
+                tr(metric.name()),
                 metric.format(v)
             );
             if resp.clone().on_hover_text(tip).clicked() {

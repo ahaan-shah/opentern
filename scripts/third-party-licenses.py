@@ -83,6 +83,10 @@ def main():
         "Geist, Onest, Plus Jakarta Sans, DM Sans, Figtree, Outfit, IBM Plex Sans, JetBrains Mono (SIL Open Font License 1.1)",
         (fonts / "OFL-LICENSES.txt").read_text(),
     )
+    section(
+        "Noto Sans Devanagari, Noto Sans JP, Noto Sans SC, subset (SIL Open Font License 1.1)",
+        (fonts / "i18n" / "OFL.txt").read_text(),
+    )
     reg = pathlib.Path(next(p for p in meta["packages"] if p.get("source"))["manifest_path"]).parents[1]
     egui_fonts = sorted(reg.glob("epaint_default_fonts-*/fonts"))
     if egui_fonts:

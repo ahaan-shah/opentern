@@ -3,6 +3,7 @@
 //! the Notifications widget, with a short toast for the ones you asked for.
 
 use crate::app::App;
+use crate::i18n::{tr, trm};
 use crate::icons::ph;
 use crate::theme::{self, Theme};
 use egui::{CornerRadius, Sense, Stroke, Ui, pos2, vec2};
@@ -83,10 +84,10 @@ impl App {
                             ui.set_width(w - 28.0);
                             ui.horizontal(|ui| {
                                 ui.label(egui::RichText::new(n.icon).font(theme::regular(15.0)).color(t.accent));
-                                ui.label(egui::RichText::new(&n.title).font(theme::semibold(13.0)));
+                                ui.label(egui::RichText::new(trm(&n.title)).font(theme::semibold(13.0)));
                             });
                             if !n.body.is_empty() {
-                                ui.label(egui::RichText::new(&n.body).color(t.text2).size(12.5));
+                                ui.label(egui::RichText::new(trm(&n.body)).color(t.text2).size(12.5));
                             }
                         })
                 });
@@ -106,7 +107,7 @@ impl App {
     pub(crate) fn notifications_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.notes.unread = 0;
         if self.notes.list.is_empty() {
-            crate::widgets::empty_state(ui, t, crate::icons::ph::BELL_SIMPLE, "All caught up");
+            crate::widgets::empty_state(ui, t, crate::icons::ph::BELL_SIMPLE, tr("All caught up"));
             return;
         }
         let mut open = None;

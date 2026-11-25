@@ -6,6 +6,7 @@
 //! `opentern_data::overview` (`Request::Overview`).
 
 use crate::app::App;
+use crate::i18n::{tr, trf, trm};
 use crate::icons::ph;
 use crate::motion::{self, lerp_color, with_alpha};
 use crate::theme::{self, Theme};
@@ -263,7 +264,7 @@ pub fn weighted(members: &[(&Member, f64)], p: Period, sizing: Sizing) -> f64 {
 
 /// The overview's top-bar button: a little treemap.
 pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
-    map_button(ui, t, active, 30.0, "Market overview (Alt M)")
+    map_button(ui, t, active, 30.0, tr("Market overview (Alt M)"))
 }
 
 /// A button with the overview's little treemap.
@@ -550,9 +551,9 @@ impl App {
             c.add_space((map.height() * 0.35).max(0.0));
             match self.overview.errors.get(&m).cloned() {
                 Some(e) if !self.overview.loading(m) => {
-                    w::empty_state(&mut c, t, ph::CLOUD_SLASH, &e);
+                    w::empty_state(&mut c, t, ph::CLOUD_SLASH, &trm(&e));
                     c.vertical_centered(|ui| {
-                        if w::secondary(ui, "Try again").clicked() {
+                        if w::secondary(ui, tr("Try again")).clicked() {
                             self.overview.errors.remove(&m);
                             self.overview.failed.remove(&m);
                             self.overview_fetch(m);
@@ -584,7 +585,7 @@ impl App {
     fn overview_header(&mut self, ui: &mut Ui, t: &Theme) {
         ui.spacing_mut().item_spacing.x = 4.0;
         let mut market = self.overview.market;
-        let opts: Vec<(Market, &str)> = Market::ALL.iter().map(|m| (*m, m.label())).collect();
+        let opts: Vec<(Market, &str)> = Market::ALL.iter().map(|m| (*m, tr(m.label()))).collect();
         if w::segmented(ui, t, &mut market, &opts) {
             self.overview.market = market;
             self.overview.sector = None;
@@ -605,7 +606,7 @@ impl App {
         }
         w::vdivider(ui, t);
         for p in Period::ALL {
-            if w::bar_button(ui, t, None, p.label(), "", self.overview.period == p).clicked() {
+            if w::bar_button(ui, t, None, tr(p.label()), "", self.overview.period == p).clicked() {
                 self.overview.period = p;
                 self.save_overview();
             }
@@ -613,7 +614,7 @@ impl App {
         if let Some(s) = self.overview.sector.clone() {
             w::vdivider(ui, t);
             let label = format!("{s}  {}", ph::X);
-            if w::bar_button(ui, t, None, &label, "All sectors (Esc)", false).clicked() {
+            if w::bar_button(ui, t, None, &label, tr("All sectors (Esc)"), false).clicked() {
                 self.overview.sector = None;
             }
         }
@@ -621,7 +622,7 @@ impl App {
         let room = ui.available_width();
         let m = self.overview.market;
         let busy = self.overview.loading(m) && self.overview.boards.contains_key(&m);
-        let error = self.overview.errors.get(&m).cloned();
+        let error = self.overview.errors.get(&m).map(|e| trm(e).into_owned());
         let board = self.overview.boards.get(&m);
         let now = jiff::Timestamp::now().as_millisecond();
         // Prices refresh every 30 s while the market trades; five minutes
@@ -644,7 +645,7 @@ impl App {
                 ui.add_space(6.0);
                 extended_chip(ui, t, e);
             }
-            let old = stale.map(|d| format!("No new prices for {}", crate::format::span(d)));
+            let old = stale.map(|d| trf!("No new prices for {}", crate::format::span(d)));
             let warning = match (error.filter(|_| board.is_some()), old) {
                 (Some(e), Some(o)) => Some(format!("{e}\n{o}")),
                 (e, o) => e.or(o),
@@ -902,13 +903,13 @@ impl App {
         let period = spec.period;
         let change = m.change(period);
         let size_label = match board.sizing {
-            Sizing::Volume => "24h volume",
-            _ => "Market cap",
+            Sizing::Volume => tr("24h volume"),
+            _ => tr("Market cap"),
         };
         let mut rows: Vec<(String, String, Color32)> = vec![
-            ("Price".into(), price(m.price), t.text),
+            (tr("Price").into(), price(m.price), t.text),
             (
-                format!("Change {}", period.label()),
+                trf!("Change {}", tr(period.label())),
                 crate::format::signed_pct(change),
                 if change >= 0.0 { t.pos } else { t.neg },
             ),
@@ -916,7 +917,7 @@ impl App {
         if let Some(e) = m.ext.filter(|e| e.fresh(jiff::Timestamp::now().as_millisecond())) {
             let ch = e.change();
             rows.push((
-                e.session.label().into(),
+                tr(e.session.label()).into(),
                 format!("{}  {}", price(e.price), crate::format::signed_pct(ch)),
                 if ch >= 0.0 { t.pos } else { t.neg },
             ));
@@ -927,7 +928,7 @@ impl App {
             ws.get(k).copied().filter(|w| w.is_finite())
         });
         if let Some(wt) = weight {
-            rows.push(("Weight".into(), format!("{wt:.1}%"), t.text));
+            rows.push((tr("Weight").into(), format!("{wt:.1}%"), t.text));
         } else if board.sizing != Sizing::Equal {
             rows.push((size_label.into(), money(m.cap, &board.currency, board.market), t.text));
         }
@@ -1074,11 +1075,13 @@ fn extended_chip(ui: &mut Ui, t: &Theme, e: opentern_core::calendar::Extended) {
         opentern_core::calendar::Extended::Post => ph::MOON,
     };
     ui.label(
-        egui::RichText::new(format!("{icon} {}", e.label()))
+        egui::RichText::new(format!("{icon} {}", tr(e.label())))
             .font(theme::medium(12.0))
             .color(col),
     )
-    .on_hover_text("Tiles show the regular session. Hover one for its extended-hours price.");
+    .on_hover_text(tr(
+        "Tiles show the regular session. Hover one for its extended-hours price.",
+    ));
 }
 
 /// −3% ▮▮▮▮▮▮▮ +3%, for the period's scale.
@@ -1110,9 +1113,9 @@ pub(crate) fn legend(ui: &mut Ui, t: &Theme, period: Period, board: Option<&Boar
     ui.label(egui::RichText::new(label(-s)).font(f).color(t.text3));
     if let Some(b) = board {
         let sized = match b.sizing {
-            Sizing::MarketCap => format!("Sized by market cap, from {}", b.source),
-            Sizing::Volume => format!("Sized by 24h volume, from {}", b.source),
-            Sizing::Equal => "Market caps didn't load, so every tile is the same size".into(),
+            Sizing::MarketCap => trf!("Sized by market cap, from {}", b.source),
+            Sizing::Volume => trf!("Sized by 24h volume, from {}", b.source),
+            Sizing::Equal => tr("Market caps didn't load, so every tile is the same size").into(),
         };
         resp.on_hover_text(sized);
     }

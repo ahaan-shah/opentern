@@ -1,0 +1,6172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Opentern\n"
+"Language: zh-Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "\nSurprise {0}{1}%"
+msgstr "\n超预期 {0}{1}%"
+
+msgid "\nVol {0}"
+msgstr "\n成交量 {0}"
+
+msgid "\n{0}: {1}% used"
+msgstr "\n{0}：已用 {1}%"
+
+msgid " What can I help you with?"
+msgstr " 有什么可以帮你？"
+
+msgid " · opens {0}"
+msgstr " · {0} 开市"
+
+#, message
+msgid "\"{0}\" isn't an email address."
+msgstr "“{0}”不是有效的邮箱地址。"
+
+msgid "% of equity"
+msgstr "权益百分比"
+
+msgid "%D"
+msgstr ""
+
+msgid "%D Length"
+msgstr "%D 长度"
+
+msgid "%D Smoothing"
+msgstr "%D 平滑"
+
+msgid "%K"
+msgstr ""
+
+msgid "%K Length"
+msgstr "%K 长度"
+
+msgid "%K Smoothing"
+msgstr "%K 平滑"
+
+msgid "%R"
+msgstr ""
+
+msgid "%a %H:%M"
+msgstr "%a %H:%M"
+
+msgid "%a %d %b '%y"
+msgstr "%y年%-m月%-d日 %a"
+
+msgid "%a %d %b '%y %H:%M"
+msgstr "%y年%-m月%-d日 %a %H:%M"
+
+msgid "%a %d %b '%y %H:%M:%S"
+msgstr "%y年%-m月%-d日 %a %H:%M:%S"
+
+msgid "%b %-d"
+msgstr "%-m月%-d日"
+
+msgid "%b '%y"
+msgstr "%y年%-m月"
+
+msgid "%d %b"
+msgstr "%-m月%-d日"
+
+msgid "%d %b %Y"
+msgstr "%Y年%-m月%-d日"
+
+msgid "+DI"
+msgstr ""
+
+msgid "-DI"
+msgstr ""
+
+msgid "1 chart"
+msgstr "1 张图表"
+
+msgid "1 day"
+msgstr "1 天"
+
+msgid "1 hour"
+msgstr "1 小时"
+
+msgid "1 minute"
+msgstr "1 分钟"
+
+msgid "1 month"
+msgstr "1 个月"
+
+msgid "1 script has unsaved changes. Save it to include them."
+msgstr "1 个脚本有未保存的更改。保存后才会包含在内。"
+
+msgid "1 second"
+msgstr "1 秒"
+
+msgid "1 symbol"
+msgstr "1 个品种"
+
+msgid "1 week"
+msgstr "1 周"
+
+msgid "1M return"
+msgstr "1 个月收益"
+
+msgid "1Y return"
+msgstr "1 年收益"
+
+msgid "1× is cash only. Below half the margin in use, every position is closed"
+msgstr "1× 为纯现金。低于已用保证金的一半时，所有持仓都会平仓"
+
+msgid "200 SMA"
+msgstr "200 SMA"
+
+msgid "24-hour Volume"
+msgstr "24 小时成交量"
+
+msgid "24h Volume"
+msgstr "24h 成交量"
+
+msgid "24h volume"
+msgstr "24h 成交量"
+
+msgid "3M return"
+msgstr "3 个月收益"
+
+msgid "5-hour limit"
+msgstr "5 小时限额"
+
+msgid "50 SMA"
+msgstr "50 SMA"
+
+msgid "6M return"
+msgstr "6 个月收益"
+
+msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
+msgstr "Python 脚本在你系统自带的 Python 中运行。视代码而定，它可以读取和修改你的文件并访问网络，代理为你编写的代码也一样。只运行你信任的脚本。"
+
+msgid "A fast, local-first market analysis terminal."
+msgstr "快速、本地优先的市场分析终端。"
+
+#, message
+msgid "A market order has no price to move."
+msgstr "市价单没有可移动的价格。"
+
+msgid "A sharper, calmer look"
+msgstr "更清晰、更沉静的外观"
+
+msgid "A small helper keeps checking your alerts and notifies you. It stops when you open Opentern again, or when no alert is left."
+msgstr "一个小助手会继续检查你的警报并通知你。再次打开 Opentern 或没有警报时，它就会停止。"
+
+msgid "A special session"
+msgstr "特别交易时段"
+
+#, message
+msgid "A trailing stop follows the price; it can't be moved."
+msgstr "跟踪止损跟随价格，无法移动。"
+
+msgid "A value"
+msgstr "数值"
+
+msgid "ACCOUNTS"
+msgstr "账户"
+
+msgid "ADJ"
+msgstr "复权"
+
+msgid "ADR"
+msgstr ""
+
+msgid "ADX"
+msgstr ""
+
+msgid "ADX Smoothing"
+msgstr "ADX 平滑"
+
+msgid "AO"
+msgstr ""
+
+msgid "API keys and passwords aren't included."
+msgstr "不包含 API 密钥和密码。"
+
+msgid "API price equivalent"
+msgstr "等值 API 价格"
+
+msgid "API token"
+msgstr "API 令牌"
+
+msgid "ASX"
+msgstr ""
+
+msgid "ATR"
+msgstr ""
+
+msgid "ATR %"
+msgstr ""
+
+msgid "ATR Coefficient"
+msgstr "ATR 系数"
+
+msgid "ATR Length"
+msgstr "ATR 长度"
+
+msgid "ATR Multiplier"
+msgstr "ATR 乘数"
+
+msgid "ATR length"
+msgstr "ATR 长度"
+
+msgid "About"
+msgstr "关于"
+
+msgid "About {0}"
+msgstr "关于 {0}"
+
+msgid "Absolute"
+msgstr "绝对值"
+
+msgid "Access token"
+msgstr "访问令牌"
+
+msgid "Account"
+msgstr "账户"
+
+msgid "Account ID"
+msgstr "账户 ID"
+
+msgid "Account settings"
+msgstr "账户设置"
+
+msgid "Account size required"
+msgstr "所需账户规模"
+
+msgid "Accumulation/Distribution"
+msgstr "累积/派发"
+
+msgid "Across"
+msgstr "横轴"
+
+msgid "Active"
+msgstr "启用"
+
+msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
+
+msgid "Add files"
+msgstr "添加文件"
+
+msgid "Add filter"
+msgstr "添加筛选"
+
+msgid "Add section"
+msgstr "添加分组"
+
+msgid "Add symbol"
+msgstr "添加品种"
+
+msgid "Add to chart"
+msgstr "添加到图表"
+
+msgid "Add to favorites"
+msgstr "加入收藏"
+
+msgid "Add to watchlist"
+msgstr "加入自选"
+
+msgid "Add to watchlist (Shift+Enter)"
+msgstr "加入自选 (Shift+Enter)"
+
+#, message
+msgid "Add {0}"
+msgstr "添加 {0}"
+
+#, message
+msgid "Add {0} to the chart"
+msgstr "将 {0} 添加到图表"
+
+#, message
+msgid "Added {0}"
+msgstr "已添加 {0}"
+
+#, message
+msgid "Added {0} to the chart"
+msgstr "已将 {0} 添加到图表"
+
+#, message
+msgid "Added {file} to the chart."
+msgstr "已将 {file} 添加到图表。"
+
+msgid "Address, like 192.168.1.20"
+msgstr "地址，如 192.168.1.20"
+
+msgid "Adjust prices for dividends"
+msgstr "按股息调整价格"
+
+msgid "After"
+msgstr "到期日"
+
+msgid "After hours"
+msgstr "盘后"
+
+msgid "After trade {0}"
+msgstr "第 {0} 笔交易后"
+
+msgid "Against market, stop and trailing fills; limits fill at their price"
+msgstr "用于市价、止损和跟踪成交；限价按其价格成交"
+
+msgid "Agent"
+msgstr "代理"
+
+msgid "Agent panel"
+msgstr "代理面板"
+
+msgid "Alert"
+msgstr "警报"
+
+msgid "Alerts"
+msgstr "警报"
+
+msgid "Alerts in this file send to {0}."
+msgstr "此文件中的警报会发送到 {0}。"
+
+msgid "Alerts log"
+msgstr "警报日志"
+
+msgid "Alerts only fire while Opentern is open."
+msgstr "只有 Opentern 打开时警报才会触发。"
+
+#, message
+msgid "Alerts: {0}"
+msgstr "警报：{0}"
+
+msgid "All"
+msgstr "全部"
+
+msgid "All Souls' Day"
+msgstr "追思亡者日"
+
+msgid "All caught up"
+msgstr "全部已读"
+
+msgid "All sectors (Esc)"
+msgstr "所有板块 (Esc)"
+
+msgid "Allow"
+msgstr "允许"
+
+msgid "Allow for this chat"
+msgstr "在此对话中允许"
+
+msgid "Allow through Windows Firewall"
+msgstr "在 Windows 防火墙中允许"
+
+msgid "Allow {0} to do this?"
+msgstr "允许 {0} 这样做吗？"
+
+msgid "Allowed"
+msgstr "已允许"
+
+msgid "Allowed through Windows Firewall"
+msgstr "已在 Windows 防火墙中允许"
+
+#, message
+msgid "Alpaca has no {0} bars"
+msgstr "Alpaca 没有 {0} K 线"
+
+msgid "Alpaca · US stocks"
+msgstr "Alpaca · 美股"
+
+msgid "Americas"
+msgstr "美洲"
+
+msgid "An alert fired while Opentern was closed"
+msgstr "Opentern 关闭期间触发了一个警报"
+
+msgid "An app password, not your login"
+msgstr "应用专用密码，不是登录密码"
+
+msgid "An empty list"
+msgstr "空列表"
+
+msgid "Anchor Period"
+msgstr "锚定周期"
+
+msgid "Anchored"
+msgstr "锚定"
+
+msgid "Anchored VWAP"
+msgstr "锚定 VWAP"
+
+msgid "Anchored volume profile"
+msgstr "锚定成交量分布"
+
+msgid "Annotation tools"
+msgstr "注释工具"
+
+msgid "Answer a prompt"
+msgstr "回答提示"
+
+msgid "Any colour you like"
+msgstr "任选喜欢的颜色"
+
+msgid "Anzac Day"
+msgstr "澳新军团日"
+
+msgid "Applied a lab result"
+msgstr "已应用实验室结果"
+
+msgid "Applied to the chart."
+msgstr "已应用到图表。"
+
+msgid "Apply a lab result"
+msgstr "应用实验室结果"
+
+msgid "Apply best"
+msgstr "应用最佳"
+
+msgid "Apply defaults"
+msgstr "应用默认值"
+
+msgid "Apr"
+msgstr "4月"
+
+msgid "April"
+msgstr "四月"
+
+msgid "Area"
+msgstr "面积图"
+
+msgid "Arnaud Legoux Moving Average"
+msgstr "Arnaud Legoux 移动平均线"
+
+msgid "Aroon"
+msgstr "阿隆"
+
+msgid "Aroon Down"
+msgstr "阿隆下降"
+
+msgid "Aroon Up"
+msgstr "阿隆上升"
+
+msgid "Arrow"
+msgstr "箭头"
+
+msgid "Arrow mark down"
+msgstr "向下箭头标记"
+
+msgid "Arrow mark up"
+msgstr "向上箭头标记"
+
+msgid "Ascension Day"
+msgstr "耶稣升天节"
+
+msgid "Asia-Pacific"
+msgstr "亚太"
+
+msgid "Ask"
+msgstr "卖价"
+
+msgid "Ask first"
+msgstr "先询问"
+
+msgid "Attach files"
+msgstr "附加文件"
+
+msgid "Aug"
+msgstr "8月"
+
+msgid "August"
+msgstr "八月"
+
+msgid "Australia Day"
+msgstr "澳大利亚国庆日"
+
+msgid "Auto"
+msgstr "自动"
+
+msgid "Auto (fits data to screen)"
+msgstr "自动（数据适应屏幕）"
+
+msgid "Auto Fib Extension"
+msgstr "自动斐波那契扩展"
+
+msgid "Auto Fib Retracement"
+msgstr "自动斐波那契回撤"
+
+msgid "Auto, fits data to screen (Alt U)"
+msgstr "自动，数据适应屏幕 (Alt U)"
+
+msgid "Average"
+msgstr "平均"
+
+msgid "Average Day Range"
+msgstr "平均日波幅"
+
+msgid "Average Directional Index"
+msgstr "平均趋向指数 (ADX)"
+
+msgid "Average True Range"
+msgstr "平均真实波幅 (ATR)"
+
+msgid "Avg"
+msgstr "平均"
+
+msgid "Avg # bars in losing trades"
+msgstr "亏损交易平均 K 线数"
+
+msgid "Avg # bars in trades"
+msgstr "交易平均 K 线数"
+
+msgid "Avg # bars in winning trades"
+msgstr "盈利交易平均 K 线数"
+
+msgid "Avg P&L"
+msgstr "平均盈亏"
+
+msgid "Avg P&L %"
+msgstr "平均盈亏 %"
+
+msgid "Avg drawdown duration (bars)"
+msgstr "平均回撤时长（K 线）"
+
+msgid "Avg equity drawdown"
+msgstr "平均权益回撤"
+
+msgid "Avg equity run-up"
+msgstr "平均权益上涨"
+
+msgid "Avg losing trade"
+msgstr "平均亏损交易"
+
+msgid "Avg margin used"
+msgstr "平均已用保证金"
+
+msgid "Avg price"
+msgstr "均价"
+
+msgid "Avg run-up duration (bars)"
+msgstr "平均上涨时长（K 线）"
+
+msgid "Avg winning trade"
+msgstr "平均盈利交易"
+
+msgid "Awesome Oscillator"
+msgstr "动量震荡指标 (AO)"
+
+msgid "BBPower"
+msgstr ""
+
+msgid "BOP"
+msgstr ""
+
+msgid "BUILT-IN INDICATORS"
+msgstr "内置指标"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Background"
+msgstr "背景"
+
+msgid "Backtest's max drawdown"
+msgstr "回测最大回撤"
+
+msgid "Bakri Id"
+msgstr ""
+
+msgid "Balance"
+msgstr "余额"
+
+msgid "Balance of Power"
+msgstr "力量平衡"
+
+msgid "Bands Calculation Mode"
+msgstr "轨道计算模式"
+
+msgid "Bands Fill #1"
+msgstr "轨道填充 1"
+
+msgid "Bands Fill #2"
+msgstr "轨道填充 2"
+
+msgid "Bands Fill #3"
+msgstr "轨道填充 3"
+
+msgid "Bands Multiplier #1"
+msgstr "轨道乘数 1"
+
+msgid "Bands Multiplier #2"
+msgstr "轨道乘数 2"
+
+msgid "Bands Multiplier #3"
+msgstr "轨道乘数 3"
+
+msgid "Bands Settings"
+msgstr "轨道设置"
+
+msgid "Bands Style"
+msgstr "轨道样式"
+
+msgid "Bands and channels"
+msgstr "轨道与通道"
+
+msgid "Bar change values"
+msgstr "K 线涨跌值"
+
+msgid "Bar replay"
+msgstr "K 线回放"
+
+msgid "Bars"
+msgstr "美国线"
+
+msgid "Bars per symbol"
+msgstr "每个品种的 K 线数"
+
+msgid "Bars style"
+msgstr "K 线样式"
+
+msgid "Base Line"
+msgstr "基准线"
+
+msgid "Base Line Length"
+msgstr "基准线长度"
+
+msgid "Base level"
+msgstr "基准水平"
+
+msgid "Baseline"
+msgstr "基线图"
+
+msgid "Basis"
+msgstr "中轨"
+
+msgid "Basis MA Type"
+msgstr "中轨均线类型"
+
+msgid "Bayesian"
+msgstr "贝叶斯"
+
+msgid "Begin"
+msgstr "开始"
+
+msgid "Berchtold's Day"
+msgstr "贝希托尔德日"
+
+msgid "Best: {0}  →  {1} ({2}), {3} trades"
+msgstr "最佳：{0}  →  {1} ({2})，{3} 笔交易"
+
+msgid "Beta"
+msgstr "贝塔"
+
+msgid "Bid"
+msgstr "买价"
+
+#, message
+msgid "Binance has no {0} bars"
+msgstr "Binance 没有 {0} K 线"
+
+msgid "Black Consciousness Day"
+msgstr "黑人觉醒日"
+
+msgid "Body"
+msgstr "实体"
+
+msgid "Body Middle"
+msgstr "实体中点"
+
+msgid "Bollinger BandWidth"
+msgstr "布林带宽度"
+
+msgid "Bollinger Bands"
+msgstr "布林带"
+
+msgid "Bollinger Bands %B"
+msgstr "布林带 %B"
+
+msgid "Borders"
+msgstr "边框"
+
+#, message
+msgid "Bought {qty} {sym} at {price}"
+msgstr "以 {price} 买入 {qty} {sym}"
+
+msgid "Box size"
+msgstr "砖块大小"
+
+msgid "Boxing Day"
+msgstr "节礼日"
+
+msgid "Brush"
+msgstr "画笔"
+
+msgid "Buddha's Birthday"
+msgstr "佛诞"
+
+msgid "Built-in source, read-only. Make a copy to change and run it."
+msgstr "内置源码，只读。创建副本后可修改和运行。"
+
+msgid "Built-ins"
+msgstr "内置"
+
+msgid "Bull Bear Power"
+msgstr "牛熊力量"
+
+msgid "Buy"
+msgstr "买入"
+
+msgid "Buy & hold"
+msgstr "买入并持有"
+
+msgid "Buy & hold return"
+msgstr "买入并持有收益"
+
+msgid "Buy order filled."
+msgstr "买单已成交。"
+
+#, message
+msgid "Bybit has no {0} bars"
+msgstr "Bybit 没有 {0} K 线"
+
+msgid "CAGR"
+msgstr ""
+
+msgid "CCI"
+msgstr ""
+
+msgid "CCI Histogram"
+msgstr "CCI 柱状图"
+
+msgid "CCI Length"
+msgstr "CCI 长度"
+
+msgid "CCI Turbo"
+msgstr "CCI Turbo"
+
+msgid "CCI Turbo Length"
+msgstr "CCI Turbo 长度"
+
+msgid "CHARTS IN THIS WINDOW"
+msgstr "此窗口中的图表"
+
+msgid "CHOP"
+msgstr ""
+
+msgid "CRSI"
+msgstr ""
+
+msgid "CSV"
+msgstr ""
+
+msgid "Calendar"
+msgstr "日历"
+
+msgid "Camarilla"
+msgstr "卡玛利拉"
+
+msgid "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
+msgstr "找不到另一台设备。请保持其代码显示，并确认两台设备在同一网络，且没有防火墙拦截 Opentern。"
+
+#, message
+msgid "Can't reach the IBKR gateway. Start the Client Portal gateway and log in, then try again."
+msgstr "无法连接 IBKR 网关。请启动 Client Portal 网关并登录，然后重试。"
+
+msgid "Canada Day"
+msgstr "加拿大国庆日"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Candles"
+msgstr "K 线图"
+
+msgid "Canvas"
+msgstr "画布"
+
+msgid "Capital and size"
+msgstr "资金与规模"
+
+msgid "Carnival"
+msgstr "狂欢节"
+
+msgid "Cash"
+msgstr "现金"
+
+msgid "Categories"
+msgstr "分类"
+
+msgid "Centered"
+msgstr "居中"
+
+msgid "Chaikin Money Flow"
+msgstr "蔡金资金流"
+
+msgid "Chaikin Oscillator"
+msgstr "蔡金震荡指标"
+
+msgid "Chance of a loss"
+msgstr "亏损概率"
+
+msgid "Chance of ruin"
+msgstr "破产概率"
+
+msgid "Chande Kroll Stop"
+msgstr "钱德克罗止损"
+
+msgid "Chande MO"
+msgstr "钱德 MO"
+
+msgid "Chande Momentum Oscillator"
+msgstr "钱德动量震荡指标"
+
+msgid "Change"
+msgstr "涨跌"
+
+msgid "Change %"
+msgstr "涨跌幅 %"
+
+msgid "Change interval"
+msgstr "更改周期"
+
+msgid "Change over the last 24 hours"
+msgstr "过去 24 小时涨跌"
+
+msgid "Change over the last month"
+msgstr "过去一个月涨跌"
+
+msgid "Change over the last six months"
+msgstr "过去六个月涨跌"
+
+msgid "Change over the last three months"
+msgstr "过去三个月涨跌"
+
+msgid "Change over the last year"
+msgstr "过去一年涨跌"
+
+msgid "Change since the last close"
+msgstr "较上一收盘涨跌"
+
+msgid "Change since the previous close"
+msgstr "较前收盘涨跌"
+
+msgid "Change the interval"
+msgstr "更改周期"
+
+msgid "Change the strategy settings"
+msgstr "更改策略设置"
+
+#, message
+msgid "Change the {what}"
+msgstr "更改{what}"
+
+msgid "Change {0}"
+msgstr "更改 {0}"
+
+#, message
+msgid "Change {0}'s inputs"
+msgstr "更改 {0} 的参数"
+
+#, message
+msgid "Changed the {what}"
+msgstr "已更改{what}"
+
+#, message
+msgid "Changed {0}'s inputs"
+msgstr "已更改 {0} 的参数"
+
+msgid "Change|button"
+msgstr "更改"
+
+msgid "Channel settings"
+msgstr "通道设置"
+
+msgid "Chart"
+msgstr "图表"
+
+msgid "Chart basic styles"
+msgstr "图表基本样式"
+
+msgid "Chart settings"
+msgstr "图表设置"
+
+msgid "Chart type"
+msgstr "图表类型"
+
+msgid "Charts download their prices again when you open them. Older minute and hour bars may not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back either."
+msgstr "图表打开时会重新下载价格。较早的分钟和小时 K 线可能无法恢复：数据源只保留近期数据（Yahoo：1 分钟线约一周，15 分钟线 60 天）。实时记录的 Muhurat 等特别时段也无法恢复。"
+
+msgid "Charts, scripts and backtests. All on your own machine."
+msgstr "图表、脚本和回测，全在你自己的电脑上。"
+
+msgid "Chats"
+msgstr "对话"
+
+msgid "Check again"
+msgstr "重新检查"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Check for updates when Opentern starts"
+msgstr "Opentern 启动时检查更新"
+
+#, message
+msgid "Check {0}"
+msgstr "检查 {0}"
+
+#, message
+msgid "Checked {0}"
+msgstr "已检查 {0}"
+
+msgid "Checking"
+msgstr "正在检查"
+
+msgid "Chg%"
+msgstr "涨跌%"
+
+msgid "Chg% 24h"
+msgstr "24h 涨跌%"
+
+msgid "Chg% today"
+msgstr "今日涨跌%"
+
+msgid "Children's Day"
+msgstr "儿童节"
+
+msgid "Choose a scripts folder"
+msgstr "选择脚本文件夹"
+
+msgid "Choose a snapshots folder"
+msgstr "选择快照文件夹"
+
+msgid "Choose file"
+msgstr "选择文件"
+
+msgid "Chop Zone"
+msgstr "震荡区域"
+
+msgid "Choppiness Index"
+msgstr "震荡指数"
+
+msgid "Christmas"
+msgstr "圣诞节"
+
+msgid "Christmas Day"
+msgstr "圣诞节"
+
+msgid "Christmas Eve"
+msgstr "平安夜"
+
+msgid "Chuseok"
+msgstr "中秋节"
+
+msgid "Circles"
+msgstr "圆点"
+
+msgid "Civic Holiday"
+msgstr "公民日"
+
+msgid "Classic"
+msgstr "经典"
+
+msgid "Claude Code decides what's safe and asks only when it isn't sure."
+msgstr "由 Claude Code 判断是否安全，仅在不确定时询问。"
+
+msgid "Claude asks before it edits files or runs commands."
+msgstr "Claude 在编辑文件或运行命令前会询问。"
+
+msgid "Clear all"
+msgstr "全部清除"
+
+msgid "Clear cache"
+msgstr "清除缓存"
+
+msgid "Clear everything?"
+msgstr "全部清除？"
+
+msgid "Clear log"
+msgstr "清除日志"
+
+msgid "Clear price cache"
+msgstr "清除价格缓存"
+
+msgid "Clear saved logos"
+msgstr "清除已保存的图标"
+
+msgid "Clear the price cache?"
+msgstr "清除价格缓存？"
+
+msgid "Clearing…"
+msgstr "正在清除…"
+
+msgid "Click a bar to start from it"
+msgstr "点击一根 K 线从那里开始"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Close (Esc)"
+msgstr "关闭 (Esc)"
+
+msgid "Close ({0})"
+msgstr "关闭 ({0})"
+
+msgid "Close replay"
+msgstr "关闭回放"
+
+msgid "Closed"
+msgstr "休市"
+
+#, message
+msgid "Closed {0}."
+msgstr "已平仓 {0}。"
+
+msgid "Closes {0}"
+msgstr "{0} 收市"
+
+msgid "Close|price"
+msgstr "收盘"
+
+msgid "Codex asks before it edits files or runs anything it doesn't know is safe."
+msgstr "Codex 在编辑文件或运行不确定是否安全的内容前会询问。"
+
+msgid "Codex works freely in your scripts folder and asks before going outside it."
+msgstr "Codex 可在脚本文件夹内自由工作，超出范围前会询问。"
+
+#, message
+msgid "Coinbase has no {0} bars"
+msgstr "Coinbase 没有 {0} K 线"
+
+msgid "Collapse panel"
+msgstr "收起面板"
+
+msgid "Color"
+msgstr "颜色"
+
+msgid "Color bars based on previous close"
+msgstr "按前收盘价给 K 线着色"
+
+msgid "Color based on previous close"
+msgstr "按前收盘价着色"
+
+msgid "Colours"
+msgstr "颜色"
+
+msgid "Columns"
+msgstr "柱状图"
+
+msgid "Coming of Age Day"
+msgstr "成人节"
+
+msgid "Commission"
+msgstr "手续费"
+
+msgid "Commission paid"
+msgstr "已付手续费"
+
+msgid "Commodities"
+msgstr "大宗商品"
+
+msgid "Commodity Channel Index"
+msgstr "商品通道指数 (CCI)"
+
+msgid "Compare"
+msgstr "对比"
+
+msgid "Compare indices"
+msgstr "对比指数"
+
+msgid "Compare or add symbol"
+msgstr "对比或添加品种"
+
+msgid "Compare symbol"
+msgstr "对比品种"
+
+msgid "Compare the indices"
+msgstr "对比指数"
+
+msgid "Compared the indices"
+msgstr "已对比指数"
+
+msgid "Compared with"
+msgstr "对比对象"
+
+msgid "Connors RSI"
+msgstr "康纳斯 RSI"
+
+msgid "Constitution Day"
+msgstr "宪法日"
+
+msgid "Constitution Memorial Day"
+msgstr "宪法纪念日"
+
+msgid "Context now"
+msgstr "当前上下文"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Contracts"
+msgstr "合约"
+
+msgid "Conversion Line"
+msgstr "转换线"
+
+msgid "Conversion Line Length"
+msgstr "转换线长度"
+
+msgid "Copied"
+msgstr "已复制"
+
+#, message
+msgid "Copied to {name}."
+msgstr "已复制到 {name}。"
+
+msgid "Coppock Curve"
+msgstr "科普克曲线"
+
+msgid "Copy"
+msgstr "复制"
+
+msgid "Copy code"
+msgstr "复制代码"
+
+msgid "Copy image"
+msgstr "复制图片"
+
+msgid "Corpus Christi"
+msgstr "基督圣体节"
+
+msgid "Costs"
+msgstr "成本"
+
+msgid "Couldn't check for updates right now. Try again later."
+msgstr "暂时无法检查更新，请稍后再试。"
+
+msgid "Couldn't check. Make sure you are connected to the internet."
+msgstr "无法检查。请确认已连接互联网。"
+
+#, message
+msgid "Couldn't connect. Check your internet connection."
+msgstr "无法连接。请检查网络连接。"
+
+#, message
+msgid "Couldn't copy it: {e}"
+msgstr "无法复制：{e}"
+
+#, message
+msgid "Couldn't delete it: {e}"
+msgstr "无法删除：{e}"
+
+msgid "Couldn't export."
+msgstr "无法导出。"
+
+#, message
+msgid "Couldn't export: {e}"
+msgstr "无法导出：{e}"
+
+msgid "Couldn't get the import ready."
+msgstr "无法准备导入。"
+
+msgid "Couldn't get your data ready."
+msgstr "无法准备你的数据。"
+
+#, message
+msgid "Couldn't get your data ready: {e}"
+msgstr "无法准备你的数据：{e}"
+
+msgid "Couldn't import"
+msgstr "无法导入"
+
+msgid "Couldn't make a code on this computer."
+msgstr "无法在这台电脑上生成代码。"
+
+#, message
+msgid "Couldn't make the folder: {e}"
+msgstr "无法创建文件夹：{e}"
+
+#, message
+msgid "Couldn't move it: {e}"
+msgstr "无法移动：{e}"
+
+#, message
+msgid "Couldn't open the clipboard: {e}"
+msgstr "无法打开剪贴板：{e}"
+
+#, message
+msgid "Couldn't paste it: {e}"
+msgstr "无法粘贴：{e}"
+
+#, message
+msgid "Couldn't reach Yahoo."
+msgstr "无法连接 Yahoo。"
+
+#, message
+msgid "Couldn't reach the data service."
+msgstr "无法连接数据服务。"
+
+#, message
+msgid "Couldn't reach {0}: {err}"
+msgstr "无法连接 {0}：{err}"
+
+#, message
+msgid "Couldn't read {0}: {e}"
+msgstr "无法读取 {0}：{e}"
+
+#, message
+msgid "Couldn't read {file}: {e}"
+msgstr "无法读取 {file}：{e}"
+
+#, message
+msgid "Couldn't rename it: {e}"
+msgstr "无法重命名：{e}"
+
+#, message
+msgid "Couldn't save the chat id: {e}"
+msgstr "无法保存聊天 ID：{e}"
+
+#, message
+msgid "Couldn't save the email settings: {e}"
+msgstr "无法保存邮件设置：{e}"
+
+#, message
+msgid "Couldn't save the password in your keychain: {e}"
+msgstr "无法将密码保存到钥匙串：{e}"
+
+msgid "Couldn't save the snapshot"
+msgstr "无法保存快照"
+
+#, message
+msgid "Couldn't save the token in your keychain: {e}"
+msgstr "无法将令牌保存到钥匙串：{e}"
+
+#, message
+msgid "Couldn't save to your keychain: {e}"
+msgstr "无法保存到钥匙串：{e}"
+
+#, message
+msgid "Couldn't save: {e}"
+msgstr "无法保存：{e}"
+
+#, message
+msgid "Couldn't set Opentern to start at login: {e}"
+msgstr "无法将 Opentern 设为登录时启动：{e}"
+
+msgid "Couldn't start the run."
+msgstr "无法开始运行。"
+
+#, message
+msgid "Couldn't start {0}: {e}"
+msgstr "无法启动 {0}：{e}"
+
+#, message
+msgid "Couldn't update: {e}"
+msgstr "无法更新：{e}"
+
+msgid "Count in the index"
+msgstr "计入指数"
+
+msgid "Countdown to bar close"
+msgstr "K 线收盘倒计时"
+
+msgid "Counts all of a company's shares."
+msgstr "计入公司全部股份。"
+
+msgid "Counts only the shares the public can trade, as NSE does."
+msgstr "与 NSE 一样，只计入公众可交易的股份。"
+
+msgid "Create"
+msgstr "创建"
+
+msgid "Create alert"
+msgstr "创建警报"
+
+msgid "Create alert (Alt+A)"
+msgstr "创建警报 (Alt+A)"
+
+msgid "Create an alert"
+msgstr "创建警报"
+
+#, message
+msgid "Create {0}"
+msgstr "创建 {0}"
+
+msgid "Cross"
+msgstr "十字"
+
+msgid "Cross line"
+msgstr "十字线"
+
+msgid "Crosshair"
+msgstr "十字光标"
+
+msgid "Crossing"
+msgstr "穿越"
+
+msgid "Crossing down"
+msgstr "下穿"
+
+msgid "Crossing up"
+msgstr "上穿"
+
+msgid "Crypto"
+msgstr "加密货币"
+
+msgid "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source that needs an account. Keys stay in your system keychain."
+msgstr "加密货币（Binance、Bybit、OKX、Coinbase、Kraken）和 Yahoo 无需设置。要使用需要账户的数据源，请添加密钥。密钥保存在系统钥匙串中。"
+
+msgid "Crypto majors"
+msgstr "主流加密货币"
+
+msgid "Culture Day"
+msgstr "文化日"
+
+msgid "Cum. profit"
+msgstr "累计盈亏"
+
+msgid "Currency"
+msgstr "货币"
+
+msgid "Cursors"
+msgstr "光标"
+
+msgid "Custom"
+msgstr "自定义"
+
+msgid "Custom indices"
+msgstr "自定义指数"
+
+msgid "Custom: 7m, 3h, 2D"
+msgstr "自定义：7m, 3h, 2D"
+
+msgid "DATA WINDOW"
+msgstr "数据窗口"
+
+msgid "DAYS"
+msgstr "天"
+
+msgid "DI Length"
+msgstr "DI 长度"
+
+msgid "DM"
+msgstr ""
+
+msgid "Daily"
+msgstr "每日"
+
+msgid "Dashed"
+msgstr "虚线"
+
+msgid "Data modification"
+msgstr "数据调整"
+
+msgid "Data providers"
+msgstr "数据提供商"
+
+msgid "Date"
+msgstr "日期"
+
+msgid "Date and price range"
+msgstr "日期与价格范围"
+
+msgid "Date range"
+msgstr "日期范围"
+
+msgid "Date/Time"
+msgstr "日期/时间"
+
+msgid "Days"
+msgstr "天"
+
+msgid "Dec"
+msgstr "12月"
+
+msgid "December"
+msgstr "十二月"
+
+msgid "Declined"
+msgstr "已拒绝"
+
+msgid "Deeper layers, hairline borders, a fresher green, and dialogs, menus and controls redrawn to match, in dark and light."
+msgstr "更分明的层次、纤细的边框、更清新的绿色，对话框、菜单和控件也在深色与浅色下重新绘制。"
+
+msgid "Default"
+msgstr "默认"
+
+msgid "Defaults  {0}"
+msgstr "默认  {0}"
+
+msgid "Delayed {min} min"
+msgstr "延迟 {min} 分钟"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Delete chat"
+msgstr "删除对话"
+
+msgid "Delete folder (if empty)"
+msgstr "删除文件夹（如为空）"
+
+msgid "Delete for good"
+msgstr "永久删除"
+
+msgid "Delete layout"
+msgstr "删除布局"
+
+msgid "Delete list"
+msgstr "删除列表"
+
+msgid "Delete template"
+msgstr "删除模板"
+
+msgid "Delete the selected drawing"
+msgstr "删除选中的绘图"
+
+msgid "Delete this account"
+msgstr "删除此账户"
+
+#, message
+msgid "Delete {0}"
+msgstr "删除 {0}"
+
+#, message
+msgid "Delete {f}? Choose Delete again to confirm."
+msgstr "删除 {f}？再次选择“删除”以确认。"
+
+#, message
+msgid "Deleted the folder {dir}."
+msgstr "已删除文件夹 {dir}。"
+
+#, message
+msgid "Deleted {0}"
+msgstr "已删除 {0}"
+
+#, message
+msgid "Deleted {0}."
+msgstr "已删除 {0}。"
+
+#, message
+msgid "Deleted {f}."
+msgstr "已删除 {f}。"
+
+msgid "Deny"
+msgstr "拒绝"
+
+msgid "Depth"
+msgstr "深度"
+
+msgid "Depth of market"
+msgstr "市场深度"
+
+msgid "Detrended Price Oscillator"
+msgstr "去趋势价格震荡指标"
+
+msgid "Deviation"
+msgstr "偏差"
+
+msgid "Difference"
+msgstr "差值"
+
+msgid "Directional Movement Index"
+msgstr "趋向指标 (DMI)"
+
+msgid "Display cumulative volume"
+msgstr "显示累计成交量"
+
+msgid "Display reversal price"
+msgstr "显示反转价格"
+
+msgid "Display reversal price change"
+msgstr "显示反转价格变化"
+
+msgid "Display settings"
+msgstr "显示设置"
+
+msgid "Dividend"
+msgstr "股息"
+
+msgid "Dividend {0} {1}\nEx-date {2}"
+msgstr "股息 {0} {1}\n除息日 {2}"
+
+msgid "Dividends and splits"
+msgstr "股息与拆股"
+
+msgid "Divisor"
+msgstr "除数"
+
+msgid "Diwali Balipratipada"
+msgstr ""
+
+msgid "Diwali Laxmi Pujan"
+msgstr ""
+
+msgid "Donchian Channels"
+msgstr "唐奇安通道"
+
+msgid "Done"
+msgstr "完成"
+
+msgid "Done."
+msgstr "完成。"
+
+#, message
+msgid "Done. {errors} couldn't load (hover them to see why)."
+msgstr "完成。{errors} 个无法加载（悬停可查看原因）。"
+
+msgid "Dotted"
+msgstr "点线"
+
+msgid "Double EMA"
+msgstr "双重 EMA"
+
+msgid "Double-click to put these inputs on the chart"
+msgstr "双击将这些参数应用到图表"
+
+msgid "Double-click to rename"
+msgstr "双击重命名"
+
+msgid "Down"
+msgstr "下"
+
+msgid "Down Trend"
+msgstr "下降趋势"
+
+msgid "Down volume"
+msgstr "下跌成交量"
+
+msgid "Download image"
+msgstr "下载图片"
+
+msgid "Download {0}"
+msgstr "下载 {0}"
+
+msgid "Downtrend Highlighter"
+msgstr "下降趋势高亮"
+
+msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr ""
+
+msgid "Drag to scale · double-click to fit · right-click for options"
+msgstr "拖动缩放 · 双击适应 · 右键查看选项"
+
+msgid "Draw with replacement"
+msgstr "有放回抽样"
+
+#, message
+msgid "Draw {what}"
+msgstr "绘制{what}"
+
+msgid "Drawdown"
+msgstr "回撤"
+
+msgid "Drawing tools"
+msgstr "绘图工具"
+
+#, message
+msgid "Drawing: {0} #{1}"
+msgstr "绘图：{0} #{1}"
+
+msgid "Drawings"
+msgstr "绘图"
+
+#, message
+msgid "Drew {what}"
+msgstr "已绘制{what}"
+
+msgid "Drop files to attach"
+msgstr "拖放文件以附加"
+
+msgid "Duplicate"
+msgstr "复制一份"
+
+msgid "Dussehra"
+msgstr "十胜节"
+
+msgid "EBIT"
+msgstr ""
+
+msgid "EBIT margin"
+msgstr "EBIT 利润率"
+
+msgid "EBITDA"
+msgstr ""
+
+msgid "EBITDA margin"
+msgstr "EBITDA 利润率"
+
+msgid "EMA"
+msgstr ""
+
+msgid "EMA Cross"
+msgstr "EMA 交叉"
+
+msgid "EMA Length"
+msgstr "EMA 长度"
+
+msgid "EOM"
+msgstr ""
+
+msgid "EV/EBITDA"
+msgstr ""
+
+msgid "EXPLORER"
+msgstr "资源管理器"
+
+msgid "EXT"
+msgstr ""
+
+msgid "Each symbol's own"
+msgstr "各品种自身货币"
+
+msgid "Early May Bank Holiday"
+msgstr "五月初银行假日"
+
+msgid "Early close"
+msgstr "提前收市"
+
+msgid "Earnings {0}\nReported EPS {1}\nEstimate {2}"
+msgstr "财报 {0}\n实际 EPS {1}\n预期 {2}"
+
+msgid "Ease of Movement"
+msgstr "简易波动指标"
+
+msgid "Easter Monday"
+msgstr "复活节星期一"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Edit alert"
+msgstr "编辑警报"
+
+msgid "Edit index"
+msgstr "编辑指数"
+
+#, message
+msgid "Edit {0}"
+msgstr "编辑 {0}"
+
+#, message
+msgid "Edited {0}"
+msgstr "已编辑 {0}"
+
+msgid "Efficiency"
+msgstr "效率"
+
+msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr "效率：样本外每根 K 线利润与样本内之比。高于 50% 通常视为稳健。"
+
+msgid "Elder Force Index"
+msgstr "艾达尔力度指数"
+
+msgid "Ellipse"
+msgstr "椭圆"
+
+msgid "Email"
+msgstr "邮件"
+
+msgid "Emperor Naruhito's Birthday"
+msgstr "天皇诞辰"
+
+msgid "End of Year Holiday"
+msgstr "年末假日"
+
+msgid "End the replay"
+msgstr "结束回放"
+
+msgid "Ended the replay"
+msgstr "已结束回放"
+
+msgid "Enter Opentern"
+msgstr "进入 Opentern"
+
+#, message
+msgid "Enter a price."
+msgstr "请输入价格。"
+
+#, message
+msgid "Enter a quantity above zero."
+msgstr "请输入大于零的数量。"
+
+msgid "Enter address"
+msgstr "输入地址"
+
+#, message
+msgid "Enter both the stop and the limit price."
+msgstr "请输入止损价和限价。"
+
+#, message
+msgid "Enter how far the stop trails the price."
+msgstr "请输入跟踪止损与价格的距离。"
+
+msgid "Enter the Telegram chat id to send alerts to."
+msgstr "请输入接收警报的 Telegram 聊天 ID。"
+
+msgid "Enter the code from your other device"
+msgstr "输入另一台设备上的代码"
+
+msgid "Enter this code on your other device"
+msgstr "在另一台设备上输入此代码"
+
+msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
+msgstr "企业价值与过去十二个月 EBITDA 之比。指数：总 EV 除以总 EBITDA"
+
+msgid "Entry {side}"
+msgstr "{side}入场"
+
+msgid "Envelope"
+msgstr "包络线"
+
+msgid "Equal"
+msgstr "等权"
+
+msgid "Equal weight"
+msgstr "等权重"
+
+msgid "Equity"
+msgstr "权益"
+
+msgid "Eraser"
+msgstr "橡皮擦"
+
+msgid "Euronext Paris"
+msgstr ""
+
+msgid "Europe"
+msgstr "欧洲"
+
+msgid "Even trades"
+msgstr "持平交易"
+
+msgid "Every combination"
+msgstr "所有组合"
+
+msgid "Every in-sample window starts at the first bar"
+msgstr "每个样本内窗口都从第一根 K 线开始"
+
+msgid "Every index (Esc)"
+msgstr "所有指数 (Esc)"
+
+msgid "Every result has its price and day change. Star one into your watchlist, and find coins by name (\"bitcoin\") even with a typo."
+msgstr "每条结果都显示价格和当日涨跌。点星标加入自选，还可按名称查找币种（如 bitcoin），打错字也能找到。"
+
+msgid "Every stock starts with the same weight."
+msgstr "每只股票以相同权重开始。"
+
+msgid "Every time"
+msgstr "每次"
+
+#, message
+msgid "Everything else came in, but this computer can't save these scripts: {0}. Rename them on the other device and export again."
+msgstr "其余内容已导入，但这台电脑无法保存这些脚本：{0}。请在另一台设备上重命名后重新导出。"
+
+msgid "Exchange"
+msgstr "交易所"
+
+msgid "Exit {side}"
+msgstr "{side}出场"
+
+msgid "Expected payoff"
+msgstr "期望收益"
+
+msgid "Expired"
+msgstr "已过期"
+
+msgid "Expires"
+msgstr "到期"
+
+msgid "Exponential"
+msgstr "指数"
+
+msgid "Export"
+msgstr "导出"
+
+msgid "Export and import"
+msgstr "导出与导入"
+
+msgid "Export: save the list of trades as a CSV file"
+msgstr "导出：将交易列表保存为 CSV 文件"
+
+msgid "Exported {when} · Opentern {0}"
+msgstr "导出于 {when} · Opentern {0}"
+
+msgid "Exporting"
+msgstr "正在导出"
+
+msgid "Extend left"
+msgstr "向左延伸"
+
+msgid "Extend lines left"
+msgstr "线条向左延伸"
+
+msgid "Extend lines right"
+msgstr "线条向右延伸"
+
+msgid "Extend right"
+msgstr "向右延伸"
+
+msgid "Extend to last bar"
+msgstr "延伸到最后一根 K 线"
+
+msgid "Extended line"
+msgstr "延长线"
+
+msgid "Extended trading hours"
+msgstr "延长交易时段"
+
+msgid "Factor"
+msgstr "系数"
+
+msgid "Family Day"
+msgstr "家庭日"
+
+msgid "Fast Length"
+msgstr "快线长度"
+
+msgid "Fast length"
+msgstr "快线长度"
+
+msgid "Favorites"
+msgstr "收藏"
+
+msgid "Feb"
+msgstr "2月"
+
+msgid "February"
+msgstr "二月"
+
+msgid "Feed"
+msgstr "数据源"
+
+msgid "Fetch and measure every symbol"
+msgstr "获取并计算每个品种"
+
+msgid "Fewest trades"
+msgstr "最少交易数"
+
+msgid "Fib retracement"
+msgstr "斐波那契回撤"
+
+msgid "Fibonacci"
+msgstr "斐波那契"
+
+msgid "Fill"
+msgstr "填充"
+
+msgid "Fill in every field first."
+msgstr "请先填写所有字段。"
+
+msgid "Fill in the SMTP server, your address and where to send, or turn email off."
+msgstr "请填写 SMTP 服务器、你的地址和收件人，或关闭邮件。"
+
+msgid "Fill orders on bar close"
+msgstr "在 K 线收盘时成交"
+
+msgid "Fills"
+msgstr "填充"
+
+msgid "Filter"
+msgstr "筛选"
+
+msgid "Filter files"
+msgstr "筛选文件"
+
+#, message
+msgid "Find files: {0}"
+msgstr "查找文件：{0}"
+
+msgid "Finish signing in in your browser."
+msgstr "请在浏览器中完成登录。"
+
+msgid "Fisher"
+msgstr "费雪"
+
+msgid "Fisher Transform"
+msgstr "费雪变换"
+
+msgid "Fixed range volume profile"
+msgstr "固定范围成交量分布"
+
+msgid "Floor"
+msgstr "Floor"
+
+msgid "Folders"
+msgstr "文件夹"
+
+msgid "Follow the app theme"
+msgstr "跟随应用主题"
+
+msgid "Font"
+msgstr "字体"
+
+msgid "Forecasting and measurement tools"
+msgstr "预测与测量工具"
+
+msgid "Forex"
+msgstr "外汇"
+
+msgid "Forward one bar"
+msgstr "前进一根 K 线"
+
+#, message
+msgid "Found files: {0}"
+msgstr "已查找文件：{0}"
+
+msgid "Frankfurt"
+msgstr "法兰克福"
+
+msgid "Free float"
+msgstr "自由流通"
+
+msgid "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."
+msgstr "免费实时价格 (IEX)。密钥：app.alpaca.markets → API keys。"
+
+msgid "Free-float market cap"
+msgstr "自由流通市值"
+
+msgid "Fri"
+msgstr "周五"
+
+msgid "Friday"
+msgstr "星期五"
+
+msgid "From @BotFather"
+msgstr "来自 @BotFather"
+
+msgid "From a file"
+msgstr "从文件"
+
+msgid "From another device"
+msgstr "从另一台设备"
+
+msgid "Full Moon"
+msgstr "满月"
+
+msgid "Full market cap"
+msgstr "总市值"
+
+msgid "Full release notes"
+msgstr "完整更新说明"
+
+msgid "Full screen"
+msgstr "全屏"
+
+msgid "Fullscreen mode (Shift F)"
+msgstr "全屏模式 (Shift F)"
+
+#, message
+msgid "Fundamentals: {e}"
+msgstr "基本面：{e}"
+
+msgid "Funding"
+msgstr "资金费率"
+
+msgid "Funds"
+msgstr "基金"
+
+msgid "Futures"
+msgstr "期货"
+
+msgid "Futures prices from free sources are about 10 minutes behind the exchange. Daily closes are the official settlements."
+msgstr "免费数据源的期货价格比交易所晚约 10 分钟。日收盘价为官方结算价。"
+
+msgid "Gainers"
+msgstr "涨幅榜"
+
+msgid "Ganesh Chaturthi"
+msgstr ""
+
+msgid "Gann and Fibonacci tools"
+msgstr "江恩与斐波那契工具"
+
+msgid "Gateway URL"
+msgstr "网关 URL"
+
+msgid "General"
+msgstr "常规"
+
+msgid "Geometric shapes"
+msgstr "几何图形"
+
+msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
+msgstr "Gmail、Outlook 等多数邮箱需要应用专用密码：请在账户的安全设置中创建。"
+
+msgid "Good Friday"
+msgstr "耶稣受难日"
+
+msgid "Got it"
+msgstr "知道了"
+
+msgid "Gradient"
+msgstr "渐变"
+
+msgid "Greater than"
+msgstr "大于"
+
+msgid "Greenery Day"
+msgstr "绿之日"
+
+msgid "Grid (every combination)"
+msgstr "网格（所有组合）"
+
+msgid "Gross"
+msgstr "毛利"
+
+msgid "Gross loss"
+msgstr "总亏损"
+
+msgid "Gross margin"
+msgstr "毛利率"
+
+msgid "Gross profit"
+msgstr "总盈利"
+
+msgid "Growth and margins"
+msgstr "增长与利润率"
+
+msgid "HOURS"
+msgstr "小时"
+
+msgid "HV"
+msgstr ""
+
+msgid "Hangul Proclamation Day"
+msgstr "韩文日"
+
+msgid "Heatmap"
+msgstr "热力图"
+
+msgid "Heikin Ashi"
+msgstr "平均 K 线"
+
+msgid "Hidden"
+msgstr "隐藏"
+
+msgid "Hide"
+msgstr "隐藏"
+
+msgid "Hide VWAP on 1D or Above"
+msgstr "在 1D 及以上隐藏 VWAP"
+
+msgid "Hide all drawings"
+msgstr "隐藏所有绘图"
+
+msgid "Hide all drawings ({0})"
+msgstr "隐藏所有绘图 ({0})"
+
+msgid "Hide the drawing toolbar"
+msgstr "隐藏绘图工具栏"
+
+msgid "Hide the sidebar"
+msgstr "隐藏侧栏"
+
+msgid "High-low"
+msgstr "高低图"
+
+msgid "High|price"
+msgstr "最高"
+
+msgid "Histogram"
+msgstr "直方图"
+
+msgid "Historical Volatility"
+msgstr "历史波动率"
+
+msgid "History"
+msgstr "历史"
+
+msgid "History {0}"
+msgstr "历史 {0}"
+
+msgid "Holi"
+msgstr "洒红节"
+
+msgid "Hollow candles"
+msgstr "空心 K 线"
+
+msgid "Hong Kong"
+msgstr "香港"
+
+msgid "Hong Kong Exchanges"
+msgstr ""
+
+msgid "Hong Kong Special Region Establishment Day"
+msgstr "香港特别行政区成立纪念日"
+
+msgid "Horizontal line"
+msgstr "水平线"
+
+msgid "Horizontal ray"
+msgstr "水平射线"
+
+msgid "Horz grid lines"
+msgstr "水平网格线"
+
+msgid "Hotlists"
+msgstr "热门榜"
+
+msgid "Hours"
+msgstr "小时"
+
+msgid "How far back its prices go"
+msgstr "价格可追溯多久"
+
+msgid "How far the price is above or below its 200-day average"
+msgstr "价格高于或低于 200 日均线的幅度"
+
+msgid "How far the price is above or below its 50-day average"
+msgstr "价格高于或低于 50 日均线的幅度"
+
+msgid "Hull Moving Average"
+msgstr "赫尔移动平均线"
+
+#, message
+msgid "IBKR doesn't know {0}."
+msgstr "IBKR 找不到 {0}。"
+
+#, message
+msgid "IBKR has no {0} bars"
+msgstr "IBKR 没有 {0} K 线"
+
+msgid "IN {0}"
+msgstr "{0} 版本"
+
+msgid "INCLUDE"
+msgstr "包含内容"
+
+msgid "INPUTS TO VARY"
+msgstr "要变化的参数"
+
+msgid "Ichimoku Cloud"
+msgstr "一目均衡表"
+
+msgid "Icons"
+msgstr "图标"
+
+msgid "Id-Ul-Fitr"
+msgstr "开斋节"
+
+msgid "Import"
+msgstr "导入"
+
+msgid "Import and restart"
+msgstr "导入并重启"
+
+msgid "Import finished"
+msgstr "导入完成"
+
+msgid "Import from {0}"
+msgstr "从 {0} 导入"
+
+msgid "Imported. Press Run in the Script Editor to start it."
+msgstr "已导入。在脚本编辑器中点击“运行”即可启动。"
+
+msgid "Importing"
+msgstr "正在导入"
+
+msgid "In a pane of its own, below"
+msgstr "在下方独立窗格中"
+
+msgid "In-sample P&L"
+msgstr "样本内盈亏"
+
+msgid "In-sample bars"
+msgstr "样本内 K 线数"
+
+msgid "Increment"
+msgstr "步长"
+
+msgid "Independence Day"
+msgstr "独立日"
+
+msgid "Independence Movement Day"
+msgstr "三一独立运动纪念日"
+
+msgid "Index"
+msgstr "指数"
+
+msgid "Indian Markets"
+msgstr "印度市场"
+
+msgid "Indian large caps"
+msgstr "印度大盘股"
+
+msgid "Indicator inputs"
+msgstr "指标参数"
+
+msgid "Indicator templates"
+msgstr "指标模板"
+
+msgid "Indicator titles"
+msgstr "指标标题"
+
+msgid "Indicator value labels"
+msgstr "指标数值标签"
+
+msgid "Indicator values"
+msgstr "指标数值"
+
+msgid "Indicators"
+msgstr "指标"
+
+msgid "Indicators, metrics and strategies (/)"
+msgstr "指标、度量与策略 (/)"
+
+msgid "Indices"
+msgstr "指数"
+
+msgid "Initial capital"
+msgstr "初始资金"
+
+msgid "Input"
+msgstr "输入"
+
+msgid "Inputs"
+msgstr "参数"
+
+msgid "Install {0}"
+msgstr "安装 {0}"
+
+msgid "Interactive Brokers"
+msgstr ""
+
+msgid "Interval"
+msgstr "周期"
+
+#, message
+msgid "It ended with code {n}."
+msgstr "以代码 {n} 结束。"
+
+msgid "JSON"
+msgstr ""
+
+msgid "Jan"
+msgstr "1月"
+
+msgid "January"
+msgstr "一月"
+
+msgid "Japan Exchange Group"
+msgstr ""
+
+msgid "Jaw"
+msgstr "颚线"
+
+msgid "Jaw Length"
+msgstr "颚线长度"
+
+msgid "Jaw Offset"
+msgstr "颚线偏移"
+
+msgid "Jul"
+msgstr "7月"
+
+msgid "July"
+msgstr "七月"
+
+msgid "Jump to real time"
+msgstr "跳到实时"
+
+msgid "Jun"
+msgstr "6月"
+
+msgid "June"
+msgstr "六月"
+
+msgid "Juneteenth"
+msgstr "六月节"
+
+msgid "KEEP IN SYNC"
+msgstr "保持同步"
+
+msgid "KST"
+msgstr ""
+
+msgid "Kagi"
+msgstr "卡吉图"
+
+msgid "Keep checking alerts"
+msgstr "继续检查警报"
+
+msgid "Keep checking, even after a restart"
+msgstr "继续检查，重启后也不停"
+
+msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
+msgstr "保留现有内容并更新同名项目。会先保存备份。"
+
+msgid "Keltner Channels"
+msgstr "肯特纳通道"
+
+msgid "Key ID"
+msgstr "密钥 ID"
+
+msgid "Keyboard shortcuts"
+msgstr "键盘快捷键"
+
+msgid "King's Birthday"
+msgstr "国王诞辰"
+
+msgid "Klinger Oscillator"
+msgstr "克林格震荡指标"
+
+msgid "Know Sure Thing"
+msgstr "确知指标 (KST)"
+
+msgid "Korea Exchange"
+msgstr ""
+
+msgid "Korean National Foundation Day"
+msgstr "开天节"
+
+#, message
+msgid "Kraken has no {0} bars"
+msgstr "Kraken 没有 {0} K 线"
+
+msgid "Labels on price scale"
+msgstr "价格刻度上的标签"
+
+msgid "Labels position"
+msgstr "标签位置"
+
+msgid "Labor Day"
+msgstr "劳动节"
+
+msgid "Labor Thanksgiving Day"
+msgstr "勤劳感谢日"
+
+msgid "Labour Day"
+msgstr "劳动节"
+
+msgid "Lagging Span"
+msgstr "迟行线"
+
+msgid "Lakhs, crores"
+msgstr "拉克、克若尔"
+
+msgid "Language"
+msgstr "语言"
+
+msgid "Large numbers"
+msgstr "大数字"
+
+msgid "Largest losing trade"
+msgstr "最大亏损交易"
+
+msgid "Largest losing trade, % of gross loss"
+msgstr "最大亏损交易占总亏损 %"
+
+msgid "Largest winning trade"
+msgstr "最大盈利交易"
+
+msgid "Largest winning trade, % of gross profit"
+msgstr "最大盈利交易占总盈利 %"
+
+msgid "Last"
+msgstr "最新价"
+
+#, message
+msgid "Last rebalanced {0}."
+msgstr "上次再平衡：{0}。"
+
+msgid "Layout {n}"
+msgstr "布局 {n}"
+
+msgid "Layouts"
+msgstr "布局"
+
+msgid "Leading Span A"
+msgstr "先行线 A"
+
+msgid "Leading Span B"
+msgstr "先行线 B"
+
+msgid "Leading Span B Length"
+msgstr "先行线 B 长度"
+
+msgid "Least Squares Moving Average"
+msgstr "最小二乘移动平均线"
+
+#, message
+msgid "Leave members out of {0}"
+msgstr "将成分移出 {0}"
+
+msgid "Leave out of the index"
+msgstr "移出指数"
+
+msgid "Left"
+msgstr "左"
+
+msgid "Left Bars"
+msgstr "左侧 K 线数"
+
+#, message
+msgid "Left members out of {0}"
+msgstr "已将成分移出 {0}"
+
+msgid "Length"
+msgstr "长度"
+
+msgid "Less than"
+msgstr "小于"
+
+msgid "Levels"
+msgstr "价位"
+
+msgid "Levels format"
+msgstr "价位格式"
+
+msgid "Leverage"
+msgstr "杠杆"
+
+msgid "Like 15, 4h, D, W or 3M"
+msgstr "如 15、4h、D、W 或 3M"
+
+msgid "Limit"
+msgstr "限价"
+
+msgid "Limit price"
+msgstr "限价"
+
+msgid "Line"
+msgstr "线形图"
+
+msgid "Line break"
+msgstr "新价线"
+
+msgid "Line color"
+msgstr "线条颜色"
+
+msgid "Line width"
+msgstr "线宽"
+
+msgid "Line with breaks"
+msgstr "断开线"
+
+msgid "Line with markers"
+msgstr "带标记的线"
+
+msgid "Linear Regression Channel"
+msgstr "线性回归通道"
+
+msgid "Lips"
+msgstr "唇线"
+
+msgid "Lips Length"
+msgstr "唇线长度"
+
+msgid "Lips Offset"
+msgstr "唇线偏移"
+
+msgid "List"
+msgstr "列表"
+
+msgid "List menu (double-click to rename)"
+msgstr "列表菜单（双击重命名）"
+
+msgid "List of trades"
+msgstr "交易列表"
+
+msgid "List the indices"
+msgstr "列出指数"
+
+msgid "List your scripts"
+msgstr "列出你的脚本"
+
+msgid "List {0}"
+msgstr "列表 {0}"
+
+msgid "Listed the indices"
+msgstr "已列出指数"
+
+msgid "Listed your scripts"
+msgstr "已列出你的脚本"
+
+msgid "Live"
+msgstr "实时"
+
+msgid "Ln {line}, Col {col}      Spaces: {0}      UTF-8      {1}"
+msgstr "第 {line} 行，第 {col} 列      空格：{0}      UTF-8      {1}"
+
+#, message
+msgid "Loaded {0} of {1}…"
+msgstr "已加载 {0}/{1}…"
+
+msgid "Loading models"
+msgstr "正在加载模型"
+
+#, message
+msgid "Loading {0} symbols…"
+msgstr "正在加载 {0} 个品种…"
+
+msgid "Loading…"
+msgstr "加载中…"
+
+msgid "Local"
+msgstr "本地"
+
+msgid "Lock"
+msgstr "锁定"
+
+msgid "Lock all drawings"
+msgstr "锁定所有绘图"
+
+msgid "Log"
+msgstr "对数"
+
+msgid "Log scale"
+msgstr "对数刻度"
+
+msgid "Log scale (Alt L)"
+msgstr "对数刻度 (Alt L)"
+
+msgid "London"
+msgstr "伦敦"
+
+msgid "London Stock Exchange"
+msgstr ""
+
+msgid "Long"
+msgstr "多头"
+
+msgid "Long Length"
+msgstr "长周期长度"
+
+msgid "Long MA"
+msgstr "长期均线"
+
+msgid "Long MA length"
+msgstr "长期均线长度"
+
+msgid "Long RCI"
+msgstr "长期 RCI"
+
+msgid "Long RCI Length"
+msgstr "长期 RCI 长度"
+
+msgid "Long RoC Length"
+msgstr "长期 RoC 长度"
+
+msgid "Long position"
+msgstr "多头持仓"
+
+msgid "Look at the chart"
+msgstr "查看图表"
+
+msgid "Look at the drawings"
+msgstr "查看绘图"
+
+msgid "Look at the paper account"
+msgstr "查看模拟账户"
+
+#, message
+msgid "Look at {0}"
+msgstr "查看 {0}"
+
+msgid "Look up indicators"
+msgstr "查找指标"
+
+msgid "Looked at the chart"
+msgstr "已查看图表"
+
+msgid "Looked at the drawings"
+msgstr "已查看绘图"
+
+msgid "Looked at the paper account"
+msgstr "已查看模拟账户"
+
+#, message
+msgid "Looked at {0}"
+msgstr "已查看 {0}"
+
+msgid "Looked up indicators"
+msgstr "已查找指标"
+
+msgid "Looking for your other device"
+msgstr "正在寻找另一台设备"
+
+msgid "Losers"
+msgstr "跌幅榜"
+
+msgid "Losing streak"
+msgstr "连续亏损"
+
+msgid "Losing streak, worst 5%"
+msgstr "连续亏损（最差 5%）"
+
+msgid "Losing trades"
+msgstr "亏损交易"
+
+msgid "Lower"
+msgstr "下轨"
+
+msgid "Lower Band"
+msgstr "下轨"
+
+msgid "Lower Band #1"
+msgstr "下轨 1"
+
+msgid "Lower Band #2"
+msgstr "下轨 2"
+
+msgid "Lower Band #3"
+msgstr "下轨 3"
+
+msgid "Lower color"
+msgstr "下方颜色"
+
+msgid "Lower deviation"
+msgstr "下偏差"
+
+msgid "Lower length"
+msgstr "下轨长度"
+
+msgid "Lower multiplier"
+msgstr "下轨乘数"
+
+msgid "Lower offset"
+msgstr "下轨偏移"
+
+msgid "Low|price"
+msgstr "最低"
+
+msgid "Lunar New Year"
+msgstr "农历新年"
+
+msgid "MA"
+msgstr ""
+
+msgid "MA #1"
+msgstr "均线 1"
+
+msgid "MA #1 Length"
+msgstr "均线 1 长度"
+
+msgid "MA #2"
+msgstr "均线 2"
+
+msgid "MA #2 Length"
+msgstr "均线 2 长度"
+
+msgid "MA #3"
+msgstr "均线 3"
+
+msgid "MA #3 Length"
+msgstr "均线 3 长度"
+
+msgid "MA #4"
+msgstr "均线 4"
+
+msgid "MA #4 Length"
+msgstr "均线 4 长度"
+
+msgid "MA Cross"
+msgstr "均线交叉"
+
+msgid "MA Length"
+msgstr "均线长度"
+
+msgid "MA Type"
+msgstr "均线类型"
+
+msgid "MACD"
+msgstr ""
+
+msgid "MF"
+msgstr ""
+
+msgid "MINUTES"
+msgstr "分钟"
+
+msgid "MR"
+msgstr ""
+
+#, message
+msgid "Made the index {0}"
+msgstr "已创建指数 {0}"
+
+#, message
+msgid "Made {name}."
+msgstr "已创建 {name}。"
+
+msgid "Magnet mode: snap to open, high, low, close"
+msgstr "磁铁模式：吸附到开、高、低、收"
+
+msgid "Maharashtra Day"
+msgstr "马哈拉施特拉日"
+
+msgid "Mahashivratri"
+msgstr "湿婆节"
+
+msgid "Mahatma Gandhi Jayanti"
+msgstr ""
+
+msgid "Majority Rule"
+msgstr "多数规则"
+
+msgid "Make a copy"
+msgstr "创建副本"
+
+msgid "Make a copy to edit"
+msgstr "创建副本以编辑"
+
+msgid "Make another account first"
+msgstr "请先创建另一个账户"
+
+#, message
+msgid "Make the index {0}"
+msgstr "创建指数 {0}"
+
+msgid "Make the panel taller to see the equity curve."
+msgstr "拉高面板即可查看权益曲线。"
+
+msgid "Map"
+msgstr "地图"
+
+msgid "Map of every index"
+msgstr "所有指数的地图"
+
+msgid "Mar"
+msgstr "3月"
+
+msgid "March"
+msgstr "三月"
+
+msgid "Margin"
+msgstr "保证金"
+
+msgid "Margin calls"
+msgstr "追加保证金次数"
+
+msgid "Margin efficiency"
+msgstr "保证金效率"
+
+msgid "Margin for long positions"
+msgstr "多头保证金"
+
+msgid "Margin for short positions"
+msgstr "空头保证金"
+
+msgid "Margin in use {0}{unit} · Buying power {1}{unit}"
+msgstr "已用保证金 {0}{unit} · 购买力 {1}{unit}"
+
+msgid "Marine Day"
+msgstr "海之日"
+
+msgid "Market"
+msgstr "市价"
+
+msgid "Market cap"
+msgstr "市值"
+
+msgid "Market caps didn't load, so every tile is the same size"
+msgstr "市值未能加载，因此所有方块大小相同"
+
+msgid "Market closed{when}"
+msgstr "休市{when}"
+
+msgid "Market holiday"
+msgstr "市场假日"
+
+msgid "Market open"
+msgstr "开市"
+
+msgid "Market overview"
+msgstr "市场概览"
+
+msgid "Market overview (Alt M)"
+msgstr "市场概览 (Alt M)"
+
+msgid "Martin Luther King Jr. Day"
+msgstr "马丁·路德·金纪念日"
+
+msgid "Mass Index"
+msgstr "质量指数"
+
+msgid "Max DD"
+msgstr "最大回撤"
+
+msgid "Max contracts held"
+msgstr "最大持有合约数"
+
+msgid "Max drawdown"
+msgstr "最大回撤"
+
+msgid "Max drawdown %"
+msgstr "最大回撤 %"
+
+msgid "Max drawdown, worst 5%"
+msgstr "最大回撤（最差 5%）"
+
+msgid "Max equity drawdown"
+msgstr "最大权益回撤"
+
+msgid "Max equity run-up"
+msgstr "最大权益上涨"
+
+msgid "Max margin used"
+msgstr "最大已用保证金"
+
+msgid "Max value"
+msgstr "最大值"
+
+msgid "Maximize"
+msgstr "最大化目标"
+
+msgid "Maximize panel"
+msgstr "最大化面板"
+
+msgid "May"
+msgstr "5月"
+
+msgid "McGinley Dynamic"
+msgstr "麦金利动态"
+
+msgid "Measure"
+msgstr "测量"
+
+msgid "Measure (or Shift+drag)"
+msgstr "测量（或 Shift+拖动）"
+
+msgid "Median"
+msgstr "中位数"
+
+msgid "Median EMA"
+msgstr "中位数 EMA"
+
+msgid "Median Length"
+msgstr "中位数长度"
+
+msgid "Median P&L"
+msgstr "盈亏中位数"
+
+msgid "Median max drawdown"
+msgstr "最大回撤中位数"
+
+msgid "Memorial Day"
+msgstr "阵亡将士纪念日"
+
+msgid "Merge"
+msgstr "合并"
+
+msgid "Message"
+msgstr "消息"
+
+msgid "Method"
+msgstr "方法"
+
+msgid "Middle"
+msgstr "中轨"
+
+msgid "Middle Band"
+msgstr "中轨"
+
+msgid "Middle Length"
+msgstr "中轨长度"
+
+msgid "Middle RCI"
+msgstr "中期 RCI"
+
+msgid "Middle RCI Length"
+msgstr "中期 RCI 长度"
+
+msgid "Millions, billions"
+msgstr "百万、十亿"
+
+msgid "Minutes"
+msgstr "分钟"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Momentum"
+msgstr "动量"
+
+msgid "Mon"
+msgstr "周一"
+
+msgid "Monday"
+msgstr "星期一"
+
+msgid "Money Flow Index"
+msgstr "资金流量指数"
+
+msgid "Monte Carlo"
+msgstr "蒙特卡洛"
+
+#, message
+msgid "Monte Carlo needs at least two closed trades."
+msgstr "蒙特卡洛至少需要两笔已平仓交易。"
+
+msgid "Month"
+msgstr "月"
+
+msgid "Monthly"
+msgstr "每月"
+
+msgid "Monthly limit"
+msgstr "每月限额"
+
+msgid "Months"
+msgstr "月"
+
+msgid "Moon Phases"
+msgstr "月相"
+
+msgid "More"
+msgstr "更多"
+
+msgid "More intervals"
+msgstr "更多周期"
+
+msgid "Mountain Day"
+msgstr "山之日"
+
+msgid "Move the pointer over the chart."
+msgstr "将指针移到图表上。"
+
+msgid "Move to top"
+msgstr "移到顶部"
+
+#, message
+msgid "Moved to {0}."
+msgstr "已移动到 {0}。"
+
+msgid "Moving Average Adaptive"
+msgstr "自适应移动平均线"
+
+msgid "Moving Average Channel"
+msgstr "移动平均通道"
+
+msgid "Moving Average Exponential"
+msgstr "指数移动平均线"
+
+msgid "Moving Average Hamming"
+msgstr "汉明移动平均线"
+
+msgid "Moving Average Ribbon"
+msgstr "移动平均线带"
+
+msgid "Moving Average Simple"
+msgstr "简单移动平均线"
+
+msgid "Moving Average Weighted"
+msgstr "加权移动平均线"
+
+msgid "Moving averages"
+msgstr "移动平均线"
+
+msgid "Muharram"
+msgstr "穆哈兰姆"
+
+msgid "Muhurat trading"
+msgstr "Muhurat 交易"
+
+msgid "Multiplier"
+msgstr "乘数"
+
+msgid "Multiplier #1"
+msgstr "乘数 1"
+
+msgid "Multiplier #2"
+msgstr "乘数 2"
+
+msgid "Multiplier #3"
+msgstr "乘数 3"
+
+msgid "Municipal Corporation Elections (Maharashtra)"
+msgstr "市政选举（马哈拉施特拉）"
+
+msgid "My plan includes SIP"
+msgstr "我的套餐包含 SIP"
+
+msgid "NEW SCRIPT HERE"
+msgstr "在此新建脚本"
+
+msgid "NIFTY 500"
+msgstr ""
+
+msgid "NSE · BSE"
+msgstr ""
+
+msgid "NYSE · NASDAQ"
+msgstr ""
+
+msgid "Name"
+msgstr "名称"
+
+#, message
+msgid "Nasdaq sent no earnings."
+msgstr "Nasdaq 未返回财报。"
+
+msgid "National Day"
+msgstr "国庆日"
+
+msgid "National Day of the Republic of China"
+msgstr "中华民国国庆日"
+
+msgid "National Foundation Day"
+msgstr "建国纪念日"
+
+msgid "National Liberation Day"
+msgstr "光复节"
+
+msgid "Net P&L"
+msgstr "净盈亏"
+
+msgid "Net P&L %"
+msgstr "净盈亏 %"
+
+msgid "Net P&L (every run)"
+msgstr "净盈亏（每次运行）"
+
+msgid "Net Volume"
+msgstr "净成交量"
+
+msgid "Net profit"
+msgstr "净利润"
+
+msgid "Net profit as % of largest loss"
+msgstr "净利润占最大亏损 %"
+
+msgid "Net profit ÷ max drawdown"
+msgstr "净利润 ÷ 最大回撤"
+
+msgid "Never"
+msgstr "永不"
+
+msgid "New Moon"
+msgstr "新月"
+
+msgid "New Year's Day"
+msgstr "元旦"
+
+msgid "New Year's Eve"
+msgstr "除夕"
+
+msgid "New Year's Holiday"
+msgstr "新年假期"
+
+msgid "New account"
+msgstr "新建账户"
+
+msgid "New chat"
+msgstr "新对话"
+
+msgid "New folder"
+msgstr "新建文件夹"
+
+msgid "New index"
+msgstr "新建指数"
+
+msgid "New layout"
+msgstr "新建布局"
+
+msgid "New line"
+msgstr "换行"
+
+msgid "New list"
+msgstr "新建列表"
+
+msgid "New pane"
+msgstr "新窗格"
+
+msgid "New paper account"
+msgstr "新建模拟账户"
+
+msgid "New price scale"
+msgstr "新价格刻度"
+
+msgid "New script"
+msgstr "新建脚本"
+
+msgid "New section"
+msgstr "新建分组"
+
+msgid "News"
+msgstr "新闻"
+
+msgid "Next earnings {0}\nEstimate {1}"
+msgstr "下次财报 {0}\n预期 {1}"
+
+#, message
+msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr "下次再平衡 {0}（4 月 1 日和 10 月 1 日）。"
+
+msgid "No alerts yet"
+msgstr "暂无警报"
+
+msgid "No bars came back."
+msgstr "未返回 K 线。"
+
+msgid "No chat mentions that."
+msgstr "没有对话提到它。"
+
+msgid "No chats yet"
+msgstr "暂无对话"
+
+msgid "No closed trades yet."
+msgstr "暂无已平仓交易。"
+
+#, message
+msgid "No coin prices came this time. Try again in a minute."
+msgstr "这次未收到币价，请一分钟后重试。"
+
+#, message
+msgid "No company fundamentals for this market."
+msgstr "此市场没有公司基本面数据。"
+
+msgid "No daily history for this symbol."
+msgstr "此品种没有日线历史。"
+
+msgid "No favorites yet"
+msgstr "暂无收藏"
+
+msgid "No file open"
+msgstr "未打开文件"
+
+#, message
+msgid "No funding rate for this symbol."
+msgstr "此品种没有资金费率。"
+
+msgid "No headlines right now."
+msgstr "目前没有新闻。"
+
+msgid "No holidays in the next four months."
+msgstr "未来四个月没有假日。"
+
+msgid "No indices yet"
+msgstr "暂无指数"
+
+msgid "No lists match"
+msgstr "没有匹配的列表"
+
+msgid "No matches"
+msgstr "没有匹配项"
+
+msgid "No monthly history"
+msgstr "没有月线历史"
+
+msgid "No monthly history for this symbol."
+msgstr "此品种没有月线历史。"
+
+msgid "No new prices for {0}"
+msgstr "已有 {0} 没有新价格"
+
+msgid "No open positions."
+msgstr "没有持仓。"
+
+#, message
+msgid "No price yet for this symbol."
+msgstr "此品种暂无价格。"
+
+msgid "No prices came back."
+msgstr "未返回价格。"
+
+#, message
+msgid "No prices came this time."
+msgstr "这次未收到价格。"
+
+msgid "No prices: the ticker may have been renamed or delisted. Left out of the index."
+msgstr "没有价格：代码可能已更名或退市。已移出指数。"
+
+msgid "No problems. Running on the chart."
+msgstr "没有问题，正在图表上运行。"
+
+msgid "No run met the conditions (too few trades, or the script failed)."
+msgstr "没有运行满足条件（交易太少或脚本失败）。"
+
+msgid "No script"
+msgstr "无脚本"
+
+msgid "No scripts yet. Press + to start one."
+msgstr "暂无脚本。按 + 新建。"
+
+msgid "No section"
+msgstr "无分组"
+
+msgid "No strategy on the chart"
+msgstr "图表上没有策略"
+
+msgid "No symbol could be tested."
+msgstr "没有可测试的品种。"
+
+msgid "No symbols match."
+msgstr "没有匹配的品种。"
+
+msgid "No symbols yet"
+msgstr "暂无品种"
+
+msgid "No working orders."
+msgstr "没有挂单。"
+
+#, message
+msgid "No {0}/{1} exchange rate yet."
+msgstr "暂无 {0}/{1} 汇率。"
+
+#, message
+msgid "No {0}/{1} exchange rate yet; try again in a moment."
+msgstr "暂无 {0}/{1} 汇率，请稍后重试。"
+
+msgid "None"
+msgstr "无"
+
+msgid "Not answered"
+msgstr "未回答"
+
+msgid "Not connecting? Your other device has to reach this one. Windows will ask for permission."
+msgstr "连不上？另一台设备必须能访问这台设备。Windows 会请求许可。"
+
+#, message
+msgid "Not enough bars: each step needs {0} in-sample bars and some after them, and there are {1}."
+msgstr "K 线不足：每一步需要 {0} 根样本内 K 线及其后若干根，目前只有 {1} 根。"
+
+#, message
+msgid "Not enough buying power for this order."
+msgstr "购买力不足，无法下单。"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Not yet tried with a real account. Compare its prices with another source before relying on them."
+msgstr "尚未用真实账户验证。使用前请与其他数据源核对价格。"
+
+msgid "Nothing defined yet."
+msgstr "尚无定义。"
+
+msgid "Nothing found"
+msgstr "未找到"
+
+msgid "Nothing has fired yet"
+msgstr "尚未触发"
+
+msgid "Nothing matches"
+msgstr "没有匹配项"
+
+msgid "Nothing on the chart yet"
+msgstr "图表上暂无内容"
+
+msgid "Nothing traded yet."
+msgstr "暂无交易。"
+
+msgid "Notification"
+msgstr "通知"
+
+msgid "Notifications"
+msgstr "通知"
+
+msgid "Notify me"
+msgstr "通知我"
+
+msgid "Nov"
+msgstr "11月"
+
+msgid "November"
+msgstr "十一月"
+
+msgid "Number of lines"
+msgstr "线条数量"
+
+msgid "Number of pivots back"
+msgstr "回溯枢轴数"
+
+msgid "Number of rows"
+msgstr "行数"
+
+msgid "Number of years"
+msgstr "年数"
+
+#, message
+msgid "OANDA has no {0} bars"
+msgstr "OANDA 没有 {0} K 线"
+
+#, message
+msgid "OANDA refused the token. Check it in Settings → Data providers."
+msgstr "OANDA 拒绝了令牌。请在 设置 → 数据提供商 中检查。"
+
+msgid "OANDA · forex and CFDs"
+msgstr "OANDA · 外汇与差价合约"
+
+msgid "OBJECT TREE"
+msgstr "对象树"
+
+#, message
+msgid "OKX has no {0} bars"
+msgstr "OKX 没有 {0} K 线"
+
+#, message
+msgid "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+msgstr "OKX 永续合约的订单簿以张数计，因此不显示。Binance 和 Bybit 的永续合约有订单簿。"
+
+msgid "OPEN LAYOUT"
+msgstr "打开布局"
+
+msgid "OUTLINE"
+msgstr "大纲"
+
+msgid "OUTPUT"
+msgstr "输出"
+
+msgid "Object tree and data window"
+msgstr "对象树与数据窗口"
+
+msgid "Oct"
+msgstr "10月"
+
+msgid "October"
+msgstr "十月"
+
+msgid "Of each fill's value"
+msgstr "按每次成交金额"
+
+msgid "Off"
+msgstr "关"
+
+msgid "Offset"
+msgstr "偏移"
+
+msgid "Ok"
+msgstr "确定"
+
+msgid "Older"
+msgstr "更早"
+
+msgid "On"
+msgstr "开"
+
+msgid "On Balance Volume"
+msgstr "能量潮 (OBV)"
+
+msgid "On the chart"
+msgstr "在图表上"
+
+msgid "OnBalanceVolume"
+msgstr "能量潮 (OBV)"
+
+msgid "Once per bar"
+msgstr "每根 K 线一次"
+
+msgid "Once per bar close"
+msgstr "每根 K 线收盘一次"
+
+msgid "Only once"
+msgstr "仅一次"
+
+msgid "Opacity"
+msgstr "不透明度"
+
+msgid "Open Local Network settings"
+msgstr "打开本地网络设置"
+
+msgid "Open P&L"
+msgstr "浮动盈亏"
+
+msgid "Open chart"
+msgstr "打开图表"
+
+msgid "Open folder"
+msgstr "打开文件夹"
+
+msgid "Open in your editor"
+msgstr "在你的编辑器中打开"
+
+msgid "Open in your file manager"
+msgstr "在文件管理器中打开"
+
+msgid "Open on the chart"
+msgstr "在图表中打开"
+
+msgid "Open page"
+msgstr "打开页面"
+
+msgid "Open panel"
+msgstr "打开面板"
+
+msgid "Open snapshots folder"
+msgstr "打开快照文件夹"
+
+msgid "Open the scripts folder"
+msgstr "打开脚本文件夹"
+
+msgid "Open this formula"
+msgstr "打开此公式"
+
+#, message
+msgid "Open {0}"
+msgstr "打开 {0}"
+
+#, message
+msgid "Open {0} in the editor"
+msgstr "在编辑器中打开 {0}"
+
+msgid "Open {f} in the Script Editor"
+msgstr "在脚本编辑器中打开 {f}"
+
+msgid "Open, high, low and close values"
+msgstr "开、高、低、收数值"
+
+#, message
+msgid "Opened {0}"
+msgstr "已打开 {0}"
+
+#, message
+msgid "Opened {0} in the editor"
+msgstr "已在编辑器中打开 {0}"
+
+msgid "Opentern couldn't start"
+msgstr "Opentern 无法启动"
+
+msgid "Opentern export"
+msgstr "Opentern 导出文件"
+
+msgid "Opentern is open in another window. Close it, then import."
+msgstr "Opentern 已在另一个窗口打开。请关闭后再导入。"
+
+msgid "Opentern is up to date"
+msgstr "Opentern 已是最新版本"
+
+msgid "Opentern {0}"
+msgstr ""
+
+msgid "Opentern {0} is available. Click to update."
+msgstr "Opentern {0} 可用。点击更新。"
+
+msgid "Opentern {0} is available. {why}."
+msgstr "Opentern {0} 可用。{why}。"
+
+msgid "Opentern {0} is installed. Click to restart."
+msgstr "Opentern {0} 已安装。点击重启。"
+
+#, message
+msgid "Opentern {0} is installed. Restart to use it."
+msgstr "Opentern {0} 已安装。重启后生效。"
+
+#, message
+msgid "Opentern {0} is ready to install from the rail."
+msgstr "Opentern {0} 可从侧边栏安装。"
+
+msgid "Opentern {version}"
+msgstr ""
+
+msgid "Open|price"
+msgstr "开盘"
+
+msgid "Optimize"
+msgstr "优化"
+
+msgid "Order cancelled."
+msgstr "订单已取消。"
+
+#, message
+msgid "Order moved to {0}."
+msgstr "订单已移至 {0}。"
+
+msgid "Order placed."
+msgstr "订单已提交。"
+
+msgid "Order size"
+msgstr "订单规模"
+
+msgid "Orders {0}"
+msgstr "挂单 {0}"
+
+msgid "Oscillator MA Type"
+msgstr "震荡指标均线类型"
+
+msgid "Oscillators"
+msgstr "震荡指标"
+
+msgid "Other device"
+msgstr "另一台设备"
+
+msgid "Our Lady of Aparecida"
+msgstr "阿帕雷西达圣母日"
+
+msgid "Out of sample"
+msgstr "样本外"
+
+msgid "Out-of-sample P&L"
+msgstr "样本外盈亏"
+
+msgid "Out-of-sample bars"
+msgstr "样本外 K 线数"
+
+msgid "Output"
+msgstr "输出"
+
+msgid "Outputs"
+msgstr "输出"
+
+msgid "Over the chart, with its own scale"
+msgstr "叠加在图表上，使用独立刻度"
+
+msgid "Overbought"
+msgstr "超买"
+
+msgid "Oversold"
+msgstr "超卖"
+
+msgid "Overview"
+msgstr "概览"
+
+msgid "P&L, worst 5%"
+msgstr "盈亏（最差 5%）"
+
+msgid "PAT"
+msgstr "净利润"
+
+msgid "PAT margin"
+msgstr "净利率"
+
+msgid "POC"
+msgstr ""
+
+msgid "PROBLEMS"
+msgstr "问题"
+
+msgid "PVT"
+msgstr ""
+
+msgid "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts."
+msgstr "倒计时结束时在多空之间支付。为正时多头付给空头。"
+
+msgid "Paper Trading"
+msgstr "模拟交易"
+
+msgid "Paper account"
+msgstr "模拟账户"
+
+msgid "Paper account {k}"
+msgstr "模拟账户 {k}"
+
+msgid "Paper accounts"
+msgstr "模拟账户"
+
+msgid "Paper trading"
+msgstr "模拟交易"
+
+#, message
+msgid "Paper trading: {a}"
+msgstr "模拟交易：{a}"
+
+#, message
+msgid "Paper {0} {1} {2}"
+msgstr "模拟 {0} {1} {2}"
+
+msgid "Parabolic SAR"
+msgstr "抛物线 SAR"
+
+msgid "ParabolicSAR"
+msgstr "抛物线 SAR"
+
+msgid "Parallel channel"
+msgstr "平行通道"
+
+msgid "Paris"
+msgstr "巴黎"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Paste an image"
+msgstr "粘贴图片"
+
+msgid "Paste it anywhere."
+msgstr "可粘贴到任何地方。"
+
+msgid "Paste the code, if asked"
+msgstr "如有要求，请粘贴代码"
+
+msgid "Paste the email password (an app password), or turn email off."
+msgstr "请粘贴邮箱密码（应用专用密码），或关闭邮件。"
+
+msgid "Paste your Telegram bot token, or turn Telegram off."
+msgstr "请粘贴 Telegram 机器人令牌，或关闭 Telegram。"
+
+#, message
+msgid "Pasted {dest}."
+msgstr "已粘贴 {dest}。"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "Patterns"
+msgstr "形态"
+
+msgid "Pause"
+msgstr "暂停"
+
+msgid "Pause alerts"
+msgstr "暂停警报"
+
+msgid "Peace Memorial Day"
+msgstr "和平纪念日"
+
+msgid "Per contract"
+msgstr "每张合约"
+
+msgid "Per order"
+msgstr "每笔订单"
+
+msgid "Percent"
+msgstr "百分比"
+
+msgid "Percent change, on the chart's scale"
+msgstr "百分比涨跌，使用图表刻度"
+
+msgid "Percent profitable"
+msgstr "胜率"
+
+msgid "Percent scale"
+msgstr "百分比刻度"
+
+msgid "Percent scale (Alt P)"
+msgstr "百分比刻度 (Alt P)"
+
+msgid "Percentage"
+msgstr "百分比"
+
+msgid "Perf 1M %"
+msgstr "1 月表现 %"
+
+msgid "Perf 1W %"
+msgstr "1 周表现 %"
+
+msgid "Perf 1Y %"
+msgstr "1 年表现 %"
+
+msgid "Perf 6M %"
+msgstr "6 月表现 %"
+
+msgid "Performance"
+msgstr "表现"
+
+msgid "Periods"
+msgstr "周期数"
+
+msgid "Pick a new starting bar"
+msgstr "选择新的起始 K 线"
+
+#, message
+msgid "Pick at least one input to optimize."
+msgstr "请至少选择一个要优化的参数。"
+
+msgid "Pick two different inputs."
+msgstr "请选择两个不同的参数。"
+
+msgid "Pick your agent"
+msgstr "选择你的代理"
+
+msgid "Pick your first chart"
+msgstr "选择你的第一张图表"
+
+msgid "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives."
+msgstr "Pine、Luau 和 JavaScript 脚本被隔离在 Opentern 内，是更安全的选择。"
+
+msgid "Pitchfork"
+msgstr "音叉线"
+
+msgid "Pivot High"
+msgstr "枢轴高点"
+
+msgid "Pivot Low"
+msgstr "枢轴低点"
+
+msgid "Pivot Points High Low"
+msgstr "高低枢轴点"
+
+msgid "Pivot Points Standard"
+msgstr "标准枢轴点"
+
+msgid "Pivot legs"
+msgstr "枢轴边数"
+
+msgid "Pivots timeframe"
+msgstr "枢轴时间周期"
+
+msgid "Placed"
+msgstr "下单时间"
+
+msgid "Placement"
+msgstr "位置"
+
+msgid "Play"
+msgstr "播放"
+
+msgid "Plot"
+msgstr "绘图线"
+
+msgid "Plots Background"
+msgstr "绘图背景"
+
+msgid "Point & figure"
+msgstr "点数图"
+
+msgid "Port"
+msgstr "端口"
+
+msgid "Portfolio"
+msgstr "投资组合"
+
+msgid "Positions {0}"
+msgstr "持仓 {0}"
+
+msgid "Practice"
+msgstr "模拟盘"
+
+msgid "Prakash Gurpurb Sri Guru Nanak Dev"
+msgstr ""
+
+msgid "Pre-market"
+msgstr "盘前"
+
+msgid "Pre/post market price label"
+msgstr "盘前/盘后价格标签"
+
+msgid "Pre/post market price line"
+msgstr "盘前/盘后价格线"
+
+msgid "Precision"
+msgstr "精度"
+
+msgid "Press Enter for {0}"
+msgstr "按 Enter 切换到 {0}"
+
+msgid "Previous 7 days"
+msgstr "过去 7 天"
+
+msgid "Price"
+msgstr "价格"
+
+msgid "Price Oscillator"
+msgstr "价格震荡指标"
+
+msgid "Price Volume Trend"
+msgstr "价量趋势"
+
+msgid "Price cache"
+msgstr "价格缓存"
+
+msgid "Price deviation for reversals (%)"
+msgstr "反转价格偏差 (%)"
+
+msgid "Price labels"
+msgstr "价格标签"
+
+msgid "Price over trailing earnings. For the index: total market cap over total earnings"
+msgstr "股价与过去十二个月盈利之比。指数：总市值除以总盈利"
+
+msgid "Price range"
+msgstr "价格范围"
+
+msgid "Price scale"
+msgstr "价格刻度"
+
+#, message
+msgid "Price {0} the line"
+msgstr "价格{0}线条"
+
+#, message
+msgid "Price {0} {1}"
+msgstr "价格{0} {1}"
+
+#, message
+msgid "Price: {0}"
+msgstr "价格：{0}"
+
+msgid "Prices"
+msgstr "价格"
+
+msgid "Prices since {0}"
+msgstr "{0} 起的价格"
+
+msgid "Profit"
+msgstr "盈利"
+
+msgid "Profit and loss in other currencies is converted at live rates"
+msgstr "其他货币的盈亏按实时汇率折算"
+
+msgid "Profit and loss made so far is kept"
+msgstr "保留目前的盈亏"
+
+msgid "Profit factor"
+msgstr "盈利因子"
+
+msgid "Profitable"
+msgstr "盈利占比"
+
+msgid "Profitable trades"
+msgstr "盈利交易"
+
+msgid "Profitable windows"
+msgstr "盈利窗口"
+
+msgid "Properties"
+msgstr "属性"
+
+msgid "Put the best inputs on the chart's strategy"
+msgstr "将最佳参数应用到图表策略"
+
+msgid "Pyramiding"
+msgstr "金字塔加仓"
+
+msgid "Python script not started"
+msgstr "Python 脚本未启动"
+
+msgid "Python scripts run on your computer"
+msgstr "Python 脚本在你的电脑上运行"
+
+msgid "Python scripts' alerts need Opentern open."
+msgstr "Python 脚本的警报需要 Opentern 保持打开。"
+
+msgid "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+msgstr "Python 策略在独立进程中运行，实验室暂时无法重新运行。Pine、Luau 和 JavaScript 策略可以。"
+
+msgid "Qty"
+msgstr "数量"
+
+msgid "Quantity"
+msgstr "数量"
+
+msgid "Quarter"
+msgstr "季度"
+
+msgid "Quarterly"
+msgstr "每季"
+
+msgid "Queue (Enter)"
+msgstr "排队 (Enter)"
+
+msgid "RCI"
+msgstr ""
+
+msgid "RCI Ribbon"
+msgstr "RCI 带"
+
+msgid "RMA"
+msgstr ""
+
+msgid "ROC"
+msgstr ""
+
+msgid "ROC Length"
+msgstr "ROC 长度"
+
+msgid "ROC Length #1"
+msgstr "ROC 长度 1"
+
+msgid "ROC Length #2"
+msgstr "ROC 长度 2"
+
+msgid "ROC Length #3"
+msgstr "ROC 长度 3"
+
+msgid "ROC Length #4"
+msgstr "ROC 长度 4"
+
+msgid "RSI"
+msgstr ""
+
+msgid "RSI (14)"
+msgstr ""
+
+msgid "RSI Length"
+msgstr "RSI 长度"
+
+msgid "RSI Settings"
+msgstr "RSI 设置"
+
+msgid "RSI-based MA"
+msgstr "基于 RSI 的均线"
+
+msgid "RVGI"
+msgstr ""
+
+msgid "RVI"
+msgstr ""
+
+msgid "Ran the Strategy Lab"
+msgstr "已运行策略实验室"
+
+msgid "Ran the screener"
+msgstr "已运行筛选器"
+
+#, message
+msgid "Ran {0}"
+msgstr "已运行 {0}"
+
+msgid "Random"
+msgstr "随机"
+
+msgid "Range"
+msgstr "范围"
+
+msgid "Rank Correlation Index"
+msgstr "秩相关指数"
+
+msgid "Rate Of Change"
+msgstr "变动率"
+
+msgid "Ratio avg win / avg loss"
+msgstr "平均盈利 / 平均亏损"
+
+msgid "Ratios"
+msgstr "比率"
+
+msgid "Ray"
+msgstr "射线"
+
+msgid "Read from cache"
+msgstr "从缓存读取"
+
+msgid "Read the Strategy Report"
+msgstr "读取策略报告"
+
+msgid "Read the chart's bars"
+msgstr "读取图表 K 线"
+
+msgid "Read the scripting guide"
+msgstr "读取脚本指南"
+
+msgid "Read the seasonality"
+msgstr "读取季节性"
+
+#, message
+msgid "Read {0}"
+msgstr "读取 {0}"
+
+msgid "Real time"
+msgstr "实时"
+
+msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
+msgstr "使用 Upstox 账户获取印度实时价格。在 upstox.com/developer 创建应用并粘贴访问令牌（有效期至次日早晨）。"
+
+msgid "Realized"
+msgstr "已实现"
+
+msgid "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+msgstr "立即再平衡：获取今日股本并据此设定权重，指数点位不变"
+
+#, message
+msgid "Rebalance {0}"
+msgstr "再平衡 {0}"
+
+#, message
+msgid "Rebalanced {0}"
+msgstr "已再平衡 {0}"
+
+msgid "Rebalancing…"
+msgstr "正在再平衡…"
+
+msgid "Receive"
+msgstr "接收"
+
+msgid "Receiving from {peer}"
+msgstr "正在从 {peer} 接收"
+
+msgid "Recent colour"
+msgstr "最近使用的颜色"
+
+msgid "Rectangle"
+msgstr "矩形"
+
+msgid "Redo"
+msgstr "重做"
+
+msgid "Redo ({0})"
+msgstr "重做 ({0})"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Rel volume"
+msgstr "相对成交量"
+
+msgid "Relative Strength Index"
+msgstr "相对强弱指数 (RSI)"
+
+msgid "Relative Strength Index, 14 days"
+msgstr "相对强弱指数，14 日"
+
+msgid "Relative Vigor Index"
+msgstr "相对活力指数"
+
+msgid "Relative Volatility Index"
+msgstr "相对波动率指数"
+
+msgid "Release notes"
+msgstr "更新说明"
+
+#, message
+msgid "Reloaded {file}: it changed on disk."
+msgstr "已重新加载 {file}：磁盘上的文件已更改。"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Remove (Delete)"
+msgstr "移除 (Delete)"
+
+msgid "Remove 1 drawing"
+msgstr "移除 1 个绘图"
+
+msgid "Remove 1 indicator"
+msgstr "移除 1 个指标"
+
+msgid "Remove drawings"
+msgstr "移除绘图"
+
+msgid "Remove drawings or indicators"
+msgstr "移除绘图或指标"
+
+msgid "Remove filter"
+msgstr "移除筛选"
+
+msgid "Remove from favorites"
+msgstr "取消收藏"
+
+msgid "Remove from the top bar"
+msgstr "从顶栏移除"
+
+msgid "Remove from watchlist"
+msgstr "移出自选"
+
+msgid "Remove from watchlist (Shift+Enter)"
+msgstr "移出自选 (Shift+Enter)"
+
+msgid "Remove section"
+msgstr "移除分组"
+
+#, message
+msgid "Remove {0}"
+msgstr "移除 {0}"
+
+msgid "Remove {k} indicators"
+msgstr "移除 {k} 个指标"
+
+msgid "Remove {n} drawings"
+msgstr "移除 {n} 个绘图"
+
+msgid "Removed drawings"
+msgstr "已移除绘图"
+
+#, message
+msgid "Removed {0}"
+msgstr "已移除 {0}"
+
+msgid "Removes what's here for the items ticked above. A backup is saved first."
+msgstr "删除上方勾选项目的现有内容。会先保存备份。"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Renko"
+msgstr "砖形图"
+
+msgid "Replace"
+msgstr "替换"
+
+msgid "Replace and restart"
+msgstr "替换并重启"
+
+msgid "Replay"
+msgstr "回放"
+
+#, message
+msgid "Replay: {a}"
+msgstr "回放：{a}"
+
+msgid "Republic Day"
+msgstr "共和国日"
+
+msgid "Republic Proclamation Day"
+msgstr "共和国宣言日"
+
+msgid "Reset"
+msgstr "重置"
+
+msgid "Reset account"
+msgstr "重置账户"
+
+msgid "Reset settings"
+msgstr "重置设置"
+
+msgid "Reset the account to change its currency"
+msgstr "重置账户才能更改货币"
+
+msgid "Reset the chart view"
+msgstr "重置图表视图"
+
+msgid "Resets {0}"
+msgstr "{0} 重置"
+
+msgid "Respect for the Aged Day"
+msgstr "敬老日"
+
+msgid "Restart"
+msgstr "重新启用"
+
+msgid "Restart Opentern"
+msgstr "重启 Opentern"
+
+msgid "Restore factory defaults"
+msgstr "恢复出厂默认值"
+
+msgid "Restore panel"
+msgstr "还原面板"
+
+msgid "Return"
+msgstr "收益率"
+
+msgid "Return of max drawdown"
+msgstr "最大回撤收益率"
+
+msgid "Return on account size required"
+msgstr "所需账户规模收益率"
+
+msgid "Return on initial capital"
+msgstr "初始资金收益率"
+
+msgid "Returns"
+msgstr "收益"
+
+msgid "Rev growth"
+msgstr "营收增长"
+
+msgid "Revenue growth"
+msgstr "营收增长"
+
+msgid "Revenue, year on year. For the index: the members' revenue together"
+msgstr "营收同比。指数：成分股营收合计"
+
+msgid "Reversal"
+msgstr "反转"
+
+msgid "Reversal amount"
+msgstr "反转幅度"
+
+msgid "Reverse"
+msgstr "反向"
+
+msgid "Reverse split 1:{0}"
+msgstr "反向拆股 1:{0}"
+
+msgid "Right"
+msgstr "右"
+
+msgid "Right Bars"
+msgstr "右侧 K 线数"
+
+msgid "Rises and falls"
+msgstr "涨跌"
+
+msgid "Risk/performance ratios"
+msgstr "风险/表现比率"
+
+msgid "Risk/reward ratio: {rr}"
+msgstr "风险回报比：{rr}"
+
+msgid "Ruin at drawdown"
+msgstr "破产回撤"
+
+msgid "Run"
+msgstr "运行"
+
+msgid "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR market-data subscriptions."
+msgstr "运行 IBKR 的 Client Portal 网关并登录，然后使用 IBKR:AAPL 这样的代码。需要 IBKR 行情订阅。"
+
+msgid "Run a command"
+msgstr "运行命令"
+
+msgid "Run the Strategy Lab"
+msgstr "运行策略实验室"
+
+msgid "Run the screener"
+msgstr "运行筛选器"
+
+msgid "Run-up"
+msgstr "上涨"
+
+msgid "Running…"
+msgstr "运行中…"
+
+msgid "Runs"
+msgstr "运行次数"
+
+msgid "S&P 500"
+msgstr ""
+
+msgid "SAVED"
+msgstr "已保存"
+
+msgid "SCALE"
+msgstr "刻度"
+
+msgid "SCRIPTS"
+msgstr "脚本"
+
+msgid "SIP: prices from all US exchanges, not just IEX"
+msgstr "SIP：来自全美交易所的价格，不只是 IEX"
+
+msgid "SIX Swiss Exchange"
+msgstr ""
+
+msgid "SMA"
+msgstr ""
+
+msgid "SMA Length #1"
+msgstr "SMA 长度 1"
+
+msgid "SMA Length #2"
+msgstr "SMA 长度 2"
+
+msgid "SMA Length #3"
+msgstr "SMA 长度 3"
+
+msgid "SMA Length #4"
+msgstr "SMA 长度 4"
+
+msgid "SMI"
+msgstr ""
+
+msgid "SMI Ergodic Indicator"
+msgstr "SMI 遍历指标"
+
+msgid "SMI Ergodic Oscillator"
+msgstr "SMI 遍历震荡指标"
+
+msgid "SMI-based EMA"
+msgstr "基于 SMI 的 EMA"
+
+msgid "SMMA (RMA)"
+msgstr ""
+
+msgid "SMTP server"
+msgstr "SMTP 服务器"
+
+msgid "Same % scale"
+msgstr "同一百分比刻度"
+
+msgid "Sat"
+msgstr "周六"
+
+msgid "Saturday"
+msgstr "星期六"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Save a snapshot"
+msgstr "保存快照"
+
+msgid "Save and add to the chart ({0})"
+msgstr "保存并添加到图表 ({0})"
+
+msgid "Save and update the chart ({0})"
+msgstr "保存并更新图表 ({0})"
+
+msgid "Save as"
+msgstr "另存为"
+
+msgid "Save as default"
+msgstr "保存为默认"
+
+msgid "Save chart template"
+msgstr "保存图表模板"
+
+msgid "Save indicator template"
+msgstr "保存指标模板"
+
+msgid "Save layout"
+msgstr "保存布局"
+
+msgid "Save the results as CSV"
+msgstr "将结果保存为 CSV"
+
+msgid "Save the results as JSON"
+msgstr "将结果保存为 JSON"
+
+msgid "Saved in your keychain (paste to replace)"
+msgstr "已保存在钥匙串中（粘贴可替换）"
+
+#, message
+msgid "Saved to {0}"
+msgstr "已保存到 {0}"
+
+#, message
+msgid "Saved {file}."
+msgstr "已保存 {file}。"
+
+msgid "Saved."
+msgstr "已保存。"
+
+msgid "Scale and more"
+msgstr "刻度及更多"
+
+msgid "Scales"
+msgstr "刻度"
+
+msgid "Scales and lines"
+msgstr "刻度与线条"
+
+msgid "Scales text"
+msgstr "刻度文字"
+
+msgid "Screener"
+msgstr "筛选器"
+
+msgid "Screener settings"
+msgstr "筛选器设置"
+
+msgid "Script"
+msgstr "脚本"
+
+msgid "Script Editor"
+msgstr "脚本编辑器"
+
+msgid "Script failed"
+msgstr "脚本失败"
+
+msgid "Scripts"
+msgstr "脚本"
+
+msgid "Scroll to the most recent bar"
+msgstr "滚动到最新 K 线"
+
+msgid "Search"
+msgstr "搜索"
+
+msgid "Search chats"
+msgstr "搜索对话"
+
+#, message
+msgid "Search for {0}"
+msgstr "搜索 {0}"
+
+msgid "Search lists"
+msgstr "搜索列表"
+
+msgid "Search shows prices"
+msgstr "搜索显示价格"
+
+#, message
+msgid "Search symbols: {0}"
+msgstr "搜索品种：{0}"
+
+#, message
+msgid "Search the web: {0}"
+msgstr "搜索网页：{0}"
+
+#, message
+msgid "Searched for {0}"
+msgstr "已搜索 {0}"
+
+#, message
+msgid "Searched symbols: {0}"
+msgstr "已搜索品种：{0}"
+
+#, message
+msgid "Searched the web: {0}"
+msgstr "已搜索网页：{0}"
+
+msgid "Seasonality"
+msgstr "季节性"
+
+msgid "Seconds"
+msgstr "秒"
+
+msgid "Secret key"
+msgstr "私密密钥"
+
+msgid "Select all"
+msgstr "全选"
+
+msgid "Select bar"
+msgstr "选择 K 线"
+
+msgid "Select layout"
+msgstr "选择布局"
+
+msgid "Select none"
+msgstr "全不选"
+
+msgid "Sell"
+msgstr "卖出"
+
+msgid "Sell order filled."
+msgstr "卖单已成交。"
+
+msgid "Send"
+msgstr "发送"
+
+msgid "Send (Enter)"
+msgstr "发送 (Enter)"
+
+msgid "Send a test email"
+msgstr "发送测试邮件"
+
+msgid "Send to"
+msgstr "发送到"
+
+msgid "Send to another device"
+msgstr "发送到另一台设备"
+
+msgid "Sending to {peer}"
+msgstr "正在发送到 {peer}"
+
+msgid "Sending…"
+msgstr "正在发送…"
+
+msgid "Sent to {peer}"
+msgstr "已发送到 {peer}"
+
+msgid "Sent. Check your inbox."
+msgstr "已发送，请查看收件箱。"
+
+msgid "Seoul"
+msgstr "首尔"
+
+msgid "Sep"
+msgstr "9月"
+
+msgid "September"
+msgstr "九月"
+
+msgid "Session"
+msgstr "时段"
+
+msgid "Session Volume Profile"
+msgstr "时段成交量分布"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Settings → Export and import → Import → Receive"
+msgstr "设置 → 导出与导入 → 导入 → 接收"
+
+msgid "Shanghai"
+msgstr "上海"
+
+msgid "Shanghai Stock Exchange"
+msgstr ""
+
+msgid "Shapes"
+msgstr "形状"
+
+msgid "Sharpe"
+msgstr "夏普"
+
+msgid "Sharpe ratio"
+msgstr "夏普比率"
+
+msgid "Short"
+msgstr "空头"
+
+msgid "Short Length"
+msgstr "短周期长度"
+
+msgid "Short MA"
+msgstr "短期均线"
+
+msgid "Short MA length"
+msgstr "短期均线长度"
+
+msgid "Short RCI"
+msgstr "短期 RCI"
+
+msgid "Short RCI Length"
+msgstr "短期 RCI 长度"
+
+msgid "Short RoC Length"
+msgstr "短期 RoC 长度"
+
+msgid "Short position"
+msgstr "空头持仓"
+
+msgid "Show"
+msgstr "显示"
+
+msgid "Show POC"
+msgstr "显示 POC"
+
+msgid "Show Pearson's R"
+msgstr "显示皮尔逊 R"
+
+msgid "Show files ({0})"
+msgstr "显示文件 ({0})"
+
+msgid "Show in folder"
+msgstr "在文件夹中显示"
+
+msgid "Show in the top bar"
+msgstr "在顶栏显示"
+
+msgid "Show labels"
+msgstr "显示标签"
+
+msgid "Show on intervals"
+msgstr "显示的周期"
+
+msgid "Show prices"
+msgstr "显示价格"
+
+msgid "Show symbol logos"
+msgstr "显示品种图标"
+
+msgid "Show the drawing toolbar"
+msgstr "显示绘图工具栏"
+
+msgid "Show value area high and low"
+msgstr "显示价值区高低点"
+
+msgid "Showa Day"
+msgstr "昭和日"
+
+#, message
+msgid "Showing {te}'s {td} instead."
+msgstr "改为显示 {te} 的 {td}。"
+
+msgid "Shows after your first message."
+msgstr "发送第一条消息后显示。"
+
+msgid "Shri Mahavir Jayanti"
+msgstr ""
+
+msgid "Shri Ram Navami"
+msgstr ""
+
+msgid "Shuffle the order"
+msgstr "打乱顺序"
+
+msgid "Side"
+msgstr "方向"
+
+msgid "Sigma"
+msgstr "西格玛"
+
+msgid "Sign in"
+msgstr "登录"
+
+msgid "Sign in to {0}"
+msgstr "登录 {0}"
+
+msgid "Signal"
+msgstr "信号"
+
+msgid "Signal Length"
+msgstr "信号长度"
+
+msgid "Signal Line Length"
+msgstr "信号线长度"
+
+msgid "Signal Line MA Type"
+msgstr "信号线均线类型"
+
+msgid "Signal Smoothing"
+msgstr "信号平滑"
+
+msgid "Signal line"
+msgstr "信号线"
+
+msgid "Singapore"
+msgstr "新加坡"
+
+msgid "Singapore Exchange"
+msgstr ""
+
+msgid "Size"
+msgstr "大小"
+
+msgid "Sized by 24h volume, from {0}"
+msgstr "按 24h 成交量定大小，来自 {0}"
+
+msgid "Sized by market cap, from {0}"
+msgstr "按市值定大小，来自 {0}"
+
+msgid "Slippage"
+msgstr "滑点"
+
+msgid "Slow Length"
+msgstr "慢线长度"
+
+msgid "Slow length"
+msgstr "慢线长度"
+
+msgid "Smallest max drawdown"
+msgstr "最小的最大回撤"
+
+msgid "Smoothed Moving Average"
+msgstr "平滑移动平均线"
+
+msgid "Smoothing"
+msgstr "平滑"
+
+msgid "Smoothing Length"
+msgstr "平滑长度"
+
+msgid "Snapshot copied"
+msgstr "快照已复制"
+
+msgid "Snapshot saved"
+msgstr "快照已保存"
+
+msgid "Snapshots"
+msgstr "快照"
+
+#, message
+msgid "Sold {qty} {sym} at {price}"
+msgstr "以 {price} 卖出 {qty} {sym}"
+
+msgid "Solid"
+msgstr "实线"
+
+msgid "Someone entered the wrong code."
+msgstr "有人输入了错误的代码。"
+
+msgid "Something went wrong in the run."
+msgstr "运行中出现问题。"
+
+msgid "Sort"
+msgstr "排序"
+
+msgid "Sort by name"
+msgstr "按名称排序"
+
+msgid "Sort by weight"
+msgstr "按权重排序"
+
+msgid "Sortino ratio"
+msgstr "索提诺比率"
+
+msgid "Sound"
+msgstr "声音"
+
+msgid "Source"
+msgstr "来源"
+
+msgid "Source code"
+msgstr "源代码"
+
+msgid "Special hours"
+msgstr "特别时间"
+
+msgid "Special session"
+msgstr "特别时段"
+
+msgid "Speed: time per bar (click to change)"
+msgstr "速度：每根 K 线的时间（点击更改）"
+
+msgid "Split"
+msgstr "拆股"
+
+msgid "Split or bonus"
+msgstr "拆股或送股"
+
+msgid "Sports Day"
+msgstr "体育日"
+
+msgid "Spring Bank Holiday"
+msgstr "春季银行假日"
+
+msgid "StDev"
+msgstr "标准差"
+
+msgid "Standard Deviation"
+msgstr "标准差"
+
+msgid "Standard Error"
+msgstr "标准误差"
+
+msgid "Standard Error Bands"
+msgstr "标准误差带"
+
+msgid "Start"
+msgstr "起点"
+
+#, message
+msgid "Start a helper: {0}"
+msgstr "启动助手：{0}"
+
+#, message
+msgid "Start a replay at {0}"
+msgstr "从 {0} 开始回放"
+
+msgid "Start again"
+msgstr "重新开始"
+
+#, message
+msgid "Started a helper: {0}"
+msgstr "已启动助手：{0}"
+
+#, message
+msgid "Started a replay at {0}"
+msgstr "已从 {0} 开始回放"
+
+msgid "Starting capital"
+msgstr "起始资金"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Status line"
+msgstr "状态行"
+
+msgid "Stay in drawing mode"
+msgstr "保持绘图模式"
+
+msgid "StdDev"
+msgstr "标准差"
+
+msgid "Step line"
+msgstr "阶梯线"
+
+msgid "Step one bar"
+msgstr "前进一根 K 线"
+
+msgid "Step the replay"
+msgstr "推进回放"
+
+msgid "Stepped the replay"
+msgstr "已推进回放"
+
+msgid "Stochastic"
+msgstr "随机指标"
+
+msgid "Stochastic Length"
+msgstr "随机指标长度"
+
+msgid "Stochastic Momentum Index"
+msgstr "随机动量指数"
+
+msgid "Stochastic RSI"
+msgstr "随机 RSI"
+
+msgid "Stocks"
+msgstr "股票"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Stop Length"
+msgstr "止损长度"
+
+msgid "Stop Long"
+msgstr "多头止损"
+
+msgid "Stop Short"
+msgstr "空头止损"
+
+msgid "Stop limit"
+msgstr "止损限价"
+
+msgid "Stop loss"
+msgstr "止损"
+
+msgid "Stop price"
+msgstr "止损价"
+
+msgid "Stop using as default"
+msgstr "不再设为默认"
+
+msgid "Stop: {0} ({1})"
+msgstr "止损：{0} ({1})"
+
+msgid "Stopped"
+msgstr "已停止"
+
+msgid "Stopped."
+msgstr "已停止。"
+
+msgid "Stop|order"
+msgstr "止损单"
+
+msgid "Strategy Lab"
+msgstr "策略实验室"
+
+msgid "Strategy Lab settings"
+msgstr "策略实验室设置"
+
+msgid "Strategy Report"
+msgstr "策略报告"
+
+msgid "Strategy outperformance"
+msgstr "策略超额收益"
+
+msgid "Strategy settings"
+msgstr "策略设置"
+
+msgid "Strategy settings: capital, order size, commission, slippage and margin"
+msgstr "策略设置：资金、订单规模、手续费、滑点和保证金"
+
+msgid "Style"
+msgstr "样式"
+
+msgid "Summer Bank Holiday"
+msgstr "夏季银行假日"
+
+msgid "Sun"
+msgstr "周日"
+
+msgid "Sunday"
+msgstr "星期日"
+
+msgid "Supertrend"
+msgstr "超级趋势"
+
+msgid "Swatches"
+msgstr "色板"
+
+msgid "Swiss National Day"
+msgstr "瑞士国庆日"
+
+msgid "Switch to dark theme"
+msgstr "切换到深色主题"
+
+msgid "Switch to light theme"
+msgstr "切换到浅色主题"
+
+#, message
+msgid "Switch to {0}"
+msgstr "切换到 {0}"
+
+#, message
+msgid "Switched to {0}"
+msgstr "已切换到 {0}"
+
+msgid "Sydney"
+msgstr "悉尼"
+
+msgid "Symbol"
+msgstr "品种"
+
+msgid "Symbol last price label"
+msgstr "品种最新价标签"
+
+msgid "Symbol last price line"
+msgstr "品种最新价线"
+
+msgid "Symbol logos"
+msgstr "品种图标"
+
+msgid "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+msgstr "品种或公式，如 BTCUSDT、AAPL、BTCUSDT/ETHUSDT"
+
+msgid "Symbol search"
+msgstr "品种搜索"
+
+msgid "Symbol search (start typing anywhere)"
+msgstr "品种搜索（随处直接输入）"
+
+msgid "Symbol watermark"
+msgstr "品种水印"
+
+msgid "Symbols"
+msgstr "品种"
+
+msgid "System ({0})"
+msgstr "系统 ({0})"
+
+msgid "São Paulo"
+msgstr "圣保罗"
+
+msgid "THIS LAYOUT"
+msgstr "此布局"
+
+msgid "TRIX"
+msgstr ""
+
+msgid "TWAP"
+msgstr ""
+
+msgid "Table"
+msgstr "表格"
+
+msgid "Taipei"
+msgstr "台北"
+
+msgid "Taiwan Restoration Day"
+msgstr "台湾光复节"
+
+msgid "Taiwan Stock Exchange"
+msgstr ""
+
+msgid "Take a picture of the chart"
+msgstr "截取图表图片"
+
+msgid "Take a snapshot (Alt+S)"
+msgstr "截取快照 (Alt+S)"
+
+msgid "Take it off the chart before moving it."
+msgstr "请先将其从图表移除再移动。"
+
+msgid "Take its scripts off the chart before renaming it."
+msgstr "请先将其脚本从图表移除再重命名。"
+
+msgid "Take profit"
+msgstr "止盈"
+
+msgid "Target: {0} ({1})"
+msgstr "目标：{0} ({1})"
+
+msgid "Teachers' Day"
+msgstr "教师节"
+
+msgid "Technicals"
+msgstr "技术面"
+
+msgid "Teeth"
+msgstr "齿线"
+
+msgid "Teeth Length"
+msgstr "齿线长度"
+
+msgid "Teeth Offset"
+msgstr "齿线偏移"
+
+msgid "Telegram"
+msgstr ""
+
+msgid "Telegram bot token"
+msgstr "Telegram 机器人令牌"
+
+msgid "Telegram chat id"
+msgstr "Telegram 聊天 ID"
+
+msgid "Template  {0}"
+msgstr "模板  {0}"
+
+msgid "Templates"
+msgstr "模板"
+
+msgid "Text"
+msgstr "文字"
+
+msgid "Thanksgiving"
+msgstr "感恩节"
+
+msgid "Thanksgiving Day"
+msgstr "感恩节"
+
+msgid "That code doesn't match. Check the other device and try again."
+msgstr "代码不匹配。请检查另一台设备后重试。"
+
+#, message
+msgid "That file is damaged. Export it again."
+msgstr "文件已损坏，请重新导出。"
+
+#, message
+msgid "That file is too big to import."
+msgstr "文件太大，无法导入。"
+
+#, message
+msgid "That isn't an Opentern export file."
+msgstr "这不是 Opentern 导出文件。"
+
+msgid "That list has no symbols."
+msgstr "该列表没有品种。"
+
+#, message
+msgid "That price isn't valid."
+msgstr "价格无效。"
+
+#, message
+msgid "That's {0} combinations per window, more than the grid's {1}. Narrow the ranges or use Random or Bayesian."
+msgstr "每个窗口有 {0} 种组合，超过网格上限 {1}。请缩小范围，或使用随机或贝叶斯。"
+
+#, message
+msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr "共有 {combos} 种组合，超过网格上限 {MAX_GRID}。请缩小范围，或使用随机或贝叶斯。"
+
+msgid "The account was reset."
+msgstr "账户已重置。"
+
+msgid "The chart reloads when you save there"
+msgstr "在那里保存后图表会重新加载"
+
+msgid "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB."
+msgstr "取色器新增“自定义”标签：色谱、色相条、hex 和 RGB。"
+
+msgid "The connection dropped. The code still works."
+msgstr "连接中断，代码仍然有效。"
+
+msgid "The connection dropped. Try again."
+msgstr "连接中断，请重试。"
+
+#, message
+msgid "The data service answered with an error ({c})."
+msgstr "数据服务返回错误 ({c})。"
+
+#, message
+msgid "The data service refused the key. Check it in Settings → Data providers."
+msgstr "数据服务拒绝了密钥。请在 设置 → 数据提供商 中检查。"
+
+msgid "The gateway URL should look like https://localhost:5000"
+msgstr "网关 URL 应类似 https://localhost:5000"
+
+msgid "The other device runs a different version of Opentern. Update both, then try again."
+msgstr "另一台设备的 Opentern 版本不同。请更新两台设备后重试。"
+
+msgid "The port should be a number, usually 587 or 465."
+msgstr "端口应为数字，通常是 587 或 465。"
+
+msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
+msgstr "同上，并且在你登录电脑时也会启动，重启后警报仍会继续。"
+
+msgid "The script crashed."
+msgstr "脚本崩溃了。"
+
+msgid "The script failed on this symbol."
+msgstr "脚本在此品种上失败。"
+
+#, message
+msgid "The scripts folder is too big to export."
+msgstr "脚本文件夹太大，无法导出。"
+
+#, message
+msgid "The stop-loss has to be {0} the entry price."
+msgstr "止损必须{0}入场价。"
+
+msgid "The strategy isn't on the chart any more."
+msgstr "策略已不在图表上。"
+
+#, message
+msgid "The take-profit has to be {0} the entry price."
+msgstr "止盈必须{0}入场价。"
+
+msgid "The webhook URL should start with https://"
+msgstr "Webhook URL 应以 https:// 开头"
+
+msgid "Theme"
+msgstr "主题"
+
+#, message
+msgid "There are no bars to test on yet."
+msgstr "还没有可测试的 K 线。"
+
+msgid "There's already an account with this name."
+msgstr "已有同名账户。"
+
+#, message
+msgid "There's already something called {name} there."
+msgstr "那里已有名为 {name} 的项目。"
+
+#, message
+msgid "There's no free order book for this market. The DOM works for crypto exchanges."
+msgstr "此市场没有免费订单簿。市场深度适用于加密货币交易所。"
+
+msgid "There's no image or file on the clipboard."
+msgstr "剪贴板中没有图片或文件。"
+
+msgid "Thinking"
+msgstr "思考中"
+
+msgid "This device"
+msgstr "此设备"
+
+msgid "This file has a Python script"
+msgstr "此文件含有一个 Python 脚本"
+
+msgid "This file has nothing in it to import."
+msgstr "此文件没有可导入的内容。"
+
+msgid "This file has {0} Python scripts"
+msgstr "此文件含有 {0} 个 Python 脚本"
+
+#, message
+msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
+msgstr "此文件由更新版本的 Opentern 生成。请更新 Opentern 后导入。"
+
+msgid "This is a library: import it from another script."
+msgstr "这是一个库：请从其他脚本导入。"
+
+msgid "This strategy can't be compiled for other symbols."
+msgstr "此策略无法为其他品种编译。"
+
+msgid "This strategy has no inputs to vary."
+msgstr "此策略没有可变化的参数。"
+
+msgid "Thu"
+msgstr "周四"
+
+msgid "Thursday"
+msgstr "星期四"
+
+#, message
+msgid "Tick members of {0}"
+msgstr "勾选 {0} 的成分"
+
+msgid "Tick the inputs to vary."
+msgstr "请勾选要变化的参数。"
+
+#, message
+msgid "Ticked members of {0}"
+msgstr "已勾选 {0} 的成分"
+
+msgid "Tiles show the regular session. Hover one for its extended-hours price."
+msgstr "方块显示常规时段。悬停可查看延长时段价格。"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Time Weighted Average Price"
+msgstr "时间加权平均价"
+
+msgid "Timeframe"
+msgstr "时间周期"
+
+msgid "Timezone"
+msgstr "时区"
+
+msgid "Tiradentes"
+msgstr "蒂拉登特斯日"
+
+msgid "Title"
+msgstr "标题"
+
+msgid "Today"
+msgstr "今天"
+
+msgid "Today's weight in the index"
+msgstr "今日在指数中的权重"
+
+msgid "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."
+msgstr "令牌：OANDA → My Services → Manage API Access。使用 OANDA:EURUSD 这样的代码。"
+
+msgid "Tokyo"
+msgstr "东京"
+
+msgid "Tomorrow"
+msgstr "明天"
+
+msgid "Too many wrong codes. Start again."
+msgstr "错误代码过多，请重新开始。"
+
+msgid "Took a picture of the chart"
+msgstr "已截取图表图片"
+
+msgid "Top 150"
+msgstr "前 150"
+
+msgid "Toronto"
+msgstr "多伦多"
+
+msgid "Toronto Stock Exchange"
+msgstr ""
+
+msgid "Total"
+msgstr "合计"
+
+msgid "Total P&L"
+msgstr "总盈亏"
+
+msgid "Total open trades"
+msgstr "未平仓交易总数"
+
+msgid "Total trades"
+msgstr "交易总数"
+
+msgid "Trade #"
+msgstr "交易编号"
+
+msgid "Trades"
+msgstr "交易"
+
+msgid "Trades analysis"
+msgstr "交易分析"
+
+msgid "Trading Sessions"
+msgstr "交易时段"
+
+msgid "Trading range"
+msgstr "交易区间"
+
+msgid "Traditional"
+msgstr "传统"
+
+msgid "Trail by"
+msgstr "跟踪距离"
+
+msgid "Trailing stop"
+msgstr "跟踪止损"
+
+msgid "Trailing twelve months. For the index: weighted by revenue"
+msgstr "过去十二个月。指数：按营收加权"
+
+msgid "Trend"
+msgstr "趋势"
+
+msgid "Trend Strength Index"
+msgstr "趋势强度指数"
+
+msgid "Trend line"
+msgstr "趋势线"
+
+msgid "Trend line tools"
+msgstr "趋势线工具"
+
+msgid "Trend-based fib extension"
+msgstr "趋势斐波那契扩展"
+
+msgid "Triangle"
+msgstr "三角形"
+
+msgid "Tries all {0} choices"
+msgstr "尝试全部 {0} 个选项"
+
+msgid "Tries on and off"
+msgstr "尝试开和关"
+
+msgid "Trigger"
+msgstr "触发频率"
+
+msgid "Triggered"
+msgstr "已触发"
+
+msgid "Triple EMA"
+msgstr "三重 EMA"
+
+msgid "True Range"
+msgstr "真实波幅"
+
+msgid "True Strength Index"
+msgstr "真实强弱指数"
+
+msgid "Try again"
+msgstr "重试"
+
+msgid "Tue"
+msgstr "周二"
+
+msgid "Tuesday"
+msgstr "星期二"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Type a number"
+msgstr "输入数字"
+
+msgid "Type anywhere"
+msgstr "随处输入"
+
+msgid "UO"
+msgstr ""
+
+msgid "US Markets"
+msgstr "美国市场"
+
+msgid "US large caps"
+msgstr "美国大盘股"
+
+msgid "Ultimate Oscillator"
+msgstr "终极震荡指标"
+
+msgid "Undo"
+msgstr "撤销"
+
+msgid "Undo ({0})"
+msgstr "撤销 ({0})"
+
+msgid "Union Budget session"
+msgstr "联邦预算特别时段"
+
+msgid "Unrealized"
+msgstr "未实现"
+
+msgid "Untitled"
+msgstr "未命名"
+
+msgid "Up"
+msgstr "上"
+
+msgid "Up / down"
+msgstr "上 / 下"
+
+msgid "Up Trend"
+msgstr "上升趋势"
+
+msgid "Up volume"
+msgstr "上涨成交量"
+
+msgid "Up/Down"
+msgstr "上/下"
+
+msgid "UpDown Length"
+msgstr "涨跌长度"
+
+msgid "Update available"
+msgstr "有可用更新"
+
+msgid "Update failed"
+msgstr "更新失败"
+
+msgid "Update installed"
+msgstr "更新已安装"
+
+msgid "Update on chart"
+msgstr "在图表上更新"
+
+msgid "Update to {0}"
+msgstr "更新到 {0}"
+
+#, message
+msgid "Updated {file} on the chart."
+msgstr "已更新图表上的 {file}。"
+
+msgid "Updates"
+msgstr "更新"
+
+msgid "Updating to {0}"
+msgstr "正在更新到 {0}"
+
+msgid "Updating to {0} ({1}%)"
+msgstr "正在更新到 {0} ({1}%)"
+
+msgid "Upper"
+msgstr "上轨"
+
+msgid "Upper Band"
+msgstr "上轨"
+
+msgid "Upper Band #1"
+msgstr "上轨 1"
+
+msgid "Upper Band #2"
+msgstr "上轨 2"
+
+msgid "Upper Band #3"
+msgstr "上轨 3"
+
+msgid "Upper color"
+msgstr "上方颜色"
+
+msgid "Upper deviation"
+msgstr "上偏差"
+
+msgid "Upper length"
+msgstr "上轨长度"
+
+msgid "Upper multiplier"
+msgstr "上轨乘数"
+
+msgid "Upper offset"
+msgstr "上轨偏移"
+
+#, message
+msgid "Upstox doesn't list {0}."
+msgstr "Upstox 没有 {0}。"
+
+#, message
+msgid "Upstox has no {0} bars"
+msgstr "Upstox 没有 {0} K 线"
+
+msgid "Upstox · NSE and BSE"
+msgstr "Upstox · NSE 与 BSE"
+
+#, message
+msgid "Upstox: couldn't read the instrument list."
+msgstr "Upstox：无法读取品种列表。"
+
+#, message
+msgid "Upstox: no quote for this symbol."
+msgstr "Upstox：此品种没有报价。"
+
+msgid "Uptrend Highlighter"
+msgstr "上升趋势高亮"
+
+msgid "Usage shows after your first message."
+msgstr "发送第一条消息后显示用量。"
+
+msgid "Use Exponential MA"
+msgstr "使用指数均线"
+
+msgid "Use for new charts"
+msgstr "用于新图表"
+
+msgid "Use the Strategy Lab"
+msgstr "使用策略实验室"
+
+msgid "Use the default folder"
+msgstr "使用默认文件夹"
+
+msgid "Use the gateway"
+msgstr "使用网关"
+
+msgid "Use the indices"
+msgstr "使用指数"
+
+msgid "Use the screener"
+msgstr "使用筛选器"
+
+msgid "Use this style for new drawings of this kind"
+msgstr "将此样式用于同类新绘图"
+
+msgid "Used the Strategy Lab"
+msgstr "已使用策略实验室"
+
+msgid "Used the indices"
+msgstr "已使用指数"
+
+msgid "Used the screener"
+msgstr "已使用筛选器"
+
+#, message
+msgid "Using {0}."
+msgstr "正在使用 {0}。"
+
+msgid "VI +"
+msgstr ""
+
+msgid "VI -"
+msgstr ""
+
+msgid "VWAP"
+msgstr ""
+
+msgid "VWAP Settings"
+msgstr "VWAP 设置"
+
+msgid "VWMA"
+msgstr ""
+
+msgid "Valuation"
+msgstr "估值"
+
+msgid "Value"
+msgstr "数值"
+
+msgid "Value area down"
+msgstr "价值区下跌"
+
+msgid "Value area up"
+msgstr "价值区上涨"
+
+msgid "Value area volume %"
+msgstr "价值区成交量 %"
+
+msgid "Values"
+msgstr "数值"
+
+msgid "Vert grid lines"
+msgstr "垂直网格线"
+
+msgid "Vertical line"
+msgstr "垂直线"
+
+msgid "Victoria Day"
+msgstr "维多利亚日"
+
+msgid "Visibility"
+msgstr "可见性"
+
+msgid "Visible Average Price"
+msgstr "可见平均价"
+
+msgid "Vol {0}"
+msgstr "成交量 {0}"
+
+msgid "Volatility"
+msgstr "波动率"
+
+msgid "Volatility Stop"
+msgstr "波动率止损"
+
+msgid "Volume"
+msgstr "成交量"
+
+msgid "Volume MA"
+msgstr "成交量均线"
+
+msgid "Volume Osc"
+msgstr "成交量震荡"
+
+msgid "Volume Oscillator"
+msgstr "成交量震荡指标"
+
+msgid "Volume Profile Visible Range"
+msgstr "可见范围成交量分布"
+
+msgid "Volume Weighted Moving Average"
+msgstr "成交量加权移动平均线"
+
+msgid "Volume leaders"
+msgstr "成交量榜"
+
+msgid "Vortex Indicator"
+msgstr "涡旋指标"
+
+msgid "WMA"
+msgstr ""
+
+msgid "WMA Length"
+msgstr "WMA 长度"
+
+msgid "Waiting for Windows"
+msgstr "正在等待 Windows"
+
+msgid "Waiting for the other device"
+msgstr "正在等待另一台设备"
+
+msgid "Waiting for your answer"
+msgstr "正在等待你的回答"
+
+msgid "Walk-forward"
+msgstr "滚动优化"
+
+msgid "Washington's Birthday"
+msgstr "华盛顿诞辰"
+
+msgid "Watch"
+msgstr "监视"
+
+msgid "Watchlist"
+msgstr "自选"
+
+#, message
+msgid "Watchlist: {0}"
+msgstr "自选：{0}"
+
+msgid "Watchlists"
+msgstr "自选列表"
+
+msgid "Webhook"
+msgstr "Webhook"
+
+msgid "Webhook URL"
+msgstr "Webhook URL"
+
+msgid "Wed"
+msgstr "周三"
+
+msgid "Wednesday"
+msgstr "星期三"
+
+msgid "Week"
+msgstr "周"
+
+msgid "Weekly"
+msgstr "每周"
+
+msgid "Weekly (Opus)"
+msgstr "每周 (Opus)"
+
+msgid "Weekly (Sonnet)"
+msgstr "每周 (Sonnet)"
+
+msgid "Weekly limit"
+msgstr "每周限额"
+
+msgid "Weeks"
+msgstr "周"
+
+msgid "Weight"
+msgstr "权重"
+
+msgid "Weighted equally for now: a member has no share count."
+msgstr "暂时等权：有成分股缺少股本数据。"
+
+msgid "Weighting"
+msgstr "加权方式"
+
+msgid "What do you trade?"
+msgstr "你交易什么？"
+
+msgid "What was here is saved in the backups folder."
+msgstr "原有内容已保存在备份文件夹中。"
+
+msgid "What's new"
+msgstr "新功能"
+
+msgid "When Opentern is closed"
+msgstr "Opentern 关闭时"
+
+msgid "When it's"
+msgstr "条件"
+
+msgid "When the price is"
+msgstr "当价格"
+
+msgid "Which plot to show (0 is the first)"
+msgstr "显示哪条绘图线（0 为第一条）"
+
+msgid "Whit Monday"
+msgstr "圣灵降临节星期一"
+
+msgid "Wick"
+msgstr "影线"
+
+msgid "Width %"
+msgstr "宽度 %"
+
+msgid "Williams %R"
+msgstr "威廉 %R"
+
+msgid "Williams Alligator"
+msgstr "威廉鳄鱼线"
+
+msgid "Williams Fractals"
+msgstr "威廉分形"
+
+msgid "Win %"
+msgstr "胜率 %"
+
+msgid "Windows didn't allow it. Try again"
+msgstr "Windows 未允许。重试"
+
+#, message
+msgid "Windows refused the rule."
+msgstr "Windows 拒绝了该规则。"
+
+msgid "Winning trades"
+msgstr "盈利交易"
+
+msgid "Women and Children's Day"
+msgstr "妇幼节"
+
+msgid "Woodie"
+msgstr "伍迪"
+
+msgid "Woodies CCI"
+msgstr "伍迪 CCI"
+
+msgid "Working"
+msgstr "工作中"
+
+#, message
+msgid "Wrote {0}"
+msgstr "已写入 {0}"
+
+msgid "Xetra"
+msgstr ""
+
+msgid "YTD"
+msgstr "年初至今"
+
+#, message
+msgid "Yahoo answered with an error ({c})."
+msgstr "Yahoo 返回错误 ({c})。"
+
+#, message
+msgid "Yahoo answered with an error ({status})."
+msgstr "Yahoo 返回错误 ({status})。"
+
+#, message
+msgid "Yahoo didn't send a list this time. Try again later."
+msgstr "Yahoo 这次未返回列表，请稍后再试。"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again in a minute."
+msgstr "Yahoo 这次未返回价格，请一分钟后重试。"
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again later."
+msgstr "Yahoo 这次未返回价格，请稍后再试。"
+
+#, message
+msgid "Yahoo didn't start a session."
+msgstr "Yahoo 未能建立会话。"
+
+#, message
+msgid "Yahoo has no daily history for this BSE listing. NSE:{0} has it."
+msgstr "Yahoo 没有此 BSE 证券的日线历史，NSE:{0} 有。"
+
+#, message
+msgid "Yahoo has no data for this symbol"
+msgstr "Yahoo 没有此品种的数据"
+
+#, message
+msgid "Yahoo has no {0} bars"
+msgstr "Yahoo 没有 {0} K 线"
+
+#, message
+msgid "Yahoo is limiting requests right now."
+msgstr "Yahoo 目前正在限制请求。"
+
+#, message
+msgid "Yahoo is limiting requests; try again in a minute."
+msgstr "Yahoo 正在限制请求，请一分钟后重试。"
+
+#, message
+msgid "Yahoo is too slow to answer right now."
+msgstr "Yahoo 目前响应过慢。"
+
+#, message
+msgid "Yahoo isn't answering right now (error {c})."
+msgstr "Yahoo 目前没有响应（错误 {c}）。"
+
+msgid "Yahoo no longer has {0} ({what} renamed or delisted?). They count at their last price. Replace them with Edit."
+msgstr "Yahoo 已没有 {0}（{what} 已更名或退市？）。按最后价格计算。可通过“编辑”替换。"
+
+#, message
+msgid "Yahoo sent {g} bars instead of {iv}."
+msgstr "Yahoo 返回的是 {g} K 线，而不是 {iv}。"
+
+#, message
+msgid "Yahoo's prices skip {name} on {0}: it isn't on this chart."
+msgstr "Yahoo 的价格缺少 {0} 的{name}：此图表上没有。"
+
+msgid "Year"
+msgstr "年"
+
+msgid "Yearly"
+msgstr "每年"
+
+msgid "Yes, reset"
+msgstr "是，重置"
+
+msgid "Your address"
+msgstr "你的地址"
+
+msgid "Your chat id (e.g. from @userinfobot)"
+msgstr "你的聊天 ID（如从 @userinfobot 获取）"
+
+msgid "Your conversations with your agents show up here."
+msgstr "你与代理的对话会显示在这里。"
+
+msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
+msgstr "你的自选、布局、绘图、警报和脚本都会保留。"
+
+msgid "Zero"
+msgstr "零"
+
+msgid "Zero Line"
+msgstr "零线"
+
+msgid "Zig Zag"
+msgstr "之字转向"
+
+msgid "Zoom in"
+msgstr "放大"
+
+msgid "Zoom in (drag a range)"
+msgstr "放大（拖选范围）"
+
+msgid "Zurich"
+msgstr "苏黎世"
+
+msgid "[Ln {l}]"
+msgstr "[第 {l} 行]"
+
+msgid "a drawing"
+msgstr "一个绘图"
+
+msgid "above"
+msgstr "高于"
+
+msgid "at {0}"
+msgstr "{0}"
+
+msgid "auto"
+msgstr "自动"
+
+msgid "below"
+msgstr "低于"
+
+msgid "buy"
+msgstr "买入"
+
+msgid "by"
+msgstr "步长"
+
+msgid "chart layout"
+msgstr "图表布局"
+
+#, message
+msgid "chart type to {0}"
+msgstr "图表类型为 {0}"
+
+msgid "chart view"
+msgstr "图表视图"
+
+msgid "close"
+msgstr "收盘"
+
+msgid "e.g. Nifty Auto"
+msgstr "如 Nifty Auto"
+
+msgid "e.g. Swing setup"
+msgstr "如 波段配置"
+
+msgid "e.g. {{ticker}} crossed at {{close}}"
+msgstr "如 {{ticker}} 在 {{close}} 穿越"
+
+msgid "from"
+msgstr "从"
+
+msgid "high"
+msgstr "最高"
+
+msgid "hl2"
+msgstr ""
+
+msgid "hlc3"
+msgstr ""
+
+msgid "hlcc4"
+msgstr ""
+
+msgid "https://…"
+msgstr ""
+
+msgid "in use"
+msgstr "使用中"
+
+msgid "in {0} weeks"
+msgstr "{0} 周后"
+
+msgid "in {n} days"
+msgstr "{n} 天后"
+
+msgid "log"
+msgstr "对数"
+
+msgid "low"
+msgstr "最低"
+
+msgid "macOS asks once. If Opentern isn't allowed, turn it on here, then try again."
+msgstr "macOS 只询问一次。如果 Opentern 未获允许，请在此开启后重试。"
+
+msgid "ohlc4"
+msgstr ""
+
+msgid "open"
+msgstr "开盘"
+
+msgid "sell"
+msgstr "卖出"
+
+msgid "to"
+msgstr "到"
+
+#, message
+msgid "view to {0}"
+msgstr "视图到 {0}"
+
+msgid "vs 200 SMA"
+msgstr "较 200 SMA"
+
+msgid "vs 50 SMA"
+msgstr "较 50 SMA"
+
+msgid "vs SMA 200 %"
+msgstr "较 SMA 200 %"
+
+msgid "vs SMA 50 %"
+msgstr "较 SMA 50 %"
+
+msgid "your other device"
+msgstr "另一台设备"
+
+msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
+msgstr "{0}\n权益  {1}\n买入并持有  {2}\n回撤  {3}"
+
+msgid "{0}\nNo new price for {1}"
+msgstr "{0}\n已有 {1} 没有新价格"
+
+msgid "{0}\n{1}% of the map\n{2}: {3}"
+msgstr "{0}\n占地图 {1}%\n{2}：{3}"
+
+msgid "{0}   Move to section"
+msgstr "{0}   移到分组"
+
+msgid "{0}  (default)"
+msgstr "{0}  （默认）"
+
+msgid "{0}  Add a watchlist"
+msgstr "{0}  添加自选列表"
+
+msgid "{0}  Back"
+msgstr "{0}  返回"
+
+msgid "{0}  Not on the chart"
+msgstr "{0}  不在图表上"
+
+msgid "{0}  On the chart"
+msgstr "{0}  在图表上"
+
+msgid "{0}  Saving replaces the template with this name."
+msgstr "{0}  保存会替换同名模板。"
+
+msgid "{0}  Search symbols to add"
+msgstr "{0}  搜索要添加的品种"
+
+msgid "{0}  insert"
+msgstr "{0}  插入"
+
+msgid "{0} ({1})\n{bars} bars, {time}"
+msgstr "{0} ({1})\n{bars} 根 K 线，{time}"
+
+msgid "{0} MB of prices on this computer"
+msgstr "这台电脑上有 {0} MB 价格数据"
+
+msgid "{0} alerts fired"
+msgstr "{0} 个警报已触发"
+
+#, message
+msgid "{0} bars aren't available for this symbol."
+msgstr "此品种没有 {0} K 线。"
+
+#, message
+msgid "{0} bars aren't available for {1}."
+msgstr "{1} 没有 {0} K 线。"
+
+#, message
+msgid "{0} comparison"
+msgstr "与 {0} 对比"
+
+msgid "{0} contracts"
+msgstr "{0} 张合约"
+
+msgid "{0} copy"
+msgstr "{0} 副本"
+
+msgid "{0} days"
+msgstr "{0} 天"
+
+msgid "{0} h {1} min"
+msgstr "{0} 小时 {1} 分"
+
+#, message
+msgid "{0} has no values to try."
+msgstr "{0} 没有可尝试的值。"
+
+#, message
+msgid "{0} has unsaved changes: close again to discard them."
+msgstr "{0} 有未保存的更改：再次关闭将放弃。"
+
+msgid "{0} isn't installed"
+msgstr "{0} 未安装"
+
+msgid "{0} min"
+msgstr "{0} 分钟"
+
+msgid "{0} per contract"
+msgstr "每张合约 {0}"
+
+msgid "{0} per order"
+msgstr "每笔订单 {0}"
+
+#, message
+msgid "{0} runs in {took}."
+msgstr "{took} 内运行 {0} 次。"
+
+msgid "{0} steps"
+msgstr "{0} 步"
+
+msgid "{0} symbols"
+msgstr "{0} 个品种"
+
+#, message
+msgid "{0} symbols in {took}."
+msgstr "{took} 内 {0} 个品种。"
+
+#, message
+msgid "{0} symbols in {took}; {1} couldn't run."
+msgstr "{took} 内 {0} 个品种，{1} 个无法运行。"
+
+#, message
+msgid "{0} windows in {took}."
+msgstr "{took} 内 {0} 个窗口。"
+
+msgid "{0} {1} {2} at {3}"
+msgstr "{0} {1} {2} @ {3}"
+
+#, message
+msgid "{0} {p}. Paste it into a folder with Ctrl+V."
+msgstr "{0} {p}。用 Ctrl+V 粘贴到文件夹。"
+
+msgid "{0} · {1} symbols"
+msgstr "{0} · {1} 个品种"
+
+msgid "{0} — properties"
+msgstr "{0} — 属性"
+
+msgid "{0}% of equity"
+msgstr "权益的 {0}%"
+
+msgid "{0}% opacity"
+msgstr "{0}% 不透明度"
+
+#, message
+msgid "{0}, base {1}."
+msgstr "{0}，基点 {1}。"
+
+msgid "{0}-day limit"
+msgstr "{0} 天限额"
+
+msgid "{0}-hour limit"
+msgstr "{0} 小时限额"
+
+msgid "{0}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit."
+msgstr "{0}：Yahoo 已没有此品种，可能已更名或退市。按最后价格计算。可通过“编辑”替换。"
+
+#, message
+msgid "{0}: any alert() call"
+msgstr "{0}：任意 alert() 调用"
+
+msgid "{0}: {1}% used"
+msgstr "{0}：已用 {1}%"
+
+msgid "{0}d ago"
+msgstr "{0} 天前"
+
+msgid "{0}h ago"
+msgstr "{0} 小时前"
+
+msgid "{0}m ago"
+msgstr "{0} 分钟前"
+
+msgid "{0}px"
+msgstr ""
+
+msgid "{0}{plus} mo"
+msgstr "{0}{plus} 个月"
+
+#, message
+msgid "{GONE}. It may have been renamed or delisted."
+msgstr "{GONE}。可能已更名或退市。"
+
+#, message
+msgid "{account}: Bought {qty} {sym} at {price}"
+msgstr "{account}：以 {price} 买入 {qty} {sym}"
+
+#, message
+msgid "{account}: Sold {qty} {sym} at {price}"
+msgstr "{account}：以 {price} 卖出 {qty} {sym}"
+
+msgid "{bars} bars, {time}"
+msgstr "{bars} 根 K 线，{time}"
+
+msgid "{combos} combinations: too many for every combination. Use Random or Bayesian."
+msgstr "{combos} 种组合太多，无法全部尝试。请使用随机或贝叶斯。"
+
+#, message
+msgid "{dir} already has a {0}."
+msgstr "{dir} 中已有 {0}。"
+
+#, message
+msgid "{dir} isn't empty: move or delete what's in it first."
+msgstr "{dir} 不为空：请先移动或删除其中的内容。"
+
+#, message
+msgid "{done} of {0} done…"
+msgstr "已完成 {done}/{0}…"
+
+#, message
+msgid "{e} Left out of the index."
+msgstr "{e} 已移出指数。"
+
+#, message
+msgid "{fe} no longer trades {fd}"
+msgstr "{fe} 已不再交易 {fd}"
+
+#, message
+msgid "{file} is a library."
+msgstr "{file} 是一个库。"
+
+#, message
+msgid "{file} isn't a script"
+msgstr "{file} 不是脚本"
+
+#, message
+msgid "{file} isn't in the scripts folder"
+msgstr "{file} 不在脚本文件夹中"
+
+#, message
+msgid "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+msgstr "{file} 是导入的，而 Python 可完全访问这台电脑。如果信任它，请再次点击“运行”。"
+
+#, message
+msgid "{file} was imported. To run it, open it in the Script Editor and press Run."
+msgstr "{file} 已导入。要运行它，请在脚本编辑器中打开并点击“运行”。"
+
+msgid "{left} left"
+msgstr "剩余 {left}"
+
+msgid "{m}-minute limit"
+msgstr "{m} 分钟限额"
+
+#, message
+msgid "{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again."
+msgstr "{name} 未登录。请在终端运行一次 {cmd} 登录，然后重试。"
+
+#, message
+msgid "{name} stopped unexpectedly. Send your message again to pick up where it left off."
+msgstr "{name} 意外停止。重新发送消息即可继续。"
+
+#, message
+msgid "{name} stopped: {err}"
+msgstr "{name} 已停止：{err}"
+
+#, message
+msgid "{n} alerts fired while Opentern was closed"
+msgstr "Opentern 关闭期间触发了 {n} 个警报"
+
+msgid "{n} charts"
+msgstr "{n} 张图表"
+
+msgid "{n} days"
+msgstr "{n} 天"
+
+#, message
+msgid "{n} drawings"
+msgstr "{n} 个绘图"
+
+msgid "{n} hours"
+msgstr "{n} 小时"
+
+msgid "{n} minutes"
+msgstr "{n} 分钟"
+
+msgid "{n} months"
+msgstr "{n} 个月"
+
+msgid "{n} seconds"
+msgstr "{n} 秒"
+
+msgid "{n} symbols"
+msgstr "{n} 个品种"
+
+msgid "{n} weeks"
+msgstr "{n} 周"
+
+msgid "{n}{plus} yr"
+msgstr "{n}{plus} 年"
+
+msgid "{n}{plus} yrs"
+msgstr "{n}{plus} 年"
+
+msgid "{p} runs of {combos} combinations on the chart's {n} bars."
+msgstr "在图表的 {n} 根 K 线上，从 {combos} 种组合中运行 {p} 次。"
+
+msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} 根 K 线，{time}"
+
+msgid "{state} · {0} · fired {1}×"
+msgstr "{state} · {0} · 已触发 {1} 次"
+
+#, message
+msgid "{study}: any alert() call"
+msgstr "{study}：任意 alert() 调用"
+
+msgid "{text}\n{0}\nEarlier prices adjusted"
+msgstr "{text}\n{0}\n此前价格已调整"
+
+msgid "{tip}\nClick to put the best of these on the chart"
+msgstr "{tip}\n点击将其中最佳应用到图表"
+
+msgid "{tip} {0} at {1}"
+msgstr "{tip} {0} @ {1}"
+
+#, message
+msgid "{title} {0} the price"
+msgstr "{title} {0} 价格"
+
+msgid "{unsaved} scripts have unsaved changes. Save them to include them."
+msgstr "{unsaved} 个脚本有未保存的更改。保存后才会包含在内。"
+
+msgid "{what} placed."
+msgstr "{what}已提交。"
+
+msgid "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
+msgstr "{what}，而 Python 可完全访问这台电脑。在脚本编辑器中点击“运行”之前，不会运行任何内容。"
+
+msgid "{w} windows × {p} runs on the chart's {n} bars."
+msgstr "在图表的 {n} 根 K 线上，{w} 个窗口 × {p} 次运行。"
+
+msgid "{w}px"
+msgstr ""

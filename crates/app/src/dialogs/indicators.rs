@@ -4,6 +4,7 @@
 
 use super::{Done, frame};
 use crate::app::App;
+use crate::i18n::tr;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -37,8 +38,8 @@ impl Indicators {
         let mut done = Done::Keep;
         let mut add: Option<&'static Meta> = None;
         let mut star: Option<&'static str> = None;
-        if frame(ui, t, "Indicators", 720.0, |ui| {
-            let r = crate::widgets::search_field(ui, t, &mut self.query, "Search", ui.available_width());
+        if frame(ui, t, tr("Indicators"), 720.0, |ui| {
+            let r = crate::widgets::search_field(ui, t, &mut self.query, tr("Search"), ui.available_width());
             if !self.focused {
                 r.request_focus();
                 self.focused = true;
@@ -49,8 +50,11 @@ impl Indicators {
             let height = (ui.ctx().content_rect().height() - 210.0).clamp(220.0, 460.0);
             ui.horizontal_top(|ui| {
                 // Left column: where to look.
-                ui.allocate_ui_with_layout(vec2(170.0, height), egui::Layout::top_down(egui::Align::Min), |ui| {
-                    ui.set_min_size(vec2(170.0, height));
+                let names = Category::ALL.map(|c| tr(c.name()));
+                let left = crate::widgets::widest(ui, theme::medium(13.0), names) + 48.0;
+                let left = left.max(170.0);
+                ui.allocate_ui_with_layout(vec2(left, height), egui::Layout::top_down(egui::Align::Min), |ui| {
+                    ui.set_min_size(vec2(left, height));
                     let mut item = |ui: &mut Ui, tab: Tab, icon: &str, label: &str| {
                         let on = self.tab == tab && self.query.is_empty();
                         let (rect, resp) = ui.allocate_exact_size(vec2(170.0, 30.0), Sense::click());
@@ -80,17 +84,17 @@ impl Indicators {
                             self.query.clear();
                         }
                     };
-                    item(ui, Tab::Favorites, ph::STAR, "Favorites");
-                    item(ui, Tab::All, ph::FUNCTION, "Built-ins");
+                    item(ui, Tab::Favorites, ph::STAR, tr("Favorites"));
+                    item(ui, Tab::All, ph::FUNCTION, tr("Built-ins"));
                     ui.add_space(6.0);
                     ui.label(
-                        egui::RichText::new("Categories")
+                        egui::RichText::new(tr("Categories"))
                             .font(theme::medium(12.0))
                             .color(t.text3),
                     );
                     ui.add_space(2.0);
                     for c in Category::ALL {
-                        item(ui, Tab::Cat(c), category_icon(c), c.name());
+                        item(ui, Tab::Cat(c), category_icon(c), tr(c.name()));
                     }
                 });
                 let (line, _) = ui.allocate_exact_size(vec2(17.0, height), Sense::hover());
@@ -104,7 +108,9 @@ impl Indicators {
                         .iter()
                         .filter(|m| {
                             if !q.is_empty() {
-                                return m.name.to_lowercase().contains(&q) || m.short.to_lowercase().contains(&q);
+                                return m.name.to_lowercase().contains(&q)
+                                    || tr(m.name).to_lowercase().contains(&q)
+                                    || m.short.to_lowercase().contains(&q);
                             }
                             match self.tab {
                                 Tab::Favorites => app.store.is_favorite("indicator", m.id),
@@ -121,9 +127,9 @@ impl Indicators {
                             ui.set_width(w - 16.0);
                             if list.is_empty() {
                                 if self.tab == Tab::Favorites && q.is_empty() {
-                                    crate::widgets::empty_state(ui, t, ph::STAR, "No favorites yet");
+                                    crate::widgets::empty_state(ui, t, ph::STAR, tr("No favorites yet"));
                                 } else {
-                                    crate::widgets::empty_state(ui, t, ph::MAGNIFYING_GLASS, "Nothing matches");
+                                    crate::widgets::empty_state(ui, t, ph::MAGNIFYING_GLASS, tr("Nothing matches"));
                                 }
                             }
                             for m in list {
@@ -159,22 +165,22 @@ impl Indicators {
                                 ui.painter().text(
                                     pos2(rect.left() + 36.0, rect.center().y),
                                     Align2::LEFT_CENTER,
-                                    m.name,
+                                    tr(m.name),
                                     theme::regular(13.5),
                                     t.text,
                                 );
                                 ui.painter().text(
                                     pos2(rect.right() - 12.0, rect.center().y),
                                     Align2::RIGHT_CENTER,
-                                    m.category.name(),
+                                    tr(m.category.name()),
                                     theme::regular(12.0),
                                     t.text3,
                                 );
                                 if star_resp
                                     .on_hover_text(if fav {
-                                        "Remove from favorites"
+                                        tr("Remove from favorites")
                                     } else {
-                                        "Add to favorites"
+                                        tr("Add to favorites")
                                     })
                                     .clicked()
                                 {

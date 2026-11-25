@@ -4,6 +4,7 @@
 
 use super::{Done, frame};
 use crate::app::App;
+use crate::i18n::{nt, tr, trf};
 use crate::motion;
 use crate::theme::{self, Theme};
 use egui::{Align2, CornerRadius, Key, Sense, Ui, pos2, vec2};
@@ -62,14 +63,14 @@ const CHANGE_W: f32 = 64.0;
 const ENTER_WAIT: f64 = 1.0;
 
 const FILTERS: [(&str, Option<AssetKind>); 8] = [
-    ("All", None),
-    ("Crypto", Some(AssetKind::Crypto)),
-    ("Stocks", Some(AssetKind::Stock)),
-    ("Funds", Some(AssetKind::Fund)),
-    ("Indices", Some(AssetKind::Index)),
-    ("Forex", Some(AssetKind::Forex)),
-    ("Futures", Some(AssetKind::Futures)),
-    ("Commodities", Some(AssetKind::Commodity)),
+    (nt!("All"), None),
+    (nt!("Crypto"), Some(AssetKind::Crypto)),
+    (nt!("Stocks"), Some(AssetKind::Stock)),
+    (nt!("Funds"), Some(AssetKind::Fund)),
+    (nt!("Indices"), Some(AssetKind::Index)),
+    (nt!("Forex"), Some(AssetKind::Forex)),
+    (nt!("Futures"), Some(AssetKind::Futures)),
+    (nt!("Commodities"), Some(AssetKind::Commodity)),
 ];
 
 /// In a formula, the term the cursor (a char index) is in, with what's
@@ -162,9 +163,9 @@ impl SymbolSearch {
         let mut done = Done::Keep;
         let mut pick: Option<Symbol> = None;
         let title = match self.purpose {
-            Pick::Chart => "Symbol search",
-            Pick::Watchlist => "Add to watchlist",
-            Pick::Compare { .. } => "Compare symbol",
+            Pick::Chart => tr("Symbol search"),
+            Pick::Watchlist => tr("Add to watchlist"),
+            Pick::Compare { .. } => tr("Compare symbol"),
         };
         if frame(ui, t, title, 700.0, |ui| {
             // Keys first, so the text field doesn't eat them.
@@ -188,7 +189,7 @@ impl SymbolSearch {
             }
             let r = ui.add(
                 crate::widgets::field(&mut self.query)
-                    .hint_text("Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT")
+                    .hint_text(tr("Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"))
                     .font(theme::regular(15.0))
                     .desired_width(f32::INFINITY)
                     .margin(vec2(10.0, 8.0)),
@@ -261,21 +262,21 @@ impl SymbolSearch {
                         t,
                         mode,
                         &[
-                            (M::Percent, M::Percent.label()),
-                            (M::Scale, M::Scale.label()),
-                            (M::Pane, M::Pane.label()),
+                            (M::Percent, tr(M::Percent.label())),
+                            (M::Scale, tr(M::Scale.label())),
+                            (M::Pane, tr(M::Pane.label())),
                         ],
                     );
                     let tip = match mode {
-                        M::Percent => "Percent change, on the chart's scale",
-                        M::Scale => "Over the chart, with its own scale",
-                        M::Pane => "In a pane of its own, below",
+                        M::Percent => tr("Percent change, on the chart's scale"),
+                        M::Scale => tr("Over the chart, with its own scale"),
+                        M::Pane => tr("In a pane of its own, below"),
                     };
                     ui.label(egui::RichText::new(tip).font(theme::regular(12.0)).color(t.text3));
                 });
                 ui.add_space(4.0);
             }
-            let opts: Vec<(Option<AssetKind>, &str)> = FILTERS.iter().map(|(l, f)| (*f, *l)).collect();
+            let opts: Vec<(Option<AssetKind>, &str)> = FILTERS.iter().map(|(l, f)| (*f, tr(l))).collect();
             if crate::widgets::segmented(ui, t, &mut self.filter, &opts) {
                 self.selected = 0;
             }
@@ -441,7 +442,7 @@ impl SymbolSearch {
                 .show(ui, |ui| {
                     if shown.is_empty() {
                         ui.add_space(12.0);
-                        ui.label(egui::RichText::new("No symbols match.").color(t.text3));
+                        ui.label(egui::RichText::new(tr("No symbols match.")).color(t.text3));
                     }
                     for (i, row) in shown.iter().enumerate() {
                         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
@@ -456,7 +457,7 @@ impl SymbolSearch {
                             Row::Formula(f) => (
                                 f,
                                 f.description.clone(),
-                                "Open this formula".to_string(),
+                                tr("Open this formula").to_string(),
                                 "formula".to_string(),
                             ),
                             Row::Sym(s, complete) => (
@@ -464,9 +465,9 @@ impl SymbolSearch {
                                 s.ticker().to_string(),
                                 s.description.clone(),
                                 if *complete && i == self.selected {
-                                    format!("{}  insert", crate::icons::ph::ARROW_ELBOW_DOWN_LEFT)
+                                    trf!("{}  insert", crate::icons::ph::ARROW_ELBOW_DOWN_LEFT)
                                 } else {
-                                    format!("{}  ·  {}", kind_name(s), s.exchange())
+                                    format!("{}  ·  {}", tr(kind_name(s)), s.exchange())
                                 },
                             ),
                         };
@@ -495,9 +496,9 @@ impl SymbolSearch {
                                 );
                             }
                             star.clone().on_hover_text(if on {
-                                "Remove from watchlist (Shift+Enter)"
+                                tr("Remove from watchlist (Shift+Enter)")
                             } else {
-                                "Add to watchlist (Shift+Enter)"
+                                tr("Add to watchlist (Shift+Enter)")
                             });
                             if star.clicked() {
                                 star_row = Some(i);

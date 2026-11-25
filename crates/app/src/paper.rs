@@ -5,6 +5,7 @@
 
 use crate::app::App;
 use crate::chart::PaperLine;
+use crate::i18n::{msg, nt, tr, trc, trf, trm};
 use crate::shell::small_button;
 use crate::theme::{self, Theme};
 use egui::{Align, Align2, Color32, CornerRadius, Layout, Sense, Stroke, Ui, pos2, vec2};
@@ -52,11 +53,11 @@ impl OrderType {
 
     fn name(self) -> &'static str {
         match self {
-            OrderType::Market => "Market",
-            OrderType::Limit => "Limit",
-            OrderType::Stop => "Stop",
-            OrderType::StopLimit => "Stop limit",
-            OrderType::Trailing => "Trailing stop",
+            OrderType::Market => nt!("Market"),
+            OrderType::Limit => nt!("Limit"),
+            OrderType::Stop => nt!("Stop"),
+            OrderType::StopLimit => nt!("Stop limit"),
+            OrderType::Trailing => nt!("Trailing stop"),
         }
     }
 }
@@ -94,7 +95,11 @@ impl Paper {
                 store
                     .value(OLD_KEY)
                     .and_then(|s| serde_json::from_str::<Account>(&s).ok())
-                    .unwrap_or_default(),
+                    .unwrap_or_else(|| {
+                        let mut a = Account::default();
+                        a.name = tr("Paper account").into();
+                        a
+                    }),
                 Vec::new(),
             ),
         };
@@ -120,6 +125,17 @@ impl Paper {
 
 fn now() -> i64 {
     jiff::Timestamp::now().as_millisecond()
+}
+
+/// Below this width a panel's two halves stack.
+pub(crate) const STACKED: f32 = 560.0;
+
+/// An order type as it's drawn ("Stop" the order isn't "Stop" the verb).
+pub(crate) fn order_name(name: &str) -> &str {
+    match name {
+        "Stop" => trc("order", "Stop"),
+        n => tr(n),
+    }
 }
 
 impl App {
@@ -227,14 +243,13 @@ impl App {
             for acc in std::iter::once(&mut paper.account).chain(paper.others.iter_mut()) {
                 let fills = acc.on_price(s, p, now());
                 for f in &fills {
-                    let side = if f.buy { "Bought" } else { "Sold" };
-                    let whose = if many { format!("{}: ", acc.name) } else { String::new() };
-                    paper.status = format!(
-                        "{whose}{side} {} {} at {}",
-                        qty_text(f.qty),
-                        short(&f.symbol),
-                        num(f.price)
-                    );
+                    let (account, qty, sym, price) = (&acc.name, qty_text(f.qty), short(&f.symbol), num(f.price));
+                    paper.status = match (many, f.buy) {
+                        (false, true) => msg!("Bought {qty} {sym} at {price}"),
+                        (false, false) => msg!("Sold {qty} {sym} at {price}"),
+                        (true, true) => msg!("{account}: Bought {qty} {sym} at {price}"),
+                        (true, false) => msg!("{account}: Sold {qty} {sym} at {price}"),
+                    };
                     crate::diag::crumb(format!("paper fill: order {}", f.order));
                 }
                 changed |= !fills.is_empty();
@@ -252,7 +267,7 @@ impl App {
             self.paper.status = n.clone();
             self.notify(
                 crate::icons::ph::WALLET,
-                "Paper trading",
+                nt!("Paper trading"),
                 &n,
                 None,
                 n.contains("Margin call"),
@@ -283,7 +298,7 @@ impl App {
                 price: p.avg,
                 label: format!(
                     "{} {}  {}",
-                    if p.qty > 0.0 { "Long" } else { "Short" },
+                    if p.qty > 0.0 { tr("Long") } else { tr("Short") },
                     qty_text(p.qty),
                     signed(pnl)
                 ),
@@ -301,7 +316,12 @@ impl App {
                 };
                 lines.push(PaperLine {
                     price,
-                    label: format!("{what} {} {}", if o.buy { "buy" } else { "sell" }, qty_text(o.qty)),
+                    label: format!(
+                        "{} {} {}",
+                        order_name(what),
+                        if o.buy { tr("buy") } else { tr("sell") },
+                        qty_text(o.qty)
+                    ),
                     buy: o.buy,
                     position: false,
                     order: Some(o.id),
@@ -320,7 +340,7 @@ impl App {
     pub(crate) fn paper_move(&mut self, id: u64, price: f64) {
         match self.paper.account.modify(id, price) {
             Ok(()) => {
-                self.paper.status = format!("Order moved to {}.", num(price));
+                self.paper.status = msg!("Order moved to {}.", num(price));
                 self.save_paper();
             }
             Err(e) => self.paper.status = e,
@@ -329,7 +349,7 @@ impl App {
 
     pub(crate) fn paper_cancel(&mut self, id: u64) {
         if self.paper.account.cancel(id) {
-            self.paper.status = "Order cancelled.".into();
+            self.paper.status = nt!("Order cancelled.").into();
             self.save_paper();
         }
     }
@@ -338,10 +358,10 @@ impl App {
         match self.last_price(symbol) {
             Some(l) => {
                 self.paper.account.close_position(symbol, l, now());
-                self.paper.status = format!("Closed {}.", short(symbol));
+                self.paper.status = msg!("Closed {}.", short(symbol));
                 self.save_paper();
             }
-            None => self.paper.status = "No price yet for this symbol.".into(),
+            None => self.paper.status = nt!("No price yet for this symbol.").into(),
         }
     }
 
@@ -352,7 +372,7 @@ impl App {
             // Keep the others in their order: the previous one goes first.
             let prev = self.paper.others.remove(k);
             self.paper.others.insert(0, prev);
-            self.paper.status = format!("Using {}.", self.paper.account.name);
+            self.paper.status = msg!("Using {}.", self.paper.account.name);
             self.save_paper();
         }
     }
@@ -360,7 +380,7 @@ impl App {
     /// A free "Paper account N" name.
     fn free_account_name(&self) -> String {
         (2..)
-            .map(|k| format!("Paper account {k}"))
+            .map(|k| trf!("Paper account {k}"))
             .find(|n| !self.paper_name_taken(n, true))
             .expect("a free name")
     }
@@ -408,7 +428,7 @@ impl App {
             set(&mut fresh);
             let prev = std::mem::replace(&mut self.paper.account, fresh);
             self.paper.others.insert(0, prev);
-            self.paper.status = format!("Made {name}.");
+            self.paper.status = msg!("Made {name}.");
         } else {
             let a = &mut self.paper.account;
             a.name = name;
@@ -443,11 +463,29 @@ impl App {
             return;
         }
         let gone = std::mem::replace(&mut self.paper.account, self.paper.others.remove(0));
-        self.paper.status = format!("Deleted {}.", gone.name);
+        self.paper.status = msg!("Deleted {}.", gone.name);
         self.save_paper();
     }
 
     pub(crate) fn paper_tab(&mut self, ui: &mut Ui, t: &Theme) {
+        // No room side by side: the order form, then the account below it.
+        if ui.available_width() < STACKED {
+            egui::ScrollArea::vertical()
+                .id_salt("paper-stacked")
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    self.ticket(ui, t);
+                    ui.add_space(10.0);
+                    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
+                    ui.painter()
+                        .hline(r.x_range(), r.center().y, Stroke::new(1.0, t.border));
+                    ui.add_space(10.0);
+                    // A height of its own: a long history scrolls inside it.
+                    let size = vec2(ui.available_width(), 420.0);
+                    ui.allocate_ui_with_layout(size, Layout::top_down(Align::Min), |ui| self.account_view(ui, t));
+                });
+            return;
+        }
         ui.horizontal_top(|ui| {
             let h = ui.available_height();
             ui.allocate_ui_with_layout(vec2(250.0, h), Layout::top_down(Align::Min), |ui| {
@@ -476,7 +514,7 @@ impl App {
         // Buy / Sell.
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            for (buy, label, c) in [(true, "Buy", t.pos), (false, "Sell", t.neg)] {
+            for (buy, label, c) in [(true, tr("Buy"), t.pos), (false, tr("Sell"), t.neg)] {
                 let on = self.paper.buy == buy;
                 let (r, resp) = ui.allocate_exact_size(vec2(119.0, 30.0), Sense::click());
                 let fill = if on { c } else { t.card };
@@ -514,13 +552,13 @@ impl App {
             });
         };
         let mut kind = self.paper.kind;
-        row(ui, "Type", &mut |ui| {
+        row(ui, tr("Type"), &mut |ui| {
             crate::widgets::combo("paper-type")
                 .width(150.0)
-                .selected_text(kind.name())
+                .selected_text(order_name(kind.name()))
                 .show_ui(ui, |ui| {
                     for k in OrderType::ALL {
-                        crate::widgets::option_value(ui, &mut kind, k, k.name());
+                        crate::widgets::option_value(ui, &mut kind, k, order_name(k.name()));
                     }
                 });
         });
@@ -534,7 +572,7 @@ impl App {
         }
         let step = self.chart.symbol.tick_size.max(1e-8);
         let mut qty = self.paper.qty;
-        row(ui, "Quantity", &mut |ui| {
+        row(ui, tr("Quantity"), &mut |ui| {
             ui.add(
                 egui::DragValue::new(&mut qty)
                     .range(0.0..=1e12)
@@ -545,21 +583,21 @@ impl App {
         self.paper.qty = qty;
         let (mut price, mut limit, mut offset) = (self.paper.price, self.paper.limit, self.paper.offset);
         match self.paper.kind {
-            OrderType::Limit => row(ui, "Limit price", &mut |ui| {
+            OrderType::Limit => row(ui, tr("Limit price"), &mut |ui| {
                 ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
             }),
-            OrderType::Stop => row(ui, "Stop price", &mut |ui| {
+            OrderType::Stop => row(ui, tr("Stop price"), &mut |ui| {
                 ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
             }),
             OrderType::StopLimit => {
-                row(ui, "Stop price", &mut |ui| {
+                row(ui, tr("Stop price"), &mut |ui| {
                     ui.add(egui::DragValue::new(&mut price).speed(step).max_decimals(8));
                 });
-                row(ui, "Limit price", &mut |ui| {
+                row(ui, tr("Limit price"), &mut |ui| {
                     ui.add(egui::DragValue::new(&mut limit).speed(step).max_decimals(8));
                 });
             }
-            OrderType::Trailing => row(ui, "Trail by", &mut |ui| {
+            OrderType::Trailing => row(ui, tr("Trail by"), &mut |ui| {
                 ui.add(
                     egui::DragValue::new(&mut offset)
                         .speed(step)
@@ -577,7 +615,7 @@ impl App {
             _ => Some(self.paper.price),
         };
         let dir = if self.paper.buy { 1.0 } else { -1.0 };
-        for (tp, label) in [(true, "Take profit"), (false, "Stop loss")] {
+        for (tp, label) in [(true, tr("Take profit")), (false, tr("Stop loss"))] {
             let slot = if tp { &mut self.paper.tp } else { &mut self.paper.sl };
             let mut on = slot.is_some();
             ui.horizontal(|ui| {
@@ -596,7 +634,7 @@ impl App {
             });
         }
         ui.add_space(8.0);
-        let side = if self.paper.buy { "Buy" } else { "Sell" };
+        let side = if self.paper.buy { tr("Buy") } else { tr("Sell") };
         let label = format!("{side} {} {}", qty_text(self.paper.qty), short(&sym));
         let c = if self.paper.buy { t.pos } else { t.neg };
         let (r, resp) = ui.allocate_exact_size(vec2(244.0, 34.0), Sense::click());
@@ -637,8 +675,9 @@ impl App {
             match self.paper.account.place(ticket, last, now()) {
                 Ok(_) => {
                     self.paper.status = match self.paper.kind {
-                        OrderType::Market => format!("{side} order filled."),
-                        _ => "Order placed.".into(),
+                        OrderType::Market if self.paper.buy => nt!("Buy order filled.").into(),
+                        OrderType::Market => nt!("Sell order filled.").into(),
+                        _ => nt!("Order placed.").into(),
                     };
                     self.save_paper();
                 }
@@ -647,7 +686,7 @@ impl App {
         }
         if !self.paper.status.is_empty() {
             ui.add_space(6.0);
-            ui.label(egui::RichText::new(&self.paper.status).color(t.text3).size(12.0));
+            ui.label(egui::RichText::new(trm(&self.paper.status)).color(t.text3).size(12.0));
         }
     }
 
@@ -668,7 +707,7 @@ impl App {
         } else {
             format!(" {}", acc.currency)
         };
-        let margin = format!(
+        let margin = trf!(
             "Margin in use {}{unit} · Buying power {}{unit}",
             num(acc.margin_used()),
             num(acc.buying_power().max(0.0))
@@ -679,17 +718,17 @@ impl App {
             self.account_menu(ui, t);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if self.paper.confirm_reset {
-                    if small_button(ui, t, "Cancel", false).clicked() {
+                    if small_button(ui, t, tr("Cancel"), false).clicked() {
                         self.paper.confirm_reset = false;
                     }
-                    if small_button(ui, t, "Yes, reset", true).clicked() {
+                    if small_button(ui, t, tr("Yes, reset"), true).clicked() {
                         self.paper.account.reset();
                         self.paper.confirm_reset = false;
-                        self.paper.status = "The account was reset.".into();
+                        self.paper.status = nt!("The account was reset.").into();
                         self.save_paper();
                     }
-                    ui.label(egui::RichText::new("Clear everything?").color(t.text2));
-                } else if small_button(ui, t, "Reset account", false).clicked() {
+                    ui.label(egui::RichText::new(tr("Clear everything?")).color(t.text2));
+                } else if small_button(ui, t, tr("Reset account"), false).clicked() {
                     self.paper.confirm_reset = true;
                 }
             });
@@ -698,10 +737,10 @@ impl App {
         // Four even columns, or two by two when the panel is narrow; values
         // never get cut off.
         let items = [
-            ("Balance", format!("{}{unit}", num(balance)), t.text),
-            ("Equity", format!("{}{unit}", num(equity)), t.text),
-            ("Unrealized", signed(unreal), tone(t, unreal)),
-            ("Realized", signed(realized), tone(t, realized)),
+            (tr("Balance"), format!("{}{unit}", num(balance)), t.text),
+            (tr("Equity"), format!("{}{unit}", num(equity)), t.text),
+            (tr("Unrealized"), signed(unreal), tone(t, unreal)),
+            (tr("Realized"), signed(realized), tone(t, realized)),
         ];
         let w = ui.available_width();
         let per_row = if w / 4.0 >= 120.0 { 4 } else { 2 };
@@ -732,9 +771,9 @@ impl App {
             self.paper.account.fills.len(),
         );
         let labels = [
-            format!("Positions {}", counts.0),
-            format!("Orders {}", counts.1),
-            format!("History {}", counts.2),
+            trf!("Positions {}", counts.0),
+            trf!("Orders {}", counts.1),
+            trf!("History {}", counts.2),
         ];
         let mut view = self.paper.view;
         crate::widgets::segmented(
@@ -749,11 +788,15 @@ impl App {
         );
         self.paper.view = view;
         ui.add_space(4.0);
-        match self.paper.view {
-            View::Positions => self.positions_table(ui, t, &prices),
-            View::Orders => self.orders_table(ui, t),
-            View::History => self.history_table(ui, t),
-        }
+        // The tables are as wide as their columns; they scroll sideways.
+        egui::ScrollArea::horizontal()
+            .id_salt(("paper-table", self.paper.view as u8))
+            .auto_shrink([false, true])
+            .show(ui, |ui| match self.paper.view {
+                View::Positions => self.positions_table(ui, t, &prices),
+                View::Orders => self.orders_table(ui, t),
+                View::History => self.history_table(ui, t),
+            });
     }
 
     /// The account picker: switch, make, rename and delete accounts.
@@ -776,8 +819,8 @@ impl App {
                 use crate::widgets as w;
                 ui.set_width(260.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
-                w::menu_heading(ui, t, "ACCOUNTS");
-                w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &current, "in use", true);
+                w::menu_heading(ui, t, tr("ACCOUNTS"));
+                w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &current, tr("in use"), true);
                 for (k, a) in self.paper.others.iter().enumerate() {
                     if w::menu_item(ui, t, Some(crate::icons::ph::WALLET), &a.name, "", false).clicked() {
                         pick = Some(k);
@@ -785,28 +828,37 @@ impl App {
                     }
                 }
                 w::menu_rule(ui, t);
-                if w::menu_item(ui, t, Some(crate::icons::ph::GEAR_SIX), "Account settings", "", false).clicked() {
+                if w::menu_item(
+                    ui,
+                    t,
+                    Some(crate::icons::ph::GEAR_SIX),
+                    tr("Account settings"),
+                    "",
+                    false,
+                )
+                .clicked()
+                {
                     settings = true;
                     ui.close();
                 }
-                if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), "New account", "", false).clicked() {
+                if w::menu_item(ui, t, Some(crate::icons::ph::PLUS), tr("New account"), "", false).clicked() {
                     make = true;
                     ui.close();
                 }
                 let can = !self.paper.others.is_empty();
                 let r = if can {
-                    w::menu_danger(ui, t, Some(crate::icons::ph::TRASH), "Delete this account")
+                    w::menu_danger(ui, t, Some(crate::icons::ph::TRASH), tr("Delete this account"))
                 } else {
                     w::menu_row(
                         ui,
                         t,
                         Some(crate::icons::ph::TRASH),
-                        "Delete this account",
+                        tr("Delete this account"),
                         "",
                         false,
                         false,
                     )
-                    .on_hover_text("Make another account first")
+                    .on_hover_text(tr("Make another account first"))
                 };
                 if can && r.clicked() {
                     delete = true;
@@ -830,15 +882,15 @@ impl App {
     fn positions_table(&mut self, ui: &mut Ui, t: &Theme, prices: &HashMap<String, f64>) {
         let rows: Vec<_> = self.paper.account.positions.clone();
         if rows.is_empty() {
-            empty(ui, t, "No open positions.");
+            empty(ui, t, nt!("No open positions."));
             return;
         }
         let cols = [
-            ("Symbol", 150.0),
-            ("Side", 70.0),
-            ("Qty", 90.0),
-            ("Avg price", 110.0),
-            ("Last", 110.0),
+            (tr("Symbol"), 150.0),
+            (tr("Side"), 70.0),
+            (tr("Qty"), 90.0),
+            (tr("Avg price"), 110.0),
+            (tr("Last"), 110.0),
             ("P&L", 150.0),
             ("", 80.0),
         ];
@@ -851,7 +903,7 @@ impl App {
                 let cells = [
                     (short(&p.symbol), t.text),
                     (
-                        if p.qty > 0.0 { "Long" } else { "Short" }.to_string(),
+                        if p.qty > 0.0 { tr("Long") } else { tr("Short") }.to_string(),
                         if p.qty > 0.0 { t.pos } else { t.neg },
                     ),
                     (qty_text(p.qty), t.text),
@@ -859,7 +911,7 @@ impl App {
                     (last.map(num).unwrap_or("—".into()), t.text2),
                     (pnl.map(signed).unwrap_or("—".into()), tone(t, pnl.unwrap_or(0.0))),
                 ];
-                if row_with_action(ui, t, &cols, &cells, "Close") {
+                if row_with_action(ui, t, &cols, &cells, tr("Close")) {
                     close = Some((p.symbol.clone(), last));
                 }
             }
@@ -868,10 +920,10 @@ impl App {
             match last {
                 Some(l) => {
                     self.paper.account.close_position(&s, l, now());
-                    self.paper.status = format!("Closed {}.", short(&s));
+                    self.paper.status = msg!("Closed {}.", short(&s));
                     self.save_paper();
                 }
-                None => self.paper.status = "No price yet for this symbol.".into(),
+                None => self.paper.status = nt!("No price yet for this symbol.").into(),
             }
         }
     }
@@ -879,16 +931,16 @@ impl App {
     fn orders_table(&mut self, ui: &mut Ui, t: &Theme) {
         let rows = self.paper.account.orders.clone();
         if rows.is_empty() {
-            empty(ui, t, "No working orders.");
+            empty(ui, t, nt!("No working orders."));
             return;
         }
         let cols = [
-            ("Symbol", 150.0),
-            ("Side", 70.0),
-            ("Type", 110.0),
-            ("Qty", 90.0),
-            ("Price", 110.0),
-            ("Placed", 140.0),
+            (tr("Symbol"), 150.0),
+            (tr("Side"), 70.0),
+            (tr("Type"), 110.0),
+            (tr("Qty"), 90.0),
+            (tr("Price"), 110.0),
+            (tr("Placed"), 140.0),
             ("", 80.0),
         ];
         header(ui, t, &cols);
@@ -897,9 +949,9 @@ impl App {
             for o in &rows {
                 let kind = if o.reduce_only {
                     if matches!(o.kind, Kind::Limit(_)) {
-                        "Take profit"
+                        tr("Take profit")
                     } else {
-                        "Stop loss"
+                        tr("Stop loss")
                     }
                 } else {
                     o.kind.name()
@@ -907,7 +959,7 @@ impl App {
                 let cells = [
                     (short(&o.symbol), t.text),
                     (
-                        if o.buy { "Buy" } else { "Sell" }.to_string(),
+                        if o.buy { tr("Buy") } else { tr("Sell") }.to_string(),
                         if o.buy { t.pos } else { t.neg },
                     ),
                     (kind.to_string(), t.text2),
@@ -915,14 +967,14 @@ impl App {
                     (o.kind.price(o.buy).map(num).unwrap_or("—".into()), t.text),
                     (time_text(o.placed, &self.chart.tz), t.text2),
                 ];
-                if row_with_action(ui, t, &cols, &cells, "Cancel") {
+                if row_with_action(ui, t, &cols, &cells, tr("Cancel")) {
                     cancel = Some(o.id);
                 }
             }
         });
         if let Some(id) = cancel {
             self.paper.account.cancel(id);
-            self.paper.status = "Order cancelled.".into();
+            self.paper.status = nt!("Order cancelled.").into();
             self.save_paper();
         }
     }
@@ -930,17 +982,17 @@ impl App {
     fn history_table(&mut self, ui: &mut Ui, t: &Theme) {
         let fills = &self.paper.account.fills;
         if fills.is_empty() {
-            empty(ui, t, "Nothing traded yet.");
+            empty(ui, t, nt!("Nothing traded yet."));
             return;
         }
         let cols = [
-            ("Time", 140.0),
-            ("Symbol", 150.0),
-            ("Side", 70.0),
-            ("Qty", 90.0),
-            ("Price", 110.0),
-            ("Realized", 140.0),
-            ("Commission", 110.0),
+            (tr("Time"), 140.0),
+            (tr("Symbol"), 150.0),
+            (tr("Side"), 70.0),
+            (tr("Qty"), 90.0),
+            (tr("Price"), 110.0),
+            (tr("Realized"), 140.0),
+            (tr("Commission"), 110.0),
         ];
         header(ui, t, &cols);
         let n = fills.len();
@@ -954,7 +1006,7 @@ impl App {
                         (time_text(f.time, &self.chart.tz), t.text2),
                         (short(&f.symbol), t.text),
                         (
-                            if f.buy { "Buy" } else { "Sell" }.to_string(),
+                            if f.buy { tr("Buy") } else { tr("Sell") }.to_string(),
                             if f.buy { t.pos } else { t.neg },
                         ),
                         (qty_text(f.qty), t.text),
@@ -974,7 +1026,7 @@ fn empty(ui: &mut Ui, t: &Theme, what: &str) {
         "No working orders." => crate::icons::ph::LIST_CHECKS,
         _ => crate::icons::ph::RECEIPT,
     };
-    crate::widgets::empty_state(ui, t, icon, what.trim_end_matches('.'));
+    crate::widgets::empty_state(ui, t, icon, tr(what).trim_end_matches(['.', '。', '।']));
 }
 
 fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {

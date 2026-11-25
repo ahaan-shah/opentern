@@ -4,6 +4,7 @@
 //! slider under both.
 
 use crate::chart::style::c32;
+use crate::i18n::{tr, trf};
 use crate::motion;
 use crate::theme::{self, Theme};
 use egui::{Color32, CornerRadius, Id, Sense, Stroke, Ui, vec2};
@@ -81,7 +82,7 @@ pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     let mut resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let a = c32(*color).a();
     if a < 255 && !open {
-        resp = resp.on_hover_text(format!("{}% opacity", (a as f32 / 2.55).round()));
+        resp = resp.on_hover_text(trf!("{}% opacity", (a as f32 / 2.55).round()));
     }
     let mut changed = false;
     egui::Popup::from_toggle_button_response(&resp)
@@ -103,7 +104,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     // Swatches or a custom colour (remembered while the app runs).
     let mode_id = Id::new("color-picker-custom");
     let mut custom: bool = ui.data(|d| d.get_temp(mode_id)).unwrap_or(false);
-    if crate::widgets::segmented(ui, t, &mut custom, &[(false, "Swatches"), (true, "Custom")]) {
+    if crate::widgets::segmented(ui, t, &mut custom, &[(false, tr("Swatches")), (true, tr("Custom"))]) {
         ui.data_mut(|d| d.insert_temp(mode_id, custom));
     }
     ui.add_space(6.0);
@@ -142,7 +143,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
         for c in recent.iter().take(9) {
             let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
             swatch(ui, t, r, *c, 4);
-            if resp.on_hover_text("Recent colour").clicked() {
+            if resp.on_hover_text(tr("Recent colour")).clicked() {
                 *color = *c;
                 changed = true;
             }
@@ -154,7 +155,11 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
 
 fn opacity_slider(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     ui.add_space(6.0);
-    ui.label(egui::RichText::new("Opacity").font(theme::medium(12.0)).color(t.text2));
+    ui.label(
+        egui::RichText::new(tr("Opacity"))
+            .font(theme::medium(12.0))
+            .color(t.text2),
+    );
     let mut opacity = 100 - color.transparency() as i32;
     if crate::widgets::slider(ui, t, &mut opacity, 0..=100, "%").changed() {
         *color = color.transp((100 - opacity) as u32);

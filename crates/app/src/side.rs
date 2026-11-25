@@ -3,6 +3,7 @@
 //! symbol's dividends and splits).
 
 use crate::app::App;
+use crate::i18n::{date, nt, tr, trf, trm};
 use crate::icons::ph;
 use crate::theme::{self, Theme};
 use egui::{Sense, Ui, pos2, vec2};
@@ -49,9 +50,9 @@ const RETRY: u64 = 15;
 fn ago(ms: i64) -> String {
     let s = (jiff::Timestamp::now().as_millisecond() - ms).max(0) / 1000;
     match s {
-        s if s < 3600 => format!("{}m ago", (s / 60).max(1)),
-        s if s < 86_400 => format!("{}h ago", s / 3600),
-        s => format!("{}d ago", s / 86_400),
+        s if s < 3600 => trf!("{}m ago", (s / 60).max(1)),
+        s if s < 86_400 => trf!("{}h ago", s / 3600),
+        s => trf!("{}d ago", s / 86_400),
     }
 }
 
@@ -75,11 +76,11 @@ impl App {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             for (m, label) in [
-                (HotMarket::Crypto, "Crypto"),
-                (HotMarket::UsStocks, "US Markets"),
-                (HotMarket::India, "Indian Markets"),
+                (HotMarket::Crypto, nt!("Crypto")),
+                (HotMarket::UsStocks, nt!("US Markets")),
+                (HotMarket::India, nt!("Indian Markets")),
             ] {
-                if crate::shell::small_button(ui, t, label, sd.market == m).clicked() {
+                if crate::shell::small_button(ui, t, tr(label), sd.market == m).clicked() {
                     sd.market = m;
                     // India has no volume list.
                     if m == HotMarket::India && sd.kind == HotKind::Volume {
@@ -91,14 +92,14 @@ impl App {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             for (k, label) in [
-                (HotKind::Gainers, "Gainers"),
-                (HotKind::Losers, "Losers"),
-                (HotKind::Volume, "Volume leaders"),
+                (HotKind::Gainers, nt!("Gainers")),
+                (HotKind::Losers, nt!("Losers")),
+                (HotKind::Volume, nt!("Volume leaders")),
             ] {
                 if k == HotKind::Volume && sd.market == HotMarket::India {
                     continue;
                 }
-                if crate::shell::small_button(ui, t, label, sd.kind == k).clicked() {
+                if crate::shell::small_button(ui, t, tr(label), sd.kind == k).clicked() {
                     sd.kind = k;
                 }
             }
@@ -127,17 +128,17 @@ impl App {
         let mut open = None;
         match &self.side.hot {
             None => {
-                ui.label(egui::RichText::new("Loading…").color(t.text3));
+                ui.label(egui::RichText::new(tr("Loading…")).color(t.text3));
             }
             Some(Err(e)) => {
-                ui.label(egui::RichText::new(e).color(t.text3));
+                ui.label(egui::RichText::new(trm(e)).color(t.text3));
             }
             Some(Ok(rows)) => {
                 // Binance's change is over a rolling 24 hours; Yahoo's is
                 // since the previous session's close.
                 let (chg, tip) = match self.side.market {
-                    HotMarket::Crypto => ("Chg% 24h", "Change over the last 24 hours"),
-                    _ => ("Chg% today", "Change since the previous close"),
+                    HotMarket::Crypto => (tr("Chg% 24h"), tr("Change over the last 24 hours")),
+                    _ => (tr("Chg% today"), tr("Change since the previous close")),
                 };
                 let (cols, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
                 let p = ui.painter();
@@ -150,8 +151,8 @@ impl App {
                         t.text3,
                     )
                 };
-                head(p, cols.left() + 6.0, egui::Align2::LEFT_CENTER, "Symbol");
-                head(p, cols.right() - 82.0, egui::Align2::RIGHT_CENTER, "Last");
+                head(p, cols.left() + 6.0, egui::Align2::LEFT_CENTER, tr("Symbol"));
+                head(p, cols.right() - 82.0, egui::Align2::RIGHT_CENTER, tr("Last"));
                 let r = head(p, cols.right() - 6.0, egui::Align2::RIGHT_CENTER, chg);
                 ui.interact(r, ui.id().with("hot-chg"), Sense::hover())
                     .on_hover_text(tip);
@@ -235,11 +236,12 @@ impl App {
                 .is_some_and(|(_, at)| at.elapsed() < Duration::from_millis(700));
         let mut refresh = false;
         ui.horizontal(|ui| {
-            ui.label(egui::RichText::new(format!("About {}", self.chart.symbol.ticker())).color(t.text3));
+            ui.label(egui::RichText::new(trf!("About {}", self.chart.symbol.ticker())).color(t.text3));
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                refresh = crate::widgets::spin_button(ui, t, crate::icons::ph::ARROWS_CLOCKWISE, "Refresh", spinning)
-                    .clicked()
-                    && !spinning;
+                refresh =
+                    crate::widgets::spin_button(ui, t, crate::icons::ph::ARROWS_CLOCKWISE, tr("Refresh"), spinning)
+                        .clicked()
+                        && !spinning;
             });
         });
         if refresh {
@@ -253,13 +255,13 @@ impl App {
         let mut open = None;
         match &self.side.news {
             None => {
-                ui.label(egui::RichText::new("Loading…").color(t.text3));
+                ui.label(egui::RichText::new(tr("Loading…")).color(t.text3));
             }
             Some(Err(e)) => {
-                ui.label(egui::RichText::new(e).color(t.text3));
+                ui.label(egui::RichText::new(trm(e)).color(t.text3));
             }
             Some(Ok(items)) if items.is_empty() => {
-                ui.label(egui::RichText::new("No headlines right now.").color(t.text3));
+                ui.label(egui::RichText::new(tr("No headlines right now.")).color(t.text3));
             }
             Some(Ok(items)) => {
                 egui::ScrollArea::vertical()
@@ -323,17 +325,17 @@ impl App {
                 // (market, title, note, open by default, region heading)
                 let mut entries: Vec<(Market, &str, &str, bool, Option<&str>)> = Vec::new();
                 if let Some(v) = here {
-                    entries.push((Market::Exchange(v), v.name().1, v.name().0, true, None));
+                    entries.push((Market::Exchange(v), tr(v.name().1), v.name().0, true, None));
                 }
-                entries.push((Market::Us, "US Markets", "NYSE · NASDAQ", true, None));
-                entries.push((Market::India, "Indian Markets", "NSE · BSE", true, None));
+                entries.push((Market::Us, tr("US Markets"), tr("NYSE · NASDAQ"), true, None));
+                entries.push((Market::India, tr("Indian Markets"), tr("NSE · BSE"), true, None));
                 let regions: [(&str, &[Venue]); 3] = [
                     (
-                        "Europe",
+                        tr("Europe"),
                         &[Venue::London, Venue::Frankfurt, Venue::Paris, Venue::Zurich],
                     ),
                     (
-                        "Asia-Pacific",
+                        tr("Asia-Pacific"),
                         &[
                             Venue::Tokyo,
                             Venue::HongKong,
@@ -344,14 +346,14 @@ impl App {
                             Venue::Sydney,
                         ],
                     ),
-                    ("Americas", &[Venue::Toronto, Venue::SaoPaulo]),
+                    (tr("Americas"), &[Venue::Toronto, Venue::SaoPaulo]),
                 ];
                 for (region, venues) in regions {
                     let mut first = true;
                     for v in venues.iter().filter(|v| Some(**v) != here) {
                         let head = first.then_some(region);
                         first = false;
-                        entries.push((Market::Exchange(*v), v.name().1, v.name().0, false, head));
+                        entries.push((Market::Exchange(*v), tr(v.name().1), v.name().0, false, head));
                     }
                 }
                 for (m, name, exchanges, open_default, region) in entries {
@@ -377,23 +379,27 @@ impl App {
                     }
                     let list = upcoming(m, today, 120);
                     if list.is_empty() {
-                        ui.label(egui::RichText::new("No holidays in the next four months.").color(t.text3));
+                        ui.label(egui::RichText::new(tr("No holidays in the next four months.")).color(t.text3));
                     }
                     for (d, what) in list.iter().take(8) {
                         let (title, pill, tone) = match what {
-                            Special::Holiday(n) => (n.clone(), "Closed".to_string(), t.text2),
+                            Special::Holiday(n) => (tr(n).to_string(), tr("Closed").to_string(), t.text2),
                             Special::EarlyClose(at) => (
-                                "Early close".to_string(),
-                                format!("Closes {}", at.strftime("%H:%M")),
+                                tr("Early close").to_string(),
+                                trf!("Closes {}", at.strftime("%H:%M")),
                                 t.warn,
                             ),
                             Special::Session(n, open, close) => (
-                                n.clone(),
+                                tr(n).to_string(),
                                 format!("{}–{}", open.strftime("%H:%M"), close.strftime("%H:%M")),
                                 t.accent,
                             ),
                         };
-                        let sub = format!("{} · {}", d.strftime("%A"), relative_days((*d - today).get_days()));
+                        let sub = format!(
+                            "{} · {}",
+                            tr(&d.strftime("%A").to_string()),
+                            relative_days((*d - today).get_days())
+                        );
                         holiday_row(ui, t, *d, *d == today, &title, &sub, &pill, tone);
                     }
                     ui.add_space(14.0);
@@ -409,7 +415,7 @@ impl App {
                         return;
                     }
                     ev.sort_by_key(|e| std::cmp::Reverse(e.0));
-                    let name = "Dividends and splits";
+                    let name = tr("Dividends and splits");
                     let shut = folded.contains(name);
                     ui.add_space(10.0);
                     if section_head(ui, t, name, self.chart.symbol.ticker(), Some(shut)) {
@@ -421,9 +427,9 @@ impl App {
                     let cur = currency_prefix(&self.chart.symbol);
                     // Yahoo lists Indian bonus issues as splits too.
                     let split = if matches!(self.chart.symbol.exchange(), "NSE" | "BSE") {
-                        "Split or bonus"
+                        tr("Split or bonus")
                     } else {
-                        "Split"
+                        tr("Split")
                     };
                     let mut year = None;
                     for (ts, dividend, v) in ev.iter().take(12) {
@@ -446,12 +452,12 @@ impl App {
                             );
                         }
                         let (what, amount) = if *dividend {
-                            ("Dividend", format!("{cur}{}", amount(*v)))
+                            (tr("Dividend"), format!("{cur}{}", amount(*v)))
                         } else {
                             (split, format!("{}:1", amount(*v)))
                         };
                         let upcoming = z.date() >= today;
-                        corporate_row(ui, t, &z.strftime("%d %b").to_string(), what, &amount, upcoming);
+                        corporate_row(ui, t, &date(&z, "%d %b"), what, &amount, upcoming);
                     }
                 }
             });
@@ -515,10 +521,10 @@ fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str, folded: Option<
 /// "Today", "Tomorrow", "in 5 days", "in 3 weeks".
 fn relative_days(n: i32) -> String {
     match n {
-        ..=0 => "Today".into(),
-        1 => "Tomorrow".into(),
-        2..=13 => format!("in {n} days"),
-        _ => format!("in {} weeks", (n + 3) / 7),
+        ..=0 => tr("Today").into(),
+        1 => tr("Tomorrow").into(),
+        2..=13 => trf!("in {n} days"),
+        _ => trf!("in {} weeks", (n + 3) / 7),
     }
 }
 
@@ -543,7 +549,7 @@ fn holiday_row(
     p.text(
         tile.center_top() + vec2(0.0, 6.0),
         egui::Align2::CENTER_TOP,
-        d.strftime("%b").to_string().to_uppercase(),
+        tr(&d.strftime("%b").to_string()).to_uppercase(),
         theme::semibold(8.5),
         if today { t.accent } else { t.text3 },
     );

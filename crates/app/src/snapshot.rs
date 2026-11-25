@@ -2,6 +2,7 @@
 //! window as a PNG, saved under `<workspace>/snapshots/` or copied.
 
 use crate::app::App;
+use crate::i18n::nt;
 use crate::icons::ph;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -57,7 +58,13 @@ impl App {
             }
             Snap::Copy => {
                 ctx.copy_image(crop);
-                self.notify(ph::CAMERA, "Snapshot copied", "Paste it anywhere.", None, true);
+                self.notify(
+                    ph::CAMERA,
+                    nt!("Snapshot copied"),
+                    nt!("Paste it anywhere."),
+                    None,
+                    true,
+                );
             }
             Snap::Save => match self.save_png(&crop) {
                 Ok(path) => {
@@ -65,9 +72,9 @@ impl App {
                         .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
-                    self.notify(ph::CAMERA, "Snapshot saved", &name, Some(path), true);
+                    self.notify(ph::CAMERA, nt!("Snapshot saved"), &name, Some(path), true);
                 }
-                Err(e) => self.notify(ph::CAMERA, "Couldn't save the snapshot", &e, None, true),
+                Err(e) => self.notify(ph::CAMERA, nt!("Couldn't save the snapshot"), &e, None, true),
             },
         }
     }

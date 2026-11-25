@@ -3,6 +3,7 @@
 //! which outranks a new day, then hours, then minutes) and placing the
 //! heaviest labels first, keeping them apart.
 
+use crate::i18n::{nt, tr};
 use jiff::tz::TimeZone;
 use opentern_core::{Bar, Timeframe};
 
@@ -72,7 +73,18 @@ fn fields(t: i64, tz: &TimeZone) -> Option<Fields> {
 }
 
 const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    nt!("Jan"),
+    nt!("Feb"),
+    nt!("Mar"),
+    nt!("Apr"),
+    nt!("May"),
+    nt!("Jun"),
+    nt!("Jul"),
+    nt!("Aug"),
+    nt!("Sep"),
+    nt!("Oct"),
+    nt!("Nov"),
+    nt!("Dec"),
 ];
 
 /// Weight and label of the boundary between `prev` and `cur`.
@@ -81,7 +93,7 @@ fn mark(prev: &Fields, cur: &Fields) -> (u8, String) {
         return (70, cur.year.to_string());
     }
     if cur.month != prev.month {
-        return (60, MONTHS[(cur.month - 1) as usize].to_string());
+        return (60, tr(MONTHS[(cur.month - 1) as usize]).to_string());
     }
     if cur.day != prev.day {
         return (50, cur.day.to_string());

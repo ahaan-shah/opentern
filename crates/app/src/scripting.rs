@@ -5,6 +5,7 @@
 
 use crate::app::App;
 use crate::chart::{SavedStudy, StudyLook};
+use crate::i18n::{msg, nt};
 use opentern_script::python;
 use opentern_series::Rgba;
 use opentern_series::study::{
@@ -378,8 +379,8 @@ impl App {
         if held {
             self.notify(
                 crate::icons::ph::WARNING,
-                "Python script not started",
-                &format!("{file} was imported. To run it, open it in the Script Editor and press Run."),
+                nt!("Python script not started"),
+                &msg!("{file} was imported. To run it, open it in the Script Editor and press Run."),
                 None,
                 true,
             );
@@ -404,7 +405,7 @@ impl App {
             restore,
             desc: None,
             signature: String::new(),
-            error: held.then(|| "Imported. Press Run in the Script Editor to start it.".to_string()),
+            error: held.then(|| nt!("Imported. Press Run in the Script Editor to start it.").to_string()),
             log: String::new(),
             sent_version: u64::MAX,
             sent_inputs: None,

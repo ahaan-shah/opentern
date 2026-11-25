@@ -3,6 +3,7 @@
 //! downloads and installs when the person clicks Update, and only restarts
 //! when they click Restart.
 
+use crate::i18n::{msg, nt};
 use opentern_core::update::{self, Plan, Release};
 use std::sync::mpsc;
 
@@ -113,11 +114,11 @@ impl Updater {
         std::thread::spawn(move || {
             let r = update::check().map_err(|e| match e {
                 opentern_core::Error::Http(m) if m == update::OFFLINE => {
-                    "Couldn't check. Make sure you are connected to the internet.".to_string()
+                    nt!("Couldn't check. Make sure you are connected to the internet.").to_string()
                 }
                 e => {
                     crate::diag::crumb(format!("update check failed: {e}"));
-                    "Couldn't check for updates right now. Try again later.".to_string()
+                    nt!("Couldn't check for updates right now. Try again later.").to_string()
                 }
             });
             let _ = tx.send(Msg::Checked(r));
@@ -225,14 +226,14 @@ impl Updater {
                     Msg::Progress(p) => self.progress = p,
                     Msg::Installed(Ok(())) => {
                         if let Phase::Installing(r) = &self.phase {
-                            note = Some(Ok(format!("Opentern {} is installed. Restart to use it.", r.version)));
+                            note = Some(Ok(msg!("Opentern {} is installed. Restart to use it.", r.version)));
                             self.phase = Phase::Ready(r.clone());
                         }
                     }
                     Msg::Installed(Err(e)) => {
                         crate::diag::crumb(format!("update failed: {e}"));
-                        note = Some(Err(format!("Couldn't update: {e}")));
-                        self.phase = Phase::Failed(format!("Couldn't update: {e}"));
+                        note = Some(Err(msg!("Couldn't update: {e}")));
+                        self.phase = Phase::Failed(msg!("Couldn't update: {e}"));
                     }
                 }
             }

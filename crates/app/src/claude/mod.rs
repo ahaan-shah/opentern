@@ -18,6 +18,7 @@ pub mod process;
 pub mod tools;
 
 use crate::app::App;
+use crate::i18n::{date, msg, nt, tr, trf, trl, trm};
 use crate::icons::ph;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
@@ -124,7 +125,7 @@ impl Chat {
         Chat {
             id,
             agent,
-            title: "New chat".into(),
+            title: nt!("New chat").into(),
             session: None,
             created: now,
             updated: now,
@@ -297,7 +298,7 @@ pub struct Claude {
 /// (`process::models`): (id passed to `--model`, name). Exact ids, so the
 /// names stay true when newer models come out.
 pub const MODELS: [(&str, &str); 5] = [
-    ("", "Default"),
+    ("", nt!("Default")),
     ("claude-fable-5-2", "Fable 5.2"),
     ("claude-opus-5-5", "Opus 5.5"),
     ("claude-sonnet-5-5", "Sonnet 5.5"),
@@ -428,7 +429,7 @@ impl Claude {
         }
         match self.default_model(a) {
             Some(m) => self.model_label(a, &m),
-            None => "Default".to_string(),
+            None => tr("Default").to_string(),
         }
     }
 
@@ -438,7 +439,7 @@ impl Claude {
         let known = self.default_model(a);
         let mut v = Vec::new();
         if known.is_none() {
-            v.push((String::new(), "Default".to_string()));
+            v.push((String::new(), tr("Default").to_string()));
         }
         match a {
             Agent::Claude if !self.claude_models.is_empty() => v.extend(self.claude_models.iter().cloned()),
@@ -835,7 +836,7 @@ impl App {
                 Err(e) => {
                     if let Some(chat) = self.claude.chat_mut(id) {
                         chat.items.push(Item::Note {
-                            text: format!("Couldn't start {}: {e}", agent.product()),
+                            text: msg!("Couldn't start {}: {e}", agent.product()),
                             error: true,
                         });
                     }
@@ -1201,13 +1202,13 @@ impl App {
             ui.vertical_centered(|ui| {
                 halo(ui, t, agent, 38.0);
                 ui.add_space(14.0);
-                ui.label(RichText::new(format!("{} isn't installed", agent.product())).font(theme::semibold(15.0)));
+                ui.label(RichText::new(trf!("{} isn't installed", agent.product())).font(theme::semibold(15.0)));
                 ui.add_space(4.0);
                 // "Install X" links to the CLI's own install page.
                 let mut job = LayoutJob::default();
                 let font = FontId::proportional(12.5);
                 job.append(
-                    &format!("Install {}", agent.product()),
+                    &trf!("Install {}", agent.product()),
                     0.0,
                     TextFormat {
                         font_id: font.clone(),
@@ -1230,7 +1231,7 @@ impl App {
                     crate::app::open_url(agent.install_url());
                 }
                 ui.add_space(14.0);
-                if w::secondary(ui, "Check again").clicked() {
+                if w::secondary(ui, tr("Check again")).clicked() {
                     match agent {
                         Agent::Claude => self.claude.cli = None,
                         Agent::Codex => self.claude.codex_cli = None,
@@ -1298,12 +1299,12 @@ impl App {
         ui.vertical_centered(|ui| {
             halo(ui, t, agent, 38.0);
             ui.add_space(14.0);
-            ui.label(RichText::new(format!("Sign in to {}", agent.product())).font(theme::semibold(15.0)));
+            ui.label(RichText::new(trf!("Sign in to {}", agent.product())).font(theme::semibold(15.0)));
             ui.add_space(14.0);
             match self.claude.auth.get_mut(&agent) {
                 Some(auth::Auth::SigningIn(l)) => {
                     ui.label(
-                        RichText::new("Finish signing in in your browser.")
+                        RichText::new(tr("Finish signing in in your browser."))
                             .color(t.text2)
                             .size(12.5),
                     );
@@ -1313,7 +1314,7 @@ impl App {
                         let r = ui.add_sized(
                             [w, 34.0],
                             w::field(&mut l.code)
-                                .hint_text("Paste the code, if asked")
+                                .hint_text(tr("Paste the code, if asked"))
                                 .interactive(!l.sent),
                         );
                         if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
@@ -1321,7 +1322,7 @@ impl App {
                         }
                         ui.add_space(8.0);
                         let ready = !l.sent && !l.code.trim().is_empty();
-                        if w::button(ui, w::Kind::Primary, ready, None, "Continue").clicked() {
+                        if w::button(ui, w::Kind::Primary, ready, None, tr("Continue")).clicked() {
                             l.send_code();
                         }
                     }
@@ -1331,22 +1332,22 @@ impl App {
                         let width = if url.is_some() { 200.0 } else { 90.0 };
                         ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
                         if let Some(url) = url
-                            && w::secondary(ui, "Open page").clicked()
+                            && w::secondary(ui, tr("Open page")).clicked()
                         {
                             crate::app::open_url(&url);
                         }
-                        if w::secondary(ui, "Cancel").clicked() {
+                        if w::secondary(ui, tr("Cancel")).clicked() {
                             action = Some(false);
                         }
                     });
                     ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
                 }
                 _ => {
-                    if w::primary(ui, "Sign in").clicked() {
+                    if w::primary(ui, tr("Sign in")).clicked() {
                         action = Some(true);
                     }
                     ui.add_space(8.0);
-                    if w::secondary(ui, "Check again").clicked() {
+                    if w::secondary(ui, tr("Check again")).clicked() {
                         action = Some(false);
                     }
                 }
@@ -1391,7 +1392,7 @@ impl App {
                         .request_repaint_after(std::time::Duration::from_secs_f64(blink_wait(now - shown)));
                 }
                 ui.add_space(14.0);
-                ui.label(RichText::new("Pick your agent").font(theme::semibold(17.0)));
+                ui.label(RichText::new(tr("Pick your agent")).font(theme::semibold(17.0)));
             });
         });
         ui.add_space(22.0);
@@ -1447,7 +1448,7 @@ impl App {
                 p.text(
                     egui::pos2(r.right() - 16.0, r.center().y),
                     egui::Align2::RIGHT_CENTER,
-                    "Not installed",
+                    tr("Not installed"),
                     theme::regular(11.5),
                     crate::motion::with_alpha(t.text3, alpha),
                 );
@@ -1533,10 +1534,10 @@ impl App {
             ui.set_height(32.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
-                if w::tool_button(ui, t, ph::NOTE_PENCIL, "New chat", false, 28.0).clicked() {
+                if w::tool_button(ui, t, ph::NOTE_PENCIL, tr("New chat"), false, 28.0).clicked() {
                     new = true;
                 }
-                if w::tool_button(ui, t, ph::CHATS_CIRCLE, "Chats", false, 28.0).clicked() {
+                if w::tool_button(ui, t, ph::CHATS_CIRCLE, tr("Chats"), false, 28.0).clicked() {
                     list = true;
                 }
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -1633,7 +1634,7 @@ impl App {
                                     .sense(Sense::click()),
                             );
                             if let Some(id) = self.claude.active
-                                && resp.on_hover_text("Double-click to rename").double_clicked()
+                                && resp.on_hover_text(tr("Double-click to rename")).double_clicked()
                             {
                                 self.claude.renaming = Some((id, title.clone()));
                             }
@@ -1763,21 +1764,21 @@ impl App {
         ui.horizontal(|ui| {
             ui.set_height(30.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if w::tool_button(ui, t, ph::NOTE_PENCIL, "New chat", false, 28.0).clicked() {
+                if w::tool_button(ui, t, ph::NOTE_PENCIL, tr("New chat"), false, 28.0).clicked() {
                     new = true;
                 }
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                     ui.spacing_mut().item_spacing.x = 4.0;
-                    if w::tool_button(ui, t, ph::CARET_LEFT, "Back", false, 28.0).clicked() {
+                    if w::tool_button(ui, t, ph::CARET_LEFT, tr("Back"), false, 28.0).clicked() {
                         back = true;
                     }
-                    ui.label(RichText::new("Chats").font(theme::semibold(14.0)));
+                    ui.label(RichText::new(tr("Chats")).font(theme::semibold(14.0)));
                 });
             });
         });
         ui.add_space(6.0);
         let width = ui.available_width();
-        w::search_field(ui, t, &mut self.claude.chat_query, "Search chats", width);
+        w::search_field(ui, t, &mut self.claude.chat_query, tr("Search chats"), width);
         ui.add_space(8.0);
         let q = self.claude.chat_query.to_lowercase();
         let mut list: Vec<Chat> = self
@@ -1808,9 +1809,12 @@ impl App {
                 );
                 ui.add_space(4.0);
                 let (head, body) = if q.is_empty() {
-                    ("No chats yet", "Your conversations with your agents show up here.")
+                    (
+                        tr("No chats yet"),
+                        tr("Your conversations with your agents show up here."),
+                    )
                 } else {
-                    ("Nothing found", "No chat mentions that.")
+                    (tr("Nothing found"), tr("No chat mentions that."))
                 };
                 ui.label(RichText::new(head).font(theme::semibold(13.5)));
                 ui.label(RichText::new(body).color(t.text2));
@@ -1829,9 +1833,9 @@ impl App {
                         .unwrap_or(today);
                     let days = (today - day).get_days();
                     let g = match days {
-                        ..=0 => "Today",
-                        1..=7 => "Previous 7 days",
-                        _ => "Older",
+                        ..=0 => tr("Today"),
+                        1..=7 => tr("Previous 7 days"),
+                        _ => tr("Older"),
                     };
                     if g != group {
                         group = g;
@@ -1906,8 +1910,8 @@ impl App {
                     let mut on_tool = false;
                     if tools {
                         for (rect, glyph, tip, what) in [
-                            (pen, ph::PENCIL_SIMPLE, "Rename", 0),
-                            (bin, ph::TRASH, "Delete chat", 1),
+                            (pen, ph::PENCIL_SIMPLE, tr("Rename"), 0),
+                            (bin, ph::TRASH, tr("Delete chat"), 1),
                         ] {
                             let b = ui.interact(rect, ui.id().with(("chat-tool", c.id, what)), Sense::click());
                             let over = b.hovered();
@@ -2076,7 +2080,7 @@ impl App {
                         } => {
                             let can_always = suggestions.as_array().is_some_and(|a| !a.is_empty());
                             if let Some((allow, always)) =
-                                ask_card(ui, t, chat.agent, tool, label, detail, can_always, (chat.id, i))
+                                ask_card(ui, t, chat.agent, tool, &trl(label), detail, can_always, (chat.id, i))
                             {
                                 answer = Some((i, allow, always));
                             }
@@ -2086,7 +2090,7 @@ impl App {
                                 ui.spacing_mut().item_spacing.x = 8.0;
                                 let c = if *error { t.warn } else { t.text3 };
                                 ui.label(RichText::new(ph::INFO).color(c).size(14.0));
-                                ui.add(egui::Label::new(RichText::new(text).color(t.text2).size(12.5)).wrap());
+                                ui.add(egui::Label::new(RichText::new(trm(text)).color(t.text2).size(12.5)).wrap());
                             });
                         }
                         Item::Tool { .. } => {}
@@ -2100,10 +2104,10 @@ impl App {
                         ui.spacing_mut().item_spacing.x = 8.0;
                         if waiting {
                             agent::show(ui, 15.0, chat.agent, chat.agent.tint(t));
-                            ui.label(RichText::new("Waiting for your answer").color(t.text3).size(12.5));
+                            ui.label(RichText::new(tr("Waiting for your answer")).color(t.text3).size(12.5));
                         } else {
                             agent::spinner(ui, 15.0, chat.agent, chat.agent.tint(t));
-                            let word = if chat.thinking { "Thinking" } else { "Working" };
+                            let word = if chat.thinking { tr("Thinking") } else { tr("Working") };
                             shimmer(ui, t, word);
                         }
                     });
@@ -2200,7 +2204,7 @@ impl App {
         let dir = self.store.dir().join("claude").join("attachments");
         match attach::from_clipboard(&dir) {
             Ok(files) if !files.is_empty() => self.claude_attach(files),
-            Ok(_) => self.claude.attach_note = Some(("There's no image or file on the clipboard.".into(), now)),
+            Ok(_) => self.claude.attach_note = Some((nt!("There's no image or file on the clipboard.").into(), now)),
             Err(e) => self.claude.attach_note = Some((e, now)),
         }
     }
@@ -2255,7 +2259,7 @@ impl App {
             p.text(
                 r.center() + vec2(0.0, 18.0),
                 egui::Align2::CENTER_CENTER,
-                "Drop files to attach",
+                tr("Drop files to attach"),
                 theme::medium(13.5),
                 t.text,
             );
@@ -2397,7 +2401,7 @@ impl App {
                             egui::TextEdit::multiline(&mut self.claude.input)
                                 .id(input_id)
                                 // A little air between the cursor and the hint.
-                                .hint_text(RichText::new(" What can I help you with?").color(t.text3))
+                                .hint_text(RichText::new(tr(" What can I help you with?")).color(t.text3))
                                 .font(theme::regular(13.5))
                                 .desired_rows(2)
                                 .frame(egui::Frame::NONE)
@@ -2414,14 +2418,14 @@ impl App {
                     ui.spacing_mut().item_spacing.x = 4.0;
                     // Mode.
                     let (icon, word) = match mode {
-                        Mode::Manual => (ph::HAND_PALM, "Ask first"),
-                        Mode::Auto => (ph::LIGHTNING, "Auto"),
+                        Mode::Manual => (ph::HAND_PALM, tr("Ask first")),
+                        Mode::Auto => (ph::LIGHTNING, tr("Auto")),
                     };
                     let mut label = self.claude.current_label(agent, &model);
                     // A narrow pane: the mode shrinks to its icon, then the
                     // model drops its version. The send button and the ring
                     // always keep their room.
-                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false).on_hover_text("Add files");
+                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false).on_hover_text(tr("Add files"));
                     if clip.clicked() && self.claude.picker.is_none() {
                         self.claude.picker = Some(attach::pick());
                     }
@@ -2478,22 +2482,22 @@ impl App {
                                 (
                                     Mode::Manual,
                                     ph::HAND_PALM,
-                                    "Ask first",
+                                    tr("Ask first"),
                                     match agent {
-                                        Agent::Claude => "Claude asks before it edits files or runs commands.",
-                                        Agent::Codex => "Codex asks before it edits files or runs anything it doesn't know is safe.",
+                                        Agent::Claude => tr("Claude asks before it edits files or runs commands."),
+                                        Agent::Codex => tr("Codex asks before it edits files or runs anything it doesn't know is safe."),
                                     },
                                 ),
                                 (
                                     Mode::Auto,
                                     ph::LIGHTNING,
-                                    "Auto",
+                                    tr("Auto"),
                                     match agent {
                                         Agent::Claude => {
-                                            "Claude Code decides what's safe and asks only when it isn't sure."
+                                            tr("Claude Code decides what's safe and asks only when it isn't sure.")
                                         }
                                         Agent::Codex => {
-                                            "Codex works freely in your scripts folder and asks before going outside it."
+                                            tr("Codex works freely in your scripts folder and asks before going outside it.")
                                         }
                                     },
                                 ),
@@ -2524,7 +2528,7 @@ impl App {
                         } else {
                             limits
                                 .iter()
-                                .map(|w| format!("\n{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
+                                .map(|w| trf!("\n{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
                                 .collect()
                         };
                         resp.on_hover_text(format!("{full_label}{usage}"))
@@ -2579,7 +2583,7 @@ impl App {
                                     ui.add_space(12.0);
                                     ui.add(egui::Spinner::new().size(11.0).color(t.text3));
                                     ui.add_space(4.0);
-                                    ui.label(RichText::new("Loading models").color(t.text3).size(12.0));
+                                    ui.label(RichText::new(tr("Loading models")).color(t.text3).size(12.0));
                                 });
                                 ui.add_space(6.0);
                             }
@@ -2606,7 +2610,7 @@ impl App {
                 // A paste that found nothing says so for a few seconds.
                 match &self.claude.attach_note {
                     Some((text, at)) if now - at < 4.0 => {
-                        ui.label(RichText::new(text).color(t.text3).size(11.5));
+                        ui.label(RichText::new(trm(text)).color(t.text3).size(11.5));
                         ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
                     }
                     Some(_) => self.claude.attach_note = None,
@@ -2690,11 +2694,11 @@ impl App {
             p.add(egui::Shape::line(pts, Stroke::new(2.2, col)));
         }
         let tip = if limits.is_empty() {
-            "Usage shows after your first message.".to_string()
+            tr("Usage shows after your first message.").to_string()
         } else {
             limits
                 .iter()
-                .map(|w| format!("{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
+                .map(|w| trf!("{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
                 .collect::<Vec<_>>()
                 .join("\n")
         };
@@ -2739,7 +2743,7 @@ impl App {
             let limits = self.claude.limits_for(agent);
             if limits.is_empty() {
                 ui.label(
-                    RichText::new("Shows after your first message.")
+                    RichText::new(tr("Shows after your first message."))
                         .color(t.text3)
                         .size(12.0),
                 );
@@ -2762,7 +2766,7 @@ impl App {
                     .rect_filled(f, 2, if wd.used >= 0.85 { t.warn } else { agent.accent(t) });
                 if wd.resets > 0 {
                     ui.label(
-                        RichText::new(format!("Resets {}", reset_time(wd.resets)))
+                        RichText::new(trf!("Resets {}", reset_time(wd.resets)))
                             .color(t.text3)
                             .size(11.0),
                     );
@@ -2781,14 +2785,14 @@ impl App {
                     .hline(line.x_range(), line.center().y, Stroke::new(1.0, t.border));
                 ui.add_space(6.0);
                 if !c.model_name.is_empty() {
-                    row(ui, "Model", self.claude.model_label(c.agent, &c.model_name), true);
+                    row(ui, tr("Model"), self.claude.model_label(c.agent, &c.model_name), true);
                 }
-                row(ui, "Context now", tokens(c.context), true);
-                row(ui, "Input", tokens(c.usage.input + c.usage.cache_write), true);
-                row(ui, "Read from cache", tokens(c.usage.cache_read), true);
-                row(ui, "Output", tokens(c.usage.output), true);
+                row(ui, tr("Context now"), tokens(c.context), true);
+                row(ui, tr("Input"), tokens(c.usage.input + c.usage.cache_write), true);
+                row(ui, tr("Read from cache"), tokens(c.usage.cache_read), true);
+                row(ui, tr("Output"), tokens(c.usage.output), true);
                 if c.cost > 0.0 {
-                    row(ui, "API price equivalent", format!("${:.2}", c.cost), true);
+                    row(ui, tr("API price equivalent"), format!("${:.2}", c.cost), true);
                 }
             }
         });
@@ -2817,7 +2821,7 @@ fn title_of(text: &str) -> String {
     if first.chars().count() > 48 {
         s.push('…');
     }
-    if s.is_empty() { "New chat".into() } else { s }
+    if s.is_empty() { nt!("New chat").into() } else { s }
 }
 
 /// The composer's text: line height, and the most lines it grows to.
@@ -2895,11 +2899,11 @@ fn exit_message(agent: Agent, err: &str) -> String {
         Agent::Codex => ("Codex", "codex"),
     };
     if low.contains("login") || low.contains("log in") || low.contains("auth") || low.contains("api key") {
-        format!("{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again.")
+        msg!("{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again.")
     } else if err.is_empty() {
-        format!("{name} stopped unexpectedly. Send your message again to pick up where it left off.")
+        msg!("{name} stopped unexpectedly. Send your message again to pick up where it left off.")
     } else {
-        format!("{name} stopped: {err}")
+        msg!("{name} stopped: {err}")
     }
 }
 
@@ -2918,9 +2922,9 @@ fn reset_time(unix_s: i64) -> String {
     let z = ts.to_zoned(jiff::tz::TimeZone::system());
     let today = jiff::Zoned::now().date();
     if z.date() == today {
-        format!("at {}", z.strftime("%H:%M"))
+        trf!("at {}", z.strftime("%H:%M"))
     } else {
-        z.strftime("%a %H:%M").to_string()
+        date(&z, "%a %H:%M")
     }
 }
 
@@ -2932,7 +2936,7 @@ fn short_time(ms: i64) -> String {
     if z.date() == jiff::Zoned::now().date() {
         z.strftime("%H:%M").to_string()
     } else {
-        z.strftime("%b %-d").to_string()
+        date(&z, "%b %-d")
     }
 }
 
@@ -2956,158 +2960,167 @@ pub fn tool_label(name: &str, input: &Value, asking: bool) -> Option<String> {
     let (done, ask): (String, String) = match name.strip_prefix("mcp__opentern__").unwrap_or(name) {
         "ToolSearch" => return None,
         "Read" => (
-            format!("Read {}", file_name(&s("file_path"))),
-            format!("Read {}", s("file_path")),
+            msg!("Read {}", file_name(&s("file_path"))),
+            msg!("Read {}", s("file_path")),
         ),
         "Write" => (
-            format!("Wrote {}", file_name(&s("file_path"))),
-            format!("Create {}", file_name(&s("file_path"))),
+            msg!("Wrote {}", file_name(&s("file_path"))),
+            msg!("Create {}", file_name(&s("file_path"))),
         ),
         "Edit" | "MultiEdit" | "NotebookEdit" => (
-            format!("Edited {}", file_name(&s("file_path"))),
-            format!("Edit {}", file_name(&s("file_path"))),
+            msg!("Edited {}", file_name(&s("file_path"))),
+            msg!("Edit {}", file_name(&s("file_path"))),
         ),
         "Bash" | "PowerShell" => (
-            format!("Ran {}", first_line(s("command"))),
+            msg!("Ran {}", first_line(s("command"))),
             if s("description").is_empty() {
-                "Run a command".to_string()
+                nt!("Run a command").to_string()
             } else {
                 s("description")
             },
         ),
         "Glob" => (
-            format!("Found files: {}", s("pattern")),
-            format!("Find files: {}", s("pattern")),
+            msg!("Found files: {}", s("pattern")),
+            msg!("Find files: {}", s("pattern")),
         ),
         "Grep" => (
-            format!("Searched for {}", s("pattern")),
-            format!("Search for {}", s("pattern")),
+            msg!("Searched for {}", s("pattern")),
+            msg!("Search for {}", s("pattern")),
         ),
         "WebSearch" => (
-            format!("Searched the web: {}", s("query")),
-            format!("Search the web: {}", s("query")),
+            msg!("Searched the web: {}", s("query")),
+            msg!("Search the web: {}", s("query")),
         ),
         "WebFetch" => (format!("Read {}", s("url")), format!("Open {}", s("url"))),
         "TodoWrite" => ("Updated its plan".into(), "Update its plan".into()),
         "Task" | "Agent" => (
-            format!("Started a helper: {}", s("description")),
-            format!("Start a helper: {}", s("description")),
+            msg!("Started a helper: {}", s("description")),
+            msg!("Start a helper: {}", s("description")),
         ),
-        "get_chart" => ("Looked at the chart".into(), "Look at the chart".into()),
-        "get_bars" => ("Read the chart's bars".into(), "Read the chart's bars".into()),
+        "get_chart" => (nt!("Looked at the chart").into(), nt!("Look at the chart").into()),
+        "get_bars" => (nt!("Read the chart's bars").into(), nt!("Read the chart's bars").into()),
         "search_symbols" => (
-            format!("Searched symbols: {}", s("query")),
-            format!("Search symbols: {}", s("query")),
+            msg!("Searched symbols: {}", s("query")),
+            msg!("Search symbols: {}", s("query")),
         ),
-        "open_symbol" => (format!("Opened {}", s("symbol")), format!("Open {}", s("symbol"))),
+        "open_symbol" => (msg!("Opened {}", s("symbol")), msg!("Open {}", s("symbol"))),
         "set_timeframe" => (
-            format!("Switched to {}", s("timeframe")),
-            format!("Switch to {}", s("timeframe")),
+            msg!("Switched to {}", s("timeframe")),
+            msg!("Switch to {}", s("timeframe")),
         ),
-        "list_scripts" => ("Listed your scripts".into(), "List your scripts".into()),
-        "check_script" => (format!("Checked {}", file()), format!("Check {}", file())),
+        "list_scripts" => (nt!("Listed your scripts").into(), nt!("List your scripts").into()),
+        "check_script" => (msg!("Checked {}", file()), msg!("Check {}", file())),
         "add_script_to_chart" => (
-            format!("Added {} to the chart", file()),
-            format!("Add {} to the chart", file()),
+            msg!("Added {} to the chart", file()),
+            msg!("Add {} to the chart", file()),
         ),
-        "remove_from_chart" => (format!("Removed {}", s("name")), format!("Remove {}", s("name"))),
-        "list_indicators" => ("Looked up indicators".into(), "Look up indicators".into()),
-        "add_indicator" => (format!("Added {}", s("id")), format!("Add {}", s("id"))),
-        "strategy_report" => ("Read the Strategy Report".into(), "Read the Strategy Report".into()),
+        "remove_from_chart" => (msg!("Removed {}", s("name")), msg!("Remove {}", s("name"))),
+        "list_indicators" => (nt!("Looked up indicators").into(), nt!("Look up indicators").into()),
+        "add_indicator" => (msg!("Added {}", s("id")), msg!("Add {}", s("id"))),
+        "strategy_report" => (
+            nt!("Read the Strategy Report").into(),
+            nt!("Read the Strategy Report").into(),
+        ),
         "open_in_editor" => (
-            format!("Opened {} in the editor", file()),
-            format!("Open {} in the editor", file()),
+            msg!("Opened {} in the editor", file()),
+            msg!("Open {} in the editor", file()),
         ),
-        "scripting_guide" => ("Read the scripting guide".into(), "Read the scripting guide".into()),
+        "scripting_guide" => (
+            nt!("Read the scripting guide").into(),
+            nt!("Read the scripting guide").into(),
+        ),
         "chart_view" => {
             let what = match s("action").as_str() {
-                "chart_type" => format!("chart type to {}", s("type")),
-                "go_to" => format!("view to {}", s("from")),
-                "layout" => "chart layout".to_string(),
-                "compare" => format!("{} comparison", s("symbol")),
-                _ => "chart view".to_string(),
+                "chart_type" => msg!("chart type to {}", s("type")),
+                "go_to" => msg!("view to {}", s("from")),
+                "layout" => nt!("chart layout").to_string(),
+                "compare" => msg!("{} comparison", s("symbol")),
+                _ => nt!("chart view").to_string(),
             };
-            (format!("Changed the {what}"), format!("Change the {what}"))
+            (msg!("Changed the {what}"), msg!("Change the {what}"))
         }
         "indicator" => match s("action").as_str() {
             "set" => (
-                format!("Changed {}'s inputs", s("name")),
-                format!("Change {}'s inputs", s("name")),
+                msg!("Changed {}'s inputs", s("name")),
+                msg!("Change {}'s inputs", s("name")),
             ),
-            "get" => (format!("Looked at {}", s("name")), format!("Look at {}", s("name"))),
+            "get" => (msg!("Looked at {}", s("name")), msg!("Look at {}", s("name"))),
             a => (format!("{a} {}", s("name")), format!("{a} {}", s("name"))),
         },
         "drawings" => match s("action").as_str() {
             "add" => {
                 let n = input["drawings"].as_array().map_or(1, |v| v.len());
                 let what = if n == 1 {
-                    "a drawing".to_string()
+                    nt!("a drawing").to_string()
                 } else {
-                    format!("{n} drawings")
+                    msg!("{n} drawings")
                 };
-                (format!("Drew {what}"), format!("Draw {what}"))
+                (msg!("Drew {what}"), msg!("Draw {what}"))
             }
-            "remove" | "clear" => ("Removed drawings".into(), "Remove drawings".into()),
-            _ => ("Looked at the drawings".into(), "Look at the drawings".into()),
+            "remove" | "clear" => (nt!("Removed drawings").into(), nt!("Remove drawings").into()),
+            _ => (nt!("Looked at the drawings").into(), nt!("Look at the drawings").into()),
         },
         "replay" => match s("action").as_str() {
             "start" => (
-                format!("Started a replay at {}", s("time")),
-                format!("Start a replay at {}", s("time")),
+                msg!("Started a replay at {}", s("time")),
+                msg!("Start a replay at {}", s("time")),
             ),
-            "step" => ("Stepped the replay".into(), "Step the replay".into()),
-            "stop" => ("Ended the replay".into(), "End the replay".into()),
-            a => (format!("Replay: {a}"), format!("Replay: {a}")),
+            "step" => (nt!("Stepped the replay").into(), nt!("Step the replay").into()),
+            "stop" => (nt!("Ended the replay").into(), nt!("End the replay").into()),
+            a => (msg!("Replay: {a}"), msg!("Replay: {a}")),
         },
         "snapshot" => (
-            "Took a picture of the chart".into(),
-            "Take a picture of the chart".into(),
+            nt!("Took a picture of the chart").into(),
+            nt!("Take a picture of the chart").into(),
         ),
-        "watchlist" => (
-            format!("Watchlist: {}", s("action")),
-            format!("Watchlist: {}", s("action")),
-        ),
+        "watchlist" => (msg!("Watchlist: {}", s("action")), msg!("Watchlist: {}", s("action"))),
         "screener" => match s("action").as_str() {
-            "run" => ("Ran the screener".into(), "Run the screener".into()),
-            _ => ("Used the screener".into(), "Use the screener".into()),
+            "run" => (nt!("Ran the screener").into(), nt!("Run the screener").into()),
+            _ => (nt!("Used the screener").into(), nt!("Use the screener").into()),
         },
-        "strategy_settings" => ("Strategy settings".into(), "Change the strategy settings".into()),
+        "strategy_settings" => (
+            nt!("Strategy settings").into(),
+            nt!("Change the strategy settings").into(),
+        ),
         "strategy_lab" => match s("action").as_str() {
-            "run" => ("Ran the Strategy Lab".into(), "Run the Strategy Lab".into()),
-            "apply" => ("Applied a lab result".into(), "Apply a lab result".into()),
-            _ => ("Used the Strategy Lab".into(), "Use the Strategy Lab".into()),
+            "run" => (nt!("Ran the Strategy Lab").into(), nt!("Run the Strategy Lab").into()),
+            "apply" => (nt!("Applied a lab result").into(), nt!("Apply a lab result").into()),
+            _ => (nt!("Used the Strategy Lab").into(), nt!("Use the Strategy Lab").into()),
         },
         "paper_trading" => match s("action").as_str() {
             "order" => (
-                format!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
-                format!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
+                msg!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
+                msg!("Paper {} {} {}", s("side"), input["qty"], s("symbol")),
             ),
-            "account" => ("Looked at the paper account".into(), "Look at the paper account".into()),
-            a => (format!("Paper trading: {a}"), format!("Paper trading: {a}")),
+            "account" => (
+                nt!("Looked at the paper account").into(),
+                nt!("Look at the paper account").into(),
+            ),
+            a => (msg!("Paper trading: {a}"), msg!("Paper trading: {a}")),
         },
-        "alerts" => (format!("Alerts: {}", s("action")), format!("Alerts: {}", s("action"))),
-        "open_panel" => (format!("Opened {}", s("tab")), format!("Open {}", s("tab"))),
-        "seasonality" => ("Read the seasonality".into(), "Read the seasonality".into()),
+        "alerts" => (msg!("Alerts: {}", s("action")), msg!("Alerts: {}", s("action"))),
+        "open_panel" => (msg!("Opened {}", s("tab")), msg!("Open {}", s("tab"))),
+        "seasonality" => (nt!("Read the seasonality").into(), nt!("Read the seasonality").into()),
         "custom_index" => match s("action").as_str() {
             "create" => (
-                format!("Made the index {}", s("name")),
-                format!("Make the index {}", s("name")),
+                msg!("Made the index {}", s("name")),
+                msg!("Make the index {}", s("name")),
             ),
-            "edit" => (format!("Edited {}", s("name")), format!("Edit {}", s("name"))),
-            "rebalance" => (format!("Rebalanced {}", s("name")), format!("Rebalance {}", s("name"))),
+            "edit" => (msg!("Edited {}", s("name")), msg!("Edit {}", s("name"))),
+            "rebalance" => (msg!("Rebalanced {}", s("name")), msg!("Rebalance {}", s("name"))),
             "include" => (
-                format!("Ticked members of {}", s("name")),
-                format!("Tick members of {}", s("name")),
+                msg!("Ticked members of {}", s("name")),
+                msg!("Tick members of {}", s("name")),
             ),
             "exclude" => (
-                format!("Left members out of {}", s("name")),
-                format!("Leave members out of {}", s("name")),
+                msg!("Left members out of {}", s("name")),
+                msg!("Leave members out of {}", s("name")),
             ),
-            "delete" => (format!("Deleted {}", s("name")), format!("Delete {}", s("name"))),
-            "compare" => ("Compared the indices".into(), "Compare the indices".into()),
-            "list" => ("Listed the indices".into(), "List the indices".into()),
-            _ if s("name").is_empty() => ("Used the indices".into(), "Use the indices".into()),
-            _ => (format!("Looked at {}", s("name")), format!("Look at {}", s("name"))),
+            "delete" => (msg!("Deleted {}", s("name")), msg!("Delete {}", s("name"))),
+            "compare" => (nt!("Compared the indices").into(), nt!("Compare the indices").into()),
+            "list" => (nt!("Listed the indices").into(), nt!("List the indices").into()),
+            _ if s("name").is_empty() => (nt!("Used the indices").into(), nt!("Use the indices").into()),
+            _ => (msg!("Looked at {}", s("name")), msg!("Look at {}", s("name"))),
         },
         other => (other.replace('_', " "), other.replace('_', " ")),
     };
@@ -3260,7 +3273,7 @@ fn steps(
                     .iter()
                     .filter(|i| matches!(i, Item::Tool { error: true, .. }))
                     .count();
-                let head = format!("{} steps", items.len());
+                let head = trf!("{} steps", items.len());
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
                 let hover = ui.rect_contains_pointer(r);
                 let p = ui.painter();
@@ -3331,7 +3344,8 @@ fn steps(
                         ..
                     } => {
                         let shown = expanded.contains(&(chat, index));
-                        if step_row(ui, t, tool_icon(tool), label, result.is_some(), *error, shown) && result.is_some()
+                        if step_row(ui, t, tool_icon(tool), &trl(label), result.is_some(), *error, shown)
+                            && result.is_some()
                         {
                             out.toggle = Some((chat, index));
                         }
@@ -3344,11 +3358,11 @@ fn steps(
                     }
                     Item::Ask { label, state, .. } => {
                         let (icon, word) = match state {
-                            AskState::Allowed => (ph::CHECK, "Allowed"),
-                            AskState::Denied => (ph::PROHIBIT, "Declined"),
-                            _ => (ph::CLOCK, "Not answered"),
+                            AskState::Allowed => (ph::CHECK, tr("Allowed")),
+                            AskState::Denied => (ph::PROHIBIT, tr("Declined")),
+                            _ => (ph::CLOCK, tr("Not answered")),
                         };
-                        step_row(ui, t, icon, &format!("{word}: {label}"), true, false, false);
+                        step_row(ui, t, icon, &format!("{word}: {}", trl(label)), true, false, false);
                     }
                     _ => {}
                 }
@@ -3359,7 +3373,7 @@ fn steps(
 
 fn step_label(i: &Item) -> Option<String> {
     match i {
-        Item::Tool { label, .. } => Some(label.clone()),
+        Item::Tool { label, .. } => Some(trl(label).into_owned()),
         _ => None,
     }
 }
@@ -3498,7 +3512,7 @@ fn file_chips(ui: &mut Ui, t: &Theme, files: &[String], width: f32, right: bool,
                     theme::regular(11.5),
                     if on_x { t.text } else { t.text3 },
                 );
-                if xb.on_hover_text("Remove").clicked() {
+                if xb.on_hover_text(tr("Remove")).clicked() {
                     out = Chip::Remove(k);
                 }
             }
@@ -3545,7 +3559,7 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
         ui.add(egui::Label::new(galley).selectable(true))
     });
     resp.inner.context_menu(|ui| {
-        if ui.button("Copy").clicked() {
+        if ui.button(tr("Copy")).clicked() {
             ui.ctx().copy_text(text.to_string());
             ui.close();
         }
@@ -3588,7 +3602,7 @@ fn queued_bubble(ui: &mut Ui, t: &Theme, q: &Queued, width: f32, key: (u64, usiz
     let x = egui::Rect::from_center_size(egui::pos2(r.left() - 16.0, r.center().y), vec2(22.0, 22.0));
     let resp = ui
         .interact(x, ui.id().with(("unqueue", key)), Sense::click())
-        .on_hover_text("Remove");
+        .on_hover_text(tr("Remove"));
     let c = if resp.hovered() { t.text } else { t.text3 };
     if resp.hovered() {
         ui.painter().rect_filled(x, 6, t.hover);
@@ -3634,17 +3648,17 @@ fn ask_card(
             }
             ui.add_space(6.0);
             ui.label(
-                RichText::new(format!("Allow {} to do this?", agent.name()))
+                RichText::new(trf!("Allow {} to do this?", agent.name()))
                     .color(t.text2)
                     .size(12.5),
             );
             ui.add_space(2.0);
-            let mut choices: Vec<Choice> = vec![("1", "Allow", Some((true, false)))];
+            let mut choices: Vec<Choice> = vec![("1", tr("Allow"), Some((true, false)))];
             if can_always {
-                choices.push(("2", "Allow for this chat", Some((true, true))));
+                choices.push(("2", tr("Allow for this chat"), Some((true, true))));
             }
             let n = if can_always { "3" } else { "2" };
-            choices.push((n, "Deny", Some((false, false))));
+            choices.push((n, tr("Deny"), Some((false, false))));
             for (k, text, v) in choices {
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
                 let hover = ui.rect_contains_pointer(r);
@@ -3795,9 +3809,9 @@ fn send_button(ui: &mut Ui, t: &Theme, agent: Agent, busy: bool, can_send: bool)
         );
     }
     let tip = match (busy, can_send) {
-        (true, true) => "Queue (Enter)",
-        (true, false) => "Stop",
-        _ => "Send (Enter)",
+        (true, true) => tr("Queue (Enter)"),
+        (true, false) => tr("Stop"),
+        _ => tr("Send (Enter)"),
     };
     resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip)
 }
@@ -3900,9 +3914,9 @@ fn code_block(ui: &mut Ui, t: &Theme, text: &str, lang: &str, key: impl std::has
         p.rect_filled(btn, 5, t.hover_wash());
     }
     let (g, tip) = if copied {
-        (ph::CHECK, "Copied")
+        (ph::CHECK, tr("Copied"))
     } else {
-        (ph::COPY, "Copy")
+        (ph::COPY, tr("Copy"))
     };
     p.text(
         btn.center(),
@@ -4294,7 +4308,7 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
         }
         let resp = resp
             .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(format!("Open {f} in the Script Editor"));
+            .on_hover_text(trf!("Open {f} in the Script Editor"));
         if resp.clicked() {
             *open = Some(f.clone());
         }
@@ -4421,7 +4435,7 @@ fn agent_row(ui: &mut Ui, t: &Theme, a: Agent, on: bool, installed: bool) -> egu
         p.text(
             egui::pos2(r.right() - 12.0, r.center().y),
             egui::Align2::RIGHT_CENTER,
-            "Not installed",
+            tr("Not installed"),
             theme::regular(11.5),
             t.text3,
         );

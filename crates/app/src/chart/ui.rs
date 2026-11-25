@@ -7,6 +7,7 @@ use super::scale;
 use super::style::{Palette, SeriesKind, c32};
 use super::{Chart, CompareMode, StudyView};
 use crate::format;
+use crate::i18n::{date, tr, trf, trm};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -665,7 +666,7 @@ pub fn show(
         }
         let _ = resp
             .on_hover_cursor(egui::CursorIcon::ResizeVertical)
-            .on_hover_text_at_pointer("Drag to scale · double-click to fit · right-click for options");
+            .on_hover_text_at_pointer(tr("Drag to scale · double-click to fit · right-click for options"));
     }
     // A / L / % under each price scale (the main one, then each own scale).
     {
@@ -900,7 +901,9 @@ pub fn show(
             draw_trades(&p, m, &chart.bars, &g.y, &x, first, last, g.rect);
         }
         if let Some(c) = &chart.corporate {
-            draw_corporate(ui.ctx(), &p, c, chart, &x, first, last, g.rect);
+            // Not through a dialog or anything else lying over the chart.
+            let over = pointer.filter(|h| ui.ctx().layer_id_at(*h).is_none_or(|l| l == p.layer_id()));
+            draw_corporate(&p, c, chart, &x, first, last, g.rect, over);
         }
         draw_paper(&p, &chart.paper, cui.paper_drag, &g.y, g.rect);
     }
@@ -1333,9 +1336,8 @@ pub fn show(
         && let Some(g) = geos.first()
     {
         let msg = match &chart.status {
-            Status::Error(e) => e.clone(),
-            Status::Offline(e) => e.clone(),
-            _ => "Loading…".to_string(),
+            Status::Error(e) | Status::Offline(e) => trm(e).into_owned(),
+            _ => tr("Loading…").to_string(),
         };
         painter.text(
             g.rect.center() + vec2(0.0, 48.0),
@@ -1371,7 +1373,7 @@ pub fn show(
             theme::regular(14.0),
             t.text2,
         );
-        if resp.on_hover_text("Scroll to the most recent bar").clicked() {
+        if resp.on_hover_text(tr("Scroll to the most recent bar")).clicked() {
             chart.view.right = chart.last_index() + super::RIGHT_MARGIN;
         }
     }
@@ -1527,7 +1529,7 @@ fn axis_toggles(
     live: bool,
 ) -> Option<usize> {
     let labels = ["A", "L", "%"];
-    let tips = ["Auto (fits data to screen)", "Log scale", "Percent scale"];
+    let tips = [tr("Auto (fits data to screen)"), tr("Log scale"), tr("Percent scale")];
     let w = ((rect.width() - 8.0) / 3.0).min(22.0);
     let x0 = rect.center().x - w * 1.5;
     let mut hit = None;
@@ -2302,7 +2304,6 @@ fn draw_trades(
 /// price pane, as on TradingView, with the details on hover.
 #[allow(clippy::too_many_arguments)]
 fn draw_corporate(
-    ctx: &egui::Context,
     p: &Painter,
     c: &opentern_data::yahoo::Corporate,
     chart: &Chart,
@@ -2310,6 +2311,7 @@ fn draw_corporate(
     first: usize,
     last: usize,
     rect: Rect,
+    hover: Option<Pos2>,
 ) {
     if chart.bars.is_empty() {
         return;
@@ -2323,13 +2325,12 @@ fn draw_corporate(
             .partition_point(|b| opentern_data::resample::to_utc_midnight(b.time, tz) < date);
         (i < chart.bars.len() && day(i) - date < 7 * 86_400_000).then_some(i)
     };
-    let hover = ctx.pointer_hover_pos();
     let mut tip: Option<String> = None;
     let r = 7.0;
     let y = rect.bottom() - r - 6.0;
     let fmt_day = |d: i64| {
         jiff::Timestamp::from_millisecond(d)
-            .map(|t| t.to_zoned(jiff::tz::TimeZone::UTC).strftime("%d %b %Y").to_string())
+            .map(|t| date(&t.to_zoned(jiff::tz::TimeZone::UTC), "%d %b %Y"))
             .unwrap_or_default()
     };
     let items = c
@@ -2339,7 +2340,7 @@ fn draw_corporate(
             (
                 *d,
                 'D',
-                format!(
+                trf!(
                     "Dividend {} {}\nEx-date {}",
                     trim_num(*a),
                     chart.symbol.currency,
@@ -2350,16 +2351,16 @@ fn draw_corporate(
         .chain(c.splits.iter().map(|(d, ratio)| {
             // Yahoo lists Indian bonus issues as splits too.
             let what = if matches!(chart.symbol.exchange(), "NSE" | "BSE") {
-                "Split or bonus"
+                tr("Split or bonus")
             } else {
-                "Split"
+                tr("Split")
             };
             let text = if *ratio >= 1.0 {
                 format!("{what} {}:1", trim_num(*ratio))
             } else {
-                format!("Reverse split 1:{}", trim_num(1.0 / ratio))
+                trf!("Reverse split 1:{}", trim_num(1.0 / ratio))
             };
-            (*d, 'S', format!("{text}\n{}\nEarlier prices adjusted", fmt_day(*d)))
+            (*d, 'S', trf!("{text}\n{}\nEarlier prices adjusted", fmt_day(*d)))
         }));
     // Earnings: green when they beat the estimate, red when they missed,
     // grey when still to come.
@@ -2367,18 +2368,18 @@ fn draw_corporate(
         let num = |v: Option<f64>| v.map(trim_num).unwrap_or_else(|| "—".into());
         let text = match e.eps {
             Some(eps) => {
-                let mut t = format!(
+                let mut t = trf!(
                     "Earnings {}\nReported EPS {}\nEstimate {}",
                     fmt_day(e.time),
                     trim_num(eps),
                     num(e.estimate)
                 );
                 if let Some(s) = e.surprise {
-                    t.push_str(&format!("\nSurprise {}{:.2}%", if s >= 0.0 { "+" } else { "" }, s));
+                    t.push_str(&trf!("\nSurprise {}{:.2}%", if s >= 0.0 { "+" } else { "" }, s));
                 }
                 t
             }
-            None => format!("Next earnings {}\nEstimate {}", fmt_day(e.time), num(e.estimate)),
+            None => trf!("Next earnings {}\nEstimate {}", fmt_day(e.time), num(e.estimate)),
         };
         let kind = match (e.eps, e.estimate) {
             (None, _) => 'e',
@@ -2426,7 +2427,7 @@ fn draw_corporate(
     }
     if let Some(text) = tip {
         egui::Tooltip::always_open(
-            ctx.clone(),
+            p.ctx().clone(),
             p.layer_id(),
             egui::Id::new("corporate-tip"),
             egui::PopupAnchor::Pointer,
@@ -2700,13 +2701,13 @@ fn legend(
                 let now = jiff::Timestamp::now().as_millisecond();
                 let state = opentern_core::calendar::state(market, now);
                 let (col, tip) = match &state {
-                    opentern_core::calendar::State::Open => (t.pos, "Market open".to_string()),
+                    opentern_core::calendar::State::Open => (t.pos, tr("Market open").to_string()),
                     opentern_core::calendar::State::Closed(next) => {
                         let when = next
                             .and_then(|n| jiff::Timestamp::from_millisecond(n).ok())
-                            .map(|ts| format!(" · opens {}", ts.to_zoned(chart.tz.clone()).strftime("%a %H:%M")))
+                            .map(|ts| trf!(" · opens {}", date(&ts.to_zoned(chart.tz.clone()), "%a %H:%M")))
                             .unwrap_or_default();
-                        (t.text3, format!("Market closed{when}"))
+                        (t.text3, trf!("Market closed{when}"))
                     }
                 };
                 let c = pos2(xx + 3.0, pos.y + 9.0);
@@ -2748,14 +2749,15 @@ fn legend(
             }
             // Free futures prices run behind the exchange (CME's rule).
             if let Some(min) = opentern_data::hub::delayed_minutes(&chart.symbol) {
-                let g = painter.layout_no_wrap(format!("Delayed {min} min"), theme::regular(11.0), t.warn);
+                let g = painter.layout_no_wrap(trf!("Delayed {min} min"), theme::regular(11.0), t.warn);
                 let r = Rect::from_min_size(pos2(xx + 4.0, pos.y + 1.0), g.size() + vec2(10.0, 2.0));
                 painter.rect_filled(r, CornerRadius::same(4), t.warn.gamma_multiply(0.14));
                 painter.galley(r.min + vec2(5.0, 1.0), g, t.warn);
-                ui.interact(r, ui.id().with("delayed"), Sense::hover()).on_hover_text(
-                    "Futures prices from free sources are about 10 minutes behind the exchange. \
+                ui.interact(r, ui.id().with("delayed"), Sense::hover())
+                    .on_hover_text(tr(
+                        "Futures prices from free sources are about 10 minutes behind the exchange. \
                      Daily closes are the official settlements.",
-                );
+                    ));
                 xx = r.right() + 8.0;
             }
             // A perpetual's funding: the rate, and how long until it's paid.
@@ -2763,7 +2765,13 @@ fn legend(
                 let left = ((next - jiff::Timestamp::now().as_millisecond()) / 60_000).max(0);
                 let col = if rate >= 0.0 { t.pos } else { t.neg };
                 let f = theme::regular(12.0);
-                let a = painter.text(pos2(xx, pos.y + 1.0), Align2::LEFT_TOP, "Funding", f.clone(), pal.text2);
+                let a = painter.text(
+                    pos2(xx, pos.y + 1.0),
+                    Align2::LEFT_TOP,
+                    tr("Funding"),
+                    f.clone(),
+                    pal.text2,
+                );
                 let b = painter.text(
                     pos2(a.right() + 4.0, pos.y + 1.0),
                     Align2::LEFT_TOP,
@@ -2779,7 +2787,9 @@ fn legend(
                     pal.text2,
                 );
                 ui.interact(a.union(c), ui.id().with("funding"), Sense::hover())
-                    .on_hover_text("Paid between longs and shorts at the countdown's end. Positive: longs pay shorts.");
+                    .on_hover_text(tr(
+                        "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts.",
+                    ));
                 xx = c.right() + 10.0;
                 ui.ctx().request_repaint_after(std::time::Duration::from_secs(20));
             }
@@ -2816,7 +2826,7 @@ fn legend(
                     let r = painter.text(
                         pos2(xx, pos.y + 1.0),
                         Align2::LEFT_TOP,
-                        format!("Vol {}", format::compact_for(b.volume, &chart.symbol)),
+                        trf!("Vol {}", format::compact_for(b.volume, &chart.symbol)),
                         font.clone(),
                         pal.text2,
                     );
@@ -2830,7 +2840,7 @@ fn legend(
                 Status::Error(m) if n > 0 => Some(m.clone()),
                 _ => chart
                     .stale_for(jiff::Timestamp::now().as_millisecond())
-                    .map(|d| format!("No new prices for {}", format::span(d))),
+                    .map(|d| trf!("No new prices for {}", format::span(d))),
             };
             // Nothing arrives on a stalled chart to wake the UI, so look
             // again now and then (a live chart repaints more often anyway).
@@ -2847,7 +2857,7 @@ fn legend(
                 painter.text(
                     pos,
                     Align2::LEFT_TOP,
-                    format!("{icon}  {m}"),
+                    format!("{icon}  {}", trm(&m)),
                     theme::regular(12.0),
                     t.warn,
                 );
@@ -2857,7 +2867,7 @@ fn legend(
                 painter.text(
                     pos,
                     Align2::LEFT_TOP,
-                    format!("{}  {m}", ph::INFO),
+                    format!("{}  {}", ph::INFO, trm(&m)),
                     theme::regular(12.0),
                     t.text2,
                 );
@@ -2893,8 +2903,8 @@ fn legend(
                     .or_else(|| c.bars.last().map(|b| b.close));
                 let text = match (value, &c.status) {
                     (Some(v), _) => format::price(v, c.symbol.precision()),
-                    (None, Status::Error(e)) | (None, Status::Offline(e)) => e.clone(),
-                    (None, _) => "Loading…".into(),
+                    (None, Status::Error(e)) | (None, Status::Offline(e)) => trm(e).into_owned(),
+                    (None, _) => tr("Loading…").into(),
                 };
                 let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, font.clone(), col);
                 // The name and value take a right-click; registered before the
@@ -2928,11 +2938,11 @@ fn legend(
                     let visible = c.visible;
                     let eye = btn(
                         if visible { ph::EYE } else { ph::EYE_SLASH },
-                        if visible { "Hide" } else { "Show" },
+                        if visible { tr("Hide") } else { tr("Show") },
                         "eye",
                     );
-                    let remove = btn(ph::X, "Remove", "remove");
-                    let more = btn(ph::DOTS_THREE, "Scale and more", "more");
+                    let remove = btn(ph::X, tr("Remove"), "remove");
+                    let more = btn(ph::DOTS_THREE, tr("Scale and more"), "more");
                     if eye {
                         chart.compares[ci].visible = !visible;
                         chart.touch();
@@ -2978,7 +2988,7 @@ fn legend(
             let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(row_w, LEGEND_ROW));
             let hovered = ui.rect_contains_pointer(row_rect);
             let slot = painter.add(egui::Shape::Noop);
-            let tr = match galley {
+            let title_rect = match galley {
                 Some(gal) => {
                     let r = Rect::from_min_size(pos, gal.size());
                     painter.galley(pos, gal, pal.text);
@@ -2986,7 +2996,7 @@ fn legend(
                 }
                 None => Rect::from_min_size(pos, vec2(0.0, 14.0)),
             };
-            let mut xx = tr.right() + 8.0;
+            let mut xx = title_rect.right() + 8.0;
             // Buttons sit right after the title while hovered.
             if hovered {
                 let mut btn = |glyph: &str, tip: &str, id: &str| -> bool {
@@ -3009,11 +3019,11 @@ fn legend(
                     resp.on_hover_text(tip).clicked()
                 };
                 let eye = if s.visible { ph::EYE } else { ph::EYE_SLASH };
-                let toggle = btn(eye, if s.visible { "Hide" } else { "Show" }, "eye");
-                let settings = btn(ph::GEAR_SIX, "Settings", "gear");
-                let source = crate::app::App::has_source(s.meta().id) && btn(ph::CODE, "Source code", "code");
-                let remove = btn(ph::X, "Remove", "remove");
-                let more = btn(ph::DOTS_THREE, "More", "more");
+                let toggle = btn(eye, if s.visible { tr("Hide") } else { tr("Show") }, "eye");
+                let settings = btn(ph::GEAR_SIX, tr("Settings"), "gear");
+                let source = crate::app::App::has_source(s.meta().id) && btn(ph::CODE, tr("Source code"), "code");
+                let remove = btn(ph::X, tr("Remove"), "remove");
+                let more = btn(ph::DOTS_THREE, tr("More"), "more");
                 if toggle && let Some(s) = chart.study_mut(uid) {
                     s.visible = !s.visible;
                     chart.touch();
@@ -3069,7 +3079,7 @@ fn legend(
             }
             legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
             // Double-click the title for settings, as on TradingView.
-            let mut title_resp = ui.interact(tr, Id::new(("legend-title", chart.id, uid)), Sense::click());
+            let mut title_resp = ui.interact(title_rect, Id::new(("legend-title", chart.id, uid)), Sense::click());
             if cut {
                 title_resp = title_resp.on_hover_text(&title);
             }
@@ -3077,7 +3087,7 @@ fn legend(
                 actions.push(Action::StudySettings(uid));
             }
             if title_resp.secondary_clicked() {
-                actions.push(Action::StudyMenu(uid, tr.left_bottom()));
+                actions.push(Action::StudyMenu(uid, title_rect.left_bottom()));
             }
             pos.y += LEGEND_ROW;
         }

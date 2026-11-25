@@ -1,6 +1,7 @@
 //! Modal dialogs: symbol search, Indicators, an indicator's settings
 //! (Inputs / Style / Visibility), Chart settings, and naming a template.
 
+use crate::i18n::{tr, trf};
 mod alert;
 mod chart_settings;
 pub mod color;
@@ -75,7 +76,7 @@ pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(title).font(theme::semibold(17.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, "Close (Esc)", false, 28.0).clicked() {
+            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, tr("Close (Esc)"), false, 28.0).clicked() {
                 close = true;
             }
         });
@@ -229,8 +230,8 @@ impl App {
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
     let title = match kind {
-        TemplateKind::Chart => "Save chart template",
-        TemplateKind::Indicators => "Save indicator template",
+        TemplateKind::Chart => tr("Save chart template"),
+        TemplateKind::Indicators => tr("Save indicator template"),
     };
     let mut done = Done::Keep;
     if frame(ui, t, title, 380.0, |ui| {
@@ -250,10 +251,10 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
             });
         }
         ui.add_space(10.0);
-        ui.label(egui::RichText::new("Name").font(theme::medium(12.0)).color(t.text2));
+        ui.label(egui::RichText::new(tr("Name")).font(theme::medium(12.0)).color(t.text2));
         let r = ui.add(
             crate::widgets::field(name)
-                .hint_text("e.g. Swing setup")
+                .hint_text(tr("e.g. Swing setup"))
                 .desired_width(f32::INFINITY),
         );
         if !r.has_focus() && name.is_empty() {
@@ -262,7 +263,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         let exists = app.store.templates(kind.key()).iter().any(|x| x.name == name.trim());
         if exists {
             ui.label(
-                egui::RichText::new(format!(
+                egui::RichText::new(trf!(
                     "{}  Saving replaces the template with this name.",
                     crate::icons::ph::INFO
                 ))
@@ -276,11 +277,17 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         ui.horizontal(|ui| {
             let enter = r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
             ui.add_space((ui.available_width() - 168.0).max(0.0));
-            if crate::widgets::secondary(ui, "Cancel").clicked() {
+            if crate::widgets::secondary(ui, tr("Cancel")).clicked() {
                 done = Done::Close;
             }
-            let ok = crate::widgets::button(ui, crate::widgets::Kind::Primary, !name.trim().is_empty(), None, "Save")
-                .clicked();
+            let ok = crate::widgets::button(
+                ui,
+                crate::widgets::Kind::Primary,
+                !name.trim().is_empty(),
+                None,
+                tr("Save"),
+            )
+            .clicked();
             if (ok || enter) && !name.trim().is_empty() {
                 app.save_template(kind, name.trim());
                 done = Done::Close;
@@ -294,7 +301,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
 
 fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
     let mut done = Done::Keep;
-    if frame(ui, t, "Change interval", 300.0, |ui| {
+    if frame(ui, t, tr("Change interval"), 300.0, |ui| {
         let r = ui.add(
             crate::widgets::field(text)
                 .font(theme::regular(15.0))
@@ -310,8 +317,8 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
         }
         let parsed = opentern_core::Timeframe::parse(text);
         let hint = match parsed {
-            Some(tf) => format!("Press Enter for {}", tf.label()),
-            None => "Like 15, 4h, D, W or 3M".into(),
+            Some(tf) => trf!("Press Enter for {}", tf.label()),
+            None => tr("Like 15, 4h, D, W or 3M").into(),
         };
         ui.label(egui::RichText::new(hint).color(t.text3));
         if ui.input(|i| i.key_pressed(egui::Key::Enter))
@@ -359,16 +366,16 @@ pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
                 .font(theme::semibold(11.0))
                 .color(t.text3),
         );
-        let text = egui::RichText::new("Beta").font(theme::medium(10.5)).color(t.warn);
+        let text = egui::RichText::new(tr("Beta")).font(theme::medium(10.5)).color(t.warn);
         egui::Frame::new()
             .inner_margin(egui::Margin::symmetric(6, 1))
             .corner_radius(egui::CornerRadius::same(8))
             .stroke(egui::Stroke::new(1.0, t.warn.gamma_multiply(0.5)))
             .show(ui, |ui| ui.label(text))
             .response
-            .on_hover_text(
+            .on_hover_text(tr(
                 "Not yet tried with a real account. Compare its prices with another source before relying on them.",
-            );
+            ));
     });
     ui.add_space(2.0);
 }
@@ -384,20 +391,20 @@ pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
 /// Yahoo never has the special sessions built from live prices).
 fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
     let mut done = Done::Keep;
-    if frame(ui, t, "Python scripts run on your computer", 420.0, |ui| {
+    if frame(ui, t, tr("Python scripts run on your computer"), 420.0, |ui| {
         ui.label(
-            egui::RichText::new(
+            egui::RichText::new(tr(
                 "A Python script runs in your own system's Python. Based on the code, it can read and \
                  change your files and go online, and that includes code an agent writes for you. Only \
                  run the ones you trust.",
-            )
+            ))
             .color(t.text2),
         );
         ui.add_space(4.0);
         ui.label(
-            egui::RichText::new(
+            egui::RichText::new(tr(
                 "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives.",
-            )
+            ))
             .color(t.text2),
         );
         ui.add_space(16.0);
@@ -407,7 +414,7 @@ fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
             vec2(ui.available_width(), 32.0),
             Layout::right_to_left(Align::Center),
             |ui| {
-                if crate::widgets::primary(ui, "Got it").clicked() {
+                if crate::widgets::primary(ui, tr("Got it")).clicked() {
                     done = Done::Close;
                 }
             },
@@ -420,18 +427,20 @@ fn python_notice(ui: &mut Ui, t: &Theme) -> Done {
 
 fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
     let mut done = Done::Keep;
-    if frame(ui, t, "Clear the price cache?", 400.0, |ui| {
+    if frame(ui, t, tr("Clear the price cache?"), 400.0, |ui| {
         ui.label(
-            egui::RichText::new(
+            egui::RichText::new(tr(
                 "Charts download their prices again when you open them. Older minute and hour bars may \
                  not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, \
                  60 days of 15-minute). Muhurat and other special sessions recorded live won't come back \
                  either.",
-            )
+            ))
             .color(t.text2),
         );
         ui.add_space(4.0);
-        ui.label(egui::RichText::new("Your watchlists, layouts, drawings, alerts and scripts stay.").color(t.text2));
+        ui.label(
+            egui::RichText::new(tr("Your watchlists, layouts, drawings, alerts and scripts stay.")).color(t.text2),
+        );
         ui.add_space(16.0);
         // A fixed-size row: a bare right-to-left layout takes the whole
         // modal's height.
@@ -439,11 +448,11 @@ fn clear_cache(ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
             vec2(ui.available_width(), 32.0),
             Layout::right_to_left(Align::Center),
             |ui| {
-                if crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, "Clear cache").clicked() {
+                if crate::widgets::button(ui, crate::widgets::Kind::Danger, true, None, tr("Clear cache")).clicked() {
                     app.clear_price_cache(ui.ctx());
                     done = Done::Close;
                 }
-                if crate::widgets::secondary(ui, "Cancel").clicked() {
+                if crate::widgets::secondary(ui, tr("Cancel")).clicked() {
                     done = Done::Close;
                 }
             },

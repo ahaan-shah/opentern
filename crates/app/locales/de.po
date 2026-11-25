@@ -1,0 +1,6172 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Opentern\n"
+"Language: de\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "\nSurprise {0}{1}%"
+msgstr "\nÜberraschung {0}{1} %"
+
+msgid "\nVol {0}"
+msgstr "\nVol. {0}"
+
+msgid "\n{0}: {1}% used"
+msgstr "\n{0}: {1} % genutzt"
+
+msgid " What can I help you with?"
+msgstr " Wobei kann ich helfen?"
+
+msgid " · opens {0}"
+msgstr " · öffnet {0}"
+
+#, message
+msgid "\"{0}\" isn't an email address."
+msgstr "\"{0}\" ist keine E-Mail-Adresse."
+
+msgid "% of equity"
+msgstr "% des Kapitals"
+
+msgid "%D"
+msgstr ""
+
+msgid "%D Length"
+msgstr "%D-Länge"
+
+msgid "%D Smoothing"
+msgstr "%D-Glättung"
+
+msgid "%K"
+msgstr ""
+
+msgid "%K Length"
+msgstr "%K-Länge"
+
+msgid "%K Smoothing"
+msgstr "%K-Glättung"
+
+msgid "%R"
+msgstr ""
+
+msgid "%a %H:%M"
+msgstr "%a %H:%M"
+
+msgid "%a %d %b '%y"
+msgstr "%a %d. %b '%y"
+
+msgid "%a %d %b '%y %H:%M"
+msgstr "%a %d. %b '%y %H:%M"
+
+msgid "%a %d %b '%y %H:%M:%S"
+msgstr "%a %d. %b '%y %H:%M:%S"
+
+msgid "%b %-d"
+msgstr "%-d. %b"
+
+msgid "%b '%y"
+msgstr "%b '%y"
+
+msgid "%d %b"
+msgstr "%d. %b"
+
+msgid "%d %b %Y"
+msgstr "%d. %b %Y"
+
+msgid "+DI"
+msgstr ""
+
+msgid "-DI"
+msgstr ""
+
+msgid "1 chart"
+msgstr "1 Chart"
+
+msgid "1 day"
+msgstr "1 Tag"
+
+msgid "1 hour"
+msgstr "1 Stunde"
+
+msgid "1 minute"
+msgstr "1 Minute"
+
+msgid "1 month"
+msgstr "1 Monat"
+
+msgid "1 script has unsaved changes. Save it to include them."
+msgstr "1 Skript hat ungespeicherte Änderungen. Speichere es, um sie einzuschließen."
+
+msgid "1 second"
+msgstr "1 Sekunde"
+
+msgid "1 symbol"
+msgstr "1 Symbol"
+
+msgid "1 week"
+msgstr "1 Woche"
+
+msgid "1M return"
+msgstr "1M-Rendite"
+
+msgid "1Y return"
+msgstr "1J-Rendite"
+
+msgid "1× is cash only. Below half the margin in use, every position is closed"
+msgstr "1× heißt nur Barmittel. Unter der Hälfte der genutzten Margin wird jede Position geschlossen"
+
+msgid "200 SMA"
+msgstr "SMA 200"
+
+msgid "24-hour Volume"
+msgstr "24-Stunden-Volumen"
+
+msgid "24h Volume"
+msgstr "24h-Volumen"
+
+msgid "24h volume"
+msgstr "24h-Volumen"
+
+msgid "3M return"
+msgstr "3M-Rendite"
+
+msgid "5-hour limit"
+msgstr "5-Stunden-Limit"
+
+msgid "50 SMA"
+msgstr "SMA 50"
+
+msgid "6M return"
+msgstr "6M-Rendite"
+
+msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
+msgstr "Ein Python-Skript läuft im Python deines Systems. Je nach Code kann es deine Dateien lesen und ändern und ins Internet gehen, auch Code, den ein Agent für dich schreibt. Führe nur Skripte aus, denen du vertraust."
+
+msgid "A fast, local-first market analysis terminal."
+msgstr "Ein schnelles, lokales Terminal zur Marktanalyse."
+
+#, message
+msgid "A market order has no price to move."
+msgstr "Eine Market-Order hat keinen Preis zum Verschieben."
+
+msgid "A sharper, calmer look"
+msgstr "Ein schärferer, ruhigerer Look"
+
+msgid "A small helper keeps checking your alerts and notifies you. It stops when you open Opentern again, or when no alert is left."
+msgstr "Ein kleiner Helfer prüft deine Alarme weiter und benachrichtigt dich. Er endet, wenn du Opentern wieder öffnest oder kein Alarm mehr übrig ist."
+
+msgid "A special session"
+msgstr "Eine Sondersitzung"
+
+#, message
+msgid "A trailing stop follows the price; it can't be moved."
+msgstr "Ein Trailing-Stop folgt dem Preis; er lässt sich nicht verschieben."
+
+msgid "A value"
+msgstr "Ein Wert"
+
+msgid "ACCOUNTS"
+msgstr "KONTEN"
+
+msgid "ADJ"
+msgstr "BER."
+
+msgid "ADR"
+msgstr ""
+
+msgid "ADX"
+msgstr ""
+
+msgid "ADX Smoothing"
+msgstr "ADX-Glättung"
+
+msgid "AO"
+msgstr ""
+
+msgid "API keys and passwords aren't included."
+msgstr "API-Schlüssel und Passwörter sind nicht enthalten."
+
+msgid "API price equivalent"
+msgstr "API-Gegenwert"
+
+msgid "API token"
+msgstr "API-Token"
+
+msgid "ASX"
+msgstr ""
+
+msgid "ATR"
+msgstr ""
+
+msgid "ATR %"
+msgstr ""
+
+msgid "ATR Coefficient"
+msgstr "ATR-Koeffizient"
+
+msgid "ATR Length"
+msgstr "ATR-Länge"
+
+msgid "ATR Multiplier"
+msgstr "ATR-Multiplikator"
+
+msgid "ATR length"
+msgstr "ATR-Länge"
+
+msgid "About"
+msgstr "Über"
+
+msgid "About {0}"
+msgstr "Über {0}"
+
+msgid "Absolute"
+msgstr "Absolut"
+
+msgid "Access token"
+msgstr "Zugriffstoken"
+
+msgid "Account"
+msgstr "Konto"
+
+msgid "Account ID"
+msgstr "Konto-ID"
+
+msgid "Account settings"
+msgstr "Kontoeinstellungen"
+
+msgid "Account size required"
+msgstr "Benötigte Kontogröße"
+
+msgid "Accumulation/Distribution"
+msgstr "Akkumulation/Distribution"
+
+msgid "Across"
+msgstr "Quer"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr "Füge zuerst eine Strategie zum Chart hinzu. Eine Strategie ist ein Skript, das mit strategy(…) beginnt."
+
+msgid "Add files"
+msgstr "Dateien hinzufügen"
+
+msgid "Add filter"
+msgstr "Filter hinzufügen"
+
+msgid "Add section"
+msgstr "Abschnitt hinzufügen"
+
+msgid "Add symbol"
+msgstr "Symbol hinzufügen"
+
+msgid "Add to chart"
+msgstr "Zum Chart hinzufügen"
+
+msgid "Add to favorites"
+msgstr "Zu Favoriten hinzufügen"
+
+msgid "Add to watchlist"
+msgstr "Zur Watchlist hinzufügen"
+
+msgid "Add to watchlist (Shift+Enter)"
+msgstr "Zur Watchlist hinzufügen (Umschalt+Enter)"
+
+#, message
+msgid "Add {0}"
+msgstr "{0} hinzufügen"
+
+#, message
+msgid "Add {0} to the chart"
+msgstr "{0} zum Chart hinzufügen"
+
+#, message
+msgid "Added {0}"
+msgstr "{0} hinzugefügt"
+
+#, message
+msgid "Added {0} to the chart"
+msgstr "{0} zum Chart hinzugefügt"
+
+#, message
+msgid "Added {file} to the chart."
+msgstr "{file} wurde zum Chart hinzugefügt."
+
+msgid "Address, like 192.168.1.20"
+msgstr "Adresse, z. B. 192.168.1.20"
+
+msgid "Adjust prices for dividends"
+msgstr "Kurse um Dividenden bereinigen"
+
+msgid "After"
+msgstr "Nach"
+
+msgid "After hours"
+msgstr "Nachbörslich"
+
+msgid "After trade {0}"
+msgstr "Nach Trade {0}"
+
+msgid "Against market, stop and trailing fills; limits fill at their price"
+msgstr "Gegen Market-, Stop- und Trailing-Ausführungen; Limits werden zu ihrem Preis ausgeführt"
+
+msgid "Agent"
+msgstr "Agent"
+
+msgid "Agent panel"
+msgstr "Agent-Panel"
+
+msgid "Alert"
+msgstr "Alarm"
+
+msgid "Alerts"
+msgstr "Alarme"
+
+msgid "Alerts in this file send to {0}."
+msgstr "Alarme in dieser Datei senden an {0}."
+
+msgid "Alerts log"
+msgstr "Alarmprotokoll"
+
+msgid "Alerts only fire while Opentern is open."
+msgstr "Alarme lösen nur aus, solange Opentern offen ist."
+
+#, message
+msgid "Alerts: {0}"
+msgstr "Alarme: {0}"
+
+msgid "All"
+msgstr "Alle"
+
+msgid "All Souls' Day"
+msgstr "Allerseelen"
+
+msgid "All caught up"
+msgstr "Alles erledigt"
+
+msgid "All sectors (Esc)"
+msgstr "Alle Sektoren (Esc)"
+
+msgid "Allow"
+msgstr "Erlauben"
+
+msgid "Allow for this chat"
+msgstr "Für diesen Chat erlauben"
+
+msgid "Allow through Windows Firewall"
+msgstr "In der Windows-Firewall erlauben"
+
+msgid "Allow {0} to do this?"
+msgstr "{0} das erlauben?"
+
+msgid "Allowed"
+msgstr "Erlaubt"
+
+msgid "Allowed through Windows Firewall"
+msgstr "In der Windows-Firewall erlaubt"
+
+#, message
+msgid "Alpaca has no {0} bars"
+msgstr "Alpaca hat keine {0}-Balken"
+
+msgid "Alpaca · US stocks"
+msgstr "Alpaca · US-Aktien"
+
+msgid "Americas"
+msgstr "Amerika"
+
+msgid "An alert fired while Opentern was closed"
+msgstr "Ein Alarm wurde ausgelöst, während Opentern geschlossen war"
+
+msgid "An app password, not your login"
+msgstr "Ein App-Passwort, nicht dein Login"
+
+msgid "An empty list"
+msgstr "Leere Liste"
+
+msgid "Anchor Period"
+msgstr "Ankerperiode"
+
+msgid "Anchored"
+msgstr "Verankert"
+
+msgid "Anchored VWAP"
+msgstr "Verankerter VWAP"
+
+msgid "Anchored volume profile"
+msgstr "Verankertes Volumenprofil"
+
+msgid "Annotation tools"
+msgstr "Anmerkungswerkzeuge"
+
+msgid "Answer a prompt"
+msgstr "Auf eine Frage antworten"
+
+msgid "Any colour you like"
+msgstr "Jede Farbe, die du magst"
+
+msgid "Anzac Day"
+msgstr "Anzac Day"
+
+msgid "Applied a lab result"
+msgstr "Laborergebnis angewendet"
+
+msgid "Applied to the chart."
+msgstr "Auf den Chart angewendet."
+
+msgid "Apply a lab result"
+msgstr "Laborergebnis anwenden"
+
+msgid "Apply best"
+msgstr "Bestes anwenden"
+
+msgid "Apply defaults"
+msgstr "Standards anwenden"
+
+msgid "Apr"
+msgstr "Apr"
+
+msgid "April"
+msgstr "April"
+
+msgid "Area"
+msgstr "Fläche"
+
+msgid "Arnaud Legoux Moving Average"
+msgstr "Arnaud-Legoux-Durchschnitt"
+
+msgid "Aroon"
+msgstr "Aroon"
+
+msgid "Aroon Down"
+msgstr "Aroon Abwärts"
+
+msgid "Aroon Up"
+msgstr "Aroon Aufwärts"
+
+msgid "Arrow"
+msgstr "Pfeil"
+
+msgid "Arrow mark down"
+msgstr "Pfeilmarke nach unten"
+
+msgid "Arrow mark up"
+msgstr "Pfeilmarke nach oben"
+
+msgid "Ascension Day"
+msgstr "Christi Himmelfahrt"
+
+msgid "Asia-Pacific"
+msgstr "Asien-Pazifik"
+
+msgid "Ask"
+msgstr "Brief"
+
+msgid "Ask first"
+msgstr "Zuerst fragen"
+
+msgid "Attach files"
+msgstr "Dateien anhängen"
+
+msgid "Aug"
+msgstr "Aug"
+
+msgid "August"
+msgstr "August"
+
+msgid "Australia Day"
+msgstr "Australia Day"
+
+msgid "Auto"
+msgstr "Auto"
+
+msgid "Auto (fits data to screen)"
+msgstr "Auto (Daten einpassen)"
+
+msgid "Auto Fib Extension"
+msgstr "Auto-Fib-Extension"
+
+msgid "Auto Fib Retracement"
+msgstr "Auto-Fib-Retracement"
+
+msgid "Auto, fits data to screen (Alt U)"
+msgstr "Auto, Daten einpassen (Alt U)"
+
+msgid "Average"
+msgstr "Durchschnitt"
+
+msgid "Average Day Range"
+msgstr "Durchschnittliche Tagesspanne"
+
+msgid "Average Directional Index"
+msgstr "Average Directional Index"
+
+msgid "Average True Range"
+msgstr "Average True Range"
+
+msgid "Avg"
+msgstr "Ø"
+
+msgid "Avg # bars in losing trades"
+msgstr "Ø Balken in Verlusttrades"
+
+msgid "Avg # bars in trades"
+msgstr "Ø Balken in Trades"
+
+msgid "Avg # bars in winning trades"
+msgstr "Ø Balken in Gewinntrades"
+
+msgid "Avg P&L"
+msgstr "Ø G&V"
+
+msgid "Avg P&L %"
+msgstr "Ø G&V %"
+
+msgid "Avg drawdown duration (bars)"
+msgstr "Ø Drawdown-Dauer (Balken)"
+
+msgid "Avg equity drawdown"
+msgstr "Ø Kapital-Drawdown"
+
+msgid "Avg equity run-up"
+msgstr "Ø Kapital-Run-up"
+
+msgid "Avg losing trade"
+msgstr "Ø Verlusttrade"
+
+msgid "Avg margin used"
+msgstr "Ø genutzte Margin"
+
+msgid "Avg price"
+msgstr "Ø Preis"
+
+msgid "Avg run-up duration (bars)"
+msgstr "Ø Run-up-Dauer (Balken)"
+
+msgid "Avg winning trade"
+msgstr "Ø Gewinntrade"
+
+msgid "Awesome Oscillator"
+msgstr "Awesome Oscillator"
+
+msgid "BBPower"
+msgstr ""
+
+msgid "BOP"
+msgstr ""
+
+msgid "BUILT-IN INDICATORS"
+msgstr "EINGEBAUTE INDIKATOREN"
+
+msgid "Back"
+msgstr "Zurück"
+
+msgid "Background"
+msgstr "Hintergrund"
+
+msgid "Backtest's max drawdown"
+msgstr "Max. Drawdown des Backtests"
+
+msgid "Bakri Id"
+msgstr "Bakri Id"
+
+msgid "Balance"
+msgstr "Kontostand"
+
+msgid "Balance of Power"
+msgstr "Balance of Power"
+
+msgid "Bands Calculation Mode"
+msgstr "Berechnungsmodus der Bänder"
+
+msgid "Bands Fill #1"
+msgstr "Bandfüllung 1"
+
+msgid "Bands Fill #2"
+msgstr "Bandfüllung 2"
+
+msgid "Bands Fill #3"
+msgstr "Bandfüllung 3"
+
+msgid "Bands Multiplier #1"
+msgstr "Bandmultiplikator 1"
+
+msgid "Bands Multiplier #2"
+msgstr "Bandmultiplikator 2"
+
+msgid "Bands Multiplier #3"
+msgstr "Bandmultiplikator 3"
+
+msgid "Bands Settings"
+msgstr "Band-Einstellungen"
+
+msgid "Bands Style"
+msgstr "Bandstil"
+
+msgid "Bands and channels"
+msgstr "Bänder und Kanäle"
+
+msgid "Bar change values"
+msgstr "Werte der Balkenänderung"
+
+msgid "Bar replay"
+msgstr "Balken-Replay"
+
+msgid "Bars"
+msgstr "Balken"
+
+msgid "Bars per symbol"
+msgstr "Balken pro Symbol"
+
+msgid "Bars style"
+msgstr "Balkenstil"
+
+msgid "Base Line"
+msgstr "Basislinie"
+
+msgid "Base Line Length"
+msgstr "Länge der Basislinie"
+
+msgid "Base level"
+msgstr "Basisniveau"
+
+msgid "Baseline"
+msgstr "Basislinie"
+
+msgid "Basis"
+msgstr "Basis"
+
+msgid "Basis MA Type"
+msgstr "MA-Typ der Basis"
+
+msgid "Bayesian"
+msgstr "Bayessch"
+
+msgid "Begin"
+msgstr "Los geht's"
+
+msgid "Berchtold's Day"
+msgstr "Berchtoldstag"
+
+msgid "Best: {0}  →  {1} ({2}), {3} trades"
+msgstr "Beste: {0}  →  {1} ({2}), {3} Trades"
+
+msgid "Beta"
+msgstr "Beta"
+
+msgid "Bid"
+msgstr "Geld"
+
+#, message
+msgid "Binance has no {0} bars"
+msgstr "Binance hat keine {0}-Balken"
+
+msgid "Black Consciousness Day"
+msgstr "Tag des schwarzen Bewusstseins"
+
+msgid "Body"
+msgstr "Körper"
+
+msgid "Body Middle"
+msgstr "Körpermitte"
+
+msgid "Bollinger BandWidth"
+msgstr "Bollinger BandWidth"
+
+msgid "Bollinger Bands"
+msgstr "Bollinger-Bänder"
+
+msgid "Bollinger Bands %B"
+msgstr "Bollinger-Bänder %B"
+
+msgid "Borders"
+msgstr "Rahmen"
+
+#, message
+msgid "Bought {qty} {sym} at {price}"
+msgstr "{qty} {sym} zu {price} gekauft"
+
+msgid "Box size"
+msgstr "Boxgröße"
+
+msgid "Boxing Day"
+msgstr "Boxing Day"
+
+msgid "Brush"
+msgstr "Pinsel"
+
+msgid "Buddha's Birthday"
+msgstr "Buddhas Geburtstag"
+
+msgid "Built-in source, read-only. Make a copy to change and run it."
+msgstr "Eingebauter Quellcode, schreibgeschützt. Erstelle eine Kopie, um ihn zu ändern und auszuführen."
+
+msgid "Built-ins"
+msgstr "Eingebaut"
+
+msgid "Bull Bear Power"
+msgstr "Bull Bear Power"
+
+msgid "Buy"
+msgstr "Kaufen"
+
+msgid "Buy & hold"
+msgstr "Buy & Hold"
+
+msgid "Buy & hold return"
+msgstr "Buy-&-Hold-Rendite"
+
+msgid "Buy order filled."
+msgstr "Kauforder ausgeführt."
+
+#, message
+msgid "Bybit has no {0} bars"
+msgstr "Bybit hat keine {0}-Balken"
+
+msgid "CAGR"
+msgstr ""
+
+msgid "CCI"
+msgstr ""
+
+msgid "CCI Histogram"
+msgstr "CCI-Histogramm"
+
+msgid "CCI Length"
+msgstr "CCI-Länge"
+
+msgid "CCI Turbo"
+msgstr "CCI Turbo"
+
+msgid "CCI Turbo Length"
+msgstr "CCI-Turbo-Länge"
+
+msgid "CHARTS IN THIS WINDOW"
+msgstr "CHARTS IN DIESEM FENSTER"
+
+msgid "CHOP"
+msgstr ""
+
+msgid "CRSI"
+msgstr ""
+
+msgid "CSV"
+msgstr "CSV"
+
+msgid "Calendar"
+msgstr "Kalender"
+
+msgid "Camarilla"
+msgstr "Camarilla"
+
+msgid "Can't find your other device. Keep its code showing, and check that both are on the same network and no firewall is blocking Opentern."
+msgstr "Dein anderes Gerät wurde nicht gefunden. Lass den Code dort angezeigt und prüfe, ob beide im selben Netzwerk sind und keine Firewall Opentern blockiert."
+
+#, message
+msgid "Can't reach the IBKR gateway. Start the Client Portal gateway and log in, then try again."
+msgstr "Das IBKR-Gateway ist nicht erreichbar. Starte das Client-Portal-Gateway, melde dich an und versuche es erneut."
+
+msgid "Canada Day"
+msgstr "Canada Day"
+
+msgid "Cancel"
+msgstr "Abbrechen"
+
+msgid "Candles"
+msgstr "Kerzen"
+
+msgid "Canvas"
+msgstr "Zeichenfläche"
+
+msgid "Capital and size"
+msgstr "Kapital und Größe"
+
+msgid "Carnival"
+msgstr "Karneval"
+
+msgid "Cash"
+msgstr "Barmittel"
+
+msgid "Categories"
+msgstr "Kategorien"
+
+msgid "Centered"
+msgstr "Zentriert"
+
+msgid "Chaikin Money Flow"
+msgstr "Chaikin Money Flow"
+
+msgid "Chaikin Oscillator"
+msgstr "Chaikin-Oszillator"
+
+msgid "Chance of a loss"
+msgstr "Verlustwahrscheinlichkeit"
+
+msgid "Chance of ruin"
+msgstr "Ruinwahrscheinlichkeit"
+
+msgid "Chande Kroll Stop"
+msgstr "Chande Kroll Stop"
+
+msgid "Chande MO"
+msgstr "Chande MO"
+
+msgid "Chande Momentum Oscillator"
+msgstr "Chande-Momentum-Oszillator"
+
+msgid "Change"
+msgstr "Änderung"
+
+msgid "Change %"
+msgstr "Änderung %"
+
+msgid "Change interval"
+msgstr "Intervall ändern"
+
+msgid "Change over the last 24 hours"
+msgstr "Änderung in den letzten 24 Stunden"
+
+msgid "Change over the last month"
+msgstr "Änderung im letzten Monat"
+
+msgid "Change over the last six months"
+msgstr "Änderung in den letzten sechs Monaten"
+
+msgid "Change over the last three months"
+msgstr "Änderung in den letzten drei Monaten"
+
+msgid "Change over the last year"
+msgstr "Änderung im letzten Jahr"
+
+msgid "Change since the last close"
+msgstr "Änderung seit dem letzten Schluss"
+
+msgid "Change since the previous close"
+msgstr "Änderung seit dem vorherigen Schluss"
+
+msgid "Change the interval"
+msgstr "Intervall ändern"
+
+msgid "Change the strategy settings"
+msgstr "Strategieeinstellungen ändern"
+
+#, message
+msgid "Change the {what}"
+msgstr "{what} ändern"
+
+msgid "Change {0}"
+msgstr "{0} ändern"
+
+#, message
+msgid "Change {0}'s inputs"
+msgstr "Eingaben von {0} ändern"
+
+#, message
+msgid "Changed the {what}"
+msgstr "{what} geändert"
+
+#, message
+msgid "Changed {0}'s inputs"
+msgstr "Eingaben von {0} geändert"
+
+msgid "Change|button"
+msgstr "Ändern"
+
+msgid "Channel settings"
+msgstr "Kanaleinstellungen"
+
+msgid "Chart"
+msgstr "Chart"
+
+msgid "Chart basic styles"
+msgstr "Chart-Grundstile"
+
+msgid "Chart settings"
+msgstr "Charteinstellungen"
+
+msgid "Chart type"
+msgstr "Charttyp"
+
+msgid "Charts download their prices again when you open them. Older minute and hour bars may not come back: data sources only keep recent ones (Yahoo: about a week of 1-minute bars, 60 days of 15-minute). Muhurat and other special sessions recorded live won't come back either."
+msgstr "Charts laden ihre Kurse beim Öffnen neu. Ältere Minuten- und Stundenbalken kommen womöglich nicht zurück: Datenquellen behalten nur aktuelle (Yahoo: etwa eine Woche 1-Minuten-Balken, 60 Tage 15-Minuten-Balken). Live aufgezeichnete Muhurat- und andere Sondersitzungen kommen ebenfalls nicht zurück."
+
+msgid "Charts, scripts and backtests. All on your own machine."
+msgstr "Charts, Skripte und Backtests. Alles auf deinem eigenen Rechner."
+
+msgid "Chats"
+msgstr "Chats"
+
+msgid "Check again"
+msgstr "Erneut prüfen"
+
+msgid "Check for updates"
+msgstr "Nach Updates suchen"
+
+msgid "Check for updates when Opentern starts"
+msgstr "Beim Start von Opentern nach Updates suchen"
+
+#, message
+msgid "Check {0}"
+msgstr "{0} prüfen"
+
+#, message
+msgid "Checked {0}"
+msgstr "{0} geprüft"
+
+msgid "Checking"
+msgstr "Wird geprüft"
+
+msgid "Chg%"
+msgstr "Änd. %"
+
+msgid "Chg% 24h"
+msgstr "Änd. % 24h"
+
+msgid "Chg% today"
+msgstr "Änd. % heute"
+
+msgid "Children's Day"
+msgstr "Kindertag"
+
+msgid "Choose a scripts folder"
+msgstr "Skriptordner wählen"
+
+msgid "Choose a snapshots folder"
+msgstr "Snapshot-Ordner wählen"
+
+msgid "Choose file"
+msgstr "Datei wählen"
+
+msgid "Chop Zone"
+msgstr "Chop Zone"
+
+msgid "Choppiness Index"
+msgstr "Choppiness Index"
+
+msgid "Christmas"
+msgstr "Weihnachten"
+
+msgid "Christmas Day"
+msgstr "Weihnachten"
+
+msgid "Christmas Eve"
+msgstr "Heiligabend"
+
+msgid "Chuseok"
+msgstr ""
+
+msgid "Circles"
+msgstr "Kreise"
+
+msgid "Civic Holiday"
+msgstr "Civic Holiday"
+
+msgid "Classic"
+msgstr "Klassisch"
+
+msgid "Claude Code decides what's safe and asks only when it isn't sure."
+msgstr "Claude Code entscheidet, was sicher ist, und fragt nur im Zweifel."
+
+msgid "Claude asks before it edits files or runs commands."
+msgstr "Claude fragt, bevor es Dateien bearbeitet oder Befehle ausführt."
+
+msgid "Clear all"
+msgstr "Alle löschen"
+
+msgid "Clear cache"
+msgstr "Cache leeren"
+
+msgid "Clear everything?"
+msgstr "Alles löschen?"
+
+msgid "Clear log"
+msgstr "Protokoll leeren"
+
+msgid "Clear price cache"
+msgstr "Kurs-Cache leeren"
+
+msgid "Clear saved logos"
+msgstr "Gespeicherte Logos löschen"
+
+msgid "Clear the price cache?"
+msgstr "Den Kurs-Cache leeren?"
+
+msgid "Clearing…"
+msgstr "Wird geleert…"
+
+msgid "Click a bar to start from it"
+msgstr "Klicke auf einen Balken, um dort zu beginnen"
+
+msgid "Close"
+msgstr "Schließen"
+
+msgid "Close (Esc)"
+msgstr "Schließen (Esc)"
+
+msgid "Close ({0})"
+msgstr "Schließen ({0})"
+
+msgid "Close replay"
+msgstr "Replay schließen"
+
+msgid "Closed"
+msgstr "Geschlossen"
+
+#, message
+msgid "Closed {0}."
+msgstr "{0} geschlossen."
+
+msgid "Closes {0}"
+msgstr "Schließt {0}"
+
+msgid "Close|price"
+msgstr "Schluss"
+
+msgid "Codex asks before it edits files or runs anything it doesn't know is safe."
+msgstr "Codex fragt, bevor es Dateien bearbeitet oder etwas ausführt, das es nicht sicher kennt."
+
+msgid "Codex works freely in your scripts folder and asks before going outside it."
+msgstr "Codex arbeitet frei in deinem Skriptordner und fragt, bevor es ihn verlässt."
+
+#, message
+msgid "Coinbase has no {0} bars"
+msgstr "Coinbase hat keine {0}-Balken"
+
+msgid "Collapse panel"
+msgstr "Panel einklappen"
+
+msgid "Color"
+msgstr "Farbe"
+
+msgid "Color bars based on previous close"
+msgstr "Balken nach vorherigem Schluss färben"
+
+msgid "Color based on previous close"
+msgstr "Farbe nach vorherigem Schluss"
+
+msgid "Colours"
+msgstr "Farben"
+
+msgid "Columns"
+msgstr "Säulen"
+
+msgid "Coming of Age Day"
+msgstr "Tag der Volljährigkeit"
+
+msgid "Commission"
+msgstr "Kommission"
+
+msgid "Commission paid"
+msgstr "Gezahlte Kommission"
+
+msgid "Commodities"
+msgstr "Rohstoffe"
+
+msgid "Commodity Channel Index"
+msgstr "Commodity Channel Index"
+
+msgid "Compare"
+msgstr "Vergleichen"
+
+msgid "Compare indices"
+msgstr "Indizes vergleichen"
+
+msgid "Compare or add symbol"
+msgstr "Vergleichen oder Symbol hinzufügen"
+
+msgid "Compare symbol"
+msgstr "Symbol vergleichen"
+
+msgid "Compare the indices"
+msgstr "Indizes vergleichen"
+
+msgid "Compared the indices"
+msgstr "Indizes verglichen"
+
+msgid "Compared with"
+msgstr "Verglichen mit"
+
+msgid "Connors RSI"
+msgstr "Connors RSI"
+
+msgid "Constitution Day"
+msgstr "Tag der Verfassung"
+
+msgid "Constitution Memorial Day"
+msgstr "Verfassungsgedenktag"
+
+msgid "Context now"
+msgstr "Aktueller Kontext"
+
+msgid "Continue"
+msgstr "Weiter"
+
+msgid "Contracts"
+msgstr "Kontrakte"
+
+msgid "Conversion Line"
+msgstr "Conversion Line"
+
+msgid "Conversion Line Length"
+msgstr "Länge der Conversion Line"
+
+msgid "Copied"
+msgstr "Kopiert"
+
+#, message
+msgid "Copied to {name}."
+msgstr "Nach {name} kopiert."
+
+msgid "Coppock Curve"
+msgstr "Coppock-Kurve"
+
+msgid "Copy"
+msgstr "Kopieren"
+
+msgid "Copy code"
+msgstr "Code kopieren"
+
+msgid "Copy image"
+msgstr "Bild kopieren"
+
+msgid "Corpus Christi"
+msgstr "Fronleichnam"
+
+msgid "Costs"
+msgstr "Kosten"
+
+msgid "Couldn't check for updates right now. Try again later."
+msgstr "Updates konnten gerade nicht geprüft werden. Versuche es später noch einmal."
+
+msgid "Couldn't check. Make sure you are connected to the internet."
+msgstr "Prüfung nicht möglich. Stelle sicher, dass du mit dem Internet verbunden bist."
+
+#, message
+msgid "Couldn't connect. Check your internet connection."
+msgstr "Keine Verbindung. Prüfe deine Internetverbindung."
+
+#, message
+msgid "Couldn't copy it: {e}"
+msgstr "Kopieren nicht möglich: {e}"
+
+#, message
+msgid "Couldn't delete it: {e}"
+msgstr "Löschen nicht möglich: {e}"
+
+msgid "Couldn't export."
+msgstr "Export nicht möglich."
+
+#, message
+msgid "Couldn't export: {e}"
+msgstr "Export nicht möglich: {e}"
+
+msgid "Couldn't get the import ready."
+msgstr "Der Import konnte nicht vorbereitet werden."
+
+msgid "Couldn't get your data ready."
+msgstr "Deine Daten konnten nicht vorbereitet werden."
+
+#, message
+msgid "Couldn't get your data ready: {e}"
+msgstr "Deine Daten konnten nicht vorbereitet werden: {e}"
+
+msgid "Couldn't import"
+msgstr "Import nicht möglich"
+
+msgid "Couldn't make a code on this computer."
+msgstr "Auf diesem Computer konnte kein Code erstellt werden."
+
+#, message
+msgid "Couldn't make the folder: {e}"
+msgstr "Ordner konnte nicht erstellt werden: {e}"
+
+#, message
+msgid "Couldn't move it: {e}"
+msgstr "Verschieben nicht möglich: {e}"
+
+#, message
+msgid "Couldn't open the clipboard: {e}"
+msgstr "Zwischenablage konnte nicht geöffnet werden: {e}"
+
+#, message
+msgid "Couldn't paste it: {e}"
+msgstr "Einfügen nicht möglich: {e}"
+
+#, message
+msgid "Couldn't reach Yahoo."
+msgstr "Yahoo ist nicht erreichbar."
+
+#, message
+msgid "Couldn't reach the data service."
+msgstr "Der Datendienst ist nicht erreichbar."
+
+#, message
+msgid "Couldn't reach {0}: {err}"
+msgstr "{0} nicht erreichbar: {err}"
+
+#, message
+msgid "Couldn't read {0}: {e}"
+msgstr "{0} konnte nicht gelesen werden: {e}"
+
+#, message
+msgid "Couldn't read {file}: {e}"
+msgstr "{file} konnte nicht gelesen werden: {e}"
+
+#, message
+msgid "Couldn't rename it: {e}"
+msgstr "Umbenennen nicht möglich: {e}"
+
+#, message
+msgid "Couldn't save the chat id: {e}"
+msgstr "Chat-ID konnte nicht gespeichert werden: {e}"
+
+#, message
+msgid "Couldn't save the email settings: {e}"
+msgstr "E-Mail-Einstellungen konnten nicht gespeichert werden: {e}"
+
+#, message
+msgid "Couldn't save the password in your keychain: {e}"
+msgstr "Das Passwort konnte nicht im Schlüsselbund gespeichert werden: {e}"
+
+msgid "Couldn't save the snapshot"
+msgstr "Snapshot konnte nicht gespeichert werden"
+
+#, message
+msgid "Couldn't save the token in your keychain: {e}"
+msgstr "Das Token konnte nicht im Schlüsselbund gespeichert werden: {e}"
+
+#, message
+msgid "Couldn't save to your keychain: {e}"
+msgstr "Speichern im Schlüsselbund nicht möglich: {e}"
+
+#, message
+msgid "Couldn't save: {e}"
+msgstr "Speichern nicht möglich: {e}"
+
+#, message
+msgid "Couldn't set Opentern to start at login: {e}"
+msgstr "Opentern konnte nicht für den Start bei der Anmeldung eingerichtet werden: {e}"
+
+msgid "Couldn't start the run."
+msgstr "Der Lauf konnte nicht gestartet werden."
+
+#, message
+msgid "Couldn't start {0}: {e}"
+msgstr "{0} konnte nicht gestartet werden: {e}"
+
+#, message
+msgid "Couldn't update: {e}"
+msgstr "Aktualisierung nicht möglich: {e}"
+
+msgid "Count in the index"
+msgstr "Im Index zählen"
+
+msgid "Countdown to bar close"
+msgstr "Countdown bis Balkenschluss"
+
+msgid "Counts all of a company's shares."
+msgstr "Zählt alle Aktien eines Unternehmens."
+
+msgid "Counts only the shares the public can trade, as NSE does."
+msgstr "Zählt nur die frei handelbaren Aktien, wie die NSE."
+
+msgid "Create"
+msgstr "Erstellen"
+
+msgid "Create alert"
+msgstr "Alarm erstellen"
+
+msgid "Create alert (Alt+A)"
+msgstr "Alarm erstellen (Alt+A)"
+
+msgid "Create an alert"
+msgstr "Alarm erstellen"
+
+#, message
+msgid "Create {0}"
+msgstr "{0} erstellen"
+
+msgid "Cross"
+msgstr "Kreuz"
+
+msgid "Cross line"
+msgstr "Kreuzlinie"
+
+msgid "Crosshair"
+msgstr "Fadenkreuz"
+
+msgid "Crossing"
+msgstr "Kreuzt"
+
+msgid "Crossing down"
+msgstr "Kreuzt abwärts"
+
+msgid "Crossing up"
+msgstr "Kreuzt aufwärts"
+
+msgid "Crypto"
+msgstr "Krypto"
+
+msgid "Crypto (Binance, Bybit, OKX, Coinbase, Kraken) and Yahoo need nothing. Add a key to use a source that needs an account. Keys stay in your system keychain."
+msgstr "Krypto (Binance, Bybit, OKX, Coinbase, Kraken) und Yahoo brauchen nichts. Füge einen Schlüssel hinzu, um eine Quelle mit Konto zu nutzen. Schlüssel bleiben im Schlüsselbund deines Systems."
+
+msgid "Crypto majors"
+msgstr "Krypto-Majors"
+
+msgid "Culture Day"
+msgstr "Tag der Kultur"
+
+msgid "Cum. profit"
+msgstr "Kum. Gewinn"
+
+msgid "Currency"
+msgstr "Währung"
+
+msgid "Cursors"
+msgstr "Cursor"
+
+msgid "Custom"
+msgstr "Benutzerdefiniert"
+
+msgid "Custom indices"
+msgstr "Eigene Indizes"
+
+msgid "Custom: 7m, 3h, 2D"
+msgstr "Eigenes: 7m, 3h, 2D"
+
+msgid "DATA WINDOW"
+msgstr "DATENFENSTER"
+
+msgid "DAYS"
+msgstr "TAGE"
+
+msgid "DI Length"
+msgstr "DI-Länge"
+
+msgid "DM"
+msgstr ""
+
+msgid "Daily"
+msgstr "Täglich"
+
+msgid "Dashed"
+msgstr "Gestrichelt"
+
+msgid "Data modification"
+msgstr "Datenanpassung"
+
+msgid "Data providers"
+msgstr "Datenanbieter"
+
+msgid "Date"
+msgstr "Datum"
+
+msgid "Date and price range"
+msgstr "Datums- und Preisspanne"
+
+msgid "Date range"
+msgstr "Datumsspanne"
+
+msgid "Date/Time"
+msgstr "Datum/Zeit"
+
+msgid "Days"
+msgstr "Tage"
+
+msgid "Dec"
+msgstr "Dez"
+
+msgid "December"
+msgstr "Dezember"
+
+msgid "Declined"
+msgstr "Abgelehnt"
+
+msgid "Deeper layers, hairline borders, a fresher green, and dialogs, menus and controls redrawn to match, in dark and light."
+msgstr "Tiefere Ebenen, feine Ränder, ein frischeres Grün, und Dialoge, Menüs und Bedienelemente passend neu gezeichnet, dunkel wie hell."
+
+msgid "Default"
+msgstr "Standard"
+
+msgid "Defaults  {0}"
+msgstr "Standards  {0}"
+
+msgid "Delayed {min} min"
+msgstr "{min} Min. verzögert"
+
+msgid "Delete"
+msgstr "Löschen"
+
+msgid "Delete chat"
+msgstr "Chat löschen"
+
+msgid "Delete folder (if empty)"
+msgstr "Ordner löschen (falls leer)"
+
+msgid "Delete for good"
+msgstr "Endgültig löschen"
+
+msgid "Delete layout"
+msgstr "Layout löschen"
+
+msgid "Delete list"
+msgstr "Liste löschen"
+
+msgid "Delete template"
+msgstr "Vorlage löschen"
+
+msgid "Delete the selected drawing"
+msgstr "Ausgewählte Zeichnung löschen"
+
+msgid "Delete this account"
+msgstr "Dieses Konto löschen"
+
+#, message
+msgid "Delete {0}"
+msgstr "{0} löschen"
+
+#, message
+msgid "Delete {f}? Choose Delete again to confirm."
+msgstr "{f} löschen? Wähle zur Bestätigung noch einmal Löschen."
+
+#, message
+msgid "Deleted the folder {dir}."
+msgstr "Ordner {dir} gelöscht."
+
+#, message
+msgid "Deleted {0}"
+msgstr "{0} gelöscht"
+
+#, message
+msgid "Deleted {0}."
+msgstr "{0} gelöscht."
+
+#, message
+msgid "Deleted {f}."
+msgstr "{f} gelöscht."
+
+msgid "Deny"
+msgstr "Ablehnen"
+
+msgid "Depth"
+msgstr "Tiefe"
+
+msgid "Depth of market"
+msgstr "Markttiefe"
+
+msgid "Detrended Price Oscillator"
+msgstr "Detrended Price Oscillator"
+
+msgid "Deviation"
+msgstr "Abweichung"
+
+msgid "Difference"
+msgstr "Differenz"
+
+msgid "Directional Movement Index"
+msgstr "Directional Movement Index"
+
+msgid "Display cumulative volume"
+msgstr "Kumuliertes Volumen anzeigen"
+
+msgid "Display reversal price"
+msgstr "Umkehrpreis anzeigen"
+
+msgid "Display reversal price change"
+msgstr "Änderung des Umkehrpreises anzeigen"
+
+msgid "Display settings"
+msgstr "Anzeigeeinstellungen"
+
+msgid "Dividend"
+msgstr "Dividende"
+
+msgid "Dividend {0} {1}\nEx-date {2}"
+msgstr "Dividende {0} {1}\nEx-Tag {2}"
+
+msgid "Dividends and splits"
+msgstr "Dividenden und Splits"
+
+msgid "Divisor"
+msgstr "Divisor"
+
+msgid "Diwali Balipratipada"
+msgstr ""
+
+msgid "Diwali Laxmi Pujan"
+msgstr ""
+
+msgid "Donchian Channels"
+msgstr "Donchian-Kanäle"
+
+msgid "Done"
+msgstr "Fertig"
+
+msgid "Done."
+msgstr "Fertig."
+
+#, message
+msgid "Done. {errors} couldn't load (hover them to see why)."
+msgstr "Fertig. {errors} konnten nicht geladen werden (Maus darüber zeigt den Grund)."
+
+msgid "Dotted"
+msgstr "Gepunktet"
+
+msgid "Double EMA"
+msgstr "Doppelter EMA"
+
+msgid "Double-click to put these inputs on the chart"
+msgstr "Doppelklick, um diese Eingaben auf den Chart zu übernehmen"
+
+msgid "Double-click to rename"
+msgstr "Doppelklick zum Umbenennen"
+
+msgid "Down"
+msgstr "Abwärts"
+
+msgid "Down Trend"
+msgstr "Abwärtstrend"
+
+msgid "Down volume"
+msgstr "Abwärtsvolumen"
+
+msgid "Download image"
+msgstr "Bild herunterladen"
+
+msgid "Download {0}"
+msgstr "{0} herunterladen"
+
+msgid "Downtrend Highlighter"
+msgstr "Abwärtstrend-Hervorhebung"
+
+msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr ""
+
+msgid "Drag to scale · double-click to fit · right-click for options"
+msgstr "Ziehen zum Skalieren · Doppelklick zum Einpassen · Rechtsklick für Optionen"
+
+msgid "Draw with replacement"
+msgstr "Ziehen mit Zurücklegen"
+
+#, message
+msgid "Draw {what}"
+msgstr "{what} zeichnen"
+
+msgid "Drawdown"
+msgstr "Drawdown"
+
+msgid "Drawing tools"
+msgstr "Zeichenwerkzeuge"
+
+#, message
+msgid "Drawing: {0} #{1}"
+msgstr "Zeichnung: {0} #{1}"
+
+msgid "Drawings"
+msgstr "Zeichnungen"
+
+#, message
+msgid "Drew {what}"
+msgstr "{what} gezeichnet"
+
+msgid "Drop files to attach"
+msgstr "Dateien zum Anhängen ablegen"
+
+msgid "Duplicate"
+msgstr "Duplizieren"
+
+msgid "Dussehra"
+msgstr ""
+
+msgid "EBIT"
+msgstr ""
+
+msgid "EBIT margin"
+msgstr "EBIT-Marge"
+
+msgid "EBITDA"
+msgstr ""
+
+msgid "EBITDA margin"
+msgstr "EBITDA-Marge"
+
+msgid "EMA"
+msgstr ""
+
+msgid "EMA Cross"
+msgstr "EMA-Kreuzung"
+
+msgid "EMA Length"
+msgstr "EMA-Länge"
+
+msgid "EOM"
+msgstr ""
+
+msgid "EV/EBITDA"
+msgstr ""
+
+msgid "EXPLORER"
+msgstr "EXPLORER"
+
+msgid "EXT"
+msgstr ""
+
+msgid "Each symbol's own"
+msgstr "Die des Symbols"
+
+msgid "Early May Bank Holiday"
+msgstr "Early May Bank Holiday"
+
+msgid "Early close"
+msgstr "Früher Schluss"
+
+msgid "Earnings {0}\nReported EPS {1}\nEstimate {2}"
+msgstr "Quartalszahlen {0}\nGemeldetes EPS {1}\nSchätzung {2}"
+
+msgid "Ease of Movement"
+msgstr "Ease of Movement"
+
+msgid "Easter Monday"
+msgstr "Ostermontag"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
+msgid "Edit alert"
+msgstr "Alarm bearbeiten"
+
+msgid "Edit index"
+msgstr "Index bearbeiten"
+
+#, message
+msgid "Edit {0}"
+msgstr "{0} bearbeiten"
+
+#, message
+msgid "Edited {0}"
+msgstr "{0} bearbeitet"
+
+msgid "Efficiency"
+msgstr "Effizienz"
+
+msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr "Effizienz: Out-of-Sample-Gewinn pro Balken im Verhältnis zum In-Sample-Gewinn pro Balken. Über 50 % gilt meist als robust."
+
+msgid "Elder Force Index"
+msgstr "Elder Force Index"
+
+msgid "Ellipse"
+msgstr "Ellipse"
+
+msgid "Email"
+msgstr "E-Mail"
+
+msgid "Emperor Naruhito's Birthday"
+msgstr "Geburtstag von Kaiser Naruhito"
+
+msgid "End of Year Holiday"
+msgstr "Feiertag zum Jahresende"
+
+msgid "End the replay"
+msgstr "Replay beenden"
+
+msgid "Ended the replay"
+msgstr "Replay beendet"
+
+msgid "Enter Opentern"
+msgstr "Opentern öffnen"
+
+#, message
+msgid "Enter a price."
+msgstr "Gib einen Preis ein."
+
+#, message
+msgid "Enter a quantity above zero."
+msgstr "Gib eine Menge über null ein."
+
+msgid "Enter address"
+msgstr "Adresse eingeben"
+
+#, message
+msgid "Enter both the stop and the limit price."
+msgstr "Gib sowohl den Stop- als auch den Limitpreis ein."
+
+#, message
+msgid "Enter how far the stop trails the price."
+msgstr "Gib ein, wie weit der Stop dem Preis folgt."
+
+msgid "Enter the Telegram chat id to send alerts to."
+msgstr "Gib die Telegram-Chat-ID ein, an die Alarme gehen sollen."
+
+msgid "Enter the code from your other device"
+msgstr "Gib den Code von deinem anderen Gerät ein"
+
+msgid "Enter this code on your other device"
+msgstr "Gib diesen Code auf deinem anderen Gerät ein"
+
+msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
+msgstr "Unternehmenswert im Verhältnis zum EBITDA der letzten zwölf Monate. Für den Index: gesamter EV zu gesamtem EBITDA"
+
+msgid "Entry {side}"
+msgstr "Einstieg {side}"
+
+msgid "Envelope"
+msgstr "Hüllkurve"
+
+msgid "Equal"
+msgstr "Gleich"
+
+msgid "Equal weight"
+msgstr "Gleichgewichtet"
+
+msgid "Equity"
+msgstr "Kapital"
+
+msgid "Eraser"
+msgstr "Radierer"
+
+msgid "Euronext Paris"
+msgstr ""
+
+msgid "Europe"
+msgstr "Europa"
+
+msgid "Even trades"
+msgstr "Neutrale Trades"
+
+msgid "Every combination"
+msgstr "Jede Kombination"
+
+msgid "Every in-sample window starts at the first bar"
+msgstr "Jedes In-Sample-Fenster beginnt beim ersten Balken"
+
+msgid "Every index (Esc)"
+msgstr "Alle Indizes (Esc)"
+
+msgid "Every result has its price and day change. Star one into your watchlist, and find coins by name (\"bitcoin\") even with a typo."
+msgstr "Jedes Ergebnis zeigt Preis und Tagesänderung. Markiere eines mit einem Stern für deine Watchlist und finde Coins nach Namen (\"bitcoin\"), auch mit Tippfehler."
+
+msgid "Every stock starts with the same weight."
+msgstr "Jede Aktie beginnt mit demselben Gewicht."
+
+msgid "Every time"
+msgstr "Jedes Mal"
+
+#, message
+msgid "Everything else came in, but this computer can't save these scripts: {0}. Rename them on the other device and export again."
+msgstr "Alles andere wurde importiert, aber dieser Computer kann diese Skripte nicht speichern: {0}. Benenne sie auf dem anderen Gerät um und exportiere erneut."
+
+msgid "Exchange"
+msgstr "Börse"
+
+msgid "Exit {side}"
+msgstr "Ausstieg {side}"
+
+msgid "Expected payoff"
+msgstr "Erwarteter Ertrag"
+
+msgid "Expired"
+msgstr "Abgelaufen"
+
+msgid "Expires"
+msgstr "Läuft ab"
+
+msgid "Exponential"
+msgstr "Exponentiell"
+
+msgid "Export"
+msgstr "Exportieren"
+
+msgid "Export and import"
+msgstr "Export und Import"
+
+msgid "Export: save the list of trades as a CSV file"
+msgstr "Export: Liste der Trades als CSV-Datei speichern"
+
+msgid "Exported {when} · Opentern {0}"
+msgstr "Exportiert {when} · Opentern {0}"
+
+msgid "Exporting"
+msgstr "Wird exportiert"
+
+msgid "Extend left"
+msgstr "Nach links verlängern"
+
+msgid "Extend lines left"
+msgstr "Linien nach links verlängern"
+
+msgid "Extend lines right"
+msgstr "Linien nach rechts verlängern"
+
+msgid "Extend right"
+msgstr "Nach rechts verlängern"
+
+msgid "Extend to last bar"
+msgstr "Bis zum letzten Balken verlängern"
+
+msgid "Extended line"
+msgstr "Verlängerte Linie"
+
+msgid "Extended trading hours"
+msgstr "Erweiterte Handelszeiten"
+
+msgid "Factor"
+msgstr "Faktor"
+
+msgid "Family Day"
+msgstr "Family Day"
+
+msgid "Fast Length"
+msgstr "Schnelle Länge"
+
+msgid "Fast length"
+msgstr "Schnelle Länge"
+
+msgid "Favorites"
+msgstr "Favoriten"
+
+msgid "Feb"
+msgstr "Feb"
+
+msgid "February"
+msgstr "Februar"
+
+msgid "Feed"
+msgstr "Feed"
+
+msgid "Fetch and measure every symbol"
+msgstr "Jedes Symbol laden und messen"
+
+msgid "Fewest trades"
+msgstr "Mindestanzahl Trades"
+
+msgid "Fib retracement"
+msgstr "Fib-Retracement"
+
+msgid "Fibonacci"
+msgstr "Fibonacci"
+
+msgid "Fill"
+msgstr "Füllung"
+
+msgid "Fill in every field first."
+msgstr "Fülle zuerst jedes Feld aus."
+
+msgid "Fill in the SMTP server, your address and where to send, or turn email off."
+msgstr "Trage SMTP-Server, deine Adresse und den Empfänger ein oder schalte E-Mail aus."
+
+msgid "Fill orders on bar close"
+msgstr "Orders zum Balkenschluss ausführen"
+
+msgid "Fills"
+msgstr "Füllungen"
+
+msgid "Filter"
+msgstr "Filter"
+
+msgid "Filter files"
+msgstr "Dateien filtern"
+
+#, message
+msgid "Find files: {0}"
+msgstr "Dateien suchen: {0}"
+
+msgid "Finish signing in in your browser."
+msgstr "Schließe die Anmeldung in deinem Browser ab."
+
+msgid "Fisher"
+msgstr "Fisher"
+
+msgid "Fisher Transform"
+msgstr "Fisher-Transformation"
+
+msgid "Fixed range volume profile"
+msgstr "Volumenprofil (fester Bereich)"
+
+msgid "Floor"
+msgstr "Floor"
+
+msgid "Folders"
+msgstr "Ordner"
+
+msgid "Follow the app theme"
+msgstr "Wie das App-Design"
+
+msgid "Font"
+msgstr "Schriftart"
+
+msgid "Forecasting and measurement tools"
+msgstr "Prognose- und Messwerkzeuge"
+
+msgid "Forex"
+msgstr "Forex"
+
+msgid "Forward one bar"
+msgstr "Einen Balken vor"
+
+#, message
+msgid "Found files: {0}"
+msgstr "Dateien gefunden: {0}"
+
+msgid "Frankfurt"
+msgstr ""
+
+msgid "Free float"
+msgstr "Streubesitz"
+
+msgid "Free real-time prices (IEX). Keys: app.alpaca.markets → API keys."
+msgstr "Kostenlose Echtzeitkurse (IEX). Schlüssel: app.alpaca.markets → API keys."
+
+msgid "Free-float market cap"
+msgstr "Marktkapitalisierung (Streubesitz)"
+
+msgid "Fri"
+msgstr "Fr"
+
+msgid "Friday"
+msgstr "Freitag"
+
+msgid "From @BotFather"
+msgstr "Von @BotFather"
+
+msgid "From a file"
+msgstr "Aus einer Datei"
+
+msgid "From another device"
+msgstr "Von einem anderen Gerät"
+
+msgid "Full Moon"
+msgstr "Vollmond"
+
+msgid "Full market cap"
+msgstr "Volle Marktkapitalisierung"
+
+msgid "Full release notes"
+msgstr "Vollständige Versionshinweise"
+
+msgid "Full screen"
+msgstr "Vollbild"
+
+msgid "Fullscreen mode (Shift F)"
+msgstr "Vollbildmodus (Umschalt F)"
+
+#, message
+msgid "Fundamentals: {e}"
+msgstr "Fundamentaldaten: {e}"
+
+msgid "Funding"
+msgstr "Funding"
+
+msgid "Funds"
+msgstr "Fonds"
+
+msgid "Futures"
+msgstr "Futures"
+
+msgid "Futures prices from free sources are about 10 minutes behind the exchange. Daily closes are the official settlements."
+msgstr "Futures-Kurse aus kostenlosen Quellen hinken der Börse etwa 10 Minuten hinterher. Tagesschlüsse sind die offiziellen Abrechnungskurse."
+
+msgid "Gainers"
+msgstr "Gewinner"
+
+msgid "Ganesh Chaturthi"
+msgstr ""
+
+msgid "Gann and Fibonacci tools"
+msgstr "Gann- und Fibonacci-Werkzeuge"
+
+msgid "Gateway URL"
+msgstr "Gateway-URL"
+
+msgid "General"
+msgstr "Allgemein"
+
+msgid "Geometric shapes"
+msgstr "Geometrische Formen"
+
+msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
+msgstr "Gmail, Outlook und die meisten Anbieter verlangen ein App-Passwort: Erstelle eines in den Sicherheitseinstellungen deines Kontos."
+
+msgid "Good Friday"
+msgstr "Karfreitag"
+
+msgid "Got it"
+msgstr "Verstanden"
+
+msgid "Gradient"
+msgstr "Verlauf"
+
+msgid "Greater than"
+msgstr "Größer als"
+
+msgid "Greenery Day"
+msgstr "Tag des Grüns"
+
+msgid "Grid (every combination)"
+msgstr "Raster (jede Kombination)"
+
+msgid "Gross"
+msgstr "Brutto"
+
+msgid "Gross loss"
+msgstr "Bruttoverlust"
+
+msgid "Gross margin"
+msgstr "Bruttomarge"
+
+msgid "Gross profit"
+msgstr "Bruttogewinn"
+
+msgid "Growth and margins"
+msgstr "Wachstum und Margen"
+
+msgid "HOURS"
+msgstr "STUNDEN"
+
+msgid "HV"
+msgstr ""
+
+msgid "Hangul Proclamation Day"
+msgstr "Hangul-Tag"
+
+msgid "Heatmap"
+msgstr "Heatmap"
+
+msgid "Heikin Ashi"
+msgstr "Heikin Ashi"
+
+msgid "Hidden"
+msgstr "Ausgeblendet"
+
+msgid "Hide"
+msgstr "Ausblenden"
+
+msgid "Hide VWAP on 1D or Above"
+msgstr "VWAP ab 1D ausblenden"
+
+msgid "Hide all drawings"
+msgstr "Alle Zeichnungen ausblenden"
+
+msgid "Hide all drawings ({0})"
+msgstr "Alle Zeichnungen ausblenden ({0})"
+
+msgid "Hide the drawing toolbar"
+msgstr "Zeichenleiste ausblenden"
+
+msgid "Hide the sidebar"
+msgstr "Seitenleiste ausblenden"
+
+msgid "High-low"
+msgstr "Hoch-Tief"
+
+msgid "High|price"
+msgstr "Hoch"
+
+msgid "Histogram"
+msgstr "Histogramm"
+
+msgid "Historical Volatility"
+msgstr "Historische Volatilität"
+
+msgid "History"
+msgstr "Verlauf"
+
+msgid "History {0}"
+msgstr "Verlauf {0}"
+
+msgid "Holi"
+msgstr ""
+
+msgid "Hollow candles"
+msgstr "Hohle Kerzen"
+
+msgid "Hong Kong"
+msgstr "Hongkong"
+
+msgid "Hong Kong Exchanges"
+msgstr ""
+
+msgid "Hong Kong Special Region Establishment Day"
+msgstr "Gründungstag der SVR Hongkong"
+
+msgid "Horizontal line"
+msgstr "Horizontale Linie"
+
+msgid "Horizontal ray"
+msgstr "Horizontaler Strahl"
+
+msgid "Horz grid lines"
+msgstr "Horiz. Gitterlinien"
+
+msgid "Hotlists"
+msgstr "Hotlists"
+
+msgid "Hours"
+msgstr "Stunden"
+
+msgid "How far back its prices go"
+msgstr "Wie weit die Kurse zurückreichen"
+
+msgid "How far the price is above or below its 200-day average"
+msgstr "Wie weit der Preis über oder unter seinem 200-Tage-Durchschnitt liegt"
+
+msgid "How far the price is above or below its 50-day average"
+msgstr "Wie weit der Preis über oder unter seinem 50-Tage-Durchschnitt liegt"
+
+msgid "Hull Moving Average"
+msgstr "Hull Moving Average"
+
+#, message
+msgid "IBKR doesn't know {0}."
+msgstr "IBKR kennt {0} nicht."
+
+#, message
+msgid "IBKR has no {0} bars"
+msgstr "IBKR hat keine {0}-Balken"
+
+msgid "IN {0}"
+msgstr "IN {0}"
+
+msgid "INCLUDE"
+msgstr "EINSCHLIESSEN"
+
+msgid "INPUTS TO VARY"
+msgstr "ZU VARIIERENDE EINGABEN"
+
+msgid "Ichimoku Cloud"
+msgstr "Ichimoku-Wolke"
+
+msgid "Icons"
+msgstr "Symbole"
+
+msgid "Id-Ul-Fitr"
+msgstr "Fest des Fastenbrechens"
+
+msgid "Import"
+msgstr "Importieren"
+
+msgid "Import and restart"
+msgstr "Importieren und neu starten"
+
+msgid "Import finished"
+msgstr "Import abgeschlossen"
+
+msgid "Import from {0}"
+msgstr "Import von {0}"
+
+msgid "Imported. Press Run in the Script Editor to start it."
+msgstr "Importiert. Drücke im Skript-Editor auf Ausführen, um es zu starten."
+
+msgid "Importing"
+msgstr "Wird importiert"
+
+msgid "In a pane of its own, below"
+msgstr "In einem eigenen Bereich darunter"
+
+msgid "In-sample P&L"
+msgstr "In-Sample-G&V"
+
+msgid "In-sample bars"
+msgstr "In-Sample-Balken"
+
+msgid "Increment"
+msgstr "Schritt"
+
+msgid "Independence Day"
+msgstr "Unabhängigkeitstag"
+
+msgid "Independence Movement Day"
+msgstr "Tag der Unabhängigkeitsbewegung"
+
+msgid "Index"
+msgstr "Index"
+
+msgid "Indian Markets"
+msgstr "Indische Märkte"
+
+msgid "Indian large caps"
+msgstr "Indische Large Caps"
+
+msgid "Indicator inputs"
+msgstr "Indikatoreingaben"
+
+msgid "Indicator templates"
+msgstr "Indikatorvorlagen"
+
+msgid "Indicator titles"
+msgstr "Indikatortitel"
+
+msgid "Indicator value labels"
+msgstr "Labels der Indikatorwerte"
+
+msgid "Indicator values"
+msgstr "Indikatorwerte"
+
+msgid "Indicators"
+msgstr "Indikatoren"
+
+msgid "Indicators, metrics and strategies (/)"
+msgstr "Indikatoren, Kennzahlen und Strategien (/)"
+
+msgid "Indices"
+msgstr "Indizes"
+
+msgid "Initial capital"
+msgstr "Startkapital"
+
+msgid "Input"
+msgstr "Eingabe"
+
+msgid "Inputs"
+msgstr "Eingaben"
+
+msgid "Install {0}"
+msgstr "{0} installieren"
+
+msgid "Interactive Brokers"
+msgstr "Interactive Brokers"
+
+msgid "Interval"
+msgstr "Intervall"
+
+#, message
+msgid "It ended with code {n}."
+msgstr "Mit Code {n} beendet."
+
+msgid "JSON"
+msgstr "JSON"
+
+msgid "Jan"
+msgstr "Jan"
+
+msgid "January"
+msgstr "Januar"
+
+msgid "Japan Exchange Group"
+msgstr ""
+
+msgid "Jaw"
+msgstr "Kiefer"
+
+msgid "Jaw Length"
+msgstr "Kieferlänge"
+
+msgid "Jaw Offset"
+msgstr "Kieferversatz"
+
+msgid "Jul"
+msgstr "Jul"
+
+msgid "July"
+msgstr "Juli"
+
+msgid "Jump to real time"
+msgstr "Zur Echtzeit springen"
+
+msgid "Jun"
+msgstr "Jun"
+
+msgid "June"
+msgstr "Juni"
+
+msgid "Juneteenth"
+msgstr ""
+
+msgid "KEEP IN SYNC"
+msgstr "SYNCHRON HALTEN"
+
+msgid "KST"
+msgstr ""
+
+msgid "Kagi"
+msgstr "Kagi"
+
+msgid "Keep checking alerts"
+msgstr "Alarme weiter prüfen"
+
+msgid "Keep checking, even after a restart"
+msgstr "Weiter prüfen, auch nach einem Neustart"
+
+msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
+msgstr "Behält Vorhandenes und aktualisiert Gleichnamiges. Vorher wird ein Backup gespeichert."
+
+msgid "Keltner Channels"
+msgstr "Keltner-Kanäle"
+
+msgid "Key ID"
+msgstr "Schlüssel-ID"
+
+msgid "Keyboard shortcuts"
+msgstr "Tastenkürzel"
+
+msgid "King's Birthday"
+msgstr "King's Birthday"
+
+msgid "Klinger Oscillator"
+msgstr "Klinger-Oszillator"
+
+msgid "Know Sure Thing"
+msgstr "Know Sure Thing"
+
+msgid "Korea Exchange"
+msgstr ""
+
+msgid "Korean National Foundation Day"
+msgstr "Gründungstag Koreas"
+
+#, message
+msgid "Kraken has no {0} bars"
+msgstr "Kraken hat keine {0}-Balken"
+
+msgid "Labels on price scale"
+msgstr "Labels auf der Preisskala"
+
+msgid "Labels position"
+msgstr "Position der Labels"
+
+msgid "Labor Day"
+msgstr "Tag der Arbeit"
+
+msgid "Labor Thanksgiving Day"
+msgstr "Tag des Dankes für die Arbeit"
+
+msgid "Labour Day"
+msgstr "Tag der Arbeit"
+
+msgid "Lagging Span"
+msgstr "Lagging Span"
+
+msgid "Lakhs, crores"
+msgstr "Lakh, Crore"
+
+msgid "Language"
+msgstr "Sprache"
+
+msgid "Large numbers"
+msgstr "Große Zahlen"
+
+msgid "Largest losing trade"
+msgstr "Größter Verlusttrade"
+
+msgid "Largest losing trade, % of gross loss"
+msgstr "Größter Verlusttrade, % des Bruttoverlusts"
+
+msgid "Largest winning trade"
+msgstr "Größter Gewinntrade"
+
+msgid "Largest winning trade, % of gross profit"
+msgstr "Größter Gewinntrade, % des Bruttogewinns"
+
+msgid "Last"
+msgstr "Letzter"
+
+#, message
+msgid "Last rebalanced {0}."
+msgstr "Zuletzt neu gewichtet am {0}."
+
+msgid "Layout {n}"
+msgstr "Layout {n}"
+
+msgid "Layouts"
+msgstr "Layouts"
+
+msgid "Leading Span A"
+msgstr "Leading Span A"
+
+msgid "Leading Span B"
+msgstr "Leading Span B"
+
+msgid "Leading Span B Length"
+msgstr "Länge von Leading Span B"
+
+msgid "Least Squares Moving Average"
+msgstr "Kleinste-Quadrate-Durchschnitt"
+
+#, message
+msgid "Leave members out of {0}"
+msgstr "Mitglieder von {0} auslassen"
+
+msgid "Leave out of the index"
+msgstr "Aus dem Index auslassen"
+
+msgid "Left"
+msgstr "Links"
+
+msgid "Left Bars"
+msgstr "Balken links"
+
+#, message
+msgid "Left members out of {0}"
+msgstr "Mitglieder von {0} ausgelassen"
+
+msgid "Length"
+msgstr "Länge"
+
+msgid "Less than"
+msgstr "Kleiner als"
+
+msgid "Levels"
+msgstr "Niveaus"
+
+msgid "Levels format"
+msgstr "Niveauformat"
+
+msgid "Leverage"
+msgstr "Hebel"
+
+msgid "Like 15, 4h, D, W or 3M"
+msgstr "Zum Beispiel 15, 4h, D, W oder 3M"
+
+msgid "Limit"
+msgstr "Limit"
+
+msgid "Limit price"
+msgstr "Limitpreis"
+
+msgid "Line"
+msgstr "Linie"
+
+msgid "Line break"
+msgstr "Linienbruch"
+
+msgid "Line color"
+msgstr "Linienfarbe"
+
+msgid "Line width"
+msgstr "Linienbreite"
+
+msgid "Line with breaks"
+msgstr "Linie mit Lücken"
+
+msgid "Line with markers"
+msgstr "Linie mit Markern"
+
+msgid "Linear Regression Channel"
+msgstr "Linearer Regressionskanal"
+
+msgid "Lips"
+msgstr "Lippen"
+
+msgid "Lips Length"
+msgstr "Lippenlänge"
+
+msgid "Lips Offset"
+msgstr "Lippenversatz"
+
+msgid "List"
+msgstr "Liste"
+
+msgid "List menu (double-click to rename)"
+msgstr "Listenmenü (Doppelklick zum Umbenennen)"
+
+msgid "List of trades"
+msgstr "Liste der Trades"
+
+msgid "List the indices"
+msgstr "Indizes auflisten"
+
+msgid "List your scripts"
+msgstr "Deine Skripte auflisten"
+
+msgid "List {0}"
+msgstr "Liste {0}"
+
+msgid "Listed the indices"
+msgstr "Indizes aufgelistet"
+
+msgid "Listed your scripts"
+msgstr "Deine Skripte aufgelistet"
+
+msgid "Live"
+msgstr "Live"
+
+msgid "Ln {line}, Col {col}      Spaces: {0}      UTF-8      {1}"
+msgstr "Z. {line}, Sp. {col}      Leerzeichen: {0}      UTF-8      {1}"
+
+#, message
+msgid "Loaded {0} of {1}…"
+msgstr "{0} von {1} geladen…"
+
+msgid "Loading models"
+msgstr "Modelle werden geladen"
+
+#, message
+msgid "Loading {0} symbols…"
+msgstr "{0} Symbole werden geladen…"
+
+msgid "Loading…"
+msgstr "Wird geladen…"
+
+msgid "Local"
+msgstr "Lokal"
+
+msgid "Lock"
+msgstr "Sperren"
+
+msgid "Lock all drawings"
+msgstr "Alle Zeichnungen sperren"
+
+msgid "Log"
+msgstr "Log"
+
+msgid "Log scale"
+msgstr "Log-Skala"
+
+msgid "Log scale (Alt L)"
+msgstr "Log-Skala (Alt L)"
+
+msgid "London"
+msgstr ""
+
+msgid "London Stock Exchange"
+msgstr ""
+
+msgid "Long"
+msgstr "Long"
+
+msgid "Long Length"
+msgstr "Lange Länge"
+
+msgid "Long MA"
+msgstr "Langer MA"
+
+msgid "Long MA length"
+msgstr "Länge des langen MA"
+
+msgid "Long RCI"
+msgstr "Langer RCI"
+
+msgid "Long RCI Length"
+msgstr "Länge des langen RCI"
+
+msgid "Long RoC Length"
+msgstr "Länge des langen RoC"
+
+msgid "Long position"
+msgstr "Long-Position"
+
+msgid "Look at the chart"
+msgstr "Chart ansehen"
+
+msgid "Look at the drawings"
+msgstr "Zeichnungen ansehen"
+
+msgid "Look at the paper account"
+msgstr "Papierkonto ansehen"
+
+#, message
+msgid "Look at {0}"
+msgstr "{0} ansehen"
+
+msgid "Look up indicators"
+msgstr "Indikatoren nachschlagen"
+
+msgid "Looked at the chart"
+msgstr "Chart angesehen"
+
+msgid "Looked at the drawings"
+msgstr "Zeichnungen angesehen"
+
+msgid "Looked at the paper account"
+msgstr "Papierkonto angesehen"
+
+#, message
+msgid "Looked at {0}"
+msgstr "{0} angesehen"
+
+msgid "Looked up indicators"
+msgstr "Indikatoren nachgeschlagen"
+
+msgid "Looking for your other device"
+msgstr "Dein anderes Gerät wird gesucht"
+
+msgid "Losers"
+msgstr "Verlierer"
+
+msgid "Losing streak"
+msgstr "Verlustserie"
+
+msgid "Losing streak, worst 5%"
+msgstr "Verlustserie, schlechteste 5 %"
+
+msgid "Losing trades"
+msgstr "Verlusttrades"
+
+msgid "Lower"
+msgstr "Untere"
+
+msgid "Lower Band"
+msgstr "Unteres Band"
+
+msgid "Lower Band #1"
+msgstr "Unteres Band 1"
+
+msgid "Lower Band #2"
+msgstr "Unteres Band 2"
+
+msgid "Lower Band #3"
+msgstr "Unteres Band 3"
+
+msgid "Lower color"
+msgstr "Untere Farbe"
+
+msgid "Lower deviation"
+msgstr "Untere Abweichung"
+
+msgid "Lower length"
+msgstr "Untere Länge"
+
+msgid "Lower multiplier"
+msgstr "Unterer Multiplikator"
+
+msgid "Lower offset"
+msgstr "Unterer Versatz"
+
+msgid "Low|price"
+msgstr "Tief"
+
+msgid "Lunar New Year"
+msgstr "Mondneujahr"
+
+msgid "MA"
+msgstr ""
+
+msgid "MA #1"
+msgstr "MA 1"
+
+msgid "MA #1 Length"
+msgstr "Länge MA 1"
+
+msgid "MA #2"
+msgstr "MA 2"
+
+msgid "MA #2 Length"
+msgstr "Länge MA 2"
+
+msgid "MA #3"
+msgstr "MA 3"
+
+msgid "MA #3 Length"
+msgstr "Länge MA 3"
+
+msgid "MA #4"
+msgstr "MA 4"
+
+msgid "MA #4 Length"
+msgstr "Länge MA 4"
+
+msgid "MA Cross"
+msgstr "MA-Kreuzung"
+
+msgid "MA Length"
+msgstr "MA-Länge"
+
+msgid "MA Type"
+msgstr "MA-Typ"
+
+msgid "MACD"
+msgstr ""
+
+msgid "MF"
+msgstr ""
+
+msgid "MINUTES"
+msgstr "MINUTEN"
+
+msgid "MR"
+msgstr ""
+
+#, message
+msgid "Made the index {0}"
+msgstr "Index {0} erstellt"
+
+#, message
+msgid "Made {name}."
+msgstr "{name} erstellt."
+
+msgid "Magnet mode: snap to open, high, low, close"
+msgstr "Magnetmodus: an Eröffnung, Hoch, Tief, Schluss einrasten"
+
+msgid "Maharashtra Day"
+msgstr "Maharashtra Day"
+
+msgid "Mahashivratri"
+msgstr ""
+
+msgid "Mahatma Gandhi Jayanti"
+msgstr ""
+
+msgid "Majority Rule"
+msgstr "Mehrheitsregel"
+
+msgid "Make a copy"
+msgstr "Kopie erstellen"
+
+msgid "Make a copy to edit"
+msgstr "Kopie zum Bearbeiten erstellen"
+
+msgid "Make another account first"
+msgstr "Erstelle zuerst ein anderes Konto"
+
+#, message
+msgid "Make the index {0}"
+msgstr "Index {0} erstellen"
+
+msgid "Make the panel taller to see the equity curve."
+msgstr "Vergrößere das Panel, um die Kapitalkurve zu sehen."
+
+msgid "Map"
+msgstr "Karte"
+
+msgid "Map of every index"
+msgstr "Karte aller Indizes"
+
+msgid "Mar"
+msgstr "Mär"
+
+msgid "March"
+msgstr "März"
+
+msgid "Margin"
+msgstr "Margin"
+
+msgid "Margin calls"
+msgstr "Margin Calls"
+
+msgid "Margin efficiency"
+msgstr "Margin-Effizienz"
+
+msgid "Margin for long positions"
+msgstr "Margin für Long-Positionen"
+
+msgid "Margin for short positions"
+msgstr "Margin für Short-Positionen"
+
+msgid "Margin in use {0}{unit} · Buying power {1}{unit}"
+msgstr "Genutzte Margin {0}{unit} · Kaufkraft {1}{unit}"
+
+msgid "Marine Day"
+msgstr "Tag des Meeres"
+
+msgid "Market"
+msgstr "Market"
+
+msgid "Market cap"
+msgstr "Marktkapitalisierung"
+
+msgid "Market caps didn't load, so every tile is the same size"
+msgstr "Marktkapitalisierungen wurden nicht geladen, daher sind alle Kacheln gleich groß"
+
+msgid "Market closed{when}"
+msgstr "Markt geschlossen{when}"
+
+msgid "Market holiday"
+msgstr "Börsenfeiertag"
+
+msgid "Market open"
+msgstr "Markt geöffnet"
+
+msgid "Market overview"
+msgstr "Marktübersicht"
+
+msgid "Market overview (Alt M)"
+msgstr "Marktübersicht (Alt M)"
+
+msgid "Martin Luther King Jr. Day"
+msgstr "Martin Luther King Jr. Day"
+
+msgid "Mass Index"
+msgstr "Mass Index"
+
+msgid "Max DD"
+msgstr "Max. DD"
+
+msgid "Max contracts held"
+msgstr "Max. gehaltene Kontrakte"
+
+msgid "Max drawdown"
+msgstr "Max. Drawdown"
+
+msgid "Max drawdown %"
+msgstr "Max. Drawdown %"
+
+msgid "Max drawdown, worst 5%"
+msgstr "Max. Drawdown, schlechteste 5 %"
+
+msgid "Max equity drawdown"
+msgstr "Max. Kapital-Drawdown"
+
+msgid "Max equity run-up"
+msgstr "Max. Kapital-Run-up"
+
+msgid "Max margin used"
+msgstr "Max. genutzte Margin"
+
+msgid "Max value"
+msgstr "Höchstwert"
+
+msgid "Maximize"
+msgstr "Maximieren"
+
+msgid "Maximize panel"
+msgstr "Panel maximieren"
+
+msgid "May"
+msgstr "Mai"
+
+msgid "McGinley Dynamic"
+msgstr "McGinley Dynamic"
+
+msgid "Measure"
+msgstr "Messen"
+
+msgid "Measure (or Shift+drag)"
+msgstr "Messen (oder Umschalt+Ziehen)"
+
+msgid "Median"
+msgstr "Median"
+
+msgid "Median EMA"
+msgstr "Median-EMA"
+
+msgid "Median Length"
+msgstr "Medianlänge"
+
+msgid "Median P&L"
+msgstr "Median-G&V"
+
+msgid "Median max drawdown"
+msgstr "Median des max. Drawdowns"
+
+msgid "Memorial Day"
+msgstr "Memorial Day"
+
+msgid "Merge"
+msgstr "Zusammenführen"
+
+msgid "Message"
+msgstr "Nachricht"
+
+msgid "Method"
+msgstr "Methode"
+
+msgid "Middle"
+msgstr "Mitte"
+
+msgid "Middle Band"
+msgstr "Mittleres Band"
+
+msgid "Middle Length"
+msgstr "Mittlere Länge"
+
+msgid "Middle RCI"
+msgstr "Mittlerer RCI"
+
+msgid "Middle RCI Length"
+msgstr "Länge des mittleren RCI"
+
+msgid "Millions, billions"
+msgstr "Millionen, Milliarden"
+
+msgid "Minutes"
+msgstr "Minuten"
+
+msgid "Model"
+msgstr "Modell"
+
+msgid "Momentum"
+msgstr "Momentum"
+
+msgid "Mon"
+msgstr "Mo"
+
+msgid "Monday"
+msgstr "Montag"
+
+msgid "Money Flow Index"
+msgstr "Money Flow Index"
+
+msgid "Monte Carlo"
+msgstr "Monte Carlo"
+
+#, message
+msgid "Monte Carlo needs at least two closed trades."
+msgstr "Monte Carlo braucht mindestens zwei geschlossene Trades."
+
+msgid "Month"
+msgstr "Monat"
+
+msgid "Monthly"
+msgstr "Monatlich"
+
+msgid "Monthly limit"
+msgstr "Monatslimit"
+
+msgid "Months"
+msgstr "Monate"
+
+msgid "Moon Phases"
+msgstr "Mondphasen"
+
+msgid "More"
+msgstr "Mehr"
+
+msgid "More intervals"
+msgstr "Weitere Intervalle"
+
+msgid "Mountain Day"
+msgstr "Tag der Berge"
+
+msgid "Move the pointer over the chart."
+msgstr "Bewege den Mauszeiger über den Chart."
+
+msgid "Move to top"
+msgstr "Nach oben"
+
+#, message
+msgid "Moved to {0}."
+msgstr "Nach {0} verschoben."
+
+msgid "Moving Average Adaptive"
+msgstr "Adaptiver gleitender Durchschnitt"
+
+msgid "Moving Average Channel"
+msgstr "Gleitender-Durchschnitt-Kanal"
+
+msgid "Moving Average Exponential"
+msgstr "Exponentieller gleitender Durchschnitt"
+
+msgid "Moving Average Hamming"
+msgstr "Hamming-Durchschnitt"
+
+msgid "Moving Average Ribbon"
+msgstr "Gleitender-Durchschnitt-Band"
+
+msgid "Moving Average Simple"
+msgstr "Einfacher gleitender Durchschnitt"
+
+msgid "Moving Average Weighted"
+msgstr "Gewichteter gleitender Durchschnitt"
+
+msgid "Moving averages"
+msgstr "Gleitende Durchschnitte"
+
+msgid "Muharram"
+msgstr ""
+
+msgid "Muhurat trading"
+msgstr "Muhurat-Handel"
+
+msgid "Multiplier"
+msgstr "Multiplikator"
+
+msgid "Multiplier #1"
+msgstr "Multiplikator 1"
+
+msgid "Multiplier #2"
+msgstr "Multiplikator 2"
+
+msgid "Multiplier #3"
+msgstr "Multiplikator 3"
+
+msgid "Municipal Corporation Elections (Maharashtra)"
+msgstr "Kommunalwahlen (Maharashtra)"
+
+msgid "My plan includes SIP"
+msgstr "Mein Tarif enthält SIP"
+
+msgid "NEW SCRIPT HERE"
+msgstr "NEUES SKRIPT HIER"
+
+msgid "NIFTY 500"
+msgstr ""
+
+msgid "NSE · BSE"
+msgstr ""
+
+msgid "NYSE · NASDAQ"
+msgstr ""
+
+msgid "Name"
+msgstr "Name"
+
+#, message
+msgid "Nasdaq sent no earnings."
+msgstr "Nasdaq hat keine Quartalszahlen gesendet."
+
+msgid "National Day"
+msgstr "Nationalfeiertag"
+
+msgid "National Day of the Republic of China"
+msgstr "Nationalfeiertag der Republik China"
+
+msgid "National Foundation Day"
+msgstr "Nationaler Gründungstag"
+
+msgid "National Liberation Day"
+msgstr "Nationaler Befreiungstag"
+
+msgid "Net P&L"
+msgstr "Netto-G&V"
+
+msgid "Net P&L %"
+msgstr "Netto-G&V %"
+
+msgid "Net P&L (every run)"
+msgstr "Netto-G&V (jeder Lauf)"
+
+msgid "Net Volume"
+msgstr "Nettovolumen"
+
+msgid "Net profit"
+msgstr "Nettogewinn"
+
+msgid "Net profit as % of largest loss"
+msgstr "Nettogewinn in % des größten Verlusts"
+
+msgid "Net profit ÷ max drawdown"
+msgstr "Nettogewinn ÷ max. Drawdown"
+
+msgid "Never"
+msgstr "Nie"
+
+msgid "New Moon"
+msgstr "Neumond"
+
+msgid "New Year's Day"
+msgstr "Neujahr"
+
+msgid "New Year's Eve"
+msgstr "Silvester"
+
+msgid "New Year's Holiday"
+msgstr "Neujahrsfeiertag"
+
+msgid "New account"
+msgstr "Neues Konto"
+
+msgid "New chat"
+msgstr "Neuer Chat"
+
+msgid "New folder"
+msgstr "Neuer Ordner"
+
+msgid "New index"
+msgstr "Neuer Index"
+
+msgid "New layout"
+msgstr "Neues Layout"
+
+msgid "New line"
+msgstr "Neue Zeile"
+
+msgid "New list"
+msgstr "Neue Liste"
+
+msgid "New pane"
+msgstr "Neuer Bereich"
+
+msgid "New paper account"
+msgstr "Neues Papierkonto"
+
+msgid "New price scale"
+msgstr "Neue Preisskala"
+
+msgid "New script"
+msgstr "Neues Skript"
+
+msgid "New section"
+msgstr "Neuer Abschnitt"
+
+msgid "News"
+msgstr "Nachrichten"
+
+msgid "Next earnings {0}\nEstimate {1}"
+msgstr "Nächste Quartalszahlen {0}\nSchätzung {1}"
+
+#, message
+msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr "Nächste Neugewichtung {0} (1. April und 1. Oktober)."
+
+msgid "No alerts yet"
+msgstr "Noch keine Alarme"
+
+msgid "No bars came back."
+msgstr "Es kamen keine Balken zurück."
+
+msgid "No chat mentions that."
+msgstr "Kein Chat erwähnt das."
+
+msgid "No chats yet"
+msgstr "Noch keine Chats"
+
+msgid "No closed trades yet."
+msgstr "Noch keine geschlossenen Trades."
+
+#, message
+msgid "No coin prices came this time. Try again in a minute."
+msgstr "Diesmal kamen keine Coin-Kurse. Versuche es in einer Minute erneut."
+
+#, message
+msgid "No company fundamentals for this market."
+msgstr "Keine Fundamentaldaten für diesen Markt."
+
+msgid "No daily history for this symbol."
+msgstr "Keine Tageshistorie für dieses Symbol."
+
+msgid "No favorites yet"
+msgstr "Noch keine Favoriten"
+
+msgid "No file open"
+msgstr "Keine Datei geöffnet"
+
+#, message
+msgid "No funding rate for this symbol."
+msgstr "Keine Funding-Rate für dieses Symbol."
+
+msgid "No headlines right now."
+msgstr "Gerade keine Schlagzeilen."
+
+msgid "No holidays in the next four months."
+msgstr "Keine Feiertage in den nächsten vier Monaten."
+
+msgid "No indices yet"
+msgstr "Noch keine Indizes"
+
+msgid "No lists match"
+msgstr "Keine passenden Listen"
+
+msgid "No matches"
+msgstr "Keine Treffer"
+
+msgid "No monthly history"
+msgstr "Keine Monatshistorie"
+
+msgid "No monthly history for this symbol."
+msgstr "Keine Monatshistorie für dieses Symbol."
+
+msgid "No new prices for {0}"
+msgstr "Keine neuen Kurse seit {0}"
+
+msgid "No open positions."
+msgstr "Keine offenen Positionen."
+
+#, message
+msgid "No price yet for this symbol."
+msgstr "Noch kein Preis für dieses Symbol."
+
+msgid "No prices came back."
+msgstr "Es kamen keine Kurse zurück."
+
+#, message
+msgid "No prices came this time."
+msgstr "Diesmal kamen keine Kurse."
+
+msgid "No prices: the ticker may have been renamed or delisted. Left out of the index."
+msgstr "Keine Kurse: Der Ticker wurde vielleicht umbenannt oder dekotiert. Nicht im Index."
+
+msgid "No problems. Running on the chart."
+msgstr "Keine Probleme. Läuft auf dem Chart."
+
+msgid "No run met the conditions (too few trades, or the script failed)."
+msgstr "Kein Lauf erfüllte die Bedingungen (zu wenige Trades oder das Skript schlug fehl)."
+
+msgid "No script"
+msgstr "Kein Skript"
+
+msgid "No scripts yet. Press + to start one."
+msgstr "Noch keine Skripte. Drücke +, um eines zu beginnen."
+
+msgid "No section"
+msgstr "Kein Abschnitt"
+
+msgid "No strategy on the chart"
+msgstr "Keine Strategie auf dem Chart"
+
+msgid "No symbol could be tested."
+msgstr "Kein Symbol konnte getestet werden."
+
+msgid "No symbols match."
+msgstr "Keine passenden Symbole."
+
+msgid "No symbols yet"
+msgstr "Noch keine Symbole"
+
+msgid "No working orders."
+msgstr "Keine offenen Orders."
+
+#, message
+msgid "No {0}/{1} exchange rate yet."
+msgstr "Noch kein Wechselkurs {0}/{1}."
+
+#, message
+msgid "No {0}/{1} exchange rate yet; try again in a moment."
+msgstr "Noch kein Wechselkurs {0}/{1}; versuche es gleich noch einmal."
+
+msgid "None"
+msgstr "Keine"
+
+msgid "Not answered"
+msgstr "Nicht beantwortet"
+
+msgid "Not connecting? Your other device has to reach this one. Windows will ask for permission."
+msgstr "Keine Verbindung? Dein anderes Gerät muss dieses erreichen. Windows fragt um Erlaubnis."
+
+#, message
+msgid "Not enough bars: each step needs {0} in-sample bars and some after them, and there are {1}."
+msgstr "Zu wenige Balken: Jeder Schritt braucht {0} In-Sample-Balken und einige danach, vorhanden sind {1}."
+
+#, message
+msgid "Not enough buying power for this order."
+msgstr "Nicht genug Kaufkraft für diese Order."
+
+msgid "Not installed"
+msgstr "Nicht installiert"
+
+msgid "Not yet tried with a real account. Compare its prices with another source before relying on them."
+msgstr "Noch nicht mit einem echten Konto getestet. Vergleiche die Kurse mit einer anderen Quelle, bevor du dich darauf verlässt."
+
+msgid "Nothing defined yet."
+msgstr "Noch nichts definiert."
+
+msgid "Nothing found"
+msgstr "Nichts gefunden"
+
+msgid "Nothing has fired yet"
+msgstr "Noch nichts ausgelöst"
+
+msgid "Nothing matches"
+msgstr "Keine Treffer"
+
+msgid "Nothing on the chart yet"
+msgstr "Noch nichts auf dem Chart"
+
+msgid "Nothing traded yet."
+msgstr "Noch nichts gehandelt."
+
+msgid "Notification"
+msgstr "Benachrichtigung"
+
+msgid "Notifications"
+msgstr "Benachrichtigungen"
+
+msgid "Notify me"
+msgstr "Benachrichtigen"
+
+msgid "Nov"
+msgstr "Nov"
+
+msgid "November"
+msgstr "November"
+
+msgid "Number of lines"
+msgstr "Anzahl der Linien"
+
+msgid "Number of pivots back"
+msgstr "Anzahl der Pivots zurück"
+
+msgid "Number of rows"
+msgstr "Anzahl der Zeilen"
+
+msgid "Number of years"
+msgstr "Anzahl der Jahre"
+
+#, message
+msgid "OANDA has no {0} bars"
+msgstr "OANDA hat keine {0}-Balken"
+
+#, message
+msgid "OANDA refused the token. Check it in Settings → Data providers."
+msgstr "OANDA hat das Token abgelehnt. Prüfe es unter Einstellungen → Datenanbieter."
+
+msgid "OANDA · forex and CFDs"
+msgstr "OANDA · Forex und CFDs"
+
+msgid "OBJECT TREE"
+msgstr "OBJEKTBAUM"
+
+#, message
+msgid "OKX has no {0} bars"
+msgstr "OKX hat keine {0}-Balken"
+
+#, message
+msgid "OKX's perpetual order book counts contracts, so it isn't shown. Binance and Bybit perpetuals have one."
+msgstr "Das Orderbuch der OKX-Perpetuals zählt Kontrakte und wird daher nicht angezeigt. Binance- und Bybit-Perpetuals haben eines."
+
+msgid "OPEN LAYOUT"
+msgstr "LAYOUT ÖFFNEN"
+
+msgid "OUTLINE"
+msgstr "GLIEDERUNG"
+
+msgid "OUTPUT"
+msgstr "AUSGABE"
+
+msgid "Object tree and data window"
+msgstr "Objektbaum und Datenfenster"
+
+msgid "Oct"
+msgstr "Okt"
+
+msgid "October"
+msgstr "Oktober"
+
+msgid "Of each fill's value"
+msgstr "Vom Wert jeder Ausführung"
+
+msgid "Off"
+msgstr "Aus"
+
+msgid "Offset"
+msgstr "Versatz"
+
+msgid "Ok"
+msgstr "OK"
+
+msgid "Older"
+msgstr "Älter"
+
+msgid "On"
+msgstr "Ein"
+
+msgid "On Balance Volume"
+msgstr "On-Balance-Volumen"
+
+msgid "On the chart"
+msgstr "Auf dem Chart"
+
+msgid "OnBalanceVolume"
+msgstr "On-Balance-Volumen"
+
+msgid "Once per bar"
+msgstr "Einmal pro Balken"
+
+msgid "Once per bar close"
+msgstr "Einmal pro Balkenschluss"
+
+msgid "Only once"
+msgstr "Nur einmal"
+
+msgid "Opacity"
+msgstr "Deckkraft"
+
+msgid "Open Local Network settings"
+msgstr "Einstellungen für lokales Netzwerk öffnen"
+
+msgid "Open P&L"
+msgstr "Offene G&V"
+
+msgid "Open chart"
+msgstr "Chart öffnen"
+
+msgid "Open folder"
+msgstr "Ordner öffnen"
+
+msgid "Open in your editor"
+msgstr "In deinem Editor öffnen"
+
+msgid "Open in your file manager"
+msgstr "Im Dateimanager öffnen"
+
+msgid "Open on the chart"
+msgstr "Auf dem Chart öffnen"
+
+msgid "Open page"
+msgstr "Seite öffnen"
+
+msgid "Open panel"
+msgstr "Panel öffnen"
+
+msgid "Open snapshots folder"
+msgstr "Snapshot-Ordner öffnen"
+
+msgid "Open the scripts folder"
+msgstr "Skriptordner öffnen"
+
+msgid "Open this formula"
+msgstr "Diese Formel öffnen"
+
+#, message
+msgid "Open {0}"
+msgstr "{0} öffnen"
+
+#, message
+msgid "Open {0} in the editor"
+msgstr "{0} im Editor öffnen"
+
+msgid "Open {f} in the Script Editor"
+msgstr "{f} im Skript-Editor öffnen"
+
+msgid "Open, high, low and close values"
+msgstr "Eröffnungs-, Hoch-, Tief- und Schlusswerte"
+
+#, message
+msgid "Opened {0}"
+msgstr "{0} geöffnet"
+
+#, message
+msgid "Opened {0} in the editor"
+msgstr "{0} im Editor geöffnet"
+
+msgid "Opentern couldn't start"
+msgstr "Opentern konnte nicht starten"
+
+msgid "Opentern export"
+msgstr "Opentern-Export"
+
+msgid "Opentern is open in another window. Close it, then import."
+msgstr "Opentern ist in einem anderen Fenster geöffnet. Schließe es und importiere dann."
+
+msgid "Opentern is up to date"
+msgstr "Opentern ist aktuell"
+
+msgid "Opentern {0}"
+msgstr "Opentern {0}"
+
+msgid "Opentern {0} is available. Click to update."
+msgstr "Opentern {0} ist verfügbar. Zum Aktualisieren klicken."
+
+msgid "Opentern {0} is available. {why}."
+msgstr "Opentern {0} ist verfügbar. {why}."
+
+msgid "Opentern {0} is installed. Click to restart."
+msgstr "Opentern {0} ist installiert. Zum Neustarten klicken."
+
+#, message
+msgid "Opentern {0} is installed. Restart to use it."
+msgstr "Opentern {0} ist installiert. Starte neu, um es zu nutzen."
+
+#, message
+msgid "Opentern {0} is ready to install from the rail."
+msgstr "Opentern {0} kann über die Seitenleiste installiert werden."
+
+msgid "Opentern {version}"
+msgstr "Opentern {version}"
+
+msgid "Open|price"
+msgstr "Eröffnung"
+
+msgid "Optimize"
+msgstr "Optimieren"
+
+msgid "Order cancelled."
+msgstr "Order storniert."
+
+#, message
+msgid "Order moved to {0}."
+msgstr "Order auf {0} verschoben."
+
+msgid "Order placed."
+msgstr "Order platziert."
+
+msgid "Order size"
+msgstr "Ordergröße"
+
+msgid "Orders {0}"
+msgstr "Orders {0}"
+
+msgid "Oscillator MA Type"
+msgstr "MA-Typ des Oszillators"
+
+msgid "Oscillators"
+msgstr "Oszillatoren"
+
+msgid "Other device"
+msgstr "Anderes Gerät"
+
+msgid "Our Lady of Aparecida"
+msgstr "Unsere Liebe Frau von Aparecida"
+
+msgid "Out of sample"
+msgstr "Out-of-Sample"
+
+msgid "Out-of-sample P&L"
+msgstr "Out-of-Sample-G&V"
+
+msgid "Out-of-sample bars"
+msgstr "Out-of-Sample-Balken"
+
+msgid "Output"
+msgstr "Ausgabe"
+
+msgid "Outputs"
+msgstr "Ausgaben"
+
+msgid "Over the chart, with its own scale"
+msgstr "Über dem Chart, mit eigener Skala"
+
+msgid "Overbought"
+msgstr "Überkauft"
+
+msgid "Oversold"
+msgstr "Überverkauft"
+
+msgid "Overview"
+msgstr "Überblick"
+
+msgid "P&L, worst 5%"
+msgstr "G&V, schlechteste 5 %"
+
+msgid "PAT"
+msgstr "Nettoergebnis"
+
+msgid "PAT margin"
+msgstr "Nettomarge"
+
+msgid "POC"
+msgstr ""
+
+msgid "PROBLEMS"
+msgstr "PROBLEME"
+
+msgid "PVT"
+msgstr ""
+
+msgid "Paid between longs and shorts at the countdown's end. Positive: longs pay shorts."
+msgstr "Zwischen Longs und Shorts am Ende des Countdowns gezahlt. Positiv: Longs zahlen Shorts."
+
+msgid "Paper Trading"
+msgstr "Papierhandel"
+
+msgid "Paper account"
+msgstr "Papierkonto"
+
+msgid "Paper account {k}"
+msgstr "Papierkonto {k}"
+
+msgid "Paper accounts"
+msgstr "Papierkonten"
+
+msgid "Paper trading"
+msgstr "Papierhandel"
+
+#, message
+msgid "Paper trading: {a}"
+msgstr "Papierhandel: {a}"
+
+#, message
+msgid "Paper {0} {1} {2}"
+msgstr "Papier {0} {1} {2}"
+
+msgid "Parabolic SAR"
+msgstr "Parabolic SAR"
+
+msgid "ParabolicSAR"
+msgstr "Parabolic SAR"
+
+msgid "Parallel channel"
+msgstr "Paralleler Kanal"
+
+msgid "Paris"
+msgstr ""
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Paste an image"
+msgstr "Bild einfügen"
+
+msgid "Paste it anywhere."
+msgstr "Füge ihn irgendwo ein."
+
+msgid "Paste the code, if asked"
+msgstr "Füge den Code ein, falls gefragt"
+
+msgid "Paste the email password (an app password), or turn email off."
+msgstr "Füge das E-Mail-Passwort (ein App-Passwort) ein oder schalte E-Mail aus."
+
+msgid "Paste your Telegram bot token, or turn Telegram off."
+msgstr "Füge dein Telegram-Bot-Token ein oder schalte Telegram aus."
+
+#, message
+msgid "Pasted {dest}."
+msgstr "{dest} eingefügt."
+
+msgid "Path"
+msgstr "Pfad"
+
+msgid "Patterns"
+msgstr "Muster"
+
+msgid "Pause"
+msgstr "Pause"
+
+msgid "Pause alerts"
+msgstr "Alarme pausieren"
+
+msgid "Peace Memorial Day"
+msgstr "Friedensgedenktag"
+
+msgid "Per contract"
+msgstr "Pro Kontrakt"
+
+msgid "Per order"
+msgstr "Pro Order"
+
+msgid "Percent"
+msgstr "Prozent"
+
+msgid "Percent change, on the chart's scale"
+msgstr "Prozentuale Änderung, auf der Skala des Charts"
+
+msgid "Percent profitable"
+msgstr "Prozent profitabel"
+
+msgid "Percent scale"
+msgstr "Prozentskala"
+
+msgid "Percent scale (Alt P)"
+msgstr "Prozentskala (Alt P)"
+
+msgid "Percentage"
+msgstr "Prozentsatz"
+
+msgid "Perf 1M %"
+msgstr "Perf. 1M %"
+
+msgid "Perf 1W %"
+msgstr "Perf. 1W %"
+
+msgid "Perf 1Y %"
+msgstr "Perf. 1J %"
+
+msgid "Perf 6M %"
+msgstr "Perf. 6M %"
+
+msgid "Performance"
+msgstr "Performance"
+
+msgid "Periods"
+msgstr "Perioden"
+
+msgid "Pick a new starting bar"
+msgstr "Neuen Startbalken wählen"
+
+#, message
+msgid "Pick at least one input to optimize."
+msgstr "Wähle mindestens eine Eingabe zum Optimieren."
+
+msgid "Pick two different inputs."
+msgstr "Wähle zwei verschiedene Eingaben."
+
+msgid "Pick your agent"
+msgstr "Wähle deinen Agenten"
+
+msgid "Pick your first chart"
+msgstr "Wähle deinen ersten Chart"
+
+msgid "Pine, Luau and JavaScript scripts stay sealed inside Opentern. They are safer alternatives."
+msgstr "Pine-, Luau- und JavaScript-Skripte bleiben in Opentern abgeschottet. Sie sind sicherere Alternativen."
+
+msgid "Pitchfork"
+msgstr "Pitchfork"
+
+msgid "Pivot High"
+msgstr "Pivot-Hoch"
+
+msgid "Pivot Low"
+msgstr "Pivot-Tief"
+
+msgid "Pivot Points High Low"
+msgstr "Pivot-Punkte Hoch/Tief"
+
+msgid "Pivot Points Standard"
+msgstr "Pivot-Punkte Standard"
+
+msgid "Pivot legs"
+msgstr "Pivot-Beine"
+
+msgid "Pivots timeframe"
+msgstr "Pivot-Zeitrahmen"
+
+msgid "Placed"
+msgstr "Platziert"
+
+msgid "Placement"
+msgstr "Platzierung"
+
+msgid "Play"
+msgstr "Abspielen"
+
+msgid "Plot"
+msgstr "Plot"
+
+msgid "Plots Background"
+msgstr "Plot-Hintergrund"
+
+msgid "Point & figure"
+msgstr "Point & Figure"
+
+msgid "Port"
+msgstr "Port"
+
+msgid "Portfolio"
+msgstr "Portfolio"
+
+msgid "Positions {0}"
+msgstr "Positionen {0}"
+
+msgid "Practice"
+msgstr "Übungskonto"
+
+msgid "Prakash Gurpurb Sri Guru Nanak Dev"
+msgstr ""
+
+msgid "Pre-market"
+msgstr "Vorbörslich"
+
+msgid "Pre/post market price label"
+msgstr "Preislabel vor-/nachbörslich"
+
+msgid "Pre/post market price line"
+msgstr "Preislinie vor-/nachbörslich"
+
+msgid "Precision"
+msgstr "Genauigkeit"
+
+msgid "Press Enter for {0}"
+msgstr "Enter für {0} drücken"
+
+msgid "Previous 7 days"
+msgstr "Letzte 7 Tage"
+
+msgid "Price"
+msgstr "Preis"
+
+msgid "Price Oscillator"
+msgstr "Preisoszillator"
+
+msgid "Price Volume Trend"
+msgstr "Price Volume Trend"
+
+msgid "Price cache"
+msgstr "Kurs-Cache"
+
+msgid "Price deviation for reversals (%)"
+msgstr "Preisabweichung für Umkehr (%)"
+
+msgid "Price labels"
+msgstr "Preislabels"
+
+msgid "Price over trailing earnings. For the index: total market cap over total earnings"
+msgstr "Preis im Verhältnis zum Gewinn der letzten zwölf Monate. Für den Index: gesamte Marktkapitalisierung zu Gesamtgewinn"
+
+msgid "Price range"
+msgstr "Preisspanne"
+
+msgid "Price scale"
+msgstr "Preisskala"
+
+#, message
+msgid "Price {0} the line"
+msgstr "Preis {0} die Linie"
+
+#, message
+msgid "Price {0} {1}"
+msgstr "Preis {0} {1}"
+
+#, message
+msgid "Price: {0}"
+msgstr "Preis: {0}"
+
+msgid "Prices"
+msgstr "Kurse"
+
+msgid "Prices since {0}"
+msgstr "Kurse seit {0}"
+
+msgid "Profit"
+msgstr "Gewinn"
+
+msgid "Profit and loss in other currencies is converted at live rates"
+msgstr "Gewinn und Verlust in anderen Währungen werden zu Livekursen umgerechnet"
+
+msgid "Profit and loss made so far is kept"
+msgstr "Bisheriger Gewinn und Verlust bleibt erhalten"
+
+msgid "Profit factor"
+msgstr "Profitfaktor"
+
+msgid "Profitable"
+msgstr "Profitabel"
+
+msgid "Profitable trades"
+msgstr "Profitable Trades"
+
+msgid "Profitable windows"
+msgstr "Profitable Fenster"
+
+msgid "Properties"
+msgstr "Eigenschaften"
+
+msgid "Put the best inputs on the chart's strategy"
+msgstr "Die besten Eingaben auf die Strategie im Chart übernehmen"
+
+msgid "Pyramiding"
+msgstr "Pyramiding"
+
+msgid "Python script not started"
+msgstr "Python-Skript nicht gestartet"
+
+msgid "Python scripts run on your computer"
+msgstr "Python-Skripte laufen auf deinem Computer"
+
+msgid "Python scripts' alerts need Opentern open."
+msgstr "Alarme von Python-Skripten brauchen ein geöffnetes Opentern."
+
+msgid "Python strategies run in their own process, so the lab can't rerun them yet. Pine, Luau and JavaScript strategies work."
+msgstr "Python-Strategien laufen in einem eigenen Prozess, daher kann das Labor sie noch nicht erneut ausführen. Pine-, Luau- und JavaScript-Strategien funktionieren."
+
+msgid "Qty"
+msgstr "Menge"
+
+msgid "Quantity"
+msgstr "Menge"
+
+msgid "Quarter"
+msgstr "Quartal"
+
+msgid "Quarterly"
+msgstr "Vierteljährlich"
+
+msgid "Queue (Enter)"
+msgstr "Einreihen (Enter)"
+
+msgid "RCI"
+msgstr ""
+
+msgid "RCI Ribbon"
+msgstr "RCI-Band"
+
+msgid "RMA"
+msgstr ""
+
+msgid "ROC"
+msgstr ""
+
+msgid "ROC Length"
+msgstr "ROC-Länge"
+
+msgid "ROC Length #1"
+msgstr "ROC-Länge 1"
+
+msgid "ROC Length #2"
+msgstr "ROC-Länge 2"
+
+msgid "ROC Length #3"
+msgstr "ROC-Länge 3"
+
+msgid "ROC Length #4"
+msgstr "ROC-Länge 4"
+
+msgid "RSI"
+msgstr ""
+
+msgid "RSI (14)"
+msgstr "RSI (14)"
+
+msgid "RSI Length"
+msgstr "RSI-Länge"
+
+msgid "RSI Settings"
+msgstr "RSI-Einstellungen"
+
+msgid "RSI-based MA"
+msgstr "RSI-basierter MA"
+
+msgid "RVGI"
+msgstr ""
+
+msgid "RVI"
+msgstr ""
+
+msgid "Ran the Strategy Lab"
+msgstr "Strategielabor ausgeführt"
+
+msgid "Ran the screener"
+msgstr "Screener ausgeführt"
+
+#, message
+msgid "Ran {0}"
+msgstr "{0} ausgeführt"
+
+msgid "Random"
+msgstr "Zufällig"
+
+msgid "Range"
+msgstr "Spanne"
+
+msgid "Rank Correlation Index"
+msgstr "Rank Correlation Index"
+
+msgid "Rate Of Change"
+msgstr "Rate of Change"
+
+msgid "Ratio avg win / avg loss"
+msgstr "Verhältnis Ø Gewinn / Ø Verlust"
+
+msgid "Ratios"
+msgstr "Kennzahlen"
+
+msgid "Ray"
+msgstr "Strahl"
+
+msgid "Read from cache"
+msgstr "Aus Cache gelesen"
+
+msgid "Read the Strategy Report"
+msgstr "Strategiebericht lesen"
+
+msgid "Read the chart's bars"
+msgstr "Balken des Charts lesen"
+
+msgid "Read the scripting guide"
+msgstr "Skript-Anleitung lesen"
+
+msgid "Read the seasonality"
+msgstr "Saisonalität lesen"
+
+#, message
+msgid "Read {0}"
+msgstr "{0} lesen"
+
+msgid "Real time"
+msgstr "Echtzeit"
+
+msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
+msgstr "Indische Echtzeitkurse mit einem Upstox-Konto. Erstelle eine App auf upstox.com/developer und füge ihr Zugriffstoken ein (es gilt bis zum nächsten Morgen)."
+
+msgid "Realized"
+msgstr "Realisiert"
+
+msgid "Rebalance now: fetch today's share counts and set the weights from them, keeping the level"
+msgstr "Jetzt neu gewichten: heutige Aktienzahlen laden und Gewichte daraus setzen, der Stand bleibt"
+
+#, message
+msgid "Rebalance {0}"
+msgstr "{0} neu gewichten"
+
+#, message
+msgid "Rebalanced {0}"
+msgstr "{0} neu gewichtet"
+
+msgid "Rebalancing…"
+msgstr "Wird neu gewichtet…"
+
+msgid "Receive"
+msgstr "Empfangen"
+
+msgid "Receiving from {peer}"
+msgstr "Empfange von {peer}"
+
+msgid "Recent colour"
+msgstr "Letzte Farbe"
+
+msgid "Rectangle"
+msgstr "Rechteck"
+
+msgid "Redo"
+msgstr "Wiederholen"
+
+msgid "Redo ({0})"
+msgstr "Wiederholen ({0})"
+
+msgid "Refresh"
+msgstr "Aktualisieren"
+
+msgid "Rel volume"
+msgstr "Rel. Volumen"
+
+msgid "Relative Strength Index"
+msgstr "Relative-Stärke-Index"
+
+msgid "Relative Strength Index, 14 days"
+msgstr "Relative-Stärke-Index, 14 Tage"
+
+msgid "Relative Vigor Index"
+msgstr "Relative Vigor Index"
+
+msgid "Relative Volatility Index"
+msgstr "Relative Volatility Index"
+
+msgid "Release notes"
+msgstr "Versionshinweise"
+
+#, message
+msgid "Reloaded {file}: it changed on disk."
+msgstr "{file} neu geladen: Die Datei hat sich geändert."
+
+msgid "Remove"
+msgstr "Entfernen"
+
+msgid "Remove (Delete)"
+msgstr "Entfernen (Entf)"
+
+msgid "Remove 1 drawing"
+msgstr "1 Zeichnung entfernen"
+
+msgid "Remove 1 indicator"
+msgstr "1 Indikator entfernen"
+
+msgid "Remove drawings"
+msgstr "Zeichnungen entfernen"
+
+msgid "Remove drawings or indicators"
+msgstr "Zeichnungen oder Indikatoren entfernen"
+
+msgid "Remove filter"
+msgstr "Filter entfernen"
+
+msgid "Remove from favorites"
+msgstr "Aus Favoriten entfernen"
+
+msgid "Remove from the top bar"
+msgstr "Aus der oberen Leiste entfernen"
+
+msgid "Remove from watchlist"
+msgstr "Aus Watchlist entfernen"
+
+msgid "Remove from watchlist (Shift+Enter)"
+msgstr "Aus Watchlist entfernen (Umschalt+Enter)"
+
+msgid "Remove section"
+msgstr "Abschnitt entfernen"
+
+#, message
+msgid "Remove {0}"
+msgstr "{0} entfernen"
+
+msgid "Remove {k} indicators"
+msgstr "{k} Indikatoren entfernen"
+
+msgid "Remove {n} drawings"
+msgstr "{n} Zeichnungen entfernen"
+
+msgid "Removed drawings"
+msgstr "Zeichnungen entfernt"
+
+#, message
+msgid "Removed {0}"
+msgstr "{0} entfernt"
+
+msgid "Removes what's here for the items ticked above. A backup is saved first."
+msgstr "Entfernt Vorhandenes für die oben angekreuzten Elemente. Vorher wird ein Backup gespeichert."
+
+msgid "Rename"
+msgstr "Umbenennen"
+
+msgid "Renko"
+msgstr "Renko"
+
+msgid "Replace"
+msgstr "Ersetzen"
+
+msgid "Replace and restart"
+msgstr "Ersetzen und neu starten"
+
+msgid "Replay"
+msgstr "Replay"
+
+#, message
+msgid "Replay: {a}"
+msgstr "Replay: {a}"
+
+msgid "Republic Day"
+msgstr "Tag der Republik"
+
+msgid "Republic Proclamation Day"
+msgstr "Tag der Ausrufung der Republik"
+
+msgid "Reset"
+msgstr "Zurücksetzen"
+
+msgid "Reset account"
+msgstr "Konto zurücksetzen"
+
+msgid "Reset settings"
+msgstr "Einstellungen zurücksetzen"
+
+msgid "Reset the account to change its currency"
+msgstr "Setze das Konto zurück, um die Währung zu ändern"
+
+msgid "Reset the chart view"
+msgstr "Chartansicht zurücksetzen"
+
+msgid "Resets {0}"
+msgstr "Zurückgesetzt {0}"
+
+msgid "Respect for the Aged Day"
+msgstr "Tag der Achtung vor dem Alter"
+
+msgid "Restart"
+msgstr "Neu starten"
+
+msgid "Restart Opentern"
+msgstr "Opentern neu starten"
+
+msgid "Restore factory defaults"
+msgstr "Werkseinstellungen wiederherstellen"
+
+msgid "Restore panel"
+msgstr "Panel wiederherstellen"
+
+msgid "Return"
+msgstr "Rendite"
+
+msgid "Return of max drawdown"
+msgstr "Rendite zu max. Drawdown"
+
+msgid "Return on account size required"
+msgstr "Rendite auf benötigte Kontogröße"
+
+msgid "Return on initial capital"
+msgstr "Rendite auf Startkapital"
+
+msgid "Returns"
+msgstr "Renditen"
+
+msgid "Rev growth"
+msgstr "Umsatzwachst."
+
+msgid "Revenue growth"
+msgstr "Umsatzwachstum"
+
+msgid "Revenue, year on year. For the index: the members' revenue together"
+msgstr "Umsatz im Jahresvergleich. Für den Index: Umsatz aller Mitglieder zusammen"
+
+msgid "Reversal"
+msgstr "Umkehr"
+
+msgid "Reversal amount"
+msgstr "Umkehrbetrag"
+
+msgid "Reverse"
+msgstr "Umgekehrt"
+
+msgid "Reverse split 1:{0}"
+msgstr "Reverse-Split 1:{0}"
+
+msgid "Right"
+msgstr "Rechts"
+
+msgid "Right Bars"
+msgstr "Balken rechts"
+
+msgid "Rises and falls"
+msgstr "Anstiege und Rückgänge"
+
+msgid "Risk/performance ratios"
+msgstr "Risiko-/Performance-Kennzahlen"
+
+msgid "Risk/reward ratio: {rr}"
+msgstr "Chance-Risiko-Verhältnis: {rr}"
+
+msgid "Ruin at drawdown"
+msgstr "Ruin bei Drawdown"
+
+msgid "Run"
+msgstr "Ausführen"
+
+msgid "Run IBKR's Client Portal gateway and log in; then use symbols like IBKR:AAPL. Needs IBKR market-data subscriptions."
+msgstr "Starte das Client-Portal-Gateway von IBKR und melde dich an; nutze dann Symbole wie IBKR:AAPL. Benötigt IBKR-Marktdatenabos."
+
+msgid "Run a command"
+msgstr "Einen Befehl ausführen"
+
+msgid "Run the Strategy Lab"
+msgstr "Strategielabor ausführen"
+
+msgid "Run the screener"
+msgstr "Screener ausführen"
+
+msgid "Run-up"
+msgstr "Run-up"
+
+msgid "Running…"
+msgstr "Läuft…"
+
+msgid "Runs"
+msgstr "Läufe"
+
+msgid "S&P 500"
+msgstr ""
+
+msgid "SAVED"
+msgstr "GESPEICHERT"
+
+msgid "SCALE"
+msgstr "SKALA"
+
+msgid "SCRIPTS"
+msgstr "SKRIPTE"
+
+msgid "SIP: prices from all US exchanges, not just IEX"
+msgstr "SIP: Kurse von allen US-Börsen, nicht nur IEX"
+
+msgid "SIX Swiss Exchange"
+msgstr ""
+
+msgid "SMA"
+msgstr ""
+
+msgid "SMA Length #1"
+msgstr "SMA-Länge 1"
+
+msgid "SMA Length #2"
+msgstr "SMA-Länge 2"
+
+msgid "SMA Length #3"
+msgstr "SMA-Länge 3"
+
+msgid "SMA Length #4"
+msgstr "SMA-Länge 4"
+
+msgid "SMI"
+msgstr ""
+
+msgid "SMI Ergodic Indicator"
+msgstr "SMI-Ergodic-Indikator"
+
+msgid "SMI Ergodic Oscillator"
+msgstr "SMI-Ergodic-Oszillator"
+
+msgid "SMI-based EMA"
+msgstr "SMI-basierter EMA"
+
+msgid "SMMA (RMA)"
+msgstr ""
+
+msgid "SMTP server"
+msgstr "SMTP-Server"
+
+msgid "Same % scale"
+msgstr "Gleiche %-Skala"
+
+msgid "Sat"
+msgstr "Sa"
+
+msgid "Saturday"
+msgstr "Samstag"
+
+msgid "Save"
+msgstr "Speichern"
+
+msgid "Save a snapshot"
+msgstr "Snapshot speichern"
+
+msgid "Save and add to the chart ({0})"
+msgstr "Speichern und zum Chart hinzufügen ({0})"
+
+msgid "Save and update the chart ({0})"
+msgstr "Speichern und Chart aktualisieren ({0})"
+
+msgid "Save as"
+msgstr "Speichern unter"
+
+msgid "Save as default"
+msgstr "Als Standard speichern"
+
+msgid "Save chart template"
+msgstr "Chartvorlage speichern"
+
+msgid "Save indicator template"
+msgstr "Indikatorvorlage speichern"
+
+msgid "Save layout"
+msgstr "Layout speichern"
+
+msgid "Save the results as CSV"
+msgstr "Ergebnisse als CSV speichern"
+
+msgid "Save the results as JSON"
+msgstr "Ergebnisse als JSON speichern"
+
+msgid "Saved in your keychain (paste to replace)"
+msgstr "Im Schlüsselbund gespeichert (zum Ersetzen einfügen)"
+
+#, message
+msgid "Saved to {0}"
+msgstr "Gespeichert unter {0}"
+
+#, message
+msgid "Saved {file}."
+msgstr "{file} gespeichert."
+
+msgid "Saved."
+msgstr "Gespeichert."
+
+msgid "Scale and more"
+msgstr "Skala und mehr"
+
+msgid "Scales"
+msgstr "Skalen"
+
+msgid "Scales and lines"
+msgstr "Skalen und Linien"
+
+msgid "Scales text"
+msgstr "Skalentext"
+
+msgid "Screener"
+msgstr "Screener"
+
+msgid "Screener settings"
+msgstr "Screener-Einstellungen"
+
+msgid "Script"
+msgstr "Skript"
+
+msgid "Script Editor"
+msgstr "Skript-Editor"
+
+msgid "Script failed"
+msgstr "Skript fehlgeschlagen"
+
+msgid "Scripts"
+msgstr "Skripte"
+
+msgid "Scroll to the most recent bar"
+msgstr "Zum neuesten Balken scrollen"
+
+msgid "Search"
+msgstr "Suchen"
+
+msgid "Search chats"
+msgstr "Chats durchsuchen"
+
+#, message
+msgid "Search for {0}"
+msgstr "Nach {0} suchen"
+
+msgid "Search lists"
+msgstr "Listen durchsuchen"
+
+msgid "Search shows prices"
+msgstr "Die Suche zeigt Preise"
+
+#, message
+msgid "Search symbols: {0}"
+msgstr "Symbole suchen: {0}"
+
+#, message
+msgid "Search the web: {0}"
+msgstr "Im Web suchen: {0}"
+
+#, message
+msgid "Searched for {0}"
+msgstr "Nach {0} gesucht"
+
+#, message
+msgid "Searched symbols: {0}"
+msgstr "Symbole gesucht: {0}"
+
+#, message
+msgid "Searched the web: {0}"
+msgstr "Im Web gesucht: {0}"
+
+msgid "Seasonality"
+msgstr "Saisonalität"
+
+msgid "Seconds"
+msgstr "Sekunden"
+
+msgid "Secret key"
+msgstr "Geheimer Schlüssel"
+
+msgid "Select all"
+msgstr "Alle auswählen"
+
+msgid "Select bar"
+msgstr "Balken wählen"
+
+msgid "Select layout"
+msgstr "Layout wählen"
+
+msgid "Select none"
+msgstr "Keine auswählen"
+
+msgid "Sell"
+msgstr "Verkaufen"
+
+msgid "Sell order filled."
+msgstr "Verkaufsorder ausgeführt."
+
+msgid "Send"
+msgstr "Senden"
+
+msgid "Send (Enter)"
+msgstr "Senden (Enter)"
+
+msgid "Send a test email"
+msgstr "Test-E-Mail senden"
+
+msgid "Send to"
+msgstr "Senden an"
+
+msgid "Send to another device"
+msgstr "An ein anderes Gerät senden"
+
+msgid "Sending to {peer}"
+msgstr "Sende an {peer}"
+
+msgid "Sending…"
+msgstr "Wird gesendet…"
+
+msgid "Sent to {peer}"
+msgstr "An {peer} gesendet"
+
+msgid "Sent. Check your inbox."
+msgstr "Gesendet. Prüfe deinen Posteingang."
+
+msgid "Seoul"
+msgstr ""
+
+msgid "Sep"
+msgstr "Sep"
+
+msgid "September"
+msgstr "September"
+
+msgid "Session"
+msgstr "Sitzung"
+
+msgid "Session Volume Profile"
+msgstr "Sitzungs-Volumenprofil"
+
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgid "Settings → Export and import → Import → Receive"
+msgstr "Einstellungen → Export und Import → Importieren → Empfangen"
+
+msgid "Shanghai"
+msgstr ""
+
+msgid "Shanghai Stock Exchange"
+msgstr ""
+
+msgid "Shapes"
+msgstr "Formen"
+
+msgid "Sharpe"
+msgstr "Sharpe"
+
+msgid "Sharpe ratio"
+msgstr "Sharpe-Ratio"
+
+msgid "Short"
+msgstr "Short"
+
+msgid "Short Length"
+msgstr "Kurze Länge"
+
+msgid "Short MA"
+msgstr "Kurzer MA"
+
+msgid "Short MA length"
+msgstr "Länge des kurzen MA"
+
+msgid "Short RCI"
+msgstr "Kurzer RCI"
+
+msgid "Short RCI Length"
+msgstr "Länge des kurzen RCI"
+
+msgid "Short RoC Length"
+msgstr "Länge des kurzen RoC"
+
+msgid "Short position"
+msgstr "Short-Position"
+
+msgid "Show"
+msgstr "Anzeigen"
+
+msgid "Show POC"
+msgstr "POC anzeigen"
+
+msgid "Show Pearson's R"
+msgstr "Pearsons R anzeigen"
+
+msgid "Show files ({0})"
+msgstr "Dateien anzeigen ({0})"
+
+msgid "Show in folder"
+msgstr "Im Ordner anzeigen"
+
+msgid "Show in the top bar"
+msgstr "In der oberen Leiste anzeigen"
+
+msgid "Show labels"
+msgstr "Labels anzeigen"
+
+msgid "Show on intervals"
+msgstr "Auf Intervallen anzeigen"
+
+msgid "Show prices"
+msgstr "Preise anzeigen"
+
+msgid "Show symbol logos"
+msgstr "Symbollogos anzeigen"
+
+msgid "Show the drawing toolbar"
+msgstr "Zeichenleiste anzeigen"
+
+msgid "Show value area high and low"
+msgstr "Hoch und Tief der Value Area anzeigen"
+
+msgid "Showa Day"
+msgstr "Showa-Tag"
+
+#, message
+msgid "Showing {te}'s {td} instead."
+msgstr "Stattdessen wird {td} von {te} gezeigt."
+
+msgid "Shows after your first message."
+msgstr "Erscheint nach deiner ersten Nachricht."
+
+msgid "Shri Mahavir Jayanti"
+msgstr ""
+
+msgid "Shri Ram Navami"
+msgstr ""
+
+msgid "Shuffle the order"
+msgstr "Reihenfolge mischen"
+
+msgid "Side"
+msgstr "Seite"
+
+msgid "Sigma"
+msgstr "Sigma"
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Sign in to {0}"
+msgstr "Bei {0} anmelden"
+
+msgid "Signal"
+msgstr "Signal"
+
+msgid "Signal Length"
+msgstr "Signallänge"
+
+msgid "Signal Line Length"
+msgstr "Länge der Signallinie"
+
+msgid "Signal Line MA Type"
+msgstr "MA-Typ der Signallinie"
+
+msgid "Signal Smoothing"
+msgstr "Signalglättung"
+
+msgid "Signal line"
+msgstr "Signallinie"
+
+msgid "Singapore"
+msgstr ""
+
+msgid "Singapore Exchange"
+msgstr ""
+
+msgid "Size"
+msgstr "Größe"
+
+msgid "Sized by 24h volume, from {0}"
+msgstr "Größe nach 24h-Volumen, von {0}"
+
+msgid "Sized by market cap, from {0}"
+msgstr "Größe nach Marktkapitalisierung, von {0}"
+
+msgid "Slippage"
+msgstr "Slippage"
+
+msgid "Slow Length"
+msgstr "Langsame Länge"
+
+msgid "Slow length"
+msgstr "Langsame Länge"
+
+msgid "Smallest max drawdown"
+msgstr "Kleinster max. Drawdown"
+
+msgid "Smoothed Moving Average"
+msgstr "Geglätteter gleitender Durchschnitt"
+
+msgid "Smoothing"
+msgstr "Glättung"
+
+msgid "Smoothing Length"
+msgstr "Glättungslänge"
+
+msgid "Snapshot copied"
+msgstr "Snapshot kopiert"
+
+msgid "Snapshot saved"
+msgstr "Snapshot gespeichert"
+
+msgid "Snapshots"
+msgstr "Snapshots"
+
+#, message
+msgid "Sold {qty} {sym} at {price}"
+msgstr "{qty} {sym} zu {price} verkauft"
+
+msgid "Solid"
+msgstr "Durchgezogen"
+
+msgid "Someone entered the wrong code."
+msgstr "Jemand hat den falschen Code eingegeben."
+
+msgid "Something went wrong in the run."
+msgstr "Beim Lauf ist etwas schiefgegangen."
+
+msgid "Sort"
+msgstr "Sortieren"
+
+msgid "Sort by name"
+msgstr "Nach Name sortieren"
+
+msgid "Sort by weight"
+msgstr "Nach Gewicht sortieren"
+
+msgid "Sortino ratio"
+msgstr "Sortino-Ratio"
+
+msgid "Sound"
+msgstr "Ton"
+
+msgid "Source"
+msgstr "Quelle"
+
+msgid "Source code"
+msgstr "Quellcode"
+
+msgid "Special hours"
+msgstr "Sonderzeiten"
+
+msgid "Special session"
+msgstr "Sondersitzung"
+
+msgid "Speed: time per bar (click to change)"
+msgstr "Tempo: Zeit pro Balken (zum Ändern klicken)"
+
+msgid "Split"
+msgstr "Split"
+
+msgid "Split or bonus"
+msgstr "Split oder Bonus"
+
+msgid "Sports Day"
+msgstr "Tag des Sports"
+
+msgid "Spring Bank Holiday"
+msgstr "Spring Bank Holiday"
+
+msgid "StDev"
+msgstr "StdAbw."
+
+msgid "Standard Deviation"
+msgstr "Standardabweichung"
+
+msgid "Standard Error"
+msgstr "Standardfehler"
+
+msgid "Standard Error Bands"
+msgstr "Standardfehler-Bänder"
+
+msgid "Start"
+msgstr "Start"
+
+#, message
+msgid "Start a helper: {0}"
+msgstr "Helfer starten: {0}"
+
+#, message
+msgid "Start a replay at {0}"
+msgstr "Replay bei {0} starten"
+
+msgid "Start again"
+msgstr "Neu beginnen"
+
+#, message
+msgid "Started a helper: {0}"
+msgstr "Helfer gestartet: {0}"
+
+#, message
+msgid "Started a replay at {0}"
+msgstr "Replay bei {0} gestartet"
+
+msgid "Starting capital"
+msgstr "Startkapital"
+
+msgid "Status"
+msgstr "Status"
+
+msgid "Status line"
+msgstr "Statuszeile"
+
+msgid "Stay in drawing mode"
+msgstr "Im Zeichenmodus bleiben"
+
+msgid "StdDev"
+msgstr "StdAbw."
+
+msgid "Step line"
+msgstr "Stufenlinie"
+
+msgid "Step one bar"
+msgstr "Einen Balken weiter"
+
+msgid "Step the replay"
+msgstr "Replay weiterschalten"
+
+msgid "Stepped the replay"
+msgstr "Replay weitergeschaltet"
+
+msgid "Stochastic"
+msgstr "Stochastik"
+
+msgid "Stochastic Length"
+msgstr "Stochastik-Länge"
+
+msgid "Stochastic Momentum Index"
+msgstr "Stochastic Momentum Index"
+
+msgid "Stochastic RSI"
+msgstr "Stochastischer RSI"
+
+msgid "Stocks"
+msgstr "Aktien"
+
+msgid "Stop"
+msgstr "Stopp"
+
+msgid "Stop Length"
+msgstr "Stop-Länge"
+
+msgid "Stop Long"
+msgstr "Stop Long"
+
+msgid "Stop Short"
+msgstr "Stop Short"
+
+msgid "Stop limit"
+msgstr "Stop-Limit"
+
+msgid "Stop loss"
+msgstr "Stop-Loss"
+
+msgid "Stop price"
+msgstr "Stop-Preis"
+
+msgid "Stop using as default"
+msgstr "Nicht mehr als Standard verwenden"
+
+msgid "Stop: {0} ({1})"
+msgstr "Stop: {0} ({1})"
+
+msgid "Stopped"
+msgstr "Gestoppt"
+
+msgid "Stopped."
+msgstr "Gestoppt."
+
+msgid "Stop|order"
+msgstr "Stop"
+
+msgid "Strategy Lab"
+msgstr "Strategielabor"
+
+msgid "Strategy Lab settings"
+msgstr "Strategielabor-Einstellungen"
+
+msgid "Strategy Report"
+msgstr "Strategiebericht"
+
+msgid "Strategy outperformance"
+msgstr "Outperformance der Strategie"
+
+msgid "Strategy settings"
+msgstr "Strategieeinstellungen"
+
+msgid "Strategy settings: capital, order size, commission, slippage and margin"
+msgstr "Strategieeinstellungen: Kapital, Ordergröße, Kommission, Slippage und Margin"
+
+msgid "Style"
+msgstr "Stil"
+
+msgid "Summer Bank Holiday"
+msgstr "Summer Bank Holiday"
+
+msgid "Sun"
+msgstr "So"
+
+msgid "Sunday"
+msgstr "Sonntag"
+
+msgid "Supertrend"
+msgstr "Supertrend"
+
+msgid "Swatches"
+msgstr "Farbfelder"
+
+msgid "Swiss National Day"
+msgstr "Schweizer Bundesfeier"
+
+msgid "Switch to dark theme"
+msgstr "Zum dunklen Design wechseln"
+
+msgid "Switch to light theme"
+msgstr "Zum hellen Design wechseln"
+
+#, message
+msgid "Switch to {0}"
+msgstr "Zu {0} wechseln"
+
+#, message
+msgid "Switched to {0}"
+msgstr "Zu {0} gewechselt"
+
+msgid "Sydney"
+msgstr ""
+
+msgid "Symbol"
+msgstr "Symbol"
+
+msgid "Symbol last price label"
+msgstr "Label des letzten Preises"
+
+msgid "Symbol last price line"
+msgstr "Linie des letzten Preises"
+
+msgid "Symbol logos"
+msgstr "Symbollogos"
+
+msgid "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+msgstr "Symbol oder Formel, z. B. BTCUSDT, AAPL, BTCUSDT/ETHUSDT"
+
+msgid "Symbol search"
+msgstr "Symbolsuche"
+
+msgid "Symbol search (start typing anywhere)"
+msgstr "Symbolsuche (einfach lostippen)"
+
+msgid "Symbol watermark"
+msgstr "Symbol-Wasserzeichen"
+
+msgid "Symbols"
+msgstr "Symbole"
+
+msgid "System ({0})"
+msgstr "System ({0})"
+
+msgid "São Paulo"
+msgstr ""
+
+msgid "THIS LAYOUT"
+msgstr "DIESES LAYOUT"
+
+msgid "TRIX"
+msgstr ""
+
+msgid "TWAP"
+msgstr ""
+
+msgid "Table"
+msgstr "Tabelle"
+
+msgid "Taipei"
+msgstr "Taipeh"
+
+msgid "Taiwan Restoration Day"
+msgstr "Tag der Rückgabe Taiwans"
+
+msgid "Taiwan Stock Exchange"
+msgstr ""
+
+msgid "Take a picture of the chart"
+msgstr "Bild des Charts aufnehmen"
+
+msgid "Take a snapshot (Alt+S)"
+msgstr "Snapshot aufnehmen (Alt+S)"
+
+msgid "Take it off the chart before moving it."
+msgstr "Entferne es vor dem Verschieben vom Chart."
+
+msgid "Take its scripts off the chart before renaming it."
+msgstr "Entferne seine Skripte vor dem Umbenennen vom Chart."
+
+msgid "Take profit"
+msgstr "Take-Profit"
+
+msgid "Target: {0} ({1})"
+msgstr "Ziel: {0} ({1})"
+
+msgid "Teachers' Day"
+msgstr "Tag des Lehrers"
+
+msgid "Technicals"
+msgstr "Technische Daten"
+
+msgid "Teeth"
+msgstr "Zähne"
+
+msgid "Teeth Length"
+msgstr "Zahnlänge"
+
+msgid "Teeth Offset"
+msgstr "Zahnversatz"
+
+msgid "Telegram"
+msgstr "Telegram"
+
+msgid "Telegram bot token"
+msgstr "Telegram-Bot-Token"
+
+msgid "Telegram chat id"
+msgstr "Telegram-Chat-ID"
+
+msgid "Template  {0}"
+msgstr "Vorlage  {0}"
+
+msgid "Templates"
+msgstr "Vorlagen"
+
+msgid "Text"
+msgstr "Text"
+
+msgid "Thanksgiving"
+msgstr ""
+
+msgid "Thanksgiving Day"
+msgstr "Thanksgiving"
+
+msgid "That code doesn't match. Check the other device and try again."
+msgstr "Der Code stimmt nicht. Prüfe das andere Gerät und versuche es erneut."
+
+#, message
+msgid "That file is damaged. Export it again."
+msgstr "Diese Datei ist beschädigt. Exportiere sie erneut."
+
+#, message
+msgid "That file is too big to import."
+msgstr "Diese Datei ist zu groß zum Importieren."
+
+#, message
+msgid "That isn't an Opentern export file."
+msgstr "Das ist keine Opentern-Exportdatei."
+
+msgid "That list has no symbols."
+msgstr "Diese Liste hat keine Symbole."
+
+#, message
+msgid "That price isn't valid."
+msgstr "Dieser Preis ist ungültig."
+
+#, message
+msgid "That's {0} combinations per window, more than the grid's {1}. Narrow the ranges or use Random or Bayesian."
+msgstr "Das sind {0} Kombinationen pro Fenster, mehr als die {1} des Rasters. Verenge die Bereiche oder nutze Zufällig oder Bayessch."
+
+#, message
+msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr "Das sind {combos} Kombinationen, mehr als die {MAX_GRID} des Rasters. Verenge die Bereiche oder nutze Zufällig oder Bayessch."
+
+msgid "The account was reset."
+msgstr "Das Konto wurde zurückgesetzt."
+
+msgid "The chart reloads when you save there"
+msgstr "Der Chart lädt neu, wenn du dort speicherst"
+
+msgid "The colour picker has a Custom tab: a spectrum, a hue bar, and hex and RGB."
+msgstr "Die Farbauswahl hat einen Tab Benutzerdefiniert: Spektrum, Farbtonleiste sowie Hex und RGB."
+
+msgid "The connection dropped. The code still works."
+msgstr "Die Verbindung brach ab. Der Code gilt weiterhin."
+
+msgid "The connection dropped. Try again."
+msgstr "Die Verbindung brach ab. Versuche es erneut."
+
+#, message
+msgid "The data service answered with an error ({c})."
+msgstr "Der Datendienst antwortete mit einem Fehler ({c})."
+
+#, message
+msgid "The data service refused the key. Check it in Settings → Data providers."
+msgstr "Der Datendienst hat den Schlüssel abgelehnt. Prüfe ihn unter Einstellungen → Datenanbieter."
+
+msgid "The gateway URL should look like https://localhost:5000"
+msgstr "Die Gateway-URL sollte wie https://localhost:5000 aussehen"
+
+msgid "The other device runs a different version of Opentern. Update both, then try again."
+msgstr "Auf dem anderen Gerät läuft eine andere Version von Opentern. Aktualisiere beide und versuche es erneut."
+
+msgid "The port should be a number, usually 587 or 465."
+msgstr "Der Port sollte eine Zahl sein, meist 587 oder 465."
+
+msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
+msgstr "Dasselbe, und er startet auch, wenn du dich am Computer anmeldest, sodass Alarme nach einem Neustart weiterlaufen."
+
+msgid "The script crashed."
+msgstr "Das Skript ist abgestürzt."
+
+msgid "The script failed on this symbol."
+msgstr "Das Skript schlug bei diesem Symbol fehl."
+
+#, message
+msgid "The scripts folder is too big to export."
+msgstr "Der Skriptordner ist zu groß zum Exportieren."
+
+#, message
+msgid "The stop-loss has to be {0} the entry price."
+msgstr "Der Stop-Loss muss {0} dem Einstiegspreis liegen."
+
+msgid "The strategy isn't on the chart any more."
+msgstr "Die Strategie ist nicht mehr auf dem Chart."
+
+#, message
+msgid "The take-profit has to be {0} the entry price."
+msgstr "Der Take-Profit muss {0} dem Einstiegspreis liegen."
+
+msgid "The webhook URL should start with https://"
+msgstr "Die Webhook-URL sollte mit https:// beginnen"
+
+msgid "Theme"
+msgstr "Design"
+
+#, message
+msgid "There are no bars to test on yet."
+msgstr "Es gibt noch keine Balken zum Testen."
+
+msgid "There's already an account with this name."
+msgstr "Es gibt schon ein Konto mit diesem Namen."
+
+#, message
+msgid "There's already something called {name} there."
+msgstr "Dort gibt es schon etwas namens {name}."
+
+#, message
+msgid "There's no free order book for this market. The DOM works for crypto exchanges."
+msgstr "Für diesen Markt gibt es kein kostenloses Orderbuch. Die Markttiefe funktioniert für Kryptobörsen."
+
+msgid "There's no image or file on the clipboard."
+msgstr "Kein Bild und keine Datei in der Zwischenablage."
+
+msgid "Thinking"
+msgstr "Denkt nach"
+
+msgid "This device"
+msgstr "Dieses Gerät"
+
+msgid "This file has a Python script"
+msgstr "Diese Datei enthält ein Python-Skript"
+
+msgid "This file has nothing in it to import."
+msgstr "Diese Datei enthält nichts zum Importieren."
+
+msgid "This file has {0} Python scripts"
+msgstr "Diese Datei enthält {0} Python-Skripte"
+
+#, message
+msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
+msgstr "Diese Datei stammt von einer neueren Version von Opentern. Aktualisiere Opentern, um sie zu importieren."
+
+msgid "This is a library: import it from another script."
+msgstr "Dies ist eine Bibliothek: Importiere sie aus einem anderen Skript."
+
+msgid "This strategy can't be compiled for other symbols."
+msgstr "Diese Strategie lässt sich nicht für andere Symbole kompilieren."
+
+msgid "This strategy has no inputs to vary."
+msgstr "Diese Strategie hat keine Eingaben zum Variieren."
+
+msgid "Thu"
+msgstr "Do"
+
+msgid "Thursday"
+msgstr "Donnerstag"
+
+#, message
+msgid "Tick members of {0}"
+msgstr "Mitglieder von {0} ankreuzen"
+
+msgid "Tick the inputs to vary."
+msgstr "Kreuze die zu variierenden Eingaben an."
+
+#, message
+msgid "Ticked members of {0}"
+msgstr "Mitglieder von {0} angekreuzt"
+
+msgid "Tiles show the regular session. Hover one for its extended-hours price."
+msgstr "Kacheln zeigen die reguläre Sitzung. Fahre mit der Maus darüber für den nachbörslichen Preis."
+
+msgid "Time"
+msgstr "Zeit"
+
+msgid "Time Weighted Average Price"
+msgstr "Zeitgewichteter Durchschnittspreis"
+
+msgid "Timeframe"
+msgstr "Zeitrahmen"
+
+msgid "Timezone"
+msgstr "Zeitzone"
+
+msgid "Tiradentes"
+msgstr ""
+
+msgid "Title"
+msgstr "Titel"
+
+msgid "Today"
+msgstr "Heute"
+
+msgid "Today's weight in the index"
+msgstr "Heutiges Gewicht im Index"
+
+msgid "Token: OANDA → My Services → Manage API Access. Use symbols like OANDA:EURUSD."
+msgstr "Token: OANDA → My Services → Manage API Access. Nutze Symbole wie OANDA:EURUSD."
+
+msgid "Tokyo"
+msgstr "Tokio"
+
+msgid "Tomorrow"
+msgstr "Morgen"
+
+msgid "Too many wrong codes. Start again."
+msgstr "Zu viele falsche Codes. Beginne von vorn."
+
+msgid "Took a picture of the chart"
+msgstr "Bild des Charts aufgenommen"
+
+msgid "Top 150"
+msgstr "Top 150"
+
+msgid "Toronto"
+msgstr ""
+
+msgid "Toronto Stock Exchange"
+msgstr ""
+
+msgid "Total"
+msgstr "Gesamt"
+
+msgid "Total P&L"
+msgstr "Gesamt-G&V"
+
+msgid "Total open trades"
+msgstr "Offene Trades gesamt"
+
+msgid "Total trades"
+msgstr "Trades gesamt"
+
+msgid "Trade #"
+msgstr "Trade-Nr."
+
+msgid "Trades"
+msgstr "Trades"
+
+msgid "Trades analysis"
+msgstr "Trade-Analyse"
+
+msgid "Trading Sessions"
+msgstr "Handelssitzungen"
+
+msgid "Trading range"
+msgstr "Handelsspanne"
+
+msgid "Traditional"
+msgstr "Traditionell"
+
+msgid "Trail by"
+msgstr "Nachziehen um"
+
+msgid "Trailing stop"
+msgstr "Trailing-Stop"
+
+msgid "Trailing twelve months. For the index: weighted by revenue"
+msgstr "Letzte zwölf Monate. Für den Index: nach Umsatz gewichtet"
+
+msgid "Trend"
+msgstr "Trend"
+
+msgid "Trend Strength Index"
+msgstr "Trend Strength Index"
+
+msgid "Trend line"
+msgstr "Trendlinie"
+
+msgid "Trend line tools"
+msgstr "Trendlinienwerkzeuge"
+
+msgid "Trend-based fib extension"
+msgstr "Trendbasierte Fib-Extension"
+
+msgid "Triangle"
+msgstr "Dreieck"
+
+msgid "Tries all {0} choices"
+msgstr "Probiert alle {0} Optionen"
+
+msgid "Tries on and off"
+msgstr "Probiert Ein und Aus"
+
+msgid "Trigger"
+msgstr "Auslöser"
+
+msgid "Triggered"
+msgstr "Ausgelöst"
+
+msgid "Triple EMA"
+msgstr "Dreifacher EMA"
+
+msgid "True Range"
+msgstr "True Range"
+
+msgid "True Strength Index"
+msgstr "True Strength Index"
+
+msgid "Try again"
+msgstr "Erneut versuchen"
+
+msgid "Tue"
+msgstr "Di"
+
+msgid "Tuesday"
+msgstr "Dienstag"
+
+msgid "Type"
+msgstr "Typ"
+
+msgid "Type a number"
+msgstr "Zahl tippen"
+
+msgid "Type anywhere"
+msgstr "Einfach tippen"
+
+msgid "UO"
+msgstr ""
+
+msgid "US Markets"
+msgstr "US-Märkte"
+
+msgid "US large caps"
+msgstr "US-Large-Caps"
+
+msgid "Ultimate Oscillator"
+msgstr "Ultimate Oscillator"
+
+msgid "Undo"
+msgstr "Rückgängig"
+
+msgid "Undo ({0})"
+msgstr "Rückgängig ({0})"
+
+msgid "Union Budget session"
+msgstr "Sitzung zum Unionshaushalt"
+
+msgid "Unrealized"
+msgstr "Unrealisiert"
+
+msgid "Untitled"
+msgstr "Unbenannt"
+
+msgid "Up"
+msgstr "Aufwärts"
+
+msgid "Up / down"
+msgstr "Auf / ab"
+
+msgid "Up Trend"
+msgstr "Aufwärtstrend"
+
+msgid "Up volume"
+msgstr "Aufwärtsvolumen"
+
+msgid "Up/Down"
+msgstr "Auf/Ab"
+
+msgid "UpDown Length"
+msgstr "UpDown-Länge"
+
+msgid "Update available"
+msgstr "Update verfügbar"
+
+msgid "Update failed"
+msgstr "Update fehlgeschlagen"
+
+msgid "Update installed"
+msgstr "Update installiert"
+
+msgid "Update on chart"
+msgstr "Auf dem Chart aktualisieren"
+
+msgid "Update to {0}"
+msgstr "Auf {0} aktualisieren"
+
+#, message
+msgid "Updated {file} on the chart."
+msgstr "{file} auf dem Chart aktualisiert."
+
+msgid "Updates"
+msgstr "Updates"
+
+msgid "Updating to {0}"
+msgstr "Aktualisiere auf {0}"
+
+msgid "Updating to {0} ({1}%)"
+msgstr "Aktualisiere auf {0} ({1} %)"
+
+msgid "Upper"
+msgstr "Obere"
+
+msgid "Upper Band"
+msgstr "Oberes Band"
+
+msgid "Upper Band #1"
+msgstr "Oberes Band 1"
+
+msgid "Upper Band #2"
+msgstr "Oberes Band 2"
+
+msgid "Upper Band #3"
+msgstr "Oberes Band 3"
+
+msgid "Upper color"
+msgstr "Obere Farbe"
+
+msgid "Upper deviation"
+msgstr "Obere Abweichung"
+
+msgid "Upper length"
+msgstr "Obere Länge"
+
+msgid "Upper multiplier"
+msgstr "Oberer Multiplikator"
+
+msgid "Upper offset"
+msgstr "Oberer Versatz"
+
+#, message
+msgid "Upstox doesn't list {0}."
+msgstr "Upstox führt {0} nicht."
+
+#, message
+msgid "Upstox has no {0} bars"
+msgstr "Upstox hat keine {0}-Balken"
+
+msgid "Upstox · NSE and BSE"
+msgstr "Upstox · NSE und BSE"
+
+#, message
+msgid "Upstox: couldn't read the instrument list."
+msgstr "Upstox: Die Instrumentenliste konnte nicht gelesen werden."
+
+#, message
+msgid "Upstox: no quote for this symbol."
+msgstr "Upstox: kein Kurs für dieses Symbol."
+
+msgid "Uptrend Highlighter"
+msgstr "Aufwärtstrend-Hervorhebung"
+
+msgid "Usage shows after your first message."
+msgstr "Die Nutzung erscheint nach deiner ersten Nachricht."
+
+msgid "Use Exponential MA"
+msgstr "Exponentiellen MA verwenden"
+
+msgid "Use for new charts"
+msgstr "Für neue Charts verwenden"
+
+msgid "Use the Strategy Lab"
+msgstr "Strategielabor nutzen"
+
+msgid "Use the default folder"
+msgstr "Standardordner verwenden"
+
+msgid "Use the gateway"
+msgstr "Gateway verwenden"
+
+msgid "Use the indices"
+msgstr "Indizes nutzen"
+
+msgid "Use the screener"
+msgstr "Screener nutzen"
+
+msgid "Use this style for new drawings of this kind"
+msgstr "Diesen Stil für neue Zeichnungen dieser Art verwenden"
+
+msgid "Used the Strategy Lab"
+msgstr "Strategielabor genutzt"
+
+msgid "Used the indices"
+msgstr "Indizes genutzt"
+
+msgid "Used the screener"
+msgstr "Screener genutzt"
+
+#, message
+msgid "Using {0}."
+msgstr "{0} wird verwendet."
+
+msgid "VI +"
+msgstr ""
+
+msgid "VI -"
+msgstr ""
+
+msgid "VWAP"
+msgstr ""
+
+msgid "VWAP Settings"
+msgstr "VWAP-Einstellungen"
+
+msgid "VWMA"
+msgstr ""
+
+msgid "Valuation"
+msgstr "Bewertung"
+
+msgid "Value"
+msgstr "Wert"
+
+msgid "Value area down"
+msgstr "Value Area abwärts"
+
+msgid "Value area up"
+msgstr "Value Area aufwärts"
+
+msgid "Value area volume %"
+msgstr "Value-Area-Volumen %"
+
+msgid "Values"
+msgstr "Werte"
+
+msgid "Vert grid lines"
+msgstr "Vert. Gitterlinien"
+
+msgid "Vertical line"
+msgstr "Vertikale Linie"
+
+msgid "Victoria Day"
+msgstr "Victoria Day"
+
+msgid "Visibility"
+msgstr "Sichtbarkeit"
+
+msgid "Visible Average Price"
+msgstr "Sichtbarer Durchschnittspreis"
+
+msgid "Vol {0}"
+msgstr "Vol. {0}"
+
+msgid "Volatility"
+msgstr "Volatilität"
+
+msgid "Volatility Stop"
+msgstr "Volatilitätsstop"
+
+msgid "Volume"
+msgstr "Volumen"
+
+msgid "Volume MA"
+msgstr "Volumen-MA"
+
+msgid "Volume Osc"
+msgstr "Volumen-Osz."
+
+msgid "Volume Oscillator"
+msgstr "Volumenoszillator"
+
+msgid "Volume Profile Visible Range"
+msgstr "Volumenprofil (sichtbarer Bereich)"
+
+msgid "Volume Weighted Moving Average"
+msgstr "Volumengewichteter gleitender Durchschnitt"
+
+msgid "Volume leaders"
+msgstr "Volumenführer"
+
+msgid "Vortex Indicator"
+msgstr "Vortex-Indikator"
+
+msgid "WMA"
+msgstr ""
+
+msgid "WMA Length"
+msgstr "WMA-Länge"
+
+msgid "Waiting for Windows"
+msgstr "Warte auf Windows"
+
+msgid "Waiting for the other device"
+msgstr "Warte auf das andere Gerät"
+
+msgid "Waiting for your answer"
+msgstr "Wartet auf deine Antwort"
+
+msgid "Walk-forward"
+msgstr "Walk-Forward"
+
+msgid "Washington's Birthday"
+msgstr "Washingtons Geburtstag"
+
+msgid "Watch"
+msgstr "Beobachten"
+
+msgid "Watchlist"
+msgstr "Watchlist"
+
+#, message
+msgid "Watchlist: {0}"
+msgstr "Watchlist: {0}"
+
+msgid "Watchlists"
+msgstr "Watchlists"
+
+msgid "Webhook"
+msgstr "Webhook"
+
+msgid "Webhook URL"
+msgstr "Webhook-URL"
+
+msgid "Wed"
+msgstr "Mi"
+
+msgid "Wednesday"
+msgstr "Mittwoch"
+
+msgid "Week"
+msgstr "Woche"
+
+msgid "Weekly"
+msgstr "Wöchentlich"
+
+msgid "Weekly (Opus)"
+msgstr "Woche (Opus)"
+
+msgid "Weekly (Sonnet)"
+msgstr "Woche (Sonnet)"
+
+msgid "Weekly limit"
+msgstr "Wochenlimit"
+
+msgid "Weeks"
+msgstr "Wochen"
+
+msgid "Weight"
+msgstr "Gewicht"
+
+msgid "Weighted equally for now: a member has no share count."
+msgstr "Vorerst gleich gewichtet: Für ein Mitglied fehlt die Aktienzahl."
+
+msgid "Weighting"
+msgstr "Gewichtung"
+
+msgid "What do you trade?"
+msgstr "Was handelst du?"
+
+msgid "What was here is saved in the backups folder."
+msgstr "Das Vorhandene liegt im Backup-Ordner."
+
+msgid "What's new"
+msgstr "Neuigkeiten"
+
+msgid "When Opentern is closed"
+msgstr "Wenn Opentern geschlossen ist"
+
+msgid "When it's"
+msgstr "Wenn es"
+
+msgid "When the price is"
+msgstr "Wenn der Preis"
+
+msgid "Which plot to show (0 is the first)"
+msgstr "Welcher Plot angezeigt wird (0 ist der erste)"
+
+msgid "Whit Monday"
+msgstr "Pfingstmontag"
+
+msgid "Wick"
+msgstr "Docht"
+
+msgid "Width %"
+msgstr "Breite %"
+
+msgid "Williams %R"
+msgstr "Williams %R"
+
+msgid "Williams Alligator"
+msgstr "Williams Alligator"
+
+msgid "Williams Fractals"
+msgstr "Williams-Fraktale"
+
+msgid "Win %"
+msgstr "Gewinn %"
+
+msgid "Windows didn't allow it. Try again"
+msgstr "Windows hat es nicht erlaubt. Erneut versuchen"
+
+#, message
+msgid "Windows refused the rule."
+msgstr "Windows hat die Regel abgelehnt."
+
+msgid "Winning trades"
+msgstr "Gewinntrades"
+
+msgid "Women and Children's Day"
+msgstr "Frauen- und Kindertag"
+
+msgid "Woodie"
+msgstr "Woodie"
+
+msgid "Woodies CCI"
+msgstr "Woodies CCI"
+
+msgid "Working"
+msgstr "Arbeitet"
+
+#, message
+msgid "Wrote {0}"
+msgstr "{0} geschrieben"
+
+msgid "Xetra"
+msgstr ""
+
+msgid "YTD"
+msgstr ""
+
+#, message
+msgid "Yahoo answered with an error ({c})."
+msgstr "Yahoo antwortete mit einem Fehler ({c})."
+
+#, message
+msgid "Yahoo answered with an error ({status})."
+msgstr "Yahoo antwortete mit einem Fehler ({status})."
+
+#, message
+msgid "Yahoo didn't send a list this time. Try again later."
+msgstr "Yahoo hat diesmal keine Liste gesendet. Versuche es später erneut."
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again in a minute."
+msgstr "Yahoo hat diesmal keine Kurse gesendet. Versuche es in einer Minute erneut."
+
+#, message
+msgid "Yahoo didn't send prices this time. Try again later."
+msgstr "Yahoo hat diesmal keine Kurse gesendet. Versuche es später erneut."
+
+#, message
+msgid "Yahoo didn't start a session."
+msgstr "Yahoo hat keine Sitzung gestartet."
+
+#, message
+msgid "Yahoo has no daily history for this BSE listing. NSE:{0} has it."
+msgstr "Yahoo hat keine Tageshistorie für diese BSE-Notierung. NSE:{0} hat sie."
+
+#, message
+msgid "Yahoo has no data for this symbol"
+msgstr "Yahoo hat keine Daten für dieses Symbol"
+
+#, message
+msgid "Yahoo has no {0} bars"
+msgstr "Yahoo hat keine {0}-Balken"
+
+#, message
+msgid "Yahoo is limiting requests right now."
+msgstr "Yahoo begrenzt gerade die Anfragen."
+
+#, message
+msgid "Yahoo is limiting requests; try again in a minute."
+msgstr "Yahoo begrenzt die Anfragen; versuche es in einer Minute erneut."
+
+#, message
+msgid "Yahoo is too slow to answer right now."
+msgstr "Yahoo antwortet gerade zu langsam."
+
+#, message
+msgid "Yahoo isn't answering right now (error {c})."
+msgstr "Yahoo antwortet gerade nicht (Fehler {c})."
+
+msgid "Yahoo no longer has {0} ({what} renamed or delisted?). They count at their last price. Replace them with Edit."
+msgstr "Yahoo führt {0} nicht mehr ({what} umbenannt oder dekotiert?). Sie zählen mit ihrem letzten Preis. Ersetze sie über Bearbeiten."
+
+#, message
+msgid "Yahoo sent {g} bars instead of {iv}."
+msgstr "Yahoo hat {g}-Balken statt {iv} gesendet."
+
+#, message
+msgid "Yahoo's prices skip {name} on {0}: it isn't on this chart."
+msgstr "Yahoos Kurse überspringen {name} am {0}: nicht auf diesem Chart."
+
+msgid "Year"
+msgstr "Jahr"
+
+msgid "Yearly"
+msgstr "Jährlich"
+
+msgid "Yes, reset"
+msgstr "Ja, zurücksetzen"
+
+msgid "Your address"
+msgstr "Deine Adresse"
+
+msgid "Your chat id (e.g. from @userinfobot)"
+msgstr "Deine Chat-ID (z. B. von @userinfobot)"
+
+msgid "Your conversations with your agents show up here."
+msgstr "Deine Gespräche mit deinen Agenten erscheinen hier."
+
+msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
+msgstr "Deine Watchlists, Layouts, Zeichnungen, Alarme und Skripte bleiben."
+
+msgid "Zero"
+msgstr "Null"
+
+msgid "Zero Line"
+msgstr "Nulllinie"
+
+msgid "Zig Zag"
+msgstr "Zig Zag"
+
+msgid "Zoom in"
+msgstr "Vergrößern"
+
+msgid "Zoom in (drag a range)"
+msgstr "Vergrößern (Bereich ziehen)"
+
+msgid "Zurich"
+msgstr "Zürich"
+
+msgid "[Ln {l}]"
+msgstr "[Z. {l}]"
+
+msgid "a drawing"
+msgstr "eine Zeichnung"
+
+msgid "above"
+msgstr "über"
+
+msgid "at {0}"
+msgstr "um {0}"
+
+msgid "auto"
+msgstr "auto"
+
+msgid "below"
+msgstr "unter"
+
+msgid "buy"
+msgstr "Kauf"
+
+msgid "by"
+msgstr "Schritt"
+
+msgid "chart layout"
+msgstr "Chart-Layout"
+
+#, message
+msgid "chart type to {0}"
+msgstr "Charttyp auf {0}"
+
+msgid "chart view"
+msgstr "Chartansicht"
+
+msgid "close"
+msgstr "Schluss"
+
+msgid "e.g. Nifty Auto"
+msgstr "z. B. Nifty Auto"
+
+msgid "e.g. Swing setup"
+msgstr "z. B. Swing-Setup"
+
+msgid "e.g. {{ticker}} crossed at {{close}}"
+msgstr "z. B. {{ticker}} kreuzte bei {{close}}"
+
+msgid "from"
+msgstr "von"
+
+msgid "high"
+msgstr "Hoch"
+
+msgid "hl2"
+msgstr ""
+
+msgid "hlc3"
+msgstr ""
+
+msgid "hlcc4"
+msgstr ""
+
+msgid "https://…"
+msgstr ""
+
+msgid "in use"
+msgstr "wird genutzt"
+
+msgid "in {0} weeks"
+msgstr "in {0} Wochen"
+
+msgid "in {n} days"
+msgstr "in {n} Tagen"
+
+msgid "log"
+msgstr "log"
+
+msgid "low"
+msgstr "Tief"
+
+msgid "macOS asks once. If Opentern isn't allowed, turn it on here, then try again."
+msgstr "macOS fragt einmal. Falls Opentern nicht erlaubt ist, schalte es hier ein und versuche es erneut."
+
+msgid "ohlc4"
+msgstr "macOS fragt einmal. Falls Opentern nicht erlaubt ist, schalte es hier ein und versuche es erneut."
+
+msgid "open"
+msgstr "Eröffnung"
+
+msgid "sell"
+msgstr "Verkauf"
+
+msgid "to"
+msgstr "bis"
+
+#, message
+msgid "view to {0}"
+msgstr "Ansicht auf {0}"
+
+msgid "vs 200 SMA"
+msgstr "ggü. SMA 200"
+
+msgid "vs 50 SMA"
+msgstr "ggü. SMA 50"
+
+msgid "vs SMA 200 %"
+msgstr "ggü. SMA 200 %"
+
+msgid "vs SMA 50 %"
+msgstr "ggü. SMA 50 %"
+
+msgid "your other device"
+msgstr "dein anderes Gerät"
+
+msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
+msgstr "{0}\nKapital  {1}\nBuy & Hold  {2}\nDrawdown  {3}"
+
+msgid "{0}\nNo new price for {1}"
+msgstr "{0}\nKein neuer Preis seit {1}"
+
+msgid "{0}\n{1}% of the map\n{2}: {3}"
+msgstr "{0}\n{1} % der Karte\n{2}: {3}"
+
+msgid "{0}   Move to section"
+msgstr "{0}   In Abschnitt verschieben"
+
+msgid "{0}  (default)"
+msgstr "{0}  (Standard)"
+
+msgid "{0}  Add a watchlist"
+msgstr "{0}  Watchlist hinzufügen"
+
+msgid "{0}  Back"
+msgstr "{0}  Zurück"
+
+msgid "{0}  Not on the chart"
+msgstr "{0}  Nicht auf dem Chart"
+
+msgid "{0}  On the chart"
+msgstr "{0}  Auf dem Chart"
+
+msgid "{0}  Saving replaces the template with this name."
+msgstr "{0}  Speichern ersetzt die Vorlage mit diesem Namen."
+
+msgid "{0}  Search symbols to add"
+msgstr "{0}  Symbole zum Hinzufügen suchen"
+
+msgid "{0}  insert"
+msgstr "{0}  einfügen"
+
+msgid "{0} ({1})\n{bars} bars, {time}"
+msgstr "{0} ({1})\n{bars} Balken, {time}"
+
+msgid "{0} MB of prices on this computer"
+msgstr "{0} MB Kurse auf diesem Computer"
+
+msgid "{0} alerts fired"
+msgstr "{0} Alarme ausgelöst"
+
+#, message
+msgid "{0} bars aren't available for this symbol."
+msgstr "{0}-Balken sind für dieses Symbol nicht verfügbar."
+
+#, message
+msgid "{0} bars aren't available for {1}."
+msgstr "{0}-Balken sind für {1} nicht verfügbar."
+
+#, message
+msgid "{0} comparison"
+msgstr "Vergleich mit {0}"
+
+msgid "{0} contracts"
+msgstr "{0} Kontrakte"
+
+msgid "{0} copy"
+msgstr "{0} Kopie"
+
+msgid "{0} days"
+msgstr "{0} Tage"
+
+msgid "{0} h {1} min"
+msgstr "{0} Std. {1} Min."
+
+#, message
+msgid "{0} has no values to try."
+msgstr "{0} hat keine Werte zum Probieren."
+
+#, message
+msgid "{0} has unsaved changes: close again to discard them."
+msgstr "{0} hat ungespeicherte Änderungen: Noch einmal schließen verwirft sie."
+
+msgid "{0} isn't installed"
+msgstr "{0} ist nicht installiert"
+
+msgid "{0} min"
+msgstr "{0} Min."
+
+msgid "{0} per contract"
+msgstr "{0} pro Kontrakt"
+
+msgid "{0} per order"
+msgstr "{0} pro Order"
+
+#, message
+msgid "{0} runs in {took}."
+msgstr "{0} Läufe in {took}."
+
+msgid "{0} steps"
+msgstr "{0} Schritte"
+
+msgid "{0} symbols"
+msgstr "{0} Symbole"
+
+#, message
+msgid "{0} symbols in {took}."
+msgstr "{0} Symbole in {took}."
+
+#, message
+msgid "{0} symbols in {took}; {1} couldn't run."
+msgstr "{0} Symbole in {took}; {1} ließen sich nicht ausführen."
+
+#, message
+msgid "{0} windows in {took}."
+msgstr "{0} Fenster in {took}."
+
+msgid "{0} {1} {2} at {3}"
+msgstr "{0} {1} {2} zu {3}"
+
+#, message
+msgid "{0} {p}. Paste it into a folder with Ctrl+V."
+msgstr "{0} {p}. Füge es mit Strg+V in einen Ordner ein."
+
+msgid "{0} · {1} symbols"
+msgstr "{0} · {1} Symbole"
+
+msgid "{0} — properties"
+msgstr "{0} — Eigenschaften"
+
+msgid "{0}% of equity"
+msgstr "{0} % des Kapitals"
+
+msgid "{0}% opacity"
+msgstr "{0} % Deckkraft"
+
+#, message
+msgid "{0}, base {1}."
+msgstr "{0}, Basis {1}."
+
+msgid "{0}-day limit"
+msgstr "{0}-Tage-Limit"
+
+msgid "{0}-hour limit"
+msgstr "{0}-Stunden-Limit"
+
+msgid "{0}: Yahoo no longer has this symbol; it may have been renamed or delisted. It counts at its last price. Replace it with Edit."
+msgstr "{0}: Yahoo führt dieses Symbol nicht mehr; es wurde vielleicht umbenannt oder dekotiert. Es zählt mit seinem letzten Preis. Ersetze es über Bearbeiten."
+
+#, message
+msgid "{0}: any alert() call"
+msgstr "{0}: jeder alert()-Aufruf"
+
+msgid "{0}: {1}% used"
+msgstr "{0}: {1} % genutzt"
+
+msgid "{0}d ago"
+msgstr "vor {0} T."
+
+msgid "{0}h ago"
+msgstr "vor {0} Std."
+
+msgid "{0}m ago"
+msgstr "vor {0} Min."
+
+msgid "{0}px"
+msgstr ""
+
+msgid "{0}{plus} mo"
+msgstr "{0}{plus} Mon."
+
+#, message
+msgid "{GONE}. It may have been renamed or delisted."
+msgstr "{GONE}. Es wurde vielleicht umbenannt oder dekotiert."
+
+#, message
+msgid "{account}: Bought {qty} {sym} at {price}"
+msgstr "{account}: {qty} {sym} zu {price} gekauft"
+
+#, message
+msgid "{account}: Sold {qty} {sym} at {price}"
+msgstr "{account}: {qty} {sym} zu {price} verkauft"
+
+msgid "{bars} bars, {time}"
+msgstr "{bars} Balken, {time}"
+
+msgid "{combos} combinations: too many for every combination. Use Random or Bayesian."
+msgstr "{combos} Kombinationen: zu viele, um jede zu testen. Nutze Zufällig oder Bayessch."
+
+#, message
+msgid "{dir} already has a {0}."
+msgstr "{dir} enthält schon {0}."
+
+#, message
+msgid "{dir} isn't empty: move or delete what's in it first."
+msgstr "{dir} ist nicht leer: Verschiebe oder lösche zuerst den Inhalt."
+
+#, message
+msgid "{done} of {0} done…"
+msgstr "{done} von {0} fertig…"
+
+#, message
+msgid "{e} Left out of the index."
+msgstr "{e} Nicht im Index."
+
+#, message
+msgid "{fe} no longer trades {fd}"
+msgstr "{fe} handelt {fd} nicht mehr"
+
+#, message
+msgid "{file} is a library."
+msgstr "{file} ist eine Bibliothek."
+
+#, message
+msgid "{file} isn't a script"
+msgstr "{file} ist kein Skript"
+
+#, message
+msgid "{file} isn't in the scripts folder"
+msgstr "{file} liegt nicht im Skriptordner"
+
+#, message
+msgid "{file} was imported, and Python has full access to this computer. Press Run again if you trust it."
+msgstr "{file} wurde importiert, und Python hat vollen Zugriff auf diesen Computer. Drücke noch einmal Ausführen, wenn du ihm vertraust."
+
+#, message
+msgid "{file} was imported. To run it, open it in the Script Editor and press Run."
+msgstr "{file} wurde importiert. Öffne es im Skript-Editor und drücke Ausführen."
+
+msgid "{left} left"
+msgstr "noch {left}"
+
+msgid "{m}-minute limit"
+msgstr "{m}-Minuten-Limit"
+
+#, message
+msgid "{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again."
+msgstr "{name} ist nicht angemeldet. Führe einmal {cmd} in einem Terminal aus und versuche es dann erneut."
+
+#, message
+msgid "{name} stopped unexpectedly. Send your message again to pick up where it left off."
+msgstr "{name} wurde unerwartet beendet. Sende deine Nachricht erneut, um dort weiterzumachen."
+
+#, message
+msgid "{name} stopped: {err}"
+msgstr "{name} wurde beendet: {err}"
+
+#, message
+msgid "{n} alerts fired while Opentern was closed"
+msgstr "{n} Alarme wurden ausgelöst, während Opentern geschlossen war"
+
+msgid "{n} charts"
+msgstr "{n} Charts"
+
+msgid "{n} days"
+msgstr "{n} Tage"
+
+#, message
+msgid "{n} drawings"
+msgstr "{n} Zeichnungen"
+
+msgid "{n} hours"
+msgstr "{n} Stunden"
+
+msgid "{n} minutes"
+msgstr "{n} Minuten"
+
+msgid "{n} months"
+msgstr "{n} Monate"
+
+msgid "{n} seconds"
+msgstr "{n} Sekunden"
+
+msgid "{n} symbols"
+msgstr "{n} Symbole"
+
+msgid "{n} weeks"
+msgstr "{n} Wochen"
+
+msgid "{n}{plus} yr"
+msgstr "{n}{plus} Jahr"
+
+msgid "{n}{plus} yrs"
+msgstr "{n}{plus} Jahre"
+
+msgid "{p} runs of {combos} combinations on the chart's {n} bars."
+msgstr "{p} Läufe von {combos} Kombinationen auf den {n} Balken des Charts."
+
+msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} Balken, {time}"
+
+msgid "{state} · {0} · fired {1}×"
+msgstr "{state} · {0} · {1}× ausgelöst"
+
+#, message
+msgid "{study}: any alert() call"
+msgstr "{study}: jeder alert()-Aufruf"
+
+msgid "{text}\n{0}\nEarlier prices adjusted"
+msgstr "{text}\n{0}\nFrühere Kurse angepasst"
+
+msgid "{tip}\nClick to put the best of these on the chart"
+msgstr "{tip}\nKlicken, um die besten davon auf den Chart zu übernehmen"
+
+msgid "{tip} {0} at {1}"
+msgstr "{tip} {0} bei {1}"
+
+#, message
+msgid "{title} {0} the price"
+msgstr "{title} {0} den Preis"
+
+msgid "{unsaved} scripts have unsaved changes. Save them to include them."
+msgstr "{unsaved} Skripte haben ungespeicherte Änderungen. Speichere sie, um sie einzuschließen."
+
+msgid "{what} placed."
+msgstr "{what} platziert."
+
+msgid "{what}, and Python has full access to this computer. Nothing will run until you press Run in the Script Editor."
+msgstr "{what}, und Python hat vollen Zugriff auf diesen Computer. Nichts läuft, bis du im Skript-Editor auf Ausführen drückst."
+
+msgid "{w} windows × {p} runs on the chart's {n} bars."
+msgstr "{w} Fenster × {p} Läufe auf den {n} Balken des Charts."
+
+msgid "{w}px"
+msgstr ""

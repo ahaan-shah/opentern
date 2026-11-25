@@ -79,6 +79,44 @@ pub fn bar_icon_button(
     if tip.is_empty() { resp } else { resp.on_hover_text(tip) }
 }
 
+/// The widest of `texts` in `font`, so a list can make room for longer
+/// languages.
+pub fn widest<'a>(ui: &Ui, font: egui::FontId, texts: impl IntoIterator<Item = &'a str>) -> f32 {
+    texts
+        .into_iter()
+        .map(|s| {
+            ui.painter()
+                .layout_no_wrap(s.to_string(), font.clone(), Color32::WHITE)
+                .size()
+                .x
+        })
+        .fold(0.0, f32::max)
+}
+
+/// A row of tabs at most `room` wide that scrolls sideways when they don't
+/// fit. `tabs` is told when to bring the open one into view: when it, the
+/// language or the room changes (not every frame, so it can be scrolled away).
+pub fn tab_scroll<K: Copy + PartialEq + Send + Sync + 'static>(
+    ui: &mut Ui,
+    id: &'static str,
+    open: K,
+    room: f32,
+    tabs: impl FnOnce(&mut Ui, bool),
+) {
+    let seen_id = egui::Id::new((id, "seen"));
+    let now = (open, crate::i18n::current() as u8, room as i32);
+    let reveal = ui.data(|d| d.get_temp(seen_id)) != Some(now);
+    ui.data_mut(|d| d.insert_temp(seen_id, now));
+    ui.scope(|ui| {
+        ui.style_mut().always_scroll_the_only_direction = true;
+        egui::ScrollArea::horizontal()
+            .id_salt(id)
+            .max_width(room)
+            .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+            .show(ui, |ui| tabs(ui, reveal));
+    });
+}
+
 /// A thin vertical rule between groups in a horizontal bar.
 pub fn vdivider(ui: &mut Ui, t: &Theme) {
     let (rect, _) = ui.allocate_exact_size(vec2(9.0, 22.0), Sense::hover());
@@ -489,17 +527,15 @@ pub fn slider(ui: &mut Ui, t: &Theme, value: &mut i32, range: std::ops::RangeInc
         let r = ui
             .scope(|ui| {
                 ui.spacing_mut().interact_size.y = 16.0;
-                // The rail's empty part is the inactive fill (so is egui's
-                // resting handle, which is drawn again on top below).
-                let rail = t.field().lerp_to_gamma(t.text, 0.12);
+                // egui's own rail and handle stay unseen: its rail runs past
+                // the handle at both ends.
                 let w = &mut ui.visuals_mut().widgets;
                 for s in [&mut w.inactive, &mut w.hovered, &mut w.active] {
-                    s.bg_fill = rail;
+                    s.bg_fill = Color32::TRANSPARENT;
                     s.fg_stroke = Stroke::NONE;
                     s.bg_stroke = Stroke::NONE;
                 }
-                ui.visuals_mut().selection.bg_fill = t.accent;
-                ui.add(egui::Slider::new(value, range).show_value(false))
+                ui.add(egui::Slider::new(value, range).show_value(false).trailing_fill(false))
             })
             .inner;
         // The handle: white with a soft ring, where egui puts its own.
@@ -512,6 +548,13 @@ pub fn slider(ui: &mut Ui, t: &Theme, value: &mut i32, range: std::ops::RangeInc
         };
         let c = egui::pos2(span.min + k * (span.max - span.min), r.rect.center().y);
         let p = ui.painter();
+        // The rail ends under the handle, whichever end it's at.
+        let rail = |to: f32, col: Color32| {
+            let r = Rect::from_x_y_ranges(span.min..=to, c.y - 2.0..=c.y + 2.0);
+            p.rect_filled(r, CornerRadius::same(2), col);
+        };
+        rail(span.max, t.field().lerp_to_gamma(t.text, 0.12));
+        rail(c.x, t.accent);
         p.circle_filled(c + vec2(0.0, 1.0), rad + 1.0, Color32::from_black_alpha(70));
         p.circle_filled(
             c,
@@ -527,6 +570,19 @@ pub fn slider(ui: &mut Ui, t: &Theme, value: &mut i32, range: std::ops::RangeInc
         r
     })
     .inner
+}
+
+/// Underlined text to click; green under the pointer.
+pub fn text_link(ui: &mut Ui, t: &Theme, text: &str) -> Response {
+    let font = theme::regular(13.0);
+    let galley = ui.painter().layout_no_wrap(text.to_string(), font, t.text2);
+    let (r, resp) = ui.allocate_exact_size(galley.size(), Sense::click());
+    let lit = motion::toggle(ui.ctx(), resp.id, resp.hovered() || resp.has_focus(), motion::MICRO);
+    let col = motion::lerp_color(t.text2, t.accent, lit);
+    let p = ui.painter();
+    p.galley_with_override_text_color(r.min, galley, col);
+    p.hline(r.x_range(), r.bottom() - 0.5, Stroke::new(1.0, col));
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// A hairline across the whole of a dialog's body, with air around it.
@@ -866,4 +922,82 @@ pub fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: boo
     p.add(egui::epaint::TextShape::new(pos, galley, color).with_angle(angle));
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     resp.on_hover_text(tip)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::THEMES;
+
+    fn shapes(mut f: impl FnMut(&mut Ui), events: Vec<egui::Event>, ctx: &egui::Context) -> Vec<egui::Shape> {
+        let raw = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 200.0))),
+            events,
+            ..Default::default()
+        };
+        let mut out = ctx.run_ui(raw, |ui| f(ui));
+        out.textures_delta.clear();
+        out.shapes.into_iter().map(|s| s.shape).collect()
+    }
+
+    /// At either end, and between, the handle covers the end of the green.
+    #[test]
+    fn the_slider_handle_covers_the_end_of_its_rail() {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx, "Inter");
+        for v in [0, 1, 60, 99, 100] {
+            let mut value = v;
+            let all = shapes(
+                |ui| {
+                    slider(ui, &THEMES[0], &mut value, 0..=100, "%");
+                },
+                vec![],
+                &ctx,
+            );
+            let (mut handle, mut green, mut widest) = (None, None, f32::MIN);
+            for s in &all {
+                match s {
+                    egui::Shape::Circle(c) if c.fill == Color32::WHITE => handle = Some((c.center.x, c.radius)),
+                    egui::Shape::Rect(r) if r.fill != Color32::TRANSPARENT && r.rect.height() < 6.0 => {
+                        widest = widest.max(r.rect.right());
+                        if r.fill == THEMES[0].accent {
+                            green = Some(r.rect.right());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let (x, r) = handle.expect("a handle");
+            if v > 0 {
+                assert!(green.is_some_and(|g| (g - x).abs() <= r), "{v}: {green:?} past {x}±{r}");
+            }
+            if v == 100 {
+                assert!(widest <= x + r, "{widest} past {}", x + r);
+            }
+        }
+    }
+
+    /// Plain underlined text, green while the pointer is on it.
+    #[test]
+    fn a_text_link_lights_up() {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx, "Inter");
+        let t = THEMES[0];
+        let mut rect = Rect::NOTHING;
+        let mut line = |events| {
+            let mut col = Color32::TRANSPARENT;
+            for _ in 0..40 {
+                let all = shapes(|ui| rect = text_link(ui, &t, "Theme").rect, Vec::clone(&events), &ctx);
+                for s in all {
+                    if let egui::Shape::LineSegment { stroke, .. } = s {
+                        col = stroke.color;
+                    }
+                }
+            }
+            (col, rect.center())
+        };
+        let (col, center) = line(vec![]);
+        assert_eq!(col, t.text2);
+        assert_eq!(line(vec![egui::Event::PointerMoved(center)]).0, t.accent);
+    }
 }
