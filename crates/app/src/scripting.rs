@@ -231,15 +231,42 @@ fn python_meta(file: &str, desc: &python::Meta, out: &python::Output) -> &'stati
 fn signature(desc: &python::Meta, out: &python::Output) -> String {
     let mut s = format!("{}|{}|{:?}|", desc.name, desc.overlay, desc.precision);
     for i in &desc.inputs {
-        s += &format!("{}:{}:{}|", i.id, i.kind, i.options.join(","));
+        s += &format!(
+            "{}:{}:{}:{}:{}:{:?}:{:?}:{:?}|",
+            i.id,
+            i.title,
+            i.kind,
+            i.options.join(","),
+            i.default,
+            i.min,
+            i.max,
+            i.step
+        );
     }
     for p in &out.plots {
         s += &format!("{}:{}:{}:{}|", p.title, p.color, p.width, p.style);
     }
     for h in &out.hlines {
-        s += &format!("{}:{}:{}|", h.title, h.value, h.color);
+        s += &format!("{}:{}:{}:{}|", h.title, h.value, h.color, h.style);
     }
     s
+}
+
+/// The chart's bars as a Python script sees them: daily and longer ones at
+/// their session's open, as in the other languages.
+fn script_bars(chart: &crate::chart::Chart) -> std::sync::Arc<Vec<opentern_core::Bar>> {
+    let bars = chart.bars_arc();
+    if chart.tf.is_intraday() {
+        return bars;
+    }
+    let tz = jiff::tz::TimeZone::get(&chart.symbol.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+    let market = opentern_core::calendar::Market::of(&chart.symbol);
+    let at = |t| opentern_core::bartime::open_in(chart.tf, t, &tz, market);
+    std::sync::Arc::new(
+        bars.iter()
+            .map(|b| opentern_core::Bar { time: at(b.time), ..*b })
+            .collect(),
+    )
 }
 
 fn inputs_json(i: &Inputs) -> serde_json::Value {
@@ -559,7 +586,7 @@ impl App {
             let soon = run.last_run.is_none_or(|t| t.elapsed() > Duration::from_millis(500));
             if n > 0 && run.desc.is_some() && (inputs_changed || (data_changed && soon && !run.in_flight)) {
                 if let Some(r) = run.runner.as_mut() {
-                    r.run(self.chart.bars_arc(), inputs_json(&inputs));
+                    r.run(script_bars(&self.chart), inputs_json(&inputs));
                 }
                 run.sent_version = self.chart.data_version;
                 run.sent_inputs = Some(inputs);
@@ -686,5 +713,36 @@ mod held_python_tests {
         assert!(d.app.editor.status.contains("full access"), "{}", d.app.editor.status);
         d.app.run_script();
         assert!(running(&d, "evil.py"));
+    }
+}
+
+#[cfg(test)]
+mod bar_time_tests {
+    use super::*;
+    use opentern_core::{Bar, Timeframe};
+
+    #[test]
+    fn python_sees_when_daily_bars_open() {
+        let mut d = crate::drive::Driver::new("python-bar-times");
+        let c = &mut d.app.chart;
+        c.symbol = opentern_core::starter_watchlist()
+            .into_iter()
+            .find(|s| s.id == "NASDAQ:AAPL")
+            .unwrap();
+        c.symbol.timezone = "America/New_York".into();
+        let at = |s: &str| s.parse::<jiff::Timestamp>().unwrap().as_millisecond();
+        let stamp = at("2024-01-02T00:00:00Z");
+        c.bars = vec![Bar {
+            time: stamp,
+            open: 1.0,
+            high: 1.0,
+            low: 1.0,
+            close: 1.0,
+            volume: 1.0,
+        }];
+        c.tf = Timeframe::parse("1D").unwrap();
+        assert_eq!(script_bars(c)[0].time, at("2024-01-02T14:30:00Z"));
+        c.tf = Timeframe::parse("1h").unwrap();
+        assert_eq!(script_bars(c)[0].time, stamp);
     }
 }

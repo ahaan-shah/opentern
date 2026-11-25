@@ -220,6 +220,7 @@ pub struct ScriptStudy {
     shared: Shared,
     host: Option<Box<HostState>>,
     error: Option<ScriptError>,
+    levels: Vec<(f64, Option<u32>)>,
 }
 
 impl ScriptStudy {
@@ -239,12 +240,16 @@ impl ScriptStudy {
             shared: shared.clone(),
             host,
             error: None,
+            levels: Vec::new(),
         };
         match c.lang.create(&c.src, &c.file, shared.clone(), &c.syminfo) {
             Ok(vm) => s.vm = Some(Arc::new(Mutex::new(vm))),
             Err(e) => s.error = Some(e),
         }
-        *shared.lock().unwrap_or_else(|e| e.into_inner()) = Phase::Idle;
+        let loaded = std::mem::replace(&mut *shared.lock().unwrap_or_else(|e| e.into_inner()), Phase::Idle);
+        if let Phase::Load { decl, .. } = loaded {
+            s.levels = decl.levels();
+        }
         s
     }
 
@@ -296,6 +301,10 @@ impl Study for ScriptStudy {
 
     fn as_any(&self) -> Option<&dyn std::any::Any> {
         Some(self)
+    }
+
+    fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        self.levels.clone()
     }
 }
 

@@ -14,7 +14,10 @@ pub(crate) const CHART_POINT_FIELDS: [&str; 3] = ["index", "time", "price"];
 use crate::natives::{self, NatDef, Ta};
 use crate::value::{self, V};
 use crate::{Env, Error};
-use opentern_core::calendar::{self, Market};
+use opentern_core::bartime::local_day_in;
+use opentern_core::bartime::{DAY, date_of, days_to, midnight, session_on};
+pub(crate) use opentern_core::bartime::{close_in, day_of, local_day, market_of, open_in};
+use opentern_core::calendar::Market;
 use opentern_core::{Bar, Timeframe, Unit};
 use opentern_engine::{Broker, Props};
 use opentern_series::study::{Ctx, Inputs, Out, Study, Value};
@@ -358,42 +361,6 @@ impl G {
     }
 }
 
-const DAY: i64 = 86_400_000;
-
-fn date_of(day: i64) -> jiff::civil::Date {
-    jiff::civil::date(1970, 1, 1)
-        .checked_add(jiff::Span::new().days(day.clamp(-700_000, 2_900_000)))
-        .unwrap_or(jiff::civil::date(1970, 1, 1))
-}
-
-fn days_to(d: jiff::civil::Date) -> i64 {
-    jiff::civil::date(1970, 1, 1)
-        .until(d)
-        .map_or(0, |s| s.get_days() as i64)
-}
-
-/// Local midnight of a day, as UTC ms.
-fn midnight(day: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    date_of(day)
-        .to_zoned(tz.clone())
-        .map_or(day * DAY, |z| z.timestamp().as_millisecond())
-}
-
-/// The local date of a `tf` bar stamped `t`, as days since 1970.
-pub(crate) fn day_of(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    if !tf.is_intraday() {
-        return t.div_euclid(DAY);
-    }
-    local_day(t, tz)
-}
-
-pub(crate) fn local_day(t: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    match jiff::Timestamp::from_millisecond(t) {
-        Ok(ts) => days_to(ts.to_zoned(tz.clone()).date()),
-        Err(_) => t.div_euclid(DAY),
-    }
-}
-
 /// The stamp of the daily-or-longer bar a local date falls in (as the
 /// chart's own are grouped; see `opentern_data::resample`).
 pub(crate) fn calendar_bucket(day: i64, tf: Timeframe) -> i64 {
@@ -413,111 +380,6 @@ pub(crate) fn calendar_bucket(day: i64, tf: Timeframe) -> i64 {
         }
         _ => day.div_euclid(n) * n * DAY,
     }
-}
-
-/// The local days a daily-or-longer bar stamped `t` covers.
-fn days_in(tf: Timeframe, t: i64) -> (i64, i64) {
-    let first = t.div_euclid(DAY);
-    let n = tf.count.max(1) as i64;
-    let last = match tf.unit {
-        Unit::Week => first + 7 * n,
-        Unit::Month => days_to(
-            date_of(first)
-                .checked_add(jiff::Span::new().months(n))
-                .unwrap_or(date_of(first)),
-        ),
-        _ => first + n,
-    };
-    (first, last)
-}
-
-/// When a `tf` bar stamped `t` opens.
-pub(crate) fn open_in(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone, market: Market) -> i64 {
-    if tf.is_intraday() || t.rem_euclid(DAY) != 0 {
-        return t;
-    }
-    let (first, last) = days_in(tf, t);
-    for d in first..last.min(first + 12) {
-        if let Some((open, _)) = session_on(market, d) {
-            return open;
-        }
-    }
-    midnight(first, tz)
-}
-
-/// When a `tf` bar stamped `t` closes: no later than the session it's in,
-/// and for daily and longer bars, with their last session (a stock's "D"
-/// bar ends at 16:00, not midnight).
-pub(crate) fn close_in(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone, market: Market) -> i64 {
-    if let Some(ms) = tf.millis().filter(|_| tf.is_intraday()) {
-        let end = t + ms;
-        return match session_on(market, local_day_in(market, t)) {
-            Some((_, close)) if close > t && close < end => close,
-            _ => end,
-        };
-    }
-    let (first, last) = days_in(tf, t);
-    let (start, end) = (midnight(first, tz), midnight(last, tz));
-    remember(&CLOSES, (market, start, end), || {
-        calendar::last_close_in(market, start, end)
-    })
-    .unwrap_or(end)
-}
-
-type Remembered<K, T> = std::cell::RefCell<std::collections::HashMap<K, T>>;
-type Memo<K, T> = std::thread::LocalKey<Remembered<K, T>>;
-
-thread_local! {
-    static SESSIONS: Remembered<(Market, i64), Option<(i64, i64)>> = Default::default();
-    static CLOSES: Remembered<(Market, i64, i64), Option<i64>> = Default::default();
-}
-
-/// Calendar lookups build their year's holidays each time, and scripts ask
-/// on every bar.
-fn remember<K: std::hash::Hash + Eq, T: Copy>(memo: &'static Memo<K, T>, k: K, f: impl FnOnce() -> T) -> T {
-    memo.with(|m| {
-        if let Some(v) = m.borrow().get(&k) {
-            return *v;
-        }
-        let v = f();
-        let mut m = m.borrow_mut();
-        if m.len() > 20_000 {
-            m.clear();
-        }
-        m.insert(k, v);
-        v
-    })
-}
-
-/// A local day's session, if the market has set hours and trades.
-fn session_on(market: Market, day: i64) -> Option<(i64, i64)> {
-    if !matches!(market, Market::Us | Market::India | Market::Exchange(_)) {
-        return None;
-    }
-    remember(&SESSIONS, (market, day), || {
-        calendar::session_times(market, date_of(day))
-    })
-}
-
-fn local_day_in(market: Market, t: i64) -> i64 {
-    match market {
-        Market::Us | Market::India | Market::Exchange(_) => local_day(t, &market.tz()),
-        _ => t.div_euclid(DAY),
-    }
-}
-
-/// The market from an exchange prefix and a `syminfo.type`-style kind.
-pub(crate) fn market_of(prefix: &str, kind: &str) -> Market {
-    use opentern_core::AssetKind;
-    let kind = match kind {
-        "crypto" => AssetKind::Crypto,
-        "forex" => AssetKind::Forex,
-        "fund" => AssetKind::Fund,
-        "index" => AssetKind::Index,
-        "futures" => AssetKind::Futures,
-        _ => AssetKind::Stock,
-    };
-    Market::from_parts(prefix, kind)
 }
 
 pub(crate) fn field(b: &Bar, f: Field, index: i64, g: &G) -> V {

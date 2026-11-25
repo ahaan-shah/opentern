@@ -169,8 +169,15 @@ pub fn replay(props: Props, intents: &[serde_json::Value], bars: &[Bar], forming
             if kind == OrderKind::Close && !b.lots.iter().any(|l| id.is_empty() || l.id == id) {
                 continue;
             }
+            // A size that's given and isn't more than 0 orders nothing.
+            if ["qty", "qty_percent"]
+                .iter()
+                .any(|k| num(it, k).is_some_and(|q| q <= 0.0))
+            {
+                continue;
+            }
             let mut o = Order::market(&id, kind, long);
-            o.qty = num(it, "qty").filter(|q| *q > 0.0);
+            o.qty = num(it, "qty");
             o.limit = num(it, "limit");
             o.stop = num(it, "stop");
             o.from_entry = text(it, "from_entry");
@@ -1199,6 +1206,8 @@ mod tests {
             serde_json::json!({"bar": 0, "type": "entry", "id": "L", "long": true, "qty": 2.0}),
             serde_json::json!({"bar": 3, "type": "close", "id": "L"}),
         ];
+        let zero = vec![serde_json::json!({"bar": 0, "type": "entry", "id": "L", "long": true, "qty": 0.0})];
+        assert!(replay(Props::default(), &zero, &bars, false).lots.is_empty());
         let b = replay(Props::default(), &intents, &bars, false);
         assert_eq!(b.trades.len(), 1);
         assert_eq!((b.trades[0].entry_price, b.trades[0].exit_price), (11.0, 14.0));

@@ -195,11 +195,11 @@ pub const COLORS: &[(&str, u32)] = &[
     ("olive", 0x808000),
     ("orange", 0xFF9800),
     ("purple", 0x9C27B0),
-    ("red", 0xFF5252),
+    ("red", 0xF23645),
     ("silver", 0xB2B5BE),
     ("teal", 0x089981),
     ("white", 0xFFFFFF),
-    ("yellow", 0xFFEB3B),
+    ("yellow", 0xFDD835),
 ];
 
 /// "#RRGGBB", "#RRGGBBAA" or a palette name.
@@ -458,6 +458,11 @@ impl Decl {
         })
     }
 
+    /// The levels, at the inputs the script was loaded with.
+    pub fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        self.hlines.iter().map(|h| (h.price, Some(h.color.0))).collect()
+    }
+
     /// The study declaration the chart uses. Leaked once per compile, like
     /// a Pine script's.
     pub fn meta(&self, id: &str) -> &'static Meta {
@@ -577,7 +582,16 @@ struct Slot {
     name: &'static str,
     params: [f64; 3],
     st: St,
+    /// A window's inputs so far (and the volume), to fill a new length's.
+    past: std::sync::Arc<std::collections::VecDeque<[f64; 4]>>,
 }
+
+/// The functions over the last `length` values only: their length may
+/// change from bar to bar.
+const WINDOWS: &[&str] = &[
+    "sma", "wma", "vwma", "hma", "alma", "linreg", "stdev", "dev", "highest", "lowest", "change", "mom", "roc",
+    "stoch", "cci", "mfi", "bb", "prev",
+];
 
 /// The `ta.*` functions, with how many series arguments come before the
 /// parameters (which, when they change, rebuild the state).
@@ -691,6 +705,66 @@ impl TaOut {
     }
 }
 
+/// One bar of a `ta.*` function.
+fn feed(st: &mut St, key: &str, x: &[f64; 3], p: &[f64; 3], b: &Bar, new_session: bool) -> TaOut {
+    let [x, y, z] = *x;
+    match st {
+        St::Sma(s) => TaOut::One(s.update(x)),
+        St::Smooth(s) => TaOut::One(s.update(x)),
+        St::Wma(s) => TaOut::One(s.update(x)),
+        St::Vwma(s) => TaOut::One(s.update(x, b.volume)),
+        St::Hma(s) => TaOut::One(s.update(x)),
+        St::Alma(s) => TaOut::One(s.update(x)),
+        St::Linreg(s) => TaOut::One(s.update(x)),
+        St::Stdev(s) => TaOut::One(s.update(x)),
+        St::Dev(s) => TaOut::One(s.update(x)),
+        St::Extreme(s) => TaOut::One(s.update(x)),
+        St::Change(s) => TaOut::One(s.update(x)),
+        St::Roc(s) => TaOut::One(s.update(x)),
+        St::Rsi(s) => TaOut::One(s.update(x)),
+        St::Tr(s) => TaOut::One(s.update(b.high, b.low, b.close)),
+        St::Atr(s) => TaOut::One(s.update(b.high, b.low, b.close)),
+        St::Stoch(s) => TaOut::One(s.update(x, y, z)),
+        St::Cci(s) => TaOut::One(s.update(x)),
+        St::Cum(s) => TaOut::One(s.update(x)),
+        St::Mfi(s) => TaOut::One(s.update(x, b.volume)),
+        St::Dmi(s) => {
+            let (plus, minus, adx) = s.update(b.high, b.low, b.close);
+            TaOut::many(&[plus, minus, adx])
+        }
+        St::Sar(s) => TaOut::One(s.update(b.high, b.low, b.close)),
+        St::Supertrend(s) => {
+            let (v, dir) = s.update(b.high, b.low, b.close);
+            TaOut::many(&[v, dir])
+        }
+        St::Vwap(s) => TaOut::One(s.update(x, b.volume, new_session).0),
+        St::Cross(s) => {
+            let (over, under) = s.update(x, y);
+            TaOut::Bool(match key {
+                "crossover" => over,
+                "crossunder" => under,
+                _ => over || under,
+            })
+        }
+        St::Macd(f, sl, sig) => {
+            let m = f.update(x) - sl.update(x);
+            let s = sig.update(m);
+            TaOut::many(&[m, s, m - s])
+        }
+        St::Bb(m, sd) => {
+            let mult = if p[1].is_nan() { 2.0 } else { p[1] };
+            let mid = m.update(x);
+            let dev = sd.update(x) * mult;
+            TaOut::many(&[mid, mid + dev, mid - dev])
+        }
+        St::Hist(h) => {
+            h.push(x);
+            TaOut::One(h.get(if p[0].is_nan() { 1 } else { p[0] as usize }))
+        }
+        St::FixNan(s) => TaOut::One(s.update(x)),
+    }
+}
+
 /// An alert from `alert()`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Alert {
@@ -729,6 +803,10 @@ pub struct HostState {
     pub plots: Vec<PlotDecl>,
     pub discovering: bool,
     pub syminfo: SymInfo,
+    tz: jiff::tz::TimeZone,
+    market: opentern_core::calendar::Market,
+    /// The newest bar's own stamp (`bar.time` is when it opens).
+    stamp: i64,
 }
 
 static STATE_VER: AtomicU64 = AtomicU64::new(1);
@@ -741,7 +819,13 @@ pub fn next_ver() -> u64 {
 impl HostState {
     pub fn new(decl: &Decl, props: Option<Props>, syminfo: SymInfo) -> HostState {
         let n = decl.plots.len();
+        let tz = jiff::tz::TimeZone::get(&syminfo.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+        let prefix = syminfo.tickerid.split_once(':').map_or("", |(p, _)| p);
+        let market = opentern_core::bartime::market_of(prefix, &syminfo.kind);
         HostState {
+            tz,
+            market,
+            stamp: 0,
             bars: std::collections::VecDeque::new(),
             slots: Vec::new(),
             call: 0,
@@ -783,7 +867,11 @@ impl HostState {
         if self.bars.len() == MAX_BARS_BACK {
             self.bars.pop_front();
         }
-        self.bars.push_back(*bar);
+        self.stamp = bar.time;
+        self.bars.push_back(Bar {
+            time: opentern_core::bartime::open_in(tf, bar.time, &self.tz, self.market),
+            ..*bar
+        });
         self.index = index;
         self.forming = forming;
         self.count = count;
@@ -873,10 +961,9 @@ impl HostState {
             }
             "alert" => {
                 if !self.discovering {
-                    let b = self.bar();
                     self.alerts.push(Alert {
                         bar: self.index,
-                        time: b.time,
+                        time: self.stamp,
                         message: show(arg(a, 0)),
                     });
                     if self.alerts.len() > 500 {
@@ -997,6 +1084,8 @@ impl HostState {
         let at = |i: usize| a.get(i).copied().unwrap_or(NA);
         let p = [at(series), at(series + 1), at(series + 2)];
         let same = |x: f64, y: f64| x == y || (x.is_nan() && y.is_nan());
+        let b = self.bar();
+        let (new_session, forming) = (self.new_session, self.forming);
         match self.slots.get(k) {
             Some(s) if s.name != key => {
                 return Err(format!(
@@ -1005,79 +1094,40 @@ impl HostState {
                 ));
             }
             Some(s) if s.params.iter().zip(&p).all(|(x, y)| same(*x, *y)) => {}
-            Some(_) => {
-                // A changed length starts that call's state over.
+            Some(s) => {
+                // A changed length: a window's is filled from the values
+                // before; others start over.
+                let mut st = build(key, p)?;
+                let need = (p[0].max(0.0) as usize).saturating_mul(2).saturating_add(8);
+                for x in s.past.iter().skip(s.past.len().saturating_sub(need)) {
+                    feed(&mut st, key, &[x[0], x[1], x[2]], &p, &Bar { volume: x[3], ..b }, false);
+                }
+                let past = s.past.clone();
                 self.slots[k] = Slot {
                     name: key,
                     params: p,
-                    st: build(key, p)?,
+                    st,
+                    past,
                 };
             }
             None => self.slots.push(Slot {
                 name: key,
                 params: p,
                 st: build(key, p)?,
+                past: Default::default(),
             }),
         }
-        let b = self.bar();
-        let x = a[0];
-        let new_session = self.new_session;
-        let st = &mut self.slots[k].st;
-        Ok(match st {
-            St::Sma(s) => TaOut::One(s.update(x)),
-            St::Smooth(s) => TaOut::One(s.update(x)),
-            St::Wma(s) => TaOut::One(s.update(x)),
-            St::Vwma(s) => TaOut::One(s.update(x, b.volume)),
-            St::Hma(s) => TaOut::One(s.update(x)),
-            St::Alma(s) => TaOut::One(s.update(x)),
-            St::Linreg(s) => TaOut::One(s.update(x)),
-            St::Stdev(s) => TaOut::One(s.update(x)),
-            St::Dev(s) => TaOut::One(s.update(x)),
-            St::Extreme(s) => TaOut::One(s.update(x)),
-            St::Change(s) => TaOut::One(s.update(x)),
-            St::Roc(s) => TaOut::One(s.update(x)),
-            St::Rsi(s) => TaOut::One(s.update(x)),
-            St::Tr(s) => TaOut::One(s.update(b.high, b.low, b.close)),
-            St::Atr(s) => TaOut::One(s.update(b.high, b.low, b.close)),
-            St::Stoch(s) => TaOut::One(s.update(x, a[1], a[2])),
-            St::Cci(s) => TaOut::One(s.update(x)),
-            St::Cum(s) => TaOut::One(s.update(x)),
-            St::Mfi(s) => TaOut::One(s.update(x, b.volume)),
-            St::Dmi(s) => {
-                let (plus, minus, adx) = s.update(b.high, b.low, b.close);
-                TaOut::many(&[plus, minus, adx])
+        let slot = &mut self.slots[k];
+        // The forming bar runs on a copy that's thrown away: it leaves the
+        // shared history alone.
+        if !forming && WINDOWS.contains(&key) {
+            let past = std::sync::Arc::make_mut(&mut slot.past);
+            if past.len() == MAX_BARS_BACK {
+                past.pop_front();
             }
-            St::Sar(s) => TaOut::One(s.update(b.high, b.low, b.close)),
-            St::Supertrend(s) => {
-                let (v, dir) = s.update(b.high, b.low, b.close);
-                TaOut::many(&[v, dir])
-            }
-            St::Vwap(s) => TaOut::One(s.update(x, b.volume, new_session).0),
-            St::Cross(s) => {
-                let (over, under) = s.update(x, a[1]);
-                TaOut::Bool(match key {
-                    "crossover" => over,
-                    "crossunder" => under,
-                    _ => over || under,
-                })
-            }
-            St::Macd(f, sl, sig) => {
-                let m = f.update(x) - sl.update(x);
-                let s = sig.update(m);
-                TaOut::many(&[m, s, m - s])
-            }
-            St::Bb(m, sd) => {
-                let mult = if p[1].is_nan() { 2.0 } else { p[1] };
-                let mid = m.update(x);
-                let dev = sd.update(x) * mult;
-                TaOut::many(&[mid, mid + dev, mid - dev])
-            }
-            St::Hist(h) => {
-                h.push(x);
-                TaOut::One(h.get(if p[0].is_nan() { 1 } else { p[0] as usize }))
-            }
-            St::FixNan(s) => TaOut::One(s.update(x)),
-        })
+            past.push_back([a[0], a[1], a[2], b.volume]);
+        }
+        Ok(feed(&mut slot.st, key, &[a[0], a[1], a[2]], &p, &b, new_session))
     }
 
     fn broker(&mut self) -> Result<&mut Broker, String> {
@@ -1096,11 +1146,21 @@ impl HostState {
             },
         };
         let text = |v: &Val, k: &str| v.opt_str(k).unwrap_or("").to_string();
+        // A quantity that's given and isn't more than 0: there's nothing to
+        // order.
+        let nothing = |v: &Val| {
+            ["qty", "qty_percent"]
+                .iter()
+                .any(|k| v.opt_num(k).is_some_and(|q| q <= 0.0))
+        };
         match name {
             "entry" | "order" => {
                 let id = arg(a, 0).str().unwrap_or("").to_string();
                 let long = long_of(arg(a, 1))?;
                 let opts = arg(a, 2);
+                if nothing(opts) {
+                    return Ok(Val::Nil);
+                }
                 let kind = if name == "entry" {
                     OrderKind::Entry
                 } else {
@@ -1126,6 +1186,9 @@ impl HostState {
             "exit" => {
                 let id = arg(a, 0).str().unwrap_or("").to_string();
                 let opts = arg(a, 2);
+                if nothing(opts) {
+                    return Ok(Val::Nil);
+                }
                 let mut o = Order::market(&id, OrderKind::Exit, true);
                 o.from_entry = arg(a, 1).str().unwrap_or("").to_string();
                 o.qty = opts.opt_num("qty").filter(|q| *q > 0.0);
@@ -1159,6 +1222,9 @@ impl HostState {
             "close" => {
                 let id = arg(a, 0).str().unwrap_or("").to_string();
                 let opts = arg(a, 1);
+                if nothing(opts) {
+                    return Ok(Val::Nil);
+                }
                 let b = self.broker()?;
                 if !b.lots.iter().any(|l| l.id == id) {
                     return Ok(Val::Nil);
@@ -1225,7 +1291,9 @@ pub fn show(v: &Val) -> String {
         Val::Num(x) if x.fract() == 0.0 && x.abs() < 1e15 => format!("{x:.0}"),
         Val::Num(x) => {
             let s = format!("{x:.8}");
-            s.trim_end_matches('0').trim_end_matches('.').to_string()
+            let s = s.trim_end_matches('0').trim_end_matches('.');
+            // A tiny negative rounds to 0, not -0.
+            if s == "-0" { "0".into() } else { s.to_string() }
         }
         Val::Str(s) => s.clone(),
         Val::List(l) => format!("[{}]", l.iter().map(show).collect::<Vec<_>>().join(", ")),
@@ -1386,7 +1454,7 @@ mod tests {
     #[test]
     fn colours_parse_and_build() {
         assert_eq!(parse_color("#FF0000"), Some(Rgba(0xFF0000FF)));
-        assert_eq!(parse_color("red"), Some(Rgba::hex(0xFF5252)));
+        assert_eq!(parse_color("red"), Some(Rgba::hex(0xF23645)));
         assert_eq!(
             color_fn("new", &[Val::Str("#2962FF".into()), Val::Num(50.0)]).expect("new"),
             Val::Str("#2962FF80".into())

@@ -40,7 +40,18 @@ __all__ = [
 
 
 def is_na(x):
-    return x is None or (isinstance(x, float) and math.isnan(x))
+    try:
+        return x is None or bool(x != x)
+    except (TypeError, ValueError):  # pandas.NA has no truth value
+        return True
+
+
+def _num(x):
+    """A finite number, or None for no value."""
+    if is_na(x):
+        return None
+    x = float(x)
+    return x if math.isfinite(x) else None
 
 
 class _State:
@@ -61,7 +72,7 @@ class _State:
     def output(self, n):
         return {
             "plots": [
-                dict(p, values=[None if is_na(v) else float(v) for v in _series(p["values"], n)]) for p in self.plots
+                dict(p, values=[_num(v) for v in _series(p["values"], n)]) for p in self.plots
             ],
             "hlines": self.hlines,
             "intents": self.intents,
@@ -87,12 +98,12 @@ def _series(x, n):
 def _bools(x, n):
     if hasattr(x, "tolist"):
         x = x.tolist()
-    if isinstance(x, bool) or x is None:
-        return [bool(x)] * n
-    x = [bool(v) and not is_na(v) for v in x]
+    if isinstance(x, (bool, int, float)) or x is None:
+        return [not is_na(x) and bool(x)] * n
+    x = [not is_na(v) and bool(v) for v in x]
     if len(x) < n:
         x = [False] * (n - len(x)) + x
-    return x
+    return x[-n:] if n else []
 
 
 def indicator(title, shorttitle=None, overlay=False, precision=None):
@@ -148,7 +159,10 @@ def plot(series, title=None, color="#2962FF", linewidth=1, style="line"):
 
 
 def hline(price, title=None, color="#787B86", linestyle="dashed"):
-    _state.hlines.append(dict(title=title or f"Level {len(_state.hlines) + 1}", value=float(price), color=color, style=linestyle))
+    price = _num(price)
+    if price is not None:
+        title = title or f"Level {len(_state.hlines) + 1}"
+        _state.hlines.append(dict(title=title, value=price, color=color, style=linestyle))
 
 
 class Bars:
@@ -156,11 +170,8 @@ class Bars:
 
     def __init__(self, d):
         self.time = d["time"]
-        self.open = d["open"]
-        self.high = d["high"]
-        self.low = d["low"]
-        self.close = d["close"]
-        self.volume = d["volume"]
+        for name in ("open", "high", "low", "close", "volume"):
+            setattr(self, name, [nan if v is None else v for v in d[name]])
         self.hl2 = [(h + l) / 2 for h, l in zip(self.high, self.low)]
         self.hlc3 = [(h + l + c) / 3 for h, l, c in zip(self.high, self.low, self.close)]
         self.ohlc4 = [(o + h + l + c) / 4 for o, h, l, c in zip(self.open, self.high, self.low, self.close)]
@@ -222,54 +233,45 @@ class _Strategy:
     def _n(self):
         return _state.n
 
-    def _price(self, x, i):
-        if x is None:
-            return None
-        if hasattr(x, "tolist") or isinstance(x, (list, tuple)):
-            v = _series(x, self._n())[i]
-            return None if is_na(v) else v
-        return float(x)
+    def _each(self, x):
+        """A number, or a series of them, as one value per bar."""
+        if hasattr(x, "tolist"):
+            x = x.tolist()
+        if isinstance(x, (list, tuple)):
+            return [_num(v) for v in _series(x, self._n())]
+        return [_num(x)] * self._n()
+
+    def _place(self, kind, when, common, **series):
+        series = {k: self._each(v) for k, v in series.items()}
+        for i, on in enumerate(_bools(when, self._n())):
+            if on:
+                _state.intents.append(dict(common, bar=i, type=kind, **{k: v[i] for k, v in series.items()}))
+
+    def _long(self, direction):
+        if direction in ("long", True):
+            return True
+        if direction in ("short", False):
+            return False
+        raise ValueError(f"The direction must be strategy.long or strategy.short, not {direction!r}.")
 
     def entry(self, id, direction, when=True, qty=None, limit=None, stop=None, comment=None):
-        n = self._n()
-        for i, on in enumerate(_bools(when, n)):
-            if on:
-                _state.intents.append(
-                    dict(bar=i, type="entry", id=str(id), long=direction == "long", qty=qty,
-                         limit=self._price(limit, i), stop=self._price(stop, i), comment=comment)
-                )
+        common = dict(id=str(id), long=self._long(direction), comment=comment)
+        self._place("entry", when, common, qty=qty, limit=limit, stop=stop)
 
     def order(self, id, direction, when=True, qty=None, limit=None, stop=None, comment=None):
-        n = self._n()
-        for i, on in enumerate(_bools(when, n)):
-            if on:
-                _state.intents.append(
-                    dict(bar=i, type="order", id=str(id), long=direction == "long", qty=qty,
-                         limit=self._price(limit, i), stop=self._price(stop, i), comment=comment)
-                )
+        common = dict(id=str(id), long=self._long(direction), comment=comment)
+        self._place("order", when, common, qty=qty, limit=limit, stop=stop)
 
     def exit(self, id, from_entry="", when=True, qty_percent=100.0, profit=None, loss=None, limit=None, stop=None,
              comment=None):
-        n = self._n()
-        for i, on in enumerate(_bools(when, n)):
-            if on:
-                _state.intents.append(
-                    dict(bar=i, type="exit", id=str(id), from_entry=str(from_entry), qty_percent=float(qty_percent),
-                         profit=profit, loss=loss, limit=self._price(limit, i), stop=self._price(stop, i),
-                         comment=comment)
-                )
+        common = dict(id=str(id), from_entry=str(from_entry), comment=comment)
+        self._place("exit", when, common, qty_percent=qty_percent, profit=profit, loss=loss, limit=limit, stop=stop)
 
     def close(self, id, when=True, comment=None):
-        n = self._n()
-        for i, on in enumerate(_bools(when, n)):
-            if on:
-                _state.intents.append(dict(bar=i, type="close", id=str(id), comment=comment))
+        self._place("close", when, dict(id=str(id), comment=comment))
 
     def close_all(self, when=True, comment=None):
-        n = self._n()
-        for i, on in enumerate(_bools(when, n)):
-            if on:
-                _state.intents.append(dict(bar=i, type="close_all", comment=comment))
+        self._place("close_all", when, dict(comment=comment))
 
 
 strategy = _Strategy()

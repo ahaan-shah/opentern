@@ -25,7 +25,12 @@ def load(path, inputs, n=0):
 
 def main():
     path = sys.argv[1]
-    proto = sys.stdout
+    # Replies get the pipe to themselves: what the script's libraries or
+    # other programs print goes nowhere.
+    proto = os.fdopen(os.dup(1), "w", encoding="utf-8")
+    null = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(null, 1)
+    os.close(null)
     for line in sys.stdin:
         try:
             req = json.loads(line)
@@ -50,9 +55,13 @@ def main():
         except Exception:
             resp = {"ok": False, "error": traceback.format_exc(limit=6)}
         finally:
-            sys.stdout = proto
+            sys.stdout = sys.__stdout__
         resp["log"] = log.getvalue()[-4000:]
-        proto.write(json.dumps(resp, default=str) + "\n")
+        try:
+            text = json.dumps(resp, default=str, allow_nan=False)
+        except ValueError:
+            text = json.dumps({"ok": False, "error": "A setting or input of this script is nan or infinite."})
+        proto.write(text + "\n")
         proto.flush()
 
 

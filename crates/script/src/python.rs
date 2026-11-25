@@ -492,4 +492,120 @@ mod tests {
         assert!(!out.intents.is_empty());
         assert_eq!(out.intents[0]["type"], "entry");
     }
+
+    /// Runs a script once on `n` bars.
+    fn output(body: &str, n: usize) -> Result<(Meta, Output), String> {
+        let dir = tempfile::tempdir().unwrap();
+        let st = dir.path().join("s.py");
+        std::fs::write(&st, format!("from opentern import *\n{body}")).unwrap();
+        let mut r = Runner::start(st, dir.path().join("sdk"), Arc::new(|| {}));
+        r.run(bars(n), serde_json::json!({}));
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while Instant::now() < deadline {
+            for e in r.poll() {
+                match e {
+                    Event::Output { meta, out, .. } => return Ok((meta, out)),
+                    Event::Error(e) => return Err(e),
+                    _ => {}
+                }
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        panic!("timed out");
+    }
+
+    #[test]
+    fn infinities_and_missing_numbers_are_no_value() {
+        if interpreter().is_none() {
+            return;
+        }
+        let (_, o) = output(
+            "indicator('T')\ndef compute(bars):\n    n = len(bars)\n    plot([float('inf')] + [1.0] * (n - 1))\n    plot([float('-inf'), None, nan] + [2.0] * (n - 3))\n    hline(float('nan'))\n    hline(5)\n",
+            5,
+        )
+        .expect("runs");
+        assert_eq!(o.plots[0].values, [None, Some(1.0), Some(1.0), Some(1.0), Some(1.0)]);
+        assert_eq!(o.plots[1].values[..4], [None, None, None, Some(2.0)]);
+        assert_eq!(o.hlines.iter().map(|h| h.value).collect::<Vec<_>>(), [5.0]);
+    }
+
+    #[test]
+    fn orders_take_series_and_refuse_nonsense() {
+        if interpreter().is_none() {
+            return;
+        }
+        let (_, o) = output(
+            "strategy('T')\ndef compute(bars):\n    n = len(bars)\n    strategy.entry('L', strategy.long, qty=[float(i) for i in range(n)], limit=nan)\n    strategy.entry('S', False, when=[True] * (n + 3), qty=2)\n    strategy.exit('X', 'L', profit=[10.0] * n, loss=nan)\n",
+            4,
+        )
+        .expect("runs");
+        let of = |k: &str| o.intents.iter().filter(|i| i["id"] == k).collect::<Vec<_>>();
+        assert_eq!(
+            of("L").iter().map(|i| i["qty"].as_f64()).collect::<Vec<_>>(),
+            [Some(0.0), Some(1.0), Some(2.0), Some(3.0)]
+        );
+        assert!(of("L")[0]["limit"].is_null());
+        assert_eq!(of("S").len(), 4, "no more bars than the chart has");
+        assert_eq!(of("S")[0]["long"], false);
+        assert_eq!(
+            (of("X")[1]["profit"].as_f64(), of("X")[1]["loss"].is_null()),
+            (Some(10.0), true)
+        );
+        let (_, o) = output("strategy('T')\ndef compute(bars):\n    strategy.entry('L', True)\n", 2).expect("runs");
+        assert_eq!(o.intents[0]["long"], true);
+        let e = output(
+            "strategy('T')\ndef compute(bars):\n    strategy.entry('L', 'lnog')\n",
+            2,
+        )
+        .unwrap_err();
+        assert!(e.contains("direction"), "{e}");
+    }
+
+    #[test]
+    fn lengths_must_be_positive() {
+        if interpreter().is_none() {
+            return;
+        }
+        for f in [
+            "sma(bars.close, 0)",
+            "ema(bars.close, 0)",
+            "highest(bars.high, -1)",
+            "rsi(bars.close, 0)",
+            "change(bars.close, 0)",
+        ] {
+            let e = output(&format!("indicator('T')\ndef compute(bars):\n    plot(ta.{f})\n"), 5);
+            assert!(e.as_ref().is_err_and(|e| e.contains("at least 1")), "{f}: {e:?}");
+        }
+    }
+
+    #[test]
+    fn output_from_other_programs_stays_out_of_the_replies() {
+        if interpreter().is_none() {
+            return;
+        }
+        let (_, o) = output(
+            "import os, subprocess, sys\nindicator('T')\ndef compute(bars):\n    os.write(1, b'noise\\n')\n    subprocess.run([sys.executable, '-c', 'print(1)'])\n    plot(bars.close)\n",
+            3,
+        )
+        .expect("runs");
+        assert_eq!(o.plots[0].values.len(), 3);
+    }
+
+    #[test]
+    fn bars_without_a_volume() {
+        if interpreter().is_none() {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let st = dir.path().join("s.py");
+        std::fs::write(&st, "from opentern import *\nindicator('T')\ndef compute(bars):\n    plot([v * 2 for v in bars.volume])\n    plot(bars.hl2)\n").unwrap();
+        let mut r = Runner::start(st, dir.path().join("sdk"), Arc::new(|| {}));
+        let mut b = bars(3).to_vec();
+        b[1].volume = f64::NAN;
+        r.run(Arc::new(b), serde_json::json!({}));
+        let Event::Output { out, .. } = wait(&r, |e| matches!(e, Event::Output { .. } | Event::Error(_))) else {
+            panic!("an error")
+        };
+        assert!(out.plots[0].values[1].is_none() && out.plots[0].values[2].is_some());
+    }
 }

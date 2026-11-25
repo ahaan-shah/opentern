@@ -175,3 +175,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Checked against TradingView's manual (26 Nov 2026): v6's colours and white label
   text, session strings, loop rules, `str.format`/`str.tostring` defaults. The `#`
   patterns keep a leading 0, as labels on TradingView do; the manual doesn't say.
+- The same hunt in the other languages (`crates/script/tests/hunt.rs`, and the tests
+  in `python.rs`): `opentern_core::bartime` is shared by Pine, Luau/JS and Python
+  (`scripting::script_bars`); `host.rs` windows keep their inputs for a changed length
+  (`WINDOWS`). Python replies are strict JSON: `_num` turns nan and infinity into none.

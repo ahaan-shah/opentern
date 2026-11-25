@@ -17,7 +17,14 @@ def _isnan(v):
     return v != v
 
 
+def _len(length):
+    if not length >= 1:
+        raise ValueError(f"The length must be at least 1, not {length}.")
+    return int(length)
+
+
 def sma(src, length):
+    length = _len(length)
     x = _l(src)
     out = []
     for i in range(len(x)):
@@ -27,6 +34,7 @@ def sma(src, length):
 
 
 def _smooth(src, length, alpha):
+    length = _len(length)
     x = _l(src)
     seed = sma(x, length)
     out, prev = [], nan
@@ -37,14 +45,17 @@ def _smooth(src, length, alpha):
 
 
 def ema(src, length):
+    length = _len(length)
     return _smooth(src, length, 2.0 / (length + 1))
 
 
 def rma(src, length):
+    length = _len(length)
     return _smooth(src, length, 1.0 / length)
 
 
 def wma(src, length):
+    length = _len(length)
     x = _l(src)
     norm = length * (length + 1) / 2
     out = []
@@ -65,6 +76,7 @@ def vwma(src, volume, length):
 
 
 def stdev(src, length):
+    length = _len(length)
     x = _l(src)
     m = sma(x, length)
     out = []
@@ -81,6 +93,7 @@ def stdev(src, length):
 
 
 def _window(src, length, pick):
+    length = _len(length)
     x = _l(src)
     out = []
     for i in range(len(x)):
@@ -101,6 +114,7 @@ def lowest(src, length):
 
 
 def change(src, length=1):
+    length = _len(length)
     x = _l(src)
     return [x[i] - x[i - length] if i >= length else nan for i in range(len(x))]
 
@@ -167,6 +181,8 @@ def _series2(a, b):
     n = len(b) if isinstance(a, (int, float)) else len(_l(a))
     a = [float(a)] * n if isinstance(a, (int, float)) else _l(a)
     b = [float(b)] * n if isinstance(b, (int, float)) else _l(b)
+    if len(a) != len(b):
+        raise ValueError(f"The two series differ in length ({len(a)} and {len(b)}).")
     return a, b
 
 

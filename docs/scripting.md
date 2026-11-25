@@ -21,7 +21,9 @@ numbers too, because `ta.*` is the same Rust code the built-in indicators use.
 3. **`ta.*` calls keep their state by call order.** The third `ta` call on a bar
    continues where the third call left off on the previous bar. Call them on every
    bar, outside `if` blocks: store the result in a local and use it in the `if`.
-   This is Pine's rule too.
+   This is Pine's rule too. A window's length (`sma`, `highest`, `stdev` and the
+   like) may change from bar to bar; `ema`, `rma`, `rsi` and the others that build
+   on their last value start over when it does.
 4. **`plot(...)` works the same way.** The k-th `plot` call feeds the k-th plot.
    Plot `NaN` to show nothing on a bar.
 5. **Keep values that carry over to the next bar in `state`.** The app snapshots
@@ -31,7 +33,7 @@ numbers too, because `ta.*` is the same Rust code the built-in indicators use.
 
 ## The `bar` argument
 
-`bar.time` (ms, UTC), `bar.open`, `bar.high`, `bar.low`, `bar.close`, `bar.volume`,
+`bar.time` (when the bar opens, ms, UTC; a daily bar opens with its session), `bar.open`, `bar.high`, `bar.low`, `bar.close`, `bar.volume`,
 `bar.hl2`, `bar.hlc3`, `bar.ohlc4`, `bar.hlcc4`, `bar.index`, `bar.is_last`,
 `bar.is_forming` and `bar.is_new_session`. `bar[src]` reads the value an
 `input.source` picked.
@@ -45,7 +47,7 @@ up to 5,000 bars back.
 | Function | Notes |
 |---|---|
 | `indicator(title, { overlay, shorttitle, precision })` | |
-| `strategy(title, { overlay, initial_capital, default_qty_type, default_qty_value, pyramiding, commission_type, commission_value, slippage, process_orders_on_close, margin_long, margin_short })` | `default_qty_type` is `"fixed"`, `"cash"` or `"percent_of_equity"`. The Strategy Report's settings can override any of these |
+| `strategy(title, { overlay, initial_capital, default_qty_type, default_qty_value, pyramiding, commission_type, commission_value, slippage, process_orders_on_close, close_entries_rule, margin_long, margin_short })` | `default_qty_type` is `"fixed"`, `"cash"` or `"percent_of_equity"`. The Strategy Report's settings can override any of these |
 | `input.int(title, default, { min, max, group })` | Returns the value set in the settings dialog |
 | `input.float(title, default, { min, max, step, group })` | |
 | `input.bool(title, default)` | |
@@ -97,7 +99,8 @@ and `cancel_all()`. These read the position: `position_size()`,
 
 `strategy.long` and `strategy.short` are the strings `"long"` and `"short"`.
 Orders fill the way TradingView's broker emulator fills them, the same as for Pine
-strategies.
+strategies: the oldest entry closes first unless `close_entries_rule` is `"ANY"`, and
+a `qty` of 0 orders nothing.
 
 ### Colours and symbol info
 
