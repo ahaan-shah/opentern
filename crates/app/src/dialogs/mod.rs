@@ -76,7 +76,7 @@ pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(
     ui.horizontal(|ui| {
         ui.label(egui::RichText::new(title).font(theme::semibold(17.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, tr("Close (Esc)"), false, 28.0).clicked() {
+            if crate::widgets::tool_button(ui, t, crate::icons::ph::X, "", false, 28.0).clicked() {
                 close = true;
             }
         });

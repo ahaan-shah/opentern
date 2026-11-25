@@ -92,7 +92,7 @@ impl ChartSettings {
                     } else {
                         tpl.name.clone()
                     };
-                    if ui.button(label).clicked()
+                    if crate::widgets::eased(ui, egui::Button::new(label)).clicked()
                         && let Ok(s) = serde_json::from_str::<ChartStyle>(&tpl.json)
                     {
                         self.style = s;
@@ -100,7 +100,7 @@ impl ChartSettings {
                         ui.close();
                     }
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.small_button(ph::TRASH).on_hover_text(tr("Delete")).clicked() {
+                        if crate::widgets::eased(ui, egui::Button::new(ph::TRASH).small()).clicked() {
                             app.delete_template(TemplateKind::Chart, &tpl.name);
                         }
                         let tip = if tpl.is_default {
@@ -109,7 +109,10 @@ impl ChartSettings {
                             tr("Use for new charts")
                         };
                         let star = if tpl.is_default { "★" } else { "☆" };
-                        if ui.small_button(star).on_hover_text(tip).clicked() {
+                        if crate::widgets::eased(ui, egui::Button::new(star).small())
+                            .on_hover_text(tip)
+                            .clicked()
+                        {
                             app.set_default_template(
                                 TemplateKind::Chart,
                                 (!tpl.is_default).then_some(tpl.name.as_str()),

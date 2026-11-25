@@ -863,9 +863,11 @@ pub(crate) fn table(ui: &mut Ui, t: &Theme, id: &str, headers: &[&str], rows: &[
             for (label, vals) in rows {
                 let (r, resp) = ui.allocate_exact_size(vec2(w, row_h), Sense::hover());
                 let p = ui.painter();
-                if resp.hovered() {
-                    p.rect_filled(r, CornerRadius::same(4), t.hover_wash());
-                }
+                p.rect_filled(
+                    r,
+                    CornerRadius::same(4),
+                    crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                );
                 p.text(
                     pos2(r.left() + 8.0, r.center().y),
                     Align2::LEFT_CENTER,
@@ -1067,9 +1069,11 @@ fn list_of_trades(ui: &mut Ui, t: &Theme, b: &Broker, f: &Fmt) {
                     let tr = &b.trades[idx];
                     let (r, resp) = ui.allocate_exact_size(vec2(total, row_h * 2.0), Sense::hover());
                     let p = ui.painter();
-                    if resp.hovered() {
-                        p.rect_filled(r, CornerRadius::same(4), t.hover_wash());
-                    }
+                    p.rect_filled(
+                        r,
+                        CornerRadius::same(4),
+                        crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                    );
                     let side = if tr.long { "long" } else { "short" };
                     let pnl_c = tone(t, tr.pnl);
                     let lines: [[(String, Color32); 10]; 2] = [

@@ -347,7 +347,7 @@ impl App {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
             let open = self.settings.is_some();
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", tr("Settings"), open).clicked() {
+            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "", open).clicked() {
                 if open {
                     self.settings = None;
                 } else {
@@ -494,7 +494,8 @@ impl App {
                 w::vdivider(ui, t);
                 let undo = egui::Button::new(ph::ARROW_U_UP_LEFT).frame(false);
                 if ui
-                    .add_enabled(self.chart.can_undo(), undo)
+                    .add_enabled_ui(self.chart.can_undo(), |ui| w::eased(ui, undo))
+                    .inner
                     .on_hover_text(trf!("Undo ({})", shortcut!("Z")))
                     .clicked()
                 {
@@ -502,7 +503,8 @@ impl App {
                 }
                 let redo = egui::Button::new(ph::ARROW_U_UP_RIGHT).frame(false);
                 if ui
-                    .add_enabled(self.chart.can_redo(), redo)
+                    .add_enabled_ui(self.chart.can_redo(), |ui| w::eased(ui, redo))
+                    .inner
                     .on_hover_text(trf!("Redo ({})", shortcut!("Y")))
                     .clicked()
                 {
@@ -516,7 +518,7 @@ impl App {
     /// beside each to pin it to the top bar, and a field for a custom one
     /// ("7m", "3h").
     fn interval_menu(&mut self, ui: &mut Ui, t: &Theme) {
-        let resp = w::bar_button(ui, t, Some(ph::CARET_DOWN), "", tr("More intervals"), false);
+        let resp = w::bar_button(ui, t, Some(ph::CARET_DOWN), "", "", false);
         self.still_open(ui, &resp, "interval");
         egui::Popup::menu(&resp)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
@@ -623,10 +625,8 @@ impl App {
                     let star = ui.interact(star_r, resp.id.with("star"), Sense::click());
                     let c = if fav {
                         t.warn
-                    } else if star.hovered() {
-                        t.text
                     } else {
-                        t.text3
+                        motion::lerp_color(t.text3, t.text, motion::hover(&star))
                     };
                     if fav {
                         w::filled_star(ui.painter(), star_r.center(), 6.5, c);
@@ -641,13 +641,14 @@ impl App {
                     }
                     let bin = Rect::from_center_size(resp.rect.right_center() - vec2(16.0, 0.0), vec2(24.0, 24.0));
                     let b = ui.interact(bin, resp.id.with("del"), Sense::click());
-                    if resp.hovered() || b.hovered() || star.hovered() {
+                    let near = motion::hover_if(&resp, resp.hovered() || b.hovered() || star.hovered());
+                    if near > 0.0 {
                         ui.painter().text(
                             bin.center(),
                             Align2::CENTER_CENTER,
                             ph::TRASH,
                             theme::regular(14.0),
-                            if b.hovered() { t.neg } else { t.text3 },
+                            motion::with_alpha(motion::lerp_color(t.text3, t.neg, motion::hover(&b)), near),
                         );
                     }
                     if star
@@ -659,7 +660,7 @@ impl App {
                         .clicked()
                     {
                         self.toggle_favorite(TEMPLATE_FAVS, &n);
-                    } else if b.on_hover_text(tr("Delete template")).clicked() {
+                    } else if b.clicked() {
                         if fav {
                             self.toggle_favorite(TEMPLATE_FAVS, &n);
                         }
@@ -889,6 +890,13 @@ impl App {
                 } else {
                     w::tool_button(ui, t, wd.icon(), tr(wd.title()), active, 34.0)
                 };
+                // An agent waiting for an answer, or done meanwhile.
+                if wd == Widget::Claude
+                    && let Some(c) = self.claude.dot(t)
+                {
+                    let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
+                    ui.painter().circle_filled(dot, 3.5, c);
+                }
                 if wd == Widget::Notifications && self.notes.unread > 0 {
                     let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
                     ui.painter().circle_filled(dot, 3.5, t.accent);
@@ -1023,6 +1031,8 @@ impl App {
         child.set_clip_rect(full.intersect(ui.clip_rect()));
         let ui = &mut child;
         egui::Frame::new()
+            // Scrolled lists fade into this.
+            .fill(t.bg)
             .inner_margin(Margin::symmetric(12, 10))
             .show(ui, |ui| {
                 ui.set_width(ui.available_width());
@@ -1408,10 +1418,8 @@ fn interval_row(ui: &mut Ui, t: &Theme, tf: Timeframe, current: bool, fav: bool)
     if star_alpha > 0.0 {
         let c = if fav {
             t.warn
-        } else if star.hovered() {
-            t.text
         } else {
-            t.text3
+            motion::lerp_color(t.text3, t.text, motion::hover(&star))
         };
         if fav {
             w::filled_star(p, star_rect.center(), 6.5, c);

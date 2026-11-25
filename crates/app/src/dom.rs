@@ -250,11 +250,15 @@ impl App {
             for (k, buy) in [(0usize, true), (4usize, false)] {
                 let c = cell(k);
                 let resp = ui.interact(c, ui.id().with(("dom", k, price.to_bits())), Sense::click());
-                if resp.hovered() {
+                let hover = crate::motion::hover(&resp);
+                if hover > 0.0 {
                     ui.painter().rect_stroke(
                         c.shrink(2.0),
                         CornerRadius::same(3),
-                        Stroke::new(1.0, if buy { t.accent } else { t.neg }),
+                        Stroke::new(
+                            1.0,
+                            crate::motion::with_alpha(if buy { t.accent } else { t.neg }, hover),
+                        ),
                         egui::StrokeKind::Inside,
                     );
                 }

@@ -135,8 +135,9 @@ impl App {
                     let h = 16.0 + 18.0 + body.as_ref().map(|g| g.size().y + 2.0).unwrap_or(0.0) + 12.0;
                     let (r, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
                     let p = ui.painter();
-                    if ui.rect_contains_pointer(r) && n.path.is_some() {
-                        p.rect_filled(r, 8, t.hover_wash());
+                    let hover = crate::motion::hover_if(&resp, ui.rect_contains_pointer(r) && n.path.is_some());
+                    if hover > 0.0 {
+                        p.rect_filled(r, 8, crate::motion::with_alpha(t.hover_wash(), hover));
                     }
                     let disc = egui::pos2(r.left() + 20.0, r.top() + 14.0 + 11.0);
                     p.circle_filled(disc, 14.0, t.accent_soft());

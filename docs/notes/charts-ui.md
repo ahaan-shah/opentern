@@ -179,3 +179,12 @@ What's new reopens it. Still: `whatsnew`.
 - `.gitattributes` forces LF checkouts: Windows runners check out CRLF, and
   `include_str!`'d `.logo` files then failed to parse (no symbol logos).
   `logos::render` also strips `\r` now.
+
+## Motion (Nov 2026)
+- **Popups** (`popups.rs`): an end-of-pass hook fades and grows every Foreground/Tooltip
+  area's painted shapes, and paints a closed one's last shapes while they fade. Nothing
+  to do for a new menu or dialog. Layout and input don't see it; tests have it off
+  unless they call `popups::enable`.
+- **Hovers** ease: `motion::hover(&resp)` (or `hover_if` for rows whose buttons take the
+  hover), never `if resp.hovered()` picking a colour. egui's own buttons go through
+  `widgets::eased`, combo boxes through `widgets::combo`.

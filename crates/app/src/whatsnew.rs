@@ -32,6 +32,44 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.5",
+        items: &[
+            Item {
+                icon: ph::TRANSLATE,
+                title: nt!("Opentern in your language"),
+                body: nt!(
+                    "Nine languages besides English. It follows your system's; pick another in \
+                   Settings → General → Language."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::CHAT_CIRCLE,
+                title: nt!("A new agent panel"),
+                body: nt!(
+                    "In your agent's own colours, with usage limits a click away and a slider \
+                   for how hard it thinks."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::CODE,
+                title: nt!("More scripts run"),
+                body: nt!(
+                    "A full check of the Pine engine and the other languages fixed many errors \
+                   and added over 80 missing functions."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::SPARKLE,
+                title: nt!("Smoother motion"),
+                body: nt!("Menus, dialogs and hovers ease in and out."),
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.4",
         items: &[
             Item {

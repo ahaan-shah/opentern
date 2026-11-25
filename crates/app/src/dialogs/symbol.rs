@@ -486,7 +486,7 @@ impl SymbolSearch {
                             if on {
                                 crate::widgets::filled_star(&p, r.center(), 6.5, t.warn);
                             } else if near {
-                                let c = if star.hovered() { t.text } else { t.text3 };
+                                let c = crate::motion::lerp_color(t.text3, t.text, crate::motion::hover(&star));
                                 p.text(
                                     r.center(),
                                     Align2::CENTER_CENTER,

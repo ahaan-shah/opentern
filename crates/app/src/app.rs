@@ -157,6 +157,7 @@ impl App {
     pub(crate) fn with_context(ctx: &egui::Context, layout: Arrangement, store: Store, demo: bool) -> App {
         crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
+        crate::popups::install(ctx);
         let theme = ThemeState::new(ctx, &store.settings().theme);
         let wake_ctx = ctx.clone();
         let hub = Hub::start(
@@ -416,6 +417,8 @@ impl App {
             } else if let Some(m) = part.strip_prefix("claude-menu:") {
                 self.layout.widget = Some(crate::shell::Widget::Claude);
                 self.claude.still_menu = Some(m.to_string());
+            } else if let Some(w) = part.strip_prefix("widget-w:").and_then(|w| w.parse().ok()) {
+                self.layout.widget_w = w;
             } else if let Some(m) = part.strip_prefix("agent:") {
                 // Picks an agent on the panel (skips the picker).
                 let a = if m == "codex" {

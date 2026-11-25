@@ -1263,6 +1263,8 @@ mod tests {
     #[test]
     fn monkey() {
         let mut d = Driver::new("monkey");
+        // With the popups' motion, as in the app.
+        crate::popups::enable(&d.ctx);
         let mut seed: u64 = 0x9E37_79B9_7F4A_7C15;
         let mut rnd = move || {
             seed ^= seed << 13;

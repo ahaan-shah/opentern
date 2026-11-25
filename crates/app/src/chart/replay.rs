@@ -273,7 +273,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
             theme::regular(14.0),
             t.text2,
         );
-        if resp.on_hover_text(tr("Close replay")).clicked() {
+        if resp.clicked() {
             chart.replay = None;
         }
         return;
@@ -333,7 +333,7 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
         theme::regular(14.0),
         t.text2,
     );
-    if resp.on_hover_text(tr("Close replay")).clicked() {
+    if resp.clicked() {
         chart.exit_replay();
     }
 }

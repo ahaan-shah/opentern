@@ -39,14 +39,14 @@ impl App {
                 // Buttons first (right to left), then the name in what's left.
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        if ui.small_button(ph::X).on_hover_text(tr("Remove")).clicked() {
+                        if crate::widgets::eased(ui, egui::Button::new(ph::X).small()).clicked() {
                             remove_study = Some(uid);
                         }
-                        if ui.small_button(ph::GEAR_SIX).on_hover_text(tr("Settings")).clicked() {
+                        if crate::widgets::eased(ui, egui::Button::new(ph::GEAR_SIX).small()).clicked() {
                             settings = Some(uid);
                         }
                         let eye = if s.visible { ph::EYE } else { ph::EYE_SLASH };
-                        if ui.small_button(eye).clicked() {
+                        if crate::widgets::eased(ui, egui::Button::new(eye).small()).clicked() {
                             s.visible = !s.visible;
                         }
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -70,7 +70,7 @@ impl App {
                 ui.horizontal(|ui| {
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                         {
-                            if ui.small_button(ph::X).on_hover_text(tr("Remove")).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(ph::X).small()).clicked() {
                                 remove = Some(d.id);
                             }
                             let lock = if d.locked {
@@ -78,12 +78,12 @@ impl App {
                             } else {
                                 ph::LOCK_SIMPLE_OPEN
                             };
-                            if ui.small_button(lock).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(lock).small()).clicked() {
                                 d.locked = !d.locked;
                                 changed = true;
                             }
                             let eye = if d.hidden { ph::EYE_SLASH } else { ph::EYE };
-                            if ui.small_button(eye).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(eye).small()).clicked() {
                                 d.hidden = !d.hidden;
                                 changed = true;
                             }
@@ -92,7 +92,7 @@ impl App {
                             let on = self.chart_ui.draw.selected == Some(d.id);
                             let text = egui::RichText::new(format!("{}  {}", d.tool.icon(), tr(d.tool.name())))
                                 .color(if on { t.accent } else { t.text });
-                            if ui.add(egui::Button::new(text).frame(false).truncate()).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(text).frame(false).truncate()).clicked() {
                                 select = Some(d.id);
                             }
                         });

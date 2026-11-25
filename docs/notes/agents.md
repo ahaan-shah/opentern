@@ -4,11 +4,13 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 
 ## Agent panel: Claude and Codex (Oct 2026)
 - **Two agents** (`claude/agent.rs`, `Agent::{Claude, Codex}`): the rail button is
-  the agents' face (sand disc, two dark pill eyes, drawn in `mark::face`; the
-  maintainer's design). First open shows a card per agent (`claude_picker`);
+  the agents' face, blinking on hover (`mark::rail_button`; a plain robot was tried and
+  taken back, Nov 2026), with an amber dot when an agent asks and a green one when a turn
+  ended with the panel closed (`Claude::dot`). First open shows a card per agent (`claude_picker`);
   picking one moves into its panel (the card shrinks into the header and the
-  logo flies there, `claude_pick_overlay`, `ANIM` 0.6 s). The header's top-left
-  is the agent switcher (dropdown, either agent anytime) + `/ chat title`.
+  logo flies there, `claude_pick_overlay`, `ANIM` 0.6 s). The header's logo opens a
+  menu of every account of every installed agent (`claude_logo_menu`); with only one
+  it's just a logo. No agent or account name beside the title (the maintainer).
   Each chat has an `agent`; each agent keeps its open chat (`last`); opening
   another agent's chat from the list switches. Saved `agent: None` = picker.
   No suggested prompts: the empty chat shows the logo on a halo, and the
@@ -53,6 +55,17 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Never read `ctx.data` (e.g. `code_color`) inside `ui.fonts_mut(|…|)`: the
   context is locked there and the frame deadlocks (the stall watchdog fires).
 - Stills: `agent:claude|codex` picks an agent (skips the picker).
+
+- **Colours** (Nov 2026): the panel is drawn with `Agent::theme(t)`, the app's theme with
+  the agent's accent, so `t.accent` inside it is the agent's. Meters and sliders have a
+  plain rail (`style::rail`): no hatching, no moving line while it works. Usage is the
+  header's ring button, never on an empty chat.
+- **Highlights** are the app's rounded squares (`style::RADIUS`, the hover wash), never pills
+  or discs. The usage button is a ring of the first limit (`style::usage_button`). A click
+  on the title renames it in place, with no box or ring. No tooltip on a control that's
+  plain without one (the maintainer).
+- **Effort slider:** position = `base` + an `off` that dies away (`effort::Glide`), and the
+  level let go of stands until the pick comes back; `the_thumb_never_jumps_back`.
 
 ## Claude panel (Oct 2026)
 - Rail button under Notifications (`Widget::Claude`). Chats with **Claude Code**, the
@@ -189,6 +202,29 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Also fixed with it: widgets render in a clipped child of the panel's exact size
   (long Object tree names used to widen the panel under the chart); Object tree and
   Data window rows lay out buttons/values first and truncate names.
+
+- **Effort** (Nov 2026, `claude/effort.rs`): a slider under the models in the
+  composer's model menu (which stays open while both are picked); the model button
+  names the level. Levels come from each
+  model (`supportedEffortLevels`, `supportedReasoningEfforts`) and are saved
+  (`Saved::levels`); picked ones per agent (`efforts`) and per chat (`Chat::effort`,
+  empty = the agent's own default, nothing passed). Claude Code: `--effort`, so a
+  change restarts the chat's CLI on the next message; `CLAUDE_CODE_EFFORT_LEVEL` is
+  removed only when one is picked (it would win). Codex: `effort` on each `turn/start`.
+  The default shown: the user's own settings, else what the CLI reports (`get_settings`
+  → `applied`; `reasoningEffort` of `thread/start`; `defaultReasoningEffort`). A model
+  that lacks the picked level takes its default (`Levels::fit`).
+- **The panel's look, fourth pass** (Nov 2026, `claude/style.rs`; the maintainer's
+  reference: borderless cards, one accent, pills). Header: the agent's logo (the account
+  menu), the title, and round buttons for usage, chats and a new chat. Usage meters: a
+  plain bar with a mark for how much of the window's time has passed, red from 85%.
+  Steps are one pill (the last step and how many) that opens into a card.
+  Code has the Script Editor's colours and its own sideways scrolling. The effort slider
+  is the same bar with a thumb that keeps up with the pointer and picks on release.
+  **A hover-only control must keep its room** (reply copy buttons once shifted the chat
+  as they came and went: `hovering_replies_moves_nothing`). Claude Code 2.1.332 lists
+  "Opus" without a version, so `latest_models` names those itself. Still:
+  `widget-w:<n>` sets the panel's width.
 
 - **Agent sign-in gate** (`claude/auth.rs`): `claude auth status --json`
   (`loggedIn`), `codex login status` ("Not logged in"); only a clear

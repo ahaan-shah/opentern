@@ -721,9 +721,12 @@ impl App {
                 let p = ui.painter();
                 // Pointer inside, not `hovered()`: the buttons would steal it.
                 let inside = ui.rect_contains_pointer(r);
-                if inside {
-                    p.rect_filled(r, CornerRadius::same(6), t.hover_wash());
-                }
+                let hover = crate::motion::hover_if(&resp, inside);
+                p.rect_filled(
+                    r,
+                    CornerRadius::same(6),
+                    crate::motion::with_alpha(t.hover_wash(), hover),
+                );
                 let (state, c) = if a.expired(now) {
                     (tr("Expired"), t.text3)
                 } else if a.active {
@@ -767,26 +770,28 @@ impl App {
                 if inside {
                     // Pause/resume, edit and delete, on hover.
                     let mut x = r.right() - 4.0;
-                    for (glyph, tip, what) in [
-                        (crate::icons::ph::TRASH, tr("Delete"), 2),
-                        (crate::icons::ph::PENCIL_SIMPLE, tr("Edit"), 1),
+                    for (glyph, what) in [
+                        (crate::icons::ph::TRASH, 2),
+                        (crate::icons::ph::PENCIL_SIMPLE, 1),
                         (
                             if a.active {
                                 crate::icons::ph::PAUSE
                             } else {
                                 crate::icons::ph::PLAY
                             },
-                            if a.active { tr("Stop") } else { tr("Restart") },
                             0,
                         ),
                     ] {
                         let br = egui::Rect::from_min_size(pos2(x - 24.0, r.top() + 4.0), vec2(24.0, 24.0));
                         x -= 26.0;
                         let b = ui.interact(br, ui.id().with((a.id, what)), Sense::click());
-                        let col = if b.hovered() { t.text } else { t.text2 };
+                        let col = crate::motion::with_alpha(
+                            crate::motion::lerp_color(t.text2, t.text, crate::motion::hover(&b)),
+                            hover,
+                        );
                         ui.painter()
                             .text(br.center(), Align2::CENTER_CENTER, glyph, theme::regular(14.0), col);
-                        if b.on_hover_text(tip).clicked() {
+                        if b.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                             match what {
                                 0 => toggle = Some(a.id),
                                 1 => edit = Some(a.id),
@@ -877,9 +882,11 @@ impl App {
                     for k in range {
                         let f = &self.alerts.log[k];
                         let (r, resp) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-                        if resp.hovered() {
-                            ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
-                        }
+                        ui.painter().rect_filled(
+                            r,
+                            CornerRadius::same(4),
+                            crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                        );
                         let time = jiff::Timestamp::from_millisecond(f.time)
                             .map(|ts| ts.to_zoned(tz.clone()).strftime("%Y-%m-%d %H:%M:%S").to_string())
                             .unwrap_or_default();

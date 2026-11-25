@@ -149,10 +149,9 @@ impl Indicators {
                                 let star_resp = ui.interact(star_rect, resp.id.with("star"), Sense::click());
                                 let star_col = if fav {
                                     t.warn
-                                } else if star_resp.hovered() {
-                                    t.text2
                                 } else {
-                                    motion::with_alpha(t.text3, 0.3 + hov * 0.7)
+                                    let rest = motion::with_alpha(t.text3, 0.3 + hov * 0.7);
+                                    motion::lerp_color(rest, t.text2, motion::hover(&star_resp))
                                 };
                                 let glyph = ph::STAR;
                                 ui.painter().text(

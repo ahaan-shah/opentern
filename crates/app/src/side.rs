@@ -162,9 +162,11 @@ impl App {
                     .show(ui, |ui| {
                         for r in rows {
                             let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 28.0), Sense::click());
-                            if resp.hovered() {
-                                ui.painter().rect_filled(rect, 6, t.hover_wash());
-                            }
+                            ui.painter().rect_filled(
+                                rect,
+                                6,
+                                crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                            );
                             let p = ui.painter();
                             p.text(
                                 rect.left_center() + vec2(6.0, 0.0),
@@ -284,9 +286,11 @@ impl App {
                                 .response
                                 .interact(Sense::click())
                                 .on_hover_cursor(egui::CursorIcon::PointingHand);
-                            if resp.hovered() {
-                                ui.painter().rect_filled(r.response.rect, 6, t.hover_wash());
-                            }
+                            ui.painter().rect_filled(
+                                r.response.rect,
+                                6,
+                                crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                            );
                             if resp.clicked() {
                                 open = Some(n.link.clone());
                             }
@@ -490,13 +494,13 @@ fn section_head(ui: &mut Ui, t: &Theme, title: &str, note: &str, folded: Option<
     let p = ui.painter();
     let mut x = rect.left();
     if let Some(shut) = folded {
-        let hover = ui.rect_contains_pointer(rect);
+        let hover = crate::motion::hover_if(&resp, ui.rect_contains_pointer(rect));
         p.text(
             pos2(x + 6.0, rect.center().y),
             egui::Align2::CENTER_CENTER,
             if shut { ph::CARET_RIGHT } else { ph::CARET_DOWN },
             theme::regular(11.0),
-            if hover { t.text2 } else { t.text3 },
+            crate::motion::lerp_color(t.text3, t.text2, hover),
         );
         x += 16.0;
     }

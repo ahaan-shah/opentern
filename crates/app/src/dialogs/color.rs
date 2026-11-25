@@ -120,11 +120,19 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
                 let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
                 let selected = (color.0 >> 8) == rgb;
                 swatch(ui, t, r, Rgba::hex(rgb), 4);
-                if selected || resp.hovered() {
+                let hover = motion::hover(&resp);
+                if selected || hover > 0.0 {
                     ui.painter().rect_stroke(
                         r.expand(1.5),
                         CornerRadius::same(5),
-                        Stroke::new(1.5, if selected { t.accent } else { t.text2 }),
+                        Stroke::new(
+                            1.5,
+                            if selected {
+                                t.accent
+                            } else {
+                                motion::with_alpha(t.text2, hover)
+                            },
+                        ),
                         egui::StrokeKind::Outside,
                     );
                 }
@@ -143,7 +151,7 @@ fn picker(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
         for c in recent.iter().take(9) {
             let (r, resp) = ui.allocate_exact_size(vec2(20.0, 20.0), Sense::click());
             swatch(ui, t, r, *c, 4);
-            if resp.on_hover_text(tr("Recent colour")).clicked() {
+            if resp.clicked() {
                 *color = *c;
                 changed = true;
             }

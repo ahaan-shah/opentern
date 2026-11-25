@@ -653,7 +653,7 @@ impl App {
                                     crate::widgets::option_value(ui, &mut f.op, Op::Below, tr("below"));
                                 });
                             ui.add(egui::DragValue::new(&mut f.value).speed(0.1).max_decimals(4));
-                            if ui.small_button(ph::X).on_hover_text(tr("Remove filter")).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(ph::X).small()).clicked() {
                                 remove = Some(k);
                             }
                         });
@@ -748,9 +748,11 @@ impl App {
                 .show(ui, |ui| {
                     for r in rows {
                         let (rect, resp) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::click());
-                        if resp.hovered() {
-                            ui.painter().rect_filled(rect, 4, t.hover_wash());
-                        }
+                        ui.painter().rect_filled(
+                            rect,
+                            4,
+                            crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                        );
                         let p = ui.painter();
                         p.text(
                             rect.left_center() + vec2(6.0, 0.0),

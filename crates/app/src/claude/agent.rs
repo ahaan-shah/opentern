@@ -79,6 +79,14 @@ impl Agent {
         }
     }
 
+    /// The theme in the agent's colours, for its panel.
+    pub fn theme(self, t: &Theme) -> Theme {
+        let mut own = *t;
+        own.accent = self.accent(t);
+        own.on_accent = self.on_accent(t);
+        own
+    }
+
     /// The logo's own colour (the Codex mark follows the text colour).
     pub fn tint(self, t: &Theme) -> Color32 {
         self.accent(t)
@@ -215,13 +223,6 @@ pub fn paint_flat(p: &egui::Painter, rect: Rect, agent: Agent, color: Color32) {
             );
         }
     }
-}
-
-/// The logo as a widget of `size` points.
-pub fn show(ui: &mut Ui, size: f32, agent: Agent, color: Color32) -> Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
-    paint(ui, rect, agent, color, 0.0);
-    resp
 }
 
 /// The spinner while the agent works: its logo, turning.

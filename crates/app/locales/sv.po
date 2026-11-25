@@ -10,9 +10,6 @@ msgstr "\nÖverraskning {0}{1} %"
 msgid "\nVol {0}"
 msgstr "\nVol {0}"
 
-msgid "\n{0}: {1}% used"
-msgstr "\n{0}: {1} % använt"
-
 msgid " What can I help you with?"
 msgstr " Vad kan jag hjälpa dig med?"
 
@@ -143,9 +140,15 @@ msgstr "Ett Python-skript körs i ditt eget systems Python. Beroende på koden k
 msgid "A fast, local-first market analysis terminal."
 msgstr "En snabb, lokal terminal för marknadsanalys."
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr "En fullständig genomgång av Pine-motorn och de andra språken rättade många fel och lade till över 80 saknade funktioner."
+
 #, message
 msgid "A market order has no price to move."
 msgstr "En marknadsorder har inget pris att flytta."
+
+msgid "A new agent panel"
+msgstr "En ny agentpanel"
 
 msgid "A sharper, calmer look"
 msgstr "Ett skarpare, lugnare utseende"
@@ -247,17 +250,11 @@ msgstr "Aktivt"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
 
-msgid "Add files"
-msgstr "Lägg till filer"
-
 msgid "Add filter"
 msgstr "Lägg till filter"
 
 msgid "Add section"
 msgstr "Lägg till avsnitt"
-
-msgid "Add symbol"
-msgstr "Lägg till symbol"
 
 msgid "Add to chart"
 msgstr "Lägg till i diagrammet"
@@ -354,9 +351,6 @@ msgstr "Tillåt för den här chatten"
 
 msgid "Allow through Windows Firewall"
 msgstr "Tillåt i Windows-brandväggen"
-
-msgid "Allow {0} to do this?"
-msgstr "Låta {0} göra detta?"
 
 msgid "Allowed"
 msgstr "Tillåtet"
@@ -556,9 +550,6 @@ msgstr ""
 
 msgid "BUILT-IN INDICATORS"
 msgstr "INBYGGDA INDIKATORER"
-
-msgid "Back"
-msgstr "Tillbaka"
 
 msgid "Background"
 msgstr "Bakgrund"
@@ -999,14 +990,8 @@ msgstr "Klicka på en stapel för att börja där"
 msgid "Close"
 msgstr "Stäng"
 
-msgid "Close (Esc)"
-msgstr "Stäng (Esc)"
-
 msgid "Close ({0})"
 msgstr "Stäng ({0})"
-
-msgid "Close replay"
-msgstr "Stäng reprisen"
 
 msgid "Closed"
 msgstr "Stängd"
@@ -1109,9 +1094,6 @@ msgstr "Konverteringslinje"
 msgid "Conversion Line Length"
 msgstr "Konverteringslinjens längd"
 
-msgid "Copied"
-msgstr "Kopierat"
-
 #, message
 msgid "Copied to {name}."
 msgstr "Kopierat till {name}."
@@ -1121,9 +1103,6 @@ msgstr "Coppock-kurva"
 
 msgid "Copy"
 msgstr "Kopiera"
-
-msgid "Copy code"
-msgstr "Kopiera kod"
 
 msgid "Copy image"
 msgstr "Kopiera bild"
@@ -1396,23 +1375,14 @@ msgstr "{min} min fördröjt"
 msgid "Delete"
 msgstr "Ta bort"
 
-msgid "Delete chat"
-msgstr "Ta bort chatten"
-
 msgid "Delete folder (if empty)"
 msgstr "Ta bort mappen (om den är tom)"
 
 msgid "Delete for good"
 msgstr "Ta bort för gott"
 
-msgid "Delete layout"
-msgstr "Ta bort layout"
-
 msgid "Delete list"
 msgstr "Ta bort lista"
-
-msgid "Delete template"
-msgstr "Ta bort mall"
 
 msgid "Delete the selected drawing"
 msgstr "Ta bort den valda ritningen"
@@ -1516,9 +1486,6 @@ msgstr "Dubbel EMA"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Dubbelklicka för att använda dessa indata i diagrammet"
-
-msgid "Double-click to rename"
-msgstr "Dubbelklicka för att byta namn"
 
 msgid "Down"
 msgstr "Ned"
@@ -1628,9 +1595,6 @@ msgstr "Ease of Movement"
 msgid "Easter Monday"
 msgstr "Annandag påsk"
 
-msgid "Edit"
-msgstr "Redigera"
-
 msgid "Edit alert"
 msgstr "Redigera larm"
 
@@ -1650,6 +1614,9 @@ msgstr "Effektivitet"
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
 msgstr "Effektivitet: vinst per stapel utanför urvalet jämfört med inom urvalet. Över 50 % brukar ses som robust."
+
+msgid "Effort"
+msgstr "Ansträngning"
 
 msgid "Elder Force Index"
 msgstr "Elders kraftindex"
@@ -1809,6 +1776,9 @@ msgstr "Förlängd linje"
 msgid "Extended trading hours"
 msgstr "Förlängda handelstider"
 
+msgid "Extra high"
+msgstr "Mycket hög"
+
 msgid "Factor"
 msgstr "Faktor"
 
@@ -1862,9 +1832,6 @@ msgstr "Fyllningar"
 
 msgid "Filter"
 msgstr "Filter"
-
-msgid "Filter files"
-msgstr "Filtrera filer"
 
 #, message
 msgid "Find files: {0}"
@@ -2052,6 +2019,9 @@ msgstr "Dölj ritverktygsfältet"
 msgid "Hide the sidebar"
 msgstr "Dölj sidofältet"
 
+msgid "High"
+msgstr "Hög"
+
 msgid "High-low"
 msgstr "Högsta-lägsta"
 
@@ -2158,6 +2128,9 @@ msgstr "Importerar"
 
 msgid "In a pane of its own, below"
 msgstr "I en egen ruta under"
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
+msgstr "I din agents egna färger, med användningsgränser ett klick bort och ett reglage för hur mycket den tänker."
 
 msgid "In-sample P&L"
 msgstr "Resultat inom urvalet"
@@ -2496,9 +2469,6 @@ msgstr "Laddar…"
 msgid "Local"
 msgstr "Lokal"
 
-msgid "Lock"
-msgstr "Lås"
-
 msgid "Lock all drawings"
 msgstr "Lås alla ritningar"
 
@@ -2587,6 +2557,9 @@ msgstr "Förlustsvit, sämsta 5 %"
 
 msgid "Losing trades"
 msgstr "Förlustaffärer"
+
+msgid "Low"
+msgstr "Låg"
 
 msgid "Lower"
 msgstr "Nedre"
@@ -2774,6 +2747,9 @@ msgstr "Martin Luther King-dagen"
 msgid "Mass Index"
 msgstr "Mass Index"
 
+msgid "Max"
+msgstr "Max"
+
 msgid "Max DD"
 msgstr "Max nedg."
 
@@ -2834,8 +2810,14 @@ msgstr "Medianresultat"
 msgid "Median max drawdown"
 msgstr "Median av största nedgång"
 
+msgid "Medium"
+msgstr "Medel"
+
 msgid "Memorial Day"
 msgstr "Memorial Day"
+
+msgid "Menus, dialogs and hovers ease in and out."
+msgstr "Menyer, dialoger och markeringar tonas mjukt in och ut."
 
 msgid "Merge"
 msgstr "Slå ihop"
@@ -2863,6 +2845,9 @@ msgstr "Längd på mellan-RCI"
 
 msgid "Millions, billions"
 msgstr "Miljoner, miljarder"
+
+msgid "Minimal"
+msgstr "Minimal"
 
 msgid "Minutes"
 msgstr "Minuter"
@@ -2907,8 +2892,8 @@ msgstr "Månfaser"
 msgid "More"
 msgstr "Mer"
 
-msgid "More intervals"
-msgstr "Fler intervall"
+msgid "More scripts run"
+msgstr "Fler skript fungerar"
 
 msgid "Mountain Day"
 msgstr "Bergens dag"
@@ -3083,6 +3068,9 @@ msgstr "Nästa rapport {0}\nPrognos {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Nästa omviktning {0} (1 april och 1 oktober)."
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
+msgstr "Nio språk utöver engelska. Appen följer systemets språk; välj ett annat i Inställningar → Allmänt → Språk."
 
 msgid "No alerts yet"
 msgstr "Inga larm än"
@@ -3387,9 +3375,6 @@ msgstr "Öppna {0}"
 msgid "Open {0} in the editor"
 msgstr "Öppna {0} i redigeraren"
 
-msgid "Open {f} in the Script Editor"
-msgstr "Öppna {f} i Skriptredigeraren"
-
 msgid "Open, high, low and close values"
 msgstr "Öppnings-, högsta, lägsta och stängningsvärden"
 
@@ -3406,6 +3391,9 @@ msgstr "Opentern kunde inte starta"
 
 msgid "Opentern export"
 msgstr "Opentern-export"
+
+msgid "Opentern in your language"
+msgstr "Opentern på ditt språk"
 
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern är öppet i ett annat fönster. Stäng det och importera sedan."
@@ -3819,9 +3807,6 @@ msgstr "Kvartal"
 msgid "Quarterly"
 msgstr "Kvartalsvis"
 
-msgid "Queue (Enter)"
-msgstr "Köa (Retur)"
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr "Ta emot"
 msgid "Receiving from {peer}"
 msgstr "Tar emot från {peer}"
 
-msgid "Recent colour"
-msgstr "Senaste färg"
-
 msgid "Rectangle"
 msgstr "Rektangel"
 
@@ -4003,9 +3985,6 @@ msgstr "Ta bort ritningar"
 
 msgid "Remove drawings or indicators"
 msgstr "Ta bort ritningar eller indikatorer"
-
-msgid "Remove filter"
-msgstr "Ta bort filter"
 
 msgid "Remove from favorites"
 msgstr "Ta bort från favoriter"
@@ -4082,14 +4061,8 @@ msgstr "Återställ kontot för att byta valuta"
 msgid "Reset the chart view"
 msgstr "Återställ diagramvyn"
 
-msgid "Resets {0}"
-msgstr "Återställs {0}"
-
 msgid "Respect for the Aged Day"
 msgstr "De äldres dag"
-
-msgid "Restart"
-msgstr "Starta om"
 
 msgid "Restart Opentern"
 msgstr "Starta om Opentern"
@@ -4387,9 +4360,6 @@ msgstr "Säljordern utförd."
 msgid "Send"
 msgstr "Skicka"
 
-msgid "Send (Enter)"
-msgstr "Skicka (Retur)"
-
 msgid "Send a test email"
 msgstr "Skicka ett testmejl"
 
@@ -4583,6 +4553,9 @@ msgstr "Minsta största nedgång"
 msgid "Smoothed Moving Average"
 msgstr "Utjämnat glidande medelvärde"
 
+msgid "Smoother motion"
+msgstr "Mjukare rörelser"
+
 msgid "Smoothing"
 msgstr "Utjämning"
 
@@ -4610,9 +4583,6 @@ msgstr "Någon angav fel kod."
 
 msgid "Something went wrong in the run."
 msgstr "Något gick fel i körningen."
-
-msgid "Sort"
-msgstr "Sortera"
 
 msgid "Sort by name"
 msgstr "Sortera efter namn"
@@ -5246,6 +5216,9 @@ msgstr "Stora USA-bolag"
 msgid "Ultimate Oscillator"
 msgstr "Ultimate-oscillator"
 
+msgid "Ultra"
+msgstr "Ultra"
+
 msgid "Undo"
 msgstr "Ångra"
 
@@ -5358,9 +5331,6 @@ msgstr "Upstox: ingen kurs för symbolen."
 
 msgid "Uptrend Highlighter"
 msgstr "Markering av uppåttrend"
-
-msgid "Usage shows after your first message."
-msgstr "Användningen visas efter ditt första meddelande."
 
 msgid "Use Exponential MA"
 msgstr "Använd exponentiellt MA"
@@ -5738,9 +5708,6 @@ msgstr "en ritning"
 msgid "above"
 msgstr "över"
 
-msgid "at {0}"
-msgstr "kl. {0}"
-
 msgid "auto"
 msgstr "auto"
 
@@ -5988,9 +5955,6 @@ msgstr "{0}: Yahoo har inte längre symbolen; den kan ha bytt namn eller avnoter
 #, message
 msgid "{0}: any alert() call"
 msgstr "{0}: valfritt alert()-anrop"
-
-msgid "{0}: {1}% used"
-msgstr "{0}: {1} % använt"
 
 msgid "{0}d ago"
 msgstr "{0} d sedan"

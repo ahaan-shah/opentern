@@ -10,9 +10,6 @@ msgstr "\nサプライズ {0}{1}%"
 msgid "\nVol {0}"
 msgstr "\n出来高 {0}"
 
-msgid "\n{0}: {1}% used"
-msgstr "\n{0}: {1}% 使用済み"
-
 msgid " What can I help you with?"
 msgstr " ご用件をどうぞ"
 
@@ -143,9 +140,15 @@ msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます
 msgid "A fast, local-first market analysis terminal."
 msgstr "高速でローカルファーストな市場分析ターミナル。"
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr "Pine エンジンとほかの言語を全面的に点検し、多くのエラーを修正して、不足していた80以上の関数を追加しました。"
+
 #, message
 msgid "A market order has no price to move."
 msgstr "成行注文には動かす価格がありません。"
+
+msgid "A new agent panel"
+msgstr "新しいエージェントパネル"
 
 msgid "A sharper, calmer look"
 msgstr "よりくっきり、落ち着いた見た目"
@@ -247,17 +250,11 @@ msgstr "有効"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
 
-msgid "Add files"
-msgstr "ファイルを追加"
-
 msgid "Add filter"
 msgstr "フィルターを追加"
 
 msgid "Add section"
 msgstr "セクションを追加"
-
-msgid "Add symbol"
-msgstr "銘柄を追加"
 
 msgid "Add to chart"
 msgstr "チャートに追加"
@@ -354,9 +351,6 @@ msgstr "このチャットで許可"
 
 msgid "Allow through Windows Firewall"
 msgstr "Windowsファイアウォールで許可"
-
-msgid "Allow {0} to do this?"
-msgstr "{0}にこれを許可しますか?"
 
 msgid "Allowed"
 msgstr "許可済み"
@@ -556,9 +550,6 @@ msgstr ""
 
 msgid "BUILT-IN INDICATORS"
 msgstr "内蔵インジケーター"
-
-msgid "Back"
-msgstr "戻る"
 
 msgid "Background"
 msgstr "背景"
@@ -999,14 +990,8 @@ msgstr "開始する足をクリック"
 msgid "Close"
 msgstr "閉じる"
 
-msgid "Close (Esc)"
-msgstr "閉じる (Esc)"
-
 msgid "Close ({0})"
 msgstr "閉じる ({0})"
-
-msgid "Close replay"
-msgstr "リプレイを閉じる"
 
 msgid "Closed"
 msgstr "休場"
@@ -1109,9 +1094,6 @@ msgstr "転換線"
 msgid "Conversion Line Length"
 msgstr "転換線の期間"
 
-msgid "Copied"
-msgstr "コピーしました"
-
 #, message
 msgid "Copied to {name}."
 msgstr "{name}にコピーしました。"
@@ -1121,9 +1103,6 @@ msgstr "コポック曲線"
 
 msgid "Copy"
 msgstr "コピー"
-
-msgid "Copy code"
-msgstr "コードをコピー"
 
 msgid "Copy image"
 msgstr "画像をコピー"
@@ -1396,23 +1375,14 @@ msgstr "{min}分遅延"
 msgid "Delete"
 msgstr "削除"
 
-msgid "Delete chat"
-msgstr "チャットを削除"
-
 msgid "Delete folder (if empty)"
 msgstr "フォルダーを削除 (空の場合)"
 
 msgid "Delete for good"
 msgstr "完全に削除"
 
-msgid "Delete layout"
-msgstr "レイアウトを削除"
-
 msgid "Delete list"
 msgstr "リストを削除"
-
-msgid "Delete template"
-msgstr "テンプレートを削除"
 
 msgid "Delete the selected drawing"
 msgstr "選択した描画を削除"
@@ -1516,9 +1486,6 @@ msgstr "二重EMA"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "ダブルクリックでこの入力をチャートに適用"
-
-msgid "Double-click to rename"
-msgstr "ダブルクリックで名前を変更"
 
 msgid "Down"
 msgstr "下"
@@ -1628,9 +1595,6 @@ msgstr "イーズ・オブ・ムーブメント"
 msgid "Easter Monday"
 msgstr "イースターマンデー"
 
-msgid "Edit"
-msgstr "編集"
-
 msgid "Edit alert"
 msgstr "アラートを編集"
 
@@ -1650,6 +1614,9 @@ msgstr "効率"
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
 msgstr "効率: アウトオブサンプルの足あたり利益をインサンプルと比べた割合。50%超なら一般に堅牢とされます。"
+
+msgid "Effort"
+msgstr "思考レベル"
 
 msgid "Elder Force Index"
 msgstr "エルダー勢力指数"
@@ -1809,6 +1776,9 @@ msgstr "延長線"
 msgid "Extended trading hours"
 msgstr "時間外取引"
 
+msgid "Extra high"
+msgstr "最高"
+
 msgid "Factor"
 msgstr "係数"
 
@@ -1862,9 +1832,6 @@ msgstr "塗り"
 
 msgid "Filter"
 msgstr "フィルター"
-
-msgid "Filter files"
-msgstr "ファイルを絞り込む"
 
 #, message
 msgid "Find files: {0}"
@@ -2052,6 +2019,9 @@ msgstr "描画ツールバーを隠す"
 msgid "Hide the sidebar"
 msgstr "サイドバーを隠す"
 
+msgid "High"
+msgstr "高"
+
 msgid "High-low"
 msgstr "高値-安値"
 
@@ -2158,6 +2128,9 @@ msgstr "インポート中"
 
 msgid "In a pane of its own, below"
 msgstr "下の専用ペイン"
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
+msgstr "エージェントの色で表示され、使用量の上限はワンクリックで確認でき、どれだけ深く考えるかをスライダーで選べます。"
 
 msgid "In-sample P&L"
 msgstr "インサンプル損益"
@@ -2496,9 +2469,6 @@ msgstr "読み込み中…"
 msgid "Local"
 msgstr "ローカル"
 
-msgid "Lock"
-msgstr "ロック"
-
 msgid "Lock all drawings"
 msgstr "すべての描画をロック"
 
@@ -2587,6 +2557,9 @@ msgstr "連敗 (ワースト5%)"
 
 msgid "Losing trades"
 msgstr "負けトレード"
+
+msgid "Low"
+msgstr "低"
 
 msgid "Lower"
 msgstr "下限"
@@ -2774,6 +2747,9 @@ msgstr "キング牧師記念日"
 msgid "Mass Index"
 msgstr "マスインデックス"
 
+msgid "Max"
+msgstr "最大"
+
 msgid "Max DD"
 msgstr "最大DD"
 
@@ -2834,8 +2810,14 @@ msgstr "損益の中央値"
 msgid "Median max drawdown"
 msgstr "最大ドローダウンの中央値"
 
+msgid "Medium"
+msgstr "中"
+
 msgid "Memorial Day"
 msgstr "戦没将兵追悼記念日"
+
+msgid "Menus, dialogs and hovers ease in and out."
+msgstr "メニュー、ダイアログ、ホバーが滑らかに表示され、消えます。"
 
 msgid "Merge"
 msgstr "統合"
@@ -2863,6 +2845,9 @@ msgstr "中期RCIの期間"
 
 msgid "Millions, billions"
 msgstr "百万、十億"
+
+msgid "Minimal"
+msgstr "最小"
 
 msgid "Minutes"
 msgstr "分"
@@ -2907,8 +2892,8 @@ msgstr "月の満ち欠け"
 msgid "More"
 msgstr "その他"
 
-msgid "More intervals"
-msgstr "その他の時間足"
+msgid "More scripts run"
+msgstr "より多くのスクリプトが動作"
 
 msgid "Mountain Day"
 msgstr "山の日"
@@ -3083,6 +3068,9 @@ msgstr "次の決算 {0}\n予想 {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "次回のリバランス: {0}(4月1日と10月1日)。"
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
+msgstr "英語のほかに9言語に対応しました。システムの言語に従い、設定 → 一般 → 言語で変更できます。"
 
 msgid "No alerts yet"
 msgstr "アラートはまだありません"
@@ -3387,9 +3375,6 @@ msgstr "{0}を開く"
 msgid "Open {0} in the editor"
 msgstr "{0}をエディターで開く"
 
-msgid "Open {f} in the Script Editor"
-msgstr "{f}をスクリプトエディターで開く"
-
 msgid "Open, high, low and close values"
 msgstr "始値、高値、安値、終値"
 
@@ -3406,6 +3391,9 @@ msgstr "Openternを起動できませんでした"
 
 msgid "Opentern export"
 msgstr "Openternエクスポート"
+
+msgid "Opentern in your language"
+msgstr "あなたの言語で使える Opentern"
 
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Openternが別のウィンドウで開いています。閉じてからインポートしてください。"
@@ -3819,9 +3807,6 @@ msgstr "四半期"
 msgid "Quarterly"
 msgstr "四半期"
 
-msgid "Queue (Enter)"
-msgstr "待ち列に追加 (Enter)"
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr "受信"
 msgid "Receiving from {peer}"
 msgstr "{peer}から受信中"
 
-msgid "Recent colour"
-msgstr "最近の色"
-
 msgid "Rectangle"
 msgstr "長方形"
 
@@ -4003,9 +3985,6 @@ msgstr "描画を削除"
 
 msgid "Remove drawings or indicators"
 msgstr "描画またはインジケーターを削除"
-
-msgid "Remove filter"
-msgstr "フィルターを削除"
 
 msgid "Remove from favorites"
 msgstr "お気に入りから削除"
@@ -4082,14 +4061,8 @@ msgstr "通貨を変えるには口座をリセットしてください"
 msgid "Reset the chart view"
 msgstr "チャート表示をリセット"
 
-msgid "Resets {0}"
-msgstr "{0}にリセット"
-
 msgid "Respect for the Aged Day"
 msgstr "敬老の日"
-
-msgid "Restart"
-msgstr "再開"
 
 msgid "Restart Opentern"
 msgstr "Openternを再起動"
@@ -4387,9 +4360,6 @@ msgstr "売り注文が約定しました。"
 msgid "Send"
 msgstr "送信"
 
-msgid "Send (Enter)"
-msgstr "送信 (Enter)"
-
 msgid "Send a test email"
 msgstr "テストメールを送信"
 
@@ -4583,6 +4553,9 @@ msgstr "最小の最大ドローダウン"
 msgid "Smoothed Moving Average"
 msgstr "平滑移動平均"
 
+msgid "Smoother motion"
+msgstr "より滑らかな動き"
+
 msgid "Smoothing"
 msgstr "平滑化"
 
@@ -4610,9 +4583,6 @@ msgstr "誤ったコードが入力されました。"
 
 msgid "Something went wrong in the run."
 msgstr "実行中に問題が発生しました。"
-
-msgid "Sort"
-msgstr "並べ替え"
 
 msgid "Sort by name"
 msgstr "名前順"
@@ -5246,6 +5216,9 @@ msgstr "米国大型株"
 msgid "Ultimate Oscillator"
 msgstr "アルティメットオシレーター"
 
+msgid "Ultra"
+msgstr "ウルトラ"
+
 msgid "Undo"
 msgstr "元に戻す"
 
@@ -5358,9 +5331,6 @@ msgstr "Upstox: この銘柄の気配がありません。"
 
 msgid "Uptrend Highlighter"
 msgstr "上昇トレンドの強調"
-
-msgid "Usage shows after your first message."
-msgstr "使用量は最初のメッセージの後に表示されます。"
 
 msgid "Use Exponential MA"
 msgstr "指数MAを使う"
@@ -5738,9 +5708,6 @@ msgstr "描画"
 msgid "above"
 msgstr "上"
 
-msgid "at {0}"
-msgstr "{0}"
-
 msgid "auto"
 msgstr "自動"
 
@@ -5988,9 +5955,6 @@ msgstr "{0}: Yahooにこの銘柄がなくなりました。名称変更また�
 #, message
 msgid "{0}: any alert() call"
 msgstr "{0}: 任意のalert()呼び出し"
-
-msgid "{0}: {1}% used"
-msgstr "{0}: {1}% 使用済み"
 
 msgid "{0}d ago"
 msgstr "{0}日前"

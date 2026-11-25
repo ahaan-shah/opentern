@@ -429,11 +429,12 @@ fn table(ui: &mut Ui, t: &Theme, rows: &[&MonthRow]) {
                     if let Some(e) = exact {
                         resp.clone().on_hover_text(e);
                     }
-                    if resp.hovered() {
+                    let hover = crate::motion::hover(&resp);
+                    if hover > 0.0 {
                         p.rect_stroke(
                             rect,
                             CornerRadius::ZERO,
-                            Stroke::new(1.0, t.text3),
+                            Stroke::new(1.0, crate::motion::with_alpha(t.text3, hover)),
                             egui::StrokeKind::Inside,
                         );
                     }
@@ -874,10 +875,10 @@ fn year_slider(ui: &mut Ui, t: &Theme, lo: i16, hi: i16, range: &mut (i16, i16))
         );
     }
     for (x, r) in [(a, &ra), (b, &rb)] {
-        let hot = r.hovered() || r.dragged();
+        let rad = 9.0 + crate::motion::hover_if(r, r.hovered() || r.dragged());
         let c = pos2(x, track.center().y);
-        p.circle_filled(c, if hot { 10.0 } else { 9.0 }, t.bg);
-        p.circle_stroke(c, if hot { 10.0 } else { 9.0 }, Stroke::new(2.0, t.text));
+        p.circle_filled(c, rad, t.bg);
+        p.circle_stroke(c, rad, Stroke::new(2.0, t.text));
     }
     if ra.hovered() || ra.dragged() || rb.hovered() || rb.dragged() || rm.dragged() {
         ra.on_hover_text(format!("{} – {}", range.0, range.1));

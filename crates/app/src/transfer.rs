@@ -1310,7 +1310,7 @@ fn pick_list(ui: &mut Ui, t: &Theme, rows: &[(Item, usize)], picks: &mut BTreeMa
     let resp = ui
         .interact(hit, ui.id().with("select-all"), Sense::click())
         .on_hover_cursor(egui::CursorIcon::PointingHand);
-    let col = if resp.hovered() { t.text } else { t.text2 };
+    let col = motion::lerp_color(t.text2, t.text, motion::hover(&resp));
     ui.painter().galley(
         pos2(head.right() - g.size().x, head.center().y - g.size().y / 2.0),
         g,
@@ -1505,7 +1505,7 @@ fn copied_id() -> egui::Id {
 fn copy_button(ui: &mut Ui, t: &Theme, code: &str, rect: Rect) {
     #[cfg(test)]
     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("copy-rect"), rect));
-    widgets::copy_button(ui, t, code, rect, copied_id(), tr("Copy code"), 19.0);
+    widgets::copy_button(ui, t, code, rect, copied_id(), 19.0);
 }
 
 /// A status with a slowly breathing dot.

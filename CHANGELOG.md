@@ -1,11 +1,18 @@
 # Changelog
 
-## Unreleased
+## 0.3.5 (2026-11-26)
+
+Nine languages, a new agent panel with an effort slider, smoother motion throughout, and a full check of the script engines.
 
 ### New
 - **Opentern in your language.** German, Spanish, French, Portuguese (Brazil), Swedish, Russian, Hindi, Japanese and Simplified Chinese, besides English. It follows your system's language; pick another in Settings → General → Language. Your scripts, saved names and tickers stay as they are.
+- **Effort.** Choose how hard Claude or Codex thinks, with a slider under the models in the agent panel. Each chat keeps its own; until you pick one, your agent's own setting applies.
 
 ### Changed
+- **A new agent panel.** Soft rounded cards in your agent's own colours, usage limits behind a button as meters that show how much of their time has passed, steps in one tidy pill, coloured code that scrolls sideways, a copy button under replies, clear permission buttons and how long a turn takes. Click the logo to choose an agent or account, and a chat's title to rename it. The message box stays at the bottom, and an arrow takes you back to the end when you've scrolled up.
+- **The agent icon** gets a dot when an agent needs you or is done.
+- **Smoother motion.** Menus, dialogs and tooltips ease in and out, and hovers ease instead of snapping.
+- **Fewer tooltips.** Buttons that say what they do no longer repeat it.
 - **"Theme" beside a colour** in chart settings is a plain underlined link.
 - **Signing in to Claude Code or Codex** happens in your terminal: the agent panel shows the command to copy, for the account you picked. Opentern takes no part in it.
 - **Claude Code knows it's running in Opentern**: the app tells it its name, as it does Codex.

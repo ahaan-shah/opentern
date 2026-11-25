@@ -10,9 +10,6 @@ msgstr ""
 msgid "\nVol {0}"
 msgstr ""
 
-msgid "\n{0}: {1}% used"
-msgstr ""
-
 msgid " What can I help you with?"
 msgstr ""
 
@@ -143,8 +140,14 @@ msgstr ""
 msgid "A fast, local-first market analysis terminal."
 msgstr ""
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr ""
+
 #, message
 msgid "A market order has no price to move."
+msgstr ""
+
+msgid "A new agent panel"
 msgstr ""
 
 msgid "A sharper, calmer look"
@@ -247,16 +250,10 @@ msgstr ""
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr ""
 
-msgid "Add files"
-msgstr ""
-
 msgid "Add filter"
 msgstr ""
 
 msgid "Add section"
-msgstr ""
-
-msgid "Add symbol"
 msgstr ""
 
 msgid "Add to chart"
@@ -353,9 +350,6 @@ msgid "Allow for this chat"
 msgstr ""
 
 msgid "Allow through Windows Firewall"
-msgstr ""
-
-msgid "Allow {0} to do this?"
 msgstr ""
 
 msgid "Allowed"
@@ -555,9 +549,6 @@ msgid "BOP"
 msgstr ""
 
 msgid "BUILT-IN INDICATORS"
-msgstr ""
-
-msgid "Back"
 msgstr ""
 
 msgid "Background"
@@ -999,13 +990,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-msgid "Close (Esc)"
-msgstr ""
-
 msgid "Close ({0})"
-msgstr ""
-
-msgid "Close replay"
 msgstr ""
 
 msgid "Closed"
@@ -1109,9 +1094,6 @@ msgstr ""
 msgid "Conversion Line Length"
 msgstr ""
 
-msgid "Copied"
-msgstr ""
-
 #, message
 msgid "Copied to {name}."
 msgstr ""
@@ -1120,9 +1102,6 @@ msgid "Coppock Curve"
 msgstr ""
 
 msgid "Copy"
-msgstr ""
-
-msgid "Copy code"
 msgstr ""
 
 msgid "Copy image"
@@ -1396,22 +1375,13 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-msgid "Delete chat"
-msgstr ""
-
 msgid "Delete folder (if empty)"
 msgstr ""
 
 msgid "Delete for good"
 msgstr ""
 
-msgid "Delete layout"
-msgstr ""
-
 msgid "Delete list"
-msgstr ""
-
-msgid "Delete template"
 msgstr ""
 
 msgid "Delete the selected drawing"
@@ -1515,9 +1485,6 @@ msgid "Double EMA"
 msgstr ""
 
 msgid "Double-click to put these inputs on the chart"
-msgstr ""
-
-msgid "Double-click to rename"
 msgstr ""
 
 msgid "Down"
@@ -1628,9 +1595,6 @@ msgstr ""
 msgid "Easter Monday"
 msgstr ""
 
-msgid "Edit"
-msgstr ""
-
 msgid "Edit alert"
 msgstr ""
 
@@ -1649,6 +1613,9 @@ msgid "Efficiency"
 msgstr ""
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
+msgstr ""
+
+msgid "Effort"
 msgstr ""
 
 msgid "Elder Force Index"
@@ -1809,6 +1776,9 @@ msgstr ""
 msgid "Extended trading hours"
 msgstr ""
 
+msgid "Extra high"
+msgstr ""
+
 msgid "Factor"
 msgstr ""
 
@@ -1861,9 +1831,6 @@ msgid "Fills"
 msgstr ""
 
 msgid "Filter"
-msgstr ""
-
-msgid "Filter files"
 msgstr ""
 
 #, message
@@ -2052,6 +2019,9 @@ msgstr ""
 msgid "Hide the sidebar"
 msgstr ""
 
+msgid "High"
+msgstr ""
+
 msgid "High-low"
 msgstr ""
 
@@ -2157,6 +2127,9 @@ msgid "Importing"
 msgstr ""
 
 msgid "In a pane of its own, below"
+msgstr ""
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
 msgstr ""
 
 msgid "In-sample P&L"
@@ -2496,9 +2469,6 @@ msgstr ""
 msgid "Local"
 msgstr ""
 
-msgid "Lock"
-msgstr ""
-
 msgid "Lock all drawings"
 msgstr ""
 
@@ -2586,6 +2556,9 @@ msgid "Losing streak, worst 5%"
 msgstr ""
 
 msgid "Losing trades"
+msgstr ""
+
+msgid "Low"
 msgstr ""
 
 msgid "Lower"
@@ -2774,6 +2747,9 @@ msgstr ""
 msgid "Mass Index"
 msgstr ""
 
+msgid "Max"
+msgstr ""
+
 msgid "Max DD"
 msgstr ""
 
@@ -2834,7 +2810,13 @@ msgstr ""
 msgid "Median max drawdown"
 msgstr ""
 
+msgid "Medium"
+msgstr ""
+
 msgid "Memorial Day"
+msgstr ""
+
+msgid "Menus, dialogs and hovers ease in and out."
 msgstr ""
 
 msgid "Merge"
@@ -2862,6 +2844,9 @@ msgid "Middle RCI Length"
 msgstr ""
 
 msgid "Millions, billions"
+msgstr ""
+
+msgid "Minimal"
 msgstr ""
 
 msgid "Minutes"
@@ -2907,7 +2892,7 @@ msgstr ""
 msgid "More"
 msgstr ""
 
-msgid "More intervals"
+msgid "More scripts run"
 msgstr ""
 
 msgid "Mountain Day"
@@ -3082,6 +3067,9 @@ msgstr ""
 
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr ""
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr ""
 
 msgid "No alerts yet"
@@ -3387,9 +3375,6 @@ msgstr ""
 msgid "Open {0} in the editor"
 msgstr ""
 
-msgid "Open {f} in the Script Editor"
-msgstr ""
-
 msgid "Open, high, low and close values"
 msgstr ""
 
@@ -3405,6 +3390,9 @@ msgid "Opentern couldn't start"
 msgstr ""
 
 msgid "Opentern export"
+msgstr ""
+
+msgid "Opentern in your language"
 msgstr ""
 
 msgid "Opentern is open in another window. Close it, then import."
@@ -3819,9 +3807,6 @@ msgstr ""
 msgid "Quarterly"
 msgstr ""
 
-msgid "Queue (Enter)"
-msgstr ""
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr ""
 msgid "Receiving from {peer}"
 msgstr ""
 
-msgid "Recent colour"
-msgstr ""
-
 msgid "Rectangle"
 msgstr ""
 
@@ -4002,9 +3984,6 @@ msgid "Remove drawings"
 msgstr ""
 
 msgid "Remove drawings or indicators"
-msgstr ""
-
-msgid "Remove filter"
 msgstr ""
 
 msgid "Remove from favorites"
@@ -4082,13 +4061,7 @@ msgstr ""
 msgid "Reset the chart view"
 msgstr ""
 
-msgid "Resets {0}"
-msgstr ""
-
 msgid "Respect for the Aged Day"
-msgstr ""
-
-msgid "Restart"
 msgstr ""
 
 msgid "Restart Opentern"
@@ -4387,9 +4360,6 @@ msgstr ""
 msgid "Send"
 msgstr ""
 
-msgid "Send (Enter)"
-msgstr ""
-
 msgid "Send a test email"
 msgstr ""
 
@@ -4583,6 +4553,9 @@ msgstr ""
 msgid "Smoothed Moving Average"
 msgstr ""
 
+msgid "Smoother motion"
+msgstr ""
+
 msgid "Smoothing"
 msgstr ""
 
@@ -4609,9 +4582,6 @@ msgid "Someone entered the wrong code."
 msgstr ""
 
 msgid "Something went wrong in the run."
-msgstr ""
-
-msgid "Sort"
 msgstr ""
 
 msgid "Sort by name"
@@ -5246,6 +5216,9 @@ msgstr ""
 msgid "Ultimate Oscillator"
 msgstr ""
 
+msgid "Ultra"
+msgstr ""
+
 msgid "Undo"
 msgstr ""
 
@@ -5357,9 +5330,6 @@ msgid "Upstox: no quote for this symbol."
 msgstr ""
 
 msgid "Uptrend Highlighter"
-msgstr ""
-
-msgid "Usage shows after your first message."
 msgstr ""
 
 msgid "Use Exponential MA"
@@ -5738,9 +5708,6 @@ msgstr ""
 msgid "above"
 msgstr ""
 
-msgid "at {0}"
-msgstr ""
-
 msgid "auto"
 msgstr ""
 
@@ -5987,9 +5954,6 @@ msgstr ""
 
 #, message
 msgid "{0}: any alert() call"
-msgstr ""
-
-msgid "{0}: {1}% used"
 msgstr ""
 
 msgid "{0}d ago"

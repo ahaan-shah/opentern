@@ -1072,7 +1072,7 @@ impl App {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         bar.spacing_mut().item_spacing.x = 0.0;
-        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, tr("More"), false, 24.0);
+        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "", false, 24.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(220.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -1097,7 +1097,7 @@ impl App {
             }
         });
         let find = self.editor.filtering;
-        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, tr("Filter files"), find, 24.0).clicked() {
+        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "", find, 24.0).clicked() {
             self.editor.filtering = !find;
             self.editor.filter.clear();
         }
@@ -1383,9 +1383,9 @@ impl App {
                     }
                     for (line, name, kind) in &outline_items {
                         let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
-                        if ui.rect_contains_pointer(r) {
-                            ui.painter().rect_filled(r, CornerRadius::ZERO, t.hover_wash());
-                        }
+                        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
+                        ui.painter()
+                            .rect_filled(r, CornerRadius::ZERO, motion::with_alpha(t.hover_wash(), hover));
                         let (icon, col) = match kind {
                             Outline::Function => (ph::CUBE, c.keyword),
                             Outline::Input => (ph::SLIDERS_HORIZONTAL, c.ns),
@@ -1808,12 +1808,13 @@ impl App {
             let resp = ui.interact(r, Id::new(("doc-tab", &d.key)), Sense::click());
             let on = i == self.editor.active;
             let inside = ui.rect_contains_pointer(r);
+            let hover = motion::hover_if(&resp, inside);
             let p = ui.painter().with_clip_rect(r);
             if on {
                 p.rect_filled(r, CornerRadius::ZERO, c.bg);
                 p.hline(r.x_range(), r.top() + 1.0, Stroke::new(2.0, t.accent));
-            } else if inside {
-                p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6));
+            } else if hover > 0.0 {
+                p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6 * hover));
             }
             p.vline(r.right() - 0.5, r.y_range(), Stroke::new(1.0, c.line));
             let cy = r.center().y;
@@ -1837,10 +1838,16 @@ impl App {
             if d.dirty() && !inside {
                 p.circle_filled(xr.center(), 3.5, c.text2);
             } else if inside || on {
-                if xresp.hovered() {
-                    p.rect_filled(xr, CornerRadius::same(4), t.hover_wash());
-                }
-                p.text(xr.center(), Align2::CENTER_CENTER, ph::X, theme::regular(12.0), c.text2);
+                let over = motion::hover(&xresp);
+                p.rect_filled(xr, CornerRadius::same(4), motion::with_alpha(t.hover_wash(), over));
+                let shown = if on { 1.0 } else { hover };
+                p.text(
+                    xr.center(),
+                    Align2::CENTER_CENTER,
+                    ph::X,
+                    theme::regular(12.0),
+                    motion::with_alpha(c.text2, shown),
+                );
             }
             if xresp.on_hover_text(trf!("Close ({})", shortcut!("W"))).clicked() || resp.middle_clicked() {
                 close = Some(i);
@@ -1869,7 +1876,7 @@ impl App {
         ui.spacing_mut().item_spacing.x = 0.0;
         let (file, readonly) = (d.key.clone(), d.readonly);
         let on_chart = self.scripts.iter().any(|r| r.file == file);
-        let more = w::tool_button(ui, t, ph::DOTS_THREE, tr("More"), false, 28.0);
+        let more = w::tool_button(ui, t, ph::DOTS_THREE, "", false, 28.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(230.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -2165,12 +2172,8 @@ impl App {
             pos2(r.right(), r.top() + 4.0 + (first + shown) * lh),
         );
         let resp = ui.interact(r, Id::new("minimap"), Sense::click_and_drag());
-        let hov = resp.hovered() || resp.dragged();
-        p.rect_filled(
-            slider,
-            CornerRadius::ZERO,
-            t.text.gamma_multiply(if hov { 0.10 } else { 0.05 }),
-        );
+        let hov = motion::hover_if(&resp, resp.hovered() || resp.dragged());
+        p.rect_filled(slider, CornerRadius::ZERO, t.text.gamma_multiply(0.05 + 0.05 * hov));
         if (resp.clicked() || resp.dragged())
             && let Some(pt) = resp.interact_pointer_pos()
         {
@@ -2212,7 +2215,12 @@ impl App {
             let w = g.size().x + if count > 0 { 26.0 } else { 0.0 };
             let tr = Rect::from_min_size(pos2(x, head.top()), vec2(w + 8.0, head.height()));
             let resp = ui.interact(tr, Id::new(("panel-tab", k)), Sense::click());
-            let col = if on || resp.hovered() { c.text } else { c.dim };
+            let hover = motion::hover(&resp);
+            let col = if on {
+                c.text
+            } else {
+                motion::lerp_color(c.dim, c.text, hover)
+            };
             ui.painter()
                 .galley_with_override_text_color(pos2(x + 4.0, head.center().y - g.size().y / 2.0), g, col);
             if count > 0 {
@@ -2290,9 +2298,9 @@ impl App {
                         let line = error_line(e, &key);
                         let first = e.lines().find(|l| !l.trim().is_empty()).unwrap_or(e);
                         let (rr, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
-                        if ui.rect_contains_pointer(rr) {
-                            ui.painter().rect_filled(rr, CornerRadius::same(4), t.hover_wash());
-                        }
+                        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(rr));
+                        ui.painter()
+                            .rect_filled(rr, CornerRadius::same(4), motion::with_alpha(t.hover_wash(), hover));
                         let p = ui.painter();
                         p.text(
                             pos2(rr.left() + 10.0, rr.center().y),
@@ -2483,10 +2491,9 @@ const CODE_SIZE: f32 = 13.5;
 fn folder_row(ui: &mut Ui, t: &Theme, title: &str, open: bool, count: usize) -> egui::Response {
     let c = code_colors(t);
     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
-    if ui.rect_contains_pointer(r) {
-        ui.painter()
-            .rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6));
-    }
+    let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
+    ui.painter()
+        .rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6 * hover));
     let p = ui.painter();
     let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
     p.text(
@@ -2521,8 +2528,9 @@ fn dir_row(ui: &mut Ui, t: &Theme, name: &str, open: bool, depth: usize, count: 
     let p = ui.painter();
     if picked {
         p.rect_filled(r, CornerRadius::ZERO, t.hover_wash());
-    } else if ui.rect_contains_pointer(r) {
-        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7));
+    } else {
+        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
+        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7 * hover));
     }
     let y = r.center().y;
     let x0 = r.left() + 14.0 + depth as f32 * 14.0;
@@ -2637,8 +2645,9 @@ fn file_row(
     let p = ui.painter();
     if selected {
         p.rect_filled(r, CornerRadius::ZERO, t.accent_soft());
-    } else if ui.rect_contains_pointer(r) {
-        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7));
+    } else {
+        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
+        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7 * hover));
     }
     let y = r.center().y;
     let x0 = r.left() + 14.0 + depth as f32 * 14.0;

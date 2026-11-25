@@ -7,7 +7,8 @@
 
 use egui::{Color32, Context, Id};
 
-pub const MICRO: f32 = 0.12;
+/// Hovers and small state changes: long enough to be seen easing.
+pub const MICRO: f32 = 0.2;
 pub const STANDARD: f32 = 0.22;
 pub const EMPHASIS: f32 = 0.42;
 pub const CHART: f32 = 0.7;
@@ -29,6 +30,12 @@ pub fn ease_in_out(t: f32) -> f32 {
     } else {
         1.0 - (-2.0 * t + 2.0).powi(3) / 2.0
     }
+}
+
+/// Starts and ends softly: hovers and other small changes.
+pub fn smooth(t: f32) -> f32 {
+    let t = t.clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
 }
 
 /// A slight overshoot, for things that "land" (toasts, modals).
@@ -65,6 +72,10 @@ struct Tween {
 /// built-in linear animation, retargeting mid-flight continues from the
 /// current value, so rapidly changing numbers never jump.
 pub fn tween(ctx: &Context, id: Id, target: f32, dur: f32) -> f32 {
+    tween_eased(ctx, id, target, dur, ease_out)
+}
+
+fn tween_eased(ctx: &Context, id: Id, target: f32, dur: f32, ease: fn(f32) -> f32) -> f32 {
     let now = ctx.input(|i| i.time);
     let id = id.with("tween");
     let tw: Option<Tween> = ctx.data(|d| d.get_temp(id));
@@ -87,7 +98,7 @@ pub fn tween(ctx: &Context, id: Id, target: f32, dur: f32) -> f32 {
     } else {
         ((now - tw.start) as f32 / tw.dur).clamp(0.0, 1.0)
     };
-    let value = lerp(tw.from, tw.to, ease_out(p));
+    let value = lerp(tw.from, tw.to, ease(p));
     if (target - tw.to).abs() > f32::EPSILON {
         tw = Tween {
             from: value,
@@ -146,7 +157,18 @@ pub fn appear(ctx: &Context, shown_at: f64, delay: f32, dur: f32) -> f32 {
     ease_out(p)
 }
 
-/// Animated bool with an ease-out curve, 0.0 = false, 1.0 = true.
+/// Animated bool, 0.0 = false, 1.0 = true, easing at both ends.
 pub fn toggle(ctx: &Context, id: Id, on: bool, dur: f32) -> f32 {
-    tween(ctx, id, if on { 1.0 } else { 0.0 }, dur)
+    tween_eased(ctx, id, if on { 1.0 } else { 0.0 }, dur, smooth)
+}
+
+/// How far a widget's hover look has eased in, 0–1.
+pub fn hover(resp: &egui::Response) -> f32 {
+    hover_if(resp, resp.hovered())
+}
+
+/// As [`hover`], for a row whose own buttons would take its hover (test the
+/// pointer against its rect instead).
+pub fn hover_if(resp: &egui::Response, on: bool) -> f32 {
+    toggle(&resp.ctx, resp.id.with("hover-ease"), on, MICRO)
 }

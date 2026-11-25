@@ -10,9 +10,6 @@ msgstr "\nसरप्राइज़ {0}{1}%"
 msgid "\nVol {0}"
 msgstr "\nवॉल्यूम {0}"
 
-msgid "\n{0}: {1}% used"
-msgstr "\n{0}: {1}% इस्तेमाल"
-
 msgid " What can I help you with?"
 msgstr " मैं क्या मदद करूँ?"
 
@@ -143,9 +140,15 @@ msgstr "Python स्क्रिप्ट आपके सिस्टम क�
 msgid "A fast, local-first market analysis terminal."
 msgstr "तेज़, लोकल-फ़र्स्ट मार्केट विश्लेषण टर्मिनल।"
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr "Pine इंजन और दूसरी भाषाओं की पूरी जाँच से कई गलतियाँ ठीक हुईं और 80 से ज़्यादा छूटे हुए फ़ंक्शन जुड़े।"
+
 #, message
 msgid "A market order has no price to move."
 msgstr "मार्केट ऑर्डर में बदलने के लिए कोई भाव नहीं होता।"
+
+msgid "A new agent panel"
+msgstr "नया एजेंट पैनल"
 
 msgid "A sharper, calmer look"
 msgstr "ज़्यादा साफ़ और शांत रूप"
@@ -247,17 +250,11 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
-msgid "Add files"
-msgstr "फ़ाइलें जोड़ें"
-
 msgid "Add filter"
 msgstr "फ़िल्टर जोड़ें"
 
 msgid "Add section"
 msgstr "सेक्शन जोड़ें"
-
-msgid "Add symbol"
-msgstr "सिंबल जोड़ें"
 
 msgid "Add to chart"
 msgstr "चार्ट पर जोड़ें"
@@ -354,9 +351,6 @@ msgstr "इस चैट के लिए अनुमति दें"
 
 msgid "Allow through Windows Firewall"
 msgstr "Windows फ़ायरवॉल में अनुमति दें"
-
-msgid "Allow {0} to do this?"
-msgstr "{0} को यह करने दें?"
 
 msgid "Allowed"
 msgstr "अनुमति दी गई"
@@ -556,9 +550,6 @@ msgstr ""
 
 msgid "BUILT-IN INDICATORS"
 msgstr "अंतर्निहित इंडिकेटर"
-
-msgid "Back"
-msgstr "पीछे"
 
 msgid "Background"
 msgstr "पृष्ठभूमि"
@@ -999,14 +990,8 @@ msgstr "जहाँ से शुरू करना हो उस बार �
 msgid "Close"
 msgstr "बंद करें"
 
-msgid "Close (Esc)"
-msgstr "बंद करें (Esc)"
-
 msgid "Close ({0})"
 msgstr "बंद करें ({0})"
-
-msgid "Close replay"
-msgstr "रीप्ले बंद करें"
 
 msgid "Closed"
 msgstr "बंद"
@@ -1109,9 +1094,6 @@ msgstr "कन्वर्ज़न लाइन"
 msgid "Conversion Line Length"
 msgstr "कन्वर्ज़न लाइन लंबाई"
 
-msgid "Copied"
-msgstr "कॉपी हुआ"
-
 #, message
 msgid "Copied to {name}."
 msgstr "{name} में कॉपी हुआ।"
@@ -1121,9 +1103,6 @@ msgstr "कॉपॉक कर्व"
 
 msgid "Copy"
 msgstr "कॉपी करें"
-
-msgid "Copy code"
-msgstr "कोड कॉपी करें"
 
 msgid "Copy image"
 msgstr "चित्र कॉपी करें"
@@ -1396,23 +1375,14 @@ msgstr "{min} मिनट की देरी"
 msgid "Delete"
 msgstr "हटाएँ"
 
-msgid "Delete chat"
-msgstr "चैट हटाएँ"
-
 msgid "Delete folder (if empty)"
 msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
 
 msgid "Delete for good"
 msgstr "हमेशा के लिए हटाएँ"
 
-msgid "Delete layout"
-msgstr "लेआउट हटाएँ"
-
 msgid "Delete list"
 msgstr "सूची हटाएँ"
-
-msgid "Delete template"
-msgstr "टेम्पलेट हटाएँ"
 
 msgid "Delete the selected drawing"
 msgstr "चुनी ड्रॉइंग हटाएँ"
@@ -1516,9 +1486,6 @@ msgstr "डबल EMA"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "ये इनपुट चार्ट पर लगाने के लिए डबल-क्लिक करें"
-
-msgid "Double-click to rename"
-msgstr "नाम बदलने के लिए डबल-क्लिक करें"
 
 msgid "Down"
 msgstr "नीचे"
@@ -1628,9 +1595,6 @@ msgstr "ईज़ ऑफ़ मूवमेंट"
 msgid "Easter Monday"
 msgstr "ईस्टर सोमवार"
 
-msgid "Edit"
-msgstr "संपादित करें"
-
 msgid "Edit alert"
 msgstr "अलर्ट संपादित करें"
 
@@ -1650,6 +1614,9 @@ msgstr "दक्षता"
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
 msgstr "दक्षता: नमूने के बाहर प्रति बार लाभ, नमूने के भीतर प्रति बार लाभ के अनुपात में। 50% से ऊपर आमतौर पर मज़बूत माना जाता है।"
+
+msgid "Effort"
+msgstr "प्रयास"
 
 msgid "Elder Force Index"
 msgstr "एल्डर फ़ोर्स इंडेक्स"
@@ -1809,6 +1776,9 @@ msgstr "विस्तारित रेखा"
 msgid "Extended trading hours"
 msgstr "विस्तारित ट्रेडिंग घंटे"
 
+msgid "Extra high"
+msgstr "बहुत अधिक"
+
 msgid "Factor"
 msgstr "फ़ैक्टर"
 
@@ -1862,9 +1832,6 @@ msgstr "भराव"
 
 msgid "Filter"
 msgstr "फ़िल्टर"
-
-msgid "Filter files"
-msgstr "फ़ाइलें फ़िल्टर करें"
 
 #, message
 msgid "Find files: {0}"
@@ -2052,6 +2019,9 @@ msgstr "ड्रॉइंग टूलबार छिपाएँ"
 msgid "Hide the sidebar"
 msgstr "साइडबार छिपाएँ"
 
+msgid "High"
+msgstr "अधिक"
+
 msgid "High-low"
 msgstr "उच्च-निम्न"
 
@@ -2158,6 +2128,9 @@ msgstr "आयात हो रहा है"
 
 msgid "In a pane of its own, below"
 msgstr "नीचे अपने अलग पेन में"
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
+msgstr "आपके एजेंट के अपने रंगों में, उपयोग सीमाएँ एक क्लिक पर और वह कितना सोचे इसके लिए एक स्लाइडर।"
 
 msgid "In-sample P&L"
 msgstr "इन-सैंपल लाभ-हानि"
@@ -2496,9 +2469,6 @@ msgstr "लोड हो रहा है…"
 msgid "Local"
 msgstr "स्थानीय"
 
-msgid "Lock"
-msgstr "लॉक करें"
-
 msgid "Lock all drawings"
 msgstr "सभी ड्रॉइंग लॉक करें"
 
@@ -2587,6 +2557,9 @@ msgstr "लगातार हानि, सबसे खराब 5%"
 
 msgid "Losing trades"
 msgstr "हानि वाले ट्रेड"
+
+msgid "Low"
+msgstr "कम"
 
 msgid "Lower"
 msgstr "निचला"
@@ -2774,6 +2747,9 @@ msgstr "मार्टिन लूथर किंग जूनियर द�
 msgid "Mass Index"
 msgstr "मास इंडेक्स"
 
+msgid "Max"
+msgstr "अधिकतम"
+
 msgid "Max DD"
 msgstr "अधि. DD"
 
@@ -2834,8 +2810,14 @@ msgstr "माध्यिका लाभ-हानि"
 msgid "Median max drawdown"
 msgstr "माध्यिका अधिकतम ड्रॉडाउन"
 
+msgid "Medium"
+msgstr "मध्यम"
+
 msgid "Memorial Day"
 msgstr "मेमोरियल डे"
+
+msgid "Menus, dialogs and hovers ease in and out."
+msgstr "मेन्यू, डायलॉग और हाइलाइट सहज रूप से आते और जाते हैं।"
 
 msgid "Merge"
 msgstr "मिलाएँ"
@@ -2863,6 +2845,9 @@ msgstr "मध्य RCI लंबाई"
 
 msgid "Millions, billions"
 msgstr "मिलियन, बिलियन"
+
+msgid "Minimal"
+msgstr "न्यूनतम"
 
 msgid "Minutes"
 msgstr "मिनट"
@@ -2907,8 +2892,8 @@ msgstr "चंद्र कलाएँ"
 msgid "More"
 msgstr "और"
 
-msgid "More intervals"
-msgstr "और अंतराल"
+msgid "More scripts run"
+msgstr "अब ज़्यादा स्क्रिप्ट चलती हैं"
 
 msgid "Mountain Day"
 msgstr "पर्वत दिवस"
@@ -3083,6 +3068,9 @@ msgstr "अगले नतीजे {0}\nअनुमान {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "अगला पुनर्संतुलन {0} (1 अप्रैल और 1 अक्टूबर)।"
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
+msgstr "अंग्रेज़ी के अलावा नौ भाषाएँ। यह आपके सिस्टम की भाषा अपनाता है; दूसरी भाषा सेटिंग्स → सामान्य → भाषा में चुनें।"
 
 msgid "No alerts yet"
 msgstr "अभी कोई अलर्ट नहीं"
@@ -3387,9 +3375,6 @@ msgstr "{0} खोलें"
 msgid "Open {0} in the editor"
 msgstr "{0} एडिटर में खोलें"
 
-msgid "Open {f} in the Script Editor"
-msgstr "{f} स्क्रिप्ट एडिटर में खोलें"
-
 msgid "Open, high, low and close values"
 msgstr "खुला, उच्च, निम्न और बंद मान"
 
@@ -3406,6 +3391,9 @@ msgstr "Opentern शुरू नहीं हो सका"
 
 msgid "Opentern export"
 msgstr "Opentern निर्यात"
+
+msgid "Opentern in your language"
+msgstr "Opentern आपकी भाषा में"
 
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern दूसरी विंडो में खुला है। उसे बंद करके आयात करें।"
@@ -3819,9 +3807,6 @@ msgstr "तिमाही"
 msgid "Quarterly"
 msgstr "त्रैमासिक"
 
-msgid "Queue (Enter)"
-msgstr "कतार में डालें (Enter)"
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr "प्राप्त करें"
 msgid "Receiving from {peer}"
 msgstr "{peer} से प्राप्त हो रहा है"
 
-msgid "Recent colour"
-msgstr "हाल का रंग"
-
 msgid "Rectangle"
 msgstr "आयत"
 
@@ -4003,9 +3985,6 @@ msgstr "ड्रॉइंग हटाएँ"
 
 msgid "Remove drawings or indicators"
 msgstr "ड्रॉइंग या इंडिकेटर हटाएँ"
-
-msgid "Remove filter"
-msgstr "फ़िल्टर हटाएँ"
 
 msgid "Remove from favorites"
 msgstr "पसंदीदा से हटाएँ"
@@ -4082,14 +4061,8 @@ msgstr "मुद्रा बदलने के लिए खाता री�
 msgid "Reset the chart view"
 msgstr "चार्ट दृश्य रीसेट करें"
 
-msgid "Resets {0}"
-msgstr "{0} रीसेट होगा"
-
 msgid "Respect for the Aged Day"
 msgstr "वृद्ध सम्मान दिवस"
-
-msgid "Restart"
-msgstr "फिर चालू करें"
 
 msgid "Restart Opentern"
 msgstr "Opentern रीस्टार्ट करें"
@@ -4387,9 +4360,6 @@ msgstr "बिक्री ऑर्डर भरा गया।"
 msgid "Send"
 msgstr "भेजें"
 
-msgid "Send (Enter)"
-msgstr "भेजें (Enter)"
-
 msgid "Send a test email"
 msgstr "परीक्षण ईमेल भेजें"
 
@@ -4583,6 +4553,9 @@ msgstr "सबसे कम अधिकतम ड्रॉडाउन"
 msgid "Smoothed Moving Average"
 msgstr "स्मूद मूविंग एवरेज"
 
+msgid "Smoother motion"
+msgstr "ज़्यादा सहज गति"
+
 msgid "Smoothing"
 msgstr "स्मूदिंग"
 
@@ -4610,9 +4583,6 @@ msgstr "किसी ने गलत कोड डाला।"
 
 msgid "Something went wrong in the run."
 msgstr "रन में कुछ गड़बड़ हुई।"
-
-msgid "Sort"
-msgstr "क्रमबद्ध करें"
 
 msgid "Sort by name"
 msgstr "नाम से क्रम"
@@ -5246,6 +5216,9 @@ msgstr "अमेरिकी लार्ज कैप"
 msgid "Ultimate Oscillator"
 msgstr "अल्टीमेट ऑसिलेटर"
 
+msgid "Ultra"
+msgstr "अल्ट्रा"
+
 msgid "Undo"
 msgstr "पूर्ववत करें"
 
@@ -5358,9 +5331,6 @@ msgstr "Upstox: इस सिंबल का भाव नहीं है।"
 
 msgid "Uptrend Highlighter"
 msgstr "अपट्रेंड हाइलाइटर"
-
-msgid "Usage shows after your first message."
-msgstr "उपयोग आपके पहले संदेश के बाद दिखेगा।"
 
 msgid "Use Exponential MA"
 msgstr "एक्सपोनेंशियल MA इस्तेमाल करें"
@@ -5738,9 +5708,6 @@ msgstr "एक ड्रॉइंग"
 msgid "above"
 msgstr "ऊपर"
 
-msgid "at {0}"
-msgstr "{0} बजे"
-
 msgid "auto"
 msgstr "ऑटो"
 
@@ -5988,9 +5955,6 @@ msgstr "{0}: Yahoo के पास यह सिंबल नहीं रह�
 #, message
 msgid "{0}: any alert() call"
 msgstr "{0}: कोई भी alert() कॉल"
-
-msgid "{0}: {1}% used"
-msgstr "{0}: {1}% इस्तेमाल"
 
 msgid "{0}d ago"
 msgstr "{0} दिन पहले"

@@ -10,9 +10,6 @@ msgstr "\n超预期 {0}{1}%"
 msgid "\nVol {0}"
 msgstr "\n成交量 {0}"
 
-msgid "\n{0}: {1}% used"
-msgstr "\n{0}：已用 {1}%"
-
 msgid " What can I help you with?"
 msgstr " 有什么可以帮你？"
 
@@ -143,9 +140,15 @@ msgstr "Python 脚本在你系统自带的 Python 中运行。视代码而定，
 msgid "A fast, local-first market analysis terminal."
 msgstr "快速、本地优先的市场分析终端。"
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr "全面检查了 Pine 引擎和其他语言，修复了许多错误，并补充了 80 多个缺失的函数。"
+
 #, message
 msgid "A market order has no price to move."
 msgstr "市价单没有可移动的价格。"
+
+msgid "A new agent panel"
+msgstr "全新的智能体面板"
 
 msgid "A sharper, calmer look"
 msgstr "更清晰、更沉静的外观"
@@ -247,17 +250,11 @@ msgstr "启用"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
 
-msgid "Add files"
-msgstr "添加文件"
-
 msgid "Add filter"
 msgstr "添加筛选"
 
 msgid "Add section"
 msgstr "添加分组"
-
-msgid "Add symbol"
-msgstr "添加品种"
 
 msgid "Add to chart"
 msgstr "添加到图表"
@@ -354,9 +351,6 @@ msgstr "在此对话中允许"
 
 msgid "Allow through Windows Firewall"
 msgstr "在 Windows 防火墙中允许"
-
-msgid "Allow {0} to do this?"
-msgstr "允许 {0} 这样做吗？"
 
 msgid "Allowed"
 msgstr "已允许"
@@ -556,9 +550,6 @@ msgstr ""
 
 msgid "BUILT-IN INDICATORS"
 msgstr "内置指标"
-
-msgid "Back"
-msgstr "返回"
 
 msgid "Background"
 msgstr "背景"
@@ -999,14 +990,8 @@ msgstr "点击一根 K 线从那里开始"
 msgid "Close"
 msgstr "关闭"
 
-msgid "Close (Esc)"
-msgstr "关闭 (Esc)"
-
 msgid "Close ({0})"
 msgstr "关闭 ({0})"
-
-msgid "Close replay"
-msgstr "关闭回放"
 
 msgid "Closed"
 msgstr "休市"
@@ -1109,9 +1094,6 @@ msgstr "转换线"
 msgid "Conversion Line Length"
 msgstr "转换线长度"
 
-msgid "Copied"
-msgstr "已复制"
-
 #, message
 msgid "Copied to {name}."
 msgstr "已复制到 {name}。"
@@ -1121,9 +1103,6 @@ msgstr "科普克曲线"
 
 msgid "Copy"
 msgstr "复制"
-
-msgid "Copy code"
-msgstr "复制代码"
 
 msgid "Copy image"
 msgstr "复制图片"
@@ -1396,23 +1375,14 @@ msgstr "延迟 {min} 分钟"
 msgid "Delete"
 msgstr "删除"
 
-msgid "Delete chat"
-msgstr "删除对话"
-
 msgid "Delete folder (if empty)"
 msgstr "删除文件夹（如为空）"
 
 msgid "Delete for good"
 msgstr "永久删除"
 
-msgid "Delete layout"
-msgstr "删除布局"
-
 msgid "Delete list"
 msgstr "删除列表"
-
-msgid "Delete template"
-msgstr "删除模板"
 
 msgid "Delete the selected drawing"
 msgstr "删除选中的绘图"
@@ -1516,9 +1486,6 @@ msgstr "双重 EMA"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "双击将这些参数应用到图表"
-
-msgid "Double-click to rename"
-msgstr "双击重命名"
 
 msgid "Down"
 msgstr "下"
@@ -1628,9 +1595,6 @@ msgstr "简易波动指标"
 msgid "Easter Monday"
 msgstr "复活节星期一"
 
-msgid "Edit"
-msgstr "编辑"
-
 msgid "Edit alert"
 msgstr "编辑警报"
 
@@ -1650,6 +1614,9 @@ msgstr "效率"
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
 msgstr "效率：样本外每根 K 线利润与样本内之比。高于 50% 通常视为稳健。"
+
+msgid "Effort"
+msgstr "思考强度"
 
 msgid "Elder Force Index"
 msgstr "艾达尔力度指数"
@@ -1809,6 +1776,9 @@ msgstr "延长线"
 msgid "Extended trading hours"
 msgstr "延长交易时段"
 
+msgid "Extra high"
+msgstr "超高"
+
 msgid "Factor"
 msgstr "系数"
 
@@ -1862,9 +1832,6 @@ msgstr "填充"
 
 msgid "Filter"
 msgstr "筛选"
-
-msgid "Filter files"
-msgstr "筛选文件"
 
 #, message
 msgid "Find files: {0}"
@@ -2052,6 +2019,9 @@ msgstr "隐藏绘图工具栏"
 msgid "Hide the sidebar"
 msgstr "隐藏侧栏"
 
+msgid "High"
+msgstr "高"
+
 msgid "High-low"
 msgstr "高低图"
 
@@ -2158,6 +2128,9 @@ msgstr "正在导入"
 
 msgid "In a pane of its own, below"
 msgstr "在下方独立窗格中"
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
+msgstr "采用智能体自己的配色，一键查看使用限额，并可用滑块调节思考深度。"
 
 msgid "In-sample P&L"
 msgstr "样本内盈亏"
@@ -2496,9 +2469,6 @@ msgstr "加载中…"
 msgid "Local"
 msgstr "本地"
 
-msgid "Lock"
-msgstr "锁定"
-
 msgid "Lock all drawings"
 msgstr "锁定所有绘图"
 
@@ -2587,6 +2557,9 @@ msgstr "连续亏损（最差 5%）"
 
 msgid "Losing trades"
 msgstr "亏损交易"
+
+msgid "Low"
+msgstr "低"
 
 msgid "Lower"
 msgstr "下轨"
@@ -2774,6 +2747,9 @@ msgstr "马丁·路德·金纪念日"
 msgid "Mass Index"
 msgstr "质量指数"
 
+msgid "Max"
+msgstr "最大"
+
 msgid "Max DD"
 msgstr "最大回撤"
 
@@ -2834,8 +2810,14 @@ msgstr "盈亏中位数"
 msgid "Median max drawdown"
 msgstr "最大回撤中位数"
 
+msgid "Medium"
+msgstr "中"
+
 msgid "Memorial Day"
 msgstr "阵亡将士纪念日"
+
+msgid "Menus, dialogs and hovers ease in and out."
+msgstr "菜单、对话框和悬停效果平滑地显示和消失。"
 
 msgid "Merge"
 msgstr "合并"
@@ -2863,6 +2845,9 @@ msgstr "中期 RCI 长度"
 
 msgid "Millions, billions"
 msgstr "百万、十亿"
+
+msgid "Minimal"
+msgstr "最小"
 
 msgid "Minutes"
 msgstr "分钟"
@@ -2907,8 +2892,8 @@ msgstr "月相"
 msgid "More"
 msgstr "更多"
 
-msgid "More intervals"
-msgstr "更多周期"
+msgid "More scripts run"
+msgstr "支持更多脚本"
 
 msgid "Mountain Day"
 msgstr "山之日"
@@ -3083,6 +3068,9 @@ msgstr "下次财报 {0}\n预期 {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "下次再平衡 {0}（4 月 1 日和 10 月 1 日）。"
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
+msgstr "除英语外新增九种语言。默认跟随系统语言，可在设置 → 常规 → 语言中更改。"
 
 msgid "No alerts yet"
 msgstr "暂无警报"
@@ -3387,9 +3375,6 @@ msgstr "打开 {0}"
 msgid "Open {0} in the editor"
 msgstr "在编辑器中打开 {0}"
 
-msgid "Open {f} in the Script Editor"
-msgstr "在脚本编辑器中打开 {f}"
-
 msgid "Open, high, low and close values"
 msgstr "开、高、低、收数值"
 
@@ -3406,6 +3391,9 @@ msgstr "Opentern 无法启动"
 
 msgid "Opentern export"
 msgstr "Opentern 导出文件"
+
+msgid "Opentern in your language"
+msgstr "Opentern 支持您的语言"
 
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern 已在另一个窗口打开。请关闭后再导入。"
@@ -3819,9 +3807,6 @@ msgstr "季度"
 msgid "Quarterly"
 msgstr "每季"
 
-msgid "Queue (Enter)"
-msgstr "排队 (Enter)"
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr "接收"
 msgid "Receiving from {peer}"
 msgstr "正在从 {peer} 接收"
 
-msgid "Recent colour"
-msgstr "最近使用的颜色"
-
 msgid "Rectangle"
 msgstr "矩形"
 
@@ -4003,9 +3985,6 @@ msgstr "移除绘图"
 
 msgid "Remove drawings or indicators"
 msgstr "移除绘图或指标"
-
-msgid "Remove filter"
-msgstr "移除筛选"
 
 msgid "Remove from favorites"
 msgstr "取消收藏"
@@ -4082,14 +4061,8 @@ msgstr "重置账户才能更改货币"
 msgid "Reset the chart view"
 msgstr "重置图表视图"
 
-msgid "Resets {0}"
-msgstr "{0} 重置"
-
 msgid "Respect for the Aged Day"
 msgstr "敬老日"
-
-msgid "Restart"
-msgstr "重新启用"
 
 msgid "Restart Opentern"
 msgstr "重启 Opentern"
@@ -4387,9 +4360,6 @@ msgstr "卖单已成交。"
 msgid "Send"
 msgstr "发送"
 
-msgid "Send (Enter)"
-msgstr "发送 (Enter)"
-
 msgid "Send a test email"
 msgstr "发送测试邮件"
 
@@ -4583,6 +4553,9 @@ msgstr "最小的最大回撤"
 msgid "Smoothed Moving Average"
 msgstr "平滑移动平均线"
 
+msgid "Smoother motion"
+msgstr "动画更流畅"
+
 msgid "Smoothing"
 msgstr "平滑"
 
@@ -4610,9 +4583,6 @@ msgstr "有人输入了错误的代码。"
 
 msgid "Something went wrong in the run."
 msgstr "运行中出现问题。"
-
-msgid "Sort"
-msgstr "排序"
 
 msgid "Sort by name"
 msgstr "按名称排序"
@@ -5246,6 +5216,9 @@ msgstr "美国大盘股"
 msgid "Ultimate Oscillator"
 msgstr "终极震荡指标"
 
+msgid "Ultra"
+msgstr "Ultra"
+
 msgid "Undo"
 msgstr "撤销"
 
@@ -5358,9 +5331,6 @@ msgstr "Upstox：此品种没有报价。"
 
 msgid "Uptrend Highlighter"
 msgstr "上升趋势高亮"
-
-msgid "Usage shows after your first message."
-msgstr "发送第一条消息后显示用量。"
 
 msgid "Use Exponential MA"
 msgstr "使用指数均线"
@@ -5738,9 +5708,6 @@ msgstr "一个绘图"
 msgid "above"
 msgstr "高于"
 
-msgid "at {0}"
-msgstr "{0}"
-
 msgid "auto"
 msgstr "自动"
 
@@ -5988,9 +5955,6 @@ msgstr "{0}：Yahoo 已没有此品种，可能已更名或退市。按最后价
 #, message
 msgid "{0}: any alert() call"
 msgstr "{0}：任意 alert() 调用"
-
-msgid "{0}: {1}% used"
-msgstr "{0}：已用 {1}%"
 
 msgid "{0}d ago"
 msgstr "{0} 天前"

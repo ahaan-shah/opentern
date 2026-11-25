@@ -376,14 +376,13 @@ impl App {
         ui.horizontal(|ui| {
             ui.set_height(30.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if crate::widgets::tool_button(ui, t, ph::PLUS, tr("Add symbol"), false, 28.0).clicked() {
+                if crate::widgets::tool_button(ui, t, ph::PLUS, "", false, 28.0).clicked() {
                     self.modal = Some(crate::dialogs::Modal::Symbol(crate::dialogs::SymbolSearch::adding()));
                 }
                 let id = state_id("search");
                 let open = ui.data(|d| d.get_temp::<Option<String>>(id)).flatten().is_some();
                 if self.watchlists.len() > 1
-                    && crate::widgets::tool_button(ui, t, ph::MAGNIFYING_GLASS, tr("Search lists"), open, 28.0)
-                        .clicked()
+                    && crate::widgets::tool_button(ui, t, ph::MAGNIFYING_GLASS, "", open, 28.0).clicked()
                 {
                     let next = if open { None } else { Some(String::new()) };
                     ui.data_mut(|d| {
@@ -563,7 +562,7 @@ impl App {
                             switch = Some(k);
                         }
                     }
-                    if list_tab(ui, t, ph::PLUS, false).on_hover_text(tr("New list")).clicked() {
+                    if list_tab(ui, t, ph::PLUS, false).clicked() {
                         new = true;
                     }
                 });
@@ -650,10 +649,10 @@ impl App {
                 _ => r.translate(vec2(-35.0, 0.0)),
             };
             let resp = ui.interact(r, ui.id().with(id), Sense::click());
-            let col = if resp.hovered() { t.text2 } else { t.text3 };
+            let col = motion::lerp_color(t.text3, t.text2, motion::hover(&resp));
             ui.painter()
                 .text(pos2(x, cols.center().y), align, text, theme::medium(11.5), col);
-            resp.on_hover_text(tr("Sort")).clicked()
+            resp.clicked()
         };
         let mut sort = None;
         if header(ui, cols.left() + 4.0, Align2::LEFT_CENTER, tr("Symbol"), "h-sym") {
@@ -797,10 +796,10 @@ impl App {
                         if inside {
                             let x = Rect::from_center_size(pos2(rect.right() - 12.0, y), vec2(20.0, 20.0));
                             let xr = ui.interact(x, resp.id.with("x"), Sense::click());
-                            let c = if xr.hovered() { t.neg } else { t.text3 };
+                            let c = motion::with_alpha(motion::lerp_color(t.text3, t.neg, motion::hover(&xr)), hov);
                             ui.painter()
                                 .text(x.center(), Align2::CENTER_CENTER, ph::X, theme::regular(12.0), c);
-                            if xr.on_hover_text(tr("Remove from watchlist")).clicked() {
+                            if xr.clicked() {
                                 acts.push(Act::Remove(k));
                                 continue;
                             }

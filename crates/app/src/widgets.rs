@@ -3,7 +3,6 @@
 //! colour), which shows on every surface; `t.hover` alone nearly matches
 //! cards in some themes.
 
-use crate::i18n::tr;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
@@ -324,15 +323,13 @@ pub fn segmented<V: PartialEq + Copy>(ui: &mut Ui, t: &Theme, current: &mut V, o
     let mut changed = false;
     let mut x = rect.left() + 3.0;
     let mut rects = Vec::new();
-    let mut hovered = None;
+    let mut hovers = Vec::new();
     for (i, w) in widths.iter().enumerate() {
         let r = Rect::from_min_size(egui::pos2(x, rect.top() + 3.0), vec2(*w, rect.height() - 6.0));
         let resp = ui
             .interact(r, id.with(i), Sense::click())
             .on_hover_cursor(egui::CursorIcon::PointingHand);
-        if resp.hovered() {
-            hovered = Some(i);
-        }
+        hovers.push(motion::hover(&resp));
         if resp.clicked() && *current != options[i].0 {
             *current = options[i].0;
             changed = true;
@@ -360,10 +357,8 @@ pub fn segmented<V: PartialEq + Copy>(ui: &mut Ui, t: &Theme, current: &mut V, o
     for (i, (g, r)) in galleys.into_iter().zip(&rects).enumerate() {
         let c = if Some(i) == sel {
             t.text
-        } else if Some(i) == hovered {
-            t.text.lerp_to_gamma(t.text2, 0.4)
         } else {
-            t.text2
+            motion::lerp_color(t.text2, t.text, 0.6 * hovers[i])
         };
         p.galley(r.center() - g.size() / 2.0, g, c);
     }
@@ -560,7 +555,7 @@ pub fn slider(ui: &mut Ui, t: &Theme, value: &mut i32, range: std::ops::RangeInc
         p.circle_filled(c + vec2(0.0, 1.0), rad + 1.0, Color32::from_black_alpha(70));
         p.circle_filled(
             c,
-            rad + if r.hovered() || r.dragged() { 1.0 } else { 0.0 },
+            rad + motion::hover_if(&r, r.hovered() || r.dragged()),
             Color32::WHITE,
         );
         ui.add_space(6.0);
@@ -621,10 +616,48 @@ pub fn search_field(ui: &mut Ui, t: &Theme, text: &mut String, hint: &str, width
     r
 }
 
-/// egui's combo box with a caret instead of the filled triangle. Drop-in
+/// Runs `add` with egui's hover look eased in, for its own widgets, which
+/// switch looks in one frame. `id` is the widget's.
+fn easing(ui: &mut Ui, id: egui::Id, add: impl FnOnce(&mut Ui) -> Response) -> Response {
+    let id = id.with("eased");
+    let over = ui.data(|d| d.get_temp::<bool>(id)).unwrap_or(false);
+    let k = motion::toggle(ui.ctx(), id, over, motion::MICRO);
+    let before = ui.visuals().widgets.clone();
+    let (a, b) = (&before.inactive, &before.hovered);
+    let mix = |x: Stroke, y: Stroke| {
+        Stroke::new(
+            motion::lerp(x.width, y.width, k),
+            motion::lerp_color(x.color, y.color, k),
+        )
+    };
+    let mut now = *b;
+    now.bg_fill = motion::lerp_color(a.bg_fill, b.bg_fill, k);
+    now.weak_bg_fill = motion::lerp_color(a.weak_bg_fill, b.weak_bg_fill, k);
+    now.bg_stroke = mix(a.bg_stroke, b.bg_stroke);
+    now.fg_stroke = mix(a.fg_stroke, b.fg_stroke);
+    ui.visuals_mut().widgets.inactive = now;
+    ui.visuals_mut().widgets.hovered = now;
+    let resp = add(ui);
+    ui.visuals_mut().widgets = before;
+    let hovered = resp.hovered();
+    if hovered != over {
+        ui.data_mut(|d| d.insert_temp(id, hovered));
+        ui.ctx().request_repaint();
+    }
+    resp
+}
+
+/// One of egui's own widgets, with its hover eased in.
+pub fn eased(ui: &mut Ui, widget: impl egui::Widget) -> Response {
+    let id = ui.next_auto_id();
+    easing(ui, id, |ui| ui.add(widget))
+}
+
+/// egui's combo box with a caret instead of the filled triangle. Stands in
 /// for `egui::ComboBox::from_id_salt`.
-pub fn combo(id: impl std::hash::Hash + std::fmt::Debug) -> egui::ComboBox {
-    egui::ComboBox::from_id_salt(id)
+pub fn combo(id: impl std::hash::Hash + std::fmt::Debug) -> Combo {
+    let salt = egui::Id::new(id);
+    let inner = egui::ComboBox::from_id_salt(salt)
         .height(320.0)
         .icon(|ui, rect, wv, open| {
             ui.painter().text(
@@ -638,7 +671,55 @@ pub fn combo(id: impl std::hash::Hash + std::fmt::Debug) -> egui::ComboBox {
                 theme::regular(12.0),
                 wv.fg_stroke.color,
             );
-        })
+        });
+    Combo { inner, salt }
+}
+
+/// See [`combo`].
+pub struct Combo {
+    inner: egui::ComboBox,
+    salt: egui::Id,
+}
+
+impl Combo {
+    pub fn width(self, width: f32) -> Combo {
+        Combo {
+            inner: self.inner.width(width),
+            ..self
+        }
+    }
+
+    pub fn height(self, height: f32) -> Combo {
+        Combo {
+            inner: self.inner.height(height),
+            ..self
+        }
+    }
+
+    pub fn truncate(self) -> Combo {
+        Combo {
+            inner: self.inner.truncate(),
+            ..self
+        }
+    }
+
+    pub fn selected_text(self, text: impl Into<egui::WidgetText>) -> Combo {
+        Combo {
+            inner: self.inner.selected_text(text),
+            ..self
+        }
+    }
+
+    pub fn show_ui<R>(self, ui: &mut Ui, menu: impl FnOnce(&mut Ui) -> R) -> egui::InnerResponse<Option<R>> {
+        let id = ui.make_persistent_id(self.salt);
+        let mut inner = None;
+        let response = easing(ui, id, |ui| {
+            let r = self.inner.show_ui(ui, menu);
+            inner = r.inner;
+            r.response
+        });
+        egui::InnerResponse { inner, response }
+    }
 }
 
 /// Space kept clear on the right of menu rows for the floating scrollbar.
@@ -951,7 +1032,7 @@ const COPIED_FOR: f64 = 1.6;
 
 /// A copy button in `rect`: when pressed, the two squares fade as a check
 /// draws itself in, then it turns back. `id` holds when it was pressed.
-pub fn copy_button(ui: &mut Ui, t: &Theme, text: &str, rect: Rect, id: egui::Id, tip: &str, icon: f32) {
+pub fn copy_button(ui: &mut Ui, t: &Theme, text: &str, rect: Rect, id: egui::Id, icon: f32) {
     let resp = ui
         .interact(rect, id.with("copy"), Sense::click())
         .on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -968,7 +1049,7 @@ pub fn copy_button(ui: &mut Ui, t: &Theme, text: &str, rect: Rect, id: egui::Id,
     }
     let k = motion::toggle(ui.ctx(), resp.id.with("copied"), copied, motion::STANDARD);
     let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
-    let resp = resp.on_hover_text(if copied { tr("Copied") } else { tip });
+
     let p = ui.painter();
     p.rect_filled(
         resp.rect,

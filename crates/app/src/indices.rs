@@ -1934,7 +1934,7 @@ impl App {
                 ui.label(egui::RichText::new(tr("Indices")).font(theme::semibold(13.5)));
             }
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if w::tool_button(ui, t, ph::PLUS, tr("New index"), false, 26.0).clicked() {
+                if w::tool_button(ui, t, ph::PLUS, "", false, 26.0).clicked() {
                     self.modal = Some(Modal::Index(Box::new(IndexEditor::new(None))));
                 }
                 // A toggle: off again goes back to the page it covered
@@ -1977,7 +1977,7 @@ impl App {
                     let (r, resp) = ui.allocate_exact_size(vec2(row - 46.0, 40.0), Sense::click());
                     let find = Rect::from_min_size(pos2(r.right() + 6.0, r.top()), vec2(40.0, 40.0));
                     let fr = ui.interact(find, Id::new("indices-find"), Sense::click());
-                    card(ui, t, find, false, fr.hovered());
+                    card(ui, t, find, false, crate::motion::hover(&fr));
                     ui.painter().text(
                         find.center(),
                         Align2::CENTER_CENTER,
@@ -1985,14 +1985,10 @@ impl App {
                         theme::regular(15.0),
                         t.text2,
                     );
-                    if fr
-                        .on_hover_text(tr("Search"))
-                        .on_hover_cursor(egui::CursorIcon::PointingHand)
-                        .clicked()
-                    {
+                    if fr.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                         self.indices.search = Some(String::new());
                     }
-                    card(ui, t, r, on, resp.hovered());
+                    card(ui, t, r, on, crate::motion::hover(&resp));
                     let p = ui.painter();
                     p.text(
                         r.left_center() + vec2(12.0, 0.0),
@@ -2020,7 +2016,7 @@ impl App {
                     let on =
                         !self.indices.compare && !self.indices.map && self.indices.open.as_deref() == Some(&d.ticker);
                     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
-                    card(ui, t, r, on, resp.hovered());
+                    card(ui, t, r, on, crate::motion::hover(&resp));
                     let now = self.index_now(d);
                     let p = ui.painter();
                     let name = crate::format::elide_to(p, &d.name, &theme::semibold(13.0), r.width() - 24.0);
@@ -2101,7 +2097,7 @@ impl App {
         hc.set_clip_rect(row(0.0).intersect(ui.clip_rect()));
         hc.scope(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, tr("Edit index"), false, 28.0).clicked() {
+            if w::tool_button(ui, t, ph::PENCIL_SIMPLE, "", false, 28.0).clicked() {
                 self.modal = Some(Modal::Index(Box::new(IndexEditor::new(Some(&def)))));
             }
             let tip = if spinning {
@@ -2518,14 +2514,12 @@ pub(crate) fn method_note(def: &IndexDef) -> String {
 }
 
 /// A list card's background: quiet, an accent edge when it's the open one.
-fn card(ui: &Ui, t: &Theme, r: Rect, on: bool, hover: bool) {
+fn card(ui: &Ui, t: &Theme, r: Rect, on: bool, hover: f32) {
     let p = ui.painter();
     let fill = if on {
         lerp_color(t.card, t.accent, 0.08)
-    } else if hover {
-        lerp_color(t.card, t.text, 0.04)
     } else {
-        t.card
+        lerp_color(t.card, t.text, 0.04 * hover)
     };
     let edge = if on {
         t.accent.gamma_multiply(0.7)
@@ -2843,12 +2837,17 @@ fn metric_table(
                     let (r, resp) = ui.allocate_exact_size(vec2(total, row_h), sense);
                     // Not `hovered()`: the tick box takes the hover.
                     let hovered = !pin && ui.rect_contains_pointer(r);
+                    let hover = crate::motion::hover_if(&resp, hovered);
                     if pin {
                         ui.painter().rect_filled(r, 6, lerp_color(t.bg, t.text, 0.05));
-                    } else if hovered {
+                    } else {
                         // A soft rounded card inside the row's rules, which
                         // step aside for it.
-                        ui.painter().rect_filled(r.shrink2(vec2(2.0, 2.0)), 7, t.hover_wash());
+                        ui.painter().rect_filled(
+                            r.shrink2(vec2(2.0, 2.0)),
+                            7,
+                            crate::motion::with_alpha(t.hover_wash(), hover),
+                        );
                     }
                     if let Some(on) = row.included {
                         let b = Rect::from_center_size(pos2(r.left() + 19.0, r.center().y), vec2(17.0, 24.0));
@@ -3239,9 +3238,9 @@ impl IndexEditor {
                     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
                     let p = ui.painter();
                     let added = self.members.iter().any(|m| m.id == s.id);
-                    if k == self.selected || resp.hovered() {
-                        p.rect_filled(r, 6, t.hover_wash());
-                    }
+                    let hover = crate::motion::hover(&resp);
+                    let lit = if k == self.selected { 1.0 } else { hover };
+                    p.rect_filled(r, 6, crate::motion::with_alpha(t.hover_wash(), lit));
                     app.logos.paint(p, t, s, r.left_center() + vec2(18.0, 0.0), 9.0);
                     p.text(
                         r.left_center() + vec2(34.0, 0.0),
@@ -3333,17 +3332,16 @@ impl IndexEditor {
                                         Rect::from_center_size(r.right_center() - vec2(13.0, 0.0), vec2(20.0, 20.0));
                                     let xr = ui
                                         .interact(x, ui.id().with(("index-chip-x", k)), Sense::click())
-                                        .on_hover_cursor(egui::CursorIcon::PointingHand)
-                                        .on_hover_text(tr("Remove"));
-                                    if xr.hovered() {
-                                        ui.painter().rect_filled(x, 4, t.hover_wash());
-                                    }
+                                        .on_hover_cursor(egui::CursorIcon::PointingHand);
+                                    let over = crate::motion::hover(&xr);
+                                    ui.painter()
+                                        .rect_filled(x, 4, crate::motion::with_alpha(t.hover_wash(), over));
                                     ui.painter().text(
                                         x.center(),
                                         Align2::CENTER_CENTER,
                                         ph::X,
                                         theme::regular(12.0),
-                                        if xr.hovered() { t.text } else { t.text3 },
+                                        lerp_color(t.text3, t.text, over),
                                     );
                                     if xr.clicked() {
                                         remove = Some(k);

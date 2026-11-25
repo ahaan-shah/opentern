@@ -12,9 +12,11 @@ pub mod attach;
 pub mod auth;
 pub mod codex;
 pub mod control;
+pub mod effort;
 pub mod mark;
 pub mod markets;
 pub mod process;
+pub mod style;
 pub mod tools;
 
 use crate::app::App;
@@ -85,6 +87,9 @@ pub struct Chat {
     pub mode: Mode,
     /// A model alias, or empty for Claude Code's default.
     pub model: String,
+    /// The effort picked, or empty for the agent's default.
+    #[serde(default)]
+    pub effort: String,
     /// The model Claude Code reported.
     #[serde(default)]
     pub model_name: String,
@@ -106,6 +111,9 @@ pub struct Chat {
     pub busy: bool,
     #[serde(skip)]
     pub thinking: bool,
+    /// When the turn under way started.
+    #[serde(skip)]
+    pub since: Option<std::time::Instant>,
     /// Messages sent while it was busy: they go together, as one message,
     /// once the turn ends (as in Claude Code).
     #[serde(skip)]
@@ -120,7 +128,7 @@ pub struct Queued {
 }
 
 impl Chat {
-    fn new(id: u64, agent: Agent, mode: Mode, model: &str) -> Chat {
+    fn new(id: u64, agent: Agent, mode: Mode, model: &str, effort: &str) -> Chat {
         let now = now_ms();
         Chat {
             id,
@@ -131,6 +139,7 @@ impl Chat {
             updated: now,
             mode,
             model: model.to_string(),
+            effort: effort.to_string(),
             model_name: String::new(),
             items: Vec::new(),
             usage: Usage::default(),
@@ -140,6 +149,7 @@ impl Chat {
             folder: None,
             busy: false,
             thinking: false,
+            since: None,
             queued: Vec::new(),
         }
     }
@@ -179,6 +189,12 @@ struct Saved {
     /// The model each agent ran when none was picked, as last reported.
     #[serde(default)]
     defaults: Vec<(Agent, String)>,
+    /// The efforts each model takes, by its id.
+    #[serde(default)]
+    levels: Vec<(String, effort::Levels)>,
+    /// The effort last picked for each agent.
+    #[serde(default)]
+    efforts: Vec<(Agent, String)>,
 }
 
 /// The move from the picker (or the other agent) into an agent's panel.
@@ -219,13 +235,13 @@ pub struct Claude {
     /// Claude Code was asked for its models this run (new ones come out
     /// between runs, so once per run, not once ever).
     claude_models_asked: bool,
-    claude_models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
+    claude_models_rx: Option<crossbeam_channel::Receiver<Vec<effort::Model>>>,
     pub codex_limits: Vec<Window>,
     codex_cli: Option<Option<PathBuf>>,
     /// When the picker first showed (its entrance).
     picker_shown: Option<f64>,
     /// Codex's model list, while it's being fetched.
-    models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
+    models_rx: Option<crossbeam_channel::Receiver<Vec<effort::Model>>>,
     /// The model list was asked for while the menu is open.
     models_asked: bool,
     /// Codex listed its models this run (new ones come out between runs).
@@ -237,7 +253,7 @@ pub struct Claude {
     renaming: Option<(u64, String)>,
     /// Where the composer was last frame: menus open above it.
     composer: Option<egui::Rect>,
-    /// `OPENTERN_STILL=claude-menu:<mode|model|usage>`: open it (screenshots).
+    /// `OPENTERN_STILL=claude-menu:<mode|model|usage|account|rename>`: open it (screenshots).
     pub still_menu: Option<String>,
     /// Where the composer's controls landed last frame (tests check they
     /// don't overlap).
@@ -290,6 +306,18 @@ pub struct Claude {
     /// The same, as a chat last reported it (Init), for when the config
     /// doesn't say.
     defaults: HashMap<Agent, String>,
+    /// The efforts each model takes, by its id.
+    levels: HashMap<String, effort::Levels>,
+    /// The effort last picked for each agent (new chats start with it).
+    efforts: HashMap<Agent, String>,
+    /// The effort each agent's own settings name.
+    configured_effort: HashMap<Agent, String>,
+    /// A turn ended while the panel was closed.
+    pub unseen: bool,
+    /// The open chat's messages scroll to their end next frame.
+    to_end: bool,
+    /// The scroll offset that shows their end, last frame.
+    end_y: f32,
     /// Each agent's sign-in, checked when its panel first shows.
     auth: HashMap<Agent, auth::Auth>,
     loaded: bool,
@@ -369,6 +397,16 @@ impl Claude {
             })
     }
 
+    /// The rail button's dot: an agent asks something, or is done with the
+    /// panel closed.
+    pub fn dot(&self, t: &Theme) -> Option<Color32> {
+        if self.chats.iter().any(|c| c.busy && c.items.iter().any(is_waiting)) {
+            Some(t.warn)
+        } else {
+            self.unseen.then_some(t.accent)
+        }
+    }
+
     pub fn chat(&self) -> Option<&Chat> {
         self.chats.iter().find(|c| Some(c.id) == self.active)
     }
@@ -413,10 +451,11 @@ impl Claude {
 
     /// Codex's models as it lists them now. Ones picked earlier that are
     /// gone go back to the default, as does a default that's changed.
-    fn set_codex_models(&mut self, list: Vec<(String, String)>) {
+    fn set_codex_models(&mut self, list: Vec<effort::Model>) {
         if list.is_empty() {
             return;
         }
+        let list = self.learn(list);
         self.codex_models_fresh = true;
         let gone = |m: &str| !m.is_empty() && !list.iter().any(|(k, _)| k == m);
         if gone(&self.codex_model) {
@@ -433,6 +472,67 @@ impl Claude {
             self.codex_models = list;
         }
         self.dirty = true;
+    }
+
+    /// Claude Code's models as it lists them now.
+    fn set_claude_models(&mut self, list: Vec<effort::Model>) {
+        if list.is_empty() {
+            return;
+        }
+        // The one it answered an effort for is its default.
+        if let Some(m) = list.iter().find(|m| m.levels.default.is_some()) {
+            self.defaults.insert(Agent::Claude, m.id.clone());
+        }
+        let list = self.learn(list);
+        if list != self.claude_models {
+            self.claude_models = list;
+        }
+        self.dirty = true;
+    }
+
+    /// Keeps the efforts listed models take; the rest is their (id, name)s.
+    fn learn(&mut self, list: Vec<effort::Model>) -> Vec<(String, String)> {
+        list.into_iter()
+            .map(|m| {
+                let was = self.levels.get(&m.id).and_then(|l| l.default.clone());
+                let mut l = m.levels;
+                l.default = l.default.or(was);
+                self.levels.insert(m.id.clone(), l);
+                (m.id, m.name)
+            })
+            .collect()
+    }
+
+    /// The efforts `model` ("" = the default) takes.
+    fn levels_for(&self, a: Agent, model: &str) -> effort::Levels {
+        let id = if model.is_empty() {
+            self.default_model(a).unwrap_or_default()
+        } else {
+            model.to_string()
+        };
+        match (self.levels.get(&id), a) {
+            (Some(l), _) => l.clone(),
+            (None, Agent::Claude) => effort::claude_levels(),
+            (None, Agent::Codex) => effort::Levels::default(),
+        }
+    }
+
+    /// The effort a chat on `model` runs at: the one picked, else the one
+    /// the agent's own settings name, else the model's default.
+    fn effort_shown(&self, a: Agent, model: &str, picked: &str) -> Option<String> {
+        let l = self.levels_for(a, model);
+        if l.has(picked) {
+            return Some(picked.to_string());
+        }
+        self.configured_effort
+            .get(&a)
+            .filter(|e| l.has(e))
+            .cloned()
+            .or_else(|| l.default.filter(|d| l.all.iter().any(|x| x == d)))
+    }
+
+    fn effort_for(&self, a: Agent) -> &str {
+        self.efforts.get(&a).map_or("", String::as_str)
     }
 
     /// Whether to ask `a` for its models, with its model menu open: once a
@@ -524,6 +624,9 @@ impl App {
             if let Some(m) = config_model(a) {
                 self.claude.configured.insert(a, m);
             }
+            if let Some(e) = effort::configured(a) {
+                self.claude.configured_effort.insert(a, e);
+            }
         }
         let Ok(text) = std::fs::read_to_string(self.claude_file()) else {
             return;
@@ -567,6 +670,8 @@ impl App {
         c.codex_limits = s.codex_limits;
         c.last = s.last.into_iter().collect();
         c.defaults = s.defaults.into_iter().collect();
+        c.levels = s.levels.into_iter().collect();
+        c.efforts = s.efforts.into_iter().collect();
         // The open chat belongs to the agent on show.
         if let Some(a) = c.agent
             && c.chat().is_some_and(|x| x.agent != a)
@@ -595,6 +700,8 @@ impl App {
             codex_limits: c.codex_limits.clone(),
             last: c.last.iter().map(|(a, id)| (*a, *id)).collect(),
             defaults: c.defaults.iter().map(|(a, m)| (*a, m.clone())).collect(),
+            levels: c.levels.iter().map(|(m, l)| (m.clone(), l.clone())).collect(),
+            efforts: c.efforts.iter().map(|(a, e)| (*a, e.clone())).collect(),
         };
         let path = self.claude_file();
         if let Some(d) = path.parent() {
@@ -613,7 +720,13 @@ impl App {
         self.claude_load();
         let id = self.claude.chats.iter().map(|c| c.id).max().unwrap_or(0) + 1;
         let agent = self.claude.current();
-        let chat = Chat::new(id, agent, self.claude.mode, self.claude.model_for(agent));
+        let chat = Chat::new(
+            id,
+            agent,
+            self.claude.mode,
+            self.claude.model_for(agent),
+            self.claude.effort_for(agent),
+        );
         self.claude.chats.push(chat);
         self.claude.active = Some(id);
         self.claude.dirty = true;
@@ -862,6 +975,7 @@ impl App {
                 resume: chat.session.clone(),
                 system,
                 account: chat.account.clone().unwrap_or_else(|| accounts::launched(agent)),
+                effort: (!chat.effort.is_empty()).then(|| chat.effort.clone()),
             };
             let _ = std::fs::create_dir_all(&launch.cwd);
             let ctx = self.egui_ctx.clone();
@@ -900,8 +1014,10 @@ impl App {
         }
         chat.busy = true;
         chat.thinking = true;
+        chat.since = Some(std::time::Instant::now());
         chat.updated = now_ms();
         self.claude.dirty = true;
+        self.claude.to_end = true;
         true
     }
 
@@ -966,6 +1082,16 @@ impl App {
         }
         if let Event::Models(list) = e {
             self.claude.set_codex_models(list);
+            return;
+        }
+        if let Event::Effort { model, level } = e {
+            // What it runs at when none is picked.
+            let l = match agent {
+                Agent::Claude => self.claude.levels.entry(model).or_insert_with(effort::claude_levels),
+                Agent::Codex => self.claude.levels.entry(model).or_default(),
+            };
+            l.default = Some(level);
+            self.claude.dirty = true;
             return;
         }
         let mut exited = false;
@@ -1089,9 +1215,12 @@ impl App {
                 expire_asks(chat);
                 drop_empty(chat);
             }
-            Event::Mcp { .. } | Event::Limits(_) | Event::Models(_) => {}
+            Event::Mcp { .. } | Event::Limits(_) | Event::Models(_) | Event::Effort { .. } => {}
         }
         self.claude.dirty = true;
+        if (done || exited) && self.layout.widget != Some(crate::shell::Widget::Claude) {
+            self.claude.unseen = true;
+        }
         if done {
             // What came in meanwhile goes now, as Claude Code does.
             self.claude_send_queued(id);
@@ -1158,9 +1287,20 @@ impl App {
     }
 
     fn claude_set_model(&mut self, model: &str) {
-        match self.claude.current() {
+        let agent = self.claude.current();
+        match agent {
             Agent::Claude => self.claude.model = model.to_string(),
             Agent::Codex => self.claude.codex_model = model.to_string(),
+        }
+        // An effort the new model doesn't take becomes one it does.
+        let picked = self
+            .claude
+            .chat()
+            .map_or(self.claude.effort_for(agent), |c| c.effort.as_str())
+            .to_string();
+        let fit = self.claude.levels_for(agent, model).fit(&picked);
+        if fit != picked {
+            self.claude_set_effort(&fit);
         }
         if let Some(id) = self.claude.active {
             let busy = self.claude.chat().is_some_and(|c| c.busy);
@@ -1170,6 +1310,29 @@ impl App {
                 chat.model = model.to_string();
                 // The next message restarts Claude Code on the new model.
                 self.claude.clients.remove(&id);
+            }
+        }
+        self.claude.dirty = true;
+    }
+
+    pub(crate) fn claude_set_effort(&mut self, level: &str) {
+        let agent = self.claude.current();
+        self.claude.efforts.insert(agent, level.to_string());
+        if let Some(id) = self.claude.active {
+            let busy = self.claude.chat().is_some_and(|c| c.busy);
+            if let Some(chat) = self.claude.chat_mut(id)
+                && !busy
+            {
+                chat.effort = level.to_string();
+                // Codex takes it with the next message; Claude Code restarts
+                // on it then.
+                let taken = match self.claude.clients.get_mut(&id) {
+                    Some(c) => c.set_effort(level),
+                    None => true,
+                };
+                if !taken {
+                    self.claude.clients.remove(&id);
+                }
             }
         }
         self.claude.dirty = true;
@@ -1191,6 +1354,7 @@ impl App {
 
     pub(crate) fn claude_widget(&mut self, ui: &mut Ui, t: &Theme) {
         self.claude_load();
+        self.claude.unseen = false;
         // Thin, quiet scrollbars: hidden until you scroll or point at them.
         let shown = theme::scroll_shown(ui.ctx());
         ui.style_mut().spacing.scroll = egui::style::ScrollStyle {
@@ -1211,6 +1375,13 @@ impl App {
             self.claude_picker(ui, t, now);
             return;
         }
+        // From here on, the open agent's own colours.
+        let own = self.claude.current().theme(t);
+        let t = &own;
+        ui.visuals_mut().hyperlink_color = t.accent;
+        ui.visuals_mut().selection.bg_fill = crate::motion::with_alpha(t.accent, 0.26);
+        ui.visuals_mut().selection.stroke.color = t.text;
+        ui.visuals_mut().text_cursor.stroke.color = t.accent;
         // The move into this agent's panel.
         let anim = self.claude.anim;
         let p = match anim {
@@ -1246,16 +1417,11 @@ impl App {
                     &trf!("Install {}", agent.product()),
                     0.0,
                     TextFormat {
-                        font_id: font.clone(),
+                        font_id: font,
                         color: t.text,
                         underline: Stroke::new(1.0, t.text2),
                         ..Default::default()
                     },
-                );
-                job.append(
-                    " and sign in with your account.",
-                    0.0,
-                    TextFormat::simple(font, t.text2),
                 );
                 let link = ui.add(egui::Label::new(job).wrap().sense(Sense::click()));
                 if link
@@ -1276,10 +1442,15 @@ impl App {
         } else if self.claude_signed_in(ui, t, agent) {
             self.claude_take_files(ui, t);
             let composer_h = self.claude_composer_height(ui.available_width());
-            let list_h = (ui.available_height() - composer_h - 10.0).max(80.0);
+            let gap = 10.0 + ui.spacing().item_spacing.y;
+            let list_h = (ui.available_height() - composer_h - gap).max(80.0);
             // The messages fill a fixed slot so the composer sits at the bottom.
             let (slot, _) = ui.allocate_exact_size(vec2(ui.available_width(), list_h), Sense::hover());
-            ui.scope_builder(egui::UiBuilder::new().max_rect(slot), |ui| self.claude_messages(ui, t));
+            // A child that doesn't move the cursor: the composer stays at the
+            // bottom however little the slot holds.
+            let mut child = ui.new_child(egui::UiBuilder::new().max_rect(slot));
+            child.set_clip_rect(slot.intersect(ui.clip_rect()));
+            self.claude_messages(&mut child, t);
             ui.add_space(10.0);
             self.claude_composer(ui, t);
         }
@@ -1317,7 +1488,7 @@ impl App {
                 Ok(false) => *state = auth::Auth::Out(auth::login_command(agent, &exe)),
                 Err(_) => {
                     ui.add_space(96.0);
-                    ui.vertical_centered(|ui| agent::spinner(ui, 26.0, agent, agent.accent(t)));
+                    ui.vertical_centered(|ui| agent::spinner(ui, 26.0, agent, agent.tint(t)));
                     ui.ctx().request_repaint();
                     return false;
                 }
@@ -1367,6 +1538,7 @@ impl App {
                     ui.ctx()
                         .request_repaint_after(std::time::Duration::from_secs_f64(blink_wait(now - shown)));
                 }
+
                 ui.add_space(14.0);
                 ui.label(RichText::new(tr("Pick your agent")).font(theme::semibold(17.0)));
             });
@@ -1384,23 +1556,14 @@ impl App {
             let alpha = e;
             p.rect(
                 r,
-                14,
-                crate::motion::with_alpha(crate::motion::lerp_color(t.card, t.elevated, hover), alpha),
-                Stroke::new(
-                    1.0,
-                    crate::motion::with_alpha(
-                        crate::motion::lerp_color(t.border, a.accent(t).gamma_multiply(0.7), hover),
-                        alpha,
-                    ),
-                ),
+                style::CARD,
+                crate::motion::with_alpha(style::surface(t), alpha),
+                Stroke::new(1.5, crate::motion::with_alpha(a.accent(t), alpha * 0.85 * hover)),
                 egui::StrokeKind::Inside,
             );
             let badge = egui::Rect::from_center_size(egui::pos2(r.left() + 37.0, r.center().y), vec2(42.0, 42.0));
-            p.circle_filled(
-                badge.center(),
-                21.0,
-                crate::motion::with_alpha(a.accent(t), alpha * if a == Agent::Codex { 0.08 } else { 0.14 }),
-            );
+            p.circle_filled(badge.center(), 21.0, crate::motion::with_alpha(t.bg, alpha * 0.7));
+
             let logo = egui::Rect::from_center_size(badge.center(), vec2(22.0, 22.0));
             agent::paint(ui, logo, a, crate::motion::with_alpha(a.tint(t), alpha), 0.0);
             let p = ui.painter();
@@ -1472,9 +1635,9 @@ impl App {
             let r = r.translate(vec2(0.0, 28.0 * ease_out(p)));
             painter.rect(
                 r,
-                14,
-                with_alpha(t.card, fade),
-                Stroke::new(1.0, with_alpha(t.border, fade)),
+                f32::from(style::CARD),
+                with_alpha(style::surface(t), fade),
+                Stroke::NONE,
                 egui::StrokeKind::Inside,
             );
         }
@@ -1486,9 +1649,9 @@ impl App {
         let card = lerp_rect(from.0, target_card, e);
         painter.rect(
             card,
-            lerp(14.0, 9.0, e),
-            with_alpha(t.card, fade),
-            Stroke::new(1.0, with_alpha(to.accent(t).gamma_multiply(0.7), fade)),
+            lerp(f32::from(style::CARD), 16.0, e),
+            with_alpha(style::surface(t), fade),
+            Stroke::new(1.5, with_alpha(t.accent, 0.85 * fade)),
             egui::StrokeKind::Inside,
         );
         let logo = lerp_rect(from.1, target_logo, e);
@@ -1504,117 +1667,85 @@ impl App {
             .map(|c| c.title.clone());
         let mut new = false;
         let mut list = false;
-        let mut switch = None;
-        let mut account = None;
+        let mut pick = None;
+        let edge = ui.max_rect();
         ui.horizontal(|ui| {
-            ui.set_height(32.0);
+            ui.set_height(44.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                ui.spacing_mut().item_spacing.x = 2.0;
-                if w::tool_button(ui, t, ph::NOTE_PENCIL, tr("New chat"), false, 28.0).clicked() {
+                ui.spacing_mut().item_spacing.x = 6.0;
+                if style::icon_button(ui, t, ph::PLUS, 34.0, 17.0).clicked() {
                     new = true;
                 }
-                if w::tool_button(ui, t, ph::CHATS_CIRCLE, tr("Chats"), false, 28.0).clicked() {
+                if style::icon_button(ui, t, ph::CHATS_CIRCLE, 34.0, 17.0).clicked() {
                     list = true;
                 }
+                // What's used of the plan's limits.
+                let used = self.claude.limits_for(agent).first().map(|l| l.used);
+                let fill = if used.is_some_and(|u| u >= HIGH) {
+                    t.neg
+                } else {
+                    t.accent
+                };
+                let usage = style::usage_button(ui, t, used, fill, 34.0);
+                self.claude_still_menu(ui, &usage, "usage");
+                egui::Popup::menu(&usage)
+                    // Under the header's right edge, so it stays in the pane.
+                    .anchor(egui::Rect::from_min_max(
+                        egui::pos2(edge.right(), usage.rect.top()),
+                        egui::pos2(edge.right(), usage.rect.bottom()),
+                    ))
+                    .align(egui::RectAlign::BOTTOM_END)
+                    .gap(6.0)
+                    .width((edge.width() - 14.0).clamp(150.0, 300.0))
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                    .show(|ui| self.claude_usage_card(ui, t));
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    // The agent: logo, name and a caret; click for the other.
-                    let name_g = ui
-                        .painter()
-                        .layout_no_wrap(agent.name().to_string(), theme::semibold(14.0), t.text);
-                    let bw = 8.0 + 18.0 + 8.0 + name_g.size().x + 6.0 + 12.0 + 8.0;
-                    let (r, resp) = ui.allocate_exact_size(vec2(bw, 30.0), Sense::click());
-                    let hover = crate::motion::toggle(ui.ctx(), resp.id, resp.hovered(), crate::motion::MICRO);
-                    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
-                    let pnt = ui.painter();
-                    pnt.rect_filled(
-                        r,
-                        9,
-                        crate::motion::with_alpha(t.hover_wash(), hover.max(if open { 1.0 } else { 0.0 })),
-                    );
-                    let logo =
-                        egui::Rect::from_center_size(egui::pos2(r.left() + 17.0, r.center().y), vec2(18.0, 18.0));
-                    self.claude.header_logo = Some(logo);
-                    if !(moving && p < 1.0) {
-                        // A switch pops the new logo in.
-                        let k = if p < 1.0 {
-                            0.6 + 0.4 * crate::motion::ease_out_back(p)
-                        } else {
-                            1.0
-                        };
-                        agent::paint(ui, logo.scale_from_center(k), agent, agent.tint(t), 0.0);
+                    ui.spacing_mut().item_spacing.x = 2.0;
+                    let pop = if p < 1.0 {
+                        0.6 + 0.4 * crate::motion::ease_out_back(p)
+                    } else {
+                        1.0
+                    };
+                    // A picked card's logo flies here; until it lands, it isn't drawn.
+                    pick = self.claude_logo_menu(ui, t, agent, pop, moving && p < 1.0);
+                    let editing = self
+                        .claude
+                        .renaming
+                        .as_ref()
+                        .is_some_and(|(id, _)| Some(*id) == self.claude.active);
+                    if editing {
+                        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 32.0), Sense::hover());
+                        self.claude_rename_field(ui, t, r, theme::semibold(14.5));
+                        return;
                     }
-                    let pnt = ui.painter();
-                    pnt.galley(
-                        egui::pos2(logo.right() + 8.0, r.center().y - name_g.size().y / 2.0),
-                        name_g,
+                    let text = title.clone().unwrap_or_else(|| tr("New chat").to_string());
+                    if self.claude.still_menu.as_deref() == Some("rename") {
+                        self.claude.still_menu = None;
+                        self.claude.renaming = self.claude.active.zip(title.clone());
+                    }
+                    // A started chat's title is renamed with a click on it.
+                    let Some(id) = self.claude.active.filter(|_| title.is_some()) else {
+                        ui.add_space(TITLE_PAD);
+                        ui.add(
+                            egui::Label::new(RichText::new(text).font(theme::semibold(14.5)).color(t.text)).truncate(),
+                        );
+                        return;
+                    };
+                    let font = theme::semibold(14.5);
+                    let room = ui.available_width() - TITLE_PAD * 2.0;
+                    let shown = crate::format::elide_to(ui.painter(), &text, &font, room);
+                    let g = ui.painter().layout_no_wrap(shown, font, t.text);
+                    let (r, resp) = ui.allocate_exact_size(vec2(g.size().x + TITLE_PAD * 2.0, 32.0), Sense::click());
+                    let hover = crate::motion::hover(&resp);
+                    let p = ui.painter();
+                    p.rect_filled(r, style::RADIUS, crate::motion::with_alpha(t.hover_wash(), hover));
+                    p.galley(
+                        egui::pos2(r.left() + TITLE_PAD, r.center().y - g.size().y / 2.0),
+                        g,
                         t.text,
                     );
-                    pnt.text(
-                        egui::pos2(r.right() - 14.0, r.center().y + 1.0),
-                        egui::Align2::CENTER_CENTER,
-                        ph::CARET_DOWN,
-                        theme::regular(10.5),
-                        crate::motion::lerp_color(t.text3, t.text2, hover),
-                    );
-                    let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-                    egui::Popup::menu(&resp)
-                        .align(egui::RectAlign::BOTTOM_START)
-                        .gap(6.0)
-                        .width(200.0)
-                        .show(|ui| {
-                            ui.spacing_mut().item_spacing.y = 2.0;
-                            for a in Agent::ALL {
-                                let installed = self.claude.cli_for(a).is_some();
-                                if agent_row(ui, t, a, a == agent, installed).clicked() {
-                                    switch = Some(a);
-                                    ui.close();
-                                }
-                            }
-                            // Accounts, when there's more than one folder.
-                            let list = accounts::list(agent);
-                            if list.len() > 1 {
-                                ui.separator();
-                                let now = accounts::current(agent);
-                                for acc in list {
-                                    let tip = accounts::folder(agent, &acc.dir)
-                                        .map(|f| f.to_string_lossy().to_string())
-                                        .unwrap_or_default();
-                                    if w::option(ui, acc.dir == now, format!("{}  {}", ph::USER_CIRCLE, acc.label))
-                                        .on_hover_text(tip)
-                                        .clicked()
-                                    {
-                                        account = Some(acc.dir);
-                                        ui.close();
-                                    }
-                                }
-                            }
-                        });
-                    // The chat's title, after the agent.
-                    if let Some(title) = &title {
-                        ui.label(RichText::new("/").color(t.text3).size(13.0));
-                        let editing = self
-                            .claude
-                            .renaming
-                            .as_ref()
-                            .is_some_and(|(id, _)| Some(*id) == self.claude.active);
-                        if editing {
-                            let h = 30.0;
-                            let r = egui::Rect::from_min_size(ui.cursor().min, vec2(ui.available_width(), h));
-                            let r = r.translate(vec2(0.0, (ui.available_height() - h) / 2.0));
-                            self.claude_rename_field(ui, t, r);
-                        } else {
-                            let resp = ui.add(
-                                egui::Label::new(RichText::new(title).font(theme::medium(13.0)).color(t.text2))
-                                    .truncate()
-                                    .sense(Sense::click()),
-                            );
-                            if let Some(id) = self.claude.active
-                                && resp.on_hover_text(tr("Double-click to rename")).double_clicked()
-                            {
-                                self.claude.renaming = Some((id, title.clone()));
-                            }
-                        }
+                    if resp.on_hover_cursor(egui::CursorIcon::Text).clicked() {
+                        self.claude.renaming = Some((id, text));
                     }
                 });
             });
@@ -1626,43 +1757,120 @@ impl App {
             self.claude.view = View::Chats;
             self.claude.chat_query.clear();
         }
-        if let Some(a) = switch
-            && a != agent
-        {
-            self.claude_switch(a, None, now);
+        if let Some((a, dir)) = pick {
+            if a != agent {
+                self.claude_switch(a, None, now);
+            }
+            self.claude_set_account(a, &dir);
         }
-        if let Some(dir) = account {
-            self.claude_set_account(agent, &dir);
-        }
-        // A hairline under the header.
-        ui.add_space(6.0);
-        let (line, _) = ui.allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover());
-        ui.painter().hline(
-            line.x_range(),
-            line.center().y,
-            Stroke::new(1.0, t.border.gamma_multiply(0.6)),
-        );
-        ui.add_space(6.0);
+        ui.add_space(10.0);
     }
 
-    /// The title being edited, in `rect`: Enter or clicking away keeps it,
-    /// Esc puts the old one back.
-    fn claude_rename_field(&mut self, ui: &mut Ui, t: &Theme, rect: egui::Rect) {
+    /// The header's logo. With more than one account to choose from (the
+    /// agents', all together), a click lists them; otherwise it's only a
+    /// logo. Returns the one picked.
+    fn claude_logo_menu(
+        &mut self,
+        ui: &mut Ui,
+        t: &Theme,
+        agent: Agent,
+        pop: f32,
+        hide: bool,
+    ) -> Option<(Agent, String)> {
+        let mut choices: Vec<(Agent, String, String)> = Vec::new();
+        for a in Agent::ALL {
+            if a != agent && self.claude.cli_for(a).is_none() {
+                continue;
+            }
+            let list = accounts::list(a);
+            if list.len() < 2 {
+                choices.push((a, accounts::current(a), a.name().to_string()));
+                continue;
+            }
+            for acc in list {
+                choices.push((a, acc.dir, tr(&acc.label).to_string()));
+            }
+        }
+        let many = choices.len() > 1;
+        let sense = if many { Sense::click() } else { Sense::hover() };
+        let (r, resp) = ui.allocate_exact_size(vec2(34.0, 34.0), sense);
+        if many {
+            let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+            let k = crate::motion::hover_if(&resp, resp.hovered() || open);
+            ui.painter()
+                .rect_filled(r, style::RADIUS, crate::motion::with_alpha(t.hover_wash(), k));
+        }
+        let logo = egui::Rect::from_center_size(r.center(), vec2(21.0, 21.0));
+        self.claude.header_logo = Some(logo);
+        if !hide {
+            agent::paint(ui, logo.scale_from_center(pop), agent, agent.tint(t), 0.0);
+        }
+        if !many {
+            return None;
+        }
+        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+        self.claude_still_menu(ui, &resp, "account");
+        let mut picked = None;
+        egui::Popup::menu(&resp)
+            .align(egui::RectAlign::BOTTOM_START)
+            .gap(6.0)
+            .width(190.0)
+            .show(|ui| {
+                ui.spacing_mut().item_spacing.y = 2.0;
+                let mut last = None;
+                for (a, dir, label) in choices {
+                    if last.is_some_and(|l| l != a) {
+                        effort::rule(ui, t);
+                    }
+                    last = Some(a);
+                    let on = a == agent && dir == accounts::current(a);
+                    let row = menu_pick(ui, t, &format!("       {label}"), "", on);
+                    let mark = egui::Rect::from_center_size(row.rect.left_center() + vec2(21.0, 0.0), vec2(15.0, 15.0));
+                    agent::paint(ui, mark, a, a.tint(t), 0.0);
+                    let tip = accounts::folder(a, &dir)
+                        .filter(|_| label != a.name())
+                        .map(|f| f.to_string_lossy().to_string());
+                    let row = match tip {
+                        Some(tip) => row.on_hover_text(tip),
+                        None => row,
+                    };
+                    if row.clicked() {
+                        picked = Some((a, dir));
+                        ui.close();
+                    }
+                }
+            });
+        picked
+    }
+
+    /// The title being edited, where it stands (`rect` is `TITLE_PAD` wider on
+    /// each side), all of it selected at first: Enter or clicking away keeps
+    /// it, Esc puts the old one back.
+    fn claude_rename_field(&mut self, ui: &mut Ui, t: &Theme, rect: egui::Rect, font: FontId) {
         let Some((id, mut text)) = self.claude.renaming.clone() else {
             return;
         };
         let field_id = egui::Id::new(("claude-rename", id));
+        ui.painter().rect_filled(rect, style::RADIUS, t.hover_wash());
         let resp = ui.put(
-            rect,
+            rect.shrink2(vec2(TITLE_PAD, 0.0)),
             egui::TextEdit::singleline(&mut text)
                 .id(field_id)
-                .font(theme::medium(13.0))
-                .margin(Margin::symmetric(8, 6))
-                .vertical_align(Align::Center)
-                .background_color(t.card),
+                .font(font)
+                .text_color(t.text)
+                .frame(egui::Frame::NONE)
+                .margin(Margin::ZERO)
+                .vertical_align(Align::Center),
         );
         if !resp.has_focus() && !resp.lost_focus() {
             resp.request_focus();
+            let all = egui::text::CCursorRange::two(
+                egui::text::CCursor::new(0),
+                egui::text::CCursor::new(text.chars().count()),
+            );
+            let mut state = egui::TextEdit::load_state(ui.ctx(), field_id).unwrap_or_default();
+            state.cursor.set_char_range(Some(all));
+            state.store(ui.ctx(), field_id);
         }
         let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
         if esc {
@@ -1693,6 +1901,10 @@ impl App {
         let c = &mut self.claude;
         c.auth.remove(&agent);
         c.defaults.remove(&agent);
+        match effort::configured(agent) {
+            Some(e) => c.configured_effort.insert(agent, e),
+            None => c.configured_effort.remove(&agent),
+        };
         match config_model(agent) {
             Some(m) => c.configured.insert(agent, m),
             None => c.configured.remove(&agent),
@@ -1741,23 +1953,24 @@ impl App {
         let mut back = false;
         let mut new = false;
         ui.horizontal(|ui| {
-            ui.set_height(30.0);
+            ui.set_height(44.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if w::tool_button(ui, t, ph::NOTE_PENCIL, tr("New chat"), false, 28.0).clicked() {
+                if style::icon_button(ui, t, ph::PLUS, 34.0, 17.0).clicked() {
                     new = true;
                 }
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 4.0;
-                    if w::tool_button(ui, t, ph::CARET_LEFT, tr("Back"), false, 28.0).clicked() {
+                    ui.spacing_mut().item_spacing.x = 10.0;
+                    if style::icon_button(ui, t, ph::CARET_LEFT, 34.0, 17.0).clicked() {
                         back = true;
                     }
-                    ui.label(RichText::new(tr("Chats")).font(theme::semibold(14.0)));
+                    ui.label(RichText::new(tr("Chats")).font(theme::semibold(15.5)));
                 });
             });
         });
+
         ui.add_space(6.0);
         let width = ui.available_width();
-        w::search_field(ui, t, &mut self.claude.chat_query, tr("Search chats"), width);
+        search_pill(ui, t, &mut self.claude.chat_query, width);
         ui.add_space(8.0);
         let q = self.claude.chat_query.to_lowercase();
         let mut list: Vec<Chat> = self
@@ -1803,7 +2016,7 @@ impl App {
             .id_salt("claude-chats")
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = 2.0;
+                ui.spacing_mut().item_spacing.y = 6.0;
                 let today = jiff::Zoned::now().date();
                 let mut group = "";
                 for c in &list {
@@ -1828,21 +2041,38 @@ impl App {
                     let editing = self.claude.renaming.as_ref().is_some_and(|(id, _)| *id == c.id);
                     let p = ui.painter();
                     if on {
-                        p.rect_filled(r, 8, t.accent_soft());
-                    } else if hovered || editing {
-                        p.rect_filled(r, 8, t.hover_wash());
+                        p.rect_filled(r, 10, style::tint(t));
+                    } else {
+                        let lit = crate::motion::hover_if(&resp, hovered || editing);
+                        let fill = crate::motion::lerp_color(style::surface(t), style::raised(t), lit);
+                        p.rect_filled(r, 10, fill);
                     }
                     let pad = 12.0;
-                    // Whose chat it is.
+                    // Whose chat it is, turning while it works; a dot when
+                    // it waits for an answer.
+                    let badge =
+                        egui::Rect::from_center_size(egui::pos2(r.left() + 29.0, r.center().y), vec2(32.0, 32.0));
+                    p.circle_filled(badge.center(), 16.0, crate::motion::with_alpha(t.bg, 0.7));
+                    let asks = c.busy && c.items.iter().any(is_waiting);
+                    let angle = if c.busy && !asks {
+                        ui.ctx().request_repaint();
+                        ui.input(|i| i.time) as f32 * 2.2
+                    } else {
+                        0.0
+                    };
                     agent::paint(
                         ui,
-                        egui::Rect::from_center_size(egui::pos2(r.left() + 20.0, r.top() + 19.0), vec2(14.0, 14.0)),
+                        egui::Rect::from_center_size(badge.center(), vec2(16.0, 16.0)),
                         c.agent,
                         c.agent.tint(t),
-                        0.0,
+                        angle,
                     );
                     let p = ui.painter();
-                    let pad_l = 34.0;
+                    if asks {
+                        p.circle_filled(badge.right_top() + vec2(-2.0, 2.0), 5.0, t.bg);
+                        p.circle_filled(badge.right_top() + vec2(-2.0, 2.0), 3.5, t.warn);
+                    }
+                    let pad_l = 56.0;
                     // Rename and delete on hover.
                     let bin =
                         egui::Rect::from_center_size(egui::pos2(r.right() - 20.0, r.center().y), vec2(26.0, 26.0));
@@ -1854,10 +2084,10 @@ impl App {
                     let when_g = p.layout_no_wrap(when, theme::regular(11.0), t.text3);
                     if editing {
                         let edit = egui::Rect::from_min_max(
-                            egui::pos2(r.left() + pad_l - 6.0, r.top() + 4.0),
-                            egui::pos2(r.right() - pad + 6.0, r.top() + 34.0),
+                            egui::pos2(r.left() + pad_l - TITLE_PAD, r.top() + 6.0),
+                            egui::pos2(r.right() - pad + TITLE_PAD, r.top() + 32.0),
                         );
-                        self.claude_rename_field(ui, t, edit);
+                        self.claude_rename_field(ui, t, edit, theme::medium(13.0));
                     } else {
                         let title_w = right_edge - (r.left() + pad_l) - if tools { 0.0 } else { when_g.size().x + 8.0 };
                         let title = crate::format::elide_to(p, &c.title, &font, title_w);
@@ -1888,24 +2118,21 @@ impl App {
                     );
                     let mut on_tool = false;
                     if tools {
-                        for (rect, glyph, tip, what) in [
-                            (pen, ph::PENCIL_SIMPLE, tr("Rename"), 0),
-                            (bin, ph::TRASH, tr("Delete chat"), 1),
-                        ] {
+                        for (rect, glyph, what) in [(pen, ph::PENCIL_SIMPLE, 0), (bin, ph::TRASH, 1)] {
                             let b = ui.interact(rect, ui.id().with(("chat-tool", c.id, what)), Sense::click());
                             let over = b.hovered();
                             on_tool |= over;
-                            if over {
-                                ui.painter().rect_filled(rect, 6, t.hover_wash());
-                            }
+                            let lit = crate::motion::hover(&b);
+                            ui.painter()
+                                .rect_filled(rect, 6, crate::motion::with_alpha(t.hover_wash(), lit));
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
                                 glyph,
                                 theme::regular(14.0),
-                                if over { t.text } else { t.text2 },
+                                crate::motion::lerp_color(t.text2, t.text, lit),
                             );
-                            if b.on_hover_text(tip).clicked() {
+                            if b.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                                 if what == 0 {
                                     self.claude.renaming = Some((c.id, c.title.clone()));
                                 } else {
@@ -1978,127 +2205,138 @@ impl App {
                 }
             });
         }
-        egui::ScrollArea::vertical()
+        let mut area = egui::ScrollArea::vertical()
             .id_salt(("claude-msgs", chat.id))
             .auto_shrink([false, false])
-            .stick_to_bottom(true)
-            .show(ui, |ui| {
-                // Room for the floating scrollbar on the right.
-                let width = ui.available_width() - 8.0;
-                ui.set_width(width);
-                ui.spacing_mut().item_spacing.y = 8.0;
-                let items = &chat.items;
-                let mut i = 0;
-                while i < items.len() {
-                    let it = &items[i];
-                    // The agent's byline starts each of its turns.
-                    let mine = |x: &Item| matches!(x, Item::User(_) | Item::Attached(_));
-                    let starts_turn = !mine(it) && (i == 0 || mine(&items[i - 1]));
-                    if starts_turn {
-                        ui.add_space(8.0);
-                        byline(ui, t, chat.agent);
+            .stick_to_bottom(true);
+        // At the end, it sticks there as more comes.
+        if std::mem::take(&mut self.claude.to_end) && self.claude.end_y > 0.0 {
+            area = area.vertical_scroll_offset(self.claude.end_y);
+        }
+        let scrolled = area.show(ui, |ui| {
+            // Room for the floating scrollbar on the right.
+            let width = ui.available_width() - 8.0;
+            ui.set_width(width);
+            ui.spacing_mut().item_spacing.y = 8.0;
+            let items = &chat.items;
+            let mut i = 0;
+            while i < items.len() {
+                let it = &items[i];
+                let mine = |x: &Item| matches!(x, Item::User(_) | Item::Attached(_));
+                // Text and steps keep a little air between them.
+                if i > 0 && is_step(it) != is_step(&items[i - 1]) && !mine(it) {
+                    ui.add_space(4.0);
+                }
+                // A run of tool calls (and answered prompts) is one box of steps.
+                if is_step(it) {
+                    let start = i;
+                    while i < items.len() && is_step(&items[i]) {
+                        i += 1;
                     }
-                    // A run of tool calls (and answered prompts) is one box of steps.
-                    if is_step(it) {
-                        let start = i;
-                        while i < items.len() && is_step(&items[i]) {
-                            i += 1;
-                        }
-                        let live = chat.busy && i == items.len();
-                        let key = (chat.id, start);
-                        let n = i - start;
-                        let open = self.claude.folds.get(&key).copied().unwrap_or(live || n < 3);
-                        let r = steps(
-                            ui,
-                            t,
-                            &items[start..i],
-                            start,
-                            open,
-                            n >= 3,
-                            &self.claude.expanded,
-                            chat.id,
-                        );
-                        if r.fold {
-                            fold = Some((key, !open));
-                        }
-                        if let Some(k) = r.toggle {
-                            toggle = Some(k);
-                        }
-                        continue;
+
+                    let key = (chat.id, start);
+                    let n = i - start;
+                    let open = self.claude.folds.get(&key).copied().unwrap_or(false);
+                    let r = steps(
+                        ui,
+                        t,
+                        &items[start..i],
+                        start,
+                        open || n == 1,
+                        n > 1,
+                        &self.claude.expanded,
+                        chat.id,
+                    );
+                    if r.fold {
+                        fold = Some((key, !open));
                     }
-                    match it {
-                        Item::User(text) => {
-                            if !matches!(i.checked_sub(1).map(|k| &items[k]), Some(Item::Attached(_))) {
-                                ui.add_space(10.0);
-                            }
-                            user_bubble(ui, t, text, width);
-                            ui.add_space(4.0);
-                        }
-                        Item::Attached(files) => {
+                    if let Some(k) = r.toggle {
+                        toggle = Some(k);
+                    }
+                    continue;
+                }
+                match it {
+                    Item::User(text) => {
+                        if !matches!(
+                            i.checked_sub(1).map(|k| &items[k]),
+                            None | Some(Item::Attached(_) | Item::Assistant(_))
+                        ) {
                             ui.add_space(10.0);
-                            if let Chip::Open(k) = file_chips(ui, t, files, width, true, false) {
-                                open_attachment = Some(files[k].clone());
-                            }
                         }
-                        Item::Assistant(text) => {
-                            // Replies can be selected and copied (labels
-                            // aren't elsewhere in the app).
-                            ui.scope(|ui| {
+                        user_bubble(ui, t, text, width);
+                        ui.add_space(6.0);
+                    }
+                    Item::Attached(files) => {
+                        ui.add_space(10.0);
+                        if let Chip::Open(k) = file_chips(ui, t, files, width, true, false) {
+                            open_attachment = Some(files[k].clone());
+                        }
+                    }
+                    Item::Assistant(text) => {
+                        // Replies can be selected and copied (labels
+                        // aren't elsewhere in the app).
+                        let reply = ui
+                            .scope(|ui| {
                                 ui.style_mut().interaction.selectable_labels = true;
                                 // Selected text keeps its colour, as in any text selection.
                                 ui.visuals_mut().selection.stroke.color = ui.visuals().text_color();
                                 markdown(ui, t, text, (chat.id, i), &scripts, &mut open_file)
-                            });
+                            })
+                            .response
+                            .rect;
+                        // A finished reply can be copied whole.
+                        let ends = items.get(i + 1).is_none_or(mine);
+                        if ends && !(chat.busy && i + 1 == items.len()) {
+                            reply_tools(ui, t, text, reply, (chat.id, i), i + 1 == items.len());
                         }
-                        Item::Ask {
-                            tool,
-                            label,
-                            detail,
-                            suggestions,
-                            ..
-                        } => {
-                            let can_always = suggestions.as_array().is_some_and(|a| !a.is_empty());
-                            if let Some((allow, always)) =
-                                ask_card(ui, t, chat.agent, tool, &trl(label), detail, can_always, (chat.id, i))
-                            {
-                                answer = Some((i, allow, always));
-                            }
-                        }
-                        Item::Note { text, error } => {
-                            ui.horizontal_top(|ui| {
-                                ui.spacing_mut().item_spacing.x = 8.0;
-                                let c = if *error { t.warn } else { t.text3 };
-                                ui.label(RichText::new(ph::INFO).color(c).size(14.0));
-                                ui.add(egui::Label::new(RichText::new(trm(text)).color(t.text2).size(12.5)).wrap());
-                            });
-                        }
-                        Item::Tool { .. } => {}
                     }
-                    i += 1;
-                }
-                if chat.busy {
-                    ui.add_space(2.0);
-                    let waiting = chat.items.iter().any(is_waiting);
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = 8.0;
-                        if waiting {
-                            agent::show(ui, 15.0, chat.agent, chat.agent.tint(t));
-                            ui.label(RichText::new(tr("Waiting for your answer")).color(t.text3).size(12.5));
-                        } else {
-                            agent::spinner(ui, 15.0, chat.agent, chat.agent.tint(t));
-                            let word = if chat.thinking { tr("Thinking") } else { tr("Working") };
-                            shimmer(ui, t, word);
+                    Item::Ask {
+                        tool,
+                        label,
+                        detail,
+                        suggestions,
+                        ..
+                    } => {
+                        let can_always = suggestions.as_array().is_some_and(|a| !a.is_empty());
+                        if let Some((allow, always)) =
+                            ask_card(ui, t, tool, &trl(label), detail, can_always, (chat.id, i))
+                        {
+                            answer = Some((i, allow, always));
                         }
-                    });
-                }
-                // Sent while it works: they wait, dimmed, until the turn ends.
-                for (k, q) in chat.queued.iter().enumerate() {
-                    if queued_bubble(ui, t, q, width, (chat.id, k)) {
-                        unqueue = Some(k);
                     }
+                    Item::Note { text, error } => {
+                        ui.horizontal_top(|ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            let c = if *error { t.warn } else { t.text3 };
+                            ui.label(RichText::new(ph::INFO).color(c).size(14.0));
+                            ui.add(egui::Label::new(RichText::new(trm(text)).color(t.text2).size(12.5)).wrap());
+                        });
+                    }
+                    Item::Tool { .. } => {}
                 }
-                ui.add_space(6.0);
-            });
+                i += 1;
+            }
+            if chat.busy {
+                ui.add_space(2.0);
+                let waiting = chat.items.iter().any(is_waiting);
+                working(ui, t, &chat, waiting);
+            }
+
+            // Sent while it works: they wait, dimmed, until the turn ends.
+            for (k, q) in chat.queued.iter().enumerate() {
+                if queued_bubble(ui, t, q, width, (chat.id, k)) {
+                    unqueue = Some(k);
+                }
+            }
+            ui.add_space(6.0);
+        });
+        // Scrolled up: a button back to the end.
+        self.claude.end_y = (scrolled.content_size.y - scrolled.inner_rect.height()).max(0.0);
+        let below = scrolled.content_size.y - scrolled.state.offset.y - scrolled.inner_rect.height();
+        if jump_button(ui, t, scrolled.inner_rect, below > 90.0) {
+            self.claude.to_end = true;
+            ui.ctx().request_repaint();
+        }
         if let Some(k) = unqueue
             && let Some(c) = self.claude.chat_mut(chat.id)
             && k < c.queued.len()
@@ -2137,10 +2375,10 @@ impl App {
     /// An empty chat: the agent's logo and name.
     fn claude_welcome(&mut self, ui: &mut Ui, t: &Theme) {
         let agent = self.claude.current();
-        ui.add_space((ui.available_height() * 0.3).clamp(16.0, 160.0));
+        ui.add_space((ui.max_rect().height() * 0.5 - 70.0).max(12.0));
         ui.vertical_centered(|ui| {
             halo(ui, t, agent, 40.0);
-            ui.add_space(14.0);
+            ui.add_space(12.0);
             ui.label(RichText::new(agent.name()).font(theme::semibold(18.0)));
         });
     }
@@ -2225,7 +2463,7 @@ impl App {
                 r.shrink(2.0),
                 12,
                 t.bg.gamma_multiply(0.92),
-                Stroke::new(1.5, self.claude.current().accent(t)),
+                Stroke::new(1.5, t.accent),
                 egui::StrokeKind::Inside,
             );
             p.text(
@@ -2233,7 +2471,7 @@ impl App {
                 egui::Align2::CENTER_CENTER,
                 ph::PAPERCLIP,
                 theme::regular(28.0),
-                self.claude.current().accent(t),
+                t.accent,
             );
             p.text(
                 r.center() + vec2(0.0, 18.0),
@@ -2248,46 +2486,38 @@ impl App {
     fn claude_composer(&mut self, ui: &mut Ui, t: &Theme) {
         let busy = self.claude.chat().is_some_and(|c| c.busy);
         let agent = self.claude.current();
-        let accent = agent.accent(t);
+        let accent = t.accent;
         let mode = self.claude.chat().map(|c| c.mode).unwrap_or(self.claude.mode);
         let model = self
             .claude
             .chat()
             .map(|c| c.model.clone())
             .unwrap_or(self.claude.model_for(agent).to_string());
-        let limits = self.claude.limits_for(agent).to_vec();
         let mut send = false;
         let mut stop = false;
         let mut set_mode = None;
         let mut set_model = None;
+        let mut set_effort: Option<String> = None;
+        let effort = self
+            .claude
+            .chat()
+            .map(|c| c.effort.clone())
+            .unwrap_or(self.claude.effort_for(agent).to_string());
         let input_id = egui::Id::new("claude-input");
         let focused = ui.memory(|m| m.has_focus(input_id));
         let focus = crate::motion::toggle(ui.ctx(), input_id.with("ring"), focused, crate::motion::STANDARD);
         let top = self.claude.composer.map_or(0.0, |r| r.top());
         let frame = egui::Frame::new()
-            .fill(if t.dark { t.elevated } else { t.card })
-            .stroke(Stroke::new(
-                1.0,
-                crate::motion::lerp_color(
-                    t.border,
-                    accent.gamma_multiply(if agent == Agent::Codex { 0.45 } else { 0.6 }),
-                    focus,
-                ),
-            ))
-            .shadow(egui::Shadow {
-                offset: [0, 6],
-                blur: 22,
-                spread: 0,
-                color: Color32::from_black_alpha(if t.dark { 70 } else { 22 }),
-            })
-            .corner_radius(CornerRadius::same(18))
+                        .fill(style::surface(t))
+            .stroke(Stroke::new(1.5, crate::motion::with_alpha(accent, 0.85 * focus)))
+            .corner_radius(CornerRadius::same(22))
             .inner_margin(Margin {
-                left: 12,
-                right: 8,
-                top: 10,
-                bottom: 8,
+                left: 14,
+                right: 10,
+                top: 12,
+                bottom: 10,
             })
-            .show(ui, |ui| {
+.show(ui, |ui| {
                 ui.set_width(ui.available_width());
                 let now = ui.input(|i| i.time);
                 // Pasted files (a file manager copies them as paths) attach.
@@ -2393,35 +2623,32 @@ impl App {
                 }
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
-                    ui.set_height(30.0);
+                    ui.set_height(34.0);
                     ui.spacing_mut().item_spacing.x = 4.0;
-                    // Mode.
-                    let (icon, word) = match mode {
-                        Mode::Manual => (ph::HAND_PALM, tr("Ask first")),
-                        Mode::Auto => (ph::LIGHTNING, tr("Auto")),
+                                        let icon = match mode {
+Mode::Manual => ph::HAND_PALM,
+Mode::Auto => ph::LIGHTNING,
+};
+let ticked = if model.is_empty() {
+                        self.claude.default_model(agent).unwrap_or_default()
+                    } else {
+                        model.clone()
                     };
-                    let mut label = self.claude.current_label(agent, &model);
-                    // A narrow pane: the mode shrinks to its icon, then the
-                    // model drops its version. The send button and the ring
-                    // always keep their room.
-                    let clip = pill(ui, t, Some(ph::PAPERCLIP), "", false).on_hover_text(tr("Add files"));
-                    if clip.clicked() && self.claude.picker.is_none() {
-                        self.claude.picker = Some(attach::pick());
-                    }
-                    // The send button (and the ring, while there's room) keep
-                    // theirs; the rest gives way in steps.
-                    let full_label = label.clone();
-                    let room = ui.available_width() - 66.0;
-                    let mut show_ring = true;
-                    let mut mode_text = word;
+                    let levels = self.claude.levels_for(agent, &ticked);
+                    let effort_now = self.claude.effort_shown(agent, &ticked, &effort);
+                    let full_label = self.claude.current_label(agent, &model);
+                    let full_effort = effort_now.as_deref().map(effort::name).unwrap_or_default();
+                                        // Files and mode at the left; the model, with its effort,
+                    // and Send at the right. A narrow pane drops the model's
+                    // version, then the effort. Send always keeps its room.
+                    let mut label = full_label.clone();
+                    let mut level = full_effort.clone();
                     let mut model_icon = None;
-                    let fits = |ui: &Ui, mode_text: &str, icon_m: Option<&str>, label: &str, room: f32| {
-                        pill_width(ui, Some(icon), mode_text, true) + pill_width(ui, icon_m, label, true) + 4.0 <= room
+                    let room = ui.available_width() - 34.0 - 30.0 * 2.0 - 4.0 * 3.0;
+                    let fits = |ui: &Ui, icon_m: Option<&str>, label: &str, level: &str| {
+                        model_width(ui, icon_m, label, level) <= room
                     };
-                    if !fits(ui, mode_text, None, &label, room) {
-                        mode_text = "";
-                    }
-                    if !fits(ui, mode_text, None, &label, room) {
+                    if !fits(ui, None, &label, &level) {
                         label = match label.split_once(' ') {
                             Some((first, _)) => first.to_string(),
                             // One word ("GPT-5.6-Terra"): drop the family.
@@ -2431,25 +2658,26 @@ impl App {
                             },
                         };
                     }
-                    if !fits(ui, mode_text, None, &label, room) {
+                    if !fits(ui, None, &label, &level) {
+                        level.clear();
+                        if fits(ui, None, &full_label, "") {
+                            label = full_label.clone();
+                        }
+                    }
+                    if !fits(ui, None, &label, &level) {
                         label.clear();
                         model_icon = Some(ph::CPU);
                     }
-                    if !fits(ui, mode_text, model_icon, &label, room) {
-                        // Very narrow: the ring steps aside (its numbers go
-                        // in the model button's tooltip).
-                        show_ring = false;
+self.claude.footer.clear();
+                    let clip = style::icon_button(ui, t, ph::PAPERCLIP, 30.0, 16.0);
+                    if clip.clicked() && self.claude.picker.is_none() {
+                        self.claude.picker = Some(attach::pick());
                     }
-                    let resp = pill(ui, t, Some(icon), mode_text, true);
-                    self.claude.footer.clear();
                     self.claude.footer.push(clip.rect);
+                    // Mode.
+                                        let resp = style::icon_button(ui, t, icon, 30.0, 16.0);
                     self.claude.footer.push(resp.rect);
-                    let resp = if mode_text.is_empty() {
-                        resp.on_hover_text(word)
-                    } else {
-                        resp
-                    };
-                    self.claude_still_menu(ui, &resp, "mode");
+self.claude_still_menu(ui, &resp, "mode");
                     egui::Popup::menu(&resp)
                         .anchor(above(&resp, top))
                         .align(egui::RectAlign::TOP_START)
@@ -2490,84 +2718,11 @@ impl App {
                                 }
                             }
                         });
-                    // Model.
-                    // The model a default chat runs is the one ticked.
-                    let ticked = if model.is_empty() {
-                        self.claude.default_model(agent).unwrap_or_default()
-                    } else {
-                        model.clone()
-                    };
-                    let models = self.claude.models_for(agent);
-                    let resp = ui
-                        .add_enabled_ui(!busy, |ui| pill(ui, t, model_icon, &label, true))
-                        .inner;
-                    let resp = if label.is_empty() || !show_ring {
-                        let usage: String = if show_ring {
-                            String::new()
-                        } else {
-                            limits
-                                .iter()
-                                .map(|w| trf!("\n{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
-                                .collect()
-                        };
-                        resp.on_hover_text(format!("{full_label}{usage}"))
-                    } else {
-                        resp
-                    };
-                    self.claude.footer.push(resp.rect);
-                    self.claude_still_menu(ui, &resp, "model");
-                    // The agent's current models, when the menu opens.
-                    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
-                    if open
-                        && self.claude.wants_models(agent)
-                        && let Some(exe) = self.claude.cli_for(agent)
-                    {
-                        let dir = self.scripts_dir();
-                        match agent {
-                            Agent::Claude => {
-                                self.claude.claude_models_asked = true;
-                                self.claude.claude_models_rx = Some(process::models(exe, dir));
-                            }
-                            Agent::Codex => {
-                                self.claude.models_asked = true;
-                                self.claude.models_rx = Some(codex::models(exe, dir));
-                            }
-                        }
-                    }
-                    if !open {
-                        self.claude.models_asked = false;
-                    }
-                    egui::Popup::menu(&resp)
-                        .anchor(above(&resp, top))
-                        .align(egui::RectAlign::TOP_END)
-                        .gap(6.0)
-                        .width(176.0)
-                        .show(|ui| {
-                            ui.spacing_mut().item_spacing.y = 2.0;
-                            for (k, l) in &models {
-                                if menu_pick(ui, t, l, "", *k == ticked).clicked() {
-                                    set_model = Some(k.clone());
-                                    ui.close();
-                                }
-                            }
-                            if self.claude.models_rx.is_some()
-                                && self.claude.codex_models.is_empty()
-                                && agent == Agent::Codex
-                            {
-                                ui.add_space(4.0);
-                                ui.horizontal(|ui| {
-                                    ui.add_space(12.0);
-                                    ui.add(egui::Spinner::new().size(11.0).color(t.text3));
-                                    ui.add_space(4.0);
-                                    ui.label(RichText::new(tr("Loading models")).color(t.text3).size(12.0));
-                                });
-                                ui.add_space(6.0);
-                            }
-                        });
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.spacing_mut().item_spacing.x = 6.0;
+
+ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
                         let can_send = !self.claude.input.trim().is_empty() || !self.claude.attached.is_empty();
-                        let send_resp = send_button(ui, t, agent, busy, can_send);
+                        let send_resp = send_button(ui, t, busy, can_send);
                         self.claude.footer.push(send_resp.rect);
                         // Busy with text in the box: the button queues it
                         // (as Enter does); with the box empty it stops.
@@ -2578,9 +2733,77 @@ impl App {
                                 stop = true;
                             }
                         }
-                        if show_ring {
-                            self.claude_usage_ring(ui, t, top);
+                        // Model and effort.
+                        let models = self.claude.models_for(agent);
+                        let resp = ui
+                            .add_enabled_ui(!busy, |ui| model_pill(ui, t, model_icon, &label, &level))
+                            .inner;
+                                                let resp = if label != full_label || level != full_effort {
+                            resp.on_hover_text(format!("{full_label} {full_effort}").trim().to_string())
+                        } else {
+                            resp
+                        };
+self.claude.footer.push(resp.rect);
+                        self.claude_still_menu(ui, &resp, "model");
+                        // The agent's current models, when the menu opens.
+                        let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+                        if open
+                            && self.claude.wants_models(agent)
+                            && let Some(exe) = self.claude.cli_for(agent)
+                        {
+                            let dir = self.scripts_dir();
+                            match agent {
+                                Agent::Claude => {
+                                    self.claude.claude_models_asked = true;
+                                    self.claude.claude_models_rx = Some(process::models(exe, dir));
+                                }
+                                Agent::Codex => {
+                                    self.claude.models_asked = true;
+                                    self.claude.models_rx = Some(codex::models(exe, dir));
+                                }
+                            }
                         }
+                        if !open {
+                            self.claude.models_asked = false;
+                        }
+                        let menu_w = self.claude.composer.map_or(220.0, |r| r.width() - 24.0).clamp(150.0, 230.0);
+                        // Anchored to the composer's right edge, so it stays in the pane.
+                        let edge = self.claude.composer.map_or(resp.rect.right(), |c| c.right());
+                        let y = above(&resp, top).top();
+                        egui::Popup::menu(&resp)
+                            .anchor(egui::Rect::from_min_max(egui::pos2(edge, y), egui::pos2(edge, y)))
+                            .align(egui::RectAlign::TOP_END)
+                            .gap(6.0)
+                            .width(menu_w)
+                            // Open while a model and an effort are picked.
+                            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                            .show(|ui| {
+                                ui.spacing_mut().item_spacing.y = 2.0;
+                                for (k, l) in &models {
+                                    if menu_pick(ui, t, l, "", *k == ticked).clicked() && *k != ticked {
+                                        set_model = Some(k.clone());
+                                    }
+                                }
+                                if self.claude.models_rx.is_some()
+                                    && self.claude.codex_models.is_empty()
+                                    && agent == Agent::Codex
+                                {
+                                    ui.add_space(4.0);
+                                    ui.horizontal(|ui| {
+                                        ui.add_space(12.0);
+                                        ui.add(egui::Spinner::new().size(11.0).color(t.text3));
+                                        ui.add_space(4.0);
+                                        ui.label(RichText::new(tr("Loading models")).color(t.text3).size(12.0));
+                                    });
+                                    ui.add_space(6.0);
+                                }
+                                if levels.all.len() > 1 {
+                                    effort::rule(ui, t);
+                                                                        if let Some(l) = effort::slider(ui, t, &levels.all, effort_now.as_deref()) {
+                                        set_effort = Some(l);
+                                    }
+}
+                            });
                     });
                 });
                 // A paste that found nothing says so for a few seconds.
@@ -2608,6 +2831,9 @@ impl App {
         if let Some(k) = set_model {
             self.claude_set_model(&k);
         }
+        if let Some(l) = set_effort {
+            self.claude_set_effort(&l);
+        }
         if let Some(rx) = &self.claude.models_rx {
             match rx.try_recv() {
                 Ok(list) => {
@@ -2622,10 +2848,7 @@ impl App {
             match rx.try_recv() {
                 Ok(list) => {
                     self.claude.claude_models_rx = None;
-                    if !list.is_empty() && list != self.claude.claude_models {
-                        self.claude.claude_models = list;
-                        self.claude.dirty = true;
-                    }
+                    self.claude.set_claude_models(list);
                 }
                 Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.claude_models_rx = None,
                 Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
@@ -2639,58 +2862,6 @@ impl App {
         }
     }
 
-    /// A small ring for the 5-hour limit; hover for the numbers, click for
-    /// the account and this chat's usage.
-    fn claude_usage_ring(&mut self, ui: &mut Ui, t: &Theme, top: f32) {
-        let limits = self.claude.limits_for(self.claude.current()).to_vec();
-        let used = limits.first().map(|w| w.used).unwrap_or(0.0) as f32;
-        let (r, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
-        self.claude.footer.push(r);
-        let hover = ui.rect_contains_pointer(r);
-        let p = ui.painter();
-        if hover {
-            p.circle_filled(r.center(), 13.0, t.hover_wash());
-        }
-        let c = r.center();
-        let rad = 7.5;
-        p.circle_stroke(c, rad, Stroke::new(2.2, t.border));
-        if used > 0.0 {
-            let n = 48;
-            let end = used.clamp(0.0, 1.0) * std::f32::consts::TAU;
-            let pts: Vec<egui::Pos2> = (0..=n)
-                .map(|k| {
-                    let a = -std::f32::consts::FRAC_PI_2 + end * k as f32 / n as f32;
-                    c + vec2(a.cos(), a.sin()) * rad
-                })
-                .collect();
-            let col = if used >= 0.85 { t.warn } else { t.text2 };
-            p.add(egui::Shape::line(pts, Stroke::new(2.2, col)));
-        }
-        let tip = if limits.is_empty() {
-            tr("Usage shows after your first message.").to_string()
-        } else {
-            limits
-                .iter()
-                .map(|w| trf!("{}: {:.0}% used", process::window_name(&w.name), w.used * 100.0))
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
-        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip);
-        self.claude_still_menu(ui, &resp, "usage");
-        // Anchored to the composer's right edge, so the card stays in the pane.
-        let edge = self.claude.composer.map_or(resp.rect.right(), |c| c.right());
-        let y = above(&resp, top).top();
-        egui::Popup::menu(&resp)
-            .anchor(egui::Rect::from_min_max(egui::pos2(edge, y), egui::pos2(edge, y)))
-            .align(egui::RectAlign::TOP_END)
-            .gap(6.0)
-            .width(236.0)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .show(|ui| {
-                self.claude_usage_card(ui, t);
-            });
-    }
-
     /// Opens a composer menu for a screenshot, once the composer has been
     /// laid out (menus anchor to its top edge).
     fn claude_still_menu(&mut self, ui: &Ui, resp: &egui::Response, name: &str) {
@@ -2701,74 +2872,124 @@ impl App {
     }
 
     fn claude_usage_card(&self, ui: &mut Ui, t: &Theme) {
-        egui::Frame::new().inner_margin(Margin::symmetric(8, 6)).show(ui, |ui| {
-            ui.spacing_mut().item_spacing.y = 4.0;
-            ui.spacing_mut().interact_size.y = 18.0;
-            let row = |ui: &mut Ui, k: &str, v: String, dim: bool| {
-                ui.horizontal(|ui| {
-                    ui.label(RichText::new(k).color(if dim { t.text2 } else { t.text }).size(12.5));
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.label(RichText::new(v).color(t.text).size(12.5));
-                    });
-                });
-            };
-            let agent = self.claude.current();
-            let limits = self.claude.limits_for(agent);
-            if limits.is_empty() {
-                ui.label(
-                    RichText::new(tr("Shows after your first message."))
-                        .color(t.text3)
-                        .size(12.0),
-                );
-            }
-            for (k, wd) in limits.iter().enumerate() {
-                if k > 0 {
-                    ui.add_space(6.0);
-                }
-                row(
-                    ui,
-                    &process::window_name(&wd.name),
-                    format!("{:.0}%", wd.used * 100.0),
-                    false,
-                );
-                let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 4.0), Sense::hover());
-                ui.painter().rect_filled(r, 2, t.border);
-                let mut f = r;
-                f.set_width(r.width() * wd.used.clamp(0.0, 1.0) as f32);
-                ui.painter()
-                    .rect_filled(f, 2, if wd.used >= 0.85 { t.warn } else { agent.accent(t) });
-                if wd.resets > 0 {
+        egui::Frame::new()
+            .inner_margin(Margin::symmetric(10, 10))
+            .show(ui, |ui| {
+                ui.spacing_mut().item_spacing.y = 4.0;
+                let agent = self.claude.current();
+                let limits = self.claude.limits_for(agent);
+                if limits.is_empty() {
                     ui.label(
-                        RichText::new(trf!("Resets {}", reset_time(wd.resets)))
+                        RichText::new(tr("Shows after your first message."))
                             .color(t.text3)
-                            .size(11.0),
+                            .size(12.0),
                     );
                 }
-            }
-            if let Some(c) = self
-                .claude
-                .chat()
-                .filter(|c| c.usage != Usage::default() || c.context > 0)
-            {
-                ui.add_space(8.0);
-                let line = ui
-                    .allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover())
-                    .0;
-                ui.painter()
-                    .hline(line.x_range(), line.center().y, Stroke::new(1.0, t.border));
-                ui.add_space(6.0);
+                usage_meters(ui, t, limits, ui.visuals().window_fill);
+                let Some(c) = self
+                    .claude
+                    .chat()
+                    .filter(|c| c.usage != Usage::default() || c.context > 0)
+                else {
+                    return;
+                };
+                ui.add_space(10.0);
+                let row = |ui: &mut Ui, k: &str, v: String| {
+                    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
+                    let p = ui.painter();
+                    p.text(
+                        r.left_center(),
+                        egui::Align2::LEFT_CENTER,
+                        k,
+                        theme::regular(12.5),
+                        t.text2,
+                    );
+                    p.text(
+                        r.right_center(),
+                        egui::Align2::RIGHT_CENTER,
+                        v,
+                        FontId::monospace(12.0),
+                        t.text,
+                    );
+                };
                 if !c.model_name.is_empty() {
-                    row(ui, tr("Model"), self.claude.model_label(c.agent, &c.model_name), true);
+                    row(ui, tr("Model"), self.claude.model_label(c.agent, &c.model_name));
                 }
-                row(ui, tr("Context now"), tokens(c.context), true);
-                row(ui, tr("Input"), tokens(c.usage.input + c.usage.cache_write), true);
-                row(ui, tr("Read from cache"), tokens(c.usage.cache_read), true);
-                row(ui, tr("Output"), tokens(c.usage.output), true);
+                row(ui, tr("Context now"), tokens(c.context));
+                row(ui, tr("Input"), tokens(c.usage.input + c.usage.cache_write));
+                row(ui, tr("Read from cache"), tokens(c.usage.cache_read));
+                row(ui, tr("Output"), tokens(c.usage.output));
                 if c.cost > 0.0 {
-                    row(ui, tr("API price equivalent"), format!("${:.2}", c.cost), true);
+                    row(ui, tr("API price equivalent"), format!("${:.2}", c.cost));
                 }
-            }
-        });
+            });
+    }
+}
+
+/// A limit this used is shown in red.
+const HIGH: f64 = 0.85;
+
+/// Each usage limit: its name, how much is used, how long until it resets,
+/// and a meter whose mark is how much of its time has passed.
+fn usage_meters(ui: &mut Ui, t: &Theme, limits: &[Window], behind: Color32) {
+    let now = now_ms() / 1000;
+    for (k, l) in limits.iter().enumerate() {
+        if k > 0 {
+            ui.add_space(8.0);
+        }
+        let high = l.used >= HIGH;
+        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 20.0), Sense::hover());
+        let p = ui.painter();
+        p.text(
+            r.left_center(),
+            egui::Align2::LEFT_CENTER,
+            process::window_name(&l.name),
+            theme::medium(12.5),
+            t.text,
+        );
+        let mut right = r.right();
+        let left = l.resets - now;
+        if left > 0 {
+            let g = p.text(
+                egui::pos2(right, r.center().y),
+                egui::Align2::RIGHT_CENTER,
+                time_left(left),
+                FontId::monospace(11.5),
+                t.text3,
+            );
+            right = g.left() - 7.0;
+        }
+        p.text(
+            egui::pos2(right, r.center().y),
+            egui::Align2::RIGHT_CENTER,
+            format!("{:.0}%", l.used * 100.0),
+            theme::semibold(12.5),
+            if high { t.neg } else { t.accent },
+        );
+        let (m, _) = ui.allocate_exact_size(vec2(ui.available_width(), 14.0), Sense::hover());
+        let bar = egui::Rect::from_center_size(m.center(), vec2(m.width(), 7.0));
+        let mark = process::window_minutes(&l.name)
+            .filter(|_| left > 0)
+            .map(|w| 1.0 - (left as f32 / 60.0 / w as f32).clamp(0.0, 1.0));
+        style::meter(
+            ui.painter(),
+            t,
+            bar,
+            l.used as f32,
+            if high { t.neg } else { t.accent },
+            mark,
+            behind,
+        );
+    }
+}
+
+/// Time left as people say it: "42m", "1h 53m", "4d 18h".
+fn time_left(secs: i64) -> String {
+    let m = (secs.max(0) + 59) / 60;
+    match m {
+        0..60 => format!("{m}m"),
+        60..1440 => format!("{}h {}m", m / 60, m % 60),
+        _ => format!("{}d {}h", m / 1440, (m % 1440) / 60),
     }
 }
 
@@ -2796,6 +3017,9 @@ fn title_of(text: &str) -> String {
     }
     if s.is_empty() { nt!("New chat").into() } else { s }
 }
+
+/// A title's highlight reaches this far past it.
+const TITLE_PAD: f32 = 7.0;
 
 /// The composer's text: line height, and the most lines it grows to.
 const LINE_H: f32 = 18.5;
@@ -2848,15 +3072,20 @@ fn codex_name(id: &str) -> String {
         .join("-")
 }
 
-/// `model = "…"` before the first table of a TOML file.
+/// A Codex `config.toml`'s model.
 fn toml_model(text: &str) -> Option<String> {
+    toml_value(text, "model")
+}
+
+/// `key = "…"` before the first table of a TOML file.
+fn toml_value(text: &str, key: &str) -> Option<String> {
     for line in text.lines() {
         let line = line.trim();
         if line.starts_with('[') {
             break;
         }
         if let Some((k, v)) = line.split_once('=')
-            && k.trim() == "model"
+            && k.trim() == key
         {
             let v = v.split('#').next().unwrap_or("").trim();
             return Some(v.trim_matches(|c| c == '"' || c == '\'').to_string());
@@ -2882,19 +3111,6 @@ fn tokens(n: u64) -> String {
         0..1_000 => n.to_string(),
         1_000..1_000_000 => format!("{:.1}k", n as f64 / 1e3),
         _ => format!("{:.2}M", n as f64 / 1e6),
-    }
-}
-
-fn reset_time(unix_s: i64) -> String {
-    let Ok(ts) = jiff::Timestamp::from_second(unix_s) else {
-        return String::new();
-    };
-    let z = ts.to_zoned(jiff::tz::TimeZone::system());
-    let today = jiff::Zoned::now().date();
-    if z.date() == today {
-        trf!("at {}", z.strftime("%H:%M"))
-    } else {
-        date(&z, "%a %H:%M")
     }
 }
 
@@ -3212,8 +3428,8 @@ struct Steps {
     toggle: Option<(u64, usize)>,
 }
 
-/// A run of steps in one quiet box. Long finished runs fold to one line
-/// ("5 steps · the last one"); a click opens them.
+/// A run of steps in one pill: the latest, and how many. A click opens the
+/// pill into a card with all of them.
 #[allow(clippy::too_many_arguments)]
 fn steps(
     ui: &mut Ui,
@@ -3230,78 +3446,68 @@ fn steps(
         toggle: None,
     };
     egui::Frame::new()
-        .fill(t.card)
-        .stroke(Stroke::new(1.0, t.border.gamma_multiply(0.7)))
-        .corner_radius(CornerRadius::same(10))
-        .inner_margin(Margin::symmetric(4, 4))
+        .fill(style::surface(t))
+        .corner_radius(CornerRadius::same(style::CARD))
+        .inner_margin(Margin::symmetric(6, 3))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 0.0;
             if foldable {
-                let last = items.iter().rev().find_map(step_label).unwrap_or_default();
                 let errors = items
                     .iter()
                     .filter(|i| matches!(i, Item::Tool { error: true, .. }))
                     .count();
-                let head = trf!("{} steps", items.len());
                 let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-                let hover = ui.rect_contains_pointer(r);
+                let hover = crate::motion::hover_if(&resp, ui.rect_contains_pointer(r));
                 let p = ui.painter();
-                if hover {
-                    p.rect_filled(r, 7, t.hover_wash());
-                }
+                // The last step stands for the rest.
+                let (icon, label, done) = match items.last() {
+                    Some(Item::Tool {
+                        tool, label, result, ..
+                    }) => (tool_icon(tool), trl(label).into_owned(), result.is_some()),
+                    _ => (
+                        ph::CHECK,
+                        items.iter().rev().find_map(step_label).unwrap_or_default(),
+                        true,
+                    ),
+                };
                 p.text(
-                    egui::pos2(r.left() + 14.0, r.center().y),
+                    egui::pos2(r.left() + STEP_X, r.center().y),
                     egui::Align2::CENTER_CENTER,
-                    ph::LIST_CHECKS,
+                    if open { ph::CARET_UP } else { icon },
                     theme::regular(14.0),
-                    t.text2,
+                    if errors > 0 && !open { t.warn } else { t.accent },
                 );
-                let hf = theme::medium(12.5);
-                let hg = p.layout_no_wrap(head, hf, t.text);
-                let hw = hg.size().x;
-                p.galley(
-                    egui::pos2(r.left() + 30.0, r.center().y - hg.size().y / 2.0),
-                    hg,
-                    t.text,
+                let count = trf!("{} steps", items.len());
+                let left = style::chip(
+                    p,
+                    &count,
+                    egui::pos2(r.right() - 4.0, r.center().y),
+                    crate::motion::lerp_color(style::raised(t), style::raised(t).blend(style::tint(t)), hover),
+                    crate::motion::lerp_color(t.text2, t.accent, hover),
                 );
-                let mut x = r.left() + 30.0 + hw + 8.0;
-                if errors > 0 {
-                    let g = p.text(
-                        egui::pos2(x, r.center().y),
-                        egui::Align2::LEFT_CENTER,
-                        format!("{} {errors}", ph::WARNING),
-                        theme::regular(12.0),
-                        t.warn,
-                    );
-                    x = g.right() + 8.0;
-                }
                 if !open {
                     let f = theme::regular(12.5);
-                    let rest = crate::format::elide_to(p, &last, &f, r.right() - 30.0 - x);
-                    p.text(egui::pos2(x, r.center().y), egui::Align2::LEFT_CENTER, rest, f, t.text3);
+                    let text = crate::format::elide_to(p, &label, &f, left - 8.0 - r.left() - STEP_TEXT);
+                    let c = if done {
+                        crate::motion::lerp_color(t.text2, t.text, hover)
+                    } else {
+                        t.text
+                    };
+                    p.text(
+                        egui::pos2(r.left() + STEP_TEXT, r.center().y),
+                        egui::Align2::LEFT_CENTER,
+                        text,
+                        f,
+                        c,
+                    );
                 }
-                p.text(
-                    egui::pos2(r.right() - 12.0, r.center().y),
-                    egui::Align2::CENTER_CENTER,
-                    if open { ph::CARET_UP } else { ph::CARET_DOWN },
-                    theme::regular(12.0),
-                    t.text3,
-                );
                 if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                     out.fold = true;
                 }
                 if !open {
                     return;
                 }
-                let line = ui
-                    .allocate_exact_size(vec2(ui.available_width(), 1.0), Sense::hover())
-                    .0;
-                ui.painter().hline(
-                    line.x_range().shrink(8.0),
-                    line.center().y,
-                    Stroke::new(1.0, t.border.gamma_multiply(0.6)),
-                );
             }
             for (k, it) in items.iter().enumerate() {
                 let index = first + k;
@@ -3321,9 +3527,14 @@ fn steps(
                         }
                         if shown && let Some(r) = result {
                             let text: String = r.chars().take(4000).collect();
-                            egui::Frame::new().inner_margin(Margin::symmetric(6, 4)).show(ui, |ui| {
-                                code_block(ui, t, &text, "", (chat, index));
-                            });
+                            egui::Frame::new()
+                                .inner_margin(Margin {
+                                    left: 4,
+                                    right: 4,
+                                    top: 2,
+                                    bottom: 8,
+                                })
+                                .show(ui, |ui| code_block(ui, t, &text, "", (chat, index)));
                         }
                     }
                     Item::Ask { label, state, .. } => {
@@ -3341,6 +3552,42 @@ fn steps(
     out
 }
 
+/// Where a step's icon is centred and where its text starts.
+const STEP_X: f32 = 14.0;
+const STEP_TEXT: f32 = 32.0;
+
+/// While the agent works: its logo, what it's doing and for how long.
+fn working(ui: &mut Ui, t: &Theme, chat: &Chat, waiting: bool) {
+    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::hover());
+    let logo = egui::Rect::from_center_size(egui::pos2(r.left() + 8.0, r.center().y), vec2(15.0, 15.0));
+    agent::paint(ui, logo, chat.agent, chat.agent.tint(t), 0.0);
+    let text = egui::Rect::from_min_max(egui::pos2(r.left() + 24.0, r.top() + 2.0), r.max);
+    let mut child = ui.new_child(
+        egui::UiBuilder::new()
+            .max_rect(text)
+            .layout(Layout::left_to_right(Align::Center)),
+    );
+    if waiting {
+        child.label(RichText::new(tr("Waiting for your answer")).color(t.text2).size(12.5));
+        return;
+    }
+    shimmer(
+        &mut child,
+        t,
+        if chat.thinking { tr("Thinking") } else { tr("Working") },
+    );
+    // How long, once it's worth saying.
+    if let Some(s) = chat.since.map(|s| s.elapsed().as_secs()).filter(|s| *s >= 5) {
+        ui.painter().text(
+            r.right_center(),
+            egui::Align2::RIGHT_CENTER,
+            elapsed(s),
+            FontId::monospace(11.5),
+            t.text3,
+        );
+    }
+}
+
 fn step_label(i: &Item) -> Option<String> {
     match i {
         Item::Tool { label, .. } => Some(trl(label).into_owned()),
@@ -3351,18 +3598,20 @@ fn step_label(i: &Item) -> Option<String> {
 /// One step: icon, what it did, and its state. Returns whether it was
 /// clicked.
 fn step_row(ui: &mut Ui, t: &Theme, icon: &str, label: &str, done: bool, error: bool, open: bool) -> bool {
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 28.0), Sense::click());
-    let hover = done && ui.rect_contains_pointer(r);
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
+    let hover = crate::motion::hover_if(&resp, done && ui.rect_contains_pointer(r));
     let p = ui.painter();
-    if hover {
-        p.rect_filled(r, 7, t.hover_wash());
-    }
+    p.rect_filled(r, style::RADIUS, crate::motion::with_alpha(style::raised(t), hover));
     p.text(
-        egui::pos2(r.left() + 14.0, r.center().y),
+        egui::pos2(r.left() + STEP_X, r.center().y),
         egui::Align2::CENTER_CENTER,
         icon,
-        theme::regular(13.5),
-        if error { t.warn } else { t.text3 },
+        theme::regular(14.0),
+        match (error, done) {
+            (true, _) => t.warn,
+            (_, false) => t.text,
+            _ => t.text3,
+        },
     );
     let right = egui::pos2(r.right() - 12.0, r.center().y);
     if !done {
@@ -3383,18 +3632,29 @@ fn step_row(ui: &mut Ui, t: &Theme, icon: &str, label: &str, done: bool, error: 
             theme::regular(12.5),
             t.warn,
         );
-    } else if hover || open {
+    } else if hover > 0.0 || open {
+        let k = if open { 1.0 } else { hover };
         let g = if open { ph::CARET_UP } else { ph::CARET_DOWN };
-        p.text(right, egui::Align2::CENTER_CENTER, g, theme::regular(12.0), t.text3);
+        p.text(
+            right,
+            egui::Align2::CENTER_CENTER,
+            g,
+            theme::regular(12.0),
+            crate::motion::with_alpha(t.text3, k),
+        );
     }
     let f = theme::regular(12.5);
-    let text = crate::format::elide_to(p, label, &f, r.width() - 30.0 - 30.0);
+    let text = crate::format::elide_to(p, label, &f, r.width() - STEP_TEXT - 24.0);
     p.text(
-        egui::pos2(r.left() + 30.0, r.center().y),
+        egui::pos2(r.left() + STEP_TEXT, r.center().y),
         egui::Align2::LEFT_CENTER,
         text,
         f,
-        if hover { t.text } else { t.text2 },
+        if done {
+            crate::motion::lerp_color(t.text2, t.text, hover)
+        } else {
+            t.text
+        },
     );
     done && resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
 }
@@ -3443,12 +3703,12 @@ fn file_chips(ui: &mut Ui, t: &Theme, files: &[String], width: f32, right: bool,
             let (name, w) = &sizes[k];
             let rect = egui::Rect::from_min_size(egui::pos2(x, y), vec2(*w, h));
             let resp = ui.interact(rect, ui.id().with(("chip", k, &files[k])), Sense::click());
-            let hover = resp.hovered();
+            let hover = crate::motion::hover(&resp);
             let p = ui.painter();
             p.rect(
                 rect,
                 8,
-                if hover { t.hover_wash() } else { t.card },
+                crate::motion::lerp_color(t.card, t.hovered(t.card), hover),
                 Stroke::new(1.0, t.border.gamma_multiply(0.8)),
                 egui::StrokeKind::Inside,
             );
@@ -3472,17 +3732,17 @@ fn file_chips(ui: &mut Ui, t: &Theme, files: &[String], width: f32, right: bool,
                     egui::Rect::from_center_size(egui::pos2(rect.right() - 13.0, rect.center().y), vec2(18.0, 18.0));
                 let xb = ui.interact(xr, ui.id().with(("chip-x", k, &files[k])), Sense::click());
                 on_x = xb.hovered();
-                if on_x {
-                    ui.painter().rect_filled(xr, 5, t.hover_wash());
-                }
+                let lit = crate::motion::hover(&xb);
+                ui.painter()
+                    .rect_filled(xr, 5, crate::motion::with_alpha(t.hover_wash(), lit));
                 ui.painter().text(
                     xr.center(),
                     egui::Align2::CENTER_CENTER,
                     ph::X,
                     theme::regular(11.5),
-                    if on_x { t.text } else { t.text3 },
+                    crate::motion::lerp_color(t.text3, t.text, lit),
                 );
-                if xb.on_hover_text(tr("Remove")).clicked() {
+                if xb.clicked() {
                     out = Chip::Remove(k);
                 }
             }
@@ -3518,8 +3778,7 @@ fn user_bubble(ui: &mut Ui, t: &Theme, text: &str, width: f32) {
     let size = galley.size() + pad * 2.0;
     let (row, _) = ui.allocate_exact_size(vec2(width, size.y), Sense::hover());
     let r = egui::Rect::from_min_size(egui::pos2(row.right() - size.x, row.top()), size);
-    ui.painter()
-        .rect_filled(r, 14, if t.dark { t.hover } else { t.sidebar });
+    ui.painter().rect_filled(r, style::CARD, style::tint(t));
     // A selectable label, so part of the message can be copied.
     let text_rect = egui::Rect::from_min_size(r.min + pad, galley.size());
     let resp = ui.scope_builder(egui::UiBuilder::new().max_rect(text_rect), |ui| {
@@ -3563,20 +3822,18 @@ fn queued_bubble(ui: &mut Ui, t: &Theme, q: &Queued, width: f32, key: (u64, usiz
     let (row, _) = ui.allocate_exact_size(vec2(width, size.y), Sense::hover());
     let r = egui::Rect::from_min_size(egui::pos2(row.right() - size.x, row.top()), size);
     let p = ui.painter();
-    p.rect_stroke(r, 14, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
+    p.rect_stroke(r, style::CARD, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
     p.galley(r.min + pad, galley, t.text3);
     // Tested on the row, not the button (see "hover flicker" in docs/notes/alerts.md).
     if !ui.rect_contains_pointer(row) {
         return false;
     }
     let x = egui::Rect::from_center_size(egui::pos2(r.left() - 16.0, r.center().y), vec2(22.0, 22.0));
-    let resp = ui
-        .interact(x, ui.id().with(("unqueue", key)), Sense::click())
-        .on_hover_text(tr("Remove"));
-    let c = if resp.hovered() { t.text } else { t.text3 };
-    if resp.hovered() {
-        ui.painter().rect_filled(x, 6, t.hover);
-    }
+    let resp = ui.interact(x, ui.id().with(("unqueue", key)), Sense::click());
+    let hover = crate::motion::hover(&resp);
+    let c = crate::motion::lerp_color(t.text3, t.text, hover);
+    ui.painter()
+        .rect_filled(x, 6, crate::motion::with_alpha(t.hover, hover));
     ui.painter()
         .text(x.center(), egui::Align2::CENTER_CENTER, ph::X, theme::regular(13.0), c);
     resp.clicked()
@@ -3588,7 +3845,6 @@ fn queued_bubble(ui: &mut Ui, t: &Theme, q: &Queued, width: f32, key: (u64, usiz
 fn ask_card(
     ui: &mut Ui,
     t: &Theme,
-    agent: Agent,
     tool: &str,
     label: &str,
     detail: &str,
@@ -3597,76 +3853,116 @@ fn ask_card(
 ) -> Option<(bool, bool)> {
     let mut out = None;
     egui::Frame::new()
-        .fill(t.card)
-        .stroke(Stroke::new(1.0, agent.accent(t).gamma_multiply(0.55)))
-        .corner_radius(CornerRadius::same(12))
-        .inner_margin(Margin::symmetric(12, 10))
+        .fill(style::surface(t))
+        .stroke(Stroke::new(1.5, crate::motion::with_alpha(t.accent, 0.85)))
+        .corner_radius(CornerRadius::same(style::CARD))
+        .inner_margin(Margin::same(14))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 8.0;
-                ui.label(RichText::new(tool_icon(tool)).color(agent.accent(t)).size(15.0));
+                ui.spacing_mut().item_spacing.x = 10.0;
+                let (b, _) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::hover());
+                style::badge(ui.painter(), t, b.center(), 15.0, tool_icon(tool), 1.0);
                 ui.add(egui::Label::new(RichText::new(label).font(theme::semibold(13.0))).truncate());
             });
+
             if !detail.is_empty() {
-                ui.add_space(4.0);
+                ui.add_space(6.0);
                 if matches!(tool, "Edit" | "MultiEdit") || detail.starts_with("+ ") || detail.starts_with("- ") {
                     diff_block(ui, t, detail);
                 } else {
                     code_block(ui, t, detail, "", key);
                 }
             }
-            ui.add_space(6.0);
-            ui.label(
-                RichText::new(trf!("Allow {} to do this?", agent.name()))
-                    .color(t.text2)
-                    .size(12.5),
-            );
-            ui.add_space(2.0);
-            let mut choices: Vec<Choice> = vec![("1", tr("Allow"), Some((true, false)))];
-            if can_always {
-                choices.push(("2", tr("Allow for this chat"), Some((true, true))));
+            ui.add_space(8.0);
+            // Allow, then the rest beside each other (or one under the other
+            // where they don't fit).
+            ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
+            let width = ui.available_width();
+            if choice(ui, t, width, "1", tr("Allow"), true) {
+                out = Some((true, false));
             }
-            let n = if can_always { "3" } else { "2" };
-            choices.push((n, tr("Deny"), Some((false, false))));
-            for (k, text, v) in choices {
-                let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-                let hover = ui.rect_contains_pointer(r);
-                let p = ui.painter();
-                if hover {
-                    p.rect_filled(r, 7, t.hover_wash());
-                }
-                let badge = egui::Rect::from_center_size(egui::pos2(r.left() + 16.0, r.center().y), vec2(18.0, 18.0));
-                p.rect_stroke(badge, 5, Stroke::new(1.0, t.border), egui::StrokeKind::Inside);
-                p.text(
-                    badge.center(),
-                    egui::Align2::CENTER_CENTER,
-                    k,
-                    FontId::monospace(10.5),
-                    t.text3,
-                );
-                p.text(
-                    egui::pos2(r.left() + 34.0, r.center().y),
-                    egui::Align2::LEFT_CENTER,
-                    text,
-                    theme::medium(12.5),
-                    if hover { t.text } else { t.text2 },
-                );
-                if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    out = v;
+            let mut rest: Vec<Choice> = Vec::new();
+            if can_always {
+                rest.push(("2", tr("Allow for this chat"), Some((true, true))));
+            }
+            rest.push((if can_always { "3" } else { "2" }, tr("Deny"), Some((false, false))));
+            let wide: f32 = rest.iter().map(|(_, l, _)| choice_width(ui, l) + 6.0).sum::<f32>() - 6.0;
+            if rest.len() > 1 && wide <= width {
+                ui.horizontal(|ui| {
+                    let spare = (width - wide) / rest.len() as f32;
+                    for (k, l, v) in rest {
+                        let w = choice_width(ui, l) + spare;
+                        if choice(ui, t, w, k, l, false) {
+                            out = v;
+                        }
+                    }
+                });
+            } else {
+                for (k, l, v) in rest {
+                    if choice(ui, t, width, k, l, false) {
+                        out = v;
+                    }
                 }
             }
         });
     out
 }
 
+fn choice_width(ui: &Ui, label: &str) -> f32 {
+    let g = ui
+        .painter()
+        .layout_no_wrap(label.to_string(), theme::medium(12.5), Color32::WHITE);
+    g.size().x + 46.0
+}
+
+/// One answer on a permission prompt: its label, and its key at the end.
+fn choice(ui: &mut Ui, t: &Theme, width: f32, key: &str, label: &str, main: bool) -> bool {
+    let (r, resp) = ui.allocate_exact_size(vec2(width, 34.0), Sense::click());
+    let hover = crate::motion::toggle(ui.ctx(), resp.id, resp.hovered(), crate::motion::MICRO);
+    let accent = t.accent;
+    let (fill, text) = if main {
+        (
+            crate::motion::lerp_color(
+                accent,
+                if t.dark { Color32::WHITE } else { Color32::BLACK },
+                0.1 * hover,
+            ),
+            t.on_accent,
+        )
+    } else {
+        (
+            crate::motion::lerp_color(style::raised(t), t.hovered(style::raised(t)), hover),
+            crate::motion::lerp_color(t.text2, t.text, hover),
+        )
+    };
+    let p = ui.painter();
+    p.rect_filled(r, 8, fill);
+    p.text(
+        egui::pos2(r.center().x - 7.0, r.center().y),
+        egui::Align2::CENTER_CENTER,
+        label,
+        theme::medium(12.5),
+        text,
+    );
+    let badge = egui::Rect::from_center_size(egui::pos2(r.right() - 17.0, r.center().y), vec2(17.0, 17.0));
+    p.circle_filled(badge.center(), 8.5, crate::motion::with_alpha(text, 0.14));
+    p.text(
+        badge.center(),
+        egui::Align2::CENTER_CENTER,
+        key,
+        FontId::monospace(10.5),
+        crate::motion::with_alpha(text, 0.85),
+    );
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
+}
+
 /// Removed and added lines, tinted.
 fn diff_block(ui: &mut Ui, t: &Theme, diff: &str) {
     egui::Frame::new()
         .fill(t.bg)
-        .stroke(Stroke::new(1.0, t.border.gamma_multiply(0.6)))
-        .corner_radius(CornerRadius::same(8))
-        .inner_margin(Margin::symmetric(0, 6))
+        .corner_radius(CornerRadius::same(12))
+        .inner_margin(Margin::symmetric(0, 8))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
             ui.spacing_mut().item_spacing.y = 0.0;
@@ -3689,117 +3985,92 @@ fn diff_block(ui: &mut Ui, t: &Theme, diff: &str) {
         });
 }
 
-/// A rounded, quiet button with an optional icon and a caret.
-/// How wide `pill` draws.
-fn pill_width(ui: &Ui, icon: Option<&str>, text: &str, caret: bool) -> f32 {
-    let text_w = if text.is_empty() {
-        -4.0
-    } else {
+/// How wide `model_pill` draws.
+fn model_width(ui: &Ui, icon: Option<&str>, name: &str, level: &str) -> f32 {
+    let of = |s: &str| {
         ui.painter()
-            .layout_no_wrap(text.to_string(), theme::medium(12.0), Color32::WHITE)
+            .layout_no_wrap(s.to_string(), theme::medium(12.0), Color32::WHITE)
             .size()
             .x
     };
-    text_w + 20.0 + if icon.is_some() { 18.0 } else { 0.0 } + if caret { 14.0 } else { 0.0 }
+    let name_w = if icon.is_some() { 14.0 } else { of(name) };
+    let level_w = if level.is_empty() { 0.0 } else { of(level) + 5.0 };
+    name_w + level_w + 18.0
 }
 
-fn pill(ui: &mut Ui, t: &Theme, icon: Option<&str>, text: &str, caret: bool) -> egui::Response {
-    let f = theme::medium(12.0);
-    let w = pill_width(ui, icon, text, caret);
-    let (r, resp) = ui.allocate_exact_size(vec2(w, 26.0), Sense::click());
+/// The model and its effort, in a pill.
+fn model_pill(ui: &mut Ui, t: &Theme, icon: Option<&str>, name: &str, level: &str) -> egui::Response {
+    let w = model_width(ui, icon, name, level);
+    let (r, resp) = ui.allocate_exact_size(vec2(w, 30.0), Sense::click());
     let enabled = ui.is_enabled();
     let hover = enabled && ui.rect_contains_pointer(r);
+    let k = crate::motion::toggle(ui.ctx(), resp.id, hover, crate::motion::MICRO);
     let p = ui.painter();
-    if hover {
-        p.rect_filled(r, 8, t.hover_wash());
-    }
-    let col = if !enabled {
-        t.text3
-    } else if hover {
-        t.text
-    } else {
-        t.text2
-    };
-    let mut x = r.left() + 10.0;
-    if let Some(i) = icon {
+    p.rect_filled(r, style::RADIUS, crate::motion::with_alpha(t.hover_wash(), k));
+    let g = p.text(
+        egui::pos2(r.left() + 9.0, r.center().y),
+        egui::Align2::LEFT_CENTER,
+        icon.unwrap_or(name),
+        if icon.is_some() {
+            theme::regular(14.0)
+        } else {
+            theme::medium(12.0)
+        },
+        crate::motion::lerp_color(t.text2, t.text, k),
+    );
+    if !level.is_empty() {
         p.text(
-            egui::pos2(x, r.center().y),
+            egui::pos2(g.right() + 5.0, r.center().y),
             egui::Align2::LEFT_CENTER,
-            i,
-            theme::regular(13.0),
-            col,
-        );
-        x += 18.0;
-    }
-    p.text(egui::pos2(x, r.center().y), egui::Align2::LEFT_CENTER, text, f, col);
-    if caret {
-        p.text(
-            egui::pos2(r.right() - 10.0, r.center().y),
-            egui::Align2::RIGHT_CENTER,
-            ph::CARET_DOWN,
-            theme::regular(10.5),
-            t.text3,
+            level,
+            theme::medium(12.0),
+            t.accent,
         );
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// The round send button (Claude's colour when there's something to
-/// send), or Stop while Claude works.
-fn send_button(ui: &mut Ui, t: &Theme, agent: Agent, busy: bool, can_send: bool) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(30.0, 30.0), Sense::click());
-    let hover = ui.rect_contains_pointer(r);
+/// The round send button, or Stop while the agent works.
+fn send_button(ui: &mut Ui, t: &Theme, busy: bool, can_send: bool) -> egui::Response {
+    let (r, resp) = ui.allocate_exact_size(vec2(34.0, 34.0), Sense::click());
+    let hover = crate::motion::toggle(ui.ctx(), resp.id, ui.rect_contains_pointer(r), crate::motion::MICRO);
     let p = ui.painter();
     let c = r.center();
+    let lift = if t.dark { Color32::WHITE } else { Color32::BLACK };
+    let accent = crate::motion::lerp_color(t.accent, lift, 0.1 * hover);
     if busy && !can_send {
-        p.circle_filled(c, 15.0, if hover { t.text } else { t.text2 });
-        p.rect_filled(egui::Rect::from_center_size(c, vec2(10.0, 10.0)), 2, t.card);
-    } else if can_send {
-        let fill = if hover {
-            agent.accent(t).gamma_multiply(0.85)
-        } else {
-            agent.accent(t)
-        };
-        p.circle_filled(c, 15.0, fill);
-        p.text(
-            c,
-            egui::Align2::CENTER_CENTER,
-            ph::ARROW_UP,
-            theme::semibold(15.0),
-            agent.on_accent(t),
-        );
+        p.circle_filled(c, 17.0, accent);
+        p.rect_filled(egui::Rect::from_center_size(c, vec2(11.0, 11.0)), 2.5, t.on_accent);
     } else {
-        p.circle_filled(c, 15.0, t.hover);
-        p.text(
-            c,
-            egui::Align2::CENTER_CENTER,
-            ph::ARROW_UP,
-            theme::semibold(15.0),
-            t.text3,
-        );
+        let (fill, ink) = if can_send {
+            (accent, t.on_accent)
+        } else {
+            (style::raised(t), t.text3)
+        };
+        p.circle_filled(c, 17.0, fill);
+        p.text(c, egui::Align2::CENTER_CENTER, ph::ARROW_UP, theme::semibold(16.0), ink);
     }
-    let tip = match (busy, can_send) {
-        (true, true) => tr("Queue (Enter)"),
-        (true, false) => tr("Stop"),
-        _ => tr("Send (Enter)"),
-    };
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip)
+    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
 /// A compact menu row: a name, an optional note, a check when picked.
 fn menu_pick(ui: &mut Ui, t: &Theme, label: &str, hint: &str, on: bool) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 30.0), Sense::click());
-    let hover = ui.rect_contains_pointer(r);
+    let hover = crate::motion::hover_if(&resp, ui.rect_contains_pointer(r));
+    let picked = crate::motion::toggle(ui.ctx(), resp.id.with("on"), on, crate::motion::MICRO);
     let p = ui.painter();
-    if hover || on {
-        p.rect_filled(r, 7, if on { t.accent_soft() } else { t.hover_wash() });
-    }
+    p.rect_filled(
+        r,
+        style::RADIUS,
+        crate::motion::with_alpha(t.hover_wash(), hover * (1.0 - picked)),
+    );
+    p.rect_filled(r, style::RADIUS, crate::motion::with_alpha(style::tint(t), picked));
     let g = p.text(
-        egui::pos2(r.left() + 10.0, r.center().y),
+        egui::pos2(r.left() + 12.0, r.center().y),
         egui::Align2::LEFT_CENTER,
         label,
         theme::medium(12.5),
-        t.text,
+        crate::motion::lerp_color(t.text2, t.text, hover.max(picked)),
     );
     if !hint.is_empty() {
         p.text(
@@ -3812,7 +4083,7 @@ fn menu_pick(ui: &mut Ui, t: &Theme, label: &str, hint: &str, on: bool) -> egui:
     }
     if on {
         p.text(
-            egui::pos2(r.right() - 10.0, r.center().y),
+            egui::pos2(r.right() - 12.0, r.center().y),
             egui::Align2::RIGHT_CENTER,
             ph::CHECK,
             theme::regular(13.0),
@@ -3820,6 +4091,42 @@ fn menu_pick(ui: &mut Ui, t: &Theme, label: &str, hint: &str, on: bool) -> egui:
         );
     }
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+}
+
+/// The chats list's search, in a pill.
+fn search_pill(ui: &mut Ui, t: &Theme, text: &mut String, width: f32) {
+    let (r, _) = ui.allocate_exact_size(vec2(width, 38.0), Sense::hover());
+    let id = egui::Id::new("claude-chat-search");
+    let focused = ui.memory(|m| m.has_focus(id));
+    let k = crate::motion::toggle(ui.ctx(), id.with("ring"), focused, crate::motion::STANDARD);
+    let p = ui.painter();
+    p.rect(
+        r,
+        10,
+        style::surface(t),
+        Stroke::new(1.5, crate::motion::with_alpha(t.accent, 0.85 * k)),
+        egui::StrokeKind::Inside,
+    );
+    p.text(
+        egui::pos2(r.left() + 20.0, r.center().y),
+        egui::Align2::CENTER_CENTER,
+        ph::MAGNIFYING_GLASS,
+        theme::regular(15.0),
+        t.text3,
+    );
+    let field = egui::Rect::from_min_max(
+        egui::pos2(r.left() + 36.0, r.top()),
+        egui::pos2(r.right() - 14.0, r.bottom()),
+    );
+    ui.put(
+        field,
+        egui::TextEdit::singleline(text)
+            .id(id)
+            .hint_text(RichText::new(tr("Search chats")).color(t.text3))
+            .font(theme::regular(13.0))
+            .vertical_align(Align::Center)
+            .frame(egui::Frame::NONE),
+    );
 }
 
 /// The last thing said in a chat, for the chats list.
@@ -3843,68 +4150,160 @@ fn preview_of(c: &Chat) -> String {
         .unwrap_or_default()
 }
 
-/// Code (or a tool's output) in a box, with its language and a copy
-/// button.
+/// The script language a code fence names.
+fn fence_lang(lang: &str) -> Option<crate::scripting::Lang> {
+    use crate::scripting::Lang;
+    match lang.trim().to_lowercase().as_str() {
+        "pine" | "pinescript" | "pine-script" => Some(Lang::Pine),
+        "python" | "py" => Some(Lang::Python),
+        "lua" | "luau" => Some(Lang::Luau),
+        "javascript" | "js" => Some(Lang::Js),
+        "typescript" | "ts" => Some(Lang::Ts),
+        _ => None,
+    }
+}
+
+/// Code coloured as in the Script Editor. Kept between frames, per block,
+/// while its text and the theme stay the same.
+fn colored(ui: &Ui, t: &Theme, text: &str, lang: crate::scripting::Lang, id: egui::Id) -> std::sync::Arc<LayoutJob> {
+    type Kept = (u64, std::sync::Arc<LayoutJob>);
+    let key = {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::hash::DefaultHasher::new();
+        (text, t.text.to_array(), t.accent.to_array()).hash(&mut h);
+        h.finish()
+    };
+    let id = id.with("colored");
+    if let Some((k, job)) = ui.data(|d| d.get_temp::<Kept>(id))
+        && k == key
+    {
+        return job;
+    }
+    let mut job = crate::editor::highlight(text, lang, t, FontId::monospace(11.5));
+    job.wrap.max_width = f32::INFINITY;
+    let job = std::sync::Arc::new(job);
+    ui.data_mut(|d| d.insert_temp::<Kept>(id, (key, job.clone())));
+    job
+}
+
+/// Code (or a tool's output) in a box with a copy button. Code with a
+/// language gets a header, its colours and, when wide, its own scrolling;
+/// anything else wraps.
 fn code_block(ui: &mut Ui, t: &Theme, text: &str, lang: &str, key: impl std::hash::Hash + std::fmt::Debug) {
-    let id = ui.id().with(("code", key, text.len()));
-    let has_lang = !lang.trim().is_empty();
+    let id = ui.id().with(("code", key));
+    let lang = lang.trim();
+    let text = text.trim_end();
     let out = egui::Frame::new()
-        .fill(t.bg)
-        .stroke(Stroke::new(1.0, t.border.gamma_multiply(0.6)))
-        .corner_radius(CornerRadius::same(8))
-        .inner_margin(Margin {
-            left: 10,
-            right: 28,
-            top: if has_lang { 6 } else { 8 },
-            bottom: 8,
-        })
+        .fill(if lang.is_empty() { t.bg } else { style::surface(t) })
+        .corner_radius(CornerRadius::same(if lang.is_empty() { 12 } else { style::CARD }))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.spacing_mut().item_spacing.y = 4.0;
-            if has_lang {
-                ui.label(RichText::new(lang.trim()).color(t.text3).size(11.0));
+            ui.spacing_mut().item_spacing.y = 0.0;
+            if lang.is_empty() {
+                let margin = Margin {
+                    left: 10,
+                    right: 32,
+                    top: 8,
+                    bottom: 8,
+                };
+                egui::Frame::new().inner_margin(margin).show(ui, |ui| {
+                    ui.add(egui::Label::new(RichText::new(text).font(FontId::monospace(11.5)).color(t.text2)).wrap());
+                });
+                return;
             }
-            ui.add(
-                egui::Label::new(
-                    RichText::new(text.trim_end())
-                        .font(FontId::monospace(11.5))
-                        .color(t.text),
-                )
-                .wrap(),
+            let (head, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
+            ui.painter().text(
+                egui::pos2(head.left() + 16.0, head.center().y + 2.0),
+                egui::Align2::LEFT_CENTER,
+                lang,
+                FontId::monospace(11.5),
+                t.accent,
             );
+            // Inside the margins, so its fade stays clear of the corners.
+            let margin = Margin {
+                left: 16,
+                right: 16,
+                top: 2,
+                bottom: 14,
+            };
+            egui::Frame::new().inner_margin(margin).show(ui, |ui| {
+                egui::ScrollArea::horizontal()
+                    .id_salt(id.with("scroll"))
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        let label = match fence_lang(lang) {
+                            Some(l) => egui::Label::new((*colored(ui, t, text, l, id)).clone()),
+                            None => egui::Label::new(RichText::new(text).font(FontId::monospace(11.5)).color(t.text)),
+                        };
+                        ui.add(label.extend());
+                    });
+            });
         });
     // The copy button floats at the top right; it takes no row of its own.
     let frame = out.response.rect;
-    let btn = egui::Rect::from_min_size(egui::pos2(frame.right() - 26.0, frame.top() + 4.0), vec2(22.0, 22.0));
-    let resp = ui.interact(btn, id.with("copy"), Sense::click());
-    let now = ui.input(|i| i.time);
-    let copied = ui.data(|d| d.get_temp::<f64>(id)).is_some_and(|c| now - c < 1.5);
-    let p = ui.painter();
-    if resp.hovered() {
-        p.rect_filled(btn, 5, t.hover_wash());
-    }
-    let (g, tip) = if copied {
-        (ph::CHECK, tr("Copied"))
-    } else {
-        (ph::COPY, tr("Copy"))
-    };
-    p.text(
-        btn.center(),
-        egui::Align2::CENTER_CENTER,
-        g,
-        theme::regular(12.5),
-        if resp.hovered() { t.text } else { t.text3 },
+    let (dx, dy) = if lang.is_empty() { (17.0, 15.0) } else { (21.0, 19.0) };
+    let btn = egui::Rect::from_center_size(egui::pos2(frame.right() - dx, frame.top() + dy), vec2(26.0, 24.0));
+    w::copy_button(ui, t, text, btn, id, 13.5);
+}
+
+/// Under a finished reply, a copy button: always for the last one, on hover
+/// for the rest. Its row is always there, so nothing moves as it shows.
+fn reply_tools(ui: &mut Ui, t: &Theme, text: &str, reply: egui::Rect, key: (u64, usize), last: bool) {
+    let (r, _) = ui.allocate_exact_size(
+        vec2(ui.available_width(), if last { 24.0 } else { 16.0 }),
+        Sense::hover(),
     );
-    if resp
-        .on_hover_cursor(egui::CursorIcon::PointingHand)
-        .on_hover_text(tip)
-        .clicked()
-    {
-        ui.ctx().copy_text(text.trim_end().to_string());
-        ui.data_mut(|d| d.insert_temp(id, now));
+    let id = egui::Id::new(("reply-tools", key));
+    let shown = last || ui.rect_contains_pointer(reply.union(r));
+    let k = crate::motion::toggle(ui.ctx(), id.with("near"), shown, crate::motion::MICRO);
+    if k <= 0.01 {
+        return;
     }
-    if copied {
-        ui.ctx().request_repaint_after(std::time::Duration::from_millis(300));
+    // A child of its own: it takes no room in the column.
+    let mut child = ui.new_child(egui::UiBuilder::new().max_rect(r.expand2(vec2(6.0, 8.0))));
+    child.multiply_opacity(k);
+    let b = egui::Rect::from_min_size(egui::pos2(r.left(), r.top()), vec2(26.0, 24.0));
+    w::copy_button(&mut child, t, text, b, id, 14.0);
+}
+
+/// A round button back to the end of the messages, while they're scrolled up.
+fn jump_button(ui: &mut Ui, t: &Theme, view: egui::Rect, shown: bool) -> bool {
+    let id = ui.id().with("jump");
+    let k = crate::motion::toggle(ui.ctx(), id.with("k"), shown, crate::motion::STANDARD);
+    if k <= 0.01 {
+        return false;
+    }
+    let c = egui::pos2(view.center().x, view.bottom() - 22.0 + 8.0 * (1.0 - k));
+    let r = egui::Rect::from_center_size(c, vec2(30.0, 30.0));
+    let resp = ui.interact(r, id, if shown { Sense::click() } else { Sense::hover() });
+    let hover = crate::motion::hover(&resp);
+    let p = ui.painter();
+    p.circle_filled(c + vec2(0.0, 2.0), 17.0, Color32::from_black_alpha((50.0 * k) as u8));
+    p.circle(
+        c,
+        15.0,
+        crate::motion::with_alpha(
+            crate::motion::lerp_color(style::raised(t), t.hovered(style::raised(t)), hover),
+            k,
+        ),
+        Stroke::NONE,
+    );
+    p.text(
+        c,
+        egui::Align2::CENTER_CENTER,
+        ph::ARROW_DOWN,
+        theme::regular(14.0),
+        crate::motion::with_alpha(crate::motion::lerp_color(t.text2, t.text, hover), k),
+    );
+    shown && resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked()
+}
+
+/// How long a turn has taken: "12s", "2m 05s".
+fn elapsed(s: u64) -> String {
+    if s < 60 {
+        format!("{s}s")
+    } else {
+        format!("{}m {:02}s", s / 60, s % 60)
     }
 }
 
@@ -4038,7 +4437,7 @@ fn md_table(ui: &mut Ui, t: &Theme, lines: &[&str]) {
     if cols == 0 {
         return;
     }
-    let pad = vec2(10.0, 6.0);
+    let pad = vec2(14.0, 8.0);
     let font = theme::regular(12.5);
     let head = theme::semibold(12.5);
     let avail = ui.available_width();
@@ -4074,7 +4473,7 @@ fn md_table(ui: &mut Ui, t: &Theme, lines: &[&str]) {
         for (c, w) in widths.iter().enumerate() {
             let cell = r.get(c).map(String::as_str).unwrap_or("");
             let (f, color) = if ri == 0 {
-                (head.clone(), t.text)
+                (head.clone(), t.accent)
             } else {
                 (font.clone(), t.text)
             };
@@ -4089,39 +4488,20 @@ fn md_table(ui: &mut Ui, t: &Theme, lines: &[&str]) {
     let height: f32 = heights.iter().sum();
     let (rect, _) = ui.allocate_exact_size(vec2(width, height), Sense::hover());
     let p = ui.painter();
-    let line = Stroke::new(1.0, t.border.gamma_multiply(0.8));
-    p.rect_filled(rect, 8, t.card);
-    let head_rect = egui::Rect::from_min_size(rect.min, vec2(width, heights[0]));
-    p.rect_filled(
-        head_rect,
-        CornerRadius {
-            nw: 8,
-            ne: 8,
-            sw: 0,
-            se: 0,
-        },
-        t.hover_wash(),
-    );
+    let line = Stroke::new(1.0, crate::motion::with_alpha(t.border, 0.9));
+    p.rect_filled(rect, 16, style::surface(t));
     let mut y = rect.top();
     for (ri, row) in grid.into_iter().enumerate() {
         let mut x = rect.left();
         for (c, g) in row.into_iter().enumerate() {
             p.galley(egui::pos2(x + pad.x, y + pad.y), g, t.text);
             x += widths[c];
-            if c + 1 < cols {
-                p.vline(
-                    x,
-                    (y + 4.0)..=(y + heights[ri] - 4.0),
-                    Stroke::new(1.0, t.border.gamma_multiply(0.4)),
-                );
-            }
         }
         y += heights[ri];
         if ri + 1 < heights.len() {
-            p.hline(rect.x_range(), y, line);
+            p.hline(rect.x_range().shrink(pad.x), y, line);
         }
     }
-    p.rect_stroke(rect, 8, line, egui::StrokeKind::Inside);
 }
 
 fn md_line(ui: &mut Ui, t: &Theme, line: &str, scripts: &[String], open: &mut Option<String>) {
@@ -4276,9 +4656,7 @@ fn inline(ui: &mut Ui, t: &Theme, body: &str, font: FontId, scripts: &[String], 
             ui.painter()
                 .hline((rect.left() + ra.left())..=(rect.left() + rb.left()), y, stroke);
         }
-        let resp = resp
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(trf!("Open {f} in the Script Editor"));
+        let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
         if resp.clicked() {
             *open = Some(f.clone());
         }
@@ -4295,11 +4673,6 @@ fn code_color(ctx: &egui::Context, t: &Theme) -> Color32 {
         (true, true) => Color32::from_rgb(0xA6, 0xC4, 0xEC),
         (true, false) => Color32::from_rgb(0x2F, 0x5C, 0x99),
     }
-}
-
-/// The agent's logo over its turn.
-fn byline(ui: &mut Ui, t: &Theme, agent: Agent) {
-    agent::show(ui, 16.0, agent, agent.tint(t));
 }
 
 /// A word with a soft light passing over it, while the agent works.
@@ -4344,45 +4717,6 @@ fn halo(ui: &mut Ui, t: &Theme, agent: Agent, size: f32) {
     );
 }
 
-/// The login command in a box `width` wide, its copy button at the end.
-fn login_box(ui: &mut Ui, t: &Theme, command: &str, width: f32, id: egui::Id) {
-    let font = FontId::monospace(12.0);
-    let wrap = (width - 12.0 - 40.0).max(40.0);
-    let text_h = ui
-        .painter()
-        .layout(command.to_string(), font.clone(), t.text, wrap)
-        .size()
-        .y;
-    let (r, _) = ui.allocate_exact_size(vec2(width, (text_h + 20.0).max(38.0)), Sense::hover());
-    ui.painter().rect(
-        r,
-        CornerRadius::same(8),
-        t.bg,
-        Stroke::new(1.0, t.border.gamma_multiply(0.6)),
-        egui::StrokeKind::Inside,
-    );
-    let text = egui::Rect::from_min_size(
-        egui::pos2(r.left() + 12.0, r.center().y - text_h / 2.0),
-        vec2(wrap, text_h),
-    );
-    ui.scope_builder(
-        egui::UiBuilder::new()
-            .max_rect(text)
-            .layout(Layout::top_down(Align::Min)),
-        |ui| {
-            ui.add(
-                egui::Label::new(RichText::new(command).font(font).color(t.text))
-                    .wrap()
-                    .selectable(true),
-            )
-        },
-    );
-    let button = egui::Rect::from_center_size(egui::pos2(r.right() - 20.0, r.center().y), vec2(28.0, 28.0));
-    w::copy_button(ui, t, command, button, id, tr("Copy"), 15.0);
-    #[cfg(test)]
-    ui.data_mut(|d| d.insert_temp(egui::Id::new("agent-login-copy"), button));
-}
-
 /// The face's blink, `since` seconds after it showed: a quick one every
 /// few seconds.
 fn blink_at(since: f64) -> f32 {
@@ -4404,67 +4738,55 @@ fn blink_wait(since: f64) -> f64 {
     (period - (since - 1.2).rem_euclid(period)).max(0.02)
 }
 
-/// A row in the agent menu: logo, name, maker, a check when it's on.
-fn agent_row(ui: &mut Ui, t: &Theme, a: Agent, on: bool, installed: bool) -> egui::Response {
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 40.0), Sense::click());
-    let hover = ui.rect_contains_pointer(r);
-    if hover || on {
-        ui.painter().rect_filled(
-            r,
-            8,
-            if hover {
-                t.hover_wash()
-            } else {
-                t.hover_wash().gamma_multiply(0.6)
-            },
-        );
-    }
-    let badge = egui::pos2(r.left() + 22.0, r.center().y);
-    ui.painter().circle_filled(
-        badge,
-        15.0,
-        a.accent(t).gamma_multiply(if a == Agent::Codex { 0.08 } else { 0.14 }),
+/// The login command in a box `width` wide, its copy button at the end.
+fn login_box(ui: &mut Ui, t: &Theme, command: &str, width: f32, id: egui::Id) {
+    let font = FontId::monospace(12.0);
+    let wrap = (width - 12.0 - 40.0).max(40.0);
+    let text_h = ui
+        .painter()
+        .layout(command.to_string(), font.clone(), t.text, wrap)
+        .size()
+        .y;
+    let (r, _) = ui.allocate_exact_size(vec2(width, (text_h + 20.0).max(38.0)), Sense::hover());
+    ui.painter().rect_filled(r, 16, style::surface(t));
+    let text = egui::Rect::from_min_size(
+        egui::pos2(r.left() + 12.0, r.center().y - text_h / 2.0),
+        vec2(wrap, text_h),
     );
-    agent::paint(
-        ui,
-        egui::Rect::from_center_size(badge, vec2(17.0, 17.0)),
-        a,
-        a.tint(t),
-        0.0,
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(text)
+            .layout(Layout::top_down(Align::Min)),
+        |ui| {
+            ui.add(
+                egui::Label::new(RichText::new(command).font(font).color(t.text))
+                    .wrap()
+                    .selectable(true),
+            )
+        },
     );
-    let p = ui.painter();
-    p.text(
-        egui::pos2(r.left() + 46.0, r.center().y),
-        egui::Align2::LEFT_CENTER,
-        a.name(),
-        theme::medium(13.0),
-        t.text,
-    );
-    if !installed && !on {
-        p.text(
-            egui::pos2(r.right() - 12.0, r.center().y),
-            egui::Align2::RIGHT_CENTER,
-            tr("Not installed"),
-            theme::regular(11.5),
-            t.text3,
-        );
-    }
-    if on {
-        p.text(
-            egui::pos2(r.right() - 12.0, r.center().y),
-            egui::Align2::RIGHT_CENTER,
-            ph::CHECK,
-            theme::regular(13.0),
-            t.text,
-        );
-    }
-    resp.on_hover_cursor(egui::CursorIcon::PointingHand)
+    let button = egui::Rect::from_center_size(egui::pos2(r.right() - 20.0, r.center().y), vec2(28.0, 28.0));
+    w::copy_button(ui, t, command, button, id, 15.0);
+    #[cfg(test)]
+    ui.data_mut(|d| d.insert_temp(egui::Id::new("agent-login-copy"), button));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn times_left() {
+        assert_eq!(time_left(42 * 60), "42m");
+        assert_eq!(time_left(30), "1m");
+        assert_eq!(time_left(6780), "1h 53m");
+        assert_eq!(time_left(4 * 86400 + 18 * 3600), "4d 18h");
+        assert_eq!(process::window_minutes("five_hour"), Some(300));
+        assert_eq!(process::window_minutes("seven_day_opus"), Some(10080));
+        assert_eq!(process::window_minutes("w43200"), Some(43200));
+        assert_eq!(process::window_minutes("other"), None);
+    }
 
     #[test]
     fn labels() {
@@ -4961,6 +5283,252 @@ mod tests {
         assert!(d.app.scripts_dir().join("hello.pine").is_file());
     }
 
+    /// A click on the title edits it in place, all of it selected: typing
+    /// replaces it, Enter keeps it, Esc doesn't.
+    #[test]
+    fn a_click_renames_the_chat() {
+        let mut d = crate::drive::Driver::new("agent-rename");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude_switch(Agent::Claude, None, 0.0);
+        let id = d.app.claude.active.unwrap_or_else(|| d.app.new_chat());
+        d.app.claude.active = Some(id);
+        let c = d.app.claude.chat_mut(id).unwrap();
+        c.title = "Old name".into();
+        c.items.push(Item::User("hello".into()));
+        for _ in 0..60 {
+            d.frame(vec![]);
+        }
+        let key = |key| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let title = |d: &crate::drive::Driver| d.app.claude.chat().unwrap().title.clone();
+        for (typed, end, want) in [
+            ("New name", egui::Key::Enter, "New name"),
+            ("Nope", egui::Key::Escape, "New name"),
+        ] {
+            let at = d.text_rect(&title(&d)).expect("the title").center();
+            for pressed in [true, false] {
+                d.frame(vec![
+                    egui::Event::PointerMoved(at),
+                    egui::Event::PointerButton {
+                        pos: at,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ]);
+            }
+            d.frame(vec![]);
+            d.frame(vec![]);
+            assert!(d.app.claude.renaming.is_some(), "editing");
+            d.frame(vec![egui::Event::Text(typed.into())]);
+            d.frame(vec![key(end)]);
+            d.frame(vec![]);
+            assert_eq!(title(&d), want);
+            assert!(d.app.claude.renaming.is_none());
+        }
+    }
+
+    /// The effort slider in the model menu, and what a pick does to the
+    /// chat, to new chats and on a model that doesn't take it.
+    #[test]
+    fn effort_is_picked_under_the_models() {
+        let mut d = crate::drive::Driver::new("agent-effort");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Codex);
+        d.app.claude.codex_cli = Some(Some(PathBuf::from("codex")));
+        d.app.claude.auth.insert(Agent::Codex, auth::Auth::In);
+        d.app.claude.configured.clear();
+        d.app.claude.configured_effort.clear();
+        let m = |id: &str, all: &[&str], default: &str| effort::Model {
+            id: id.into(),
+            name: id.to_uppercase(),
+            levels: effort::Levels {
+                all: all.iter().map(|s| s.to_string()).collect(),
+                default: Some(default.into()),
+            },
+        };
+        d.app.claude.set_codex_models(vec![
+            m("gpt-6", &["low", "medium", "high", "xhigh"], "medium"),
+            m("gpt-6-mini", &["low", "medium"], "low"),
+        ]);
+        // Nothing picked: the model's own default shows, and nothing is sent.
+        let shown = |d: &crate::drive::Driver, model: &str, e: &str| d.app.claude.effort_shown(Agent::Codex, model, e);
+        assert_eq!(shown(&d, "", "").as_deref(), Some("medium"));
+        assert_eq!(d.app.claude.effort_for(Agent::Codex), "");
+        for _ in 0..5 {
+            d.frame(vec![]);
+        }
+        d.app.claude.still_menu = Some("model".into());
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        assert!(d.text_rect("Medium").is_some());
+        let r: egui::Rect = d
+            .ctx
+            .data(|x| x.get_temp(egui::Id::new("effort-slider")))
+            .expect("the effort slider");
+        // Dragged, it names the level under the pointer and picks nothing yet.
+        d.move_to(egui::pos2(r.center().x - 30.0, r.center().y));
+        let button = |p, pressed| egui::Event::PointerButton {
+            pos: p,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        d.frame(vec![button(egui::pos2(r.center().x - 30.0, r.center().y), true)]);
+        for k in 0..8 {
+            let p = egui::pos2(r.center().x + k as f32 * 20.0, r.center().y);
+            d.frame(vec![egui::Event::PointerMoved(p)]);
+        }
+        assert!(d.text_rect("Extra high").is_some());
+        assert_eq!(d.app.claude.effort_for(Agent::Codex), "", "not before it's let go");
+        d.frame(vec![button(egui::pos2(r.center().x + 140.0, r.center().y), false)]);
+        d.frame(vec![]);
+        assert_eq!(d.app.claude.effort_for(Agent::Codex), "xhigh");
+        // Its left end is the lowest level.
+        d.click(egui::pos2(r.left() + 14.0, r.center().y));
+        assert_eq!(d.app.claude.effort_for(Agent::Codex), "low");
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        assert!(d.text_rect("Low").is_some(), "the menu stays open");
+        // New chats start with it, and it's saved.
+        let id = d.app.new_chat();
+        assert_eq!(d.app.claude.chat_mut(id).unwrap().effort, "low");
+        d.app.claude_set_effort("xhigh");
+        assert_eq!(d.app.claude.chat_mut(id).unwrap().effort, "xhigh");
+        d.app.claude_save();
+        let text = std::fs::read_to_string(d.dir.join("claude").join("chats.json")).unwrap();
+        let saved: Saved = serde_json::from_str(&text).unwrap();
+        assert_eq!(saved.efforts, [(Agent::Codex, "xhigh".to_string())]);
+        assert!(saved.levels.iter().any(|(m, l)| m == "gpt-6" && l.all.len() == 4));
+        // A model without that level takes its own default.
+        d.app.claude_set_model("gpt-6-mini");
+        assert_eq!(d.app.claude.chat_mut(id).unwrap().effort, "low");
+        assert_eq!(shown(&d, "gpt-6-mini", "low").as_deref(), Some("low"));
+        // Busy: the running chat keeps its effort.
+        d.app.claude.chat_mut(id).unwrap().busy = true;
+        d.app.claude_set_effort("medium");
+        assert_eq!(d.app.claude.chat_mut(id).unwrap().effort, "low");
+        // Chats saved before efforts still load.
+        let old = r#"{"chats":[],"active":null,"mode":"Auto","model":""}"#;
+        assert!(serde_json::from_str::<Saved>(old).is_ok());
+    }
+
+    /// Sending shows the end of the chat even when it's scrolled up, and the
+    /// rail button's dot says when the agent asks or is done.
+    #[test]
+    fn the_dot_and_the_end_of_the_chat() {
+        let mut d = crate::drive::Driver::new("agent-mood");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Claude);
+        d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        d.app.claude.auth.insert(Agent::Claude, auth::Auth::In);
+        let id = d.app.new_chat();
+        let t = Theme::by_name("dark");
+        assert_eq!(d.app.claude.dot(&t), None);
+        let c = d.app.claude.chat_mut(id).unwrap();
+        for k in 0..60 {
+            c.items.push(Item::User(format!("question {k}")));
+            c.items.push(Item::Assistant(format!("answer {k}")));
+        }
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        let at = d.text_rect("answer 59").expect("starts at the end").center();
+        d.scroll(at, 900.0);
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        assert!(d.text_rect("answer 59").is_none(), "scrolled up");
+        let jump = d.text_rect(crate::icons::ph::ARROW_DOWN).expect("a way back");
+        d.click(jump.center());
+        for _ in 0..40 {
+            d.frame(vec![]);
+        }
+        assert!(d.text_rect("answer 59").is_some(), "back at the end");
+        let c = d.app.claude.chat_mut(id).unwrap();
+        c.busy = true;
+        assert_eq!(d.app.claude.dot(&t), None);
+        d.app.claude.chat_mut(id).unwrap().items.push(Item::Ask {
+            request: "r".into(),
+            tool: "Edit".into(),
+            label: "Edit a.pine".into(),
+            detail: String::new(),
+            input: Value::Null,
+            suggestions: serde_json::json!(["session"]),
+            state: AskState::Waiting,
+        });
+        assert_eq!(d.app.claude.dot(&t), Some(t.warn));
+        for _ in 0..10 {
+            d.frame(vec![]);
+        }
+        for label in ["Allow", "Allow for this chat", "Deny"] {
+            assert!(d.text_rect(label).is_some(), "{label}");
+        }
+        // A turn that ends with the panel closed is marked until it's opened.
+        d.app.layout.widget = None;
+        d.app.claude_event(
+            id,
+            Event::Done {
+                usage: Usage::default(),
+                cost: 0.0,
+                error: false,
+                message: String::new(),
+            },
+        );
+        assert_eq!(d.app.claude.dot(&t), Some(t.accent));
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.frame(vec![]);
+        assert_eq!(d.app.claude.dot(&t), None);
+    }
+
+    /// Moving the pointer over the replies shows their copy buttons without
+    /// moving anything.
+    #[test]
+    fn hovering_replies_moves_nothing() {
+        let mut d = crate::drive::Driver::new("agent-hover");
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude.agent = Some(Agent::Claude);
+        d.app.claude.cli = Some(Some(PathBuf::from("claude")));
+        d.app.claude.auth.insert(Agent::Claude, auth::Auth::In);
+        let id = d.app.new_chat();
+        let c = d.app.claude.chat_mut(id).unwrap();
+        for k in 0..4 {
+            c.items.push(Item::User(format!("question {k}")));
+            c.items.push(Item::Assistant(format!("answer {k}")));
+        }
+        for _ in 0..20 {
+            d.frame(vec![]);
+        }
+        let places = |d: &mut crate::drive::Driver| -> Vec<(String, egui::Rect)> {
+            d.all_texts()
+                .into_iter()
+                .filter(|(s, _)| s.starts_with("question ") || s.starts_with("answer "))
+                .collect()
+        };
+        let before = places(&mut d);
+        assert_eq!(before.len(), 8);
+        for (_, r) in before.clone() {
+            for dy in [-12.0, 0.0, 12.0, 24.0] {
+                d.move_to(egui::pos2(r.left() + 6.0, r.center().y + dy));
+                for _ in 0..3 {
+                    d.frame(vec![]);
+                    assert_eq!(places(&mut d), before);
+                }
+            }
+        }
+    }
+
     /// Signed out: the panel shows the CLI's own login command to run in a
     /// terminal, and never runs it itself.
     #[cfg(unix)]
@@ -5052,9 +5620,10 @@ mod tests {
         };
         c.defaults.insert(Agent::Codex, "gpt-5".into());
         c.defaults.insert(Agent::Claude, "claude-opus-5-5".into());
-        c.chats.push(Chat::new(1, Agent::Codex, Mode::Auto, "gpt-5-mini"));
-        c.chats.push(Chat::new(2, Agent::Codex, Mode::Auto, "gpt-6"));
-        c.chats.push(Chat::new(3, Agent::Claude, Mode::Auto, "claude-opus-5-5"));
+        c.chats.push(Chat::new(1, Agent::Codex, Mode::Auto, "gpt-5-mini", ""));
+        c.chats.push(Chat::new(2, Agent::Codex, Mode::Auto, "gpt-6", ""));
+        c.chats
+            .push(Chat::new(3, Agent::Claude, Mode::Auto, "claude-opus-5-5", ""));
         // The list from last time shows, and a new one is asked for.
         assert!(c.wants_models(Agent::Codex));
         assert_eq!(c.models_for(Agent::Codex).len(), 2);
@@ -5066,7 +5635,12 @@ mod tests {
         assert!(c.wants_models(Agent::Codex));
         assert_eq!(c.codex_models.len(), 2);
         // The new list, its default and its names.
-        c.set_codex_models(vec![s("gpt-6", "GPT-6"), s("gpt-5", "GPT-5")]);
+        let m = |a: &str, b: &str| effort::Model {
+            id: a.into(),
+            name: b.into(),
+            ..Default::default()
+        };
+        c.set_codex_models(vec![m("gpt-6", "GPT-6"), m("gpt-5", "GPT-5")]);
         assert!(!c.wants_models(Agent::Codex), "once a run");
         assert_eq!(c.models_for(Agent::Codex), [s("gpt-6", "GPT-6"), s("gpt-5", "GPT-5")]);
         assert_eq!(c.default_model(Agent::Codex).as_deref(), Some("gpt-6"));
@@ -5116,6 +5690,7 @@ mod tests {
         d.app.claude_load();
         d.app.claude.agent = Some(Agent::Claude);
         d.app.claude.model = "claude-sonnet-5-5".into();
+        d.app.claude.efforts.insert(Agent::Claude, "xhigh".into());
         // The composer only shows once Claude Code is found; CI has none.
         d.app.claude.cli = Some(Some(PathBuf::from("claude")));
         // Signed in (another test may point OPENTERN_CLAUDE at its fake CLI).

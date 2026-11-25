@@ -638,9 +638,9 @@ impl App {
         let label = format!("{side} {} {}", qty_text(self.paper.qty), short(&sym));
         let c = if self.paper.buy { t.pos } else { t.neg };
         let (r, resp) = ui.allocate_exact_size(vec2(244.0, 34.0), Sense::click());
-        let hover = resp.hovered();
+        let hover = crate::motion::hover(&resp);
         ui.painter()
-            .rect_filled(r, CornerRadius::same(8), if hover { c.gamma_multiply(0.85) } else { c });
+            .rect_filled(r, CornerRadius::same(8), c.gamma_multiply(1.0 - 0.15 * hover));
         ui.painter().text(
             r.center(),
             Align2::CENTER_CENTER,
@@ -1050,10 +1050,13 @@ fn header(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)]) {
 /// when the action was clicked.
 fn row_with_action(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)], cells: &[(String, Color32)], action: &str) -> bool {
     let w: f32 = cols.iter().map(|c| c.1).sum();
-    let (r, _) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
-    if ui.rect_contains_pointer(r) {
-        ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
-    }
+    let (r, row) = ui.allocate_exact_size(vec2(w, 24.0), Sense::hover());
+    let hover = crate::motion::hover_if(&row, ui.rect_contains_pointer(r));
+    ui.painter().rect_filled(
+        r,
+        CornerRadius::same(4),
+        crate::motion::with_alpha(t.hover_wash(), hover),
+    );
     let mut x = r.left();
     for ((_, cw), (text, c)) in cols.iter().zip(cells) {
         ui.painter().text(
@@ -1071,7 +1074,7 @@ fn row_with_action(ui: &mut Ui, t: &Theme, cols: &[(&str, f32)], cells: &[(Strin
     {
         let br = egui::Rect::from_min_size(pos2(r.right() - aw + 6.0, r.top() + 1.0), vec2(aw - 12.0, 22.0));
         let b = ui.interact(br, ui.id().with((action, r.top() as i64)), Sense::click());
-        let col = if b.hovered() { t.text } else { t.text2 };
+        let col = crate::motion::lerp_color(t.text2, t.text, crate::motion::hover(&b));
         ui.painter().rect_stroke(
             br,
             CornerRadius::same(5),

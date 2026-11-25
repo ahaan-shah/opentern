@@ -45,6 +45,7 @@ mod onboarding;
 mod overview;
 mod paper;
 mod pine_host;
+mod popups;
 mod pywatch;
 mod screener;
 mod scripting;

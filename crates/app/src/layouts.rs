@@ -135,16 +135,20 @@ impl App {
                         egui::vec2(24.0, 24.0),
                     );
                     let b = ui.interact(bin, resp.id.with("del"), egui::Sense::click());
-                    if resp.hovered() || b.hovered() {
+                    let near = crate::motion::hover_if(&resp, resp.hovered() || b.hovered());
+                    if near > 0.0 {
                         ui.painter().text(
                             bin.center(),
                             egui::Align2::CENTER_CENTER,
                             ph::TRASH,
                             crate::theme::regular(14.0),
-                            if b.hovered() { t.neg } else { t.text3 },
+                            crate::motion::with_alpha(
+                                crate::motion::lerp_color(t.text3, t.neg, crate::motion::hover(&b)),
+                                near,
+                            ),
                         );
                     }
-                    if b.on_hover_text(tr("Delete layout")).clicked() {
+                    if b.clicked() {
                         delete = Some(l.id);
                     } else if resp.clicked() {
                         open = Some(l.id);

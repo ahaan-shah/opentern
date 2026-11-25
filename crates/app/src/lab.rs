@@ -1521,8 +1521,12 @@ impl App {
                         let p = ui.painter();
                         if self.lab.selected == Some(i) {
                             p.rect_filled(r, CornerRadius::same(4), t.accent_soft());
-                        } else if resp.hovered() {
-                            p.rect_filled(r, CornerRadius::same(4), t.hover_wash());
+                        } else {
+                            p.rect_filled(
+                                r,
+                                CornerRadius::same(4),
+                                crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                            );
                         }
                         let s = &trial.summary;
                         let mut cells: Vec<(String, Color32)> = vec![((i + 1).to_string(), t.text3)];
@@ -2021,9 +2025,11 @@ fn grid_table(ui: &mut Ui, t: &Theme, id: &str, heads: &[String], rows: &[Vec<(S
             {
                 for row in rows {
                     let (r, resp) = ui.allocate_exact_size(vec2(table_w, row_h), Sense::hover());
-                    if resp.hovered() {
-                        ui.painter().rect_filled(r, CornerRadius::same(4), t.hover_wash());
-                    }
+                    ui.painter().rect_filled(
+                        r,
+                        CornerRadius::same(4),
+                        crate::motion::with_alpha(t.hover_wash(), crate::motion::hover(&resp)),
+                    );
                     for (k, (text, c)) in row.iter().enumerate() {
                         let (x, a) = x_of(k, r);
                         ui.painter()

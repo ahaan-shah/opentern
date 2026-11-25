@@ -5,6 +5,7 @@
 //! calls; approvals come back as requests. Everything is turned into the
 //! same `Event`s the panel already shows for Claude Code.
 
+use super::effort::Model;
 use super::process::{Event, Launch, Mode, Usage, Window};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use serde_json::{Value, json};
@@ -33,6 +34,8 @@ struct State {
     /// Turns sent before the thread was ready.
     queued: Vec<Value>,
     mode: Mode,
+    /// The effort picked, sent with each turn.
+    effort: Option<String>,
     /// Requests from Codex waiting for the user or the app: our key → its id.
     open: HashMap<String, Value>,
     /// File changes by item, for their approval cards.
@@ -128,6 +131,7 @@ impl Codex {
         }
         let st = Arc::new(Mutex::new(State {
             mode: l.mode,
+            effort: l.effort.clone(),
             launch: Some((start, l.resume.clone())),
             ..Default::default()
         }));
@@ -177,7 +181,7 @@ impl Codex {
         let Ok(mut st) = self.st.lock() else { return };
         match st.thread.clone() {
             Some(thread) => {
-                let p = json!({"threadId": thread, "input": input, "approvalPolicy": policy(st.mode)});
+                let p = turn(&thread, json!(input), &st);
                 request(&self.stdin, &mut st, "turn", "turn/start", p);
             }
             None => st.queued.push(json!(input)),
@@ -241,12 +245,27 @@ impl Codex {
             st.mode = mode;
         }
     }
+
+    /// Takes effect from the next message.
+    pub fn set_effort(&mut self, level: &str) {
+        if let Ok(mut st) = self.st.lock() {
+            st.effort = (!level.is_empty()).then(|| level.to_string());
+        }
+    }
 }
 
-/// The visible models of `model/list`'s pages as (id, name), the server's
-/// default first (the panel takes the first as the default when nothing
-/// else names one).
-fn listed(pages: &[Value]) -> Vec<(String, String)> {
+/// A `turn/start`'s parameters.
+fn turn(thread: &str, input: Value, st: &State) -> Value {
+    let mut p = json!({"threadId": thread, "input": input, "approvalPolicy": policy(st.mode)});
+    if let Some(e) = &st.effort {
+        p["effort"] = json!(e);
+    }
+    p
+}
+
+/// The visible models of `model/list`'s pages, the server's default first
+/// (the panel takes the first as the default when nothing else names one).
+fn listed(pages: &[Value]) -> Vec<Model> {
     let mut v: Vec<&Value> = pages
         .iter()
         .filter_map(|p| p["data"].as_array())
@@ -257,7 +276,11 @@ fn listed(pages: &[Value]) -> Vec<(String, String)> {
     v.into_iter()
         .filter_map(|m| {
             let id = m["id"].as_str().filter(|s| !s.is_empty())?;
-            Some((id.to_string(), m["displayName"].as_str().unwrap_or(id).to_string()))
+            Some(Model {
+                id: id.to_string(),
+                name: m["displayName"].as_str().unwrap_or(id).to_string(),
+                levels: super::effort::of_codex(m),
+            })
         })
         .collect()
 }
@@ -273,7 +296,7 @@ const MAX_PAGES: usize = 20;
 
 /// The account's models, asked of a short-lived `codex app-server` (the
 /// model menu opened before any chat ran). Empty on any failure.
-pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<(String, String)>> {
+pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<Model>> {
     let (tx, rx) = unbounded();
     let _ = std::thread::Builder::new().name("codex-models".into()).spawn(move || {
         let _ = tx.send(ask_models(&exe, &cwd, std::time::Duration::from_secs(20)));
@@ -281,7 +304,7 @@ pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<
     rx
 }
 
-fn ask_models(exe: &std::path::Path, cwd: &std::path::Path, limit: std::time::Duration) -> Vec<(String, String)> {
+fn ask_models(exe: &std::path::Path, cwd: &std::path::Path, limit: std::time::Duration) -> Vec<Model> {
     // A new workspace has no scripts folder until something is saved.
     let _ = std::fs::create_dir_all(cwd);
     let mut cmd = Command::new(exe);
@@ -605,9 +628,18 @@ fn handle(v: &Value, stdin: &Mutex<ChildStdin>, st: &mut State) -> Vec<Event> {
                     session: thread.clone(),
                     model: v["result"]["model"].as_str().unwrap_or("").to_string(),
                 });
-                let mode = st.mode;
+                // What it runs at by itself.
+                if st.effort.is_none()
+                    && let (Some(model), Some(level)) =
+                        (v["result"]["model"].as_str(), v["result"]["reasoningEffort"].as_str())
+                {
+                    out.push(Event::Effort {
+                        model: model.to_string(),
+                        level: level.to_string(),
+                    });
+                }
                 for input in std::mem::take(&mut st.queued) {
-                    let p = json!({"threadId": thread, "input": input, "approvalPolicy": policy(mode)});
+                    let p = turn(&thread, input, st);
                     request(stdin, st, "turn", "turn/start", p);
                 }
             }
@@ -813,6 +845,14 @@ mod tests {
         assert_eq!(diff_of(&ch), "+ hi");
     }
 
+    #[test]
+    fn a_picked_effort_goes_with_each_turn() {
+        let mut st = State::default();
+        assert!(turn("t", json!([]), &st).get("effort").is_none());
+        st.effort = Some("high".into());
+        assert_eq!(turn("t", json!([]), &st)["effort"], "high");
+    }
+
     /// A stand-in `codex` whose replies are `script`'s.
     #[cfg(unix)]
     fn fake(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
@@ -835,7 +875,7 @@ mod tests {
         let exe = fake(&dir, body);
         let list = ask_models(&exe, &dir, std::time::Duration::from_secs(secs));
         let _ = std::fs::remove_dir_all(&dir);
-        list
+        list.into_iter().map(|m| (m.id, m.name)).collect()
     }
 
     /// The installed Codex's own list (no model request is made).

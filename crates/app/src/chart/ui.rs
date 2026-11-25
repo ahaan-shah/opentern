@@ -1536,18 +1536,16 @@ fn axis_toggles(
     for k in 0..3 {
         let r = Rect::from_center_size(pos2(x0 + w * (k as f32 + 0.5), rect.center().y), vec2(w - 3.0, 18.0));
         let resp = ui.interact(r, id.with(k), if live { Sense::click() } else { Sense::hover() });
-        let hov = live && resp.hovered();
+        let hov = motion::hover_if(&resp, live && resp.hovered());
         if on[k] {
             painter.rect_filled(r, CornerRadius::same(4), t.accent_soft());
-        } else if hov {
-            painter.rect_filled(r, CornerRadius::same(4), t.hover_wash());
+        } else {
+            painter.rect_filled(r, CornerRadius::same(4), motion::with_alpha(t.hover_wash(), hov));
         }
         let col = if on[k] {
             t.accent
-        } else if hov {
-            pal.text
         } else {
-            pal.scale_text
+            motion::lerp_color(pal.scale_text, pal.text, hov)
         };
         painter.text(r.center(), Align2::CENTER_CENTER, labels[k], theme::medium(11.0), col);
         if resp.on_hover_text(tips[k]).clicked() {
@@ -2923,9 +2921,8 @@ fn legend(
                         let r = Rect::from_min_size(pos2(xx, pos.y - 2.0), vec2(20.0, 18.0));
                         xx += 22.0;
                         let resp = ui.interact(r, Id::new(("legend-cmp", chart.id, ci, id)), Sense::click());
-                        if resp.hovered() {
-                            painter.rect_filled(r, CornerRadius::same(4), t.hover_wash());
-                        }
+                        let over = motion::hover(&resp);
+                        painter.rect_filled(r, CornerRadius::same(4), motion::with_alpha(t.hover_wash(), over));
                         painter.text(
                             r.center(),
                             Align2::CENTER_CENTER,
@@ -3003,11 +3000,7 @@ fn legend(
                     let r = Rect::from_min_size(pos2(xx, pos.y - 2.0), vec2(20.0, 18.0));
                     xx += 22.0;
                     let resp = ui.interact(r, Id::new(("legend", chart.id, uid, id)), Sense::click());
-                    let bg = if resp.hovered() {
-                        t.hover_wash()
-                    } else {
-                        Color32::TRANSPARENT
-                    };
+                    let bg = motion::with_alpha(t.hover_wash(), motion::hover(&resp));
                     painter.rect_filled(r, CornerRadius::same(4), bg);
                     painter.text(
                         r.center(),

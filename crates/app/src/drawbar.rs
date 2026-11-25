@@ -114,15 +114,17 @@ impl App {
                             } else {
                                 ph::LOCK_SIMPLE_OPEN
                             };
-                            ui.toggle_value(&mut edit.locked, lock).on_hover_text(tr("Lock"));
-                            if ui
-                                .button(ph::STAR)
+                            ui.toggle_value(&mut edit.locked, lock);
+                            if crate::widgets::eased(ui, egui::Button::new(ph::STAR))
                                 .on_hover_text(tr("Use this style for new drawings of this kind"))
                                 .clicked()
                             {
                                 save_default = true;
                             }
-                            if ui.button(ph::TRASH).on_hover_text(tr("Remove (Delete)")).clicked() {
+                            if crate::widgets::eased(ui, egui::Button::new(ph::TRASH))
+                                .on_hover_text(tr("Remove (Delete)"))
+                                .clicked()
+                            {
                                 delete = true;
                             }
                         });

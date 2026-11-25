@@ -209,7 +209,7 @@ impl App {
         let body = Rect::from_min_max(pos2(nav.right() + 1.0, full.top()), full.max);
         let close_r = Rect::from_min_size(pos2(body.right() - 44.0, body.top() + 12.0), vec2(30.0, 30.0));
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(close_r));
-        if crate::widgets::tool_button(&mut c, t, ph::X, tr("Close (Esc)"), false, 30.0).clicked() {
+        if crate::widgets::tool_button(&mut c, t, ph::X, "", false, 30.0).clicked() {
             close = true;
         }
         let inner = Rect::from_min_max(

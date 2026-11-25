@@ -4,6 +4,7 @@
 //! (`--permission-prompt-tool stdio`), and the app's own tools are an
 //! in-process MCP server the CLI reaches over the same pipe (`mcp_message`).
 
+use super::effort::Model;
 use crate::i18n::{nt, tr, trf};
 use crossbeam_channel::{Receiver, Sender, unbounded};
 use serde_json::{Value, json};
@@ -53,6 +54,8 @@ pub struct Launch {
     pub system: String,
     /// The account's config folder ("" = the CLI's default; `accounts.rs`).
     pub account: String,
+    /// The effort picked, or `None` for the CLI's default (`effort.rs`).
+    pub effort: Option<String>,
 }
 
 /// One window of the account's usage limits (`five_hour`, `seven_day`, …).
@@ -127,8 +130,13 @@ pub enum Event {
         message: String,
     },
     Limits(Vec<Window>),
-    /// The models the account can use: (id, name). Codex only.
-    Models(Vec<(String, String)>),
+    /// The models the account can use. Codex only.
+    Models(Vec<Model>),
+    /// What a model runs at when no effort is picked.
+    Effort {
+        model: String,
+        level: String,
+    },
     Permission {
         request: String,
         tool: String,
@@ -211,6 +219,18 @@ impl Client {
             Client::Codex(c) => c.set_mode(mode),
         }
     }
+
+    /// Whether a new effort goes with the next message (Codex). Claude Code
+    /// takes it at its start.
+    pub fn set_effort(&mut self, level: &str) -> bool {
+        match self {
+            Client::Claude(_) => false,
+            Client::Codex(c) => {
+                c.set_effort(level);
+                true
+            }
+        }
+    }
 }
 
 /// One running `claude` process.
@@ -246,6 +266,11 @@ impl ClaudeCode {
         ]);
         if let Some(m) = &l.model {
             cmd.args(["--model", m]);
+        }
+        if let Some(e) = &l.effort {
+            cmd.args(["--effort", e]);
+            // It would win over the one picked here.
+            cmd.env_remove("CLAUDE_CODE_EFFORT_LEVEL");
         }
         if let Some(s) = &l.resume {
             cmd.args(["--resume", s]);
@@ -291,6 +316,13 @@ impl ClaudeCode {
         let _ = std::thread::Builder::new()
             .name("claude".into())
             .spawn(move || read(stdout, tx, wake, err_text));
+        // What it runs at by itself (older versions don't answer this).
+        if l.effort.is_none()
+            && let Ok(mut s) = stdin.lock()
+        {
+            let _ = writeln!(s, "{}", get_settings());
+            let _ = s.flush();
+        }
         Ok(ClaudeCode {
             child,
             stdin,
@@ -414,10 +446,10 @@ pub fn not_nested(cmd: &mut Command) {
 /// `initialize` answer lists them; no request goes to the model). Only the
 /// families' latest (the entries named by alias: opus, sonnet, …), as
 /// (exact id, name), in the CLI's order. Empty on any failure.
-pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
+pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<Model>> {
     let (tx, rx) = unbounded();
     let _ = std::thread::Builder::new().name("claude-models".into()).spawn(move || {
-        let mut list = Vec::new();
+        let mut list: Vec<Model> = Vec::new();
         // A new workspace has no scripts folder until something is saved.
         let _ = std::fs::create_dir_all(&cwd);
         let mut cmd = command(&exe, &super::accounts::current(super::Agent::Claude));
@@ -444,17 +476,42 @@ pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
                 json!({"type": "control_request", "request_id": "models", "request": {"subtype": "initialize"}})
             );
             let _ = sin.flush();
-            let start = std::time::Instant::now();
-            for line in BufReader::new(sout).lines() {
-                let Ok(line) = line else { break };
-                let Ok(v) = serde_json::from_str::<Value>(&line) else {
+            // Read on a thread of its own, so one that says nothing is given
+            // up on (killing it ends the thread).
+            let (lines_tx, lines) = unbounded();
+            let _ = std::thread::Builder::new()
+                .name("claude-models-read".into())
+                .spawn(move || {
+                    for line in BufReader::new(sout).lines() {
+                        let Ok(line) = line else { break };
+                        if let Ok(v) = serde_json::from_str::<Value>(&line)
+                            && lines_tx.send(v).is_err()
+                        {
+                            break;
+                        }
+                    }
+                });
+            let mut end = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            while let Ok(v) = lines.recv_deadline(end) {
+                if v["type"] != "control_response" {
                     continue;
-                };
-                if v["type"] == "control_response" && v["response"]["request_id"] == "models" {
-                    list = latest_models(&v["response"]["response"]["models"]);
-                    break;
                 }
-                if start.elapsed().as_secs() > 20 {
+                let id = &v["response"]["request_id"];
+                if id == "models" {
+                    list = latest_models(&v["response"]["response"]["models"]);
+                    // Then the effort its default model runs at. Older
+                    // versions may not answer.
+                    let _ = writeln!(sin, "{}", get_settings());
+                    let _ = sin.flush();
+                    end = std::time::Instant::now() + std::time::Duration::from_secs(3);
+                } else if id == EFFORT {
+                    for e in parse(&v) {
+                        if let Event::Effort { model, level } = e
+                            && let Some(m) = list.iter_mut().find(|m| m.id == model)
+                        {
+                            m.levels.default = Some(level);
+                        }
+                    }
                     break;
                 }
             }
@@ -467,8 +524,15 @@ pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
     rx
 }
 
-/// The alias entries of an `initialize` model list as (exact id, name).
-fn latest_models(models: &Value) -> Vec<(String, String)> {
+/// Asks a running Claude Code what it runs as; `parse` reads the answer.
+fn get_settings() -> Value {
+    json!({"type": "control_request", "request_id": EFFORT, "request": {"subtype": "get_settings"}})
+}
+
+const EFFORT: &str = "effort";
+
+/// The alias entries of an `initialize` model list, by exact id.
+fn latest_models(models: &Value) -> Vec<Model> {
     models
         .as_array()
         .into_iter()
@@ -479,11 +543,17 @@ fn latest_models(models: &Value) -> Vec<(String, String)> {
                 return None;
             }
             let id = m["resolvedModel"].as_str().filter(|s| !s.is_empty())?;
+            // Newer versions list "Opus" alone; the panel says which.
             let name = m["displayName"]
                 .as_str()
+                .filter(|n| n.contains(|c: char| c.is_ascii_digit()))
                 .map(str::to_string)
                 .unwrap_or_else(|| super::model_name(id));
-            Some((id.to_string(), name))
+            Some(Model {
+                id: id.to_string(),
+                name,
+                levels: super::effort::of_claude(m),
+            })
         })
         .collect()
 }
@@ -537,6 +607,15 @@ pub fn parse(v: &Value) -> Vec<Event> {
             session: s("session_id").to_string(),
             model: s("model").to_string(),
         }),
+        "control_response" if v["response"]["request_id"] == EFFORT => {
+            let a = &v["response"]["response"]["applied"];
+            if let (Some(model), Some(level)) = (a["model"].as_str(), a["effort"].as_str()) {
+                out.push(Event::Effort {
+                    model: model.to_string(),
+                    level: level.to_string(),
+                });
+            }
+        }
         "stream_event" if !nested => {
             let e = &v["event"];
             match e["type"].as_str() {
@@ -658,6 +737,15 @@ fn order(name: &str) -> u8 {
 }
 
 /// A plain name for a usage window (Codex's are `w<minutes>`).
+/// A usage window's length, in minutes.
+pub fn window_minutes(name: &str) -> Option<i64> {
+    match name {
+        "five_hour" => Some(300),
+        n if n.starts_with("seven_day") => Some(10080),
+        n => n.strip_prefix('w')?.parse().ok().filter(|m| *m > 0),
+    }
+}
+
 pub fn window_name(name: &str) -> String {
     if let Some(m) = name.strip_prefix('w').and_then(|m| m.parse::<i64>().ok()) {
         return match m {
@@ -690,13 +778,17 @@ mod tests {
     fn models_are_the_families_latest() {
         let v = json!([
             {"value": "default", "resolvedModel": "claude-opus-5-5", "displayName": "Default (recommended)"},
-            {"value": "opus", "resolvedModel": "claude-opus-5-5", "displayName": "Opus 5.5"},
+            {"value": "opus", "resolvedModel": "claude-opus-5-5", "displayName": "Opus",
+             "supportsEffort": true, "supportedEffortLevels": ["low", "high"]},
             {"value": "fable", "resolvedModel": "claude-fable-5-2", "displayName": "Fable 5.2"},
             {"value": "haiku", "resolvedModel": "claude-haiku-5-5"},
             {"value": "claude-fable-5-1", "resolvedModel": "claude-fable-5-1", "displayName": "Fable 5.1"}
         ]);
         assert_eq!(
-            latest_models(&v),
+            latest_models(&v)
+                .into_iter()
+                .map(|m| (m.id, m.name))
+                .collect::<Vec<_>>(),
             [
                 ("claude-opus-5-5".to_string(), "Opus 5.5".to_string()),
                 ("claude-fable-5-2".to_string(), "Fable 5.2".to_string()),
@@ -724,6 +816,70 @@ mod tests {
         );
         // Not passed off as another entrypoint.
         assert!(!matches!(env("", "CLAUDE_CODE_ENTRYPOINT"), Some(Some(_))));
+    }
+
+    /// Only a picked effort is passed, and it wins over the environment's.
+    #[cfg(unix)]
+    #[test]
+    fn a_picked_effort_is_passed() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("opentern-effort-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("claude");
+        let log = dir.join("log");
+        std::fs::write(
+            &exe,
+            format!(
+                "#!/bin/sh\necho \"$*\" > '{0}.tmp'\nmv '{0}.tmp' '{0}'\ncat > /dev/null\n",
+                log.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let run = |effort: Option<&str>| {
+            let _ = std::fs::remove_file(&log);
+            let l = Launch {
+                agent: super::super::Agent::Claude,
+                exe: exe.clone(),
+                cwd: dir.clone(),
+                add_dirs: Vec::new(),
+                mode: Mode::Auto,
+                model: None,
+                resume: None,
+                system: "test".into(),
+                account: String::new(),
+                effort: effort.map(str::to_string),
+            };
+            let cc = ClaudeCode::start(&l, Arc::new(|| {})).unwrap();
+            let end = std::time::Instant::now() + std::time::Duration::from_secs(20);
+            while !log.exists() && std::time::Instant::now() < end {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            drop(cc);
+            std::fs::read_to_string(&log).unwrap()
+        };
+        assert!(run(Some("xhigh")).contains("--effort xhigh"));
+        assert!(!run(None).contains("--effort"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn reads_the_default_effort() {
+        let ev = p(
+            r#"{"type":"control_response","response":{"subtype":"success","request_id":"effort","response":{"applied":{"model":"claude-opus-5-5","effort":"medium"}}}}"#,
+        );
+        assert_eq!(
+            ev,
+            vec![Event::Effort {
+                model: "claude-opus-5-5".into(),
+                level: "medium".into()
+            }]
+        );
+        // An older version that doesn't know the question.
+        assert!(
+            p(r#"{"type":"control_response","response":{"subtype":"error","request_id":"effort","error":"unknown"}}"#)
+                .is_empty()
+        );
     }
 
     /// A session the app was started from is left behind; the user's own

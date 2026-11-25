@@ -10,9 +10,6 @@ msgstr "\nSorpresa {0}{1}%"
 msgid "\nVol {0}"
 msgstr "\nVol {0}"
 
-msgid "\n{0}: {1}% used"
-msgstr "\n{0}: {1}% usado"
-
 msgid " What can I help you with?"
 msgstr " ¿En qué puedo ayudarte?"
 
@@ -143,9 +140,15 @@ msgstr "Un script de Python se ejecuta en el Python de tu sistema. Según su có
 msgid "A fast, local-first market analysis terminal."
 msgstr "Un terminal de análisis de mercados rápido y local."
 
+msgid "A full check of the Pine engine and the other languages fixed many errors and added over 80 missing functions."
+msgstr "Una revisión completa del motor de Pine y de los demás lenguajes corrigió muchos errores y añadió más de 80 funciones que faltaban."
+
 #, message
 msgid "A market order has no price to move."
 msgstr "Una orden a mercado no tiene precio que mover."
+
+msgid "A new agent panel"
+msgstr "Un nuevo panel de agentes"
 
 msgid "A sharper, calmer look"
 msgstr "Un aspecto más nítido y sereno"
@@ -247,17 +250,11 @@ msgstr "Activa"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Añade primero una estrategia al gráfico. Una estrategia es un script que empieza con strategy(…)."
 
-msgid "Add files"
-msgstr "Añadir archivos"
-
 msgid "Add filter"
 msgstr "Añadir filtro"
 
 msgid "Add section"
 msgstr "Añadir sección"
-
-msgid "Add symbol"
-msgstr "Añadir símbolo"
 
 msgid "Add to chart"
 msgstr "Añadir al gráfico"
@@ -354,9 +351,6 @@ msgstr "Permitir en este chat"
 
 msgid "Allow through Windows Firewall"
 msgstr "Permitir en el firewall de Windows"
-
-msgid "Allow {0} to do this?"
-msgstr "¿Permitir que {0} haga esto?"
 
 msgid "Allowed"
 msgstr "Permitido"
@@ -556,9 +550,6 @@ msgstr ""
 
 msgid "BUILT-IN INDICATORS"
 msgstr "INDICADORES INTEGRADOS"
-
-msgid "Back"
-msgstr "Atrás"
 
 msgid "Background"
 msgstr "Fondo"
@@ -999,14 +990,8 @@ msgstr "Haz clic en una barra para empezar ahí"
 msgid "Close"
 msgstr "Cerrar"
 
-msgid "Close (Esc)"
-msgstr "Cerrar (Esc)"
-
 msgid "Close ({0})"
 msgstr "Cerrar ({0})"
-
-msgid "Close replay"
-msgstr "Cerrar repetición"
 
 msgid "Closed"
 msgstr "Cerrado"
@@ -1109,9 +1094,6 @@ msgstr "Línea de conversión"
 msgid "Conversion Line Length"
 msgstr "Longitud de la línea de conversión"
 
-msgid "Copied"
-msgstr "Copiado"
-
 #, message
 msgid "Copied to {name}."
 msgstr "Copiado en {name}."
@@ -1121,9 +1103,6 @@ msgstr "Curva de Coppock"
 
 msgid "Copy"
 msgstr "Copiar"
-
-msgid "Copy code"
-msgstr "Copiar código"
 
 msgid "Copy image"
 msgstr "Copiar imagen"
@@ -1396,23 +1375,14 @@ msgstr "Retraso de {min} min"
 msgid "Delete"
 msgstr "Eliminar"
 
-msgid "Delete chat"
-msgstr "Eliminar chat"
-
 msgid "Delete folder (if empty)"
 msgstr "Eliminar carpeta (si está vacía)"
 
 msgid "Delete for good"
 msgstr "Eliminar definitivamente"
 
-msgid "Delete layout"
-msgstr "Eliminar diseño"
-
 msgid "Delete list"
 msgstr "Eliminar lista"
-
-msgid "Delete template"
-msgstr "Eliminar plantilla"
 
 msgid "Delete the selected drawing"
 msgstr "Eliminar el dibujo seleccionado"
@@ -1516,9 +1486,6 @@ msgstr "EMA doble"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Doble clic para llevar estos parámetros al gráfico"
-
-msgid "Double-click to rename"
-msgstr "Doble clic para cambiar el nombre"
 
 msgid "Down"
 msgstr "Bajista"
@@ -1628,9 +1595,6 @@ msgstr "Facilidad de movimiento"
 msgid "Easter Monday"
 msgstr "Lunes de Pascua"
 
-msgid "Edit"
-msgstr "Editar"
-
 msgid "Edit alert"
 msgstr "Editar alerta"
 
@@ -1650,6 +1614,9 @@ msgstr "Eficiencia"
 
 msgid "Efficiency: out-of-sample profit per bar as a share of in-sample profit per bar. Above 50% is usually read as robust."
 msgstr "Eficiencia: beneficio por barra fuera de muestra respecto al de dentro de muestra. Más del 50 % suele considerarse robusto."
+
+msgid "Effort"
+msgstr "Esfuerzo"
 
 msgid "Elder Force Index"
 msgstr "Índice de fuerza de Elder"
@@ -1809,6 +1776,9 @@ msgstr "Línea extendida"
 msgid "Extended trading hours"
 msgstr "Horario ampliado"
 
+msgid "Extra high"
+msgstr "Muy alto"
+
 msgid "Factor"
 msgstr "Factor"
 
@@ -1862,9 +1832,6 @@ msgstr "Rellenos"
 
 msgid "Filter"
 msgstr "Filtrar"
-
-msgid "Filter files"
-msgstr "Filtrar archivos"
 
 #, message
 msgid "Find files: {0}"
@@ -2052,6 +2019,9 @@ msgstr "Ocultar la barra de dibujo"
 msgid "Hide the sidebar"
 msgstr "Ocultar la barra lateral"
 
+msgid "High"
+msgstr "Alto"
+
 msgid "High-low"
 msgstr "Máximo-mínimo"
 
@@ -2158,6 +2128,9 @@ msgstr "Importando"
 
 msgid "In a pane of its own, below"
 msgstr "En un panel propio, debajo"
+
+msgid "In your agent's own colours, with usage limits a click away and a slider for how hard it thinks."
+msgstr "Con los colores de tu agente, los límites de uso a un clic y un control para cuánto razona."
 
 msgid "In-sample P&L"
 msgstr "PyG dentro de muestra"
@@ -2496,9 +2469,6 @@ msgstr "Cargando…"
 msgid "Local"
 msgstr "Local"
 
-msgid "Lock"
-msgstr "Bloquear"
-
 msgid "Lock all drawings"
 msgstr "Bloquear todos los dibujos"
 
@@ -2587,6 +2557,9 @@ msgstr "Racha perdedora, peor 5 %"
 
 msgid "Losing trades"
 msgstr "Operaciones perdedoras"
+
+msgid "Low"
+msgstr "Bajo"
 
 msgid "Lower"
 msgstr "Inferior"
@@ -2774,6 +2747,9 @@ msgstr "Día de Martin Luther King Jr."
 msgid "Mass Index"
 msgstr "Mass Index"
 
+msgid "Max"
+msgstr "Máximo"
+
 msgid "Max DD"
 msgstr "DD máx."
 
@@ -2834,8 +2810,14 @@ msgstr "PyG mediana"
 msgid "Median max drawdown"
 msgstr "Mediana del drawdown máximo"
 
+msgid "Medium"
+msgstr "Medio"
+
 msgid "Memorial Day"
 msgstr "Día de los Caídos"
+
+msgid "Menus, dialogs and hovers ease in and out."
+msgstr "Los menús, los diálogos y los resaltados aparecen y desaparecen con suavidad."
 
 msgid "Merge"
 msgstr "Combinar"
@@ -2863,6 +2845,9 @@ msgstr "Longitud del RCI medio"
 
 msgid "Millions, billions"
 msgstr "Millones, miles de millones"
+
+msgid "Minimal"
+msgstr "Mínimo"
 
 msgid "Minutes"
 msgstr "Minutos"
@@ -2907,8 +2892,8 @@ msgstr "Fases lunares"
 msgid "More"
 msgstr "Más"
 
-msgid "More intervals"
-msgstr "Más intervalos"
+msgid "More scripts run"
+msgstr "Funcionan más scripts"
 
 msgid "Mountain Day"
 msgstr "Día de la Montaña"
@@ -3083,6 +3068,9 @@ msgstr "Próximos resultados {0}\nEstimación {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Próximo reajuste {0} (1 de abril y 1 de octubre)."
+
+msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
+msgstr "Nueve idiomas además del inglés. Sigue el de tu sistema; elige otro en Ajustes → General → Idioma."
 
 msgid "No alerts yet"
 msgstr "Aún no hay alertas"
@@ -3387,9 +3375,6 @@ msgstr "Abrir {0}"
 msgid "Open {0} in the editor"
 msgstr "Abrir {0} en el editor"
 
-msgid "Open {f} in the Script Editor"
-msgstr "Abrir {f} en el Editor de scripts"
-
 msgid "Open, high, low and close values"
 msgstr "Valores de apertura, máximo, mínimo y cierre"
 
@@ -3406,6 +3391,9 @@ msgstr "Opentern no pudo iniciarse"
 
 msgid "Opentern export"
 msgstr "Exportación de Opentern"
+
+msgid "Opentern in your language"
+msgstr "Opentern en tu idioma"
 
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern está abierto en otra ventana. Ciérrala e importa después."
@@ -3819,9 +3807,6 @@ msgstr "Trimestre"
 msgid "Quarterly"
 msgstr "Trimestral"
 
-msgid "Queue (Enter)"
-msgstr "Poner en cola (Intro)"
-
 msgid "RCI"
 msgstr ""
 
@@ -3949,9 +3934,6 @@ msgstr "Recibir"
 msgid "Receiving from {peer}"
 msgstr "Recibiendo de {peer}"
 
-msgid "Recent colour"
-msgstr "Color reciente"
-
 msgid "Rectangle"
 msgstr "Rectángulo"
 
@@ -4003,9 +3985,6 @@ msgstr "Quitar dibujos"
 
 msgid "Remove drawings or indicators"
 msgstr "Quitar dibujos o indicadores"
-
-msgid "Remove filter"
-msgstr "Quitar filtro"
 
 msgid "Remove from favorites"
 msgstr "Quitar de favoritos"
@@ -4082,14 +4061,8 @@ msgstr "Restablece la cuenta para cambiar su divisa"
 msgid "Reset the chart view"
 msgstr "Restablecer la vista del gráfico"
 
-msgid "Resets {0}"
-msgstr "Se restablece {0}"
-
 msgid "Respect for the Aged Day"
 msgstr "Día del Respeto a los Mayores"
-
-msgid "Restart"
-msgstr "Reiniciar"
 
 msgid "Restart Opentern"
 msgstr "Reiniciar Opentern"
@@ -4387,9 +4360,6 @@ msgstr "Orden de venta ejecutada."
 msgid "Send"
 msgstr "Enviar"
 
-msgid "Send (Enter)"
-msgstr "Enviar (Intro)"
-
 msgid "Send a test email"
 msgstr "Enviar un correo de prueba"
 
@@ -4583,6 +4553,9 @@ msgstr "Menor drawdown máximo"
 msgid "Smoothed Moving Average"
 msgstr "Media móvil suavizada"
 
+msgid "Smoother motion"
+msgstr "Movimiento más suave"
+
 msgid "Smoothing"
 msgstr "Suavizado"
 
@@ -4610,9 +4583,6 @@ msgstr "Alguien introdujo un código incorrecto."
 
 msgid "Something went wrong in the run."
 msgstr "Algo salió mal en la ejecución."
-
-msgid "Sort"
-msgstr "Ordenar"
 
 msgid "Sort by name"
 msgstr "Ordenar por nombre"
@@ -5246,6 +5216,9 @@ msgstr "Grandes empresas de EE. UU."
 msgid "Ultimate Oscillator"
 msgstr "Oscilador definitivo"
 
+msgid "Ultra"
+msgstr "Ultra"
+
 msgid "Undo"
 msgstr "Deshacer"
 
@@ -5358,9 +5331,6 @@ msgstr "Upstox: sin cotización para este símbolo."
 
 msgid "Uptrend Highlighter"
 msgstr "Resaltador de tendencia alcista"
-
-msgid "Usage shows after your first message."
-msgstr "El uso aparece tras tu primer mensaje."
 
 msgid "Use Exponential MA"
 msgstr "Usar media exponencial"
@@ -5738,9 +5708,6 @@ msgstr "un dibujo"
 msgid "above"
 msgstr "por encima de"
 
-msgid "at {0}"
-msgstr "a las {0}"
-
 msgid "auto"
 msgstr "auto"
 
@@ -5988,9 +5955,6 @@ msgstr "{0}: Yahoo ya no tiene este símbolo; quizá cambió de nombre o dejó d
 #, message
 msgid "{0}: any alert() call"
 msgstr "{0}: cualquier llamada alert()"
-
-msgid "{0}: {1}% used"
-msgstr "{0}: {1}% usado"
 
 msgid "{0}d ago"
 msgstr "hace {0} d"
