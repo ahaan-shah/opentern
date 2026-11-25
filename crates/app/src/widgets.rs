@@ -28,7 +28,11 @@ pub fn tool_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, active: bool,
         );
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-    if tip.is_empty() { resp } else { resp.on_hover_text(tip) }
+    if tip.is_empty() {
+        resp
+    } else {
+        resp.on_hover_text(crate::i18n::tr(tip))
+    }
 }
 
 /// A text (optionally icon + text) button for the top bar. `active` shows
@@ -56,7 +60,11 @@ pub fn bar_button(ui: &mut Ui, t: &Theme, icon: Option<&str>, text: &str, tip: &
         p.galley_with_override_text_color(rect.center() - galley.size() / 2.0, galley, color);
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-    if tip.is_empty() { resp } else { resp.on_hover_text(tip) }
+    if tip.is_empty() {
+        resp
+    } else {
+        resp.on_hover_text(crate::i18n::tr(tip))
+    }
 }
 
 /// A square top-bar button showing a drawn icon (`paint` gets the icon's
@@ -76,7 +84,11 @@ pub fn bar_icon_button(
         paint(p, Rect::from_center_size(rect.center(), vec2(17.0, 17.0)), c);
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
-    if tip.is_empty() { resp } else { resp.on_hover_text(tip) }
+    if tip.is_empty() {
+        resp
+    } else {
+        resp.on_hover_text(crate::i18n::tr(tip))
+    }
 }
 
 /// A thin vertical rule between groups in a horizontal bar.
@@ -342,6 +354,8 @@ pub enum Kind {
 pub fn button(ui: &mut Ui, kind: Kind, enabled: bool, icon: Option<&str>, label: &str) -> Response {
     let v = ui.visuals().clone();
     let font = theme::medium(13.0);
+    let translated = crate::i18n::tr(label);
+    let label = translated.as_str();
     let text = match icon {
         Some(i) if !label.is_empty() => format!("{i}  {label}"),
         Some(i) => i.to_string(),
@@ -417,7 +431,11 @@ pub fn area(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
 /// A field's name, above it: small, medium weight, muted.
 pub fn field_label(ui: &mut Ui, t: &Theme, text: &str) {
     ui.add_space(2.0);
-    ui.label(egui::RichText::new(text).font(theme::medium(12.5)).color(t.text2));
+    ui.label(
+        egui::RichText::new(crate::i18n::tr(text))
+            .font(theme::medium(12.5))
+            .color(t.text2),
+    );
     ui.add_space(-2.0);
 }
 
@@ -541,6 +559,7 @@ pub fn form_rule(ui: &mut Ui, t: &Theme) {
 /// A search field with the magnifying glass drawn in its own gutter, so
 /// the text cursor never sits on top of it.
 pub fn search_field(ui: &mut Ui, t: &Theme, text: &mut String, hint: &str, width: f32) -> Response {
+    let hint = crate::i18n::tr(hint);
     let r = ui.add(
         egui::TextEdit::singleline(text)
             // A little air between the cursor and the hint.
@@ -717,6 +736,7 @@ fn menu_row_tinted(
     enabled: bool,
     tint: Option<Color32>,
 ) -> Response {
+    let label = crate::i18n::tr(label);
     let width = ui.available_width().max(120.0);
     let sense = if enabled { Sense::click() } else { Sense::hover() };
     let (rect, resp) = ui.allocate_exact_size(vec2(width, 32.0), sense);
@@ -785,7 +805,11 @@ pub fn menu_heading(ui: &mut Ui, t: &Theme, text: &str) {
     ui.add_space(2.0);
     ui.horizontal(|ui| {
         ui.add_space(10.0);
-        ui.label(egui::RichText::new(text).font(theme::semibold(11.0)).color(t.text3));
+        ui.label(
+            egui::RichText::new(crate::i18n::tr(text))
+                .font(theme::semibold(11.0))
+                .color(t.text3),
+        );
     });
 }
 
@@ -803,7 +827,11 @@ pub fn empty_state(ui: &mut Ui, t: &Theme, glyph: &str, title: &str) {
         ui.add_space(18.0);
         ui.label(egui::RichText::new(glyph).font(theme::regular(34.0)).color(t.text3));
         ui.add_space(4.0);
-        ui.label(egui::RichText::new(title).font(theme::semibold(14.0)).color(t.text));
+        ui.label(
+            egui::RichText::new(crate::i18n::tr(title))
+                .font(theme::semibold(14.0))
+                .color(t.text),
+        );
         ui.add_space(12.0);
     });
 }

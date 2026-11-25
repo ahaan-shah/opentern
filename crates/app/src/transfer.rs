@@ -1735,6 +1735,12 @@ mod tests {
     fn export_file_import_file_end_to_end() {
         let mut from = Driver::new("transfer-file-from");
         seed(&mut from);
+        let unicode_folder = "中文测试文件夹";
+        let unicode_script = "我的BTC量化策略.pine";
+        let unicode_source = "// 中文注释\nindicator(\"中文指标\")\nplot(close)\n";
+        let unicode_path = from.app.scripts_dir().join(unicode_folder).join(unicode_script);
+        std::fs::create_dir_all(unicode_path.parent().unwrap()).unwrap();
+        std::fs::write(&unicode_path, unicode_source).unwrap();
         open_page(&mut from);
         let out = from.dir.join("my-export"); // no extension: one is added
         with_page(&mut from, |x, app| {
@@ -1746,7 +1752,7 @@ mod tests {
         assert!(file.exists());
         let m = transfer::read_manifest(&file).unwrap();
         assert!(!m.items.contains_key("paper"), "unticked stays out");
-        assert!(m.items["scripts"] == 1);
+        assert!(m.items["scripts"] == 2);
 
         let mut to = Driver::new("transfer-file-to");
         open_page(&mut to);
@@ -1790,7 +1796,12 @@ mod tests {
         assert_eq!(reopened.app.watchlists[0].name, "From the desktop");
         assert_eq!(reopened.app.layout_name, "Desktop layout");
         assert!(reopened.app.scripts_dir().join("mine.pine").exists());
-        assert_eq!(reopened.app.script_files(), ["mine.pine"]);
+        let imported = reopened.app.scripts_dir().join(unicode_folder).join(unicode_script);
+        assert_eq!(std::fs::read_to_string(&imported).unwrap(), unicode_source);
+        assert_eq!(
+            reopened.app.script_files(),
+            vec!["mine.pine".to_owned(), format!("{unicode_folder}/{unicode_script}")]
+        );
         assert_eq!(
             reopened.app.notes.list.first().map(|n| n.title.as_str()),
             Some("Import finished"),

@@ -20,6 +20,8 @@ fn kind_name(k: AssetKind) -> &'static str {
         AssetKind::Forex => "forex",
         // TradingView's syminfo.type for commodity futures.
         AssetKind::Futures | AssetKind::Commodity => "futures",
+        // OANDA metals/energy are cash CFDs, not futures contracts.
+        AssetKind::CommoditySpot => "cfd",
     }
 }
 

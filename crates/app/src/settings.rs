@@ -31,15 +31,15 @@ impl Cat {
         Cat::About,
     ];
 
-    fn title(self) -> &'static str {
-        match self {
+    fn title(self) -> String {
+        crate::i18n::tr(match self {
             Cat::General => "General",
             Cat::Chart => "Chart",
             Cat::Providers => "Data providers",
             Cat::Shortcuts => "Keyboard shortcuts",
             Cat::Transfer => "Export and import",
             Cat::About => "About",
-        }
+        })
     }
 
     fn icon(self) -> &'static str {
@@ -167,7 +167,7 @@ impl App {
         // Categories.
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(nav.shrink2(vec2(12.0, 16.0))));
         c.label(
-            egui::RichText::new("Settings")
+            egui::RichText::new(crate::i18n::tr("Settings"))
                 .font(theme::semibold(18.0))
                 .color(t.text),
         );
@@ -206,7 +206,7 @@ impl App {
         let body = Rect::from_min_max(pos2(nav.right() + 1.0, full.top()), full.max);
         let close_r = Rect::from_min_size(pos2(body.right() - 44.0, body.top() + 12.0), vec2(30.0, 30.0));
         let mut c = ui.new_child(egui::UiBuilder::new().max_rect(close_r));
-        if crate::widgets::tool_button(&mut c, t, ph::X, "Close (Esc)", false, 30.0).clicked() {
+        if crate::widgets::tool_button(&mut c, t, ph::X, &crate::i18n::tr("Close (Esc)"), false, 30.0).clicked() {
             close = true;
         }
         let inner = Rect::from_min_max(
@@ -265,29 +265,66 @@ impl App {
 
     fn general(&mut self, ui: &mut Ui, t: &Theme) {
         self.poll_folder_pick();
-        crate::dialogs::section(ui, t, "Folders");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Folders"));
         ui.add_space(4.0);
         self.folder_row(ui, t, Folder::Scripts);
         ui.add_space(8.0);
         self.folder_row(ui, t, Folder::Snapshots);
         ui.add_space(22.0);
+        self.language_picker(ui);
+        ui.add_space(22.0);
         self.appearance(ui, t);
         ui.add_space(12.0);
-        crate::dialogs::section(ui, t, "Symbol logos");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Symbol logos"));
         ui.add_space(4.0);
         self.logo_settings(ui);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Large numbers");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Large numbers"));
         ui.add_space(4.0);
         self.number_settings(ui, t);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Price cache");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Price cache"));
         ui.add_space(4.0);
         self.cache_settings(ui, t);
         ui.add_space(22.0);
-        crate::dialogs::section(ui, t, "Alerts");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Alerts"));
         ui.add_space(4.0);
         self.alert_settings(ui, t);
+    }
+
+    fn language_picker(&mut self, ui: &mut Ui) {
+        let choice = self.language;
+        ui.label(egui::RichText::new(crate::i18n::tr("Interface Language")).color(self.t().text2));
+        ui.add_space(4.0);
+        let mut selected = choice;
+        crate::widgets::combo("settings-interface-language")
+            .width(220.0)
+            .selected_text(crate::i18n::tr(choice.label()))
+            .show_ui(ui, |ui| {
+                for candidate in [
+                    crate::i18n::Language::System,
+                    crate::i18n::Language::Chinese,
+                    crate::i18n::Language::English,
+                ] {
+                    let label = if candidate == crate::i18n::Language::System {
+                        crate::i18n::tr("System")
+                    } else {
+                        candidate.label().to_owned()
+                    };
+                    if crate::widgets::option(ui, candidate == choice, label).clicked() {
+                        selected = candidate;
+                    }
+                }
+            });
+        if selected != choice {
+            if let Err(e) = crate::i18n::save_choice(&mut self.store, selected) {
+                crate::diag::crumb(format!("couldn't save the interface language: {e}"));
+            }
+            self.language = selected;
+            crate::i18n::activate_choice(selected);
+            crate::theme::install_fonts(ui.ctx(), &self.store.settings().font);
+            ui.ctx().request_repaint();
+        }
     }
 
     /// What happens to alerts when Opentern is closed: one plain choice
@@ -303,7 +340,7 @@ impl App {
             (true, true) => 2,
         };
         let mut pick = was;
-        ui.label(egui::RichText::new("When Opentern is closed").color(t.text2));
+        ui.label(egui::RichText::new(crate::i18n::tr("When Opentern is closed")).color(t.text2));
         ui.add_space(4.0);
         let choices: [(u8, &str, &str); 3] = [
             (0, "Pause alerts", "Alerts only fire while Opentern is open."),
@@ -321,7 +358,7 @@ impl App {
             ),
         ];
         for (k, label, tip) in choices {
-            crate::widgets::radio(ui, &mut pick, k, label).on_hover_text(tip);
+            crate::widgets::radio(ui, &mut pick, k, &crate::i18n::tr(label)).on_hover_text(crate::i18n::tr(tip));
             ui.add_space(2.0);
         }
         let err_id = egui::Id::new("alerts-at-login-error");
@@ -384,8 +421,8 @@ impl App {
 
     fn folder_row(&mut self, ui: &mut Ui, t: &Theme, f: Folder) {
         let (name, icon, dir) = match f {
-            Folder::Scripts => ("Scripts", ph::CODE, self.scripts_dir()),
-            Folder::Snapshots => ("Snapshots", ph::CAMERA, self.snapshots_dir()),
+            Folder::Scripts => (crate::i18n::tr("Scripts"), ph::CODE, self.scripts_dir()),
+            Folder::Snapshots => (crate::i18n::tr("Snapshots"), ph::CAMERA, self.snapshots_dir()),
         };
         let custom = match f {
             Folder::Scripts => self.folders.scripts.is_some(),
@@ -416,12 +453,26 @@ impl App {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         buttons.spacing_mut().item_spacing.x = 4.0;
-        if crate::widgets::secondary(&mut buttons, "Change").clicked() && self.folders.picking.is_none() {
+        if crate::widgets::secondary(&mut buttons, &crate::i18n::tr("Change")).clicked()
+            && self.folders.picking.is_none()
+        {
             let _ = std::fs::create_dir_all(&dir);
-            let title = format!("Choose a {} folder", name.to_lowercase());
+            let title = crate::i18n::tr(match f {
+                Folder::Scripts => "Choose a scripts folder",
+                Folder::Snapshots => "Choose a snapshots folder",
+            });
             self.folders.picking = Some((f, pick_folder(&title, &dir)));
         }
-        if crate::widgets::tool_button(&mut buttons, t, ph::FOLDER_OPEN, "Open folder", false, 30.0).clicked() {
+        if crate::widgets::tool_button(
+            &mut buttons,
+            t,
+            ph::FOLDER_OPEN,
+            &crate::i18n::tr("Open folder"),
+            false,
+            30.0,
+        )
+        .clicked()
+        {
             let _ = std::fs::create_dir_all(&dir);
             crate::app::open_path(&dir.join("."));
         }
@@ -430,7 +481,7 @@ impl App {
                 &mut buttons,
                 t,
                 ph::ARROW_COUNTER_CLOCKWISE,
-                "Use the default folder",
+                &crate::i18n::tr("Use the default folder"),
                 false,
                 30.0,
             )
@@ -472,7 +523,7 @@ impl App {
     }
 
     fn appearance(&mut self, ui: &mut Ui, t: &Theme) {
-        crate::dialogs::section(ui, t, "Theme");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Theme"));
         ui.add_space(4.0);
         let current = self.t().name;
         let mut pick = None;
@@ -554,7 +605,7 @@ impl App {
             self.set_theme(ui.ctx(), name);
         }
         ui.add_space(12.0);
-        crate::dialogs::section(ui, t, "Font");
+        crate::dialogs::section(ui, t, &crate::i18n::tr("Font"));
         ui.add_space(4.0);
         self.font_picker(ui);
     }

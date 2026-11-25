@@ -1879,7 +1879,7 @@ impl App {
             return text("The bottom panel is closed.");
         }
         let tab = Tab::ALL.into_iter().find(|t| {
-            let n = norm(t.title());
+            let n = norm(&t.title());
             n == want || n.starts_with(&want) || norm(&format!("{t:?}")) == want
         });
         match tab {

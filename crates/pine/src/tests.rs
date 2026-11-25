@@ -92,6 +92,16 @@ fn each_call_site_has_its_own_state() {
 }
 
 #[test]
+fn request_security_user_function_reads_chart_globals() {
+    let src = "//@version=6\nindicator(\"security globals\")\nlength = input.int(5, \"Length\")\ncalc() => ta.sma(close, length)\nrequested = request.security(syminfo.tickerid, \"60\", calc())\nplot(requested)";
+    let s = compile(src, "security-globals.pine", Env::default()).unwrap();
+    let mut st = s.study(&Inputs::default());
+    let out = st.run(&bars(120), H1);
+    assert!(st.error().is_none(), "runtime: {:?}", st.error());
+    assert!(out.plots[0].iter().any(|v| v.is_finite()));
+}
+
+#[test]
 fn function_locals_have_history_only_when_called() {
     // f runs on even bars only; x[1] inside it is the previous call's value.
     let v = plot(
@@ -244,6 +254,30 @@ fn inputs_become_settings() {
     let changed = s.study(&inputs.normalized(m)).run(&b, H1);
     let want = (b[18].open + b[19].open + b[20].open) / 3.0;
     assert!((changed.plots[0][20] - want).abs() < 1e-12);
+}
+
+#[test]
+fn inputs_accept_named_const_group_values_in_v6() {
+    let src = "//@version=6\nindicator(\"Groups\")\n\
+               VS = \"Volume Settings\"\n\
+               price_src = input.source(close, \"Price Source\", group = VS)\n\
+               plot(price_src)";
+    let script = compile(src, "groups.pine", Env::default()).unwrap_or_else(|e| panic!("{e}\n{src}"));
+    assert_eq!(script.meta().inputs[0].group, Some("Volume Settings"));
+}
+
+#[test]
+fn input_qualified_strings_are_not_compile_time_constants() {
+    let src = "//@version=6\nindicator(\"Groups\")\ngroup_name = input.string(\"Volume\", \"Group\")\n\
+               price_src = input.source(close, \"Price Source\", group = group_name)\nplot(price_src)";
+    let error = match compile(src, "groups.pine", Env::default()) {
+        Err(error) => error,
+        Ok(_) => panic!("runtime input was accepted as a constant"),
+    };
+    assert!(
+        error.message.contains("group") && error.message.contains("constant"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -698,6 +732,47 @@ fn security_on_other_symbols_and_lower_timeframes() {
         env,
     );
     assert_eq!(p[3], other[3].close);
+}
+
+#[test]
+fn v6_dynamic_requests_in_a_loop_keep_each_context() {
+    let b = bars(6);
+    let env = Env::default();
+    let feed = |scale: f64| {
+        b.iter()
+            .enumerate()
+            .map(|(i, bar)| Bar {
+                close: scale + i as f64,
+                ..*bar
+            })
+            .collect::<Vec<_>>()
+    };
+    let a = feed(10.0);
+    let z = feed(100.0);
+    let sym_a = "BINANCE:AAAUSDT";
+    let sym_z = "BINANCE:ZZZUSDT";
+    env.feeds
+        .write()
+        .unwrap()
+        .insert(crate::feed_key(sym_a, H1), std::sync::Arc::new(a.clone()));
+    env.feeds
+        .write()
+        .unwrap()
+        .insert(crate::feed_key(sym_z, H1), std::sync::Arc::new(z.clone()));
+
+    let (values, wanted) = run_fed(
+        r#"symbols = array.from("BINANCE:AAAUSDT", "BINANCE:ZZZUSDT")
+total = 0.0
+for symbol in symbols
+    total += request.security(symbol, "60", close)
+plot(total)"#,
+        &b,
+        env,
+    );
+    assert!(wanted.is_empty());
+    for i in 0..b.len() {
+        assert_eq!(values[i], a[i].close + z[i].close, "bar {i}");
+    }
 }
 
 #[test]

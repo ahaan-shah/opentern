@@ -48,6 +48,7 @@ fn kind_str(k: AssetKind) -> &'static str {
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
         AssetKind::Commodity => "commodity",
+        AssetKind::CommoditySpot => "commodity_spot",
     }
 }
 
@@ -59,7 +60,20 @@ fn kind_from(s: &str) -> AssetKind {
         "forex" => AssetKind::Forex,
         "futures" => AssetKind::Futures,
         "commodity" => AssetKind::Commodity,
+        "commodity_spot" => AssetKind::CommoditySpot,
         _ => AssetKind::Stock,
+    }
+}
+
+#[cfg(test)]
+mod kind_tests {
+    use super::*;
+
+    #[test]
+    fn spot_commodities_round_trip_and_old_cache_values_stay_futures() {
+        assert_eq!(kind_str(AssetKind::CommoditySpot), "commodity_spot");
+        assert_eq!(kind_from("commodity_spot"), AssetKind::CommoditySpot);
+        assert_eq!(kind_from("commodity"), AssetKind::Commodity);
     }
 }
 

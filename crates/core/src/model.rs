@@ -121,11 +121,13 @@ pub enum AssetKind {
     /// Gold, oil, wheat…: front-month futures, named like TradingView's
     /// continuous contracts (`COMEX:GC1!`).
     Commodity,
+    /// Spot metal and energy quotes, distinct from their futures contracts.
+    CommoditySpot,
 }
 
 /// A tradable symbol. `id` is `EXCHANGE:TICKER` (e.g. `BINANCE:BTCUSDT`,
 /// `NSE:RELIANCE`, `NASDAQ:AAPL`), as on TradingView.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Symbol {
     pub id: String,
     pub description: String,
@@ -140,6 +142,44 @@ pub struct Symbol {
     /// "Exchange" time all follow it.
     #[serde(default = "utc")]
     pub timezone: String,
+}
+
+impl<'de> Deserialize<'de> for Symbol {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct StoredSymbol {
+            id: String,
+            description: String,
+            kind: AssetKind,
+            currency: String,
+            tick_size: f64,
+            #[serde(default)]
+            min_qty: f64,
+            #[serde(default = "utc")]
+            timezone: String,
+        }
+
+        let stored = StoredSymbol::deserialize(deserializer)?;
+        // Older workspace files classified OANDA cash metals and energy as
+        // generic commodities. Correct them on load without rewriting user data.
+        let kind = if stored.kind == AssetKind::Commodity && stored.id.starts_with("OANDA:") {
+            AssetKind::CommoditySpot
+        } else {
+            stored.kind
+        };
+        Ok(Self {
+            id: stored.id,
+            description: stored.description,
+            kind,
+            currency: stored.currency,
+            tick_size: stored.tick_size,
+            min_qty: stored.min_qty,
+            timezone: stored.timezone,
+        })
+    }
 }
 
 fn utc() -> String {
@@ -214,7 +254,7 @@ pub fn starter_watchlist() -> Vec<Symbol> {
         s("NSE:NIFTY", "Nifty 50 Index", AssetKind::Index, "INR", 0.05),
         s("NSE:RELIANCE", "Reliance Industries", AssetKind::Stock, "INR", 0.05),
         s("FX:EURUSD", "Euro / U.S. Dollar", AssetKind::Forex, "USD", 0.00001),
-        s("COMEX:GC1!", "Gold", AssetKind::Commodity, "USD", 0.1),
+        s("COMEX:GC1!", "Gold Futures", AssetKind::Commodity, "USD", 0.1),
         s("NYMEX:CL1!", "Crude Oil WTI", AssetKind::Commodity, "USD", 0.01),
     ]
 }
@@ -232,7 +272,7 @@ pub fn commodities() -> Vec<Symbol> {
         timezone: "America/New_York".into(),
     };
     vec![
-        s("COMEX:GC1!", "Gold", "USD", 0.1),
+        s("COMEX:GC1!", "Gold Futures", "USD", 0.1),
         s("COMEX:SI1!", "Silver", "USD", 0.005),
         s("NYMEX:PL1!", "Platinum", "USD", 0.1),
         s("NYMEX:PA1!", "Palladium", "USD", 0.5),
@@ -411,7 +451,7 @@ pub fn spot_commodities() -> Vec<Symbol> {
     let s = |t: &str, description: &str, tick_size| Symbol {
         id: format!("OANDA:{t}"),
         description: description.into(),
-        kind: AssetKind::Commodity,
+        kind: AssetKind::CommoditySpot,
         currency: "USD".into(),
         tick_size,
         min_qty: 0.0,
@@ -436,7 +476,7 @@ pub fn spot_commodities() -> Vec<Symbol> {
 /// Which commodity a symbol is, futures or spot: "gold", "wti", …
 /// (None for anything else). Names its icon.
 pub fn commodity_of(s: &Symbol) -> Option<&'static str> {
-    if s.kind != AssetKind::Commodity {
+    if !matches!(s.kind, AssetKind::Commodity | AssetKind::CommoditySpot) {
         return None;
     }
     let t = s.ticker().to_uppercase();
@@ -494,6 +534,18 @@ mod tests {
         assert_eq!(of("ICEEUR:BRN1!"), Some("brent"));
         assert_eq!(of("OANDA:BCOUSD"), Some("brent"));
         assert_eq!(of("OANDA:NATGASUSD"), Some("natgas"));
+        assert_eq!(
+            commodities().into_iter().find(|s| s.id == "COMEX:GC1!").unwrap().kind,
+            AssetKind::Commodity
+        );
+        assert_eq!(
+            spot_commodities()
+                .into_iter()
+                .find(|s| s.id == "OANDA:XAUUSD")
+                .unwrap()
+                .kind,
+            AssetKind::CommoditySpot
+        );
         assert!(
             commodities()
                 .iter()
@@ -501,6 +553,15 @@ mod tests {
                 .all(|s| commodity_of(s).is_some())
         );
         assert_eq!(commodity_of(&starter_watchlist()[0]), None);
+    }
+
+    #[test]
+    fn old_oanda_watchlist_symbols_load_as_spot() {
+        let old = r#"{"id":"OANDA:XAUUSD","description":"Gold Spot / U.S. Dollar","kind":"Commodity","currency":"USD","tick_size":0.01}"#;
+        let symbol: Symbol = serde_json::from_str(old).unwrap();
+        assert_eq!(symbol.kind, AssetKind::CommoditySpot);
+        assert_eq!(symbol.min_qty, 0.0);
+        assert_eq!(symbol.timezone, "UTC");
     }
 
     #[test]

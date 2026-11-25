@@ -74,8 +74,8 @@ impl Widget {
         }
     }
 
-    pub fn title(self) -> &'static str {
-        match self {
+    pub fn title(self) -> String {
+        crate::i18n::tr(match self {
             Widget::Watchlist => "Watchlist",
             Widget::Alerts => "Alerts",
             Widget::ObjectTree => "Object tree and data window",
@@ -85,7 +85,7 @@ impl Widget {
             Widget::News => "News",
             Widget::Notifications => "Notifications",
             Widget::Claude => "Agent",
-        }
+        })
     }
 }
 
@@ -117,8 +117,8 @@ impl Tab {
         Tab::AlertLog,
     ];
 
-    pub fn title(self) -> &'static str {
-        match self {
+    pub fn title(self) -> String {
+        crate::i18n::tr(match self {
             Tab::Screener => "Screener",
             Tab::Seasonality => "Seasonality",
             Tab::Indices => "Indices",
@@ -127,7 +127,7 @@ impl Tab {
             Tab::Lab => "Strategy Lab",
             Tab::Paper => "Paper Trading",
             Tab::AlertLog => "Alerts log",
-        }
+        })
     }
 }
 
@@ -851,9 +851,9 @@ impl App {
             for wd in Widget::ALL {
                 let active = self.layout.widget == Some(wd);
                 let resp = if wd == Widget::Claude {
-                    crate::claude::mark::rail_button(ui, t, wd.title(), active, 34.0)
+                    crate::claude::mark::rail_button(ui, t, &wd.title(), active, 34.0)
                 } else {
-                    w::tool_button(ui, t, wd.icon(), wd.title(), active, 34.0)
+                    w::tool_button(ui, t, wd.icon(), &wd.title(), active, 34.0)
                 };
                 if wd == Widget::Notifications && self.notes.unread > 0 {
                     let dot = resp.rect.right_top() + vec2(-8.0, 8.0);
@@ -1190,7 +1190,7 @@ impl App {
                 ui.spacing_mut().item_spacing.x = 2.0;
                 for tab in Tab::ALL {
                     let active = self.layout.tab == Some(tab);
-                    if small_button(ui, t, tab.title(), active).clicked() {
+                    if small_button(ui, t, &tab.title(), active).clicked() {
                         self.layout.tab = if active { None } else { Some(tab) };
                     }
                 }

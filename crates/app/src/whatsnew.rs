@@ -715,12 +715,16 @@ fn point(c: &mut Card, ui: &mut Ui, t: &Theme, key: (usize, usize), item: &Item,
             ui.set_width(width - text_x);
             ui.add_space(1.0);
             ui.label(
-                egui::RichText::new(item.title)
+                egui::RichText::new(crate::i18n::tr(item.title))
                     .font(theme::semibold(15.0))
                     .color(t.text),
             );
             ui.add_space(2.0);
-            ui.label(egui::RichText::new(item.body).font(theme::regular(13.5)).color(t.text2));
+            ui.label(
+                egui::RichText::new(crate::i18n::tr(item.body))
+                    .font(theme::regular(13.5))
+                    .color(t.text2),
+            );
         });
     });
     let Some(bytes) = item.image else { return };

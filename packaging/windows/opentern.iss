@@ -40,11 +40,20 @@ DisableDirPage=auto
 DisableReadyPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog commandline
+#ifdef X64Only
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+#else
 ArchitecturesAllowed=x64compatible or arm64
 ArchitecturesInstallIn64BitMode=x64compatible or arm64
+#endif
 MinVersion=10.0.17763
 OutputDir={#OutDir}
+#ifdef X64Only
+OutputBaseFilename=Opentern-windows-x64-setup
+#else
 OutputBaseFilename=Opentern-windows-setup
+#endif
 SetupIconFile=..\..\crates\app\assets\opentern.ico
 UninstallDisplayIcon={app}\opentern.exe
 UninstallDisplayName=Opentern
@@ -63,7 +72,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SrcX64}"; DestDir: "{app}"; DestName: "opentern.exe"; Check: not IsArm64; Flags: ignoreversion
+#ifndef X64Only
 Source: "{#SrcArm64}"; DestDir: "{app}"; DestName: "opentern.exe"; Check: IsArm64; Flags: ignoreversion
+#endif
 Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\THIRD-PARTY-LICENSES.txt"; DestDir: "{app}"; Flags: ignoreversion

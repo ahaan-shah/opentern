@@ -44,10 +44,8 @@ pub(crate) struct SecState {
     bar_no: u32,
     /// The last finished HTF bar's value.
     last: V,
-    tf: String,
     htf: Timeframe,
     /// Feeds: the feed's key, and how many of its bars have been run.
-    key: String,
     k: usize,
 }
 
@@ -73,7 +71,13 @@ fn truthy(v: &V) -> bool {
 }
 
 pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>) -> Result<V, Stop> {
-    let tf_v = x.eval(&sec.tf, f, root)?;
+    // A security expression gets its own frame for local state, but global
+    // references inside user functions must still resolve against the
+    // calling script's chart frame. At a top-level call `root` is None, so
+    // capture the current frame before switching to the security frame.
+    let caller = root.cloned().unwrap_or_else(|| f.clone());
+    let caller = Some(&caller);
+    let tf_v = x.eval(&sec.tf, f, caller)?;
     let tf_s = tf_v.as_str().unwrap_or("").trim().to_string();
     let chart_tf = x.g.tf;
     let htf = if tf_s.is_empty() {
@@ -83,41 +87,43 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
     };
     let symbol = match &sec.symbol {
         Some(e) => {
-            let v = x.eval(e, f, root)?;
+            let v = x.eval(e, f, caller)?;
             let s = v.as_str().unwrap_or("").trim().to_string();
             let env = &x.g.env;
             (!(s.is_empty() || s == env.tickerid || s == env.ticker())).then_some(s)
         }
         None => None,
     };
+    let context_symbol = symbol.as_deref().unwrap_or(&x.g.env.tickerid);
+    let context = crate::feed_key(context_symbol, htf);
     let lower_tf = approx_ms(htf) < approx_ms(chart_tf);
     if sec.lower || symbol.is_some() || lower_tf {
         let sym = symbol.unwrap_or_else(|| x.g.env.tickerid.clone());
-        return from_feed(x, sec, f, root, &sym, &tf_s, htf);
+        return from_feed(x, sec, f, caller, &sym, htf);
     }
     // The chart's own timeframe: just the expression, on the chart's bars.
     if htf == chart_tf {
-        let st = state(f, sec, &tf_s, htf);
+        let st = state(f, sec, &context, htf);
         let mut fr = std::mem::replace(&mut st.frame, Frame::new(&sec.layout));
-        let v = x.eval(&sec.expr, &mut fr, root);
+        let v = x.eval(&sec.expr, &mut fr, caller);
         fr.commit(&sec.layout, &x.p.funcs, x.g.bar_no);
-        state(f, sec, &tf_s, htf).frame = fr;
+        state(f, sec, &context, htf).frame = fr;
         return v;
     }
-    let lookahead = truthy(&x.eval(&sec.lookahead, f, root)?);
-    let gaps = truthy(&x.eval(&sec.gaps, f, root)?);
+    let lookahead = truthy(&x.eval(&sec.lookahead, f, caller)?);
+    let gaps = truthy(&x.eval(&sec.gaps, f, caller)?);
     let bar = x.g.bar();
     let tz = x.g.tz.clone();
     let start = bucket(htf, bar.time, &tz);
     let chart_close = x.g.close_time(bar.time);
 
-    let mut st = std::mem::replace(state(f, sec, &tf_s, htf), Box::new(empty(sec, &tf_s, htf)));
+    let mut st = std::mem::replace(state(f, sec, &context, htf), Box::new(empty(sec, htf)));
     let mut fresh = false;
     // A new HTF period: finish the previous bar if a chart bar didn't.
     if let Some((s, _)) = st.open
         && s != start
     {
-        finish(x, sec, &mut st, root)?;
+        finish(x, sec, &mut st, caller)?;
         fresh = true;
     }
     // Fold this chart bar into the forming HTF bar.
@@ -138,14 +144,14 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
     }
     let ends_here = st.open.is_some_and(|(_, end)| chart_close >= end);
     let value = if ends_here && !x.g.forming {
-        finish(x, sec, &mut st, root)?;
+        finish(x, sec, &mut st, caller)?;
         fresh = true;
         st.last.clone()
     } else if lookahead || x.g.forming {
         // The HTF bar so far, on a copy of the state.
         let mut fr = st.frame.clone();
         let no = st.bar_no + 1;
-        let v = run_on(x, sec, &mut st, &mut fr, no, htf, root)?;
+        let v = run_on(x, sec, &mut st, &mut fr, no, htf, caller)?;
         if lookahead {
             fresh = started;
         }
@@ -153,11 +159,11 @@ pub(crate) fn security(x: &mut X, sec: &Sec, f: &mut Frame, root: Option<&Frame>
     } else {
         st.last.clone()
     };
-    *state(f, sec, &tf_s, htf) = st;
+    *state(f, sec, &context, htf) = st;
     Ok(if gaps && !fresh { V::Na } else { value })
 }
 
-fn empty(sec: &Sec, tf: &str, htf: Timeframe) -> SecState {
+fn empty(sec: &Sec, htf: Timeframe) -> SecState {
     SecState {
         frame: Frame::new(&sec.layout),
         bars: Ring::new(sec.bar_hist + 1),
@@ -165,20 +171,17 @@ fn empty(sec: &Sec, tf: &str, htf: Timeframe) -> SecState {
         count: 0,
         bar_no: 0,
         last: V::Na,
-        tf: tf.to_string(),
         htf,
-        key: String::new(),
         k: 0,
     }
 }
 
-/// This call site's state (reset if the timeframe argument changed).
-fn state<'a>(f: &'a mut Frame, sec: &Sec, tf: &str, htf: Timeframe) -> &'a mut Box<SecState> {
-    let slot = &mut f.secs[sec.site as usize];
-    if slot.as_ref().is_none_or(|s| s.tf != tf) {
-        *slot = Some(Box::new(empty(sec, tf, htf)));
-    }
-    slot.as_mut().expect("set above")
+/// Cache request state per context. Pine v6 allows a single call site to
+/// select different symbols and timeframes at runtime.
+fn state<'a>(f: &'a mut Frame, sec: &Sec, context: &str, htf: Timeframe) -> &'a mut Box<SecState> {
+    f.secs[sec.site as usize]
+        .entry(context.to_string())
+        .or_insert_with(|| Box::new(empty(sec, htf)))
 }
 
 /// Runs the expression on the finished forming bar and commits it.
@@ -259,7 +262,6 @@ fn from_feed(
     f: &mut Frame,
     root: Option<&Frame>,
     symbol: &str,
-    tf_s: &str,
     ftf: Timeframe,
 ) -> Result<V, Stop> {
     let key = feed_key(symbol, ftf);
@@ -269,7 +271,7 @@ fn from_feed(
             x.g.wanted.push((symbol.to_string(), ftf));
         }
         return Ok(if sec.lower {
-            let shape = probe(x, sec, &empty(sec, tf_s, ftf), ftf, root)?;
+            let shape = probe(x, sec, &empty(sec, ftf), ftf, root)?;
             lower_arrays(x, Vec::new(), &shape)
         } else {
             V::Na
@@ -289,12 +291,8 @@ fn from_feed(
         }
     };
     let end_of = |b: &Bar| period_end(ftf, b.time, &tz, market);
-    let st = state(f, sec, tf_s, ftf);
-    if st.key != key {
-        **st = empty(sec, tf_s, ftf);
-        st.key = key;
-    }
-    let mut st = std::mem::replace(st, Box::new(empty(sec, tf_s, ftf)));
+    let st = state(f, sec, &key, ftf);
+    let mut st = std::mem::replace(st, Box::new(empty(sec, ftf)));
     let mut fresh = false;
     let mut inside = Vec::new();
     // Run every feed bar that has finished by this chart bar's close.
@@ -349,6 +347,6 @@ fn from_feed(
             _ => st.last.clone(),
         }
     };
-    *state(f, sec, tf_s, ftf) = st;
+    *state(f, sec, &key, ftf) = st;
     Ok(if gaps && !fresh { V::Na } else { out })
 }

@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 const CHART: &str = "https://query1.finance.yahoo.com/v8/finance/chart";
 const SEARCH: &str = "https://query2.finance.yahoo.com/v1/finance/search";
+const OPENFIGI_MAPPING: &str = "https://api.openfigi.com/v3/mapping";
 const POLL: Duration = Duration::from_secs(30);
 
 pub struct Yahoo {
@@ -543,12 +544,113 @@ impl Yahoo {
             .collect())
     }
 
+    /// Resolves exact ISIN / CUSIP queries through OpenFIGI, then checks
+    /// Yahoo for its chartable ticker. This supplements ordinary name and
+    /// ticker search; it is deliberately only called for full identifiers.
+    pub fn search_identifier(&self, query: &str) -> Result<Vec<Symbol>> {
+        let q = query.trim().to_ascii_uppercase();
+        let id_type = if is_isin(&q) {
+            "ID_ISIN"
+        } else if is_cusip(&q) {
+            "ID_CUSIP"
+        } else {
+            return Ok(Vec::new());
+        };
+        let mut job = serde_json::json!({"idType": id_type, "idValue": q.clone()});
+        // US identifiers have a known OpenFIGI exchange code. Narrowing these
+        // prevents a single widely listed stock from returning thousands of
+        // cross-listings, while foreign ISINs remain unrestricted.
+        if id_type == "ID_CUSIP" || q.starts_with("US") {
+            job["exchCode"] = serde_json::Value::String("US".into());
+        }
+        let body = serde_json::json!([job]).to_string();
+        let response = self
+            .agent
+            .post(OPENFIGI_MAPPING)
+            .header("Content-Type", "application/json")
+            .config()
+            .http_status_as_error(false)
+            .build()
+            .send(&body)
+            .map_err(|_| Error::Offline)?;
+        let status = response.status().as_u16();
+        if !(200..300).contains(&status) {
+            return Err(Error::Bad(format!("OpenFIGI answered with an error ({status}).")));
+        }
+        let text = response
+            .into_body()
+            .with_config()
+            .limit(8 * 1024 * 1024)
+            .read_to_string()
+            .map_err(|_| Error::Offline)?;
+        let json: serde_json::Value =
+            serde_json::from_str(&text).map_err(|e| Error::Bad(format!("Unexpected OpenFIGI reply: {e}")))?;
+        let data = json
+            .as_array()
+            .and_then(|jobs| jobs.first())
+            .and_then(|job| job["data"].as_array());
+        let Some(data) = data else { return Ok(Vec::new()) };
+        let mut results = Vec::new();
+        let mut seen_tickers = std::collections::HashSet::new();
+        for item in data {
+            let Some(ticker) = item["ticker"].as_str().filter(|t| !t.is_empty()) else {
+                continue;
+            };
+            if !seen_tickers.insert(ticker.to_ascii_uppercase()) {
+                continue;
+            }
+            if seen_tickers.len() > 12 {
+                break;
+            }
+            let mut found = self.search(ticker).unwrap_or_default();
+            found.retain(|s| s.ticker().eq_ignore_ascii_case(ticker));
+            if found.is_empty() {
+                let name = item["name"].as_str().unwrap_or(ticker).to_string();
+                found.push(Symbol {
+                    id: format!("YAHOO:{ticker}"),
+                    description: name,
+                    kind: if item["marketSector"].as_str() == Some("Equity") {
+                        AssetKind::Stock
+                    } else {
+                        kind(item["securityType"].as_str().unwrap_or("EQUITY"))
+                    },
+                    currency: String::new(),
+                    tick_size: 0.01,
+                    min_qty: 0.0,
+                    timezone: "UTC".into(),
+                });
+            }
+            for symbol in found {
+                if !results.iter().any(|s: &Symbol| s.id == symbol.id) {
+                    results.push(symbol);
+                }
+            }
+        }
+        Ok(results)
+    }
+
     /// Last price and previous close.
     pub fn quote(&self, sym: &Symbol) -> Result<(f64, f64)> {
         let day = Timeframe::parse("1D").ok_or_else(|| Error::Bad("No daily interval".into()))?;
         let (bars, meta) = self.chart(sym, day, "5d")?;
         quote_from(&bars, &meta, indian(sym))
     }
+}
+
+fn is_isin(value: &str) -> bool {
+    let b = value.as_bytes();
+    b.len() == 12
+        && b[..2].iter().all(u8::is_ascii_uppercase)
+        && b[2..11].iter().all(u8::is_ascii_alphanumeric)
+        && b[11].is_ascii_digit()
+}
+
+fn is_cusip(value: &str) -> bool {
+    let b = value.as_bytes();
+    b.len() == 9
+        && b.iter()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(*c, b'*' | b'@' | b'#'))
+        && b[8].is_ascii_digit()
 }
 
 impl Provider for Yahoo {
@@ -761,6 +863,16 @@ pub(crate) fn urlencode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recognizes_exact_isin_and_cusip_queries() {
+        assert!(is_isin("US0378331005"));
+        assert!(is_isin("GB0002634946"));
+        assert!(!is_isin("AAPL"));
+        assert!(is_cusip("037833100"));
+        assert!(!is_cusip("03783310A"));
+        assert!(!is_cusip("AAPL"));
+    }
 
     #[test]
     fn yahoos_now_point_joins_its_bar() {

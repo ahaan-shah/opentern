@@ -82,7 +82,7 @@ fn file_key(s: &Symbol) -> Option<String> {
             let t: String = ticker.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
             (!t.is_empty()).then(|| format!("co-{}-{}", s.exchange().to_lowercase(), t.to_lowercase()))
         }
-        AssetKind::Commodity => opentern_core::commodity_of(s).map(|c| format!("cmdty-{c}")),
+        AssetKind::Commodity | AssetKind::CommoditySpot => opentern_core::commodity_of(s).map(|c| format!("cmdty-{c}")),
         AssetKind::Index => flag_of(s).map(|c| format!("flag-{c}")),
         _ => None,
     }
@@ -1019,7 +1019,9 @@ fn badge(s: &Symbol) -> Option<(Color32, &'static str)> {
             _ => return None,
         }),
         // Ones we have no drawing for.
-        AssetKind::Commodity if opentern_core::commodity_of(s).is_none() => Some((rgb(0x5B6472), ph::BARN)),
+        AssetKind::Commodity | AssetKind::CommoditySpot if opentern_core::commodity_of(s).is_none() => {
+            Some((rgb(0x5B6472), ph::BARN))
+        }
         _ => None,
     }
 }

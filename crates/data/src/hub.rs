@@ -1952,7 +1952,19 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                     })
                 });
                 let found = if !demo && want_ex.is_none() {
-                    Yahoo::default().search(&q).ok()
+                    let yahoo = Yahoo::default();
+                    let mut found = yahoo.search(&q).unwrap_or_default();
+                    // OpenFIGI accepts exact ISIN/CUSIP identifiers and
+                    // returns chartable tickers. This remains an optional
+                    // supplement; normal symbol search works without it.
+                    if let Ok(by_id) = yahoo.search_identifier(&q) {
+                        for symbol in by_id {
+                            if !found.iter().any(|s| s.id == symbol.id) {
+                                found.push(symbol);
+                            }
+                        }
+                    }
+                    Some(found)
                 } else {
                     None
                 };
@@ -2087,30 +2099,28 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             {
                 let forex = e == "OANDA";
                 let spot = opentern_core::spot_commodities().into_iter().find(|s| s.ticker() == q);
-                hits.push((
-                    0,
-                    spot.unwrap_or_else(|| Symbol {
-                        id: format!("{e}:{q}"),
-                        description: if forex {
-                            "OANDA".into()
-                        } else {
-                            "Interactive Brokers".into()
-                        },
-                        kind: if forex {
-                            opentern_core::AssetKind::Forex
-                        } else {
-                            opentern_core::AssetKind::Stock
-                        },
-                        currency: if forex {
-                            q.get(3..).unwrap_or("USD").into()
-                        } else {
-                            "USD".into()
-                        },
-                        tick_size: if forex { 0.00001 } else { 0.01 },
-                        min_qty: 0.0,
-                        timezone: if forex { "UTC".into() } else { "America/New_York".into() },
-                    }),
-                ));
+                let symbol = spot.unwrap_or_else(|| Symbol {
+                    id: format!("{e}:{q}"),
+                    description: if forex {
+                        "OANDA".into()
+                    } else {
+                        "Interactive Brokers".into()
+                    },
+                    kind: if forex {
+                        opentern_core::AssetKind::Forex
+                    } else {
+                        opentern_core::AssetKind::Stock
+                    },
+                    currency: if forex {
+                        q.get(3..).unwrap_or("USD").into()
+                    } else {
+                        "USD".into()
+                    },
+                    tick_size: if forex { 0.00001 } else { 0.01 },
+                    min_qty: 0.0,
+                    timezone: if forex { "UTC".into() } else { "America/New_York".into() },
+                });
+                hits.push((0, symbol));
             }
             // No coin by that name yet: perhaps it listed today.
             let asks: Vec<String> = if !demo && want_ex.as_deref().is_none_or(|e| e == "BINANCE") {

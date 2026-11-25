@@ -30,7 +30,8 @@ impl Driver {
         unsafe {
             std::env::set_var("OPENTERN_HEADLESS", "1");
         }
-        let store = opentern_core::Store::open(&dir).expect("open store");
+        let mut store = opentern_core::Store::open(&dir).expect("open store");
+        store.set_value("interface_language", "en-US").expect("set test locale");
         let ctx = egui::Context::default();
         let app = App::with_context(&ctx, Default::default(), store, true);
         let mut d = Driver {
@@ -1439,6 +1440,7 @@ mod formula_tests {
             _ => panic!("search closed"),
         };
         assert_eq!(filter(&d), Some(opentern_core::AssetKind::Crypto));
+        d.key(Key::Tab, Modifiers::SHIFT);
         d.key(Key::Tab, Modifiers::SHIFT);
         d.key(Key::Tab, Modifiers::SHIFT);
         d.frame(vec![]);

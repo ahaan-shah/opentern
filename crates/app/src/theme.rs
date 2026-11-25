@@ -568,6 +568,24 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     add(&mut fonts, "ui-semibold", f.semibold);
     add(&mut fonts, "ui-display", f.display);
 
+    // The bundled Latin interface fonts are deliberately compact subsets.
+    // Add an installed CJK face after each chosen face so Latin typography
+    // stays unchanged while Chinese glyphs are resolved by the system.
+    if let Some(cjk) = system_cjk_font() {
+        fonts.font_data.insert("system-cjk".into(), cjk.into());
+        for family in [
+            FontFamily::Proportional,
+            FontFamily::Name("medium".into()),
+            FontFamily::Name("semibold".into()),
+            FontFamily::Name("display".into()),
+            preview_family(font_name),
+        ] {
+            if let Some(chain) = fonts.families.get_mut(&family) {
+                chain.insert(1.min(chain.len()), "system-cjk".into());
+            }
+        }
+    }
+
     let fallbacks: Vec<String> = fonts
         .families
         .get(&FontFamily::Proportional)
@@ -599,6 +617,9 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     add(&mut fonts, "code", font_by_name("JetBrains Mono").regular);
     if let Some(v) = fonts.families.get_mut(&FontFamily::Monospace) {
         v.insert(0, "code".into());
+        if fonts.font_data.contains_key("system-cjk") {
+            v.insert(1, "system-cjk".into());
+        }
     }
     // Phosphor icons as a fallback in every family so icons mix into text.
     let phosphor = egui_phosphor::Variant::Regular.font_bytes();
@@ -614,6 +635,48 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     ctx.set_fonts(fonts);
 }
 
+fn system_cjk_font() -> Option<FontData> {
+    #[cfg(windows)]
+    let candidates = [
+        std::path::PathBuf::from(r"C:\Windows\Fonts\Deng.ttf"),
+        std::path::PathBuf::from(r"C:\Windows\Fonts\simhei.ttf"),
+    ];
+    #[cfg(target_os = "macos")]
+    let candidates = [
+        std::path::PathBuf::from("/System/Library/Fonts/PingFang.ttc"),
+        std::path::PathBuf::from("/System/Library/Fonts/Supplemental/Songti.ttc"),
+    ];
+    #[cfg(target_os = "linux")]
+    let candidates = linux_cjk_font_candidates();
+
+    for path in candidates {
+        if let Ok(bytes) = std::fs::read(path) {
+            return Some(FontData::from_owned(bytes));
+        }
+    }
+    None
+}
+
+#[cfg(target_os = "linux")]
+fn linux_cjk_font_candidates() -> Vec<std::path::PathBuf> {
+    let matched = std::process::Command::new("fc-match")
+        .args(["-f", "%{file}", ":lang=zh"])
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .filter(|path| !path.is_empty())
+        .map(std::path::PathBuf::from);
+    matched
+        .into_iter()
+        .chain([
+            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc".into(),
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc".into(),
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc".into(),
+        ])
+        .collect()
+}
+
 pub fn regular(size: f32) -> FontId {
     FontId::new(size, FontFamily::Proportional)
 }
@@ -625,6 +688,25 @@ pub fn semibold(size: f32) -> FontId {
 }
 pub fn display(size: f32) -> FontId {
     FontId::new(size, FontFamily::Name("display".into()))
+}
+
+#[cfg(test)]
+mod font_tests {
+    use super::*;
+
+    #[test]
+    fn cjk_font_fallback_renders_mixed_latin_and_chinese() {
+        let Some(_) = system_cjk_font() else { return };
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(Default::default(), |ui| {
+            install_fonts(ui.ctx(), "Inter");
+            let galley =
+                ui.fonts_mut(|fonts| fonts.layout_no_wrap("English 中文脚本".into(), regular(14.0), Color32::WHITE));
+            assert!(galley.size().x > 0.0);
+            assert!(galley.size().y > 0.0);
+        });
+        output.textures_delta.clear();
+    }
 }
 
 // ------------------------------------------------------------------- apply

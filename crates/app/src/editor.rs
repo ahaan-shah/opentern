@@ -1055,7 +1055,7 @@ impl App {
         ui.painter().text(
             pos2(head.left() + 16.0, head.center().y),
             Align2::LEFT_CENTER,
-            "EXPLORER",
+            crate::i18n::tr("EXPLORER"),
             theme::medium(11.0),
             c.dim,
         );
@@ -1065,11 +1065,20 @@ impl App {
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         bar.spacing_mut().item_spacing.x = 0.0;
-        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "More", false, 24.0);
+        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, &crate::i18n::tr("More"), false, 24.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(220.0);
             ui.spacing_mut().item_spacing.y = 1.0;
-            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FOLDER_OPEN),
+                &crate::i18n::tr("Open the scripts folder"),
+                "",
+                false,
+            )
+            .clicked()
+            {
                 let dir = self.scripts_dir();
                 let _ = std::fs::create_dir_all(&dir);
                 crate::app::open_path(&dir);
@@ -1079,7 +1088,7 @@ impl App {
                 ui,
                 t,
                 Some(ph::SIDEBAR_SIMPLE),
-                "Hide the sidebar",
+                &crate::i18n::tr("Hide the sidebar"),
                 shortcut!("B"),
                 false,
             )
@@ -1090,15 +1099,33 @@ impl App {
             }
         });
         let find = self.editor.filtering;
-        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "Filter files", find, 24.0).clicked() {
+        if w::tool_button(
+            &mut bar,
+            t,
+            ph::MAGNIFYING_GLASS,
+            &crate::i18n::tr("Filter files"),
+            find,
+            24.0,
+        )
+        .clicked()
+        {
             self.editor.filtering = !find;
             self.editor.filter.clear();
         }
-        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, "New folder", false, 24.0).clicked() {
+        if w::tool_button(
+            &mut bar,
+            t,
+            ph::FOLDER_PLUS,
+            &crate::i18n::tr("New folder"),
+            false,
+            24.0,
+        )
+        .clicked()
+        {
             let dir = self.editor.new_dir.clone();
             self.new_folder(&dir);
         }
-        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, "New script", false, 24.0);
+        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, &crate::i18n::tr("New script"), false, 24.0);
         egui::Popup::menu(&add).show(|ui| {
             ui.set_width(210.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -1115,7 +1142,13 @@ impl App {
         if self.editor.filtering {
             let r = Rect::from_min_size(pos2(full.left() + 10.0, y), vec2(full.width() - 20.0, 34.0));
             let mut f = ui.new_child(egui::UiBuilder::new().max_rect(r));
-            let resp = w::search_field(&mut f, t, &mut self.editor.filter, "Filter", r.width());
+            let resp = w::search_field(
+                &mut f,
+                t,
+                &mut self.editor.filter,
+                &crate::i18n::tr("Filter"),
+                r.width(),
+            );
             if !resp.has_focus() && self.editor.filter.is_empty() && f.input(|i| i.key_pressed(Key::Escape)) {
                 self.editor.filtering = false;
             }
@@ -1147,7 +1180,7 @@ impl App {
                 // scripts as a flat list of paths.
                 let dirs = self.script_dirs();
                 let root_open = self.editor.scripts_open || !q.is_empty();
-                let head = folder_row(ui, t, "SCRIPTS", root_open, files.len());
+                let head = folder_row(ui, t, &crate::i18n::tr("SCRIPTS"), root_open, files.len());
                 if head.clicked() {
                     self.editor.scripts_open = !self.editor.scripts_open;
                     self.editor.new_dir.clear();
@@ -1159,7 +1192,7 @@ impl App {
                         ui.horizontal(|ui| {
                             ui.add_space(30.0);
                             ui.label(
-                                egui::RichText::new("No scripts yet. Press + to start one.")
+                                egui::RichText::new(crate::i18n::tr("No scripts yet. Press + to start one."))
                                     .font(theme::regular(12.0))
                                     .color(c.dim),
                             );
@@ -1283,7 +1316,8 @@ impl App {
                                     ui.set_width(210.0);
                                     ui.spacing_mut().item_spacing.y = 1.0;
                                     let mut item = |ui: &mut Ui, icon, label: &str, what: u8| {
-                                        if w::menu_item(ui, t, Some(icon), label, "", false).clicked() {
+                                        if w::menu_item(ui, t, Some(icon), &crate::i18n::tr(label), "", false).clicked()
+                                        {
                                             action = Some((what, f.clone()));
                                             ui.close();
                                         }
@@ -1301,7 +1335,8 @@ impl App {
                                     item(ui, ph::ARROW_SQUARE_OUT, "Open in your editor", 5);
                                     if !on_chart {
                                         w::menu_rule(ui, t);
-                                        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete").clicked() {
+                                        if w::menu_danger(ui, t, Some(ph::TRASH), &crate::i18n::tr("Delete")).clicked()
+                                        {
                                             action = Some((6, f.clone()));
                                             ui.close();
                                         }
@@ -1318,7 +1353,7 @@ impl App {
                     .filter(|(_, n)| q.is_empty() || n.to_lowercase().contains(&q))
                     .collect();
                 let open_list = self.editor.show_builtins || !q.is_empty();
-                if folder_row(ui, t, "BUILT-IN INDICATORS", open_list, list.len()).clicked() {
+                if folder_row(ui, t, &crate::i18n::tr("BUILT-IN INDICATORS"), open_list, list.len()).clicked() {
                     self.editor.show_builtins = !self.editor.show_builtins;
                 }
                 if open_list {
@@ -1707,7 +1742,7 @@ impl App {
         if self.editor.docs.is_empty() {
             let rest = Rect::from_min_max(pos2(full.left(), bar.bottom()), full.max);
             let mut e = ui.new_child(egui::UiBuilder::new().max_rect(rest.shrink(20.0)));
-            crate::widgets::empty_state(&mut e, t, ph::CODE, "No file open");
+            crate::widgets::empty_state(&mut e, t, ph::CODE, &crate::i18n::tr("No file open"));
             return;
         }
 
@@ -1850,35 +1885,69 @@ impl App {
         ui.spacing_mut().item_spacing.x = 0.0;
         let (file, readonly) = (d.key.clone(), d.readonly);
         let on_chart = self.scripts.iter().any(|r| r.file == file);
-        let more = w::tool_button(ui, t, ph::DOTS_THREE, "More", false, 28.0);
+        let more = w::tool_button(ui, t, ph::DOTS_THREE, &crate::i18n::tr("More"), false, 28.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(230.0);
             ui.spacing_mut().item_spacing.y = 1.0;
             if readonly {
-                if w::menu_item(ui, t, Some(ph::COPY), "Make a copy to edit", "", false).clicked() {
+                if w::menu_item(
+                    ui,
+                    t,
+                    Some(ph::COPY),
+                    &crate::i18n::tr("Make a copy to edit"),
+                    "",
+                    false,
+                )
+                .clicked()
+                {
                     self.copy_builtin();
                     ui.close();
                 }
                 return;
             }
-            if w::menu_item(ui, t, Some(ph::FLOPPY_DISK), "Save", shortcut!("S"), false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FLOPPY_DISK),
+                &crate::i18n::tr("Save"),
+                shortcut!("S"),
+                false,
+            )
+            .clicked()
+            {
                 self.save_script();
                 ui.close();
             }
-            if w::menu_item(ui, t, Some(ph::ARROW_SQUARE_OUT), "Open in your editor", "", false)
-                .on_hover_text("The chart reloads when you save there")
-                .clicked()
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::ARROW_SQUARE_OUT),
+                &crate::i18n::tr("Open in your editor"),
+                "",
+                false,
+            )
+            .on_hover_text(crate::i18n::tr("The chart reloads when you save there"))
+            .clicked()
             {
                 crate::app::open_path(&self.scripts_dir().join(&file));
                 ui.close();
             }
-            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open the scripts folder", "", false).clicked() {
+            if w::menu_item(
+                ui,
+                t,
+                Some(ph::FOLDER_OPEN),
+                &crate::i18n::tr("Open the scripts folder"),
+                "",
+                false,
+            )
+            .clicked()
+            {
                 crate::app::open_path(&self.scripts_dir());
                 ui.close();
             }
         });
         if readonly {
-            if w::tool_button(ui, t, ph::COPY, "Make a copy to edit", false, 28.0).clicked() {
+            if w::tool_button(ui, t, ph::COPY, &crate::i18n::tr("Make a copy to edit"), false, 28.0).clicked() {
                 self.copy_builtin();
             }
             return;
@@ -2554,7 +2623,7 @@ fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, Strin
     use crate::widgets as w;
     ui.set_width(220.0);
     ui.spacing_mut().item_spacing.y = 1.0;
-    w::menu_heading(ui, t, "NEW SCRIPT HERE");
+    w::menu_heading(ui, t, &crate::i18n::tr("NEW SCRIPT HERE"));
     for lang in [Lang::Pine, Lang::Python, Lang::Luau, Lang::Js, Lang::Ts] {
         let (icon, _) = file_icon(lang);
         if w::menu_item(ui, t, Some(icon), lang_name(lang), lang.ext(), false).clicked() {
@@ -2563,21 +2632,30 @@ fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, Strin
         }
     }
     w::menu_rule(ui, t);
-    if w::menu_item(ui, t, Some(ph::FOLDER_PLUS), "New folder", "", false).clicked() {
+    if w::menu_item(ui, t, Some(ph::FOLDER_PLUS), &crate::i18n::tr("New folder"), "", false).clicked() {
         *action = Some((10, dir.to_string()));
         ui.close();
     }
-    if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), "Open in your file manager", "", false).clicked() {
+    if w::menu_item(
+        ui,
+        t,
+        Some(ph::FOLDER_OPEN),
+        &crate::i18n::tr("Open in your file manager"),
+        "",
+        false,
+    )
+    .clicked()
+    {
         *action = Some((12, dir.to_string()));
         ui.close();
     }
     if !dir.is_empty() {
-        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), "Rename", "", false).clicked() {
+        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), &crate::i18n::tr("Rename"), "", false).clicked() {
             *action = Some((4, dir.to_string()));
             ui.close();
         }
         w::menu_rule(ui, t);
-        if w::menu_danger(ui, t, Some(ph::TRASH), "Delete folder (if empty)").clicked() {
+        if w::menu_danger(ui, t, Some(ph::TRASH), &crate::i18n::tr("Delete folder (if empty)")).clicked() {
             *action = Some((11, dir.to_string()));
             ui.close();
         }
@@ -2739,6 +2817,15 @@ mod tests {
     use super::*;
 
     #[test]
+    fn new_pine_template_is_valid_v6() {
+        assert!(PINE_TEMPLATE.starts_with("//@version=6\n"));
+        let script = opentern_pine::compile(PINE_TEMPLATE, "Untitled.pine", opentern_pine::Env::default())
+            .unwrap_or_else(|error| panic!("default Pine v6 template did not compile: {error}"));
+        assert_eq!(script.meta().name, "My script");
+        assert_eq!(script.meta().plots.len(), 1);
+    }
+
+    #[test]
     fn the_explorer_works_from_the_keyboard() {
         use egui::{Event, Key, Modifiers};
         let mut d = crate::drive::Driver::new("explorer-keys");
@@ -2852,6 +2939,29 @@ mod tests {
         assert!(root.join("research/top.pine").exists(), "a folder with scripts stays");
         d.app.delete_folder("empty");
         assert!(!root.join("empty").exists());
+    }
+
+    #[test]
+    fn unicode_script_names_folders_content_and_renames_round_trip() {
+        let mut d = crate::drive::Driver::new("unicode-script-paths");
+        let root = d.app.scripts_dir();
+        let dir = "中文测试文件夹";
+        std::fs::create_dir_all(root.join(dir)).unwrap();
+        let original = "我的BTC量化策略.pine";
+        let renamed = "超级趋势突破策略.pine";
+        let source = "// 中文注释\nindicator(\"我的指标\")\nplot(close, \"价格\")\n";
+        std::fs::write(root.join(dir).join(original), source).unwrap();
+        d.app.open_in_editor(&format!("{dir}/{original}"));
+        assert_eq!(d.app.editor.doc().unwrap().text, source);
+        assert_eq!(std::fs::read_to_string(root.join(dir).join(original)).unwrap(), source);
+
+        d.app.rename_path(dir, "中文策略文件夹");
+        assert!(root.join("中文策略文件夹").is_dir());
+        d.app.rename_path(&format!("中文策略文件夹/{original}"), renamed);
+        let final_path = root.join("中文策略文件夹").join(renamed);
+        assert_eq!(std::fs::read_to_string(&final_path).unwrap(), source);
+        assert_eq!(d.app.editor.doc().unwrap().key, format!("中文策略文件夹/{renamed}"));
+        assert!(!root.join(dir).exists());
     }
 
     #[test]

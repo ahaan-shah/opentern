@@ -29,6 +29,7 @@ mod drawbar;
 mod editor;
 mod feeds;
 mod format;
+mod i18n;
 mod icons;
 mod indices;
 mod lab;

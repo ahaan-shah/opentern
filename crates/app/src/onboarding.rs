@@ -679,7 +679,7 @@ fn markets(ui: &mut Ui, t: &Theme, st: &mut Onboarding, logos: &crate::logos::Lo
         p.text(
             pos2(r.center().x, r.top() + 100.0),
             Align2::CENTER_TOP,
-            m.name(),
+            crate::i18n::tr(m.name()),
             theme::semibold(15.0),
             t.text,
         );
@@ -763,7 +763,7 @@ fn first_chart(
                 ui.painter().text(
                     pos2(head.left() + 8.0, head.center().y),
                     Align2::LEFT_CENTER,
-                    format!("{}  {}", m.glyph(), m.name()),
+                    format!("{}  {}", m.glyph(), crate::i18n::tr(m.name())),
                     theme::medium(13.0),
                     t.text2,
                 );

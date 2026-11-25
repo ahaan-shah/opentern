@@ -17,7 +17,7 @@ use crate::{Env, Error};
 use opentern_core::{Bar, Timeframe, Unit};
 use opentern_engine::{Broker, Props};
 use opentern_series::study::{Ctx, Inputs, Out, Study, Value};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
 /// The most loop iterations allowed on one bar.
@@ -71,7 +71,9 @@ pub(crate) struct Frame {
     pub inited: Vec<bool>,
     pub st: Vec<Option<Ta>>,
     pub calls: Vec<Option<Box<Frame>>>,
-    pub secs: Vec<Option<Box<crate::natives::SecState>>>,
+    /// Request state is kept per call site and per symbol/timeframe context.
+    /// Pine v6 permits a request call to select different contexts at runtime.
+    pub secs: Vec<HashMap<String, Box<crate::natives::SecState>>>,
 }
 
 impl Frame {
@@ -83,7 +85,7 @@ impl Frame {
             inited: vec![false; l.slots],
             st: vec![None; l.states],
             calls: vec![None; l.calls.len()],
-            secs: vec![None; l.secs],
+            secs: vec![HashMap::new(); l.secs],
         }
     }
 
@@ -129,8 +131,10 @@ impl Frame {
         for c in self.calls.iter().flatten() {
             c.refs(out);
         }
-        for s in self.secs.iter().flatten() {
-            s.refs(out);
+        for site in &self.secs {
+            for s in site.values() {
+                s.refs(out);
+            }
         }
         for t in self.st.iter().flatten() {
             t.refs(out);

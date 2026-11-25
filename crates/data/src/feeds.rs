@@ -570,7 +570,7 @@ pub fn news(sym: &Symbol, demo: bool) -> Result<Vec<NewsItem>> {
             let q = match sym.kind {
                 AssetKind::Stock if india => format!("\"{name}\" share"),
                 AssetKind::Stock | AssetKind::Fund => format!("\"{name}\" stock"),
-                AssetKind::Commodity => format!("{name} price"),
+                AssetKind::Commodity | AssetKind::CommoditySpot => format!("{name} price"),
                 _ => name.clone(),
             };
             sources.push(Box::new(move || google_news(&q, india)));

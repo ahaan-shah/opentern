@@ -1804,7 +1804,7 @@ impl Cx {
             match b[k] {
                 Some(e) => {
                     let e = cx.expr(e)?;
-                    Ok(Some(const_of(&e).ok_or_else(|| {
+                    Ok(Some(cx.const_value(&e).ok_or_else(|| {
                         cx.err(format!("The input's \"{name}\" must be a constant."))
                     })?))
                 }
@@ -1821,7 +1821,10 @@ impl Cx {
                 let mut out = Vec::new();
                 for it in items {
                     let e = self.expr(it)?;
-                    out.push(const_of(&e).ok_or_else(|| self.err("Input options must be constants."))?);
+                    out.push(
+                        self.const_value(&e)
+                            .ok_or_else(|| self.err("Input options must be constants."))?,
+                    );
                 }
                 out
             }
@@ -1855,7 +1858,8 @@ impl Cx {
             V::str(src_default.clone().unwrap_or_else(|| "close".into()))
         } else {
             let e = self.expr(defval_expr)?;
-            const_of(&e).ok_or_else(|| self.err("An input's default value must be a constant."))?
+            self.const_value(&e)
+                .ok_or_else(|| self.err("An input's default value must be a constant."))?
         };
         let opts_text = |opts: &[V]| -> &'static [&'static str] {
             let v: Vec<&'static str> = opts
@@ -1970,6 +1974,44 @@ impl Cx {
             E::Neg(x) => self.const_or_default(x).map(|v| crate::run::neg(&v)),
             _ => None,
         }
+    }
+
+    /// Evaluates compile-time constants, including named constants declared
+    /// earlier in the script. Inputs are intentionally not constants here:
+    /// their defaults do not make their runtime values const-qualified.
+    fn const_value(&self, e: &E) -> Option<V> {
+        Some(match e {
+            E::K(v) => v.clone(),
+            E::L(s) | E::G(s) => {
+                let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
+                return self.const_value(self.known.get(&(depth, *s))?);
+            }
+            E::Neg(x) => crate::run::neg(&self.const_value(x)?),
+            E::Not(x) => V::Bool(!self.const_value(x)?.truthy()),
+            E::Bin(op, a, b) => crate::run::binary(*op, &self.const_value(a)?, &self.const_value(b)?),
+            E::And(a, b, _) => {
+                if !self.const_value(a)?.truthy() {
+                    V::Bool(false)
+                } else {
+                    V::Bool(self.const_value(b)?.truthy())
+                }
+            }
+            E::Or(a, b, _) => {
+                if self.const_value(a)?.truthy() {
+                    V::Bool(true)
+                } else {
+                    V::Bool(self.const_value(b)?.truthy())
+                }
+            }
+            E::Tern(c, a, b) => {
+                if self.const_value(c)?.truthy() {
+                    self.const_value(a)?
+                } else {
+                    self.const_value(b)?
+                }
+            }
+            _ => return None,
+        })
     }
 
     fn input_default(&self, i: u16) -> V {

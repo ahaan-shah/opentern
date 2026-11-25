@@ -73,7 +73,7 @@ pub fn frame(ui: &mut Ui, t: &Theme, title: &str, width: f32, body: impl FnOnce(
     let mut close = false;
     ui.set_width(width);
     ui.horizontal(|ui| {
-        ui.label(egui::RichText::new(title).font(theme::semibold(17.0)));
+        ui.label(egui::RichText::new(crate::i18n::tr(title)).font(theme::semibold(17.0)));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             if crate::widgets::tool_button(ui, t, crate::icons::ph::X, "Close (Esc)", false, 28.0).clicked() {
                 close = true;
@@ -341,7 +341,7 @@ pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnO
         ui.painter().text(
             r.left_center(),
             egui::Align2::LEFT_CENTER,
-            label,
+            crate::i18n::tr(label),
             theme::regular(13.0),
             t.text2,
         );
@@ -355,7 +355,7 @@ pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
     ui.add_space(6.0);
     ui.horizontal(|ui| {
         ui.label(
-            egui::RichText::new(title.to_uppercase())
+            egui::RichText::new(crate::i18n::tr(title).to_uppercase())
                 .font(theme::semibold(11.0))
                 .color(t.text3),
         );
@@ -366,16 +366,20 @@ pub fn section_beta(ui: &mut Ui, t: &Theme, title: &str) {
             .stroke(egui::Stroke::new(1.0, t.warn.gamma_multiply(0.5)))
             .show(ui, |ui| ui.label(text))
             .response
-            .on_hover_text(
+            .on_hover_text(crate::i18n::tr(
                 "Not yet tried with a real account. Compare its prices with another source before relying on them.",
-            );
+            ));
     });
     ui.add_space(2.0);
 }
 
 pub fn section(ui: &mut Ui, t: &Theme, title: &str) {
     ui.add_space(10.0);
-    ui.label(egui::RichText::new(title).font(theme::semibold(13.0)).color(t.text));
+    ui.label(
+        egui::RichText::new(crate::i18n::tr(title))
+            .font(theme::semibold(13.0))
+            .color(t.text),
+    );
     ui.add_space(2.0);
 }
 

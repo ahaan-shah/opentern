@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Pine `request.security` globals.** User functions called inside a requested timeframe now resolve script-level variables and inputs from the calling chart script instead of an empty security frame.
+- **ISIN/CUSIP symbol lookup.** Exact identifier searches now supplement Yahoo's ticker/name search with OpenFIGI mappings, then resolve chartable Yahoo listings where available.
+- **Chinese labels in shared dialogs and menus.** Common form labels and menu actions now use the translation catalog, with additional settings, chart, provider, and strategy labels translated.
+
 ## 0.3.4 (2026-11-24)
 
 A sharper, calmer look throughout, symbol search with prices, a custom colour picker, a keyboard-friendly script explorer and three new indicators.

@@ -61,7 +61,7 @@ const CHANGE_W: f32 = 64.0;
 /// How long Enter waits for the network's matches (seconds).
 const ENTER_WAIT: f64 = 1.0;
 
-const FILTERS: [(&str, Option<AssetKind>); 8] = [
+const FILTERS: [(&str, Option<AssetKind>); 9] = [
     ("All", None),
     ("Crypto", Some(AssetKind::Crypto)),
     ("Stocks", Some(AssetKind::Stock)),
@@ -69,7 +69,8 @@ const FILTERS: [(&str, Option<AssetKind>); 8] = [
     ("Indices", Some(AssetKind::Index)),
     ("Forex", Some(AssetKind::Forex)),
     ("Futures", Some(AssetKind::Futures)),
-    ("Commodities", Some(AssetKind::Commodity)),
+    ("Commodity Futures", Some(AssetKind::Commodity)),
+    ("Spot", Some(AssetKind::CommoditySpot)),
 ];
 
 /// In a formula, the term the cursor (a char index) is in, with what's
@@ -111,8 +112,8 @@ fn kind_name(s: &Symbol) -> &'static str {
         AssetKind::Index => "index",
         AssetKind::Forex => "forex",
         AssetKind::Futures => "futures",
-        AssetKind::Commodity if s.exchange() == "OANDA" => "spot",
-        AssetKind::Commodity => "futures",
+        AssetKind::Commodity => "Futures",
+        AssetKind::CommoditySpot => "Spot",
     }
 }
 
@@ -166,7 +167,8 @@ impl SymbolSearch {
             Pick::Watchlist => "Add to watchlist",
             Pick::Compare { .. } => "Compare symbol",
         };
-        if frame(ui, t, title, 700.0, |ui| {
+        let title = crate::i18n::tr(title);
+        if frame(ui, t, &title, 700.0, |ui| {
             // Keys first, so the text field doesn't eat them.
             // Shifted keys first: a plain `consume_key` ignores Shift.
             let (star_key, back, tab, up, down, enter) = ui.input_mut(|i| {
@@ -188,7 +190,9 @@ impl SymbolSearch {
             }
             let r = ui.add(
                 crate::widgets::field(&mut self.query)
-                    .hint_text("Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT")
+                    .hint_text(crate::i18n::tr(
+                        "Symbol or formula, e.g. BTCUSDT, AAPL, BTCUSDT/ETHUSDT",
+                    ))
                     .font(theme::regular(15.0))
                     .desired_width(f32::INFINITY)
                     .margin(vec2(10.0, 8.0)),
@@ -275,7 +279,12 @@ impl SymbolSearch {
                 });
                 ui.add_space(4.0);
             }
-            let opts: Vec<(Option<AssetKind>, &str)> = FILTERS.iter().map(|(l, f)| (*f, *l)).collect();
+            let labels: Vec<String> = FILTERS.iter().map(|(label, _)| crate::i18n::tr(label)).collect();
+            let opts: Vec<(Option<AssetKind>, &str)> = FILTERS
+                .iter()
+                .zip(&labels)
+                .map(|((_, f), label)| (*f, label.as_str()))
+                .collect();
             if crate::widgets::segmented(ui, t, &mut self.filter, &opts) {
                 self.selected = 0;
             }
@@ -441,7 +450,7 @@ impl SymbolSearch {
                 .show(ui, |ui| {
                     if shown.is_empty() {
                         ui.add_space(12.0);
-                        ui.label(egui::RichText::new("No symbols match.").color(t.text3));
+                        ui.label(egui::RichText::new(crate::i18n::tr("No symbols match.")).color(t.text3));
                     }
                     for (i, row) in shown.iter().enumerate() {
                         let (rect, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 36.0), Sense::click());
@@ -462,11 +471,11 @@ impl SymbolSearch {
                             Row::Sym(s, complete) => (
                                 *s,
                                 s.ticker().to_string(),
-                                s.description.clone(),
+                                crate::i18n::tr(&s.description),
                                 if *complete && i == self.selected {
                                     format!("{}  insert", crate::icons::ph::ARROW_ELBOW_DOWN_LEFT)
                                 } else {
-                                    format!("{}  ·  {}", kind_name(s), s.exchange())
+                                    format!("{}  ·  {}", crate::i18n::tr(kind_name(s)), s.exchange())
                                 },
                             ),
                         };

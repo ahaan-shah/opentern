@@ -23,6 +23,7 @@ const RECENTS_MAX: usize = 40;
 
 pub struct App {
     pub store: Store,
+    pub language: crate::i18n::Language,
     pub theme: ThemeState,
     pub updater: Updater,
     pub layout: Arrangement,
@@ -154,6 +155,8 @@ impl App {
     /// Builds the app against any egui context (the real window, or a
     /// headless one in tests).
     pub(crate) fn with_context(ctx: &egui::Context, layout: Arrangement, store: Store, demo: bool) -> App {
+        let language = crate::i18n::load_choice(&store);
+        crate::i18n::activate_choice(language);
         theme::install_fonts(ctx, &store.settings().font);
         let theme = ThemeState::new(ctx, &store.settings().theme);
         let wake_ctx = ctx.clone();
@@ -210,6 +213,7 @@ impl App {
         crate::format::load_numbers(store.value(crate::format::NUMBERS_KEY).as_deref());
         let mut app = App {
             store,
+            language,
             theme,
             app_lock: None,
             updater: Updater::default(),
