@@ -41,6 +41,9 @@ rm -rf "$STAGE" && mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
 rm -f "$OUT/Opentern-macos-universal.dmg"
-hdiutil create -volname "Opentern" -srcfolder "$STAGE" -ov -format UDZO "$OUT/Opentern-macos-universal.dmg" >/dev/null
+# hdiutil's own guess at the image's size can come out too small ("No
+# space left on device", 0.3.5): give it the folder's size plus room.
+SIZE_MB=$(( $(du -sm "$STAGE" | cut -f1) * 3 / 2 + 32 ))
+hdiutil create -volname "Opentern" -srcfolder "$STAGE" -size "${SIZE_MB}m" -fs HFS+ -ov -format UDZO "$OUT/Opentern-macos-universal.dmg" >/dev/null
 rm -rf "$STAGE"
 echo "Built $OUT/Opentern-macos-universal.dmg and .zip (v$VERSION)"
