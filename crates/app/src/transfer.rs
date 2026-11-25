@@ -1487,7 +1487,7 @@ fn link(ui: &mut Ui, t: &Theme, from: (&str, &str), to: (&str, &str), state: Lin
         p.circle_filled(middle, 18.0 * done, motion::with_alpha(t.accent_soft(), done));
         let pop = done + 0.14 * (done * std::f32::consts::PI).sin();
         p.circle_filled(middle, 12.5 * pop, t.accent);
-        tick(p, middle, 15.0, ((done - 0.35) / 0.65).clamp(0.0, 1.0), Color32::WHITE);
+        widgets::tick(p, middle, 15.0, ((done - 0.35) / 0.65).clamp(0.0, 1.0), Color32::WHITE);
     }
     if state == Link::Waiting {
         // Only while this shows: idle screens cost nothing.
@@ -1498,70 +1498,14 @@ fn link(ui: &mut Ui, t: &Theme, from: (&str, &str), to: (&str, &str), state: Lin
 /// How far from the middle dots give way to the finished check.
 const CHECK_ROOM: f32 = 22.0;
 
-/// A tick `size` wide, drawn up to `t` (0..1) along its stroke.
-fn tick(p: &egui::Painter, c: egui::Pos2, size: f32, t: f32, color: Color32) {
-    if t <= 0.0 {
-        return;
-    }
-    let a = c + vec2(-0.46, 0.02) * size;
-    let b = c + vec2(-0.14, 0.34) * size;
-    let e = c + vec2(0.46, -0.32) * size;
-    let (first, second) = ((b - a).length(), (e - b).length());
-    let reach = (first + second) * t;
-    let mut points = vec![a];
-    if reach <= first {
-        points.push(a + (b - a) * (reach / first));
-    } else {
-        points.push(b);
-        points.push(b + (e - b) * ((reach - first) / second));
-    }
-    p.add(egui::Shape::line(points, Stroke::new(size * 0.135, color)));
-}
-
-/// How long the copy button stays a check.
-const COPIED_FOR: f64 = 1.6;
-
 fn copied_id() -> egui::Id {
     egui::Id::new("transfer-code-copied")
 }
 
-/// The copy button: when pressed, the two squares fade as a check draws
-/// itself in, then it turns back.
 fn copy_button(ui: &mut Ui, t: &Theme, code: &str, rect: Rect) {
-    let resp = ui
-        .interact(rect, ui.id().with("transfer-copy"), Sense::click())
-        .on_hover_cursor(egui::CursorIcon::PointingHand);
     #[cfg(test)]
     ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("copy-rect"), rect));
-    let now = ui.input(|i| i.time);
-    if resp.clicked() {
-        ui.ctx().copy_text(code.to_string());
-        ui.ctx().data_mut(|d| d.insert_temp(copied_id(), now));
-    }
-    let at = ui.ctx().data(|d| d.get_temp::<f64>(copied_id()));
-    let copied = at.is_some_and(|a| now - a < COPIED_FOR);
-    if let Some(a) = at.filter(|_| copied) {
-        let left = (COPIED_FOR - (now - a)).clamp(0.0, COPIED_FOR);
-        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(left));
-    }
-    let k = motion::toggle(ui.ctx(), resp.id.with("copied"), copied, motion::STANDARD);
-    let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
-    let resp = resp.on_hover_text(if copied { tr("Copied") } else { tr("Copy code") });
-    let p = ui.painter();
-    let round = CornerRadius::same(7);
-    p.rect_filled(resp.rect, round, motion::with_alpha(t.hover_wash(), hover * (1.0 - k)));
-    p.rect_filled(resp.rect, round, motion::with_alpha(t.accent_soft(), k));
-    if k < 0.99 {
-        let c = motion::lerp_color(t.text2, t.text, hover);
-        p.text(
-            rect.center(),
-            Align2::CENTER_CENTER,
-            ph::COPY,
-            theme::regular(19.0),
-            motion::with_alpha(c, 1.0 - k),
-        );
-    }
-    tick(p, rect.center(), 17.0, k, t.accent);
+    widgets::copy_button(ui, t, code, rect, copied_id(), tr("Copy code"), 19.0);
 }
 
 /// A status with a slowly breathing dot.

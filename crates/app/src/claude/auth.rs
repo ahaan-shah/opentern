@@ -27,13 +27,7 @@ pub enum Auth {
 fn command(agent: Agent, exe: &Path) -> Command {
     let mut cmd = Command::new(exe);
     super::accounts::apply(&mut cmd, agent, &super::accounts::current(agent));
-    for (k, _) in std::env::vars_os() {
-        if let Some(k) = k.to_str()
-            && (k == "CLAUDECODE" || k.starts_with("CLAUDE_CODE_"))
-        {
-            cmd.env_remove(k);
-        }
-    }
+    super::process::not_nested(&mut cmd);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

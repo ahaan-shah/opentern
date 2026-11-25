@@ -381,15 +381,32 @@ fn command(exe: &std::path::Path, account: &str) -> Command {
     cmd
 }
 
-/// A session started from inside Claude Code (a terminal, a test) would
-/// otherwise think it's nested.
-fn not_nested(cmd: &mut Command) {
-    for (k, _) in std::env::vars_os() {
-        if let Some(k) = k.to_str()
-            && (k == "CLAUDECODE" || k.starts_with("CLAUDE_CODE_"))
-        {
-            cmd.env_remove(k);
-        }
+/// What a Claude Code session passes to the programs it starts. Only these:
+/// other `CLAUDE_CODE_*` variables are the user's settings, some of them how
+/// they sign in (`CLAUDE_CODE_OAUTH_TOKEN`, `CLAUDE_CODE_USE_BEDROCK`), and
+/// Anthropic doesn't let apps take a sign-in method away.
+const SESSION_VARS: [&str; 14] = [
+    "CLAUDECODE",
+    "CLAUDE_CODE_SESSION_ID",
+    "CLAUDE_CODE_HOST_SESSION_ID",
+    "CLAUDE_CODE_BRIDGE_SESSION_ID",
+    "CLAUDE_CODE_CHILD_SESSION",
+    "CLAUDE_CODE_CHILD_NOTES_DIR",
+    "CLAUDE_CODE_SESSION_ATTENDED",
+    "CLAUDE_CODE_MESSAGING_SOCKET",
+    "CLAUDE_CODE_MESSAGING_TOKEN",
+    "CLAUDE_CODE_EXECPATH",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_AGENT_SDK_VERSION",
+    "CLAUDE_EFFORT",
+    "CLAUDE_PID",
+];
+
+/// With the app started from inside Claude Code (a terminal, a test), the
+/// CLI would otherwise act as part of that session.
+pub fn not_nested(cmd: &mut Command) {
+    for k in SESSION_VARS {
+        cmd.env_remove(k);
     }
 }
 
@@ -707,6 +724,33 @@ mod tests {
         );
         // Not passed off as another entrypoint.
         assert!(!matches!(env("", "CLAUDE_CODE_ENTRYPOINT"), Some(Some(_))));
+    }
+
+    /// A session the app was started from is left behind; the user's own
+    /// settings, the ways to sign in among them, stay.
+    #[cfg(unix)]
+    #[test]
+    fn keeps_the_users_sign_in_settings() {
+        let keep = [
+            "CLAUDE_CODE_OAUTH_TOKEN",
+            "CLAUDE_CODE_USE_BEDROCK",
+            "CLAUDE_CODE_USE_VERTEX",
+            "CLAUDE_CODE_USE_FOUNDRY",
+            "CLAUDE_CODE_USE_ANTHROPIC_AWS",
+            "CLAUDE_CODE_USE_ANTHROPIC_GOOGLE_CLOUD",
+            "CLAUDE_CODE_USE_MANTLE",
+            "CLAUDE_CODE_API_KEY_HELPER_TTL_MS",
+            "CLAUDE_CODE_EFFORT_LEVEL",
+            "ANTHROPIC_API_KEY",
+        ];
+        let cmd = command(std::path::Path::new("claude"), "");
+        let changed: Vec<_> = cmd.get_envs().map(|(k, _)| k.to_string_lossy().to_string()).collect();
+        for k in keep {
+            assert!(!changed.iter().any(|c| c == k), "{k} doesn't reach Claude Code");
+        }
+        for k in SESSION_VARS {
+            assert!(cmd.get_envs().any(|(n, v)| n == k && v.is_none()), "{k} is passed on");
+        }
     }
 
     /// What the installed Claude Code sends, to a stand-in for Anthropic's

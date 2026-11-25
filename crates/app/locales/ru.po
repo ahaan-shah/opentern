@@ -966,9 +966,6 @@ msgstr "Классический"
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr "Claude Code сам решает, что безопасно, и спрашивает только при сомнениях."
 
-msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
-msgstr "Claude и логотип Claude — товарные знаки Anthropic. OpenAI, Codex и логотип OpenAI — товарные знаки OpenAI. Opentern не связан с этими компаниями и не одобрен ими."
-
 msgid "Claude asks before it edits files or runs commands."
 msgstr "Claude спрашивает перед изменением файлов и запуском команд."
 

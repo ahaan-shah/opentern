@@ -835,12 +835,6 @@ impl App {
                 crate::app::open_url("https://github.com/ahaan-shah/opentern");
             }
         });
-        ui.add_space(18.0);
-        ui.label(
-            egui::RichText::new(tr("Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."))
-                .font(theme::regular(12.0))
-                .color(t.text3),
-        );
     }
 }
 

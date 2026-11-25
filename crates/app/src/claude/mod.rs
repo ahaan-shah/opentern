@@ -1325,9 +1325,6 @@ impl App {
             auth::Auth::Out(_) => {}
         }
         let auth::Auth::Out(command) = state else { return false };
-        let copied_id = egui::Id::new(("agent-login-copied", agent));
-        let now = ui.input(|i| i.time);
-        let copied = ui.data(|d| d.get_temp::<f64>(copied_id)).is_some_and(|c| now - c < 1.5);
         ui.add_space(48.0);
         let mut again = false;
         ui.vertical_centered(|ui| {
@@ -1338,53 +1335,10 @@ impl App {
             ui.label(RichText::new(tr("Run this in a terminal")).color(t.text2).size(12.5));
             ui.add_space(10.0);
             let w = (ui.available_width() - 32.0).clamp(0.0, 340.0);
-            egui::Frame::new()
-                .fill(t.bg)
-                .stroke(Stroke::new(1.0, t.border.gamma_multiply(0.6)))
-                .corner_radius(CornerRadius::same(8))
-                .inner_margin(Margin::symmetric(12, 9))
-                .show(ui, |ui| {
-                    ui.set_max_width((w - 24.0).max(0.0));
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(command.as_str())
-                                .font(FontId::monospace(12.0))
-                                .color(t.text),
-                        )
-                        .wrap()
-                        .selectable(true),
-                    );
-                });
+            login_box(ui, t, command, w, egui::Id::new(("agent-login", agent)));
             ui.add_space(14.0);
-            let copy = if copied { tr("Copied") } else { tr("Copy") };
-            let check = tr("Check again");
-            // Both buttons side by side, centred (one under the other when
-            // the pane is too narrow for that).
-            let width = |s: &str| {
-                let g = ui.painter().layout_no_wrap(s.to_string(), theme::medium(13.0), t.text);
-                (g.size().x + 28.0).max(72.0)
-            };
-            let (a, b) = (width(copy), width(check));
-            let mut buttons = |ui: &mut Ui| {
-                if w::primary(ui, copy).clicked() {
-                    ui.ctx().copy_text(command.clone());
-                    ui.data_mut(|d| d.insert_temp(copied_id, now));
-                }
-                again = w::secondary(ui, check).clicked();
-            };
-            if a + b + 8.0 <= ui.available_width() {
-                ui.allocate_ui_with_layout(vec2(a + b + 8.0, 32.0), Layout::left_to_right(Align::Center), |ui| {
-                    ui.spacing_mut().item_spacing.x = 8.0;
-                    buttons(ui);
-                });
-            } else {
-                ui.spacing_mut().item_spacing.y = 8.0;
-                buttons(ui);
-            }
+            again = w::secondary(ui, tr("Check again")).clicked();
         });
-        if copied {
-            ui.ctx().request_repaint_after(std::time::Duration::from_millis(300));
-        }
         if again {
             self.claude.auth.remove(&agent);
         }
@@ -4390,6 +4344,45 @@ fn halo(ui: &mut Ui, t: &Theme, agent: Agent, size: f32) {
     );
 }
 
+/// The login command in a box `width` wide, its copy button at the end.
+fn login_box(ui: &mut Ui, t: &Theme, command: &str, width: f32, id: egui::Id) {
+    let font = FontId::monospace(12.0);
+    let wrap = (width - 12.0 - 40.0).max(40.0);
+    let text_h = ui
+        .painter()
+        .layout(command.to_string(), font.clone(), t.text, wrap)
+        .size()
+        .y;
+    let (r, _) = ui.allocate_exact_size(vec2(width, (text_h + 20.0).max(38.0)), Sense::hover());
+    ui.painter().rect(
+        r,
+        CornerRadius::same(8),
+        t.bg,
+        Stroke::new(1.0, t.border.gamma_multiply(0.6)),
+        egui::StrokeKind::Inside,
+    );
+    let text = egui::Rect::from_min_size(
+        egui::pos2(r.left() + 12.0, r.center().y - text_h / 2.0),
+        vec2(wrap, text_h),
+    );
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(text)
+            .layout(Layout::top_down(Align::Min)),
+        |ui| {
+            ui.add(
+                egui::Label::new(RichText::new(command).font(font).color(t.text))
+                    .wrap()
+                    .selectable(true),
+            )
+        },
+    );
+    let button = egui::Rect::from_center_size(egui::pos2(r.right() - 20.0, r.center().y), vec2(28.0, 28.0));
+    w::copy_button(ui, t, command, button, id, tr("Copy"), 15.0);
+    #[cfg(test)]
+    ui.data_mut(|d| d.insert_temp(egui::Id::new("agent-login-copy"), button));
+}
+
 /// The face's blink, `since` seconds after it showed: a quick one every
 /// few seconds.
 fn blink_at(since: f64) -> f32 {
@@ -5008,9 +5001,19 @@ mod tests {
             for gone in ["Sign in", "Open page", "Continue", "Cancel"] {
                 assert!(!seen.iter().any(|s| s == gone), "{gone} is still there");
             }
-            let copy = d.text_rect("Copy").expect("a Copy button");
+            // The copy button ends the command's row; pressed, it's a check.
+            assert!(d.text_rect(crate::icons::ph::COPY).is_some());
+            let copy: egui::Rect = d
+                .ctx
+                .data(|x| x.get_temp(egui::Id::new("agent-login-copy")))
+                .expect("a copy button");
             d.click(copy.center());
-            assert!(d.text_rect("Copied").is_some());
+            let pressed = egui::Id::new(("agent-login", agent));
+            assert!(d.ctx.data(|x| x.get_temp::<f64>(pressed)).is_some());
+            for _ in 0..40 {
+                d.frame(vec![]);
+            }
+            assert!(d.text_rect(crate::icons::ph::COPY).is_none(), "still the squares");
             // Still signed out, then signed in.
             for signed_in in [false, true] {
                 if signed_in {

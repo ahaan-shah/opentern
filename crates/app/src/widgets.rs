@@ -3,6 +3,8 @@
 //! colour), which shows on every surface; `t.hover` alone nearly matches
 //! cards in some themes.
 
+use crate::i18n::tr;
+use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
 use egui::{Align2, Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, vec2};
@@ -922,6 +924,68 @@ pub fn spin_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, spinning: boo
     p.add(egui::epaint::TextShape::new(pos, galley, color).with_angle(angle));
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     resp.on_hover_text(tip)
+}
+
+/// A tick `size` wide, drawn up to `t` (0..1) along its stroke.
+pub fn tick(p: &egui::Painter, c: egui::Pos2, size: f32, t: f32, color: Color32) {
+    if t <= 0.0 {
+        return;
+    }
+    let a = c + vec2(-0.46, 0.02) * size;
+    let b = c + vec2(-0.14, 0.34) * size;
+    let e = c + vec2(0.46, -0.32) * size;
+    let (first, second) = ((b - a).length(), (e - b).length());
+    let reach = (first + second) * t;
+    let mut points = vec![a];
+    if reach <= first {
+        points.push(a + (b - a) * (reach / first));
+    } else {
+        points.push(b);
+        points.push(b + (e - b) * ((reach - first) / second));
+    }
+    p.add(egui::Shape::line(points, Stroke::new(size * 0.135, color)));
+}
+
+/// How long a copy button stays a check.
+const COPIED_FOR: f64 = 1.6;
+
+/// A copy button in `rect`: when pressed, the two squares fade as a check
+/// draws itself in, then it turns back. `id` holds when it was pressed.
+pub fn copy_button(ui: &mut Ui, t: &Theme, text: &str, rect: Rect, id: egui::Id, tip: &str, icon: f32) {
+    let resp = ui
+        .interact(rect, id.with("copy"), Sense::click())
+        .on_hover_cursor(egui::CursorIcon::PointingHand);
+    let now = ui.input(|i| i.time);
+    if resp.clicked() {
+        ui.ctx().copy_text(text.to_string());
+        ui.ctx().data_mut(|d| d.insert_temp(id, now));
+    }
+    let at = ui.ctx().data(|d| d.get_temp::<f64>(id));
+    let copied = at.is_some_and(|a| now - a < COPIED_FOR);
+    if let Some(a) = at.filter(|_| copied) {
+        let left = (COPIED_FOR - (now - a)).clamp(0.0, COPIED_FOR);
+        ui.ctx().request_repaint_after(std::time::Duration::from_secs_f64(left));
+    }
+    let k = motion::toggle(ui.ctx(), resp.id.with("copied"), copied, motion::STANDARD);
+    let hover = motion::toggle(ui.ctx(), resp.id.with("h"), resp.hovered(), motion::MICRO);
+    let resp = resp.on_hover_text(if copied { tr("Copied") } else { tip });
+    let p = ui.painter();
+    p.rect_filled(
+        resp.rect,
+        CornerRadius::same(7),
+        motion::with_alpha(t.hover_wash(), hover * (1.0 - k)),
+    );
+    if k < 0.99 {
+        let c = motion::lerp_color(t.text2, t.text, hover);
+        p.text(
+            rect.center(),
+            Align2::CENTER_CENTER,
+            ph::COPY,
+            theme::regular(icon),
+            motion::with_alpha(c, 1.0 - k),
+        );
+    }
+    tick(p, rect.center(), icon * 0.9, k, t.accent);
 }
 
 #[cfg(test)]

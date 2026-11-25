@@ -111,7 +111,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   background chat's process is dropped once its turn ends. Processes die with the
   app: `on_exit` clears them, and on Linux `PR_SET_PDEATHSIG` covers crashes and
   kills (without it a process waiting on a prompt lingered ~10 s). Env vars
-  `CLAUDECODE`/`CLAUDE_CODE_*` are removed so a launch from inside Claude Code works.
+  a Claude Code session passes to its children (`process::SESSION_VARS`) are removed so a
+  launch from inside Claude Code works; other `CLAUDE_CODE_*` are the user's, sign-in
+  ones included, and must reach the CLI (Anthropic's rule).
 - Chats (items, Claude Code session id, mode, model, tokens, cost) saved in
   `<workspace>/claude/chats.json`; every entry point loads it first so a send can't
   overwrite unread chats. Headless runs never start Claude Code unless
@@ -193,7 +195,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   sign-out blocks. **Signing in is never done in the app** (the maintainer, 26
   Nov 2026; Anthropic doesn't let apps offer Claude's sign-in, and T3 Code does
   the same): the gate shows the CLI's own login command to run in a terminal,
-  with Copy and Check again (`auth::login_command`: the picked account's
+  with a copy button at the end of its box (turns into a check:
+  `widgets::copy_button`, shared with the device code) and Check again
+  (`auth::login_command`: the picked account's
   variable in front; `env -u` / `$env:X=$null` when the default is picked but the
   app was started with the variable set; the CLI's full path when the bare name
   wouldn't run it; PowerShell's form on Windows, never run on a real PC). Don't
@@ -209,8 +213,8 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   the model list), sent as `x-client-app` (`live_client_app`, ignored, checks it
   with the real CLI, a made-up home and a local stand-in server). Codex has
   `clientInfo`. No Claude SDK, Sign in with ChatGPT or Antigravity (the
-  maintainer's call). The logos stay (the maintainer's call), credited in Settings
-  → About, the README, the website and THIRD-PARTY-LICENSES.
+  maintainer's call). The logos stay (the maintainer's call), credited in the README, the website and
+  THIRD-PARTY-LICENSES (not in Settings: the maintainer's call).
 - **Model shown, never "Default"**: `config_model` reads `ANTHROPIC_MODEL` /
   `~/.claude/settings.json` (aliases via `model_id`) and Codex's
   `config.toml`; else the model a chat last reported (`defaults`, saved);
