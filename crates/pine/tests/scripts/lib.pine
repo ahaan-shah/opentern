@@ -1,0 +1,7 @@
+//@version=6
+indicator("Lib use")
+import TradingView/ta/9 as tvta
+plot(tvta.ema2(close, 10)), plot(tvta.frama(close, 16))
+[a, b] = tvta.aroon(14)
+plot(a), plot(b)
+plot(request.security(syminfo.tickerid, "D", tvta.dema(close, 5)))

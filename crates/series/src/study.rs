@@ -448,6 +448,11 @@ pub struct Ctx<'a> {
     pub forming: bool,
     /// Bars in the series (for `last_bar_index`).
     pub count: usize,
+    /// The last bar's time.
+    pub last_time: i64,
+    /// Bars there were when the study started, the forming one included:
+    /// from that one on they're realtime.
+    pub loaded: usize,
 }
 
 impl Ctx<'_> {
@@ -469,6 +474,9 @@ pub struct Out {
     pub bg: u32,
     /// Candle colour for this bar (`barcolor`), 0 for none.
     pub bar: u32,
+    /// Background (or with `true`, bar) colours for earlier bars: how many
+    /// bars back, and the colour.
+    pub past: Vec<(bool, usize, u32)>,
 }
 
 impl Out {
@@ -481,6 +489,7 @@ impl Out {
             fill_raw: vec![0; fills],
             bg: 0,
             bar: 0,
+            past: Vec::new(),
         }
     }
 
@@ -492,6 +501,7 @@ impl Out {
         self.fill_raw.fill(0);
         self.bg = 0;
         self.bar = 0;
+        self.past.clear();
     }
 }
 
@@ -506,6 +516,17 @@ pub trait Study: StudyClone + Send {
     /// Labels, lines, boxes and tables, as they stand after the last bar.
     fn drawings(&self) -> Option<crate::drawings::Drawings> {
         None
+    }
+
+    /// Takes over what survives from the last run of the bar about to be
+    /// stepped (Pine's `varip`): the forming bar's study before this tick.
+    fn carry(&mut self, _last: &dyn std::any::Any) {}
+
+    /// The price (and colour, when an input sets it) of each of the
+    /// study's levels, for studies whose inputs move them. Empty = as in
+    /// its [`Meta`].
+    fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        Vec::new()
     }
 }
 
@@ -552,6 +573,16 @@ impl Output {
         }
     }
 
+    /// Colours of bars before `i`.
+    pub fn write_past(&mut self, i: usize, past: &[(bool, usize, u32)]) {
+        for (bar, back, c) in past {
+            let v = if *bar { &mut self.bar } else { &mut self.bg };
+            if let Some(slot) = i.checked_sub(*back).and_then(|k| v.get_mut(k)) {
+                *slot = *c;
+            }
+        }
+    }
+
     fn write(&mut self, i: usize, o: &Out) {
         // Pine has no infinities: a division by zero is na.
         for (p, v) in self.plots.iter_mut().zip(&o.values) {
@@ -571,6 +602,7 @@ impl Output {
         }
         self.bg[i] = o.bg;
         self.bar[i] = o.bar;
+        self.write_past(i, &o.past);
     }
 }
 
@@ -601,6 +633,10 @@ pub struct Instance {
     /// The state after the forming bar (thrown away on the next update).
     forming: Option<Box<dyn Study>>,
     /// Bars stepped into `committed`.
+    /// How many bars there were on the last update.
+    seen: usize,
+    /// How many there were when it started.
+    loaded: usize,
     done: usize,
     scratch: Out,
 }
@@ -642,6 +678,8 @@ impl Instance {
                 bar: Vec::new(),
             },
             done: 0,
+            seen: 0,
+            loaded: 0,
             drawings: None,
             scratch: Out::new(meta.plots.len(), meta.fills.len()),
             meta,
@@ -667,6 +705,11 @@ impl Instance {
     /// The same study (built-in, factory or external) with new inputs.
     pub fn with_inputs(&self, inputs: &Inputs) -> Instance {
         Instance::make(self.meta, inputs, self.factory.clone(), self.external)
+    }
+
+    /// See [`Study::levels`].
+    pub fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        self.committed.levels()
     }
 
     pub fn is_external(&self) -> bool {
@@ -705,6 +748,8 @@ impl Instance {
         self.committed = self.build();
         self.forming = None;
         self.done = 0;
+        self.seen = 0;
+        self.loaded = bars.len();
         for v in &mut self.out.plots {
             v.clear();
         }
@@ -734,9 +779,18 @@ impl Instance {
         if n == 0 || self.external {
             return;
         }
+        if self.loaded == 0 {
+            self.loaded = n;
+        }
         let session = |i: usize| sessions.get(i).copied().unwrap_or(false);
         while self.done < n - 1 {
             let i = self.done;
+            // The bar that was forming has closed.
+            if i + 1 == self.seen
+                && let Some(last) = self.forming.as_ref().and_then(|f| f.as_any())
+            {
+                self.committed.carry(last);
+            }
             self.scratch.reset();
             let c = Ctx {
                 bar: &bars[i],
@@ -745,12 +799,20 @@ impl Instance {
                 tf,
                 forming: false,
                 count: n,
+                last_time: bars[n - 1].time,
+                loaded: self.loaded,
             };
             self.committed.step(&c, &mut self.scratch);
             self.out.write(i, &self.scratch);
             self.done += 1;
         }
         let mut forming = self.committed.clone_box();
+        if self.seen == n
+            && let Some(last) = self.forming.as_ref().and_then(|f| f.as_any())
+        {
+            forming.carry(last);
+        }
+        self.seen = n;
         self.scratch.reset();
         let c = Ctx {
             bar: &bars[n - 1],
@@ -759,6 +821,8 @@ impl Instance {
             tf,
             forming: true,
             count: n,
+            last_time: bars[n - 1].time,
+            loaded: self.loaded,
         };
         forming.step(&c, &mut self.scratch);
         self.out.write(n - 1, &self.scratch);

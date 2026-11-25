@@ -30,8 +30,12 @@ fn bars(n: usize) -> Vec<Bar> {
 
 #[test]
 fn mangled_scripts_never_crash() {
-    let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/corpus");
-    let mut files: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.path()).collect();
+    let tests = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let mut files: Vec<_> = ["corpus", "scripts"]
+        .iter()
+        .flat_map(|d| std::fs::read_dir(tests.join(d)).unwrap().flatten())
+        .map(|e| e.path())
+        .collect();
     files.sort();
     let bars = bars(300);
     let tf = Timeframe::new(1, Unit::Hour);

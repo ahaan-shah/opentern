@@ -29,6 +29,8 @@ pub enum Expr {
     Ternary(Box<Expr>, Box<Expr>, Box<Expr>),
     If(Vec<(Expr, Block)>, Option<Block>),
     Switch(Option<Box<Expr>>, Vec<(Option<Expr>, Block)>),
+    /// A `for`/`while` used as a value: its last iteration's.
+    Loop(Box<Stmt>),
     /// `[a, b]` as a value (tuple returns, array literals in options).
     Tuple(Vec<Expr>),
 }
@@ -66,6 +68,15 @@ pub enum Stmt {
         value: Expr,
         line: usize,
     },
+    /// `expr.field := value` where `expr` isn't a plain name
+    /// (`a.get(0).x := 1`).
+    AssignField {
+        obj: Expr,
+        field: String,
+        op: &'static str,
+        value: Expr,
+        line: usize,
+    },
     Expr(Expr, usize),
     For {
         var: String,
@@ -97,10 +108,10 @@ pub enum Stmt {
         line: usize,
         method: bool,
     },
-    /// `type Name` with its fields (name, default).
+    /// `type Name` with its fields (name, default, type).
     Type {
         name: String,
-        fields: Vec<(String, Option<Expr>)>,
+        fields: Vec<Param>,
         line: usize,
     },
     /// `enum Name` with members and their titles (the member's name when

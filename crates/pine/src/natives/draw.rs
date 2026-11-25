@@ -8,6 +8,7 @@ use super::{NatDef, arg, d, num};
 use crate::heap::{DrawKind, Label, Line, Obj, PineBox, Polyline, Table, TableCell, XLoc, kind_index};
 use crate::run::{CHART_POINT, G};
 use crate::value::{self, V};
+use opentern_series::drawings::NO_X;
 use std::sync::Arc;
 
 type R = Result<V, String>;
@@ -54,19 +55,22 @@ fn xloc(v: &V) -> XLoc {
     }
 }
 
-fn int_x(v: &V) -> Result<i64, String> {
-    v.i().ok_or_else(|| "A drawing's x coordinate is na.".to_string())
+/// An x coordinate; `na` leaves the drawing off the chart, as Pine does.
+fn int_x(v: &V) -> i64 {
+    v.i().unwrap_or(NO_X)
+}
+
+fn x_of(x: i64) -> V {
+    if x == NO_X { V::Na } else { V::Int(x) }
 }
 
 /// A `chart.point`'s (index, time, price).
 fn point(g: &G, v: &V) -> Option<(i64, i64, f64)> {
     let V::Ref(r) = v else { return None };
     match g.heap.get(*r) {
-        Some(Obj::Udt { ty, fields }) if *ty == CHART_POINT => Some((
-            fields.first()?.i().unwrap_or(0),
-            fields.get(1)?.i().unwrap_or(0),
-            fields.get(2)?.f(),
-        )),
+        Some(Obj::Udt { ty, fields }) if *ty == CHART_POINT => {
+            Some((int_x(fields.first()?), int_x(fields.get(1)?), fields.get(2)?.f()))
+        }
         _ => None,
     }
 }
@@ -192,8 +196,6 @@ const LABEL: &[&str] = &[
     "text_formatting",
 ];
 
-const CELL: &[&str] = &["table_id", "column", "row", "value"];
-
 const LINE: &[&str] = &[
     "x1",
     "y1",
@@ -257,7 +259,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(make_point(g, V::Na, arg(a, 0).clone(), arg(a, 1).clone()))
         }),
         d("chart.point.now", &["price"], |g, a, _| {
-            let (i, t) = (V::Int(g.index as i64), V::Int(g.bar().time));
+            let (i, t) = (V::Int(g.index as i64), V::Int(g.now()));
             let p = match arg(a, 0) {
                 V::Na => V::Float(g.bar().close),
                 v => v.clone(),
@@ -284,14 +286,15 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 a.to_vec()
             };
             let l = Label {
-                x: int_x(arg(&a, 0))?,
+                x: int_x(arg(&a, 0)),
                 y: num(&a, 1),
                 xloc: xloc(arg(&a, 3)),
                 yloc: name(arg(&a, 4), "yloc.", "price"),
                 text: text(arg(&a, 2)),
                 style: name(arg(&a, 6), "label.style_", "label_down"),
                 color: color_or(arg(&a, 5), BLUE),
-                textcolor: color_or(arg(&a, 7), BLACK),
+                // v6 made it white.
+                textcolor: color_or(arg(&a, 7), if g.version >= 6 { 0xFFFF_FFFF } else { BLACK }),
                 size: name(arg(&a, 8), "size.", "normal"),
                 textalign: name(arg(&a, 9), "text.align_", "center"),
                 tooltip: text(arg(&a, 10)),
@@ -299,23 +302,17 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(V::Ref(g.heap.draw(DrawKind::Label, Obj::Label(l))))
         }),
         setter!("label.set_x", &["id", "x"], label_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x = x;
-            }
+            l.x = int_x(arg(a, 1));
         }),
         setter!("label.set_y", &["id", "y"], label_mut, |l, a| {
             l.y = num(a, 1);
         }),
         setter!("label.set_xy", &["id", "x", "y"], label_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x = x;
-            }
+            l.x = int_x(arg(a, 1));
             l.y = num(a, 2);
         }),
         setter!("label.set_xloc", &["id", "x", "xloc"], label_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x = x;
-            }
+            l.x = int_x(arg(a, 1));
             l.xloc = xloc(arg(a, 2));
         }),
         setter!("label.set_yloc", &["id", "yloc"], label_mut, |l, a| {
@@ -353,7 +350,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         d("label.get_x", &["id"], |g, a, _| {
             Ok(
                 get(g, arg(a, 0), |o| if let Obj::Label(l) = o { Some(l) } else { None })?
-                    .map(|l| V::Int(l.x))
+                    .map(|l| x_of(l.x))
                     .unwrap_or(V::Na),
             )
         }),
@@ -389,9 +386,9 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 a.to_vec()
             };
             let l = Line {
-                x1: int_x(arg(&a, 0))?,
+                x1: int_x(arg(&a, 0)),
                 y1: num(&a, 1),
-                x2: int_x(arg(&a, 2))?,
+                x2: int_x(arg(&a, 2)),
                 y2: num(&a, 3),
                 xloc: xloc(arg(&a, 4)),
                 extend: name(arg(&a, 5), "extend.", "none"),
@@ -402,14 +399,10 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(V::Ref(g.heap.draw(DrawKind::Line, Obj::Line(l))))
         }),
         setter!("line.set_x1", &["id", "x"], line_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x1 = x;
-            }
+            l.x1 = int_x(arg(a, 1));
         }),
         setter!("line.set_x2", &["id", "x"], line_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x2 = x;
-            }
+            l.x2 = int_x(arg(a, 1));
         }),
         setter!("line.set_y1", &["id", "y"], line_mut, |l, a| {
             l.y1 = num(a, 1);
@@ -418,22 +411,16 @@ pub(crate) fn defs() -> Vec<NatDef> {
             l.y2 = num(a, 1);
         }),
         setter!("line.set_xy1", &["id", "x", "y"], line_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x1 = x;
-            }
+            l.x1 = int_x(arg(a, 1));
             l.y1 = num(a, 2);
         }),
         setter!("line.set_xy2", &["id", "x", "y"], line_mut, |l, a| {
-            if let Some(x) = arg(a, 1).i() {
-                l.x2 = x;
-            }
+            l.x2 = int_x(arg(a, 1));
             l.y2 = num(a, 2);
         }),
         setter!("line.set_xloc", &["id", "x1", "x2", "xloc"], line_mut, |l, a| {
-            if let (Some(x1), Some(x2)) = (arg(a, 1).i(), arg(a, 2).i()) {
-                l.x1 = x1;
-                l.x2 = x2;
-            }
+            l.x1 = int_x(arg(a, 1));
+            l.x2 = int_x(arg(a, 2));
             l.xloc = xloc(arg(a, 3));
         }),
         setter!("line.set_extend", &["id", "extend"], line_mut, |l, a| {
@@ -464,14 +451,16 @@ pub(crate) fn defs() -> Vec<NatDef> {
             }
             Ok(V::Na)
         }),
-        d("line.get_x1", &["id"], |g, a, _| line_get(g, a, |l| V::Int(l.x1))),
-        d("line.get_x2", &["id"], |g, a, _| line_get(g, a, |l| V::Int(l.x2))),
+        d("line.get_x1", &["id"], |g, a, _| line_get(g, a, |l| x_of(l.x1))),
+        d("line.get_x2", &["id"], |g, a, _| line_get(g, a, |l| x_of(l.x2))),
         d("line.get_y1", &["id"], |g, a, _| line_get(g, a, |l| V::Float(l.y1))),
         d("line.get_y2", &["id"], |g, a, _| line_get(g, a, |l| V::Float(l.y2))),
         d("line.get_price", &["id", "x"], |g, a, _| {
             let x = num(a, 1);
             line_get(g, a, |l| {
-                if l.x1 == l.x2 {
+                if l.x1 == NO_X || l.x2 == NO_X {
+                    V::Na
+                } else if l.x1 == l.x2 {
                     V::Float(l.y1)
                 } else {
                     V::Float(l.y1 + (l.y2 - l.y1) * (x - l.x1 as f64) / (l.x2 - l.x1) as f64)
@@ -496,9 +485,9 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 a.to_vec()
             };
             let b = PineBox {
-                left: int_x(arg(&a, 0))?,
+                left: int_x(arg(&a, 0)),
                 top: num(&a, 1),
-                right: int_x(arg(&a, 2))?,
+                right: int_x(arg(&a, 2)),
                 bottom: num(&a, 3),
                 border_color: color_or(arg(&a, 4), BLUE),
                 border_width: arg(&a, 5).f_or(1.0),
@@ -515,14 +504,10 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(V::Ref(g.heap.draw(DrawKind::Box, Obj::Box(b))))
         }),
         setter!("box.set_left", &["id", "left"], box_mut, |b, a| {
-            if let Some(x) = arg(a, 1).i() {
-                b.left = x;
-            }
+            b.left = int_x(arg(a, 1));
         }),
         setter!("box.set_right", &["id", "right"], box_mut, |b, a| {
-            if let Some(x) = arg(a, 1).i() {
-                b.right = x;
-            }
+            b.right = int_x(arg(a, 1));
         }),
         setter!("box.set_top", &["id", "top"], box_mut, |b, a| {
             b.top = num(a, 1);
@@ -531,15 +516,11 @@ pub(crate) fn defs() -> Vec<NatDef> {
             b.bottom = num(a, 1);
         }),
         setter!("box.set_lefttop", &["id", "left", "top"], box_mut, |b, a| {
-            if let Some(x) = arg(a, 1).i() {
-                b.left = x;
-            }
+            b.left = int_x(arg(a, 1));
             b.top = num(a, 2);
         }),
         setter!("box.set_rightbottom", &["id", "right", "bottom"], box_mut, |b, a| {
-            if let Some(x) = arg(a, 1).i() {
-                b.right = x;
-            }
+            b.right = int_x(arg(a, 1));
             b.bottom = num(a, 2);
         }),
         setter!("box.set_border_color", &["id", "color"], box_mut, |b, a| {
@@ -572,8 +553,29 @@ pub(crate) fn defs() -> Vec<NatDef> {
         setter!("box.set_text_valign", &["id", "text_valign"], box_mut, |b, a| {
             b.text_valign = name(arg(a, 1), "text.align_", "center");
         }),
-        d("box.get_left", &["id"], |g, a, _| box_get(g, a, |b| V::Int(b.left))),
-        d("box.get_right", &["id"], |g, a, _| box_get(g, a, |b| V::Int(b.right))),
+        setter!("box.set_xloc", &["id", "left", "right", "xloc"], box_mut, |b, a| {
+            b.left = int_x(arg(a, 1));
+            b.right = int_x(arg(a, 2));
+            b.xloc = xloc(arg(a, 3));
+        }),
+        d("box.set_top_left_point", &["id", "point"], |g, a, _| {
+            let Some(p) = point(g, arg(a, 1)) else { return Ok(V::Na) };
+            if let Some(b) = box_mut!(g, arg(a, 0)) {
+                b.left = point_x(p, b.xloc);
+                b.top = p.2;
+            }
+            Ok(V::Na)
+        }),
+        d("box.set_bottom_right_point", &["id", "point"], |g, a, _| {
+            let Some(p) = point(g, arg(a, 1)) else { return Ok(V::Na) };
+            if let Some(b) = box_mut!(g, arg(a, 0)) {
+                b.right = point_x(p, b.xloc);
+                b.bottom = p.2;
+            }
+            Ok(V::Na)
+        }),
+        d("box.get_left", &["id"], |g, a, _| box_get(g, a, |b| x_of(b.left))),
+        d("box.get_right", &["id"], |g, a, _| box_get(g, a, |b| x_of(b.right))),
         d("box.get_top", &["id"], |g, a, _| box_get(g, a, |b| V::Float(b.top))),
         d("box.get_bottom", &["id"], |g, a, _| {
             box_get(g, a, |b| V::Float(b.bottom))
@@ -652,33 +654,51 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 Ok(V::Na)
             },
         ),
-        d("table.cell_set_text", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.text = text(v))
-        }),
-        d("table.cell_set_text_color", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.text_color = color_or_none(v))
-        }),
-        d("table.cell_set_bgcolor", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.bgcolor = color_or_none(v))
-        }),
-        d("table.cell_set_text_size", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.text_size = name(v, "size.", "normal"))
-        }),
-        d("table.cell_set_text_halign", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.text_halign = name(v, "text.align_", "center"))
-        }),
-        d("table.cell_set_text_valign", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.text_valign = name(v, "text.align_", "center"))
-        }),
-        d("table.cell_set_width", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.width = v.f_or(0.0))
-        }),
-        d("table.cell_set_height", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.height = v.f_or(0.0))
-        }),
-        d("table.cell_set_tooltip", CELL, |g, a, _| {
-            set_cell(g, a, |c, v| c.tooltip = text(v))
-        }),
+        d(
+            "table.cell_set_text",
+            &["table_id", "column", "row", "text"],
+            |g, a, _| set_cell(g, a, |c, v| c.text = text(v)),
+        ),
+        d(
+            "table.cell_set_text_color",
+            &["table_id", "column", "row", "text_color"],
+            |g, a, _| set_cell(g, a, |c, v| c.text_color = color_or_none(v)),
+        ),
+        d(
+            "table.cell_set_bgcolor",
+            &["table_id", "column", "row", "bgcolor"],
+            |g, a, _| set_cell(g, a, |c, v| c.bgcolor = color_or_none(v)),
+        ),
+        d(
+            "table.cell_set_text_size",
+            &["table_id", "column", "row", "text_size"],
+            |g, a, _| set_cell(g, a, |c, v| c.text_size = name(v, "size.", "normal")),
+        ),
+        d(
+            "table.cell_set_text_halign",
+            &["table_id", "column", "row", "text_halign"],
+            |g, a, _| set_cell(g, a, |c, v| c.text_halign = name(v, "text.align_", "center")),
+        ),
+        d(
+            "table.cell_set_text_valign",
+            &["table_id", "column", "row", "text_valign"],
+            |g, a, _| set_cell(g, a, |c, v| c.text_valign = name(v, "text.align_", "center")),
+        ),
+        d(
+            "table.cell_set_width",
+            &["table_id", "column", "row", "width"],
+            |g, a, _| set_cell(g, a, |c, v| c.width = v.f_or(0.0)),
+        ),
+        d(
+            "table.cell_set_height",
+            &["table_id", "column", "row", "height"],
+            |g, a, _| set_cell(g, a, |c, v| c.height = v.f_or(0.0)),
+        ),
+        d(
+            "table.cell_set_tooltip",
+            &["table_id", "column", "row", "tooltip"],
+            |g, a, _| set_cell(g, a, |c, v| c.tooltip = text(v)),
+        ),
         d(
             "table.clear",
             &["table_id", "start_column", "start_row", "end_column", "end_row"],
@@ -733,6 +753,42 @@ pub(crate) fn defs() -> Vec<NatDef> {
             }
             Ok(V::Na)
         }),
+        d("table.set_frame_width", &["table_id", "frame_width"], |g, a, _| {
+            if let Some(t) = table_mut!(g, arg(a, 0)) {
+                t.frame_width = arg(a, 1).f_or(0.0);
+            }
+            Ok(V::Na)
+        }),
+        d("table.set_border_width", &["table_id", "border_width"], |g, a, _| {
+            if let Some(t) = table_mut!(g, arg(a, 0)) {
+                t.border_width = arg(a, 1).f_or(0.0);
+            }
+            Ok(V::Na)
+        }),
+        // Fonts and bold/italic aren't drawn differently.
+        d(
+            "table.cell_set_text_font_family",
+            &["table_id", "column", "row", "text_font_family"],
+            |_, _, _| Ok(V::Na),
+        ),
+        d(
+            "table.cell_set_text_formatting",
+            &["table_id", "column", "row", "text_formatting"],
+            |_, _, _| Ok(V::Na),
+        ),
+        d("label.set_text_font_family", &["id", "text_font_family"], |_, _, _| {
+            Ok(V::Na)
+        }),
+        d("label.set_text_formatting", &["id", "text_formatting"], |_, _, _| {
+            Ok(V::Na)
+        }),
+        d("box.set_text_font_family", &["id", "text_font_family"], |_, _, _| {
+            Ok(V::Na)
+        }),
+        d("box.set_text_formatting", &["id", "text_formatting"], |_, _, _| {
+            Ok(V::Na)
+        }),
+        d("box.set_text_wrap", &["id", "text_wrap"], |_, _, _| Ok(V::Na)),
         d("table.delete", &["table_id"], |g, a, _| {
             delete(g, arg(a, 0), DrawKind::Table)
         }),
@@ -799,14 +855,15 @@ pub(crate) fn defs() -> Vec<NatDef> {
             |g, a, _| {
                 let loc = xloc(arg(a, 3));
                 let pts: Vec<(i64, f64)> = match arg(a, 0) {
-                    V::Ref(r) => match g.heap.get(*r) {
-                        Some(Obj::Array(items)) => items.clone(),
-                        _ => return Err("polyline.new needs an array of chart.point.".into()),
+                    V::Ref(r) => match g.heap.items(*r) {
+                        Some(items) => items.to_vec(),
+                        None => return Err("polyline.new needs an array of chart.point.".into()),
                     },
                     _ => return Ok(V::Na),
                 }
                 .iter()
                 .filter_map(|p| point(g, p).map(|p| (point_x(p, loc), p.2)))
+                .filter(|(x, y)| *x != NO_X && !y.is_nan())
                 .collect();
                 if pts.len() > 10_000 {
                     return Err("A polyline can have at most 10,000 points.".into());

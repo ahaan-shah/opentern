@@ -13,7 +13,7 @@ use crate::{AssetKind, Symbol};
 use jiff::civil::{Date, Time, Weekday, date};
 use jiff::tz::TimeZone;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Market {
     Crypto,
     Forex,
@@ -29,7 +29,7 @@ pub enum Market {
 }
 
 /// Stock exchanges whose indices Opentern lists (`crate::INDICES`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Venue {
     Tokyo,
     London,
@@ -625,6 +625,12 @@ fn session(m: Market, d: Date) -> Option<(i64, i64)> {
             .map(|z| z.timestamp().as_millisecond())
     };
     Some((at(open)?, at(close)?))
+}
+
+/// A local date's regular session (open and close, UTC ms), if the market
+/// trades then and has set hours.
+pub fn session_times(m: Market, d: Date) -> Option<(i64, i64)> {
+    session(m, d)
 }
 
 /// When a daily-or-longer period really ends: the close of its last

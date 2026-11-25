@@ -112,10 +112,14 @@ fn lex_line(s: &str, line: usize) -> Result<Vec<Tok>, Error> {
                         .map_err(|_| Error::at(line, format!("Bad number {text}.")))?,
                 ));
             } else {
-                out.push(Tok::Int(
-                    text.parse()
-                        .map_err(|_| Error::at(line, format!("Bad number {text}.")))?,
-                ));
+                // Too big for an int: as near as a float gets.
+                match text.parse::<i64>() {
+                    Ok(v) => out.push(Tok::Int(v)),
+                    Err(_) => out.push(Tok::Float(
+                        text.parse()
+                            .map_err(|_| Error::at(line, format!("Bad number {text}.")))?,
+                    )),
+                }
             }
             i = j;
             continue;

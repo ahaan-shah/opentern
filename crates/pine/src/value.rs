@@ -190,7 +190,7 @@ pub fn with_transp(c: u32, transp: f64) -> u32 {
 }
 
 /// Formats a number the way `str.tostring` does without a format: whole
-/// numbers without decimals, others with up to 10 significant decimals.
+/// numbers without decimals, others with up to 8 decimals.
 pub fn fmt_num(f: f64) -> String {
     if f.is_nan() {
         return "NaN".into();
@@ -201,9 +201,10 @@ pub fn fmt_num(f: f64) -> String {
     if f == f.trunc() && f.abs() < 1e15 {
         return format!("{}", f as i64);
     }
-    let s = format!("{f:.10}");
+    let s = format!("{f:.8}");
     let s = s.trim_end_matches('0').trim_end_matches('.');
-    s.to_string()
+    // A tiny negative rounds to 0, not -0.
+    if s == "-0" { "0".into() } else { s.to_string() }
 }
 
 /// `str.tostring(x, format)` with a `#.##`-style pattern, `format.mintick`
@@ -260,9 +261,6 @@ pub fn fmt_pattern(f: f64, pat: &str) -> String {
         None => (s.clone(), None),
     };
     let mut ip = ip;
-    if ip == "0" && min_int == 0 && fp.is_some() {
-        ip.clear();
-    }
     while ip.len() < min_int {
         ip.insert(0, '0');
     }
@@ -294,7 +292,7 @@ mod tests {
     fn number_formats() {
         assert_eq!(fmt_num(14.0), "14");
         assert_eq!(fmt_num(1.5), "1.5");
-        assert_eq!(fmt_num(1.0 / 3.0), "0.3333333333");
+        assert_eq!(fmt_num(1.0 / 3.0), "0.33333333");
         assert_eq!(fmt_pattern(2.34567, "#.##"), "2.35");
         assert_eq!(fmt_pattern(3.1, "#.00"), "3.10");
         assert_eq!(fmt_pattern(1234567.0, "#,###"), "1,234,567");

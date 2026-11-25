@@ -1,0 +1,32 @@
+//@version=6
+strategy("Grid", "G", true, pyramiding = 3, initial_capital = 5000, default_qty_type = strategy.cash, default_qty_value = 500, commission_value = 0.05, slippage = 1, margin_long = 100, margin_short = 100, calc_on_order_fills = false, use_bar_magnifier = false, process_orders_on_close = true, close_entries_rule = "ANY", risk_free_rate = 2)
+strategy.risk.allow_entry_in(strategy.direction.all)
+strategy.risk.max_drawdown(90, strategy.percent_of_equity)
+var int dir = 0
+length = input.int(20), mult = input.float(2.0, minval = 0.001, maxval = 50)
+[mid, up, dn] = ta.bb(close, length, mult)
+[macdLine, sig, hist] = ta.macd(close, 12, 26, 9)
+[diplus, diminus, adx] = ta.dmi(14, 14)
+[st, sd] = ta.supertrend(3, 10)
+htf = request.security(syminfo.tickerid, "240", ta.ema(close, 20)[1], lookahead = barmerge.lookahead_on)
+longOk = close > nz(htf, close) or true
+qty = math.floor(strategy.equity * 0.01 / math.max(ta.atr(14), syminfo.mintick))
+if ta.crossunder(close, dn) and longOk
+    strategy.entry("L" + str.tostring(strategy.opentrades), strategy.long, qty = qty, comment = "bb")
+if ta.crossover(close, up)
+    strategy.close_all(comment = "top", immediately = true)
+if strategy.opentrades > 0
+    e = strategy.opentrades.entry_price(strategy.opentrades - 1)
+    bars = bar_index - strategy.opentrades.entry_bar_index(0)
+    strategy.exit("X", trail_points = 100, trail_offset = 50, loss = 500, qty_percent = 50)
+    if bars > 30
+        strategy.close(strategy.opentrades.entry_id(0), qty_percent = 100)
+wr = strategy.closedtrades > 0 ? strategy.wintrades / strategy.closedtrades * 100 : na
+plot(wr), plot(strategy.netprofit), plot(strategy.max_drawdown), plot(strategy.openprofit), plot(strategy.position_avg_price, style = plot.style_linebr)
+plot(strategy.margin_liquidation_price), plot(strategy.avg_winning_trade_percent)
+f_print(string _text, int row) =>
+    var table _t = table.new(position.bottom_right, 1, 5)
+    table.cell(_t, 0, row, _text, bgcolor = #ffffff)
+if barstate.islastconfirmedhistory
+    f_print(str.format("PF {0,number,#.##}", strategy.grossprofit / strategy.grossloss), 0)
+    f_print("win " + str.tostring(wr, format.percent), 1)

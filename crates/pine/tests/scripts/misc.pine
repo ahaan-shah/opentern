@@ -1,0 +1,88 @@
+//@version=6
+indicator("Misc", overlay = false, dynamic_requests = true, precision = 4, format = format.price)
+enum Mode
+    fast = "Fast mode"
+    slow = "Slow mode"
+Mode mode = input.enum(Mode.fast, "Mode", tooltip = "x")
+const int BASE = 10
+const float K = 1.618
+int len = mode == Mode.fast ? BASE : BASE * 2
+var array<float> buf = array.new<float>()
+buf.push(close)
+if buf.size() > 50
+    buf.shift()
+float z = buf.size() >= 50 ? (close - buf.avg()) / buf.stdev() : na
+plot(z, "z")
+var map<string, float> m = map.new<string, float>()
+key = str.tostring(dayofweek)
+m.put(key, nz(m.get(key)) + volume)
+best = ""
+bestV = 0.0
+for [k, v] in m
+    if v > bestV
+        bestV := v
+        best := k
+plot(str.tonumber(best))
+matrix<float> mx = matrix.new<float>(2, 2, 0)
+mx.set(0, 0, close), mx.set(0, 1, open), mx.set(1, 0, high), mx.set(1, 1, low)
+plot(mx.det()), plot(matrix.rank(mx)), plot(mx.transpose().get(0, 1) - high)
+f_secureSecurity(_symbol, _res, _src) => request.security(_symbol, _res, _src[1], lookahead = barmerge.lookahead_on)
+dayHigh = f_secureSecurity(syminfo.tickerid, "D", high)
+dayOpen = f_secureSecurity(syminfo.tickerid, "D", open)
+plot(dayHigh), plot(dayOpen)
+newDay = timeframe.change("D")
+var float dh = na
+var float dl = na
+if newDay
+    dh := high
+    dl := low
+else
+    dh := math.max(nz(dh, high), high)
+    dl := math.min(nz(dl, low), low)
+plot(dh), plot(dl)
+inSess = not na(time(timeframe.period, "0930-1130,1300-1500:23456", syminfo.timezone))
+bgcolor(inSess ? color.new(color.blue, 90) : na)
+vwapReset = ta.vwap(hlc3, newDay)
+[vw, up, dn] = ta.vwap(hlc3, newDay, 1.5)
+plot(vw - vwapReset), plot(up), plot(dn)
+dyn = math.max(1, math.round(nz(ta.atr(5) / ta.atr(20)) * 10))
+plot(ta.highest(high, dyn)), plot(ta.sma(close, dyn)), plot(ta.lowest(dyn))
+float acc = 0.0
+for i = 0 to len - 1
+    acc += close[i] * (len - i)
+plot(acc / (len * (len + 1) / 2) - ta.wma(close, len))
+s = switch
+    close > open and volume > volume[1] => "strong"
+    close > open => "up"
+    => "down"
+plot(str.length(s))
+tup() =>
+    x = ta.rsi(close, 14)
+    y = x > 50
+    [x, y, "t"]
+[rx, ry, rs] = tup()
+plot(ry ? rx : na, style = plot.style_stepline)
+plot(nz(ta.valuewhen(ta.cross(close, ta.sma(close, 20)), bar_index, 0)))
+log.info("bar {0} {1}", bar_index, str.format_time(time, "yyyy-MM-dd HH:mm", syminfo.timezone))
+lower = request.security_lower_tf(syminfo.tickerid, "5", close)
+plot(lower.size())
+int count = 0
+while count < 5
+    count += 1
+    if count == 3
+        continue
+    if count == 4
+        break
+plot(count)
+chart.point[] pts = array.new<chart.point>()
+for i = 0 to 4
+    pts.push(chart.point.from_index(bar_index - i, close[i]))
+var polyline pl = na
+if barstate.islast
+    pl.delete()
+    pl := polyline.new(pts, curved = true, line_color = color.yellow)
+plot(math.round_to_mintick(close * 1.0001)), plot(color.r(color.red)), plot(int(5.9)), plot(math.sign(-3))
+plot(bar_index % 2 == 0 ? na : close, style = plot.style_linebr)
+sc = ta.percentile_nearest_rank(close, 20, 80), plot(sc)
+o = request.security("BINANCE:ETHUSDT", timeframe.period, close, ignore_invalid_symbol = true)
+plot(o)

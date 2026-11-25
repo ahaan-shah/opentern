@@ -8,7 +8,7 @@ use crate::lexer::{Line, Tok};
 /// How deep expressions and blocks may nest. Deeper is an error, not a
 /// crash: the parser recurses, and a mangled or hostile script
 /// (`((((…` a few thousand deep) would overflow the stack, which aborts.
-const MAX_DEPTH: usize = 256;
+const MAX_DEPTH: usize = 512;
 
 thread_local! {
     static DEPTH: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
@@ -112,8 +112,43 @@ const KEYWORDS: [&str; 18] = [
     "export", "import", "true",
 ];
 
+/// Keywords Pine also lets variables and parameters be called, as in
+/// `string type` (they're only keywords at the start of a statement).
+const SOFT: [&str; 6] = ["type", "method", "export", "import", "to", "by"];
+const ASSIGN: [&str; 6] = [":=", "+=", "-=", "*=", "/=", "%="];
+
 fn is_name(t: Option<&Tok>) -> bool {
     matches!(t, Some(Tok::Ident(w)) if !KEYWORDS.contains(&w.as_str()) && w != "false")
+}
+
+/// A name that can follow a type.
+fn is_var_name(t: Option<&Tok>) -> bool {
+    is_name(t) || matches!(t, Some(Tok::Ident(w)) if SOFT.contains(&w.as_str()))
+}
+
+/// Splits at top-level commas (not those in brackets or type arguments).
+fn split_commas(toks: &[Tok]) -> Vec<Vec<Tok>> {
+    let mut depth = 0i32;
+    let mut parts: Vec<Vec<Tok>> = vec![Vec::new()];
+    for (k, t) in toks.iter().enumerate() {
+        let generic_open = *t == Tok::Op("<")
+            && k > 0
+            && matches!(&toks[k - 1], Tok::Ident(w) if matches!(w.as_str(), "new" | "array" | "map" | "matrix"));
+        match t {
+            Tok::Op("(" | "[") => depth += 1,
+            Tok::Op(")" | "]") => depth -= 1,
+            Tok::Op("<") if generic_open => depth += 1,
+            Tok::Op(">") if depth > 0 && generic_depth(&parts) > 0 => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 && *t == Tok::Op(",") {
+            parts.push(Vec::new());
+        } else if let Some(p) = parts.last_mut() {
+            p.push(t.clone());
+        }
+    }
+    parts.retain(|p| !p.is_empty());
+    parts
 }
 
 /// Tries to read a type annotation that's followed by a name:
@@ -141,7 +176,7 @@ fn try_type(c: &mut Cursor) -> Option<String> {
             ty.push_str(p);
         }
     }
-    if c.eat_op("<") {
+    if matches!(t.as_str(), "array" | "map" | "matrix") && c.eat_op("<") {
         let mut depth = 1;
         ty.push('<');
         while depth > 0 {
@@ -156,6 +191,7 @@ fn try_type(c: &mut Cursor) -> Option<String> {
                 }
                 Some(Tok::Ident(w)) => ty.push_str(w),
                 Some(Tok::Op(",")) => ty.push(','),
+                Some(Tok::Op(".")) => ty.push('.'),
                 _ => {
                     c.pos = save;
                     return None;
@@ -166,7 +202,7 @@ fn try_type(c: &mut Cursor) -> Option<String> {
         c.pos += 2;
         ty = format!("array<{ty}>");
     }
-    if is_name(c.peek()) {
+    if is_var_name(c.peek()) {
         Some(ty)
     } else {
         c.pos = save;
@@ -179,28 +215,13 @@ impl Parser {
         // `a = 1, b = 2` declares two variables: split at top-level commas.
         let mut out = Vec::with_capacity(lines.len());
         for l in lines {
-            let mut depth = 0i32;
-            let mut parts: Vec<Vec<Tok>> = vec![Vec::new()];
-            let mut prev: Option<Tok> = None;
-            for t in l.toks {
-                // Generic arguments: map.new<string, float>, map<int, int> m.
-                let generic_open = t == Tok::Op("<")
-                    && matches!(&prev, Some(Tok::Ident(w)) if matches!(w.as_str(), "new" | "array" | "map" | "matrix"));
-                match &t {
-                    Tok::Op("(" | "[") => depth += 1,
-                    Tok::Op(")" | "]") => depth -= 1,
-                    Tok::Op("<") if generic_open => depth += 1,
-                    Tok::Op(">") if depth > 0 && generic_depth(&parts) > 0 => depth -= 1,
-                    _ => {}
-                }
-                prev = Some(t.clone());
-                if depth == 0 && t == Tok::Op(",") {
-                    parts.push(Vec::new());
-                } else if let Some(p) = parts.last_mut() {
-                    p.push(t);
-                }
-            }
-            for toks in parts.into_iter().filter(|p| !p.is_empty()) {
+            // What follows `=>` is that function's or case's body, which
+            // splits its own commas.
+            let parts = match arrow(&l.toks) {
+                Some(_) => vec![l.toks],
+                None => split_commas(&l.toks),
+            };
+            for toks in parts {
                 out.push(Line {
                     indent: l.indent,
                     toks,
@@ -252,6 +273,28 @@ impl Parser {
     fn statement(&mut self, indent: usize) -> Result<Stmt, Error> {
         let line = self.lines[self.i].clone();
         self.i += 1;
+        self.statement_on(&line, indent)
+    }
+
+    /// The statements after `=>` on the same line: `f(x) => a = x * 2, a + 1`.
+    fn inline_body(&mut self, c: &mut Cursor, indent: usize) -> Result<Block, Error> {
+        let rest = &c.toks[c.pos..];
+        c.pos = c.toks.len();
+        split_commas(rest)
+            .into_iter()
+            .map(|toks| {
+                let line = Line {
+                    indent,
+                    toks,
+                    line: c.line,
+                };
+                self.statement_on(&line, indent)
+            })
+            .collect()
+    }
+
+    fn statement_on(&mut self, line: &Line, indent: usize) -> Result<Stmt, Error> {
+        let _deeper = Deeper::enter(line.line)?;
         let mut c = Cursor {
             toks: &line.toks,
             pos: 0,
@@ -290,14 +333,18 @@ impl Parser {
                     pos: 0,
                     line: f.line,
                 };
-                let _ = try_type(&mut fc);
+                fc.eat_word("varip");
+                let ty = try_type(&mut fc);
                 let fname = fc.ident("a field name")?;
                 let default = if fc.eat_op("=") {
                     Some(Self::expr(&mut fc)?)
                 } else {
                     None
                 };
-                fields.push((fname, default));
+                if !fc.done() {
+                    return Err(fc.err("Expected one field per line: float x or float x = 0."));
+                }
+                fields.push((fname, default, ty));
             }
             return Ok(Stmt::Type { name, fields, line: ln });
         }
@@ -363,8 +410,7 @@ impl Parser {
             let body = if c.done() {
                 self.sub_block(indent)?
             } else {
-                let e = self.expr_tail(&mut c, indent)?;
-                vec![Stmt::Expr(e, ln)]
+                self.inline_body(&mut c, indent)?
             };
             return Ok(Stmt::Func {
                 name,
@@ -383,67 +429,16 @@ impl Parser {
         if c.eat_word("continue") {
             return Ok(Stmt::Continue);
         }
-        if c.eat_word("for") {
-            // for [i, x] in arr
-            if c.eat_op("[") {
-                let i = c.ident("the index variable")?;
-                c.expect_op(",")?;
-                let v = c.ident("the item variable")?;
-                c.expect_op("]")?;
-                if !c.eat_word("in") {
-                    return Err(c.err("Expected 'in'."));
-                }
-                let over = Self::expr(&mut c)?;
-                let body = self.sub_block(indent)?;
-                return Ok(Stmt::ForIn {
-                    idx: Some(i),
-                    var: v,
-                    over,
-                    body,
-                    line: ln,
-                });
-            }
-            let var = c.ident("the loop variable")?;
-            if c.eat_word("in") {
-                let over = Self::expr(&mut c)?;
-                let body = self.sub_block(indent)?;
-                return Ok(Stmt::ForIn {
-                    idx: None,
-                    var,
-                    over,
-                    body,
-                    line: ln,
-                });
-            }
-            c.expect_op("=")?;
-            let from = Self::expr(&mut c)?;
-            if !c.eat_word("to") {
-                return Err(c.err("Expected 'to'."));
-            }
-            let to = Self::expr(&mut c)?;
-            let step = if c.eat_word("by") {
-                Some(Self::expr(&mut c)?)
-            } else {
-                None
-            };
-            let body = self.sub_block(indent)?;
-            return Ok(Stmt::For {
-                var,
-                from,
-                to,
-                step,
-                body,
-                line: ln,
-            });
-        }
-        if c.eat_word("while") {
-            let cond = Self::expr(&mut c)?;
-            let body = self.sub_block(indent)?;
-            return Ok(Stmt::While { cond, body, line: ln });
+        if let Some(l) = self.loop_stmt(&mut c, indent)? {
+            return Ok(l);
         }
         // Declarations: [var|varip] [type] name = …, or [a, b] = …
         let save = c.pos;
-        let persist = if c.eat_word("varip") {
+        // v3 and v4 scripts may call a variable `var` or `switch`.
+        let named = matches!(c.peek_at(1), Some(Tok::Op("=" | ":=")));
+        let persist = if named {
+            Persist::No
+        } else if c.eat_word("varip") {
             Persist::Varip
         } else if c.eat_word("var") {
             Persist::Var
@@ -538,8 +533,91 @@ impl Parser {
             return Err(c.err("Expected a name and '=' here."));
         }
         c.pos = save;
-        let e = self.expr_tail(&mut c, indent)?;
+        if matches!(c.peek(), Some(Tok::Ident(w)) if w == "if" || w == "switch")
+            && !matches!(c.peek_at(1), Some(Tok::Op("=" | ":=" | ".")))
+        {
+            return Ok(Stmt::Expr(self.expr_tail(&mut c, indent)?, ln));
+        }
+        let e = Self::expr(&mut c)?;
+        // a.get(0).x := value
+        if let (Expr::Dot(..), Some(Tok::Op(op))) = (&e, c.peek())
+            && ASSIGN.contains(op)
+            && let Expr::Dot(obj, field) = e
+        {
+            c.pos += 1;
+            let value = self.expr_tail(&mut c, indent)?;
+            return Ok(Stmt::AssignField {
+                obj: *obj,
+                field,
+                op,
+                value,
+                line: ln,
+            });
+        }
+        if !c.done() {
+            return Err(c.err(format!("Unexpected {} here.", describe(c.peek().expect("not done")))));
+        }
         Ok(Stmt::Expr(e, ln))
+    }
+
+    /// A `for` or `while`, if one starts here.
+    fn loop_stmt(&mut self, c: &mut Cursor, indent: usize) -> Result<Option<Stmt>, Error> {
+        let ln = c.line;
+        if c.eat_word("for") {
+            // for [i, x] in arr
+            if c.eat_op("[") {
+                let i = c.ident("the index variable")?;
+                c.expect_op(",")?;
+                let v = c.ident("the item variable")?;
+                c.expect_op("]")?;
+                if !c.eat_word("in") {
+                    return Err(c.err("Expected 'in'."));
+                }
+                let over = Self::expr(c)?;
+                let body = self.sub_block(indent)?;
+                return Ok(Some(Stmt::ForIn {
+                    idx: Some(i),
+                    var: v,
+                    over,
+                    body,
+                    line: ln,
+                }));
+            }
+            let var = c.ident("the loop variable")?;
+            if c.eat_word("in") {
+                let over = Self::expr(c)?;
+                let body = self.sub_block(indent)?;
+                return Ok(Some(Stmt::ForIn {
+                    idx: None,
+                    var,
+                    over,
+                    body,
+                    line: ln,
+                }));
+            }
+            c.expect_op("=")?;
+            let from = Self::expr(c)?;
+            if !c.eat_word("to") {
+                return Err(c.err("Expected 'to'."));
+            }
+            let to = Self::expr(c)?;
+            let step = if c.eat_word("by") { Some(Self::expr(c)?) } else { None };
+            let body = self.sub_block(indent)?;
+            return Ok(Some(Stmt::For {
+                var,
+                from,
+                to,
+                step,
+                body,
+                line: ln,
+            }));
+        }
+        if c.eat_word("while") {
+            let cond = Self::expr(c)?;
+            let body = self.sub_block(indent)?;
+            return Ok(Some(Stmt::While { cond, body, line: ln }));
+        }
+        Ok(None)
     }
 
     /// The lines of the block below the current line, raw (type fields).
@@ -575,6 +653,9 @@ impl Parser {
         if c.eat_word("if") {
             return self.if_expr(c, indent);
         }
+        if let Some(l) = self.loop_stmt(c, indent)? {
+            return Ok(Expr::Loop(Box::new(l)));
+        }
         if c.eat_word("switch") {
             let subject = if c.done() { None } else { Some(Box::new(Self::expr(c)?)) };
             let mut cases = Vec::new();
@@ -597,7 +678,7 @@ impl Parser {
                     let body = if lc.done() {
                         self.sub_block(indent + 1)?
                     } else {
-                        vec![self.case_stmt(&mut lc, indent + 1, line.line)?]
+                        self.inline_body(&mut lc, indent + 1)?
                     };
                     cases.push((cond, body));
                 }
@@ -609,25 +690,6 @@ impl Parser {
             return Err(c.err(format!("Unexpected {} here.", describe(c.peek().expect("not done")))));
         }
         Ok(e)
-    }
-
-    /// A one-line switch case body: an expression, or an assignment
-    /// (`=> x := 1`).
-    fn case_stmt(&mut self, c: &mut Cursor, indent: usize, ln: usize) -> Result<Stmt, Error> {
-        if let (Some(Tok::Ident(name)), Some(Tok::Op(op))) = (c.peek(), c.peek_at(1))
-            && matches!(*op, ":=" | "+=" | "-=" | "*=" | "/=" | "%=")
-        {
-            let name = name.clone();
-            c.pos += 2;
-            let value = self.expr_tail(c, indent)?;
-            return Ok(Stmt::Assign {
-                name,
-                op,
-                value,
-                line: ln,
-            });
-        }
-        Ok(Stmt::Expr(self.expr_tail(c, indent)?, ln))
     }
 
     fn if_expr(&mut self, c: &mut Cursor, indent: usize) -> Result<Expr, Error> {
@@ -669,6 +731,7 @@ impl Parser {
     fn ternary(c: &mut Cursor) -> Result<Expr, Error> {
         let cond = Self::or(c)?;
         if c.eat_op("?") {
+            let _deeper = Deeper::enter(c.line)?;
             let a = Self::ternary(c)?;
             c.expect_op(":")?;
             let b = Self::ternary(c)?;
@@ -699,8 +762,8 @@ impl Parser {
     }
 
     fn not(c: &mut Cursor) -> Result<Expr, Error> {
-        let _deeper = Deeper::enter(c.line)?;
         if c.eat_word("not") {
+            let _deeper = Deeper::enter(c.line)?;
             return Ok(Expr::Unary("not", Box::new(Self::not(c)?)));
         }
         Self::equality(c)
@@ -755,7 +818,10 @@ impl Parser {
     }
 
     fn unary(c: &mut Cursor) -> Result<Expr, Error> {
-        let _deeper = Deeper::enter(c.line)?;
+        let _deeper = match c.peek() {
+            Some(Tok::Op("-" | "+" | "!")) => Some(Deeper::enter(c.line)?),
+            _ => None,
+        };
         if c.eat_op("-") {
             return Ok(Expr::Unary("-", Box::new(Self::unary(c)?)));
         }
@@ -854,6 +920,7 @@ impl Parser {
                     "true" => return Ok(Expr::Bool(true)),
                     "false" => return Ok(Expr::Bool(false)),
                     "na" if !matches!(c.peek(), Some(Tok::Op("("))) => return Ok(Expr::Na),
+                    "switch" if !matches!(c.peek(), Some(Tok::Ident(w)) if !KEYWORDS.contains(&w.as_str())) => {}
                     "if" | "switch" => {
                         return Err(c.err(format!(
                             "Put '{w}' at the start of a line, with its body indented below."
@@ -910,6 +977,19 @@ impl Parser {
             other => Err(c.err(format!("Unexpected {}.", describe(other)))),
         }
     }
+}
+
+/// Where a top-level `=>` is.
+fn arrow(toks: &[Tok]) -> Option<usize> {
+    let mut depth = 0i32;
+    toks.iter().position(|t| {
+        match t {
+            Tok::Op("(" | "[") => depth += 1,
+            Tok::Op(")" | "]") => depth -= 1,
+            _ => {}
+        }
+        depth == 0 && *t == Tok::Op("=>")
+    })
 }
 
 /// Open generic brackets in the statement being split.
@@ -1044,11 +1124,13 @@ mod tests {
 
     #[test]
     fn long_chains_dont_overflow_the_stack() {
-        // 250 links: just under MAX_DEPTH, and it must still compile and run
-        // on a quarter of Windows' 1 MB main thread.
-        for n in [250, 20_000] {
+        // 500 links: just under MAX_DEPTH, and it must still compile and run
+        // on a quarter of Windows' 1 MB main thread (as built for release;
+        // a debug build's frames are several times the size).
+        for n in [250, 500, 20_000] {
+            let stack = if cfg!(debug_assertions) { 4 << 20 } else { 1 << 18 };
             let ok = std::thread::Builder::new()
-                .stack_size(1 << 18)
+                .stack_size(stack)
                 .spawn(move || {
                     let src = format!("//@version=5\nindicator(\"x\")\nplot(close{})\n", " + close".repeat(n));
                     if let Ok(s) = crate::compile(&src, "t", crate::Env::default()) {

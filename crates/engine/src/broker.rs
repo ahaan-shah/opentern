@@ -58,6 +58,14 @@ pub struct Props {
     /// took the absolute price.
     #[serde(default = "yes")]
     pub nearest_exit: bool,
+    /// `close_entries_rule = "ANY"`: an exit closes the entry it names.
+    /// Otherwise the oldest entries close first ("FIFO").
+    #[serde(default)]
+    pub close_any: bool,
+    /// `backtest_fill_limits_assumption`: ticks the price must go past a
+    /// limit for it to fill.
+    #[serde(default)]
+    pub limit_ticks: u32,
 }
 
 fn yes() -> bool {
@@ -90,6 +98,8 @@ impl Default for Props {
             allow_entry_in: None,
             min_qty: 0.0,
             nearest_exit: true,
+            close_any: false,
+            limit_ticks: 0,
         }
     }
 }
@@ -142,6 +152,8 @@ impl Props {
             allow_entry_in: None,
             min_qty,
             nearest_exit: v6,
+            close_any: s("close_entries_rule").eq_ignore_ascii_case("any"),
+            limit_ticks: f("backtest_fill_limits_assumption", 0.0).max(0.0) as u32,
         }
     }
 
@@ -167,6 +179,8 @@ impl Props {
             "process_orders_on_close": self.process_orders_on_close,
             "margin_long": self.margin_long,
             "margin_short": self.margin_short,
+            "close_entries_rule": if self.close_any { "ANY" } else { "FIFO" },
+            "backtest_fill_limits_assumption": self.limit_ticks,
         })
     }
 
@@ -251,6 +265,9 @@ pub struct Order {
     pub oca_name: String,
     #[serde(default)]
     pub oca_type: OcaType,
+    /// A stop-limit whose stop has been reached: a plain limit from here on.
+    #[serde(default)]
+    pub armed: bool,
 }
 
 impl Order {
@@ -277,6 +294,7 @@ impl Order {
             comment_trailing: String::new(),
             oca_name: String::new(),
             oca_type: OcaType::None,
+            armed: false,
         }
     }
 
@@ -346,6 +364,33 @@ pub struct Fill {
     pub exit: bool,
 }
 
+/// `strategy.risk.*` rules, and what they've led to.
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Risk {
+    /// Money, or percent of peak equity (`true`).
+    pub max_drawdown: Option<(f64, bool)>,
+    pub max_intraday_loss: Option<(f64, bool)>,
+    pub max_cons_loss_days: Option<u32>,
+    pub max_intraday_filled_orders: Option<u32>,
+    pub max_position_size: Option<f64>,
+    /// No more trading at all, or until the next day.
+    pub stopped: bool,
+    pub stopped_today: bool,
+    fills_at_open: usize,
+    equity_at_open: Option<f64>,
+    peak_today: f64,
+    loss_days: u32,
+}
+
+impl Risk {
+    fn watching(&self) -> bool {
+        self.max_drawdown.is_some()
+            || self.max_intraday_loss.is_some()
+            || self.max_cons_loss_days.is_some()
+            || self.max_intraday_filled_orders.is_some()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Broker {
     pub props: Props,
@@ -368,6 +413,11 @@ pub struct Broker {
     pub max_drawdown: f64,
     #[serde(default)]
     pub max_runup: f64,
+    /// The same, as a percentage of the peak or trough.
+    #[serde(default)]
+    pub max_drawdown_pct: f64,
+    #[serde(default)]
+    pub max_runup_pct: f64,
     /// Margin calls so far, and the quantity each one liquidated.
     #[serde(default)]
     pub margin_calls: Vec<f64>,
@@ -382,6 +432,8 @@ pub struct Broker {
     peak: Option<f64>,
     #[serde(default)]
     trough: Option<f64>,
+    #[serde(default)]
+    pub risk: Risk,
 }
 
 impl Broker {
@@ -390,6 +442,85 @@ impl Broker {
             props,
             ..Default::default()
         }
+    }
+
+    /// The price at which the position would be margin-called.
+    pub fn liquidation_price(&self) -> Option<f64> {
+        let pos = self.position_size();
+        let r = self.margin_ratio(pos > 0.0);
+        if pos == 0.0 || r == 0.0 {
+            return None;
+        }
+        // Equity at p equals the margin p needs.
+        let cash = self.equity_at(0.0);
+        let p = cash / (pos.abs() * r - pos);
+        (p.is_finite() && p > 0.0).then_some(p)
+    }
+
+    /// The equity the open position ties up at `price`.
+    pub fn capital_held(&self, price: f64) -> f64 {
+        let pos = self.position_size();
+        pos.abs() * price * self.margin_ratio(pos > 0.0)
+    }
+
+    /// A new trading day, before its first bar's `open_bar`.
+    pub fn new_day(&mut self) {
+        let now = self.equity_at(self.last_close);
+        let now = if now.is_finite() {
+            now
+        } else {
+            self.props.initial_capital
+        };
+        if let Some(was) = self.risk.equity_at_open {
+            self.risk.loss_days = match now < was {
+                true => self.risk.loss_days + 1,
+                // A day without trading doesn't end a losing streak.
+                false if now == was => self.risk.loss_days,
+                false => 0,
+            };
+        }
+        self.risk.equity_at_open = Some(now);
+        self.risk.peak_today = now;
+        self.risk.fills_at_open = self.fills.len();
+        self.risk.stopped_today = false;
+    }
+
+    /// Closes everything and stops trading when a risk rule is broken at
+    /// `price`.
+    fn check_risk(&mut self, price: f64) {
+        if !self.risk.watching() || self.risk.stopped || !price.is_finite() {
+            return;
+        }
+        let eq = self.equity_at(price);
+        let peak = self
+            .peak
+            .unwrap_or(self.props.initial_capital)
+            .max(self.props.initial_capital);
+        self.risk.peak_today = self.risk.peak_today.max(eq);
+        let over = |rule: Option<(f64, bool)>, peak: f64| {
+            rule.is_some_and(|(v, pct)| peak - eq >= if pct { peak * v / 100.0 } else { v } && peak > eq)
+        };
+        let r = &self.risk;
+        let stop = over(r.max_drawdown, peak) || r.max_cons_loss_days.is_some_and(|n| n > 0 && r.loss_days >= n);
+        let today = over(r.max_intraday_loss, r.peak_today)
+            || r.max_intraday_filled_orders
+                .is_some_and(|n| self.fills.len() - r.fills_at_open >= n as usize);
+        if !(stop || today && !r.stopped_today) {
+            return;
+        }
+        self.risk.stopped |= stop;
+        self.risk.stopped_today = true;
+        self.pending.clear();
+        let q = self.open_qty("");
+        if q > 0.0 {
+            let p = self.slip(price, self.position_size() < 0.0);
+            self.close("", q, p, "Risk management", "Risk management");
+        }
+    }
+
+    /// Whether a risk rule forbids new orders now.
+    pub fn halted(&self) -> bool {
+        self.risk.stopped || self.risk.stopped_today
     }
 
     /// Signed position size: + long, − short.
@@ -429,8 +560,15 @@ impl Broker {
     /// sizes it when placed, not at the fill: 100% of equity at the close
     /// can be more than the account has at the next open).
     pub fn submit(&mut self, mut o: Order) {
+        if self.halted() {
+            return;
+        }
         if o.qty.is_none() && matches!(o.kind, OrderKind::Entry | OrderKind::Order) && self.mark > 0.0 {
             o.qty = Some(self.default_qty(self.mark));
+        }
+        if let Some(old) = self.pending.iter().find(|p| p.id == o.id && p.kind == o.kind) {
+            // The same stop-limit placed again is still armed.
+            o.armed |= old.armed && old.stop == o.stop && old.limit == o.limit && old.long == o.long;
         }
         self.pending.retain(|p| !(p.id == o.id && p.kind == o.kind));
         self.pending.push(o);
@@ -559,6 +697,38 @@ impl Broker {
         }
     }
 
+    /// Slippage is for market and stop orders; a limit fills at its price
+    /// or better.
+    fn fill_price(&self, o: &Order, price: f64) -> f64 {
+        if o.limit.is_some() {
+            price
+        } else {
+            self.slip(price, o.long)
+        }
+    }
+
+    /// Where a limit fills on the way from `a` to `b`, if it does.
+    fn limit_hit(&self, limit: f64, buy: bool, a: f64, b: f64) -> Option<f64> {
+        let past = self.props.limit_ticks as f64 * self.props.mintick;
+        // A hair's width of rounding isn't a missed fill.
+        let past = (past - self.props.mintick * 1e-6).max(0.0);
+        let level = if buy { limit - past } else { limit + past };
+        Self::trigger(Some(level), None, buy, a, b).map(|_| if buy { limit.min(a) } else { limit.max(a) })
+    }
+
+    /// Where an entry or order fills on the way from `a` to `b`, if it does.
+    fn order_hit(&self, o: &mut Order, a: f64, b: f64) -> Option<f64> {
+        match (o.limit, o.stop) {
+            (Some(l), Some(s)) if !o.armed => {
+                let at = Self::trigger(None, Some(s), o.long, a, b)?;
+                o.armed = true;
+                self.limit_hit(l, o.long, at, b)
+            }
+            (Some(l), _) => self.limit_hit(l, o.long, a, b),
+            (None, stop) => Self::trigger(None, stop, o.long, a, b),
+        }
+    }
+
     fn slip(&self, price: f64, buy: bool) -> f64 {
         let s = self.props.slippage as f64 * self.props.mintick;
         if buy { price + s } else { price - s }
@@ -600,7 +770,8 @@ impl Broker {
         qty
     }
 
-    /// Closes up to `qty` of the lots matching `from` (FIFO), at `price`;
+    /// Closes up to `qty` at `price`, oldest entries first (with
+    /// `close_any`, only the entries called `from`);
     /// returns the quantity closed.
     fn close(&mut self, from: &str, qty: f64, price: f64, exit_id: &str, comment: &str) -> f64 {
         let mut left = qty;
@@ -608,7 +779,7 @@ impl Broker {
         let mut sold = 0.0;
         let mut long = true;
         while i < self.lots.len() && left > 1e-12 {
-            if !from.is_empty() && self.lots[i].id != from {
+            if self.props.close_any && !from.is_empty() && self.lots[i].id != from {
                 i += 1;
                 continue;
             }
@@ -705,7 +876,7 @@ impl Broker {
             OrderKind::Entry => {
                 let pos = self.position_size();
                 let opposite = (pos > 0.0 && !o.long) || (pos < 0.0 && o.long);
-                let p = self.slip(price, o.long);
+                let p = self.fill_price(o, price);
                 // strategy.risk.allow_entry_in: an entry the other way only
                 // closes the position.
                 if self.props.allow_entry_in.is_some_and(|l| l != o.long) {
@@ -727,12 +898,15 @@ impl Broker {
                         return 0.0;
                     }
                 }
-                let qty = o.qty.unwrap_or_else(|| self.default_qty(p));
+                let mut qty = o.qty.unwrap_or_else(|| self.default_qty(p));
+                if let Some(max) = self.risk.max_position_size {
+                    qty = qty.min(max - self.position_size().abs());
+                }
                 filled + self.open(o, qty, p)
             }
             OrderKind::Order => {
                 let pos = self.position_size();
-                let p = self.slip(price, o.long);
+                let p = self.fill_price(o, price);
                 let mut qty = o.qty.unwrap_or_else(|| self.default_qty(p));
                 let mut filled = 0.0;
                 // Against the position, an order reduces it first.
@@ -781,7 +955,7 @@ impl Broker {
             let off = o.trail_offset.unwrap_or(0.0) * t;
             if long { best - off } else { best + off }
         });
-        let hit_l = limit.and_then(|l| Self::trigger(Some(l), None, buy, a, b));
+        let hit_l = limit.and_then(|l| self.limit_hit(l, buy, a, b));
         let hit_s = stop.and_then(|s| Self::trigger(None, Some(s), buy, a, b));
         let hit_t = trail_stop.and_then(|s| Self::trigger(None, Some(s), buy, a, b));
         // The fill nearest the segment start comes first: 0 target, 1 stop, 2 trailing.
@@ -843,11 +1017,7 @@ impl Broker {
         match (limit, stop) {
             (Some(l), None) => at(l, buy),
             (None, Some(s)) => at(s, !buy),
-            (Some(l), Some(s)) => {
-                // Stop-limit: the stop arms the limit; treated as the stop
-                // price clamped by the limit.
-                at(s, !buy).map(|p| if buy { p.min(l) } else { p.max(l) })
-            }
+            (Some(_), Some(s)) => at(s, !buy),
             (None, None) => Some(a),
         }
     }
@@ -901,10 +1071,14 @@ impl Broker {
             matches!(o.kind, OrderKind::Close) || (o.kind != OrderKind::Exit && o.limit.is_none() && o.stop.is_none())
         });
         for o in &market {
+            if self.halted() {
+                break;
+            }
             let filled = self.execute(o, bar.open);
             Self::oca(o, filled, &mut waiting);
         }
         self.margin_call(bar.open);
+        self.check_risk(bar.open);
         // Then stops and limits along the intrabar path.
         let path = if (bar.high - bar.open).abs() <= (bar.open - bar.low).abs() {
             [bar.open, bar.high, bar.low, bar.close]
@@ -914,6 +1088,9 @@ impl Broker {
         for seg in 0..3 {
             let (a, b) = (path[seg], path[seg + 1]);
             let mut k = 0;
+            if self.halted() {
+                waiting.clear();
+            }
             while k < waiting.len() {
                 // An exit fills (or not); an entry/order that triggers is
                 // used up even if pyramiding turns it away.
@@ -925,8 +1102,10 @@ impl Broker {
                         (q > 0.0, q)
                     }
                     _ => {
-                        let o = waiting[k].clone();
-                        match Self::trigger(o.limit, o.stop, o.long, a, b) {
+                        let mut o = waiting[k].clone();
+                        let hit = self.order_hit(&mut o, a, b);
+                        waiting[k].armed = o.armed;
+                        match hit {
                             Some(p) => (true, self.execute(&o, p)),
                             None => (false, 0.0),
                         }
@@ -942,9 +1121,10 @@ impl Broker {
             // Margin is checked at each point of the path, after the
             // orders that price passed on the way there.
             self.margin_call(b);
+            self.check_risk(b);
         }
         // Unfilled orders (exits included) wait for later bars.
-        self.pending = waiting;
+        self.pending = if self.halted() { Vec::new() } else { waiting };
         // Track run-up and drawdown of open lots.
         for l in &mut self.lots {
             l.hi = l.hi.max(bar.high);
@@ -959,6 +1139,12 @@ impl Broker {
         };
         self.max_drawdown = self.max_drawdown.max(peak - eq);
         self.max_runup = self.max_runup.max(eq - trough);
+        if peak > 0.0 {
+            self.max_drawdown_pct = self.max_drawdown_pct.max((peak - eq) / peak * 100.0);
+        }
+        if trough > 0.0 {
+            self.max_runup_pct = self.max_runup_pct.max((eq - trough) / trough * 100.0);
+        }
         self.peak = Some(peak);
         self.trough = Some(trough);
     }
@@ -986,6 +1172,7 @@ impl Broker {
             }
         }
         self.last_close = bar.close;
+        self.check_risk(bar.close);
         let eq = self.equity_at(bar.close);
         // Intrabar extremes of equity: open positions at the bar's high/low.
         let (a, b) = (self.equity_at(bar.high), self.equity_at(bar.low));
@@ -1018,11 +1205,13 @@ mod tests {
             allow_entry_in: None,
             min_qty: 0.0,
             nearest_exit: true,
+            close_any: true,
+            limit_ticks: 2,
         };
         assert_eq!(Props::from_json(&p.to_json(), 0.5, 0.0), p);
         let base = Props::default();
         let d = p.diff_json(&base);
-        assert_eq!(d.as_object().map(|o| o.len()), Some(10));
+        assert_eq!(d.as_object().map(|o| o.len()), Some(12));
         let mut q = base.clone();
         q.slippage = 2;
         assert_eq!(q.diff_json(&base), serde_json::json!({"slippage": 2}));

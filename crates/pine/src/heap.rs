@@ -6,6 +6,7 @@
 //! `max_*_count` limits, as on TradingView.
 
 use crate::value::V;
+use opentern_series::drawings::NO_X;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 
@@ -87,6 +88,12 @@ pub use opentern_series::drawings::{Drawings, Label, Line, Linefill, PineBox, Po
 #[derive(Clone, Debug)]
 pub(crate) enum Obj {
     Array(Vec<V>),
+    /// `array.slice`: items `from..to` of another array, which it shares.
+    Slice {
+        of: u32,
+        from: usize,
+        to: usize,
+    },
     Map(PineMap),
     Matrix {
         rows: usize,
@@ -123,6 +130,7 @@ impl Obj {
                 m.keys.iter().for_each(&mut push);
                 m.vals.iter().for_each(&mut push);
             }
+            Obj::Slice { of, .. } => out.push(*of),
             Obj::Linefill { a, b, .. } => {
                 out.push(*a);
                 out.push(*b);
@@ -147,6 +155,10 @@ pub(crate) enum DrawKind {
 pub(crate) struct Heap {
     objs: Vec<Option<Obj>>,
     free: Vec<u32>,
+    /// Deleted drawings some variable may still hold: their places aren't
+    /// used again until nothing does, or the old handle would reach the
+    /// new object.
+    dead: Vec<u32>,
     allocated: usize,
     live_after_gc: usize,
     /// Live drawings by kind, oldest first.
@@ -160,6 +172,7 @@ impl Default for Heap {
         Heap {
             objs: Vec::new(),
             free: Vec::new(),
+            dead: Vec::new(),
             allocated: 0,
             live_after_gc: 0,
             drawn: Default::default(),
@@ -202,7 +215,7 @@ impl Heap {
         while self.drawn[k].len() > self.limits[k] {
             if let Some(old) = self.drawn[k].pop_front() {
                 self.objs[old as usize] = None;
-                self.free.push(old);
+                self.dead.push(old);
             }
         }
         id
@@ -213,12 +226,38 @@ impl Heap {
         if let Some(p) = self.drawn[k].iter().position(|x| *x == id) {
             self.drawn[k].remove(p);
             self.objs[id as usize] = None;
-            self.free.push(id);
+            self.dead.push(id);
         }
     }
 
     pub fn get(&self, r: u32) -> Option<&Obj> {
         self.objs.get(r as usize).and_then(|o| o.as_ref())
+    }
+
+    /// An array's items, or a slice's.
+    pub fn items(&self, r: u32) -> Option<&[V]> {
+        match self.get(r)? {
+            Obj::Array(a) => Some(a),
+            Obj::Slice { of, from, to } => {
+                let all = self.items(*of)?;
+                let to = (*to).min(all.len());
+                Some(&all[(*from).min(to)..to])
+            }
+            _ => None,
+        }
+    }
+
+    pub fn items_mut(&mut self, r: u32) -> Option<&mut [V]> {
+        if let Some(Obj::Slice { of, from, to }) = self.get(r) {
+            let (of, from, to) = (*of, *from, *to);
+            let all = self.items_mut(of)?;
+            let to = to.min(all.len());
+            return Some(&mut all[from.min(to)..to]);
+        }
+        match self.get_mut(r)? {
+            Obj::Array(a) => Some(a),
+            _ => None,
+        }
     }
 
     pub fn get_mut(&mut self, r: u32) -> Option<&mut Obj> {
@@ -259,6 +298,11 @@ impl Heap {
                 live += 1;
             }
         }
+        let (kept, gone): (Vec<u32>, Vec<u32>) = std::mem::take(&mut self.dead)
+            .into_iter()
+            .partition(|id| mark[*id as usize]);
+        self.dead = kept;
+        self.free.extend(gone);
         self.allocated = 0;
         self.live_after_gc = live;
     }
@@ -277,12 +321,23 @@ impl Heap {
     /// What's on the chart now.
     pub fn drawings(&self) -> Drawings {
         let mut d = Drawings::default();
+        // Ones without a place aren't shown.
+        let placed = |x: &[i64], y: &[f64]| !x.contains(&NO_X) && !y.iter().any(|y| y.is_nan());
         let line = |id: u32| match self.get(id) {
-            Some(Obj::Line(l)) => Some(l.clone()),
+            Some(Obj::Line(l)) if placed(&[l.x1, l.x2], &[l.y1, l.y2]) => Some(l.clone()),
             _ => None,
         };
         for &id in &self.drawn[0] {
-            if let Some(Obj::Label(l)) = self.get(id) {
+            if let Some(Obj::Label(l)) = self.get(id)
+                && placed(
+                    &[l.x],
+                    if &*l.yloc == "price" {
+                        std::slice::from_ref(&l.y)
+                    } else {
+                        &[]
+                    },
+                )
+            {
                 d.labels.push(l.clone());
             }
         }
@@ -292,12 +347,16 @@ impl Heap {
             }
         }
         for &id in &self.drawn[2] {
-            if let Some(Obj::Box(b)) = self.get(id) {
+            if let Some(Obj::Box(b)) = self.get(id)
+                && placed(&[b.left, b.right], &[b.top, b.bottom])
+            {
                 d.boxes.push(b.clone());
             }
         }
         for &id in &self.drawn[3] {
             if let Some(Obj::Table(t)) = self.get(id) {
+                // A newer table takes its corner.
+                d.tables.retain(|o| o.position != t.position);
                 d.tables.push(t.clone());
             }
         }

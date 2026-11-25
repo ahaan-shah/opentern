@@ -1,0 +1,52 @@
+//@version=6
+indicator("MTF dashboard", overlay = true, max_labels_count = 500)
+string G1 = "Trend"
+string G2 = "Table"
+int fastLen = input.int(9, "Fast", minval = 1, group = G1, tooltip = "Fast length", inline = "a")
+int slowLen = input.int(21, "Slow", minval = 1, group = G1, inline = "a")
+string maType = input.string("EMA", "Type", ["SMA", "EMA", "WMA", "RMA", "HMA", "VWMA"], group = G1)
+bool showTable = input.bool(true, "Show", group = G2)
+string pos = input.string("Top right", "Position", options = ["Top right", "Bottom left"], group = G2)
+color upCol = input.color(color.new(color.green, 20), "Up", group = G2)
+tfs = array.from("60", "240", "D", "W")
+ma(float source, simple int length, simple string type) =>
+    switch type
+        "SMA" => ta.sma(source, length)
+        "EMA" => ta.ema(source, length)
+        "WMA" => ta.wma(source, length)
+        "RMA" => ta.rma(source, length)
+        "HMA" => ta.hma(source, length)
+        "VWMA" => ta.vwma(source, length)
+        =>
+            runtime.error("No such average")
+            float(na)
+trend() =>
+    f = ma(close, fastLen, maType)
+    s = ma(close, slowLen, maType)
+    r = ta.rsi(close, 14)
+    [f > s ? 1 : f < s ? -1 : 0, r, math.round(f - s, 2)]
+[t1, r1, d1] = request.security(syminfo.tickerid, "60", trend())
+[t2, r2, d2] = request.security(syminfo.tickerid, "240", trend(), lookahead = barmerge.lookahead_off)
+[t3, r3, d3] = request.security(syminfo.tickerid, "D", trend(), barmerge.gaps_off, barmerge.lookahead_off)
+[t4, r4, d4] = request.security(syminfo.tickerid, "W", trend())
+var table tbl = table.new(pos == "Top right" ? position.top_right : position.bottom_left, 4, 6, border_width = 1, frame_color = color.gray, frame_width = 1)
+row(int i, string tf, int t, float r) =>
+    bg = t > 0 ? upCol : t < 0 ? color.new(color.red, 20) : color.gray
+    table.cell(tbl, 0, i, tf, bgcolor = color.black, text_color = color.white)
+    table.cell(tbl, 1, i, t > 0 ? "Up" : t < 0 ? "Down" : "Flat", bgcolor = bg, text_size = size.small)
+    tbl.cell(2, i, str.tostring(r, "#.0") + (r > 70 ? " OB" : r < 30 ? " OS" : ""), bgcolor = bg)
+if barstate.islast and showTable
+    for [i, tf] in tfs
+        switch i
+            0 => row(i + 1, tf, t1, r1)
+            1 => row(i + 1, tf, t2, r2)
+            2 => row(i + 1, tf, t3, r3)
+            3 => row(i + 1, tf, t4, r4)
+    table.merge_cells(tbl, 0, 0, 2, 0)
+    table.cell(tbl, 0, 0, str.format("{0} · {1,number,#.##}", syminfo.ticker, close), text_color = color.white)
+p1 = plot(ma(close, fastLen, maType), "Fast", color = t1 > 0 ? upCol : color.red, linewidth = 2)
+p2 = plot(ma(close, slowLen, maType), "Slow")
+fill(p1, p2, color = color.new(t1 > 0 ? color.green : color.red, 85), title = "Cloud")
+score = t1 + t2 + t3 + t4
+plotshape(ta.crossover(score, 1), "Buy", shape.triangleup, location.belowbar, color.green, size = size.small, text = "B", textcolor = color.white)
+alertcondition(score == 4, "All up", "{{ticker}} all up at {{close}} {{plot(\"Fast\")}}")

@@ -9,8 +9,8 @@ mod security;
 mod strategy;
 mod ta;
 
-pub(crate) use security::{SecState, security};
-pub(crate) use ta::Ta;
+pub(crate) use security::{Contexts, approx_ms, security};
+pub(crate) use ta::{Ta, replay};
 
 use crate::run::G;
 use crate::value::{self, V};
@@ -18,6 +18,9 @@ use jiff::Timestamp;
 use opentern_core::{Timeframe, Unit};
 use std::collections::HashMap;
 use std::sync::OnceLock;
+
+/// Marks a symbol whose Heikin Ashi bars a request wants.
+pub(crate) const HEIKIN_ASHI: &str = "=HA:";
 
 pub(crate) type NatFn = fn(&mut G, &[V], &mut Option<Ta>) -> Result<V, String>;
 
@@ -32,6 +35,12 @@ pub(crate) struct NatDef {
     pub pure: bool,
     /// Also usable without brackets (`ta.tr`, `barstate.islast`).
     pub var: bool,
+    /// A finite window of its source, whose length may be a series.
+    pub window: bool,
+    /// Does something besides giving a value (draws, orders, logs).
+    pub effect: bool,
+    /// Adds to an array or takes from it.
+    pub resizes: bool,
 }
 
 impl std::fmt::Debug for NatDef {
@@ -48,7 +57,96 @@ pub(crate) fn d(name: &'static str, params: &'static [&'static str], f: NatFn) -
         state: false,
         pure: false,
         var: false,
+        window: false,
+        effect: is_effect(name),
+        resizes: matches!(
+            name,
+            "array.push"
+                | "array.unshift"
+                | "array.pop"
+                | "array.shift"
+                | "array.insert"
+                | "array.remove"
+                | "array.clear"
+                | "array.concat"
+        ),
     }
+}
+
+/// Calls a built-in. One that resizes a slice resizes its array there.
+pub(crate) fn call(def: &NatDef, g: &mut G, a: &[V], st: &mut Option<Ta>) -> R {
+    if !def.resizes {
+        return (def.f)(g, a, st);
+    }
+    let slice = match arg(a, 0) {
+        V::Ref(r) => match g.heap.get(*r) {
+            Some(crate::heap::Obj::Slice { of, from, to }) => Some((*r, *of, *from, *to)),
+            _ => None,
+        },
+        _ => None,
+    };
+    let Some((id, of, from, to)) = slice else {
+        return (def.f)(g, a, st);
+    };
+    use crate::heap::Obj;
+    let items = g.heap.items(id).unwrap_or_default().to_vec();
+    let tmp = g.heap.alloc(Obj::Array(items));
+    let mut args = a.to_vec();
+    args[0] = V::Ref(tmp);
+    let v = (def.f)(g, &args, st)?;
+    let items = g.heap.items(tmp).unwrap_or_default().to_vec();
+    let end = from + items.len();
+    if let Some(Obj::Array(all)) = g.heap.get_mut(of) {
+        let to = to.min(all.len());
+        all.splice(from.min(to)..to, items);
+    }
+    if let Some(Obj::Slice { to, .. }) = g.heap.get_mut(id) {
+        *to = end;
+    }
+    Ok(match v {
+        V::Ref(x) if x == tmp => V::Ref(id),
+        v => v,
+    })
+}
+
+/// What a script does to the chart or its account: not done for the bars
+/// of a request.
+fn is_effect(name: &str) -> bool {
+    match name.split_once('.') {
+        Some(("label" | "line" | "box" | "table" | "linefill" | "polyline", f)) => f == "new" || f == "copy",
+        Some(("strategy", f)) => {
+            matches!(
+                f,
+                "entry" | "exit" | "order" | "close" | "close_all" | "cancel" | "cancel_all"
+            ) || f.starts_with("risk.")
+        }
+        Some(("log", _)) => true,
+        _ => name == "alert",
+    }
+}
+
+/// The parameters that say how long a window is.
+pub(crate) const LENGTHS: &[&str] = &["length", "leftbars", "rightbars"];
+
+/// The first argument a `ta.*` call can't do without and doesn't have.
+pub(crate) fn missing(d: &NatDef, given: &[bool]) -> Option<usize> {
+    if !d.name.starts_with("ta.") || d.params.is_empty() {
+        return None;
+    }
+    let optional: &[&str] = match d.name {
+        "ta.change" => &["length"],
+        // Short forms, and ones with defaults.
+        "ta.highest" | "ta.lowest" | "ta.highestbars" | "ta.lowestbars" => &["length"],
+        "ta.pivothigh" | "ta.pivotlow" => &["rightbars"],
+        "ta.vwap" => &["anchor", "stdev_mult", "source"],
+        "ta.tr" => &["handle_na"],
+        "ta.pivot_point_levels" => &["developing"],
+        _ => &["biased", "useTrueRange", "floor"],
+    };
+    given
+        .iter()
+        .enumerate()
+        .position(|(k, g)| !g && !optional.contains(&d.params[k]))
 }
 
 impl NatDef {
@@ -64,6 +162,12 @@ impl NatDef {
 
     pub fn var(mut self) -> NatDef {
         self.var = true;
+        self
+    }
+
+    pub fn window(mut self) -> NatDef {
+        self.state = true;
+        self.window = true;
         self
     }
 }
@@ -216,7 +320,7 @@ fn core_defs() -> Vec<NatDef> {
             Ok(V::Na)
         }),
         d("max_bars_back", &["var", "num"], |_, _, _| Ok(V::Na)),
-        d("timestamp", &["*"], timestamp),
+        d("timestamp", &["*"], timestamp).pure(),
         // ---------------------------------------------------------------- math
         d("math.abs", &["number"], |_, a, _| {
             Ok(match arg(a, 0) {
@@ -298,7 +402,7 @@ fn core_defs() -> Vec<NatDef> {
             Ok(V::Float(a.iter().map(|v| v.f()).sum::<f64>() / a.len() as f64))
         })
         .pure(),
-        d("math.sum", &["source", "length"], |_, a, st| ta::sum(a, st)).state(),
+        d("math.sum", &["source", "length"], |_, a, st| ta::sum(a, st)).window(),
         d("math.random", &["min", "max", "seed"], |g, a, st| {
             let seed = arg(a, 2).i();
             let s = match st {
@@ -326,7 +430,7 @@ fn core_defs() -> Vec<NatDef> {
         .state(),
         // ---------------------------------------------------------------- str
         d("str.tostring", &["value", "format"], |g, a, _| {
-            Ok(V::str(tostring(arg(a, 0), arg(a, 1).as_str(), g.env.mintick)))
+            Ok(V::str(text_of(g, arg(a, 0), arg(a, 1).as_str())))
         }),
         d("str.tonumber", &["string"], |_, a, _| {
             Ok(match arg(a, 0).as_str().map(|s| s.trim().parse::<f64>()) {
@@ -335,9 +439,22 @@ fn core_defs() -> Vec<NatDef> {
             })
         })
         .pure(),
+        d("str.split", &["string", "separator"], |g, a, _| {
+            let (s, sep) = (str_or(a, 0, ""), str_or(a, 1, ""));
+            let parts: Vec<V> = if sep.is_empty() {
+                s.chars().map(|c| V::str(c.to_string())).collect()
+            } else {
+                s.split(sep).map(V::str).collect()
+            };
+            Ok(V::Ref(g.heap.alloc(crate::heap::Obj::Array(parts))))
+        }),
+        d("str.match", &["source", "regex"], |_, a, _| {
+            let re = regex_of(str_or(a, 1, ""))?;
+            Ok(V::str(re.find(str_or(a, 0, "")).map_or("", |m| m.as_str())))
+        }),
         d("str.format", &["*"], |g, a, _| {
             let fmt = str_or(a, 0, "");
-            Ok(V::str(format_msg(fmt, &a[1.min(a.len())..], g.env.mintick)))
+            Ok(V::str(format_msg(g, fmt, &a[1.min(a.len())..])))
         }),
         d("str.length", &["string"], |_, a, _| {
             Ok(arg(a, 0)
@@ -518,17 +635,33 @@ fn core_defs() -> Vec<NatDef> {
         ),
         d("timenow", &[], |_, _, _| Ok(V::Int(Timestamp::now().as_millisecond()))).var(),
         d("time_tradingday", &[], |g, _, _| {
-            let t = g.bar().time;
-            Ok(day_start(t, &g.tz).map(V::Int).unwrap_or(V::Na))
+            // 00:00 UTC of the trading day.
+            let day = crate::run::day_of(g.tf, g.bar().time, &g.tz);
+            Ok(V::Int(day * 86_400_000))
         })
         .var(),
         d("last_bar_index", &[], |g, _, _| Ok(V::Int(g.count as i64 - 1))).var(),
         d("last_bar_time", &[], |g, _, _| {
-            Ok(if g.forming || g.index + 1 == g.count {
-                V::Int(g.bar().time)
-            } else {
-                V::Na
-            })
+            Ok(V::Int(crate::run::open_in(g.main_tf, g.last_time, &g.tz, g.market)))
+        })
+        .var(),
+        d("bid", &[], |_, _, _| Ok(V::Na)).var(),
+        d("ask", &[], |_, _, _| Ok(V::Na)).var(),
+        // ---------------------------------------------------------------- chart
+        // The theme isn't known to a script: a dark chart, as the app's default.
+        d("chart.bg_color", &[], |_, _, _| Ok(V::Color(0x131722FF))).var(),
+        d("chart.fg_color", &[], |_, _, _| Ok(V::Color(0xFFFFFFFF))).var(),
+        d("chart.is_standard", &[], |_, _, _| Ok(V::Bool(true))).var(),
+        d("chart.is_heikinashi", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("chart.is_kagi", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("chart.is_linebreak", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("chart.is_pnf", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("chart.is_range", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("chart.is_renko", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        // Scripts run on every bar loaded, not only the ones in view.
+        d("chart.left_visible_bar_time", &[], |_, _, _| Ok(V::Int(0))).var(),
+        d("chart.right_visible_bar_time", &[], |g, _, _| {
+            Ok(V::Int(crate::run::open_in(g.main_tf, g.last_time, &g.tz, g.market)))
         })
         .var(),
         // ---------------------------------------------------------------- barstate
@@ -537,26 +670,51 @@ fn core_defs() -> Vec<NatDef> {
             Ok(V::Bool(g.forming || g.index + 1 == g.count))
         })
         .var(),
-        d("barstate.ishistory", &[], |g, _, _| Ok(V::Bool(!g.forming))).var(),
-        d("barstate.isrealtime", &[], |g, _, _| Ok(V::Bool(g.forming))).var(),
+        d("barstate.ishistory", &[], |g, _, _| Ok(V::Bool(!realtime(g)))).var(),
+        d("barstate.isrealtime", &[], |g, _, _| Ok(V::Bool(realtime(g)))).var(),
         d("barstate.isnew", &[], |_, _, _| Ok(V::Bool(true))).var(),
         d("barstate.isconfirmed", &[], |g, _, _| Ok(V::Bool(!g.forming))).var(),
         d("barstate.islastconfirmedhistory", &[], |g, _, _| {
-            Ok(V::Bool(!g.forming && g.index + 2 == g.count))
+            Ok(V::Bool(!realtime(g) && g.index + 2 == g.loaded))
         })
         .var(),
         d("session.isfirstbar", &[], |g, _, _| Ok(V::Bool(g.new_session))).var(),
         d("session.isfirstbar_regular", &[], |g, _, _| Ok(V::Bool(g.new_session))).var(),
-        d("session.islastbar", &[], |_, _, _| Ok(V::Bool(false))).var(),
-        d("session.islastbar_regular", &[], |_, _, _| Ok(V::Bool(false))).var(),
-        d("session.ismarket", &[], |_, _, _| Ok(V::Bool(true))).var(),
-        d("session.ispremarket", &[], |_, _, _| Ok(V::Bool(false))).var(),
-        d("session.ispostmarket", &[], |_, _, _| Ok(V::Bool(false))).var(),
+        d("session.islastbar", &[], |g, _, _| Ok(V::Bool(last_of_session(g)))).var(),
+        d("session.islastbar_regular", &[], |g, _, _| {
+            Ok(V::Bool(last_of_session(g)))
+        })
+        .var(),
+        d("session.ismarket", &[], |g, _, _| Ok(V::Bool(extended(g).is_none()))).var(),
+        d("session.ispremarket", &[], |g, _, _| {
+            Ok(V::Bool(extended(g) == Some(opentern_core::calendar::Extended::Pre)))
+        })
+        .var(),
+        d("session.ispostmarket", &[], |g, _, _| {
+            Ok(V::Bool(extended(g) == Some(opentern_core::calendar::Extended::Post)))
+        })
+        .var(),
         // ---------------------------------------------------------------- syminfo
-        d("syminfo.ticker", &[], |g, _, _| Ok(V::str(g.env.ticker()))).var(),
+        d("syminfo.ticker", &["symbol"], |g, a, _| {
+            Ok(match arg(a, 0).as_str() {
+                Some(s) => V::str(s.rsplit(':').next().unwrap_or(s)),
+                None => V::str(g.env.ticker()),
+            })
+        })
+        .var(),
         d("syminfo.root", &[], |g, _, _| Ok(V::str(g.env.ticker()))).var(),
         d("syminfo.tickerid", &[], |g, _, _| Ok(V::str(g.env.tickerid.as_str()))).var(),
-        d("syminfo.prefix", &[], |g, _, _| Ok(V::str(g.env.prefix()))).var(),
+        d("syminfo.main_tickerid", &[], |g, _, _| {
+            Ok(V::str(g.env.tickerid.as_str()))
+        })
+        .var(),
+        d("syminfo.prefix", &["symbol"], |g, a, _| {
+            Ok(match arg(a, 0).as_str() {
+                Some(s) => V::str(s.split_once(':').map_or("", |(p, _)| p)),
+                None => V::str(g.env.prefix()),
+            })
+        })
+        .var(),
         d("syminfo.description", &[], |g, _, _| {
             Ok(V::str(g.env.description.as_str()))
         })
@@ -584,29 +742,60 @@ fn core_defs() -> Vec<NatDef> {
         d("syminfo.sector", &[], |_, _, _| Ok(V::str(""))).var(),
         d("syminfo.industry", &[], |_, _, _| Ok(V::str(""))).var(),
         d("syminfo.minmove", &[], |g, _, _| {
-            let _ = g;
-            Ok(V::Int(1))
+            Ok(V::Int(price_steps(g.env.mintick).0))
         })
         .var(),
         d("syminfo.pricescale", &[], |g, _, _| {
-            Ok(V::Int((1.0 / g.env.mintick).round().max(1.0) as i64))
+            Ok(V::Int(price_steps(g.env.mintick).1))
         })
         .var(),
         d(
             "ticker.new",
-            &["prefix", "ticker", "session", "adjustment"],
+            &[
+                "prefix",
+                "ticker",
+                "session",
+                "adjustment",
+                "backadjustment",
+                "settlement_as_close",
+            ],
             |_, a, _| Ok(V::str(format!("{}:{}", str_or(a, 0, ""), str_or(a, 1, "")))),
         )
         .pure(),
         d("ticker.standard", &["symbol"], |g, a, _| {
-            Ok(V::str(str_or(a, 0, g.env.tickerid.as_str()).to_string()))
+            let sym = str_or(a, 0, g.env.tickerid.as_str());
+            Ok(V::str(sym.trim_start_matches(HEIKIN_ASHI)))
         }),
-        d("ticker.modify", &["tickerid", "session", "adjustment"], |_, a, _| {
-            Ok(arg(a, 0).clone())
+        d(
+            "ticker.modify",
+            &[
+                "tickerid",
+                "session",
+                "adjustment",
+                "backadjustment",
+                "settlement_as_close",
+            ],
+            |_, a, _| Ok(arg(a, 0).clone()),
+        )
+        .pure(),
+        d("ticker.inherit", &["from_tickerid", "symbol"], |_, a, _| {
+            Ok(arg(a, 1).clone())
         })
         .pure(),
-        d("ticker.heikinashi", &["symbol"], |_, _, _| {
-            Err("Heikin Ashi tickers in request.security aren't supported yet.".into())
+        d(
+            "request.currency_rate",
+            &["from", "to", "ignore_invalid_currency"],
+            |_, a, _| {
+                let code = |k: usize| str_or(a, k, "").trim_start_matches("currency.").to_string();
+                if code(0) == code(1) {
+                    return Ok(V::Float(1.0));
+                }
+                Err("request.currency_rate() between different currencies isn't supported yet.".into())
+            },
+        ),
+        d("ticker.heikinashi", &["symbol"], |g, a, _| {
+            let sym = str_or(a, 0, g.env.tickerid.as_str());
+            Ok(V::str(format!("{HEIKIN_ASHI}{}", sym.trim_start_matches(HEIKIN_ASHI))))
         }),
         // ---------------------------------------------------------------- timeframe
         d("timeframe.period", &[], |g, _, _| {
@@ -614,7 +803,7 @@ fn core_defs() -> Vec<NatDef> {
         })
         .var(),
         d("timeframe.main_period", &[], |g, _, _| {
-            Ok(V::str(tf_string(g.tf, g.version)))
+            Ok(V::str(tf_string(g.main_tf, g.version)))
         })
         .var(),
         d("timeframe.multiplier", &[], |g, _, _| {
@@ -649,7 +838,7 @@ fn core_defs() -> Vec<NatDef> {
                 V::Str(s) if !s.is_empty() => parse_tf(s).ok_or_else(|| format!("\"{s}\" isn't a timeframe."))?,
                 _ => g.tf,
             };
-            Ok(V::Float(tf_seconds(tf)))
+            Ok(V::Int(tf_seconds(tf) as i64))
         }),
         d("timeframe.from_seconds", &["seconds"], |g, a, _| {
             let s = num(a, 0);
@@ -676,7 +865,7 @@ fn core_defs() -> Vec<NatDef> {
                 _ => g.tf,
             };
             let t = g.bar().time;
-            let b = bucket(tf, t, &g.tz);
+            let b = if tf == g.tf { t } else { g.bucket(tf, t) };
             let prev = match st {
                 Some(Ta::Int(p)) => *p,
                 _ => i64::MIN,
@@ -688,6 +877,100 @@ fn core_defs() -> Vec<NatDef> {
         })
         .state(),
     ]
+    .into_iter()
+    .chain(UNKNOWN.iter().map(|n| d(n, &[], |_, _, _| Ok(V::Na)).var()))
+    .chain(["box", "label", "line", "linefill", "table"].map(|n| d(n, &["x"], |_, a, _| Ok(arg(a, 0).clone()))))
+    .collect()
+}
+
+/// Facts about a company or contract that Opentern doesn't have: `na`, as
+/// they are on TradingView for symbols without them.
+const UNKNOWN: &[&str] = &[
+    "syminfo.current_contract",
+    "syminfo.employees",
+    "syminfo.expiration_date",
+    "syminfo.isin",
+    "syminfo.recommendations_buy",
+    "syminfo.recommendations_buy_strong",
+    "syminfo.recommendations_date",
+    "syminfo.recommendations_hold",
+    "syminfo.recommendations_sell",
+    "syminfo.recommendations_sell_strong",
+    "syminfo.recommendations_total",
+    "syminfo.shareholders",
+    "syminfo.shares_outstanding_float",
+    "syminfo.shares_outstanding_total",
+    "syminfo.target_price_average",
+    "syminfo.target_price_date",
+    "syminfo.target_price_estimates",
+    "syminfo.target_price_high",
+    "syminfo.target_price_low",
+    "syminfo.target_price_median",
+    "dividends.future_amount",
+    "dividends.future_ex_date",
+    "dividends.future_pay_date",
+    "earnings.future_eps",
+    "earnings.future_period_end_time",
+    "earnings.future_revenue",
+    "earnings.future_time",
+];
+
+/// (`syminfo.minmove`, `syminfo.pricescale`): 0.05 is 5/100.
+fn price_steps(tick: f64) -> (i64, i64) {
+    let scale = 10i64.pow(decimals_of(tick).min(12) as u32);
+    (((tick * scale as f64).round() as i64).max(1), scale)
+}
+
+/// Whether the bar came in while the script was running.
+fn realtime(g: &G) -> bool {
+    g.forming || g.index + 1 >= g.loaded
+}
+
+/// Whether the bar is its session's last: it ends when the session does.
+fn last_of_session(g: &G) -> bool {
+    if !g.tf.is_intraday() {
+        return true;
+    }
+    let end = g.close_time(g.bar().time);
+    match g.market {
+        opentern_core::calendar::Market::Crypto => {
+            // Days end at 00:00.
+            crate::run::local_day(end, &g.tz) != crate::run::local_day(g.bar().time, &g.tz)
+        }
+        m => opentern_core::calendar::closes_at(m, end),
+    }
+}
+
+fn extended(g: &G) -> Option<opentern_core::calendar::Extended> {
+    (g.tf.is_intraday() && g.market == opentern_core::calendar::Market::Us)
+        .then(|| opentern_core::calendar::us_extended(g.bar().time))
+        .flatten()
+}
+
+fn regex_of(s: &str) -> Result<regex::Regex, String> {
+    regex::RegexBuilder::new(s)
+        .size_limit(1 << 20)
+        .build()
+        .map_err(|_| format!("\"{s}\" isn't a pattern this engine understands."))
+}
+
+/// `str.tostring`, with arrays and matrices written out.
+pub(crate) fn text_of(g: &G, v: &V, fmt: Option<&str>) -> String {
+    use crate::heap::Obj;
+    let t = g.env.mintick;
+    let list = |xs: &[V]| xs.iter().map(|x| tostring(x, fmt, t)).collect::<Vec<_>>().join(", ");
+    match v {
+        V::Ref(r) => match g.heap.get(*r) {
+            Some(Obj::Array(_) | Obj::Slice { .. }) => format!("[{}]", list(g.heap.items(*r).unwrap_or_default())),
+            Some(Obj::Matrix { cols, data, .. }) => data
+                .chunks((*cols).max(1))
+                .map(|row| format!("[{}]", list(row)))
+                .collect::<Vec<_>>()
+                .join("\n"),
+            _ => tostring(v, fmt, t),
+        },
+        _ => tostring(v, fmt, t),
+    }
 }
 
 fn to_int(v: V) -> V {
@@ -759,69 +1042,85 @@ pub(crate) fn decimals_of(tick: f64) -> usize {
 }
 
 /// Java-style `{0}` / `{0,number,#.##}` placeholders (`str.format`).
-pub(crate) fn format_msg(fmt: &str, args: &[V], mintick: f64) -> String {
+/// Text in single quotes is taken as it is, and `''` is a quote.
+pub(crate) fn format_msg(g: &G, fmt: &str, args: &[V]) -> String {
     let mut out = String::new();
-    let mut rest = fmt;
-    while let Some(k) = rest.find('{') {
-        out.push_str(&rest[..k]);
-        let Some(e) = rest[k..].find('}') else {
-            out.push_str(&rest[k..]);
-            return out;
-        };
-        let inner = &rest[k + 1..k + e];
-        let mut parts = inner.splitn(3, ',');
-        let idx = parts.next().and_then(|p| p.trim().parse::<usize>().ok());
-        match idx {
-            Some(i) => {
-                let v = args.get(i).cloned().unwrap_or_default();
-                let kind = parts.next().map(|s| s.trim());
-                let pat = parts.next().map(|s| s.trim());
-                let s = match (kind, pat) {
-                    (Some("number"), Some("integer")) => value::fmt_pattern(v.f(), "#,###"),
-                    (Some("number"), Some("percent")) => value::fmt_pattern(v.f(), "#,###%"),
-                    (Some("number"), Some("currency")) => format!("${}", value::fmt_pattern(v.f(), "#,##0.00")),
-                    (Some("number"), Some(p)) => value::fmt_pattern(v.f(), p),
-                    (Some("number"), None) => value::fmt_pattern(v.f(), "#,###.###"),
-                    (Some("date" | "time"), p) => match v.i() {
-                        Some(t) => format_time(t, p.unwrap_or("yyyy-MM-dd HH:mm"), &jiff::tz::TimeZone::UTC),
-                        None => "NaN".into(),
-                    },
-                    _ => tostring(&v, None, mintick),
-                };
-                out.push_str(&s);
+    let c: Vec<char> = fmt.chars().collect();
+    let mut i = 0;
+    let mut quoted = false;
+    while i < c.len() {
+        match c[i] {
+            '\'' if c.get(i + 1) == Some(&'\'') => {
+                out.push('\'');
+                i += 2;
             }
-            None => {
-                out.push('{');
-                out.push_str(inner);
-                out.push('}');
+            '\'' => {
+                quoted = !quoted;
+                i += 1;
+            }
+            '{' if !quoted => {
+                let Some(e) = c[i..].iter().position(|x| *x == '}') else {
+                    out.extend(&c[i..]);
+                    return out;
+                };
+                let inner: String = c[i + 1..i + e].iter().collect();
+                out.push_str(&placeholder(g, &inner, args).unwrap_or(format!("{{{inner}}}")));
+                i += e + 1;
+            }
+            x => {
+                out.push(x);
+                i += 1;
             }
         }
-        rest = &rest[k + e + 1..];
     }
-    out.push_str(rest);
     out
+}
+
+fn placeholder(g: &G, inner: &str, args: &[V]) -> Option<String> {
+    let mut parts = inner.splitn(3, ',');
+    let i = parts.next()?.trim().parse::<usize>().ok()?;
+    let v = args.get(i).cloned().unwrap_or_default();
+    let kind = parts.next().map(|s| s.trim());
+    let pat = parts.next().map(|s| s.trim());
+    Some(match (kind, pat) {
+        (Some("number"), Some("integer")) => value::fmt_pattern(v.f(), "#,##0"),
+        (Some("number"), Some("percent")) => value::fmt_pattern(v.f(), "#,##0%"),
+        (Some("number"), Some("currency")) => format!("${}", value::fmt_pattern(v.f(), "#,##0.00")),
+        (Some("number"), Some(p)) => value::fmt_pattern(v.f(), p),
+        (Some("number"), None) => value::fmt_pattern(v.f(), "#,##0.###"),
+        (Some("date" | "time"), p) => match v.i() {
+            Some(t) => format_time(t, p.unwrap_or("yyyy-MM-dd HH:mm"), &jiff::tz::TimeZone::UTC),
+            None => "NaN".into(),
+        },
+        _ => match v {
+            // Numbers are grouped and rounded to three places by default.
+            V::Int(_) | V::Float(_) => value::fmt_pattern(v.f(), "#,##0.###"),
+            v => text_of(g, &v, None),
+        },
+    })
 }
 
 fn log(g: &mut G, level: &str, a: &[V]) -> R {
     let msg = match a.first() {
-        Some(V::Str(f)) if a.len() > 1 => format_msg(f, &a[1..], g.env.mintick),
-        Some(v) => tostring(v, None, g.env.mintick),
+        Some(V::Str(f)) if a.len() > 1 => format_msg(g, f, &a[1..]),
+        Some(v) => text_of(g, v, None),
         None => String::new(),
     };
-    let t = format_time(g.bar().time, "yyyy-MM-dd HH:mm", &g.tz);
+    let t = format_time(g.now(), "yyyy-MM-dd HH:mm", &g.tz);
     g.log(format!("[{t}] {level}: {msg}"));
     Ok(V::Na)
 }
 
 /// `{{close}}`-style placeholders in alert messages.
-pub(crate) fn alert_placeholders(g: &G, msg: &str) -> String {
+pub(crate) fn alert_placeholders(g: &G, msg: &str, plots: &[crate::compile::PlotDef]) -> String {
     if !msg.contains("{{") {
         return msg.to_string();
     }
     let b = g.bar();
     let t = g.env.mintick;
     let px = |x: f64| tostring(&V::Float(x), Some("format.mintick"), t);
-    msg.replace("{{close}}", &px(b.close))
+    let mut msg = msg
+        .replace("{{close}}", &px(b.close))
         .replace("{{open}}", &px(b.open))
         .replace("{{high}}", &px(b.high))
         .replace("{{low}}", &px(b.low))
@@ -829,11 +1128,21 @@ pub(crate) fn alert_placeholders(g: &G, msg: &str) -> String {
         .replace("{{ticker}}", g.env.ticker())
         .replace("{{exchange}}", g.env.prefix())
         .replace("{{interval}}", &tf_string(g.tf, 5))
+        .replace("{{syminfo.currency}}", &g.env.currency)
         .replace(
             "{{time}}",
-            &format_time(b.time, "yyyy-MM-dd'T'HH:mm:ss'Z'", &jiff::tz::TimeZone::UTC),
+            &format_time(g.now(), "yyyy-MM-dd'T'HH:mm:ss'Z'", &jiff::tz::TimeZone::UTC),
         )
-        .replace("{{timenow}}", &Timestamp::now().to_string())
+        .replace("{{timenow}}", &Timestamp::now().to_string());
+    // {{plot_0}}, {{plot("Title")}}
+    for (i, p) in plots.iter().enumerate() {
+        let v = value::fmt_num(g.out.vals.get(i).copied().unwrap_or(f64::NAN));
+        msg = msg
+            .replace(&format!("{{{{plot_{i}}}}}"), &v)
+            .replace(&format!("{{{{plot(\"{}\")}}}}", p.title), &v)
+            .replace(&format!("{{{{plot('{}')}}}}", p.title), &v);
+    }
+    msg
 }
 
 pub(crate) fn tz_arg(g: &G, v: &V) -> jiff::tz::TimeZone {
@@ -853,19 +1162,12 @@ pub(crate) fn parse_tz(s: &str) -> Option<jiff::tz::TimeZone> {
     if rest.is_empty() {
         return Some(jiff::tz::TimeZone::UTC);
     }
-    let sign = if rest.starts_with('-') { -1 } else { 1 };
-    let body = rest.trim_start_matches(['+', '-']);
-    let (h, m) = match body.split_once(':') {
-        Some((h, m)) => (h.parse::<i32>().ok()?, m.parse::<i32>().ok()?),
-        None => (body.parse::<i32>().ok()?, 0),
-    };
-    let secs = sign * (h * 3600 + m * 60);
-    jiff::tz::Offset::from_seconds(secs).ok().map(jiff::tz::TimeZone::fixed)
+    fixed_tz(rest)
 }
 
 fn time_part(g: &G, a: &[V], f: impl Fn(&jiff::Zoned) -> i64) -> V {
     let t = match arg(a, 0) {
-        V::Na => g.bar().time,
+        V::Na => g.now(),
         v => match v.i() {
             Some(t) => t,
             None => return V::Na,
@@ -878,11 +1180,6 @@ fn time_part(g: &G, a: &[V], f: impl Fn(&jiff::Zoned) -> i64) -> V {
     }
 }
 
-fn day_start(t: i64, tz: &jiff::tz::TimeZone) -> Option<i64> {
-    let z = Timestamp::from_millisecond(t).ok()?.to_zoned(tz.clone());
-    Some(z.start_of_day().ok()?.timestamp().as_millisecond())
-}
-
 /// Bar time for `time(tf, session)` / `time_close(…)`.
 fn bar_time(g: &G, a: &[V], close: bool) -> R {
     let back = int_or(a, 3, 0).max(0) as usize;
@@ -891,7 +1188,7 @@ fn bar_time(g: &G, a: &[V], close: bool) -> R {
     };
     let tz = tz_arg(g, arg(a, 2));
     if let Some(sess) = arg(a, 1).as_str().filter(|s| !s.is_empty())
-        && !in_session(b.time, sess, &tz)
+        && !in_session(g.open_time(b.time), sess, &tz)
     {
         return Ok(V::Na);
     }
@@ -899,11 +1196,11 @@ fn bar_time(g: &G, a: &[V], close: bool) -> R {
         V::Str(s) if !s.is_empty() => parse_tf(s).ok_or_else(|| format!("\"{s}\" isn't a timeframe."))?,
         _ => g.tf,
     };
-    let start = if tf == g.tf { b.time } else { bucket(tf, b.time, &tz) };
+    let stamp = if tf == g.tf { b.time } else { g.bucket(tf, b.time) };
     Ok(V::Int(if close {
-        crate::run::tf_end(tf, start, &tz)
+        crate::run::close_in(tf, stamp, &g.tz, g.market)
     } else {
-        start
+        crate::run::open_in(tf, stamp, &g.tz, g.market)
     }))
 }
 
@@ -913,80 +1210,39 @@ pub(crate) fn in_session(t: i64, sess: &str, tz: &jiff::tz::TimeZone) -> bool {
         return false;
     };
     let z = ts.to_zoned(tz.clone());
-    let (range, days) = match sess.split_once(':') {
-        Some((r, d)) => (r, Some(d)),
-        None => (sess, None),
-    };
-    if let Some(days) = days {
-        let dow = z.weekday().to_sunday_one_offset();
-        if !days.chars().any(|c| c.to_digit(10) == Some(dow as u32)) {
-            return false;
-        }
-    }
-    let Some((a, b)) = range.split_once('-') else {
-        return true;
-    };
+    let now = z.hour() as i32 * 60 + z.minute() as i32;
+    let dow = z.weekday().to_sunday_one_offset() as u32;
     let hm = |s: &str| -> Option<i32> {
         let s = s.trim();
         if s.len() != 4 {
             return None;
         }
-        Some(s[..2].parse::<i32>().ok()? * 60 + s[2..].parse::<i32>().ok()?)
+        Some(s.get(..2)?.parse::<i32>().ok()? * 60 + s.get(2..)?.parse::<i32>().ok()?)
     };
-    let (Some(start), Some(end)) = (hm(a), hm(b)) else {
-        return true;
+    // "0930-1200,1300-1600:23456": the days go with every range.
+    let (ranges, days) = match sess.split_once(':') {
+        Some((r, d)) => (r, Some(d)),
+        None => (sess, None),
     };
-    let now = z.hour() as i32 * 60 + z.minute() as i32;
-    if start <= end {
-        now >= start && now < end
-    } else {
-        now >= start || now < end
-    }
-}
-
-/// The open time of the `tf` bar containing `t`.
-pub(crate) fn bucket(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    let Ok(ts) = Timestamp::from_millisecond(t) else {
-        return t;
-    };
-    let z = ts.to_zoned(tz.clone());
-    let off = z.offset().seconds() as i64 * 1000;
-    match tf.unit {
-        Unit::Second | Unit::Minute | Unit::Hour => {
-            let ms = tf.millis().unwrap_or(60_000);
-            // Aligned to local midnight (so 4h bars start at 00, 04, …).
-            (t + off).div_euclid(ms) * ms - off
+    let on = |d: u32| days.is_none_or(|days| days.chars().any(|c| c.to_digit(10) == Some(d)));
+    ranges.split(',').any(|range| {
+        let Some((start, end)) = range.split_once('-').and_then(|(a, b)| Some((hm(a)?, hm(b)?))) else {
+            // "24x7"
+            return on(dow);
+        };
+        if start < end {
+            return now >= start && now < end && on(dow);
         }
-        Unit::Day => {
-            let start = z.start_of_day().map(|s| s.timestamp().as_millisecond()).unwrap_or(t);
-            if tf.count <= 1 {
-                start
-            } else {
-                let days = (start + off).div_euclid(86_400_000);
-                let k = days.div_euclid(tf.count as i64) * tf.count as i64;
-                k * 86_400_000 - off
-            }
+        if start == 0 && end == 0 {
+            return on(dow);
         }
-        Unit::Week => {
-            let d = z.date();
-            let back = d.weekday().to_monday_zero_offset() as i64;
-            let monday = d.checked_sub(jiff::Span::new().days(back)).unwrap_or(d);
-            monday
-                .to_zoned(tz.clone())
-                .map(|m| m.timestamp().as_millisecond())
-                .unwrap_or(t)
+        // Overnight: the evening belongs to the next day's session.
+        if now >= start {
+            on(dow % 7 + 1)
+        } else {
+            now < end && on(dow)
         }
-        Unit::Month => {
-            let d = z.date();
-            let months = d.year() as i64 * 12 + d.month() as i64 - 1;
-            let k = months.div_euclid(tf.count as i64) * tf.count as i64;
-            let (y, m) = (k.div_euclid(12), k.rem_euclid(12) + 1);
-            jiff::civil::date(y as i16, m as i8, 1)
-                .to_zoned(tz.clone())
-                .map(|m| m.timestamp().as_millisecond())
-                .unwrap_or(t)
-        }
-    }
+    })
 }
 
 /// Pine's timeframe strings: "1", "60", "240", "D", "2D", "W", "M", "15S".
@@ -1052,7 +1308,8 @@ fn timestamp(g: &mut G, a: &[V], _: &mut Option<Ta>) -> R {
     if a.len() == 1
         && let Some(s) = a[0].as_str()
     {
-        return Ok(parse_date(s, &g.tz).map(V::Int).unwrap_or(V::Na));
+        // Without a timezone of its own, text is in GMT.
+        return Ok(parse_date(s, &jiff::tz::TimeZone::UTC).map(V::Int).unwrap_or(V::Na));
     }
     let (tz, rest) = match a.first() {
         Some(V::Str(s)) => (parse_tz(s).unwrap_or_else(|| g.tz.clone()), &a[1..]),
@@ -1065,14 +1322,20 @@ fn timestamp(g: &mut G, a: &[V], _: &mut Option<Ta>) -> R {
     let (y, mo, d) = (n(0, 1970), n(1, 1), n(2, 1));
     let (h, mi, s) = (n(3, 0), n(4, 0), n(5, 0));
     // Out-of-range parts roll over, as in Pine (day 0 = last of previous month).
-    let base = jiff::civil::date(y as i16, 1, 1).at(0, 0, 0, 0);
-    let span = jiff::Span::new()
-        .months(mo - 1)
-        .days(d - 1)
-        .hours(h)
-        .minutes(mi)
-        .seconds(s);
-    let dt = base.checked_add(span).map_err(|e| e.to_string())?;
+    let make = || -> Option<jiff::civil::DateTime> {
+        let base = jiff::civil::Date::new(i16::try_from(y).ok()?, 1, 1)
+            .ok()?
+            .at(0, 0, 0, 0);
+        let span = jiff::Span::new()
+            .try_months(mo - 1)
+            .and_then(|p| p.try_days(d - 1))
+            .and_then(|p| p.try_hours(h))
+            .and_then(|p| p.try_minutes(mi))
+            .and_then(|p| p.try_seconds(s))
+            .ok()?;
+        base.checked_add(span).ok()
+    };
+    let Some(dt) = make() else { return Ok(V::Na) };
     Ok(dt
         .to_zoned(tz)
         .map(|z| V::Int(z.timestamp().as_millisecond()))
@@ -1091,21 +1354,62 @@ fn parse_date(s: &str, tz: &jiff::tz::TimeZone) -> Option<i64> {
     if let Ok(d) = s.parse::<jiff::civil::Date>() {
         return d.to_zoned(tz.clone()).ok().map(|z| z.timestamp().as_millisecond());
     }
-    for f in ["%d %b %Y %H:%M %z", "%d %b %Y %H:%M:%S %z", "%Y-%m-%d %H:%M %z"] {
-        if let Ok(z) = jiff::Zoned::strptime(f, s) {
-            return Some(z.timestamp().as_millisecond());
+    // A timezone at the end: "+0300", "GMT-05:00", "UTC".
+    let (s, tz) = match s.rsplit_once(' ') {
+        Some((head, z)) if z.starts_with(['+', '-']) && z.len() >= 5 => (head, fixed_tz(z)?),
+        Some((head, z)) if z.starts_with("GMT") || z.starts_with("UTC") => (
+            head,
+            match &z[3..] {
+                "" => jiff::tz::TimeZone::UTC,
+                off => fixed_tz(off)?,
+            },
+        ),
+        _ => (s, tz.clone()),
+    };
+    let ms = |dt: jiff::civil::DateTime| dt.to_zoned(tz.clone()).ok().map(|z| z.timestamp().as_millisecond());
+    const DATES: [&str; 6] = ["%Y-%m-%d", "%d %b %Y", "%d %B %Y", "%b %d %Y", "%B %d %Y", "%b %d, %Y"];
+    for f in DATES {
+        for time in [" %H:%M:%S", " %H:%M", "T%H:%M:%S", "T%H:%M"] {
+            if let Ok(dt) = jiff::civil::DateTime::strptime(format!("{f}{time}"), s) {
+                return ms(dt);
+            }
         }
-    }
-    for f in ["%d %b %Y %H:%M", "%d %b %Y"] {
-        let full = s.to_string();
-        if let Ok(dt) = jiff::civil::DateTime::strptime(f, &full) {
-            return dt.to_zoned(tz.clone()).ok().map(|z| z.timestamp().as_millisecond());
-        }
-        if let Ok(d) = jiff::civil::Date::strptime(f, &full) {
-            return d.to_zoned(tz.clone()).ok().map(|z| z.timestamp().as_millisecond());
+        if let Ok(d) = jiff::civil::Date::strptime(f, s) {
+            return ms(d.at(0, 0, 0, 0));
         }
     }
     None
+}
+
+/// A date input's text: "2024-01-31 09:30" in the exchange's timezone.
+pub(crate) fn input_date(env: &crate::Env, t: i64) -> String {
+    let tz = jiff::tz::TimeZone::get(&env.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+    let pat = if t.rem_euclid(60_000) == 0 {
+        "yyyy-MM-dd HH:mm"
+    } else {
+        "yyyy-MM-dd HH:mm:ss"
+    };
+    format_time(t, pat, &tz)
+}
+
+pub(crate) fn date_of_input(env: &crate::Env, s: &str) -> Option<i64> {
+    let tz = jiff::tz::TimeZone::get(&env.timezone).unwrap_or(jiff::tz::TimeZone::UTC);
+    // A saved number is a time already.
+    s.trim().parse::<i64>().ok().or_else(|| parse_date(s, &tz))
+}
+
+/// "+0300", "-05:00", "+3".
+fn fixed_tz(s: &str) -> Option<jiff::tz::TimeZone> {
+    let sign = if s.starts_with('-') { -1 } else { 1 };
+    let body = s.trim_start_matches(['+', '-']);
+    let (h, m) = match body.split_once(':') {
+        Some((h, m)) => (h.parse::<i32>().ok()?, m.parse::<i32>().ok()?),
+        None if body.len() == 4 => (body.get(..2)?.parse().ok()?, body.get(2..)?.parse().ok()?),
+        None => (body.parse::<i32>().ok()?, 0),
+    };
+    jiff::tz::Offset::from_seconds(sign * (h * 3600 + m * 60))
+        .ok()
+        .map(jiff::tz::TimeZone::fixed)
 }
 
 /// Java-style date patterns (`yyyy-MM-dd HH:mm:ss`).
@@ -1176,8 +1480,9 @@ mod tests {
 
     #[test]
     fn formats() {
+        let g = G::scratch(Default::default(), 6);
         assert_eq!(
-            format_msg("{0} is {1,number,#.##}", &[V::str("x"), V::Float(2.34567)], 0.01),
+            format_msg(&g, "{0} is {1,number,#.##}", &[V::str("x"), V::Float(2.34567)]),
             "x is 2.35"
         );
         assert_eq!(tostring(&V::Float(1234.5), Some("format.mintick"), 0.01), "1234.50");
@@ -1200,18 +1505,19 @@ mod tests {
 
     #[test]
     fn buckets() {
-        let utc = jiff::tz::TimeZone::UTC;
+        let mut g = G::scratch(Default::default(), 6);
+        g.tf = Timeframe::new(1, Unit::Minute);
         // 2020-09-13 12:26 UTC
         let t = 1_600_000_000_000;
-        assert_eq!(bucket(Timeframe::new(1, Unit::Day), t, &utc), 1_599_955_200_000);
+        assert_eq!(g.bucket(Timeframe::new(1, Unit::Day), t), 1_599_955_200_000);
         assert_eq!(
-            bucket(Timeframe::new(4, Unit::Hour), t, &utc),
+            g.bucket(Timeframe::new(4, Unit::Hour), t),
             1_599_955_200_000 + 12 * 3_600_000
         );
         // Monday 2020-09-07
-        assert_eq!(bucket(Timeframe::new(1, Unit::Week), t, &utc), 1_599_436_800_000);
+        assert_eq!(g.bucket(Timeframe::new(1, Unit::Week), t), 1_599_436_800_000);
         // 2020-09-01
-        assert_eq!(bucket(Timeframe::new(1, Unit::Month), t, &utc), 1_598_918_400_000);
+        assert_eq!(g.bucket(Timeframe::new(1, Unit::Month), t), 1_598_918_400_000);
     }
 
     #[test]

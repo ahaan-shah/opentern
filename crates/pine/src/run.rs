@@ -5,7 +5,7 @@
 //! Pine). The whole state is `Clone`, which is how the forming bar is
 //! computed and rolled back.
 
-use crate::compile::{Bin, Block, Conv, E, Field, Func, Layout, PlotHow, Program, S};
+use crate::compile::{Bin, Block, Conv, E, Field, Func, Layout, MethodCand, PlotHow, Program, S, This};
 use crate::heap::{Drawings, Heap, Obj};
 
 /// `chart.point` is a built-in object type with these fields.
@@ -14,6 +14,7 @@ pub(crate) const CHART_POINT_FIELDS: [&str; 3] = ["index", "time", "price"];
 use crate::natives::{self, NatDef, Ta};
 use crate::value::{self, V};
 use crate::{Env, Error};
+use opentern_core::calendar::{self, Market};
 use opentern_core::{Bar, Timeframe, Unit};
 use opentern_engine::{Broker, Props};
 use opentern_series::study::{Ctx, Inputs, Out, Study, Value};
@@ -71,7 +72,7 @@ pub(crate) struct Frame {
     pub inited: Vec<bool>,
     pub st: Vec<Option<Ta>>,
     pub calls: Vec<Option<Box<Frame>>>,
-    pub secs: Vec<Option<Box<crate::natives::SecState>>>,
+    pub secs: Vec<crate::natives::Contexts>,
 }
 
 impl Frame {
@@ -83,7 +84,7 @@ impl Frame {
             inited: vec![false; l.slots],
             st: vec![None; l.states],
             calls: vec![None; l.calls.len()],
-            secs: vec![None; l.secs],
+            secs: vec![Default::default(); l.secs],
         }
     }
 
@@ -94,6 +95,28 @@ impl Frame {
         match &self.hist[slot as usize] {
             Some(r) => r.get(k - 1).cloned().unwrap_or(V::Na),
             None => V::Na,
+        }
+    }
+
+    /// Takes over the `varip` values another run of the same bar left.
+    /// (Objects stay with the run that made them.)
+    fn carry(&mut self, from: &Frame, l: &Layout, funcs: &[Func]) {
+        for &s in &l.varips {
+            let s = s as usize;
+            if from.inited[s] && !matches!(from.v[s], V::Ref(_) | V::Tuple(_)) {
+                self.v[s] = from.v[s].clone();
+                self.inited[s] = true;
+            }
+        }
+        for (k, c) in from.calls.iter().enumerate() {
+            let Some(c) = c else { continue };
+            let l = &funcs[l.calls[k] as usize].layout;
+            if l.varips.is_empty() && l.calls.is_empty() {
+                continue;
+            }
+            self.calls[k]
+                .get_or_insert_with(|| Box::new(Frame::new(l)))
+                .carry(c, l, funcs);
         }
     }
 
@@ -129,7 +152,7 @@ impl Frame {
         for c in self.calls.iter().flatten() {
             c.refs(out);
         }
-        for s in self.secs.iter().flatten() {
+        for s in &self.secs {
             s.refs(out);
         }
         for t in self.st.iter().flatten() {
@@ -148,6 +171,7 @@ pub(crate) struct OutBuf {
     pub fill_raw: Vec<u32>,
     pub bg: u32,
     pub bar: u32,
+    pub past: Vec<(bool, usize, u32)>,
 }
 
 impl OutBuf {
@@ -159,6 +183,7 @@ impl OutBuf {
         self.fill_raw.fill(0);
         self.bg = 0;
         self.bar = 0;
+        self.past.clear();
     }
 }
 
@@ -184,6 +209,8 @@ pub(crate) struct G {
     pub index: usize,
     pub bar_no: u32,
     pub count: usize,
+    /// Bars when the script started (see `Ctx::loaded`).
+    pub loaded: usize,
     pub forming: bool,
     pub new_session: bool,
     pub tf: Timeframe,
@@ -194,13 +221,25 @@ pub(crate) struct G {
     pub ops: u64,
     pub logs: Vec<String>,
     pub alerts: Vec<Alert>,
+    /// This bar's `alertcondition`s, before their text is written.
+    pub pending_alerts: Vec<(usize, Alert)>,
     pub ntypes: usize,
-    /// The first bar's time (for `strategy` date ranges, `timenow`).
+    /// The chart's last bar (`last_bar_time`).
     pub last_time: i64,
+    /// The chart's interval (`tf` is a request's own while one runs).
+    pub main_tf: Timeframe,
+    /// The finished bars before this one, kept when the script makes
+    /// requests.
+    pub all: Arc<Vec<Bar>>,
+    pub keep_all: bool,
+    /// Inside a request: nothing is drawn, ordered, logged or alerted.
+    pub quiet: bool,
+    /// The local day of the newest bar, and the day's first bar's time.
+    pub day: (i64, i64),
     /// Series `request.security` asked for that aren't loaded yet.
     pub wanted: Vec<(String, Timeframe)>,
     /// The chart symbol's market (for when daily bars really close).
-    pub market: opentern_core::calendar::Market,
+    pub market: Market,
 }
 
 impl G {
@@ -215,6 +254,7 @@ impl G {
             index: 0,
             bar_no: 0,
             count: 0,
+            loaded: 0,
             forming: false,
             new_session: false,
             tf: Timeframe::new(1, Unit::Day),
@@ -225,16 +265,22 @@ impl G {
             ops: 0,
             logs: Vec::new(),
             alerts: Vec::new(),
+            pending_alerts: Vec::new(),
             ntypes: 0,
             last_time: 0,
+            main_tf: Timeframe::new(1, Unit::Day),
+            all: Arc::default(),
+            keep_all: false,
+            quiet: false,
+            day: (i64::MIN, 0),
             wanted: Vec::new(),
             market,
         }
     }
 
     /// For folding constants at compile time.
-    pub fn scratch(env: Arc<Env>) -> G {
-        G::new(env, 6, 1)
+    pub fn scratch(env: Arc<Env>, version: u8) -> G {
+        G::new(env, version, 1)
     }
 
     pub fn bar(&self) -> Bar {
@@ -255,14 +301,213 @@ impl G {
         self.logs.push(s);
     }
 
-    /// The close time of a bar opening at `t` on this chart's interval.
+    /// When the bar stamped `t` really opens. Daily and longer bars are
+    /// stamped at 00:00 UTC of their local date; a script sees their
+    /// session's open, as on TradingView.
+    pub fn open_time(&self, t: i64) -> i64 {
+        open_in(self.tf, t, &self.tz, self.market)
+    }
+
+    /// When the bar stamped `t` really closes.
     pub fn close_time(&self, t: i64) -> i64 {
-        tf_end(self.tf, t, &self.tz)
+        close_in(self.tf, t, &self.tz, self.market)
+    }
+
+    /// The newest bar's open time.
+    pub fn now(&self) -> i64 {
+        self.open_time(self.bar().time)
+    }
+
+    /// Which `tf` bar the bar stamped `t` is part of: the stamp that bar
+    /// has. Intraday bars are counted from the day's first (a session's
+    /// open, or midnight), as the chart's own are.
+    pub fn bucket(&self, tf: Timeframe, t: i64) -> i64 {
+        let day = day_of(self.tf, t, &self.tz);
+        if !tf.is_intraday() {
+            return calendar_bucket(day, tf);
+        }
+        if !self.tf.is_intraday() {
+            return self.open_time(t);
+        }
+        let ms = tf.millis().unwrap_or(60_000).max(1);
+        let anchor = self.anchor(day);
+        anchor + (t - anchor).div_euclid(ms) * ms
+    }
+
+    /// Whether an intraday bar is in regular trading hours (always, for
+    /// markets without set ones).
+    pub fn in_hours(&self, t: i64) -> bool {
+        match session_on(self.market, local_day_in(self.market, t)) {
+            Some((open, close)) => {
+                // A bar that's under way at the open counts.
+                t < close && t + self.tf.millis().unwrap_or(0) > open
+            }
+            None => true,
+        }
+    }
+
+    /// Where a local day's intraday bars are counted from.
+    fn anchor(&self, day: i64) -> i64 {
+        let first = (self.day.0 == day).then_some(self.day.1);
+        let open = session_on(self.market, day).map(|(o, _)| o);
+        match (open, first) {
+            (Some(o), Some(f)) => o.min(f),
+            (Some(o), None) => o,
+            _ => midnight(day, &self.tz),
+        }
+    }
+}
+
+const DAY: i64 = 86_400_000;
+
+fn date_of(day: i64) -> jiff::civil::Date {
+    jiff::civil::date(1970, 1, 1)
+        .checked_add(jiff::Span::new().days(day.clamp(-700_000, 2_900_000)))
+        .unwrap_or(jiff::civil::date(1970, 1, 1))
+}
+
+fn days_to(d: jiff::civil::Date) -> i64 {
+    jiff::civil::date(1970, 1, 1)
+        .until(d)
+        .map_or(0, |s| s.get_days() as i64)
+}
+
+/// Local midnight of a day, as UTC ms.
+fn midnight(day: i64, tz: &jiff::tz::TimeZone) -> i64 {
+    date_of(day)
+        .to_zoned(tz.clone())
+        .map_or(day * DAY, |z| z.timestamp().as_millisecond())
+}
+
+/// The local date of a `tf` bar stamped `t`, as days since 1970.
+pub(crate) fn day_of(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone) -> i64 {
+    if !tf.is_intraday() {
+        return t.div_euclid(DAY);
+    }
+    local_day(t, tz)
+}
+
+pub(crate) fn local_day(t: i64, tz: &jiff::tz::TimeZone) -> i64 {
+    match jiff::Timestamp::from_millisecond(t) {
+        Ok(ts) => days_to(ts.to_zoned(tz.clone()).date()),
+        Err(_) => t.div_euclid(DAY),
+    }
+}
+
+/// The stamp of the daily-or-longer bar a local date falls in (as the
+/// chart's own are grouped; see `opentern_data::resample`).
+pub(crate) fn calendar_bucket(day: i64, tf: Timeframe) -> i64 {
+    let n = tf.count.max(1) as i64;
+    match tf.unit {
+        Unit::Week => {
+            // 1970-01-01 was a Thursday; weeks start on Monday.
+            let monday = day - (day + 3).rem_euclid(7);
+            let week = (monday + 3).div_euclid(7);
+            (week.div_euclid(n) * n * 7 - 3) * DAY
+        }
+        Unit::Month => {
+            let d = date_of(day);
+            let m = (d.year() as i64 * 12 + d.month() as i64 - 1).div_euclid(n) * n;
+            let first = jiff::civil::date(m.div_euclid(12) as i16, (m.rem_euclid(12) + 1) as i8, 1);
+            days_to(first) * DAY
+        }
+        _ => day.div_euclid(n) * n * DAY,
+    }
+}
+
+/// The local days a daily-or-longer bar stamped `t` covers.
+fn days_in(tf: Timeframe, t: i64) -> (i64, i64) {
+    let first = t.div_euclid(DAY);
+    let n = tf.count.max(1) as i64;
+    let last = match tf.unit {
+        Unit::Week => first + 7 * n,
+        Unit::Month => days_to(
+            date_of(first)
+                .checked_add(jiff::Span::new().months(n))
+                .unwrap_or(date_of(first)),
+        ),
+        _ => first + n,
+    };
+    (first, last)
+}
+
+/// When a `tf` bar stamped `t` opens.
+pub(crate) fn open_in(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone, market: Market) -> i64 {
+    if tf.is_intraday() || t.rem_euclid(DAY) != 0 {
+        return t;
+    }
+    let (first, last) = days_in(tf, t);
+    for d in first..last.min(first + 12) {
+        if let Some((open, _)) = session_on(market, d) {
+            return open;
+        }
+    }
+    midnight(first, tz)
+}
+
+/// When a `tf` bar stamped `t` closes: no later than the session it's in,
+/// and for daily and longer bars, with their last session (a stock's "D"
+/// bar ends at 16:00, not midnight).
+pub(crate) fn close_in(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone, market: Market) -> i64 {
+    if let Some(ms) = tf.millis().filter(|_| tf.is_intraday()) {
+        let end = t + ms;
+        return match session_on(market, local_day_in(market, t)) {
+            Some((_, close)) if close > t && close < end => close,
+            _ => end,
+        };
+    }
+    let (first, last) = days_in(tf, t);
+    let (start, end) = (midnight(first, tz), midnight(last, tz));
+    remember(&CLOSES, (market, start, end), || {
+        calendar::last_close_in(market, start, end)
+    })
+    .unwrap_or(end)
+}
+
+type Remembered<K, T> = std::cell::RefCell<std::collections::HashMap<K, T>>;
+type Memo<K, T> = std::thread::LocalKey<Remembered<K, T>>;
+
+thread_local! {
+    static SESSIONS: Remembered<(Market, i64), Option<(i64, i64)>> = Default::default();
+    static CLOSES: Remembered<(Market, i64, i64), Option<i64>> = Default::default();
+}
+
+/// Calendar lookups build their year's holidays each time, and scripts ask
+/// on every bar.
+fn remember<K: std::hash::Hash + Eq, T: Copy>(memo: &'static Memo<K, T>, k: K, f: impl FnOnce() -> T) -> T {
+    memo.with(|m| {
+        if let Some(v) = m.borrow().get(&k) {
+            return *v;
+        }
+        let v = f();
+        let mut m = m.borrow_mut();
+        if m.len() > 20_000 {
+            m.clear();
+        }
+        m.insert(k, v);
+        v
+    })
+}
+
+/// A local day's session, if the market has set hours and trades.
+fn session_on(market: Market, day: i64) -> Option<(i64, i64)> {
+    if !matches!(market, Market::Us | Market::India | Market::Exchange(_)) {
+        return None;
+    }
+    remember(&SESSIONS, (market, day), || {
+        calendar::session_times(market, date_of(day))
+    })
+}
+
+fn local_day_in(market: Market, t: i64) -> i64 {
+    match market {
+        Market::Us | Market::India | Market::Exchange(_) => local_day(t, &market.tz()),
+        _ => t.div_euclid(DAY),
     }
 }
 
 /// The market from an exchange prefix and a `syminfo.type`-style kind.
-pub(crate) fn market_of(prefix: &str, kind: &str) -> opentern_core::calendar::Market {
+pub(crate) fn market_of(prefix: &str, kind: &str) -> Market {
     use opentern_core::AssetKind;
     let kind = match kind {
         "crypto" => AssetKind::Crypto,
@@ -272,39 +517,7 @@ pub(crate) fn market_of(prefix: &str, kind: &str) -> opentern_core::calendar::Ma
         "futures" => AssetKind::Futures,
         _ => AssetKind::Stock,
     };
-    opentern_core::calendar::Market::from_parts(prefix, kind)
-}
-
-/// When the `tf` bar opening at `t` really closes: its calendar end, or
-/// for daily and longer bars of markets with set hours, the close of its
-/// last session (a stock's "D" bar ends at 16:00, not midnight).
-pub(crate) fn period_end(
-    tf: Timeframe,
-    t: i64,
-    tz: &jiff::tz::TimeZone,
-    market: opentern_core::calendar::Market,
-) -> i64 {
-    let end = tf_end(tf, t, tz);
-    if tf.is_intraday() {
-        return end;
-    }
-    opentern_core::calendar::last_close_in(market, t, end).unwrap_or(end)
-}
-
-/// The end of the `tf` bar that opens at `t`.
-pub(crate) fn tf_end(tf: Timeframe, t: i64, tz: &jiff::tz::TimeZone) -> i64 {
-    match tf.millis() {
-        Some(ms) => t + ms,
-        None => jiff::Timestamp::from_millisecond(t)
-            .ok()
-            .and_then(|ts| {
-                ts.to_zoned(tz.clone())
-                    .checked_add(jiff::Span::new().months(tf.count as i64))
-                    .ok()
-            })
-            .map(|z| z.timestamp().as_millisecond())
-            .unwrap_or(t),
-    }
+    Market::from_parts(prefix, kind)
 }
 
 pub(crate) fn field(b: &Bar, f: Field, index: i64, g: &G) -> V {
@@ -321,7 +534,7 @@ pub(crate) fn field(b: &Bar, f: Field, index: i64, g: &G) -> V {
         Field::Hlc3 => V::Float((b.high + b.low + b.close) / 3.0),
         Field::Ohlc4 => V::Float((b.open + b.high + b.low + b.close) / 4.0),
         Field::Hlcc4 => V::Float((b.high + b.low + b.close + b.close) / 4.0),
-        Field::Time => V::Int(b.time),
+        Field::Time => V::Int(g.open_time(b.time)),
         Field::TimeClose => V::Int(g.close_time(b.time)),
         Field::BarIndex => V::Int(index),
     }
@@ -406,7 +619,7 @@ pub(crate) fn binary(op: Bin, a: &V, b: &V) -> V {
                         if *y == 0 {
                             V::Na
                         } else {
-                            V::Int(x % y)
+                            V::Int(x.wrapping_rem(*y))
                         }
                     }
                     _ => V::Na,
@@ -464,11 +677,20 @@ pub(crate) struct X<'a> {
     pub g: &'a mut G,
 }
 
-fn index_of(v: &V) -> R<usize> {
+/// Text that doubles in a loop would outgrow memory.
+fn sized(v: V) -> R<V> {
+    match &v {
+        V::Str(s) if s.len() > 1_000_000 => Err(Stop::Err("This text is over a million characters long.".into())),
+        _ => Ok(v),
+    }
+}
+
+/// A history offset; a `na` one reads `na`.
+fn index_of(v: &V) -> R<Option<usize>> {
     match v.i() {
-        Some(k) if k >= 0 => Ok(k as usize),
+        Some(k) if k >= 0 => Ok(Some(k as usize)),
         Some(_) => Err(Stop::Err("History offsets can't be negative.".into())),
-        None => Err(Stop::Err("The history offset is na.".into())),
+        None => Ok(None),
     }
 }
 
@@ -477,47 +699,29 @@ impl X<'_> {
         Ok(match e {
             E::K(v) => v.clone(),
             E::L(s) => f.v[*s as usize].clone(),
-            E::LH(s, i) => {
-                let k = index_of(&self.eval(i, f, root)?)?;
-                f.hist(*s, k)
-            }
             E::G(s) => root.map(|r| r.v[*s as usize].clone()).unwrap_or_default(),
-            E::GH(s, i) => {
-                let k = index_of(&self.eval(i, f, root)?)?;
-                root.map(|r| r.hist(*s, k)).unwrap_or_default()
-            }
             E::Bar(fld) => {
                 let b = self.g.bar();
                 field(&b, *fld, self.g.index as i64, self.g)
-            }
-            E::BarH(fld, i) => {
-                let k = index_of(&self.eval(i, f, root)?)?;
-                self.bar_back(*fld, k)
             }
             E::In(i) => self.inputs[*i as usize].clone(),
             E::InSrc(i) => {
                 let b = self.g.bar();
                 field(&b, self.srcs[*i as usize], self.g.index as i64, self.g)
             }
-            E::InSrcH(i, k) => {
-                let k = index_of(&self.eval(k, f, root)?)?;
-                self.bar_back(self.srcs[*i as usize], k)
-            }
             E::Neg(x) => neg(&self.eval(x, f, root)?),
             E::Not(x) => V::Bool(!self.eval(x, f, root)?.truthy()),
             E::Bin(op, a, b) => {
                 // Constants are compared in place (no clone of strings).
-                if let E::K(kb) = &**b {
-                    let a = self.eval(a, f, root)?;
-                    return Ok(binary(*op, &a, kb));
-                }
-                if let E::K(ka) = &**a {
-                    let b = self.eval(b, f, root)?;
-                    return Ok(binary(*op, ka, &b));
-                }
-                let a = self.eval(a, f, root)?;
-                let b = self.eval(b, f, root)?;
-                binary(*op, &a, &b)
+                let v = match (&**a, &**b) {
+                    (a, E::K(kb)) => binary(*op, &self.eval(a, f, root)?, kb),
+                    (E::K(ka), b) => binary(*op, ka, &self.eval(b, f, root)?),
+                    (a, b) => {
+                        let a = self.eval(a, f, root)?;
+                        binary(*op, &a, &self.eval(b, f, root)?)
+                    }
+                };
+                return sized(v);
             }
             E::And(a, b, lazy) => {
                 let x = self.eval(a, f, root)?.truthy();
@@ -541,6 +745,40 @@ impl X<'_> {
                 } else {
                     self.eval(b, f, root)?
                 }
+            }
+            E::Call { f: fid, site, args } => self.eval_call(*fid, *site, args, f, root)?,
+            E::Nat { f: def, args, site } => self.eval_nat(def, args, *site, f, root)?,
+            e => return self.eval_rest(e, f, root),
+        })
+    }
+
+    /// The less common expressions, so `eval`'s stack frame stays small.
+    #[inline(never)]
+    fn eval_rest(&mut self, e: &E, f: &mut Frame, root: Option<&Frame>) -> R<V> {
+        Ok(match e {
+            E::LH(s, i) => {
+                let Some(k) = index_of(&self.eval(i, f, root)?)? else {
+                    return Ok(V::Na);
+                };
+                f.hist(*s, k)
+            }
+            E::GH(s, i) => {
+                let Some(k) = index_of(&self.eval(i, f, root)?)? else {
+                    return Ok(V::Na);
+                };
+                root.map(|r| r.hist(*s, k)).unwrap_or_default()
+            }
+            E::BarH(fld, i) => {
+                let Some(k) = index_of(&self.eval(i, f, root)?)? else {
+                    return Ok(V::Na);
+                };
+                self.bar_back(*fld, k)
+            }
+            E::InSrcH(i, k) => {
+                let Some(k) = index_of(&self.eval(k, f, root)?)? else {
+                    return Ok(V::Na);
+                };
+                self.bar_back(self.srcs[*i as usize], k)
             }
             E::If(branches, otherwise) => {
                 for (c, b) in branches {
@@ -571,8 +809,6 @@ impl X<'_> {
                 }
                 V::Na
             }
-            E::Call { f: fid, site, args } => self.eval_call(*fid, *site, args, f, root)?,
-            E::Nat { f: def, args, site } => self.eval_nat(def, args, *site, f, root)?,
             E::Tuple(items) => {
                 let mut vals = Vec::with_capacity(items.len());
                 for a in items {
@@ -585,7 +821,9 @@ impl X<'_> {
                 let s = *slot as usize;
                 f.v[s] = v;
                 f.touched[s] = self.g.bar_no;
-                let k = index_of(&self.eval(idx, f, root)?)?;
+                let Some(k) = index_of(&self.eval(idx, f, root)?)? else {
+                    return Ok(V::Na);
+                };
                 f.hist(*slot, k)
             }
             E::Get(obj, name) => {
@@ -605,8 +843,11 @@ impl X<'_> {
                 args,
                 names,
                 user,
-            } => self.eval_method(name, recv, args, names, user, f, root)?,
+                hint,
+            } => self.eval_method(name, recv, args, names, (user, hint.as_deref()), f, root)?,
             E::Security(sec) => natives::security(self, sec, f, root)?,
+            E::Loop(s) => self.stmt(s, f, root)?,
+            e => return self.eval(e, f, root),
         })
     }
 
@@ -628,13 +869,20 @@ impl X<'_> {
         for a in args {
             vals.push(self.eval(a, f, root)?);
         }
+        if self.g.quiet && def.effect {
+            return Ok(V::Na);
+        }
         let mut none = None;
         let st = if site == u16::MAX {
             &mut none
         } else {
             &mut f.st[site as usize]
         };
-        Ok((def.f)(self.g, &vals, st)?)
+        // A window whose length is a series.
+        if def.window && vals.len() > def.params.len() {
+            return Ok(natives::replay(def, self.g, &vals, st)?);
+        }
+        sized(natives::call(def, self.g, &vals, st)?)
     }
 
     #[inline(never)]
@@ -645,7 +893,7 @@ impl X<'_> {
         recv: &E,
         args: &[E],
         names: &[Option<Arc<str>>],
-        user: &[(u16, u16, u16)],
+        user: (&[MethodCand], Option<&str>),
         f: &mut Frame,
         root: Option<&Frame>,
     ) -> R<V> {
@@ -757,7 +1005,7 @@ impl X<'_> {
         name: &str,
         vals: Args,
         names: &[Option<Arc<str>>],
-        user: &[(u16, u16, u16)],
+        user: (&[MethodCand], Option<&str>),
         f: &mut Frame,
         root: Option<&Frame>,
     ) -> R<V> {
@@ -765,7 +1013,7 @@ impl X<'_> {
         let (tid, family) = match &vals[0] {
             V::Ref(r) => match self.g.heap.get(*r) {
                 Some(Obj::Udt { ty, .. }) => (Some(*ty), ""),
-                Some(Obj::Array(_)) => (None, "array"),
+                Some(Obj::Array(_) | Obj::Slice { .. }) => (None, "array"),
                 Some(Obj::Map(_)) => (None, "map"),
                 Some(Obj::Matrix { .. }) => (None, "matrix"),
                 Some(Obj::Label(_)) => (None, "label"),
@@ -781,25 +1029,26 @@ impl X<'_> {
             V::Int(_) | V::Float(_) => (None, "math"),
             _ => (None, ""),
         };
-        // A user method for this type (or for any type).
-        let pick = user
+        // A user method for this type: the closest fit.
+        let (cands, hint) = user;
+        let pick = cands
             .iter()
-            .find(|(_, t, _)| tid.is_some() && Some(*t) == tid)
-            .or_else(|| user.iter().find(|(_, t, _)| *t == u16::MAX));
-        if let Some((fid, _, site)) = pick {
-            let func = &self.p.funcs[*fid as usize];
+            .filter_map(|c| Some((self.fits(&c.this, &vals[0], tid, family, hint)?, c)))
+            .min_by_key(|(cost, _)| *cost)
+            .map(|(_, c)| c);
+        if let Some(c) = pick {
+            let func = &self.p.funcs[c.f as usize];
             let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
-            let defaults = func.defaults.clone();
             let mut out = Vec::new();
             for (k, v) in order_args(name, &params, vals, names)?.into_iter().enumerate() {
-                out.push(match (v, defaults.get(k).and_then(|d| d.as_ref())) {
+                out.push(match (v, c.defaults.get(k).and_then(|d| d.as_ref())) {
                     (Some(v), _) => v,
                     (None, Some(d)) => self.eval(d, f, root)?,
                     (None, None) => V::default(),
                 });
             }
             let vals = out.into_iter().collect();
-            return self.call_user(*fid, *site, vals, f, root);
+            return self.call_user(c.f, c.site, vals, f, root);
         }
         // Every user-type object has copy().
         if tid.is_some() && name == "copy" {
@@ -807,6 +1056,15 @@ impl X<'_> {
             return Ok(self.g.heap.shallow_copy(*r).map(V::Ref).unwrap_or(V::Na));
         }
         if family.is_empty() {
+            // A drawing that isn't there: nothing happens, as in Pine.
+            const DRAWINGS: [&str; 6] = ["label", "line", "box", "table", "linefill", "polyline"];
+            if matches!(vals[0], V::Na)
+                && DRAWINGS
+                    .iter()
+                    .any(|d| natives::lookup(&format!("{d}.{name}")).is_some())
+            {
+                return Ok(V::Na);
+            }
             if matches!(vals[0], V::Na) {
                 return Err(Stop::Err(format!("Can't call {name}() on a value that is na.")));
             }
@@ -814,6 +1072,10 @@ impl X<'_> {
         }
         let full = format!("{family}.{name}");
         match natives::lookup(&full) {
+            Some(def) if self.g.quiet && def.effect => {
+                let _ = def;
+                Ok(V::Na)
+            }
             Some(def) if !def.state => {
                 let vals = if def.params == ["*"] {
                     vals
@@ -824,9 +1086,74 @@ impl X<'_> {
                         .collect()
                 };
                 let mut none = None;
-                Ok((def.f)(self.g, &vals, &mut none)?)
+                Ok(natives::call(def, self.g, &vals, &mut none)?)
             }
             _ => Err(Stop::Err(format!("No method called {name}() for {family} values."))),
+        }
+    }
+
+    /// How well a method for `this` takes a receiver (lower is better), if
+    /// it does.
+    fn fits(&self, this: &This, v: &V, tid: Option<u16>, family: &str, hint: Option<&str>) -> Option<u8> {
+        let (want, elem) = match this {
+            This::Any => return Some(9),
+            This::Udt(t) => {
+                // A na receiver: what the source says it is.
+                let hinted = || hint.is_some_and(|h| self.p.types.get(*t as usize).is_some_and(|x| x.name == h));
+                return match tid {
+                    Some(id) => (id == *t).then_some(0),
+                    None if matches!(v, V::Na) => Some(if hinted() { 0 } else { 5 }),
+                    None => None,
+                };
+            }
+            This::Of(want, elem) => (&**want, elem.as_deref()),
+        };
+        let kind = |v: &V| match v {
+            V::Bool(_) => "bool",
+            V::Int(_) => "int",
+            V::Float(_) => "float",
+            V::Str(_) => "string",
+            V::Color(_) => "color",
+            _ => "",
+        };
+        let like = |have: &str, want: &str| match (have, want) {
+            (a, b) if a == b => Some(0),
+            ("int", "float") => Some(1),
+            _ => None,
+        };
+        match v {
+            V::Na => match hint {
+                Some(h) if h == want || h.split('<').next() == Some(want) => Some(0),
+                Some(h) if h != "na" => like(h, want).map(|c: u8| c + 1),
+                _ => Some(5),
+            },
+            V::Ref(_) if family == want => {
+                let (Some(elem), V::Ref(r)) = (elem, v) else {
+                    return Some(0);
+                };
+                if let Some(h) = hint
+                    .and_then(|h| h.strip_prefix("array<"))
+                    .and_then(|h| h.strip_suffix('>'))
+                {
+                    return Some(if h == elem { 0 } else { 4 });
+                }
+                let first = self.g.heap.items(*r).and_then(|a| a.iter().find(|x| !x.is_na()));
+                match first {
+                    None => Some(3),
+                    Some(x @ V::Ref(id)) => {
+                        let _ = x;
+                        let name = match self.g.heap.get(*id) {
+                            Some(Obj::Udt { ty, .. }) => self.p.types.get(*ty as usize).map(|t| t.name.as_str()),
+                            _ => None,
+                        };
+                        Some(if name == Some(elem) { 0 } else { 4 })
+                    }
+                    Some(x) => Some(like(kind(x), elem).unwrap_or(6)),
+                }
+            }
+            V::Ref(_) => None,
+            // A float variable can hold a whole number.
+            v => like(kind(v), want).or((hint == Some("int") && want == "float").then_some(1)),
         }
     }
 
@@ -902,7 +1229,7 @@ impl X<'_> {
                 let v = self.eval(e, f, root)?;
                 let nv = match op {
                     None => v,
-                    Some(op) => binary(*op, &f.v[*slot as usize], &v),
+                    Some(op) => sized(binary(*op, &f.v[*slot as usize], &v))?,
                 };
                 self.set(f, *slot, nv.clone());
                 Ok(nv)
@@ -925,7 +1252,7 @@ impl X<'_> {
                         }
                         let nv = match op {
                             None => v,
-                            Some(op) => binary(*op, &fields[k], &v),
+                            Some(op) => sized(binary(*op, &fields[k], &v))?,
                         };
                         fields[k] = nv.clone();
                         Ok(nv)
@@ -981,13 +1308,32 @@ impl X<'_> {
             }
             S::ForIn { idx, var, over, body } => {
                 let o = self.eval(over, f, root)?;
+                // An array is read as the loop goes: it may change under it.
+                if let V::Ref(r) = &o
+                    && self.g.heap.items(*r).is_some()
+                {
+                    let mut last = V::Na;
+                    let mut k = 0;
+                    loop {
+                        let item = self.g.heap.items(*r).and_then(|a| a.get(k).cloned());
+                        let Some(v) = item else { break };
+                        self.tick()?;
+                        if let Some(i) = idx {
+                            self.set(f, *i, V::Int(k as i64));
+                        }
+                        self.set(f, *var, v);
+                        match self.exec(body, f, root) {
+                            Ok(v) => last = v,
+                            Err(Stop::Break) => break,
+                            Err(Stop::Continue) => {}
+                            Err(e) => return Err(e),
+                        }
+                        k += 1;
+                    }
+                    return Ok(last);
+                }
                 let items: Vec<(V, V)> = match &o {
                     V::Ref(r) => match self.g.heap.get(*r) {
-                        Some(Obj::Array(a)) => a
-                            .iter()
-                            .enumerate()
-                            .map(|(k, v)| (V::Int(k as i64), v.clone()))
-                            .collect(),
                         Some(Obj::Map(m)) => m.keys.iter().cloned().zip(m.vals.iter().cloned()).collect(),
                         Some(Obj::Matrix { rows, cols, data }) => {
                             let (rows, cols) = (*rows, *cols);
@@ -1081,7 +1427,8 @@ impl X<'_> {
                 let pal = &self.p.fills[i].palette;
                 match c.color() {
                     Some(c) => match pal.iter().position(|p| *p == c) {
-                        Some(k) => self.g.out.fill_cols[i] = k as u8,
+                        Some(k) if k < 256 => self.g.out.fill_cols[i] = k as u8,
+                        Some(_) => self.g.out.fill_raw[i] = c,
                         None => self.g.out.fill_raw[i] = if c == 0 { INVISIBLE } else { c },
                     },
                     None => self.g.out.fill_raw[i] = INVISIBLE,
@@ -1096,6 +1443,11 @@ impl X<'_> {
                 }
                 Ok(V::Na)
             }
+            S::Past(bar, back, c) => {
+                let c = self.eval(c, f, root)?.color().filter(|c| c & 0xFF != 0);
+                self.g.out.past.push((*bar, *back, c.unwrap_or(0)));
+                Ok(V::Na)
+            }
             S::BarColor(c) => {
                 if let Some(c) = self.eval(c, f, root)?.color()
                     && c & 0xFF != 0
@@ -1104,18 +1456,24 @@ impl X<'_> {
                 }
                 Ok(V::Na)
             }
+            S::Many(v) => {
+                for s in v {
+                    self.stmt(s, f, root)?;
+                }
+                Ok(V::Na)
+            }
             S::AlertCond { i, cond } => {
                 if self.eval(cond, f, root)?.truthy() {
                     let d = &self.p.alertconditions[*i as usize];
                     let b = self.g.bar();
-                    let message = natives::alert_placeholders(self.g, &d.message);
-                    self.g.alerts.push(Alert {
+                    let alert = Alert {
                         bar: self.g.index,
                         time: b.time,
-                        message,
+                        message: String::new(),
                         title: d.title.clone(),
                         freq: "once_per_bar".into(),
-                    });
+                    };
+                    self.g.pending_alerts.push((*i as usize, alert));
                 }
                 Ok(V::Na)
             }
@@ -1126,7 +1484,8 @@ impl X<'_> {
         let pal = &self.p.plots[i].palette;
         match c.color() {
             Some(c) => match pal.iter().position(|p| *p == c) {
-                Some(k) => self.g.out.cols[i] = k as u8,
+                Some(k) if k < 256 => self.g.out.cols[i] = k as u8,
+                Some(_) => self.g.out.raw[i] = c,
                 None => self.g.out.raw[i] = if c == 0 { INVISIBLE } else { c },
             },
             None => self.g.out.raw[i] = INVISIBLE,
@@ -1143,6 +1502,19 @@ pub struct PineStudy {
     root: Frame,
     g: G,
     error: Option<Error>,
+    /// `indicator(timeframe = …)`: the bar of it being built.
+    higher: Option<Higher>,
+}
+
+/// The longer bars an indicator with a `timeframe` runs on.
+#[derive(Clone)]
+struct Higher {
+    tf: Timeframe,
+    bar: Bar,
+    open: Option<(i64, i64)>,
+    done: i64,
+    count: usize,
+    last: OutBuf,
 }
 
 impl PineStudy {
@@ -1180,6 +1552,12 @@ impl PineStudy {
                     None => matches!(d.spec.default, Value::Bool(true)),
                 }),
                 Conv::Str | Conv::Source => V::str(text(inputs)),
+                Conv::Time => natives::date_of_input(&prog.env, &text(inputs))
+                    .or(match &d.spec.default {
+                        Value::Text(t) => natives::date_of_input(&prog.env, t),
+                        _ => None,
+                    })
+                    .map_or(V::Na, V::Int),
                 Conv::Color => V::Color(parse_hex(&text(inputs)).unwrap_or(0)),
                 Conv::IntChoice => V::Int(text(inputs).parse::<f64>().map(|x| x as i64).unwrap_or(0)),
                 Conv::FloatChoice => V::Float(text(inputs).parse().unwrap_or(0.0)),
@@ -1193,6 +1571,7 @@ impl PineStudy {
         }
         let mut g = G::new(prog.env.clone(), prog.version, prog.bar_hist);
         g.ntypes = prog.types.len();
+        g.keep_all = prog.requests;
         g.heap.limits = prog.limits;
         if prog.kind == crate::Kind::Strategy {
             g.broker = Some(Broker::new(Props::from_json(
@@ -1200,6 +1579,15 @@ impl PineStudy {
                 prog.env.mintick,
                 prog.env.mincontract(),
             )));
+        }
+        // Better said than silently different.
+        for (prop, what) in [
+            ("calc_on_order_fills", "recalculating after order fills"),
+            ("use_bar_magnifier", "the bar magnifier"),
+        ] {
+            if prog.props.get(prop).and_then(|v| v.as_bool()) == Some(true) {
+                g.log(format!("Note: this strategy uses {prop}. Opentern doesn't simulate {what}, so results can differ from TradingView's."));
+            }
         }
         g.out = OutBuf {
             vals: vec![f64::NAN; prog.plots.len()],
@@ -1209,6 +1597,7 @@ impl PineStudy {
             fill_raw: vec![0; prog.fills.len()],
             bg: 0,
             bar: 0,
+            past: Vec::new(),
         };
         PineStudy {
             root: Frame::new(&prog.layout),
@@ -1217,6 +1606,7 @@ impl PineStudy {
             srcs: srcs.into(),
             g,
             error: None,
+            higher: None,
         }
     }
 
@@ -1231,7 +1621,13 @@ impl PineStudy {
     }
 
     pub fn drawings(&self) -> Drawings {
-        self.g.heap.drawings()
+        let mut d = self.g.heap.drawings();
+        // Daily and longer bars are stamped at 00:00 UTC of their date;
+        // the script sees their session's open.
+        if !self.g.main_tf.is_intraday() {
+            d.map_times(|t| local_day(t, &self.g.tz) * DAY);
+        }
+        d
     }
 
     /// Other symbols' or timeframes' bars `request.security` asked for and
@@ -1279,6 +1675,7 @@ impl PineStudy {
             fill_raw: vec![0; n_fills],
             bg: 0,
             bar: 0,
+            past: Vec::new(),
         };
         for (i, b) in bars.iter().enumerate() {
             let c = Ctx {
@@ -1288,6 +1685,9 @@ impl PineStudy {
                 tf,
                 forming: false,
                 count: bars.len(),
+                last_time: bars.last().map_or(0, |b| b.time),
+                // Every bar is closed history here.
+                loaded: bars.len() + 1,
             };
             o.values.fill(f64::NAN);
             o.colors.fill(0);
@@ -1296,6 +1696,7 @@ impl PineStudy {
             o.fill_raw.fill(0);
             o.bg = 0;
             o.bar = 0;
+            o.past.clear();
             self.step(&c, &mut o);
             for k in 0..n_plots {
                 out.plots[k].push(o.values[k]);
@@ -1308,8 +1709,144 @@ impl PineStudy {
             }
             out.bg.push(o.bg);
             out.bar.push(o.bar);
+            out.write_past(i, &o.past);
         }
         out
+    }
+
+    /// The longer interval an `indicator(timeframe = …)` runs on.
+    fn higher_tf(&self, chart: Timeframe) -> Option<Result<Timeframe, String>> {
+        let s = self.prog.timeframe.as_deref()?;
+        let Some(tf) = natives::parse_tf(s) else {
+            return Some(Err(format!("\"{s}\" isn't a timeframe.")));
+        };
+        if tf == chart {
+            return None;
+        }
+        if natives::approx_ms(tf) < natives::approx_ms(chart) {
+            return Some(Err(format!(
+                "This script runs on a timeframe of \"{s}\", which is shorter than the chart's."
+            )));
+        }
+        Some(Ok(tf))
+    }
+
+    /// Adds a chart bar to the longer one being built, and runs the script
+    /// when that one is done (or as it stands, on the forming bar). Returns
+    /// whether it ran.
+    fn higher_bar(&mut self, c: &Ctx, tf: Timeframe) -> Result<bool, Error> {
+        let mut h = self.higher.take().unwrap_or_else(|| Higher {
+            tf,
+            bar: *c.bar,
+            open: None,
+            done: i64::MIN,
+            count: 0,
+            last: self.g.out.clone(),
+        });
+        let day = day_of(c.tf, c.bar.time, &self.g.tz);
+        if day != self.g.day.0 {
+            self.g.day = (day, c.bar.time);
+        }
+        let key = self.g.bucket(tf, c.bar.time);
+        let mut ran = false;
+        let run = |me: &mut PineStudy, h: &mut Higher, keep: bool| -> Result<(), Error> {
+            let (chart, day) = (me.g.tf, me.g.day);
+            me.g.tf = h.tf;
+            let r = me.bar(h.bar, h.count, true);
+            me.g.tf = chart;
+            me.g.day = day;
+            r?;
+            h.last = me.g.out.clone();
+            if keep {
+                h.count += 1;
+                if let Some((k, _)) = h.open.take() {
+                    h.done = k;
+                }
+            }
+            Ok(())
+        };
+        if h.open.is_some_and(|(k, _)| k != key) {
+            run(self, &mut h, true)?;
+            ran = true;
+        }
+        if h.open.is_none() && key == h.done {
+            self.higher = Some(h);
+            return Ok(ran);
+        }
+        match h.open {
+            Some(_) => {
+                h.bar.high = h.bar.high.max(c.bar.high);
+                h.bar.low = h.bar.low.min(c.bar.low);
+                h.bar.close = c.bar.close;
+                h.bar.volume += c.bar.volume;
+            }
+            None => {
+                h.bar = Bar { time: key, ..*c.bar };
+                h.open = Some((key, close_in(tf, key, &self.g.tz, self.g.market)));
+            }
+        }
+        let done = h.open.is_some_and(|(_, end)| self.g.close_time(c.bar.time) >= end);
+        if done || c.forming {
+            // The forming bar runs on a copy of the study, thrown away.
+            run(self, &mut h, done)?;
+            ran = true;
+        }
+        self.higher = Some(h);
+        Ok(ran)
+    }
+
+    /// Runs the script on a bar.
+    fn bar(&mut self, b: Bar, index: usize, new_session: bool) -> Result<(), Error> {
+        let g = &mut self.g;
+        if g.keep_all
+            && let Some(prev) = g.bars.get(0).copied()
+        {
+            Arc::make_mut(&mut g.all).push(prev);
+        }
+        g.bars.push(b);
+        g.index = index;
+        g.bar_no += 1;
+        g.new_session = new_session;
+        g.ops = 0;
+        let day = day_of(g.tf, b.time, &g.tz);
+        if day != g.day.0 {
+            g.day = (day, b.time);
+        }
+        g.out.reset();
+        g.pending_alerts.clear();
+        if let Some(br) = &mut g.broker {
+            if new_session {
+                br.new_day();
+            }
+            br.open_bar(index, &b);
+        }
+        let prog = &*self.prog;
+        let mut x = X {
+            p: prog,
+            inputs: &self.inputs,
+            srcs: &self.srcs,
+            g: &mut self.g,
+        };
+        if let Err(e) = x.exec(&prog.root, &mut self.root, None) {
+            let msg = match e {
+                Stop::Err(m) => m,
+                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
+            };
+            return Err(Error::at(self.g.line as usize, msg));
+        }
+        // Their text can name any plot, so it's written last.
+        for (i, alert) in std::mem::take(&mut self.g.pending_alerts) {
+            let message = natives::alert_placeholders(&self.g, &prog.alertconditions[i].message, &prog.plots);
+            self.g.alerts.push(Alert { message, ..alert });
+        }
+        if let Some(br) = &mut self.g.broker {
+            br.close_bar(&b);
+        }
+        self.root.commit(&prog.layout, &prog.funcs, self.g.bar_no);
+        if self.g.heap.wants_gc() {
+            self.collect();
+        }
+        Ok(())
     }
 
     fn collect(&mut self) {
@@ -1325,43 +1862,32 @@ impl Study for PineStudy {
             return;
         }
         let g = &mut self.g;
-        g.bars.push(*c.bar);
-        g.index = c.index;
-        g.bar_no += 1;
+        g.main_tf = c.tf;
+        g.last_time = c.last_time;
+        g.loaded = c.loaded;
         g.count = c.count;
         g.forming = c.forming;
-        g.new_session = c.new_session;
         g.tf = c.tf;
-        g.ops = 0;
-        g.last_time = g.last_time.max(c.bar.time);
-        g.out.reset();
-        if let Some(b) = &mut g.broker {
-            b.open_bar(c.index, c.bar);
-        }
-        let prog = &*self.prog;
-        let mut x = X {
-            p: prog,
-            inputs: &self.inputs,
-            srcs: &self.srcs,
-            g: &mut self.g,
+        let wrote = match self.higher_tf(c.tf) {
+            None => self.bar(*c.bar, c.index, c.new_session).map(|_| true),
+            Some(Ok(tf)) => self.higher_bar(c, tf),
+            Some(Err(e)) => Err(Error::at(0, e)),
         };
-        let r = x.exec(&prog.root, &mut self.root, None);
-        if let Err(e) = r {
-            let msg = match e {
-                Stop::Err(m) => m,
-                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
-            };
-            self.error = Some(Error::at(self.g.line as usize, msg));
-            return;
-        }
-        if let Some(b) = &mut self.g.broker {
-            b.close_bar(c.bar);
-        }
-        self.root.commit(&prog.layout, &prog.funcs, self.g.bar_no);
-        if self.g.heap.wants_gc() {
-            self.collect();
-        }
-        let out = &self.g.out;
+        let wrote = match wrote {
+            Ok(w) => w,
+            Err(e) => {
+                self.error = Some(e);
+                return;
+            }
+        };
+        let out = match &self.higher {
+            Some(h) if !wrote && self.prog.timeframe_gaps => &OutBuf {
+                vals: vec![f64::NAN; h.last.vals.len()],
+                ..h.last.clone()
+            },
+            Some(h) => &h.last,
+            None => &self.g.out,
+        };
         for (d, v) in o.values.iter_mut().zip(&out.vals) {
             *d = if v.is_infinite() { f64::NAN } else { *v };
         }
@@ -1371,6 +1897,7 @@ impl Study for PineStudy {
         o.fill_raw.copy_from_slice(&out.fill_raw);
         o.bg = out.bg;
         o.bar = out.bar;
+        o.past.clone_from(&out.past);
     }
 
     fn as_any(&self) -> Option<&dyn std::any::Any> {
@@ -1378,6 +1905,31 @@ impl Study for PineStudy {
     }
 
     fn drawings(&self) -> Option<Drawings> {
-        Some(self.g.heap.drawings())
+        Some(PineStudy::drawings(self))
+    }
+
+    fn carry(&mut self, last: &dyn std::any::Any) {
+        if let Some(p) = last.downcast_ref::<PineStudy>()
+            && Arc::ptr_eq(&p.prog, &self.prog)
+        {
+            self.root.carry(&p.root, &p.prog.layout, &p.prog.funcs);
+        }
+    }
+
+    fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        let mut g = G::scratch(self.prog.env.clone(), self.prog.version);
+        let mut f = Frame::new(&Layout::default());
+        let mut x = X {
+            p: &self.prog,
+            inputs: &self.inputs,
+            srcs: &self.srcs,
+            g: &mut g,
+        };
+        let mut eval = |e: &E| x.eval(e, &mut f, None).unwrap_or_default();
+        self.prog
+            .levels
+            .iter()
+            .map(|(p, c)| (eval(p).f(), c.as_ref().and_then(|c| eval(c).color())))
+            .collect()
     }
 }

@@ -16,7 +16,8 @@ currency; percentages of initial capital unless stated.
   other → close. A gap through the level fills at the open.
 - Entries in the opposite direction reverse the position; `pyramiding` is the most
   same-direction entries (0 and 1 both mean one, as TradingView's manual says); exits
-  close FIFO; `strategy.order` nets against the position. An entry or order that triggers
+  close FIFO, whichever entry they name, unless `close_entries_rule = "ANY"`; limits
+  fill without slippage, a stop-limit's only once its stop has traded; `strategy.order` nets against the position. An entry or order that triggers
   but is turned away by pyramiding is used up.
 - `strategy.exit` with both `limit` and `profit` (or `stop` and `loss`): Pine v6 uses
   the level price reaches first, v5 the absolute one (v6 migration guide).

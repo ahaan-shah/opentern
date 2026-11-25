@@ -43,7 +43,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Not yet (later phases): `strategy.*` (7), arrays/maps/matrices/UDTs/methods/drawings/
   `request.security`/libraries/enums (10). Hline prices and plot offsets that depend on
   non-trivial expressions use the input defaults. Dynamic lengths rebuild `ta.*` state.
-  `varip` behaves like `var` (the forming bar is always recomputed from a copy).
+  `varip` survives ticks through `Study::carry` (plain values, not objects).
 
 ## Phase 9b (done, formula part): built-ins wave 2
 - `series/src/builtins/wave2.rs`: 26 more TradingView built-ins (Chaikin Osc, Chande
@@ -147,3 +147,31 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - `run::period_end` + `calendar::last_close_in`: daily-and-longer periods of
   markets with set hours end at the last session close (fixes stocks' "D"
   finishing a bar late). Chart symbol's market comes from `Env` prefix + kind.
+
+## Pine bug hunt (Nov 2026)
+- `crates/pine/src/hunt.rs` holds a test per bug, the manual's reference formulas
+  against the built-ins (v5 and v6), and runs `tests/scripts/` from history and
+  live (`PINE_DIR` for another folder). Add a test there for every Pine bug.
+- **`request.security` recomputes what its expression depends on**: `Cx::hoist`
+  compiles the variables it uses into the request's own frame (`Sec::prelude`);
+  functions that read globals, or request something made from their parameters,
+  are compiled again per call (`Cx::instance`). When it depends on variables changed
+  with `:=`/`var`, the top-level statements that build them run in the request first
+  (`slice.rs`), and the ones below it after (`Body::Late`, compiled last). Requests
+  draw, order and log nothing (`G::quiet`). Each symbol + timeframe of a call site is a context
+  (`natives/security.rs`) that catches up on bars it wasn't called on.
+- **Times:** daily and longer bars are stamped 00:00 UTC of their local date, but
+  scripts see the session's open and close (`open_in`/`close_in` in `run.rs`);
+  `PineStudy::drawings` maps `xloc.bar_time` back. Never use `bar.time` for dates.
+- Windows with a series length replay their inputs (`ta::replay`); built-ins with
+  a `length` are marked `.window()`.
+- Not simulated: `calc_on_order_fills`, `use_bar_magnifier` (both say so in the
+  script's log), `request.*` other than `security` and `ticker.*` other than
+  Heikin Ashi (plain errors).
+- `survey` (ignored, `PINE_DIR`, `PINE_ON=us|nse`) runs a folder of other people's
+  scripts: 1,231 of 1,302 from public GitHub repos ran or loaded (Nov 2026); the rest
+  are mostly invalid, use Renko, or import libraries they don't come with.
+- v4 and older scripts compile: bare names get their namespace (`renamed`).
+- Checked against TradingView's manual (26 Nov 2026): v6's colours and white label
+  text, session strings, loop rules, `str.format`/`str.tostring` defaults. The `#`
+  patterns keep a leading 0, as labels on TradingView do; the manual doesn't say.

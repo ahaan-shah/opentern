@@ -3326,6 +3326,7 @@ dependencies = [
  "opentern-core",
  "opentern-engine",
  "opentern-series",
+ "regex",
  "serde_json",
  "smallvec",
 ]

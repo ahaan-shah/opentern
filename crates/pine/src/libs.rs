@@ -13,6 +13,11 @@ const BUNDLED: &[(&str, &str)] = &[
 
 /// The bundled library an `import` path names, if any.
 pub fn bundled(path: &str) -> Option<&'static str> {
+    // Newer versions of `ta` only add to older ones.
+    let path = match path.strip_prefix("TradingView/ta/").and_then(|v| v.parse::<u32>().ok()) {
+        Some(1..=9) => "TradingView/ta/9",
+        _ => path,
+    };
     BUNDLED.iter().find(|(p, _)| *p == path).map(|(_, s)| *s)
 }
 

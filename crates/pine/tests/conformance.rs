@@ -350,6 +350,7 @@ fn timing_step_overhead() {
                 fill_raw: vec![],
                 bg: 0,
                 bar: 0,
+                past: Vec::new(),
             };
             let t = std::time::Instant::now();
             for (i, bar) in b.iter().enumerate() {
@@ -360,6 +361,8 @@ fn timing_step_overhead() {
                     tf,
                     forming: false,
                     count: b.len(),
+                    last_time: b.last().map_or(0, |b| b.time),
+                    loaded: b.len() + 1,
                 };
                 st.step(&c, &mut o);
             }

@@ -8,6 +8,7 @@ use crate::run::G;
 use crate::value::V;
 use opentern_series::ta::{self as t, Hist};
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 /// A call site's state.
 #[derive(Clone, Debug)]
@@ -17,12 +18,87 @@ pub(crate) enum Ta {
     Int(i64),
     /// A primitive with the arguments it was built for.
     K(u64, Box<Prim>),
+    /// A window whose length changes: the inputs so far, to run a new
+    /// length over.
+    Replay(Arc<VecDeque<Rec>>, Vec<i64>, Option<Box<Ta>>),
+}
+
+/// One bar's inputs to a window.
+#[derive(Clone, Debug)]
+pub(crate) struct Rec {
+    x: [f64; 3],
+    bar: opentern_core::Bar,
+}
+
+/// The longest window a changing length can reach back over.
+const REPLAY: usize = 5000;
+
+/// Calls a windowed built-in whose length is a series. When the length
+/// changes, its new window is filled from the inputs before this bar, so
+/// the value is what a fixed length would give here.
+pub(crate) fn replay(def: &NatDef, g: &mut G, a: &[V], st: &mut Option<Ta>) -> R {
+    let n = def.params.len();
+    let is_len = |k: usize| super::LENGTHS.contains(&def.params[k]);
+    let lens: Vec<i64> = (0..n).filter(|k| is_len(*k)).map(|k| arg(a, k).i_or(0)).collect();
+    let sources: Vec<usize> = (0..n).filter(|k| !is_len(*k)).take(3).collect();
+    let mut x = [f64::NAN; 3];
+    for (slot, k) in x.iter_mut().zip(&sources) {
+        *slot = num(a, *k);
+    }
+    let now = Rec { x, bar: g.bar() };
+    let (mut hist, had, mut inner) = match st.take() {
+        Some(Ta::Replay(h, l, i)) => (h, l, i.map(|b| *b)),
+        _ => (Arc::default(), Vec::new(), None),
+    };
+    let r = if had == lens {
+        (def.f)(g, a, &mut inner)
+    } else {
+        inner = None;
+        let need = (lens.iter().map(|l| (*l).max(0) as usize).sum::<usize>())
+            .saturating_mul(2)
+            .saturating_add(8);
+        let skip = hist.len().saturating_sub(need);
+        let mut args = a.to_vec();
+        for rec in hist.iter().skip(skip) {
+            for (v, k) in rec.x.iter().zip(&sources) {
+                args[*k] = match arg(a, *k) {
+                    _ if v.is_nan() => V::Na,
+                    V::Bool(_) => V::Bool(*v == 1.0),
+                    V::Int(_) if v.fract() == 0.0 => V::Int(*v as i64),
+                    _ => V::Float(*v),
+                };
+            }
+            if let Some(b) = g.bars.get_mut(0) {
+                *b = rec.bar;
+            }
+            let r = (def.f)(g, &args, &mut inner);
+            if r.is_err() {
+                break;
+            }
+        }
+        if let Some(b) = g.bars.get_mut(0) {
+            *b = now.bar;
+        }
+        (def.f)(g, a, &mut inner)
+    };
+    // The forming bar is computed on a copy that's thrown away: leave the
+    // shared history alone.
+    if !g.forming {
+        let h = Arc::make_mut(&mut hist);
+        if h.len() == REPLAY {
+            h.pop_front();
+        }
+        h.push_back(now);
+    }
+    *st = Some(Ta::Replay(hist, lens, inner.map(Box::new)));
+    r
 }
 
 impl Ta {
     pub fn refs(&self, out: &mut Vec<u32>) {
         match self {
             Ta::Last(V::Ref(r)) => out.push(*r),
+            Ta::Replay(_, _, Some(t)) => t.refs(out),
             Ta::K(_, p) => {
                 if let Prim::Values(q, _) = &**p {
                     for v in q {
@@ -76,6 +152,9 @@ pub(crate) enum Prim {
     /// `ta.valuewhen`: values when the condition held, newest at the back.
     Values(VecDeque<V>, usize),
     Count(i64),
+    /// `ta.pivot_point_levels`: the last whole period's and this one's
+    /// open, high, low and close.
+    Pivots(Option<[f64; 4]>, [f64; 4]),
 }
 
 type R = Result<V, String>;
@@ -141,7 +220,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Sma, t::Sma::new(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.ema", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Smooth, t::ema(n)).update(num(a, 0))))
@@ -156,18 +235,18 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Wma, t::Wma::new(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.vwma", &["source", "length"], |g, a, st| {
             let n = len(a, 1)?;
             let v = g.bar().volume;
             Ok(fv(with!(st, n as u64, Vwma, t::Vwma::new(n)).update(num(a, 0), v)))
         })
-        .state(),
+        .window(),
         d("ta.hma", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Hma, t::Hma::new(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d(
             "ta.alma",
             &["series", "length", "offset", "sigma", "floor"],
@@ -179,7 +258,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 Ok(fv(with!(st, k, Alma, t::Alma::new(n, off, sig, fl)).update(num(a, 0))))
             },
         )
-        .state(),
+        .window(),
         d("ta.swma", &["source"], |_, a, st| {
             let w = window(st, 4, num(a, 0));
             Ok(fv(match full(w, 4) {
@@ -194,48 +273,48 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let k = key(&[n as f64, off as f64]);
             Ok(fv(with!(st, k, Linreg, t::Linreg::new(n, off)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.stdev", &["source", "length", "biased"], |_, a, st| {
             let n = len(a, 1)?;
             let biased = bool_or(a, 2, true);
             let k = key(&[n as f64, biased as u8 as f64]);
             Ok(fv(with!(st, k, Stdev, t::Stdev::with(n, biased)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.variance", &["source", "length", "biased"], |_, a, st| {
             let n = len(a, 1)?;
             let biased = bool_or(a, 2, true);
             let k = key(&[n as f64, biased as u8 as f64]);
             Ok(fv(with!(st, k, Stdev, t::Stdev::with(n, biased)).variance(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.dev", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Dev, t::Dev::new(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.highest", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Ext, t::Extreme::highest(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.lowest", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Ext, t::Extreme::lowest(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.highestbars", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let (_, back) = with!(st, n as u64, Ext, t::Extreme::highest(n)).update_with_offset(num(a, 0));
             Ok(if back.is_nan() { V::Na } else { V::Int(-(back as i64)) })
         })
-        .state(),
+        .window(),
         d("ta.lowestbars", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let (_, back) = with!(st, n as u64, Ext, t::Extreme::lowest(n)).update_with_offset(num(a, 0));
             Ok(if back.is_nan() { V::Na } else { V::Int(-(back as i64)) })
         })
-        .state(),
+        .window(),
         d("ta.change", &["source", "length"], |_, a, st| {
             let n = int_or(a, 1, 1).max(0) as usize;
             let x = arg(a, 0).clone();
@@ -253,17 +332,17 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let p = &ring[0];
             Ok(match (&x, p) {
                 (V::Bool(a), V::Bool(b)) => V::Bool(a != b),
-                (V::Int(a), V::Int(b)) => V::Int(a - b),
+                (V::Int(a), V::Int(b)) => V::Int(a.wrapping_sub(*b)),
                 _ => fv(x.f() - p.f()),
             })
         })
-        .state(),
+        .window(),
         d("ta.mom", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n + 1, num(a, 0));
             Ok(fv(if w.seen() > n { w.get(0) - w.get(n) } else { f64::NAN }))
         })
-        .state(),
+        .window(),
         d("ta.roc", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n + 1, num(a, 0));
@@ -273,7 +352,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 f64::NAN
             }))
         })
-        .state(),
+        .window(),
         d("ta.rsi", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Rsi, t::Rsi::new(n)).update(num(a, 0))))
@@ -302,12 +381,12 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 num(a, 2),
             )))
         })
-        .state(),
+        .window(),
         d("ta.cci", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             Ok(fv(with!(st, n as u64, Cci, t::Cci::new(n)).update(num(a, 0))))
         })
-        .state(),
+        .window(),
         d("ta.cmo", &["series", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let Prim::Cmo(prev, up, down) = prim(st, n as u64, || {
@@ -322,13 +401,13 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let (s1, s2) = (up.update(u), down.update(dn));
             Ok(fv(100.0 * t::div(s1 - s2, s1 + s2)))
         })
-        .state(),
+        .window(),
         d("ta.mfi", &["series", "length"], |g, a, st| {
             let n = len(a, 1)?;
             let v = g.bar().volume;
             Ok(fv(with!(st, n as u64, Mfi, t::Mfi::new(n)).update(num(a, 0), v)))
         })
-        .state(),
+        .window(),
         d("ta.dmi", &["diLength", "adxSmoothing"], |g, a, st| {
             let (di, adx) = (len(a, 0)?, len(a, 1)?);
             let b = g.bar();
@@ -417,13 +496,13 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let (b, u, l) = bb(st, n, m, num(a, 0));
             Ok(tuple(&[b, u, l]))
         })
-        .state(),
+        .window(),
         d("ta.bbw", &["series", "length", "mult"], |_, a, st| {
             let (n, m) = (len(a, 1)?, num(a, 2));
             let (b, u, l) = bb(st, n, m, num(a, 0));
             Ok(fv(t::div(u - l, b)))
         })
-        .state(),
+        .window(),
         d("ta.kc", &["series", "length", "mult", "useTrueRange"], |g, a, st| {
             let (b, u, l) = kc(g, a, st)?;
             Ok(tuple(&[b, u, l]))
@@ -449,7 +528,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let lo = ls.fold(f64::NAN, |m, x| if m.is_nan() || x < m { x } else { m });
             Ok(fv(100.0 * t::div(b.close - hi, hi - lo)))
         })
-        .state(),
+        .window(),
         d("ta.obv", &[], |g, _, st| {
             Ok(fv(acc(g, st, |b, pc, _| {
                 let ch = b.close - pc;
@@ -528,13 +607,13 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let w = window(st, n + 1, num(a, 0));
             Ok(V::Bool(w.seen() > n && (1..=n).all(|i| w.get(0) > w.get(i))))
         })
-        .state(),
+        .window(),
         d("ta.falling", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n + 1, num(a, 0));
             Ok(V::Bool(w.seen() > n && (1..=n).all(|i| w.get(0) < w.get(i))))
         })
-        .state(),
+        .window(),
         d("ta.barssince", &["condition"], |_, a, st| {
             let Prim::Count(c) = prim(st, 0, || Prim::Count(-1)) else {
                 unreachable!()
@@ -569,10 +648,49 @@ pub(crate) fn defs() -> Vec<NatDef> {
         d("ta.pivothigh", &["source", "leftbars", "rightbars"], |_, a, st| {
             pivot(a, st, true)
         })
-        .state(),
+        .window(),
         d("ta.pivotlow", &["source", "leftbars", "rightbars"], |_, a, st| {
             pivot(a, st, false)
         })
+        .window(),
+        d("ta.rci", &["source", "length"], |_, a, st| {
+            let n = len(a, 1)?;
+            let w = window(st, n, num(a, 0));
+            Ok(fv(match full(w, n) {
+                Some(x) => rci(&x),
+                None => f64::NAN,
+            }))
+        })
+        .window(),
+        d(
+            "ta.pivot_point_levels",
+            &["type", "anchor", "developing"],
+            |g, a, st| {
+                let kind = super::str_or(a, 0, "Traditional").to_string();
+                let developing = bool_or(a, 2, false);
+                let b = g.bar();
+                let Prim::Pivots(done, cur) = prim(st, 0, || Prim::Pivots(None, [f64::NAN; 4])) else {
+                    unreachable!()
+                };
+                if arg(a, 1).truthy() {
+                    if !cur[0].is_nan() {
+                        *done = Some(*cur);
+                    }
+                    *cur = [f64::NAN; 4];
+                }
+                *cur = match cur[0].is_nan() {
+                    true => [b.open, b.high, b.low, b.close],
+                    false => [cur[0], cur[1].max(b.high), cur[2].min(b.low), b.close],
+                };
+                let (period, open) = (if developing { Some(*cur) } else { *done }, cur[0]);
+                let levels = match period {
+                    Some(p) => pivot_levels(&kind, p, open),
+                    None => [f64::NAN; 11],
+                };
+                let items = levels.iter().map(|x| V::Float(*x)).collect();
+                Ok(V::Ref(g.heap.alloc(crate::heap::Obj::Array(items))))
+            },
+        )
         .state(),
         d("ta.percentrank", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
@@ -587,7 +705,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let le = (1..=n).filter(|&i| w.get(i) <= x).count();
             Ok(fv(100.0 * le as f64 / n as f64))
         })
-        .state(),
+        .window(),
         d("ta.median", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n, num(a, 0));
@@ -596,7 +714,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 None => f64::NAN,
             }))
         })
-        .state(),
+        .window(),
         d("ta.mode", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n, num(a, 0));
@@ -605,7 +723,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 None => f64::NAN,
             }))
         })
-        .state(),
+        .window(),
         d("ta.range", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n, num(a, 0));
@@ -621,7 +739,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 None => f64::NAN,
             }))
         })
-        .state(),
+        .window(),
         d("ta.correlation", &["source1", "source2", "length"], |_, a, st| {
             let n = len(a, 2)?;
             let Prim::Win2(h1, h2) = prim(st, n as u64, || Prim::Win2(Hist::new(n), Hist::new(n))) else {
@@ -644,7 +762,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let vy: f64 = y.iter().map(|b| (b - my).powi(2)).sum();
             Ok(fv(t::div(cov, (vx * vy).sqrt())))
         })
-        .state(),
+        .window(),
         d("ta.cog", &["source", "length"], |_, a, st| {
             let n = len(a, 1)?;
             let w = window(st, n, num(a, 0));
@@ -657,7 +775,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 None => f64::NAN,
             }))
         })
-        .state(),
+        .window(),
         d(
             "ta.percentile_linear_interpolation",
             &["source", "length", "percentage"],
@@ -671,7 +789,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 }))
             },
         )
-        .state(),
+        .window(),
         d(
             "ta.percentile_nearest_rank",
             &["source", "length", "percentage"],
@@ -685,7 +803,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 }))
             },
         )
-        .state(),
+        .window(),
         d("ta.max", &["source"], |_, a, st| {
             let Prim::Acc(m, _, _) = prim(st, 0, || Prim::Acc(f64::NAN, 0.0, 0.0)) else {
                 unreachable!()
@@ -807,6 +925,117 @@ fn pivot(a: &[V], st: &mut Option<Ta>, high: bool) -> Result<V, String> {
     let left = (r + 1..n).all(|i| beats(w.get(i), true));
     let right = (0..r).all(|i| beats(w.get(i), false));
     Ok(if left && right { V::Float(c) } else { V::Na })
+}
+
+/// P, R1, S1, R2, S2, … R5, S5 from a period's open, high, low and close
+/// (and, for Woodie, the next one's open).
+fn pivot_levels(kind: &str, [o, h, l, c]: [f64; 4], open: f64) -> [f64; 11] {
+    let p = (h + l + c) / 3.0;
+    let d = h - l;
+    let na = f64::NAN;
+    match kind {
+        "Fibonacci" => [
+            p,
+            p + 0.382 * d,
+            p - 0.382 * d,
+            p + 0.618 * d,
+            p - 0.618 * d,
+            p + d,
+            p - d,
+            na,
+            na,
+            na,
+            na,
+        ],
+        "Woodie" => {
+            let p = (h + l + 2.0 * open) / 4.0;
+            let (r3, s3) = (h + 2.0 * (p - l), l - 2.0 * (h - p));
+            [
+                p,
+                2.0 * p - l,
+                2.0 * p - h,
+                p + d,
+                p - d,
+                r3,
+                s3,
+                r3 + d,
+                s3 - d,
+                na,
+                na,
+            ]
+        }
+        "Classic" => [
+            p,
+            2.0 * p - l,
+            2.0 * p - h,
+            p + d,
+            p - d,
+            p + 2.0 * d,
+            p - 2.0 * d,
+            p + 3.0 * d,
+            p - 3.0 * d,
+            na,
+            na,
+        ],
+        "DM" => {
+            let x = if o == c {
+                h + l + 2.0 * c
+            } else if c > o {
+                2.0 * h + l + c
+            } else {
+                2.0 * l + h + c
+            };
+            [x / 4.0, x / 2.0 - l, x / 2.0 - h, na, na, na, na, na, na, na, na]
+        }
+        "Camarilla" => {
+            let at = |k: f64| 1.1 * d / k;
+            let r5 = h / l * c;
+            [
+                p,
+                c + at(12.0),
+                c - at(12.0),
+                c + at(6.0),
+                c - at(6.0),
+                c + at(4.0),
+                c - at(4.0),
+                c + at(2.0),
+                c - at(2.0),
+                r5,
+                c - (r5 - c),
+            ]
+        }
+        _ => [
+            p,
+            2.0 * p - l,
+            2.0 * p - h,
+            p + d,
+            p - d,
+            2.0 * p + (h - 2.0 * l),
+            2.0 * p - (2.0 * h - l),
+            3.0 * p + (h - 3.0 * l),
+            3.0 * p - (3.0 * h - l),
+            4.0 * p + (h - 4.0 * l),
+            4.0 * p - (4.0 * h - l),
+        ],
+    }
+}
+
+/// Spearman's rank correlation with time, ×100 (`x` newest first).
+fn rci(x: &[f64]) -> f64 {
+    let n = x.len() as f64;
+    if x.len() < 2 || x.iter().any(|v| v.is_nan()) {
+        return f64::NAN;
+    }
+    let sum: f64 = x
+        .iter()
+        .enumerate()
+        .map(|(i, v)| {
+            let higher = x.iter().filter(|y| *y > v).count() as f64;
+            let equal = x.iter().filter(|y| *y == v).count() as f64;
+            (i as f64 + 1.0 - (higher + (equal + 1.0) / 2.0)).powi(2)
+        })
+        .sum();
+    (1.0 - 6.0 * sum / (n * (n * n - 1.0))) * 100.0
 }
 
 pub(crate) fn median(x: &mut [f64]) -> f64 {

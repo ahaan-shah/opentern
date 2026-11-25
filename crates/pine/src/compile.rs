@@ -5,7 +5,7 @@
 //! state slot, and the declarations (`indicator`, `input.*`, `plot`, …)
 //! become the study's [`Meta`].
 
-use crate::ast::{self, Arg, Expr, Persist, Stmt};
+use crate::ast::{self, Arg, Expr, Param, Persist, Stmt};
 use crate::natives::{self, NatDef};
 use crate::value::{self, V};
 use crate::{Env, Error};
@@ -14,7 +14,8 @@ use opentern_series::study::{
     Category, FillBetween, FillSpec, Format, HLineSpec, InputKind, InputSpec, LineStyle, Location, Meta, Offset,
     Placement, PlotSpec, PlotStyle, ShapeKind, ShapeSpec, Value,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 use std::sync::Arc;
 
 /// History kept for a series indexed with a non-constant offset.
@@ -155,30 +156,83 @@ pub(crate) enum E {
         /// Argument names (`None` when positional), bound at run time to
         /// the parameters of whichever method the receiver picks.
         names: Vec<Option<Arc<str>>>,
-        /// Candidate user methods: (function, type of `this` or
-        /// `u16::MAX` for any, call site).
-        user: Vec<(u16, u16, u16)>,
+        user: Vec<MethodCand>,
+        /// The receiver's type when it's plain from the source (for a
+        /// receiver that's `na`).
+        hint: Option<Arc<str>>,
     },
+    /// A loop used as a value.
+    Loop(Box<S>),
     /// `request.security`: an expression evaluated on another timeframe.
     Security(Box<Sec>),
 }
 
-// Read by `request.security` (Phase 10).
-#[allow(dead_code)]
+/// A user method a call may pick.
+#[derive(Clone, Debug)]
+pub(crate) struct MethodCand {
+    pub f: u16,
+    pub this: This,
+    pub site: u16,
+    /// Default arguments, compiled for this call.
+    pub defaults: Vec<Option<E>>,
+}
+
+/// What a method's first parameter takes.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum This {
+    Any,
+    /// A user type.
+    Udt(u16),
+    /// A built-in type ("array", "string", "float", …), with an array's
+    /// element type.
+    Of(Arc<str>, Option<Arc<str>>),
+}
+
+/// A `request.security` call.
 #[derive(Clone, Debug)]
 pub(crate) struct Sec {
     /// The symbol: `None` for this chart's (`syminfo.tickerid`).
     pub symbol: Option<E>,
     pub tf: E,
-    pub expr: E,
+    pub body: Body,
     pub gaps: E,
     pub lookahead: E,
     /// Index into the current frame's security states.
     pub site: u16,
-    /// The frame the expression runs in.
+    pub lower: bool,
+}
+
+/// What a request evaluates: everything its expression depends on,
+/// recomputed on the requested bars.
+#[derive(Clone, Debug)]
+pub(crate) enum Body {
+    Here(Box<SecBody>),
+    /// Compiled after the rest of the script (`Program::late`), as it
+    /// depends on statements below the request.
+    Late(u16),
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct SecBody {
+    /// The script's variables the expression uses, then the expression,
+    /// then what changes those variables below it.
+    pub prelude: Block,
+    pub expr: Option<E>,
+    pub post: Block,
+    /// It contains other requests, which run on this one's bars.
+    pub nested: bool,
+    /// The frame it runs in.
     pub layout: Layout,
     pub bar_hist: usize,
-    pub lower: bool,
+}
+
+impl Sec {
+    pub fn body<'a>(&'a self, p: &'a Program) -> &'a SecBody {
+        match &self.body {
+            Body::Here(b) => b,
+            Body::Late(k) => &p.late[*k as usize],
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -231,6 +285,9 @@ pub(crate) enum S {
     },
     Bg(E),
     BarColor(E),
+    /// `bgcolor`/`barcolor` (true) with a negative offset: this many bars back.
+    Past(bool, usize, E),
+    Many(Vec<S>),
     AlertCond {
         i: u16,
         cond: E,
@@ -259,16 +316,14 @@ pub(crate) struct Layout {
     /// The function each call site calls.
     pub calls: Vec<u16>,
     pub secs: usize,
+    /// `varip` slots: they keep what a bar's earlier ticks left in them.
+    pub varips: Vec<u16>,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct Func {
     pub name: String,
     pub params: Vec<String>,
-    /// Default values: constants, or built-in series such as `close`.
-    pub defaults: Vec<Option<E>>,
-    /// Declared parameter types (qualifiers dropped), for overloads.
-    pub ptypes: Vec<Option<String>>,
     pub body: Block,
     pub layout: Layout,
 }
@@ -277,7 +332,8 @@ pub(crate) struct Func {
 pub(crate) struct TypeDef {
     pub name: String,
     pub fields: Vec<String>,
-    pub defaults: Vec<V>,
+    /// Declared types, where written.
+    pub ftypes: Vec<Option<String>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -288,6 +344,8 @@ pub(crate) enum Conv {
     Str,
     Source,
     Color,
+    /// A date, as text in the exchange's timezone.
+    Time,
     IntChoice,
     FloatChoice,
 }
@@ -336,6 +394,8 @@ pub(crate) struct Program {
     pub inputs: Vec<InputDef>,
     pub plots: Vec<PlotDef>,
     pub hlines: Vec<HLineSpec>,
+    /// The hlines' prices and colours, in terms of the inputs.
+    pub levels: Vec<(E, Option<E>)>,
     pub fills: Vec<FillDef>,
     pub alertconditions: Vec<AlertCondDef>,
     pub funcs: Vec<Func>,
@@ -345,6 +405,13 @@ pub(crate) struct Program {
     pub bar_hist: usize,
     pub env: Arc<Env>,
     pub limits: [usize; 6],
+    /// `indicator(timeframe = …)`: the script runs on these bars.
+    pub timeframe: Option<String>,
+    pub timeframe_gaps: bool,
+    /// It makes requests.
+    pub requests: bool,
+    /// Request bodies compiled last (see [`Body::Late`]).
+    pub late: Vec<SecBody>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -354,29 +421,234 @@ enum Bind {
     HLine(u16),
 }
 
+/// A variable: its frame (numbered as compiled) and slot.
+type Var = (u32, u16);
+type Scope = (usize, HashMap<String, Bind>);
+/// An argument, and the scopes it's read in.
+type CallArg = (Rc<Expr>, Rc<Vec<Scope>>);
+
+/// Where a variable that's never reassigned gets its value, so that
+/// `request.security` can compute it on other bars.
+#[derive(Clone)]
+enum Def {
+    /// `x = value`
+    Value(Rc<Expr>, usize),
+    /// One of `[x, y] = value`
+    Tuple(Rc<Expr>, usize, Rc<Vec<Option<Var>>>),
+    /// A parameter: the argument, and the scopes it's read in.
+    Arg(Rc<Expr>, usize, Rc<Vec<Scope>>),
+    /// A parameter of a function that's being compiled by itself.
+    Param,
+}
+
+/// A `request.security` expression being compiled.
+struct SecCx {
+    /// The depth of its frame.
+    depth: usize,
+    /// The script's variables recomputed in its frame, and where.
+    hoisted: HashMap<Var, u16>,
+    prelude: Block,
+    nested: bool,
+}
+
+/// A function being compiled for one call: its parameters, the call's
+/// arguments and its body.
+type Calling = (Rc<Vec<Param>>, Vec<Rc<Expr>>, Rc<ast::Block>);
+
+/// A request to compile once the whole script has been, and where it is.
+struct LateRequest {
+    expr: Expr,
+    before: Vec<Stmt>,
+    after: Vec<Stmt>,
+    scopes: Vec<Scope>,
+    uids: Vec<u32>,
+    lib: Option<String>,
+    mutable: Rc<HashSet<(usize, String)>>,
+    calls: Vec<Calling>,
+    line: usize,
+    at: usize,
+}
+
+/// A function's source, to compile it again for one call.
+#[derive(Clone)]
+struct FnInfo {
+    params: Rc<Vec<Param>>,
+    body: Rc<ast::Block>,
+    line: usize,
+    lib: Option<String>,
+    mutable: Rc<HashSet<(usize, String)>>,
+    flags: Flags,
+}
+
+#[derive(Clone, Copy, Default)]
+struct Flags {
+    /// Reads the script's own variables, so a `request.security` needs its
+    /// own copy of the function that reads them on its bars.
+    globals: bool,
+    /// Requests something that depends on its arguments, so each call
+    /// needs its own copy.
+    per_call: bool,
+    /// Contains a request.
+    requests: bool,
+}
+
+/// The most copies of functions made for `request.security`.
+const MAX_INSTANCES: usize = 4000;
+
+/// The variables some `:=` changes, by declaration (line, name).
+fn reassigned(b: &ast::Block) -> HashSet<(usize, String)> {
+    type Names = Vec<HashMap<String, usize>>;
+    fn declare(s: &mut Names, n: &str, line: usize) {
+        if let Some(t) = s.last_mut() {
+            t.insert(n.to_string(), line);
+        }
+    }
+    fn block(b: &ast::Block, s: &mut Names, out: &mut HashSet<(usize, String)>) {
+        s.push(HashMap::new());
+        for st in b {
+            stmt(st, s, out);
+        }
+        s.pop();
+    }
+    fn stmt(st: &Stmt, s: &mut Names, out: &mut HashSet<(usize, String)>) {
+        match st {
+            Stmt::Decl { names, value, line, .. } => {
+                expr(value, s, out);
+                for n in names {
+                    declare(s, n, *line);
+                }
+            }
+            Stmt::Assign { name, value, .. } => {
+                expr(value, s, out);
+                if let Some(line) = s.iter().rev().find_map(|t| t.get(name)) {
+                    out.insert((*line, name.clone()));
+                }
+            }
+            Stmt::AssignField { obj, value, .. } => {
+                expr(obj, s, out);
+                expr(value, s, out);
+            }
+            Stmt::Expr(e, _) => expr(e, s, out),
+            Stmt::For {
+                var,
+                from,
+                to,
+                step,
+                body,
+                line,
+            } => {
+                for e in [Some(from), Some(to), step.as_ref()].into_iter().flatten() {
+                    expr(e, s, out);
+                }
+                s.push(HashMap::from([(var.clone(), *line)]));
+                block(body, s, out);
+                s.pop();
+            }
+            Stmt::ForIn { over, body, .. } => {
+                expr(over, s, out);
+                block(body, s, out);
+            }
+            Stmt::While { cond, body, .. } => {
+                expr(cond, s, out);
+                block(body, s, out);
+            }
+            Stmt::Func { params, body, line, .. } => {
+                s.push(params.iter().map(|p| (p.0.clone(), *line)).collect());
+                block(body, s, out);
+                s.pop();
+            }
+            _ => {}
+        }
+    }
+    fn expr(e: &Expr, s: &mut Names, out: &mut HashSet<(usize, String)>) {
+        match e {
+            Expr::Call { args, .. } => args.iter().for_each(|a| expr(&a.value, s, out)),
+            Expr::MethodCall { recv, args, .. } => {
+                expr(recv, s, out);
+                args.iter().for_each(|a| expr(&a.value, s, out));
+            }
+            Expr::Index(a, b) | Expr::Binary(_, a, b) => {
+                expr(a, s, out);
+                expr(b, s, out);
+            }
+            Expr::Dot(a, _) | Expr::Unary(_, a) => expr(a, s, out),
+            Expr::Ternary(a, b, c) => [a, b, c].into_iter().for_each(|x| expr(x, s, out)),
+            Expr::If(branches, o) => {
+                for (c, b) in branches {
+                    expr(c, s, out);
+                    block(b, s, out);
+                }
+                if let Some(b) = o {
+                    block(b, s, out);
+                }
+            }
+            Expr::Switch(subj, cases) => {
+                if let Some(x) = subj {
+                    expr(x, s, out);
+                }
+                for (c, b) in cases {
+                    if let Some(c) = c {
+                        expr(c, s, out);
+                    }
+                    block(b, s, out);
+                }
+            }
+            Expr::Loop(l) => stmt(l, s, out),
+            Expr::Tuple(xs) => xs.iter().for_each(|x| expr(x, s, out)),
+            _ => {}
+        }
+    }
+    let mut out = HashSet::new();
+    block(b, &mut Vec::new(), &mut out);
+    out
+}
+
 struct Cx {
     version: u8,
     env: Arc<Env>,
     /// Scopes, innermost last, each with the frame depth it belongs to.
-    scopes: Vec<(usize, HashMap<String, Bind>)>,
+    scopes: Vec<Scope>,
     frames: Vec<Layout>,
+    /// Each frame's number.
+    uids: Vec<u32>,
+    next_uid: u32,
     /// Local-block nesting in the current frame (plots must be global).
     local: usize,
     funcs: Vec<Func>,
+    /// The source of the functions in `funcs`.
+    fn_info: Vec<FnInfo>,
+    instances: usize,
+    /// The script, and the top-level statement being compiled.
+    ast: Rc<ast::Block>,
+    root_at: usize,
+    slices: Option<Rc<crate::slice::Program>>,
+    /// Where the top-level variables are, by declaration (line, name).
+    root_slots: HashMap<(usize, String), u16>,
+    /// A request needs a variable that's reassigned.
+    wants_slice: bool,
+    late: Vec<LateRequest>,
+    /// The functions being compiled for one call: their arguments, bodies.
+    calls: Vec<Calling>,
+    /// What the functions being compiled do, innermost last.
+    flags: Vec<Flags>,
+    /// Variables this script (or library) reassigns.
+    mutable: Rc<HashSet<(usize, String)>>,
     fnames: HashMap<String, u16>,
     /// Every function declared under a name, in order (overloads).
     overloads: HashMap<String, Vec<u16>>,
-    /// Methods by name: (function, type of `this`).
-    methods: HashMap<String, Vec<(u16, Option<String>)>>,
+    /// Methods by name.
+    methods: HashMap<String, Vec<u16>>,
     types: Vec<TypeDef>,
-    /// Known values of slots declared from constants or inputs (for
-    /// declarations like `plot(offset = len)`), by (depth, slot).
-    known: HashMap<(usize, u16), E>,
-    /// Declared types of slots, for method resolution, by (depth, slot).
-    slot_types: HashMap<(usize, u16), String>,
+    /// The types' field defaults.
+    type_defaults: Vec<Vec<Option<Rc<Expr>>>>,
+    /// What variables made only of constants and inputs are, in terms of
+    /// those.
+    known: HashMap<Var, E>,
+    /// Types of variables, for overloads and methods.
+    slot_types: HashMap<Var, String>,
     /// Colour constants in a variable's defining expression, so a plot
     /// coloured by that variable gets the palette (`color = zoneColor`).
-    palettes: HashMap<(usize, u16), Vec<u32>>,
+    palettes: HashMap<Var, Vec<u32>>,
     line: usize,
     // declarations
     kind: Option<Kind>,
@@ -389,6 +661,7 @@ struct Cx {
     input_ids: HashMap<String, usize>,
     plots: Vec<PlotDef>,
     hlines: Vec<HLineSpec>,
+    levels: Vec<(E, Option<E>)>,
     fills: Vec<FillDef>,
     alertconditions: Vec<AlertCondDef>,
     bar_hist: usize,
@@ -396,13 +669,19 @@ struct Cx {
     /// Bar history needed inside the `request.security` being compiled.
     sec_depth: usize,
     sec_bar_hist: usize,
-    /// Plain `x = expr` declarations (never reassigned), so a
-    /// `request.security` expression can recompute `x` on its timeframe.
-    defs: HashMap<(usize, u16), Expr>,
-    /// Frame depths of the `request.security` expressions being compiled.
-    sec_frames: Vec<usize>,
-    /// Definitions being inlined (to catch cycles).
-    inlining: Vec<(usize, u16)>,
+    defs: HashMap<Var, Def>,
+    /// The `request.security` expressions being compiled.
+    secs: Vec<SecCx>,
+    /// Definitions being recomputed (to catch cycles).
+    inlining: Vec<Var>,
+    /// Compiling source for a second time: its inputs exist already.
+    again: usize,
+    input_cache: HashMap<(usize, String), E>,
+    /// Constants of the imported libraries, as `alias.NAME`.
+    lib_consts: HashMap<String, V>,
+    timeframe: Option<String>,
+    timeframe_gaps: bool,
+    requests: bool,
     /// Enums: members and their titles (a member's value is its title).
     enums: HashMap<String, Vec<(String, String)>>,
     /// While compiling an imported library: its alias, so its own names
@@ -420,12 +699,26 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         env: Arc::new(env),
         scopes: vec![(0, HashMap::new())],
         frames: vec![Layout::default()],
+        uids: vec![0],
+        next_uid: 1,
         local: 0,
         funcs: Vec::new(),
+        fn_info: Vec::new(),
+        instances: 0,
+        ast: Rc::new(prog.clone()),
+        root_at: 0,
+        slices: None,
+        root_slots: HashMap::new(),
+        wants_slice: false,
+        late: Vec::new(),
+        calls: Vec::new(),
+        flags: Vec::new(),
+        mutable: Rc::new(reassigned(prog)),
         fnames: HashMap::new(),
         overloads: HashMap::new(),
         methods: HashMap::new(),
         types: Vec::new(),
+        type_defaults: Vec::new(),
         known: HashMap::new(),
         slot_types: HashMap::new(),
         palettes: HashMap::new(),
@@ -440,6 +733,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         input_ids: HashMap::new(),
         plots: Vec::new(),
         hlines: Vec::new(),
+        levels: Vec::new(),
         fills: Vec::new(),
         alertconditions: Vec::new(),
         bar_hist: 1,
@@ -447,20 +741,31 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         sec_depth: 0,
         sec_bar_hist: 1,
         defs: HashMap::new(),
-        sec_frames: Vec::new(),
+        secs: Vec::new(),
         inlining: Vec::new(),
+        again: 0,
+        input_cache: HashMap::new(),
+        lib_consts: HashMap::new(),
+        timeframe: None,
+        timeframe_gaps: true,
+        requests: false,
         enums: HashMap::new(),
         lib_prefix: None,
         importing: Vec::new(),
     };
-    let root = cx.block(prog)?;
+    let mut root = Vec::new();
+    for (k, s) in prog.iter().enumerate() {
+        cx.root_at = k;
+        root.extend(cx.block(std::slice::from_ref(s))?);
+    }
     let Some(kind) = cx.kind else {
         return Err(Error::at(
             1,
             "Start the script with indicator(\"Name\") or strategy(\"Name\").",
         ));
     };
-    let layout = cx.frames.pop().unwrap_or_default();
+    let layout = cx.frames.remove(0);
+    let late = cx.compile_late()?;
     if kind == Kind::Strategy {
         // The broker follows this version's rules (margin, exit levels).
         cx.props.insert("pine_version".into(), serde_json::json!(version));
@@ -476,6 +781,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         inputs: cx.inputs,
         plots: cx.plots,
         hlines: cx.hlines,
+        levels: cx.levels,
         fills: cx.fills,
         alertconditions: cx.alertconditions,
         funcs: cx.funcs,
@@ -485,6 +791,10 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         bar_hist: cx.bar_hist,
         env: cx.env,
         limits: cx.limits,
+        timeframe: cx.timeframe,
+        timeframe_gaps: cx.timeframe_gaps,
+        requests: cx.requests,
+        late,
     })
 }
 
@@ -690,15 +1000,94 @@ pub(crate) fn constant(name: &str) -> Option<V> {
     Some(v)
 }
 
+/// [`constant`] in a Pine version: v6 changed a few colours.
+pub(crate) fn constant_in(version: u8, name: &str) -> Option<V> {
+    if version >= 6 {
+        let rgb = match name {
+            "color.red" => 0xF23645,
+            "color.teal" => 0x089981,
+            "color.yellow" => 0xFDD835,
+            _ => return constant(name),
+        };
+        return Some(V::Color(value::opaque(rgb)));
+    }
+    constant(name)
+}
+
+/// The v5 name of a built-in from v4 or before (`sma` → `ta.sma`).
+fn renamed(name: &str) -> Option<String> {
+    if name.contains('.') {
+        return None;
+    }
+    let full = match name {
+        "n" => "bar_index".to_string(),
+        "tickerid" | "ticker" => format!("syminfo.{name}"),
+        "period" | "interval" | "isintraday" | "isdaily" | "isweekly" | "ismonthly" | "isdwm" => match name {
+            "interval" => "timeframe.multiplier".into(),
+            _ => format!("timeframe.{name}"),
+        },
+        "heikinashi" => "ticker.heikinashi".into(),
+        _ => ["math", "ta", "str"]
+            .iter()
+            .map(|ns| format!("{ns}.{name}"))
+            .find(|f| natives::lookup(f).is_some())?,
+    };
+    Some(full)
+}
+
+/// Constants v3 had without a namespace (`red`, `histogram`, `integer`).
+fn bare_constant(name: &str) -> Option<V> {
+    if let Some(c) = constant(&format!("color.{name}")).filter(|v| matches!(v, V::Color(_))) {
+        return Some(c);
+    }
+    Some(match name {
+        "line" | "stepline" | "histogram" | "cross" | "area" | "columns" | "circles" | "linebr" | "areabr" => {
+            V::str(format!("plot.style_{name}"))
+        }
+        "dashed" | "dotted" | "solid" => V::str(format!("hline.style_{name}")),
+        "integer" | "float" | "bool" | "source" | "resolution" | "string" | "symbol" | "session" => {
+            V::str(format!("input.{name}"))
+        }
+        _ => return None,
+    })
+}
+
 /// `array<float>` → `array`; user and primitive types as written.
 fn base_type(t: &str) -> String {
     t.split('<').next().unwrap_or(t).to_string()
+}
+
+fn has_source(e: &E) -> bool {
+    match e {
+        E::InSrc(_) => true,
+        E::Neg(x) | E::Not(x) => has_source(x),
+        E::Bin(_, a, b) | E::And(a, b, _) | E::Or(a, b, _) => has_source(a) || has_source(b),
+        E::Tern(a, b, c) => has_source(a) || has_source(b) || has_source(c),
+        E::Nat { args, .. } => args.iter().any(has_source),
+        _ => false,
+    }
 }
 
 fn const_of(e: &E) -> Option<V> {
     match e {
         E::K(v) => Some(v.clone()),
         _ => None,
+    }
+}
+
+/// Whether an expression could be a constant: no calls but pure ones.
+fn constant_like(e: &Expr) -> bool {
+    match e {
+        Expr::Call { callee, args } => {
+            natives::lookup(callee).is_some_and(|d| d.pure) && args.iter().all(|a| constant_like(&a.value))
+        }
+        Expr::Unary(_, a) => constant_like(a),
+        Expr::Binary(_, a, b) => constant_like(a) && constant_like(b),
+        Expr::Ternary(a, b, c) => [a, b, c].into_iter().all(|x| constant_like(x)),
+        Expr::Int(_) | Expr::Float(_) | Expr::Str(_) | Expr::Bool(_) | Expr::Color(_) | Expr::Na | Expr::Name(_) => {
+            true
+        }
+        _ => false,
     }
 }
 
@@ -713,6 +1102,21 @@ impl Cx {
 
     fn frame(&mut self) -> &mut Layout {
         self.frames.last_mut().expect("a frame")
+    }
+
+    fn uid(&self) -> u32 {
+        self.uids[self.depth()]
+    }
+
+    fn push_frame(&mut self) {
+        self.frames.push(Layout::default());
+        self.uids.push(self.next_uid);
+        self.next_uid += 1;
+    }
+
+    fn pop_frame(&mut self) -> Layout {
+        self.uids.pop();
+        self.frames.pop().unwrap_or_default()
     }
 
     fn new_slot(&mut self) -> u16 {
@@ -751,12 +1155,13 @@ impl Cx {
     }
 
     fn lookup(&self, name: &str) -> Option<Bind> {
-        for (_, s) in self.scopes.iter().rev() {
-            if let Some(b) = s.get(name) {
-                return Some(*b);
-            }
-        }
-        None
+        self.lookup_at(name).map(|(b, _)| b)
+    }
+
+    /// What `name` is, and the scope it's declared in.
+    fn lookup_at(&self, name: &str) -> Option<(Bind, usize)> {
+        let k = self.scopes.iter().rposition(|(_, s)| s.contains_key(name))?;
+        Some((self.scopes[k].1[name], k))
     }
 
     fn push_scope(&mut self) {
@@ -781,11 +1186,21 @@ impl Cx {
 
     // -------------------------------------------------------- statements
 
-    fn block(&mut self, b: &ast::Block) -> R<Block> {
+    fn block(&mut self, b: &[Stmt]) -> R<Block> {
         let mut out = Vec::with_capacity(b.len());
         for s in b {
+            let line = match s {
+                Stmt::Decl { line, .. }
+                | Stmt::Assign { line, .. }
+                | Stmt::AssignField { line, .. }
+                | Stmt::Expr(_, line)
+                | Stmt::For { line, .. }
+                | Stmt::ForIn { line, .. }
+                | Stmt::While { line, .. } => *line,
+                _ => self.line,
+            };
             if let Some(st) = self.stmt(s)? {
-                out.push((self.line as u32, st));
+                out.push((line as u32, st));
             }
         }
         Ok(out)
@@ -831,12 +1246,24 @@ impl Cx {
                                 "\"{name}\" is a global variable; functions can't change it (Pine's rule)."
                             )));
                         }
-                        self.known.remove(&(depth, slot));
-                        self.defs.remove(&(depth, slot));
                         Ok(Some(S::Set(slot, op, e)))
                     }
                     _ => Err(self.err(format!("\"{name}\" isn't declared yet. Declare it with \"=\" first."))),
                 }
+            }
+            Stmt::AssignField {
+                obj,
+                field,
+                op,
+                value,
+                line,
+            } => {
+                self.line = *line;
+                let o = self.expr(obj)?;
+                self.check_field(field)?;
+                let e = self.expr(value)?;
+                let op = if *op == ":=" { None } else { Bin::of(op) };
+                Ok(Some(S::SetField(o, Arc::from(field.as_str()), op, e)))
             }
             Stmt::Expr(e, line) => {
                 self.line = *line;
@@ -883,6 +1310,7 @@ impl Cx {
                 line,
             } => {
                 self.line = *line;
+                let kind = self.infer(over);
                 let over = self.expr(over)?;
                 self.push_scope();
                 let d = self.depth();
@@ -892,6 +1320,10 @@ impl Cx {
                     s
                 });
                 let slot = self.new_slot();
+                if let Some(t) = kind.and_then(|k| self.method_type(&k, "get")) {
+                    let var = (self.uid(), slot);
+                    self.slot_types.insert(var, t);
+                }
                 self.declare(var, Bind::Slot { depth: d, slot });
                 self.local += 1;
                 let body = self.block(body);
@@ -925,22 +1357,18 @@ impl Cx {
             }
             Stmt::Type { name, fields, line } => {
                 self.line = *line;
-                let mut defaults = Vec::new();
-                for (_, d) in fields {
-                    let v = match d {
-                        Some(e) => {
-                            let e = self.expr(e)?;
-                            const_of(&e).ok_or_else(|| self.err("A field's default value must be a constant."))?
-                        }
-                        None => V::Na,
-                    };
-                    defaults.push(v);
+                for (_, d, _) in fields {
+                    if let Some(e) = d {
+                        self.expr(e)?;
+                    }
                 }
                 self.types.push(TypeDef {
                     name: name.clone(),
-                    fields: fields.iter().map(|(n, _)| n.clone()).collect(),
-                    defaults,
+                    fields: fields.iter().map(|f| f.0.clone()).collect(),
+                    ftypes: fields.iter().map(|f| f.2.clone()).collect(),
                 });
+                self.type_defaults
+                    .push(fields.iter().map(|f| f.1.clone().map(Rc::new)).collect());
                 Ok(None)
             }
             Stmt::Enum { name, members, line } => {
@@ -994,6 +1422,7 @@ impl Cx {
             .map_err(|e| self.err(format!("In the library \"{name}\": {e}")))?;
         self.importing.push(name.clone());
         let saved = self.lib_prefix.replace(alias.to_string());
+        let saved_mutable = std::mem::replace(&mut self.mutable, Rc::new(reassigned(&ast)));
         let r = (|| {
             for s in &ast {
                 match s {
@@ -1029,13 +1458,29 @@ impl Cx {
                         self.line = *line;
                         self.import(path, a)?;
                     }
-                    // library(…), constants and the rest stay in the library.
+                    // Its constants, for its functions and (exported) for us.
+                    Stmt::Decl {
+                        persist: Persist::No,
+                        names,
+                        value,
+                        line,
+                        ..
+                    } if names.len() == 1 && !self.mutable.contains(&(*line, names[0].clone())) => {
+                        self.line = *line;
+                        if constant_like(value)
+                            && let Ok(e) = self.expr(value)
+                            && let Some(v) = self.const_value(&e)
+                        {
+                            self.lib_consts.insert(format!("{alias}.{}", names[0]), v);
+                        }
+                    }
                     _ => {}
                 }
             }
             Ok(())
         })();
         self.lib_prefix = saved;
+        self.mutable = saved_mutable;
         self.importing.pop();
         self.line = line;
         r.map_err(|e: Error| {
@@ -1083,26 +1528,58 @@ impl Cx {
             // plot() is a statement; hline() has no per-bar part.
             return Ok(st.flatten().unwrap_or(S::Expr(E::K(V::Na))));
         }
-        let e = self.expr(value)?;
+        // Other outputs give nothing to keep.
+        if names.len() == 1
+            && let Expr::Call { callee, args } = value
+            && matches!(
+                callee.as_str(),
+                "plotshape" | "plotchar" | "plotarrow" | "plotcandle" | "plotbar" | "fill" | "bgcolor" | "barcolor"
+            )
+            && !self.fnames.contains_key(callee)
+        {
+            let st = self.output_call(callee, args)?;
+            return Ok(st.flatten().unwrap_or(S::Expr(E::K(V::Na))));
+        }
+        let mut e = self.expr(value)?;
         let d = self.depth();
+        let uid = self.uid();
+        let line = self.line;
+        // A `var` that's a constant and never changes is one too.
+        let constant = persist == Persist::Var && names.len() == 1 && self.const_value(&e).is_some();
+        let fixed =
+            |cx: &Cx, n: &str| (persist == Persist::No || constant) && !cx.mutable.contains(&(line, n.to_string()));
         if names.len() == 1 {
-            let ty = declared.map(base_type).or_else(|| self.type_of_expr(value));
+            let ty = declared.map(str::to_string).or_else(|| self.infer(value));
+            // `float x = 5` is 5.0 (it matters to v5's division).
+            if declared == Some("float")
+                && let Some(V::Int(i)) = self.const_value(&e)
+            {
+                e = E::K(V::Float(i as f64));
+            }
+            let known = self.resolve(&e);
             let slot = self.new_slot();
-            let colour_input = matches!(&e, E::In(i) if self.inputs[*i as usize].conv == Conv::Color);
-            if persist == Persist::No && (colour_input || self.eval_default(&e).is_some() || matches!(e, E::InSrc(_))) {
-                self.known.insert((d, slot), e.clone());
-            } else if persist == Persist::No {
-                self.defs.insert((d, slot), value.clone());
+            let var = (uid, slot);
+            if d == 0 && self.local == 0 {
+                self.root_slots.insert((line, names[0].clone()), slot);
+            }
+            if fixed(self, &names[0]) {
+                if let Some(k) = known {
+                    self.known.insert(var, k);
+                }
+                self.defs.insert(var, Def::Value(Rc::new(value.clone()), line));
             }
             if let Some(t) = ty {
-                self.slot_types.insert((d, slot), t);
+                self.slot_types.insert(var, t);
             }
             let mut pal = Vec::new();
             self.palette(&e, &mut pal);
             if !pal.is_empty() {
-                self.palettes.insert((d, slot), pal);
+                self.palettes.insert(var, pal);
             }
             self.declare(&names[0], Bind::Slot { depth: d, slot });
+            if persist == Persist::Varip {
+                self.frame().varips.push(slot);
+            }
             return Ok(match persist {
                 Persist::No => S::Let(slot, e),
                 _ => S::Var(slot, e),
@@ -1114,34 +1591,226 @@ impl Cx {
                 (n != "_").then(|| {
                     let s = self.new_slot();
                     self.declare(n, Bind::Slot { depth: d, slot: s });
+                    if d == 0 && self.local == 0 {
+                        self.root_slots.insert((line, n.clone()), s);
+                    }
                     s
                 })
             })
             .collect();
+        let vars: Rc<Vec<Option<Var>>> = Rc::new(slots.iter().map(|s| s.map(|s| (uid, s))).collect());
+        let value = Rc::new(value.clone());
+        for (n, v) in names.iter().zip(vars.iter()) {
+            if let Some(v) = v
+                && fixed(self, n)
+            {
+                self.defs.insert(*v, Def::Tuple(value.clone(), line, vars.clone()));
+            }
+        }
         Ok(S::LetTuple(slots, e))
     }
 
-    /// The user type of a declaration's value, when it's evident.
-    /// (Declared types win; see `decl`.)
-    fn type_of_expr(&self, e: &Expr) -> Option<String> {
-        match e {
-            Expr::Call { callee, .. } => {
-                if let Some(t) = callee.strip_suffix(".new")
+    /// The type of field `f` of a value of type `t`.
+    fn field_type(&self, t: &str, f: &str) -> Option<String> {
+        if t == "chart.point" {
+            return Some(if f == "price" { "float" } else { "int" }.into());
+        }
+        let d = &self.types[self.type_id(t)?];
+        let k = d.fields.iter().position(|x| x == f)?;
+        let ty = d.ftypes[k].clone()?;
+        // A library's own types are known by its alias here.
+        if let Some((lib, _)) = d.name.rsplit_once('.') {
+            let full = format!("{lib}.{ty}");
+            if self.types.iter().any(|x| x.name == full) {
+                return Some(full);
+            }
+        }
+        Some(ty)
+    }
+
+    /// What a built-in method of a value of type `t` returns.
+    fn method_type(&self, t: &str, m: &str) -> Option<String> {
+        let elem = || Some(t.strip_prefix("array<")?.strip_suffix('>')?.to_string());
+        match m {
+            "copy" | "concat" | "slice" => Some(t.to_string()),
+            "get" | "first" | "last" | "pop" | "shift" | "remove" if t.starts_with("array<") => elem(),
+            "get" | "remove" | "put" if t.starts_with("map<") => {
+                let v = t.strip_prefix("map<")?.strip_suffix('>')?.split_once(',')?.1;
+                Some(v.trim().to_string())
+            }
+            "get" if t.starts_with("matrix<") => Some(t.strip_prefix("matrix<")?.strip_suffix('>')?.to_string()),
+            "row" | "col" if t.starts_with("matrix<") => {
+                Some(format!("array<{}>", t.strip_prefix("matrix<")?.strip_suffix('>')?))
+            }
+            "size" | "indexof" | "rows" | "columns" => Some("int".into()),
+            _ => None,
+        }
+    }
+
+    /// The type of an expression, when it's plain from the source.
+    fn infer(&self, e: &Expr) -> Option<String> {
+        let t = match e {
+            Expr::Int(_) => "int",
+            Expr::Float(_) => "float",
+            Expr::Str(_) => "string",
+            Expr::Bool(_) => "bool",
+            Expr::Color(_) => "color",
+            Expr::Na => "na",
+            Expr::Unary("not", _) => "bool",
+            Expr::Unary(_, x) => return self.infer(x),
+            Expr::Binary("==" | "!=" | "<" | ">" | "<=" | ">=" | "and" | "or", ..) => "bool",
+            Expr::Binary(op, a, b) => match (self.infer(a)?.as_str(), self.infer(b)?.as_str()) {
+                ("string", _) | (_, "string") if *op == "+" => "string",
+                ("int", "int") if *op != "/" => "int",
+                ("int" | "float", "int" | "float") => "float",
+                _ => return None,
+            },
+            Expr::Ternary(_, a, b) => match (self.infer(a)?, self.infer(b)?) {
+                (a, b) if a == b || b == "na" => return Some(a),
+                (a, b) if a == "na" => return Some(b),
+                (a, b) if (a == "int" || a == "float") && (b == "int" || b == "float") => "float",
+                _ => return None,
+            },
+            Expr::Index(x, _) => return self.infer(x),
+            Expr::Name(n) => {
+                // obj.field.field
+                if let Some((obj, f)) = n.rsplit_once('.')
+                    && self.lookup(n.split('.').next().unwrap_or(n)).is_some()
+                {
+                    let t = self.infer(&Expr::Name(obj.to_string()))?;
+                    return self.field_type(&t, f);
+                }
+                if let Some(b) = self.lookup(n) {
+                    return match b {
+                        Bind::Slot { depth, slot } => self.slot_types.get(&(self.uids[depth], slot)).cloned(),
+                        _ => None,
+                    };
+                }
+                match n.as_str() {
+                    "time" | "time_close" | "bar_index" | "last_bar_index" | "timenow" | "year" | "month"
+                    | "dayofmonth" | "dayofweek" | "hour" | "minute" | "second" => "int",
+                    n if Field::by_name(n).is_some() => "float",
+                    n if n.starts_with("barstate.") || n.starts_with("timeframe.is") || n.starts_with("session.is") => {
+                        "bool"
+                    }
+                    "syminfo.mintick" | "syminfo.pointvalue" => "float",
+                    "timeframe.multiplier" => "int",
+                    n if n.starts_with("syminfo.") || n.starts_with("timeframe.") => "string",
+                    n => match constant_in(self.version, n) {
+                        Some(V::Color(_)) => "color",
+                        Some(V::Float(_)) => "float",
+                        Some(V::Int(_)) => "int",
+                        Some(V::Str(_)) => "string",
+                        _ => return None,
+                    },
+                }
+            }
+            Expr::Call { callee, args } => {
+                let (name, generic) = match callee.split_once('<') {
+                    Some((n, g)) => (n, g.strip_suffix('>')),
+                    None => (callee.as_str(), None),
+                };
+                if let Some(t) = name.strip_suffix(".new")
                     && let Some(i) = self.type_id(t)
                 {
                     return Some(self.types[i].name.clone());
                 }
-                for fam in [
-                    "array", "map", "matrix", "label", "line", "box", "table", "linefill", "polyline",
-                ] {
-                    if callee.starts_with(&format!("{fam}.")) {
-                        return Some(fam.to_string());
-                    }
+                if let Some((obj, m)) = name.rsplit_once('.')
+                    && natives::lookup(name).is_none()
+                    && self.lookup(obj.split('.').next().unwrap_or(obj)).is_some()
+                {
+                    let t = self.infer(&Expr::Name(obj.to_string()))?;
+                    return self.method_type(&t, m);
                 }
-                None
+                if let Some((fam @ ("array" | "map" | "matrix"), m)) = name.split_once('.')
+                    && let Some(t) = args.first().and_then(|a| self.infer(&a.value))
+                    && t.starts_with(fam)
+                    && let Some(t) = self.method_type(&t, m)
+                {
+                    return Some(t);
+                }
+                if self
+                    .fnames
+                    .contains_key(&self.in_lib(name, |cx, n| cx.fnames.contains_key(n)))
+                {
+                    return None;
+                }
+                match name {
+                    "array.new" => return Some(format!("array<{}>", generic?)),
+                    "matrix.new" | "map.new" => return Some(format!("{}<{}>", name.strip_suffix(".new")?, generic?)),
+                    "array.from" => return Some(format!("array<{}>", self.infer(&args.first()?.value)?)),
+                    n if n.starts_with("array.new_") => return Some(format!("array<{}>", &n[10..])),
+                    "label.new" | "line.new" | "box.new" | "table.new" | "linefill.new" | "polyline.new" => {
+                        name.strip_suffix(".new")?
+                    }
+                    "input.int" | "input.time" | "int" | "math.floor" | "math.ceil" | "ta.barssince"
+                    | "ta.highestbars" | "ta.lowestbars" | "timestamp" | "str.length" | "array.size" => "int",
+                    "math.round" if args.len() == 1 => "int",
+                    "input.float" | "input.price" | "input.source" | "float" => "float",
+                    "input.bool" | "bool" | "na" | "ta.crossover" | "ta.crossunder" | "ta.cross" | "ta.rising"
+                    | "ta.falling" | "timeframe.change" | "str.contains" | "str.startswith" | "str.endswith" => "bool",
+                    "input.string" | "input.symbol" | "input.timeframe" | "input.session" | "input.text_area"
+                    | "string" | "str.tostring" | "str.format" | "str.lower" | "str.upper" | "str.replace"
+                    | "str.replace_all" | "str.substring" | "str.trim" | "str.repeat" | "str.format_time"
+                    | "str.match" | "array.join" => "string",
+                    "input.color" | "color.new" | "color.rgb" | "color.from_gradient" => "color",
+                    "input" | "nz" | "fixnan" | "ta.valuewhen" => return self.infer(&args.first()?.value),
+                    "ta.change" | "math.abs" | "math.max" | "math.min" => match self.infer(&args.first()?.value)? {
+                        t if t == "bool" => "bool",
+                        _ => "float",
+                    },
+                    "ta.macd" | "ta.bb" | "ta.kc" | "ta.dmi" | "ta.supertrend" | "ta.vwap" => return None,
+                    n if n.starts_with("ta.") || n.starts_with("math.") || n.starts_with("color.") => "float",
+                    _ => return None,
+                }
             }
-            _ => None,
+            Expr::Dot(obj, f) => return self.field_type(&self.infer(obj)?, f),
+            Expr::MethodCall { recv, name, .. } => return self.method_type(&self.infer(recv)?, name),
+            _ => return None,
+        };
+        Some(t.to_string())
+    }
+
+    /// `e` in terms of constants and inputs only, if that's all it's made
+    /// of: an expression that means the same in any frame.
+    fn resolve(&self, e: &E) -> Option<E> {
+        let sub = |x: &E| self.resolve(x).map(Box::new);
+        Some(match e {
+            E::K(_) | E::In(_) | E::InSrc(_) => e.clone(),
+            E::L(s) => self.known.get(&(self.uid(), *s))?.clone(),
+            E::G(s) => self.known.get(&(0, *s))?.clone(),
+            E::Neg(x) => E::Neg(sub(x)?),
+            E::Not(x) => E::Not(sub(x)?),
+            E::Bin(op, a, b) => E::Bin(*op, sub(a)?, sub(b)?),
+            E::And(a, b, l) => E::And(sub(a)?, sub(b)?, *l),
+            E::Or(a, b, l) => E::Or(sub(a)?, sub(b)?, *l),
+            E::Tern(c, a, b) => E::Tern(sub(c)?, sub(a)?, sub(b)?),
+            E::Nat { f, args, site } if f.pure => E::Nat {
+                f,
+                args: args.iter().map(|a| self.resolve(a)).collect::<Option<_>>()?,
+                site: *site,
+            },
+            _ => return None,
+        })
+        // A series mixed into the rest isn't fixed.
+        .filter(|r| matches!(r, E::InSrc(_)) || !has_source(r))
+    }
+
+    /// A compile-time constant's value, through named constants. An
+    /// input's value isn't one.
+    fn const_value(&self, e: &E) -> Option<V> {
+        fn inputs(e: &E) -> bool {
+            match e {
+                E::In(_) | E::InSrc(_) => true,
+                E::Neg(x) | E::Not(x) => inputs(x),
+                E::Bin(_, a, b) | E::And(a, b, _) | E::Or(a, b, _) => inputs(a) || inputs(b),
+                E::Tern(a, b, c) => inputs(a) || inputs(b) || inputs(c),
+                E::Nat { args, .. } => args.iter().any(inputs),
+                _ => false,
+            }
         }
+        let r = self.resolve(e)?;
+        (!inputs(&r)).then(|| self.eval_default(&r)).flatten()
     }
 
     fn func(
@@ -1154,71 +1823,167 @@ impl Cx {
         if self.depth() != 0 || self.local > 0 {
             return Err(self.err("Functions can only be declared at the top level of the script."));
         }
-        let mut defaults = Vec::new();
         for (_, d, _) in params {
-            defaults.push(match d {
-                Some(e) => {
-                    let e = self.expr(e)?;
-                    // Pine allows built-in series (`source = close`) too.
-                    let ok = match &e {
-                        E::K(_) | E::Bar(_) => true,
-                        E::Nat { args, .. } => args.is_empty(),
-                        _ => false,
-                    };
-                    if !ok {
-                        return Err(self.err("A parameter's default value must be a constant."));
-                    }
-                    Some(e)
+            if let Some(e) = d {
+                let e = self.expr(e)?;
+                // Pine allows built-in series (`source = close`) too.
+                let ok = match &e {
+                    E::Bar(_) => true,
+                    E::Nat { args, .. } => args.iter().all(|a| matches!(a, E::K(_) | E::Bar(_))),
+                    e => self.const_value(e).is_some(),
+                };
+                if !ok {
+                    return Err(self.err("A parameter's default value must be a constant."));
                 }
-                None => None,
-            });
-        }
-        // Register first, so the body can't see itself (Pine forbids
-        // recursion) but later code can call it.
-        self.frames.push(Layout::default());
-        self.scopes.push((self.depth(), HashMap::new()));
-        let d = self.depth();
-        for (p, _, ty) in params {
-            let slot = self.new_slot();
-            if let Some(t) = ty {
-                self.slot_types.insert((d, slot), t.clone());
             }
-            self.declare(p, Bind::Slot { depth: d, slot });
         }
-        let saved_known = std::mem::take(&mut self.known);
-        let saved_defs = std::mem::take(&mut self.defs);
-        let body = self.block(body);
-        self.known = saved_known;
-        self.defs = saved_defs;
-        self.scopes.pop();
-        let layout = self.frames.pop().unwrap_or_default();
-        let body = body?;
+        // Registered after its body, so it can't see itself (Pine forbids
+        // recursion) but later code can call it.
+        let line = self.line;
+        let (body_s, layout, flags) = self.func_body(params, body, line, None)?;
         let id = self.funcs.len() as u16;
-        let method_of = if method {
-            let t = params.first().and_then(|p| p.2.clone()).unwrap_or_default();
-            Some(match self.type_id(&t) {
-                Some(i) => self.types[i].name.clone(),
-                None => t,
-            })
-        } else {
-            None
-        };
         self.funcs.push(Func {
             name: name.to_string(),
             params: params.iter().map(|p| p.0.clone()).collect(),
-            defaults,
-            ptypes: params.iter().map(|p| p.2.clone()).collect(),
-            body,
+            body: body_s,
             layout,
         });
+        self.fn_info.push(FnInfo {
+            params: Rc::new(params.to_vec()),
+            body: Rc::new(body.clone()),
+            line,
+            lib: self.lib_prefix.clone(),
+            mutable: self.mutable.clone(),
+            flags,
+        });
         if method {
-            let ty = method_of.filter(|t| !t.is_empty());
-            self.methods.entry(name.to_string()).or_default().push((id, ty));
+            self.methods.entry(name.to_string()).or_default().push(id);
         } else {
             self.fnames.insert(name.to_string(), id);
             self.overloads.entry(name.to_string()).or_default().push(id);
         }
         Ok(())
+    }
+
+    /// Compiles a function's body in a frame of its own. `args` are one
+    /// call's arguments (and the scopes they're read in).
+    fn func_body(
+        &mut self,
+        params: &[Param],
+        body: &ast::Block,
+        line: usize,
+        args: Option<&[CallArg]>,
+    ) -> R<(Block, Layout, Flags)> {
+        self.push_frame();
+        let d = self.depth();
+        let uid = self.uid();
+        self.scopes.push((d, HashMap::new()));
+        self.flags.push(Flags::default());
+        let local = std::mem::take(&mut self.local);
+        for (k, (p, _, ty)) in params.iter().enumerate() {
+            let slot = self.new_slot();
+            if let Some(t) = ty {
+                self.slot_types.insert((uid, slot), t.clone());
+            }
+            if !self.mutable.contains(&(line, p.clone())) {
+                let def = match args {
+                    Some(a) => Def::Arg(a[k].0.clone(), self.line, a[k].1.clone()),
+                    None => Def::Param,
+                };
+                self.defs.insert((uid, slot), def);
+            }
+            self.declare(p, Bind::Slot { depth: d, slot });
+        }
+        let body = self.block(body);
+        self.local = local;
+        self.scopes.pop();
+        let layout = self.pop_frame();
+        let flags = self.flags.pop().unwrap_or_default();
+        Ok((body?, layout, flags))
+    }
+
+    /// A copy of function `f` for one call.
+    fn instance(&mut self, f: u16, args: &[CallArg]) -> R<u16> {
+        self.instances += 1;
+        if self.instances > MAX_INSTANCES {
+            return Err(self.err("Too many functions calling request.security() inside each other."));
+        }
+        let info = self.fn_info[f as usize].clone();
+        let globals = vec![self.scopes[0].clone()];
+        let scopes = std::mem::replace(&mut self.scopes, globals);
+        let lib = std::mem::replace(&mut self.lib_prefix, info.lib.clone());
+        let mutable = std::mem::replace(&mut self.mutable, info.mutable.clone());
+        let line = self.line;
+        self.again += 1;
+        self.calls.push((
+            info.params.clone(),
+            args.iter().map(|a| a.0.clone()).collect(),
+            info.body.clone(),
+        ));
+        let r = self.func_body(&info.params, &info.body, info.line, Some(args));
+        self.calls.pop();
+        self.again -= 1;
+        self.line = line;
+        self.mutable = mutable;
+        self.lib_prefix = lib;
+        self.scopes = scopes;
+        let (body, layout, flags) = r?;
+        // What it does, its caller does.
+        if let Some(top) = self.flags.last_mut() {
+            top.per_call |= flags.per_call;
+        }
+        let base = &self.funcs[f as usize];
+        let func = Func {
+            name: base.name.clone(),
+            params: base.params.clone(),
+            body,
+            layout,
+        };
+        self.funcs.push(func);
+        self.fn_info.push(info);
+        Ok((self.funcs.len() - 1) as u16)
+    }
+
+    /// The function to call for `f` here: itself, or a copy for this call
+    /// when a `request.security` depends on it.
+    fn callee(&mut self, f: u16, args: &[Option<&Expr>]) -> R<u16> {
+        let info = &self.fn_info[f as usize];
+        let flags = info.flags;
+        let in_sec = !self.secs.is_empty();
+        if let Some(top) = self.flags.last_mut() {
+            top.globals |= flags.globals;
+            top.requests |= flags.requests;
+        }
+        if flags.requests
+            && let Some(s) = self.secs.last_mut()
+        {
+            s.nested = true;
+        }
+        if !(flags.per_call || (in_sec && flags.globals)) {
+            return Ok(f);
+        }
+        let params = info.params.clone();
+        let here = Rc::new(self.scopes.clone());
+        let globals = Rc::new(vec![self.scopes[0].clone()]);
+        let args: Vec<CallArg> = params
+            .iter()
+            .enumerate()
+            .map(|(k, p)| match args.get(k).copied().flatten() {
+                Some(e) => (Rc::new(e.clone()), here.clone()),
+                None => (Rc::new(p.1.clone().unwrap_or(Expr::Na)), globals.clone()),
+            })
+            .collect();
+        self.instance(f, &args)
+    }
+
+    /// A default argument, compiled for a call.
+    fn default_arg(&mut self, e: &Expr, lib: Option<String>) -> R<E> {
+        let tail = self.scopes.split_off(1);
+        let lib = std::mem::replace(&mut self.lib_prefix, lib);
+        let r = self.expr(e);
+        self.lib_prefix = lib;
+        self.scopes.extend(tail);
+        r
     }
 
     // -------------------------------------------------------- expressions
@@ -1250,15 +2015,15 @@ impl Cx {
                     "or" => E::Or(Box::new(a), Box::new(b), lazy),
                     _ => {
                         let bop = Bin::of(op).ok_or_else(|| self.err(format!("Unknown operator {op}.")))?;
+                        // v5 divides constant ints as ints.
+                        if bop == Bin::Div
+                            && self.version < 6
+                            && let (Some(V::Int(p)), Some(V::Int(q))) = (self.const_value(&a), self.const_value(&b))
+                            && q != 0
+                        {
+                            return Ok(E::K(V::Int(p.wrapping_div(q))));
+                        }
                         if let (E::K(x), E::K(y)) = (&a, &b) {
-                            // v5 divides constant ints as ints.
-                            if bop == Bin::Div
-                                && self.version < 6
-                                && let (V::Int(p), V::Int(q)) = (x, y)
-                                && *q != 0
-                            {
-                                return Ok(E::K(V::Int(p / q)));
-                            }
                             return Ok(E::K(crate::run::binary(bop, x, y)));
                         }
                         E::Bin(bop, Box::new(a), Box::new(b))
@@ -1291,53 +2056,144 @@ impl Cx {
                 }
                 E::Switch(subj, cs)
             }
+            Expr::Loop(l) => match self.stmt(l)? {
+                Some(s) => E::Loop(Box::new(s)),
+                None => E::K(V::Na),
+            },
             Expr::Tuple(items) => E::Tuple(items.iter().map(|x| self.expr(x)).collect::<R<_>>()?),
             Expr::Dot(obj, field) => {
                 let o = self.expr(obj)?;
                 self.check_field(field)?;
                 E::Get(Box::new(o), Arc::from(field.as_str()))
             }
-            Expr::MethodCall { recv, name, args } => {
-                let r = self.expr(recv)?;
-                self.method(r, name, args)?
-            }
+            Expr::MethodCall { recv, name, args } => self.method(recv, name, args)?,
         })
     }
 
-    /// A variable from outside the `request.security` expression being
-    /// compiled: constants and inputs are read as they are; series are
-    /// recomputed from their definition on the requested timeframe.
-    fn sec_outer(&mut self, n: &str, depth: usize, slot: u16) -> Option<R<E>> {
-        let sd = *self.sec_frames.last()?;
-        if depth >= sd {
-            return None;
+    /// Reads a variable found in scope `k`.
+    fn var(&mut self, n: &str, k: usize, depth: usize, slot: u16) -> R<E> {
+        let known = self.known.get(&(self.uids[depth], slot));
+        if let Some(sd) = self.secs.last().map(|s| s.depth)
+            && depth < sd
+        {
+            if let Some(e) = known {
+                return Ok(e.clone());
+            }
+            let s = self.hoist(n, k, depth, slot)?;
+            return Ok(if self.depth() == sd { E::L(s) } else { E::G(s) });
         }
-        if let Some(k) = self.known.get(&(depth, slot)) {
-            return Some(Ok(k.clone()));
+        if depth == 0 && self.depth() > 0 {
+            // Constants and inputs are the same everywhere.
+            if let Some(e @ (E::K(_) | E::In(_) | E::InSrc(_))) = known {
+                return Ok(e.clone());
+            }
+            if let Some(f) = self.flags.last_mut() {
+                f.globals = true;
+            }
         }
-        let Some(def) = self.defs.get(&(depth, slot)).cloned() else {
-            return Some(Err(self.err(format!(
-                "request.security() can't recompute \"{n}\" on another timeframe because it changes with := or var. Put the calculation in a function and call that inside request.security()."
-            ))));
+        self.slot_ref(depth, slot)
+    }
+
+    /// Recomputes a variable from outside the `request.security` being
+    /// compiled in its frame, from the variable's definition, and returns
+    /// its slot there.
+    fn hoist(&mut self, n: &str, k: usize, depth: usize, slot: u16) -> R<u16> {
+        let var = (self.uids[depth], slot);
+        let sec = self.secs.last().expect("in a request");
+        if let Some(s) = sec.hoisted.get(&var) {
+            return Ok(*s);
+        }
+        let sd = sec.depth;
+        let Some(def) = self.defs.get(&var).cloned() else {
+            self.wants_slice |= depth == 0;
+            return Err(self.err(format!(
+                "request.security() can't recompute \"{n}\" on other bars because it changes with := or var. Put the calculation in a function and call that inside request.security()."
+            )));
         };
-        if self.inlining.contains(&(depth, slot)) {
-            return Some(Err(self.err(format!("\"{n}\" depends on itself."))));
+        if self.inlining.contains(&var) {
+            return Err(self.err(format!("\"{n}\" depends on itself.")));
         }
-        self.inlining.push((depth, slot));
-        let e = self.expr(&def);
+        self.inlining.push(var);
+        // Compiled as if written in the request, at the top of its frame.
+        let above = (self.frames.split_off(sd + 1), self.uids.split_off(sd + 1));
+        let line = self.line;
+        let local = std::mem::take(&mut self.local);
+        self.again += 1;
+        let mut tail = self.scopes.split_off(k + 1);
+        let r = (|| match &def {
+            Def::Param => {
+                // Not known until it's called.
+                self.flags.iter_mut().for_each(|f| f.per_call = true);
+                Ok(vec![(var, self.new_slot())])
+            }
+            Def::Value(e, at) => {
+                self.line = *at;
+                let v = self.in_request(sd, e)?;
+                let s = self.new_slot();
+                self.prelude(*at, S::Let(s, v));
+                Ok(vec![(var, s)])
+            }
+            Def::Arg(e, at, scopes) => {
+                self.line = *at;
+                let own = std::mem::replace(&mut self.scopes, (**scopes).clone());
+                let v = self.in_request(sd, e);
+                self.scopes = own;
+                let v = v?;
+                let s = self.new_slot();
+                self.prelude(*at, S::Let(s, v));
+                Ok(vec![(var, s)])
+            }
+            Def::Tuple(e, at, vars) => {
+                self.line = *at;
+                let v = self.in_request(sd, e)?;
+                let slots: Vec<Option<u16>> = vars.iter().map(|v| v.map(|_| self.new_slot())).collect();
+                self.prelude(*at, S::LetTuple(slots.clone(), v));
+                Ok(vars
+                    .iter()
+                    .zip(&slots)
+                    .filter_map(|(v, s)| Some(((*v)?, (*s)?)))
+                    .collect())
+            }
+        })();
+        self.scopes.append(&mut tail);
+        self.again -= 1;
+        self.local = local;
+        self.line = line;
+        self.frames.extend(above.0);
+        self.uids.extend(above.1);
         self.inlining.pop();
-        Some(e)
+        let uid = self.uids[sd];
+        for (v, s) in r? {
+            if let Some(t) = self.slot_types.get(&v).cloned() {
+                self.slot_types.insert((uid, s), t);
+            }
+            if let Some(sec) = self.secs.last_mut() {
+                sec.hoisted.insert(v, s);
+            }
+        }
+        match self.secs.last().and_then(|s| s.hoisted.get(&var)) {
+            Some(s) => Ok(*s),
+            None => Err(self.err(format!("request.security() can't recompute \"{n}\"."))),
+        }
+    }
+
+    fn in_request(&mut self, depth: usize, e: &Expr) -> R<E> {
+        self.scopes.push((depth, HashMap::new()));
+        let r = self.expr(e);
+        self.scopes.pop();
+        r
+    }
+
+    fn prelude(&mut self, line: usize, s: S) {
+        if let Some(sec) = self.secs.last_mut() {
+            sec.prelude.push((line as u32, s));
+        }
     }
 
     fn name(&mut self, n: &str) -> R<E> {
-        match self.lookup(n) {
-            Some(Bind::Slot { depth, slot }) => {
-                if let Some(e) = self.sec_outer(n, depth, slot) {
-                    return e;
-                }
-                return self.slot_ref(depth, slot);
-            }
-            Some(Bind::Plot(_) | Bind::HLine(_)) => {
+        match self.lookup_at(n) {
+            Some((Bind::Slot { depth, slot }, k)) => return self.var(n, k, depth, slot),
+            Some((Bind::Plot(_) | Bind::HLine(_), _)) => {
                 return Err(self.err(format!("\"{n}\" is a plot; use it in fill().")));
             }
             None => {}
@@ -1358,8 +2214,12 @@ impl Cx {
             };
             return Ok(self.nat(def, args));
         }
-        if let Some(v) = constant(n) {
+        if let Some(v) = constant_in(self.version, n) {
             return Ok(E::K(v));
+        }
+        let lib = self.in_lib(n, |cx, n| cx.lib_consts.contains_key(n));
+        if let Some(v) = self.lib_consts.get(&lib) {
+            return Ok(E::K(v.clone()));
         }
         if let Some((en, m)) = n.rsplit_once('.')
             && let en = self.in_lib(en, |cx, e| cx.enums.contains_key(e))
@@ -1377,8 +2237,29 @@ impl Cx {
             let (oe, fi) = self.field_path(obj, field)?;
             return Ok(E::Get(Box::new(oe), fi));
         }
+        if self.version < 4
+            && let Some(v) = bare_constant(n)
+        {
+            return Ok(E::K(v));
+        }
         if natives::lookup(n).is_some() || self.fnames.contains_key(n) {
             return Err(self.err(format!("{n} is a function; call it with brackets: {n}(…).")));
+        }
+        if let Some(full) = renamed(n)
+            && (full == "bar_index" || natives::lookup(&full).is_some_and(|d| d.var))
+        {
+            if self.version < 5 {
+                return self.name(&full);
+            }
+            return Err(self.err(format!("Unknown name \"{n}\". Did you mean {full}?")));
+        }
+        if self.version < 4
+            && let Some(v) = bare_constant(n)
+        {
+            return Ok(E::K(v));
+        }
+        if self.version < 5 && n.starts_with("input.") {
+            return Ok(E::K(V::str(n)));
         }
         Err(self.err(format!("Unknown name \"{n}\".")))
     }
@@ -1401,10 +2282,21 @@ impl Cx {
         }
     }
 
-    fn nat(&mut self, f: &'static NatDef, args: Vec<E>) -> E {
+    fn nat(&mut self, f: &'static NatDef, mut args: Vec<E>) -> E {
+        // A window whose length can change from bar to bar keeps the values
+        // a longer one will need.
+        if f.window
+            && f.params
+                .iter()
+                .zip(&args)
+                .any(|(p, a)| natives::LENGTHS.contains(p) && self.resolve(a).is_none())
+        {
+            args.resize(f.params.len(), E::K(V::Na));
+            args.push(E::K(V::Bool(true)));
+        }
         if f.pure && args.iter().all(|a| matches!(a, E::K(_))) {
             let vals: Vec<V> = args.iter().map(|a| const_of(a).unwrap_or_default()).collect();
-            let mut g = crate::run::G::scratch(self.env.clone());
+            let mut g = crate::run::G::scratch(self.env.clone(), self.version);
             let mut st = None;
             if let Ok(v) = (f.f)(&mut g, &vals, &mut st) {
                 return E::K(v);
@@ -1425,24 +2317,38 @@ impl Cx {
             _ => DYN_HIST,
         };
         if let Expr::Name(name) = target {
-            let outer = |cx: &Self, depth: usize| cx.sec_frames.last().is_some_and(|sd| depth < *sd);
-            match self.lookup(name) {
-                Some(Bind::Slot { depth, slot })
-                    if !outer(self, depth) || matches!(self.known.get(&(depth, slot)), Some(E::InSrc(_))) =>
-                {
+            match self.lookup_at(name) {
+                Some((Bind::Slot { depth, slot }, k)) => {
                     // An input.source variable reads bar history directly.
-                    if let Some(E::InSrc(k)) = self.known.get(&(depth, slot)) {
+                    if let Some(E::InSrc(k)) = self.known.get(&(self.uids[depth], slot)) {
                         let k = *k;
                         self.need_bar_hist(n);
                         return Ok(E::InSrcH(k, Box::new(i)));
                     }
-                    self.need_hist(depth, slot, n);
-                    let r = self.slot_ref(depth, slot)?;
-                    return Ok(match r {
-                        E::L(s) => E::LH(s, Box::new(i)),
-                        E::G(s) => E::GH(s, Box::new(i)),
-                        _ => unreachable!(),
-                    });
+                    let sd = self.secs.last().map(|s| s.depth).filter(|sd| depth < *sd);
+                    let Some(sd) = sd else {
+                        self.need_hist(depth, slot, n);
+                        if depth == 0
+                            && self.depth() > 0
+                            && let Some(f) = self.flags.last_mut()
+                        {
+                            f.globals = true;
+                        }
+                        return Ok(match self.slot_ref(depth, slot)? {
+                            E::L(s) => E::LH(s, Box::new(i)),
+                            E::G(s) => E::GH(s, Box::new(i)),
+                            e => e,
+                        });
+                    };
+                    if !self.known.contains_key(&(self.uids[depth], slot)) {
+                        let s = self.hoist(name, k, depth, slot)?;
+                        self.need_hist(sd, s, n);
+                        return Ok(if self.depth() == sd {
+                            E::LH(s, Box::new(i))
+                        } else {
+                            E::GH(s, Box::new(i))
+                        });
+                    }
                 }
                 None => {
                     if let Some(f) = Field::by_name(name) {
@@ -1521,10 +2427,23 @@ impl Cx {
         // Method call on a variable: `arr.push(x)`, `obj.method()`.
         if let Some((obj, m)) = callee.rsplit_once('.')
             && natives::lookup(callee).is_none()
-            && (self.lookup(obj.split('.').next().unwrap_or(obj)).is_some() || obj.contains('('))
         {
-            let recv = self.name(obj)?;
-            return self.method(recv, m, args);
+            let var = self.lookup(obj.split('.').next().unwrap_or(obj)).is_some();
+            let built_in = self.methods.contains_key(m)
+                && (Field::by_name(obj).is_some()
+                    || natives::lookup(obj).is_some_and(|d| d.var)
+                    || constant_in(self.version, obj).is_some());
+            if var || built_in {
+                return self.method(&Expr::Name(obj.to_string()), m, args);
+            }
+            // Type.copy(obj)
+            if m == "copy" && self.type_id(obj).is_some() && args.len() == 1 {
+                return self.method(&args[0].value, "copy", &[]);
+            }
+        }
+        // v3's color(red, 80).
+        if callee == "color" && args.len() == 2 {
+            return self.call("color.new", args);
         }
         if let Some(def) = natives::lookup(callee) {
             let mut argv = self.nat_args(def, args)?;
@@ -1556,20 +2475,87 @@ impl Cx {
         if self.methods.contains_key(callee)
             && let Some(first) = args.first().filter(|a| a.name.is_none())
         {
-            let recv = self.expr(&first.value)?;
-            return self.method(recv, callee, &args[1..]);
+            return self.method(&first.value, callee, &args[1..]);
         }
         if self.methods.contains_key(callee) {
             return Err(self.err(format!("{callee} is a method; call it on a value: x.{callee}(…).")));
+        }
+        if self.version < 5 {
+            match (callee, args) {
+                ("iff", [c, a, b]) => {
+                    return self.expr(&Expr::Ternary(
+                        Box::new(c.value.clone()),
+                        Box::new(a.value.clone()),
+                        Box::new(b.value.clone()),
+                    ));
+                }
+                ("offset", [x, k]) => {
+                    return self.expr(&Expr::Index(Box::new(x.value.clone()), Box::new(k.value.clone())));
+                }
+                _ => {}
+            }
+        }
+        if let Some(full) = renamed(callee)
+            && natives::lookup(&full).is_some()
+        {
+            if self.version < 5 {
+                // tostring(x, y)'s names.
+                let mut args = args.to_vec();
+                if full == "str.tostring" {
+                    for a in &mut args {
+                        match a.name.as_deref() {
+                            Some("x") => a.name = Some("value".into()),
+                            Some("y") => a.name = Some("format".into()),
+                            _ => {}
+                        }
+                    }
+                }
+                return self.call(&full, &args);
+            }
+            return Err(self.err(format!("Unknown function \"{callee}\". Did you mean {full}()?")));
         }
         Err(self.err(format!("Unknown function \"{callee}\".")))
     }
 
     fn nat_args(&mut self, def: &'static NatDef, args: &[Arg]) -> R<Vec<E>> {
+        if def.name == "timestamp" && args.iter().any(|a| a.name.is_some()) {
+            const PARTS: &[&str] = &["timezone", "year", "month", "day", "hour", "minute", "second"];
+            let zoned = args.iter().any(|a| a.name.as_deref() == Some("timezone"));
+            let params = if zoned { PARTS } else { &PARTS[1..] };
+            let mut params = params.to_vec();
+            if args.len() == 1 {
+                params = vec!["dateString"];
+            }
+            let bound = bind(def.name, &params, args, self.line)?;
+            let last = bound.iter().rposition(|b| b.is_some()).map_or(0, |k| k + 1);
+            return bound[..last]
+                .iter()
+                .enumerate()
+                .map(|(k, a)| match a {
+                    Some(e) => self.expr(e),
+                    None => Ok(E::K(V::Int(if params[k] == "day" { 1 } else { 0 }))),
+                })
+                .collect();
+        }
         if def.params == ["*"] {
             return args.iter().map(|a| self.expr(&a.value)).collect();
         }
+        // v4's strategy.entry(long = true).
+        let mut own: Vec<Arg>;
+        let mut args = args;
+        if self.version < 5 && matches!(def.name, "strategy.entry" | "strategy.order") {
+            own = args.to_vec();
+            for a in &mut own {
+                if a.name.as_deref() == Some("long") {
+                    a.name = Some("direction".into());
+                }
+            }
+            args = &own;
+        }
         let bound = bind(def.name, def.params, args, self.line)?;
+        if let Some(k) = natives::missing(def, &bound.iter().map(|b| b.is_some()).collect::<Vec<_>>()) {
+            return Err(self.err(format!("{}() needs a value for \"{}\".", def.name, def.params[k])));
+        }
         bound
             .into_iter()
             .map(|a| match a {
@@ -1589,60 +2575,52 @@ impl Cx {
         }
         let fits = |f: u16| {
             let func = &self.funcs[f as usize];
+            let info = &self.fn_info[f as usize];
             let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
             let Ok(bound) = bind(name, &params, args, self.line) else {
-                return false;
+                return None;
             };
-            bound.iter().enumerate().all(|(k, a)| match a {
-                None => func.defaults[k].is_some(),
-                Some(e) => match (self.evident_type(e), func.ptypes[k].as_deref()) {
-                    (Some(have), Some(want)) => have == want || (have == "int" && want == "float") || (have == "na"),
-                    _ => true,
-                },
-            })
+            // How many conversions it takes.
+            let mut cost = 0;
+            for (k, a) in bound.iter().enumerate() {
+                match a {
+                    None if info.params[k].1.is_some() => {}
+                    None => return None,
+                    Some(e) => match (self.infer(e), info.params[k].2.as_deref()) {
+                        (Some(have), Some(want)) if have == want || have == "na" => {}
+                        (Some(have), Some("float")) if have == "int" => cost += 1,
+                        (Some(have), Some(want)) if base_type(&have) == want || have == base_type(want) => cost += 1,
+                        (Some(_), Some(_)) => return None,
+                        _ => cost += 1,
+                    },
+                }
+            }
+            Some(cost)
         };
         all.iter()
             .copied()
-            .find(|&f| fits(f))
+            .filter_map(|f| Some((fits(f)?, f)))
+            .min_by_key(|(c, _)| *c)
+            .map(|(_, f)| f)
             .ok_or_else(|| self.err(format!("No version of {name}() takes these arguments.")))
     }
 
-    /// The primitive type of an argument, when it's plain from the syntax
-    /// or from a typed declaration.
-    fn evident_type(&self, e: &Expr) -> Option<&str> {
-        Some(match e {
-            Expr::Int(_) => "int",
-            Expr::Float(_) => "float",
-            Expr::Str(_) => "string",
-            Expr::Bool(_) => "bool",
-            Expr::Color(_) => "color",
-            Expr::Na => "na",
-            Expr::Unary("not", _) => "bool",
-            Expr::Binary(op, ..) if matches!(*op, "==" | "!=" | "<" | ">" | "<=" | ">=" | "and" | "or") => "bool",
-            Expr::Name(n) => match self.lookup(n)? {
-                Bind::Slot { depth, slot } => self.slot_types.get(&(depth, slot))?.as_str(),
-                _ => return None,
-            },
-            _ => return None,
-        })
-    }
-
     fn user_call(&mut self, f: u16, args: &[Arg]) -> R<E> {
-        let func = self.funcs[f as usize].clone();
-        let params: Vec<&str> = func.params.iter().map(|s| s.as_str()).collect();
-        let bound = bind(&func.name, &params, args, self.line)?;
+        let name = self.funcs[f as usize].name.clone();
+        let info = self.fn_info[f as usize].clone();
+        let params: Vec<&str> = info.params.iter().map(|p| p.0.as_str()).collect();
+        let bound = bind(&name, &params, args, self.line)?;
         let mut argv = Vec::new();
-        for (k, a) in bound.into_iter().enumerate() {
-            argv.push(match a {
-                Some(e) => self.expr(e)?,
-                None => match &func.defaults[k] {
-                    Some(v) => v.clone(),
-                    None => {
-                        return Err(self.err(format!("{}() needs a value for \"{}\".", func.name, func.params[k])));
-                    }
-                },
+        for (k, a) in bound.iter().enumerate() {
+            argv.push(match (a, &info.params[k].1) {
+                (Some(e), _) => self.expr(e)?,
+                (None, Some(e)) => self.default_arg(e, info.lib.clone())?,
+                (None, None) => {
+                    return Err(self.err(format!("{name}() needs a value for \"{}\".", params[k])));
+                }
             });
         }
+        let f = self.callee(f, &bound)?;
         let frame = self.frame();
         frame.calls.push(f);
         let site = (frame.calls.len() - 1) as u16;
@@ -1657,48 +2635,78 @@ impl Cx {
         for (k, a) in bound.into_iter().enumerate() {
             vals.push(match a {
                 Some(e) => self.expr(e)?,
-                None => E::K(t.defaults[k].clone()),
+                None => match self.type_defaults[ti][k].clone() {
+                    Some(d) => self.default_arg(&d, t.name.rsplit_once('.').map(|(p, _)| p.to_string()))?,
+                    None => E::K(V::Na),
+                },
             });
         }
         Ok(E::New(ti as u16, vals))
     }
 
-    fn method(&mut self, recv: E, m: &str, args: &[Arg]) -> R<E> {
-        let user: Vec<(u16, u16)> = self
-            .methods
-            .get(m)
-            .map(|v| {
-                v.iter()
-                    .map(|(f, ty)| {
-                        let tid = ty
-                            .as_ref()
-                            .and_then(|t| self.types.iter().position(|x| &x.name == t))
-                            .map(|i| i as u16)
-                            .unwrap_or(u16::MAX);
-                        (*f, tid)
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+    /// What a method's first parameter takes.
+    fn this_of(&self, f: u16) -> This {
+        let info = &self.fn_info[f as usize];
+        let Some(t) = info.params.first().and_then(|p| p.2.as_deref()) else {
+            return This::Any;
+        };
+        let full = match &info.lib {
+            Some(p) if self.types.iter().any(|x| x.name == format!("{p}.{t}")) => format!("{p}.{t}"),
+            _ => t.to_string(),
+        };
+        if let Some(i) = self.types.iter().position(|x| x.name == full) {
+            return This::Udt(i as u16);
+        }
+        let elem = t
+            .strip_prefix("array<")
+            .and_then(|x| x.strip_suffix('>'))
+            .map(Arc::from);
+        This::Of(Arc::from(base_type(t)), elem)
+    }
+
+    fn method(&mut self, recv: &Expr, m: &str, args: &[Arg]) -> R<E> {
+        let r = self.expr(recv)?;
+        let hint = self.infer(recv).map(Arc::from);
         let mut argv = Vec::new();
         let mut names = Vec::new();
         for a in args {
             names.push(a.name.as_deref().map(Arc::from));
             argv.push(self.expr(&a.value)?);
         }
-        // One call site (its own frame) per candidate user method.
-        let mut cands = Vec::new();
-        for (f, t) in user {
+        // One call site (its own frame) per method it could be.
+        let mut user = Vec::new();
+        for f in self.methods.get(m).cloned().unwrap_or_default() {
+            let info = self.fn_info[f as usize].clone();
+            let params: Vec<&str> = info.params.iter().skip(1).map(|p| p.0.as_str()).collect();
+            let Ok(bound) = bind(m, &params, args, self.line) else {
+                continue;
+            };
+            let this = self.this_of(f);
+            let all: Vec<Option<&Expr>> = std::iter::once(Some(recv)).chain(bound).collect();
+            let mut defaults = Vec::new();
+            for p in info.params.iter() {
+                defaults.push(match &p.1 {
+                    Some(e) => Some(self.default_arg(e, info.lib.clone())?),
+                    None => None,
+                });
+            }
+            let f = self.callee(f, &all)?;
             let frame = self.frame();
             frame.calls.push(f);
-            cands.push((f, t, (frame.calls.len() - 1) as u16));
+            user.push(MethodCand {
+                f,
+                this,
+                site: (frame.calls.len() - 1) as u16,
+                defaults,
+            });
         }
         Ok(E::Method {
             name: Arc::from(m),
-            recv: Box::new(recv),
+            recv: Box::new(r),
             args: argv,
             names,
-            user: cands,
+            user,
+            hint,
         })
     }
 
@@ -1750,50 +2758,250 @@ impl Cx {
             Some(g) => self.expr(g)?,
             None => E::K(V::Bool(false)),
         };
+        self.requests = true;
+        if let Some(f) = self.flags.last_mut() {
+            f.requests = true;
+        }
+        if let Some(s) = self.secs.last_mut() {
+            s.nested = true;
+        }
         // The expression gets its own frame, as if it were a function
         // called on the other timeframe's bars.
-        self.frames.push(Layout::default());
-        self.scopes.push((self.depth(), HashMap::new()));
-        self.sec_depth += 1;
-        self.sec_frames.push(self.depth());
-        let saved_bar = self.sec_bar_hist;
-        self.sec_bar_hist = 1;
-        let e = self.expr(expr);
-        let bar_hist = self.sec_bar_hist;
-        self.sec_bar_hist = saved_bar;
-        self.sec_depth -= 1;
-        self.sec_frames.pop();
-        self.scopes.pop();
-        let layout = self.frames.pop().unwrap_or_default();
-        let e = e?;
+        let outer = std::mem::take(&mut self.wants_slice);
+        let mut done = self.request_body(expr, &[], &[]).map(|b| Body::Here(Box::new(b)));
+        if done.is_err() && std::mem::take(&mut self.wants_slice) {
+            if !self.flags.is_empty() && self.calls.is_empty() {
+                // In a function: what the state is depends on where it's
+                // called.
+                self.flags.iter_mut().for_each(|f| f.per_call = true);
+                done = Ok(Body::Here(Box::default()));
+            } else {
+                let (before, after) = self.slice_for(expr);
+                if after.is_empty() {
+                    self.again += 1;
+                    done = self.request_body(expr, &before, &[]).map(|b| Body::Here(Box::new(b)));
+                    self.again -= 1;
+                } else if self.secs.is_empty() {
+                    self.late.push(LateRequest {
+                        expr: expr.clone(),
+                        before,
+                        after,
+                        scopes: self.scopes.clone(),
+                        uids: self.uids.clone(),
+                        lib: self.lib_prefix.clone(),
+                        mutable: self.mutable.clone(),
+                        calls: self.calls.clone(),
+                        line: self.line,
+                        at: self.root_at,
+                    });
+                    done = Ok(Body::Late((self.late.len() - 1) as u16));
+                }
+            }
+        }
+        self.wants_slice = outer;
+        let body = done?;
         let frame = self.frame();
         frame.secs += 1;
         let site = (frame.secs - 1) as u16;
         Ok(E::Security(Box::new(Sec {
             symbol,
             tf,
-            expr: e,
+            body,
             gaps,
             lookahead,
             site,
-            layout,
-            bar_hist,
             lower,
         })))
+    }
+
+    /// Compiles the requests that were left for last.
+    fn compile_late(&mut self) -> R<Vec<SecBody>> {
+        let globals = self.scopes[0].clone();
+        let mut out = Vec::new();
+        self.again += 1;
+        for l in std::mem::take(&mut self.late) {
+            self.frames = vec![Layout::default(); l.uids.len()];
+            self.uids = l.uids;
+            self.scopes = l.scopes;
+            // Everything declared by now, for the statements below it.
+            self.scopes[0] = globals.clone();
+            self.lib_prefix = l.lib;
+            self.mutable = l.mutable;
+            self.calls = l.calls;
+            self.line = l.line;
+            self.root_at = l.at;
+            self.local = 0;
+            out.push(self.request_body(&l.expr, &l.before, &l.after)?);
+        }
+        Ok(out)
+    }
+
+    /// The top-level statements a request's expression depends on, when it
+    /// uses variables that are reassigned.
+    fn slice_for(&mut self, expr: &Expr) -> (Vec<Stmt>, Vec<Stmt>) {
+        let ast = self.ast.clone();
+        let p = match &self.slices {
+            Some(p) => p.clone(),
+            None => {
+                let p = Rc::new(crate::slice::Program::new(&ast));
+                self.slices = Some(p.clone());
+                p
+            }
+        };
+        let mut names = p.names(std::iter::once(expr));
+        // Through the functions it's in, innermost first.
+        for (params, args, body) in self.calls.iter().rev() {
+            names = p.outside(names, params, args, body);
+        }
+        let (before, after): (Vec<usize>, Vec<usize>) = p
+            .needed(self.root_at, names)
+            .into_iter()
+            .filter(|k| {
+                !matches!(&ast[*k], Stmt::Decl { value: Expr::Call { callee, .. }, .. } if callee == "plot" || callee == "hline")
+            })
+            .partition(|k| *k < self.root_at);
+        let get = |ks: Vec<usize>| ks.into_iter().map(|k| ast[k].clone()).collect();
+        (get(before), get(after))
+    }
+
+    /// Compiles a request's expression, between the top-level statements it
+    /// depends on (see [`Cx::slice_for`]).
+    fn request_body(&mut self, expr: &Expr, before: &[Stmt], after: &[Stmt]) -> R<SecBody> {
+        if self.secs.len() >= 4 {
+            return Err(self.err("Too many request.security() calls inside each other."));
+        }
+        self.push_frame();
+        let depth = self.depth();
+        self.sec_depth += 1;
+        self.secs.push(SecCx {
+            depth,
+            hoisted: HashMap::new(),
+            prelude: Vec::new(),
+            nested: false,
+        });
+        let saved_bar = std::mem::replace(&mut self.sec_bar_hist, 1);
+        let line = self.line;
+        let r = self.request_parts(expr, before, after, depth);
+        self.line = line;
+        let bar_hist = std::mem::replace(&mut self.sec_bar_hist, saved_bar);
+        self.sec_depth -= 1;
+        let cx = self.secs.pop();
+        let layout = self.pop_frame();
+        let (e, post) = r?;
+        let (prelude, nested) = cx.map(|c| (c.prelude, c.nested)).unwrap_or_default();
+        Ok(SecBody {
+            prelude,
+            expr: Some(e),
+            post,
+            nested,
+            layout,
+            bar_hist,
+        })
+    }
+
+    fn request_parts(&mut self, expr: &Expr, before: &[Stmt], after: &[Stmt], depth: usize) -> R<(E, Block)> {
+        let mut own = (depth, HashMap::new());
+        let pre = self.request_stmts(before, &mut own)?;
+        if let Some(sec) = self.secs.last_mut() {
+            // Variables the statements recomputed come before them.
+            sec.prelude.extend(pre);
+        }
+        self.scopes.push((depth, HashMap::new()));
+        let e = self.expr(expr);
+        self.scopes.pop();
+        let e = e?;
+        let post = self.request_stmts(after, &mut own)?;
+        Ok((e, post))
+    }
+
+    /// Top-level statements, compiled into a request's frame.
+    fn request_stmts(&mut self, stmts: &[Stmt], own: &mut Scope) -> R<Block> {
+        if stmts.is_empty() {
+            return Ok(Vec::new());
+        }
+        let scopes = vec![self.scopes[0].clone(), std::mem::take(own)];
+        let scopes = std::mem::replace(&mut self.scopes, scopes);
+        let local = std::mem::take(&mut self.local);
+        let mut out = Vec::new();
+        let r = stmts.iter().try_for_each(|s| -> R<()> {
+            let at = self.secs.last().map_or(0, |c| c.prelude.len());
+            let compiled = self.block(std::slice::from_ref(s))?;
+            // What it needed recomputed, then it.
+            if let Some(sec) = self.secs.last_mut() {
+                out.extend(sec.prelude.drain(at..));
+            }
+            out.extend(compiled);
+            // From here on the script's variable is this one.
+            if let Stmt::Decl { names, line, .. } = s {
+                for n in names {
+                    let Some(g) = self.root_slots.get(&(*line, n.clone())).copied() else {
+                        continue;
+                    };
+                    if let Some(Bind::Slot { slot, .. }) = self.scopes[1].1.get(n).copied()
+                        && let Some(sec) = self.secs.last_mut()
+                    {
+                        sec.hoisted.insert((0, g), slot);
+                    }
+                }
+            }
+            Ok(())
+        });
+        *own = std::mem::take(&mut self.scopes[1]);
+        self.scopes = scopes;
+        self.local = local;
+        r.map(|_| out)
     }
 
     // -------------------------------------------------------- inputs
 
     fn input(&mut self, callee: &str, args: &[Arg]) -> R<E> {
+        // Source compiled a second time (for request.security) means the
+        // inputs it made the first time.
+        let cache = (self.line, format!("{callee}{args:?}"));
+        if self.again > 0
+            && let Some(e) = self.input_cache.get(&cache)
+        {
+            return Ok(e.clone());
+        }
+        // Positions as in the manual; the ones that only lay out the
+        // Inputs tab are read past.
+        const NUMBER: &[&str] = &[
+            "defval", "title", "minval", "maxval", "step", "tooltip", "inline", "group", "confirm", "display", "active",
+        ];
+        const CHOICE: &[&str] = &[
+            "defval", "title", "options", "tooltip", "inline", "group", "confirm", "display", "active",
+        ];
+        const PLAIN: &[&str] = &[
+            "defval", "title", "tooltip", "inline", "group", "confirm", "display", "active",
+        ];
+        const V4: &[&str] = &[
+            "defval", "title", "type", "minval", "maxval", "confirm", "step", "options", "tooltip", "inline", "group",
+        ];
+        const ANY: &[&str] = &["defval", "title", "tooltip", "inline", "group", "display", "active"];
+        let options_third = matches!(
+            args.get(2),
+            Some(Arg {
+                name: None,
+                value: Expr::Tuple(_)
+            })
+        ) || args.iter().any(|a| a.name.as_deref() == Some("options"));
         let params: &[&str] = match callee {
-            "input" => &[
-                "defval", "title", "type", "minval", "maxval", "step", "options", "group",
-            ],
-            "input.int" | "input.float" => &["defval", "title", "minval", "maxval", "step", "options", "group"],
-            "input.string" => &["defval", "title", "options", "group"],
-            "input.bool" | "input.color" | "input.source" | "input.symbol" | "input.session" | "input.text_area"
-            | "input.time" | "input.price" | "input.timeframe" => &["defval", "title", "options", "group"],
-            "input.enum" => &["defval", "title", "options", "group"],
+            "input"
+                if args.iter().any(|a| {
+                    matches!(
+                        a.name.as_deref(),
+                        Some("type" | "minval" | "maxval" | "step" | "options")
+                    )
+                }) =>
+            {
+                V4
+            }
+            "input" => ANY,
+            "input.int" | "input.float" if options_third => CHOICE,
+            "input.int" | "input.float" => NUMBER,
+            "input.string" | "input.session" | "input.timeframe" | "input.enum" => CHOICE,
+            "input.bool" | "input.color" | "input.source" | "input.symbol" | "input.text_area" | "input.time"
+            | "input.price" => PLAIN,
             _ => return Err(self.err(format!("Unknown input type \"{callee}\"."))),
         };
         let b = bind(callee, params, args, self.line)?;
@@ -1804,7 +3012,7 @@ impl Cx {
             match b[k] {
                 Some(e) => {
                     let e = cx.expr(e)?;
-                    Ok(Some(const_of(&e).ok_or_else(|| {
+                    Ok(Some(cx.const_value(&e).ok_or_else(|| {
                         cx.err(format!("The input's \"{name}\" must be a constant."))
                     })?))
                 }
@@ -1821,7 +3029,10 @@ impl Cx {
                 let mut out = Vec::new();
                 for it in items {
                     let e = self.expr(it)?;
-                    out.push(const_of(&e).ok_or_else(|| self.err("Input options must be constants."))?);
+                    out.push(
+                        self.const_value(&e)
+                            .ok_or_else(|| self.err("Input options must be constants."))?,
+                    );
                 }
                 out
             }
@@ -1855,7 +3066,8 @@ impl Cx {
             V::str(src_default.clone().unwrap_or_else(|| "close".into()))
         } else {
             let e = self.expr(defval_expr)?;
-            const_of(&e).ok_or_else(|| self.err("An input's default value must be a constant."))?
+            self.const_value(&e)
+                .ok_or_else(|| self.err("An input's default value must be a constant."))?
         };
         let opts_text = |opts: &[V]| -> &'static [&'static str] {
             let v: Vec<&'static str> = opts
@@ -1913,12 +3125,9 @@ impl Cx {
                     Conv::Float,
                 ),
                 ("input.time", _) => (
-                    InputKind::Int {
-                        min: i64::MIN / 2,
-                        max: i64::MAX / 2,
-                    },
-                    Value::Int(defval.i().unwrap_or(0)),
-                    Conv::Int,
+                    InputKind::Text,
+                    Value::Text(natives::input_date(&self.env, defval.i().unwrap_or(0))),
+                    Conv::Time,
                 ),
                 (_, _) if !options.is_empty() => (
                     InputKind::Choice(opts_text(&options)),
@@ -1955,21 +3164,15 @@ impl Cx {
             conv,
         });
         let i = (self.inputs.len() - 1) as u16;
-        Ok(if conv == Conv::Source { E::InSrc(i) } else { E::In(i) })
+        let e = if conv == Conv::Source { E::InSrc(i) } else { E::In(i) };
+        self.input_cache.insert(cache, e.clone());
+        Ok(e)
     }
 
-    /// The input default behind an expression (for declarations).
+    /// An expression of constants and inputs, with the inputs' defaults
+    /// (for declarations).
     fn const_or_default(&self, e: &E) -> Option<V> {
-        match e {
-            E::K(v) => Some(v.clone()),
-            E::In(i) => Some(self.input_default(*i)),
-            E::L(s) | E::G(s) => {
-                let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
-                self.known.get(&(depth, *s)).and_then(|k| self.const_or_default(k))
-            }
-            E::Neg(x) => self.const_or_default(x).map(|v| crate::run::neg(&v)),
-            _ => None,
-        }
+        self.eval_default(e)
     }
 
     fn input_default(&self, i: u16) -> V {
@@ -1978,6 +3181,7 @@ impl Cx {
             (Value::Int(x), _) => V::Int(*x),
             (Value::Float(x), _) => V::Float(*x),
             (Value::Bool(x), _) => V::Bool(*x),
+            (Value::Text(t), Conv::Time) => natives::date_of_input(&self.env, t).map_or(V::Na, V::Int),
             (Value::Text(t), Conv::IntChoice) => V::Int(t.parse().unwrap_or(0)),
             (Value::Text(t), Conv::FloatChoice) => V::Float(t.parse().unwrap_or(0.0)),
             (Value::Text(t), Conv::Color) => V::Color(crate::run::parse_hex(t).unwrap_or(0)),
@@ -1990,10 +3194,7 @@ impl Cx {
         match e {
             E::K(v) => Some((None, 0, v.i()?)),
             E::In(i) => Some((Some(*i), 1, 0)),
-            E::L(s) | E::G(s) => {
-                let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
-                self.linear(self.known.get(&(depth, *s))?)
-            }
+            E::L(_) | E::G(_) => self.linear(&self.resolve(e)?),
             E::Neg(x) => {
                 let (i, s, k) = self.linear(x)?;
                 Some((i, -s, -k))
@@ -2037,19 +3238,55 @@ impl Cx {
         Some(match e {
             E::K(v) => v.clone(),
             E::In(i) => self.input_default(*i),
-            E::L(s) | E::G(s) => {
-                let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
-                return self.eval_default(self.known.get(&(depth, *s))?);
-            }
+            E::L(_) | E::G(_) => return self.eval_default(&self.resolve(e)?),
             E::Neg(x) => crate::run::neg(&self.eval_default(x)?),
             E::Not(x) => V::Bool(!self.eval_default(x)?.truthy()),
             E::Bin(op, a, b) => crate::run::binary(*op, &self.eval_default(a)?, &self.eval_default(b)?),
+            E::And(a, b, _) => V::Bool(self.eval_default(a)?.truthy() && self.eval_default(b)?.truthy()),
+            E::Or(a, b, _) => V::Bool(self.eval_default(a)?.truthy() || self.eval_default(b)?.truthy()),
             E::Tern(c, a, b) => {
                 if self.eval_default(c)?.truthy() {
                     self.eval_default(a)?
                 } else {
                     self.eval_default(b)?
                 }
+            }
+            E::Nat { f, args, .. } if f.pure => {
+                let vals: Vec<V> = args.iter().map(|a| self.eval_default(a)).collect::<Option<_>>()?;
+                let mut g = crate::run::G::scratch(self.env.clone(), self.version);
+                (f.f)(&mut g, &vals, &mut None).ok()?
+            }
+            E::If(branches, otherwise) => {
+                let one = |b: &Block| match b.as_slice() {
+                    [(_, S::Expr(x))] => self.eval_default(x),
+                    _ => None,
+                };
+                for (c, b) in branches {
+                    if self.eval_default(c)?.truthy() {
+                        return one(b);
+                    }
+                }
+                return one(otherwise.as_ref()?);
+            }
+            E::Switch(subj, cases) => {
+                let subj = match subj {
+                    Some(x) => Some(self.eval_default(x)?),
+                    None => None,
+                };
+                for (c, b) in cases {
+                    let hit = match (c, &subj) {
+                        (None, _) => true,
+                        (Some(c), Some(v)) => self.eval_default(c)?.same(v),
+                        (Some(c), None) => self.eval_default(c)?.truthy(),
+                    };
+                    if hit {
+                        return match b.as_slice() {
+                            [(_, S::Expr(x))] => self.eval_default(x),
+                            _ => None,
+                        };
+                    }
+                }
+                return None;
             }
             _ => return None,
         })
@@ -2095,17 +3332,57 @@ impl Cx {
             }
             "fill" => self.fill(args)?,
             "bgcolor" | "barcolor" => {
-                let b = bind(callee, &["color", "offset", "title", "transp"], args, line)?;
+                let b = bind(
+                    callee,
+                    &[
+                        "color",
+                        "offset",
+                        "editable",
+                        "show_last",
+                        "title",
+                        "display",
+                        "force_overlay",
+                        "transp",
+                    ],
+                    args,
+                    line,
+                )?;
                 let Some(c) = b[0] else {
                     return Err(self.err(format!("{callee}() needs a colour.")));
                 };
                 let mut c = self.expr(c)?;
-                if let Some(t) = b[3] {
+                if let Some(t) = b[7] {
                     let t = self.expr(t)?;
                     let f = natives::lookup("color.new").expect("color.new");
                     c = self.nat(f, vec![c, t]);
                 }
-                Some(if callee == "bgcolor" { S::Bg(c) } else { S::BarColor(c) })
+                if self.display_none(args)? {
+                    c = E::K(V::Na);
+                }
+                let mut back = 0;
+                // Shifted right: the colour of `offset` bars ago.
+                if let Some(o) = b[1] {
+                    let o = self.expr(o)?;
+                    let k = self.eval_default(&o).and_then(|v| v.i()).unwrap_or(0);
+                    back = k.min(0).unsigned_abs() as usize;
+                    if k > 0 && !matches!(c, E::K(_)) {
+                        let slot = self.new_slot();
+                        let d = self.depth();
+                        self.need_hist(d, slot, k as usize);
+                        c = E::HistOf {
+                            slot,
+                            val: Box::new(c),
+                            idx: Box::new(E::K(V::Int(k))),
+                        };
+                    }
+                }
+                Some(if back > 0 {
+                    S::Past(callee == "barcolor", back, c)
+                } else if callee == "bgcolor" {
+                    S::Bg(c)
+                } else {
+                    S::BarColor(c)
+                })
             }
             "alertcondition" => {
                 let b = bind(callee, &["condition", "title", "message"], args, line)?;
@@ -2117,7 +3394,7 @@ impl Cx {
                     Ok(match e {
                         Some(e) => {
                             let e = cx.expr(e)?;
-                            const_of(&e)
+                            cx.eval_default(&e)
                                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                                 .unwrap_or_default()
                         }
@@ -2174,15 +3451,17 @@ impl Cx {
                 "close_entries_rule",
                 "margin_long",
                 "margin_short",
+                "explicit_plot_zorder",
                 "max_lines_count",
                 "max_labels_count",
                 "max_boxes_count",
+                "calc_bars_count",
                 "risk_free_rate",
                 "use_bar_magnifier",
                 "fill_orders_on_standard_ohlc",
                 "max_polylines_count",
-                "timeframe",
-                "timeframe_gaps",
+                "dynamic_requests",
+                "behind_chart",
             ],
             "library" => &["title", "overlay", "dynamic_requests"],
             _ => &[
@@ -2195,10 +3474,14 @@ impl Cx {
                 "max_bars_back",
                 "timeframe",
                 "timeframe_gaps",
+                "explicit_plot_zorder",
                 "max_lines_count",
                 "max_labels_count",
                 "max_boxes_count",
+                "calc_bars_count",
                 "max_polylines_count",
+                "dynamic_requests",
+                "behind_chart",
             ],
         };
         // `format` and `precision` are ignored elsewhere but read here.
@@ -2210,6 +3493,14 @@ impl Cx {
                 Some("format") => fmt = Some(a.value.clone()),
                 Some("precision") => precision = Some(a.value.clone()),
                 _ => named.push(a.clone()),
+            }
+        }
+        // v4's name for it.
+        for a in &mut named {
+            match a.name.as_deref() {
+                Some("resolution") => a.name = Some("timeframe".into()),
+                Some("resolution_gaps") => a.name = Some("timeframe_gaps".into()),
+                _ => {}
             }
         }
         let b = bind(callee, params, &named, self.line)?;
@@ -2229,6 +3520,8 @@ impl Cx {
                 "max_labels_count" => self.limits[0] = v.i_or(50).clamp(1, 500) as usize,
                 "max_boxes_count" => self.limits[2] = v.i_or(50).clamp(1, 500) as usize,
                 "max_polylines_count" => self.limits[5] = v.i_or(50).clamp(1, 100) as usize,
+                "timeframe" => self.timeframe = v.as_str().filter(|t| !t.is_empty()).map(str::to_string),
+                "timeframe_gaps" => self.timeframe_gaps = v.truthy(),
                 _ => {
                     let j = match &v {
                         V::Int(i) => serde_json::json!(i),
@@ -2305,11 +3598,11 @@ impl Cx {
                 }
             }
             E::L(s) | E::G(s) => {
-                let depth = if matches!(e, E::G(_)) { 0 } else { self.depth() };
-                if let Some(k) = self.known.get(&(depth, *s)) {
-                    self.palette(&k.clone(), out);
+                let uid = if matches!(e, E::G(_)) { 0 } else { self.uid() };
+                if let Some(k) = self.known.get(&(uid, *s)) {
+                    self.palette(k, out);
                 }
-                for c in self.palettes.get(&(depth, *s)).into_iter().flatten() {
+                for c in self.palettes.get(&(uid, *s)).into_iter().flatten() {
                     if !out.contains(c) {
                         out.push(*c);
                     }
@@ -2379,6 +3672,12 @@ impl Cx {
                 "histbase",
                 "offset",
                 "join",
+                "editable",
+                "show_last",
+                "display",
+                "format",
+                "precision",
+                "force_overlay",
                 "linestyle",
                 "transp",
             ],
@@ -2391,7 +3690,7 @@ impl Cx {
         let val = self.expr(series)?;
         let title = self.const_str(b[1])?;
         let (mut color, mut palette) = self.color_arg(b[2], opentern_series::color::tv::BLUE.0)?;
-        if let Some(t) = b[10] {
+        if let Some(t) = b[16] {
             // v4's transp argument.
             let t = self.expr(t)?;
             if let Some(tv) = self.const_or_default(&t) {
@@ -2442,14 +3741,38 @@ impl Cx {
         })
     }
 
+    /// Whether `display =` keeps an output off the chart (it may still be
+    /// for the data window or an alert).
     fn display_none(&mut self, args: &[Arg]) -> R<bool> {
         for a in args {
             if a.name.as_deref() == Some("display") {
-                let e = self.expr(&a.value)?;
-                return Ok(matches!(self.const_or_default(&e), Some(V::Str(s)) if s.as_ref() == "display.none"));
+                return Ok(!self.on_chart(&a.value)?);
             }
         }
         Ok(false)
+    }
+
+    fn on_chart(&mut self, e: &Expr) -> R<bool> {
+        Ok(match e {
+            // display.pane + display.data_window
+            Expr::Binary("+", a, b) => self.on_chart(a)? || self.on_chart(b)?,
+            // display.all - display.status_line
+            Expr::Binary("-", a, b) => self.on_chart(a)? && !self.on_chart(b)?,
+            Expr::Ternary(c, a, b) => {
+                let c = self.expr(c)?;
+                match self.eval_default(&c) {
+                    Some(v) if !v.truthy() => self.on_chart(b)?,
+                    _ => self.on_chart(a)?,
+                }
+            }
+            e => {
+                let e = self.expr(e)?;
+                match self.eval_default(&e) {
+                    Some(V::Str(s)) => matches!(s.as_ref(), "display.all" | "display.pane"),
+                    _ => true,
+                }
+            }
+        })
     }
 
     fn shape_size(s: Option<&str>) -> f32 {
@@ -2475,7 +3798,13 @@ impl Cx {
                 "offset",
                 "text",
                 "textcolor",
+                "editable",
                 "size",
+                "show_last",
+                "display",
+                "format",
+                "precision",
+                "force_overlay",
                 "transp",
             ]
         } else {
@@ -2488,7 +3817,13 @@ impl Cx {
                 "offset",
                 "text",
                 "textcolor",
+                "editable",
                 "size",
+                "show_last",
+                "display",
+                "format",
+                "precision",
+                "force_overlay",
                 "transp",
             ]
         };
@@ -2526,7 +3861,7 @@ impl Cx {
             _ => Location::AboveBar,
         };
         let (mut color, mut palette) = self.color_arg(b[4], opentern_series::color::tv::BLUE.0)?;
-        if let Some(t) = b[9] {
+        if let Some(t) = b[15] {
             let t = self.expr(t)?;
             if let Some(tv) = self.const_or_default(&t) {
                 palette = palette.iter().map(|c| value::with_transp(*c, tv.f())).collect();
@@ -2544,7 +3879,7 @@ impl Cx {
             None => Offset::Fixed(0),
         };
         let text = self.const_str(b[6])?.unwrap_or_default();
-        let size = Self::shape_size(self.const_str(b[8])?.as_deref());
+        let size = Self::shape_size(self.const_str(b[9])?.as_deref());
         let visible = !self.display_none(args)?;
         let label = if kind == ShapeKind::Char {
             if text.is_empty() { ch } else { format!("{ch}\n{text}") }
@@ -2584,6 +3919,9 @@ impl Cx {
                 "offset",
                 "minheight",
                 "maxheight",
+                "editable",
+                "show_last",
+                "display",
             ],
             args,
             self.line,
@@ -2629,16 +3967,39 @@ impl Cx {
     fn plotcandle(&mut self, callee: &str, args: &[Arg]) -> R<S> {
         let b = bind(
             callee,
-            &[
-                "open",
-                "high",
-                "low",
-                "close",
-                "title",
-                "color",
-                "wickcolor",
-                "bordercolor",
-            ],
+            if callee == "plotbar" {
+                &[
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "title",
+                    "color",
+                    "editable",
+                    "show_last",
+                    "display",
+                    "format",
+                    "precision",
+                    "force_overlay",
+                ]
+            } else {
+                &[
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "title",
+                    "color",
+                    "wickcolor",
+                    "editable",
+                    "show_last",
+                    "bordercolor",
+                    "display",
+                    "format",
+                    "precision",
+                    "force_overlay",
+                ]
+            },
             args,
             self.line,
         )?;
@@ -2686,13 +4047,39 @@ impl Cx {
     fn hline(&mut self, args: &[Arg]) -> R<()> {
         let b = bind(
             "hline",
-            &["price", "title", "color", "linestyle", "linewidth"],
+            &[
+                "price",
+                "title",
+                "color",
+                "linestyle",
+                "linewidth",
+                "editable",
+                "display",
+            ],
             args,
             self.line,
         )?;
-        let price = self
-            .const_num(b[0])?
+        let price_e = match b[0] {
+            Some(e) => {
+                let e = self.expr(e)?;
+                self.resolve(&e)
+            }
+            None => None,
+        };
+        let price = price_e
+            .as_ref()
+            .and_then(|e| self.eval_default(e))
+            .map(|v| v.f())
+            .filter(|f| !f.is_nan())
             .ok_or_else(|| self.err("hline() needs a constant price (or an input)."))?;
+        let color_e = match b[2] {
+            Some(e) => {
+                let e = self.expr(e)?;
+                self.resolve(&e)
+            }
+            None => None,
+        };
+        self.levels.push((price_e.unwrap_or(E::K(V::Na)), color_e));
         let title = self.const_str(b[1])?.unwrap_or_else(|| "Price Line".into());
         let color = match b[2] {
             Some(e) => {
@@ -2722,29 +4109,69 @@ impl Cx {
     }
 
     fn fill(&mut self, args: &[Arg]) -> R<Option<S>> {
-        let b = bind(
-            "fill",
+        // The gradient form: two values and two colours.
+        let named = |n: &str| args.iter().any(|a| a.name.as_deref() == Some(n));
+        let plain = |k: usize| args.get(k).filter(|a| a.name.is_none());
+        let gradient = named("top_color")
+            || named("top_value")
+            || (plain(4).is_some() && plain(5).is_some() && {
+                // fill(p1, p2, 100, 70, color.red, color.blue)
+                !matches!(plain(5).map(|a| &a.value), Some(Expr::Bool(_)))
+                    && plain(2).is_some_and(|a| self.infer(&a.value).is_none_or(|t| t != "color"))
+            });
+        let params: &[&str] = if gradient {
             &[
-                "hline1",
-                "hline2",
-                "color",
-                "title",
-                "fillgaps",
+                "plot1",
+                "plot2",
                 "top_value",
                 "bottom_value",
                 "top_color",
                 "bottom_color",
+                "title",
+                "display",
+                "fillgaps",
+                "editable",
+            ]
+        } else {
+            &[
+                "plot1",
+                "plot2",
+                "color",
+                "title",
+                "editable",
+                "show_last",
+                "fillgaps",
+                "display",
                 "transp",
-            ],
-            args,
-            self.line,
-        )?;
-        let handle = |cx: &mut Cx, e: Option<&Expr>| -> R<Bind> {
+            ]
+        };
+        let args: Vec<Arg> = args
+            .iter()
+            .map(|a| Arg {
+                name: a.name.as_deref().map(|n| match n {
+                    "hline1" => "plot1".to_string(),
+                    "hline2" => "plot2".to_string(),
+                    n => n.to_string(),
+                }),
+                value: a.value.clone(),
+            })
+            .collect();
+        let b = bind("fill", params, &args, self.line)?;
+        let mut before = Vec::new();
+        let mut handle = |cx: &mut Cx, e: Option<&Expr>| -> R<Bind> {
             match e {
                 Some(Expr::Name(n)) => match cx.lookup(n) {
                     Some(b @ (Bind::Plot(_) | Bind::HLine(_))) => Ok(b),
                     _ => Err(cx.err(format!("fill() takes plots or hlines; \"{n}\" isn't one."))),
                 },
+                Some(Expr::Call { callee, args }) if callee == "plot" || callee == "hline" => {
+                    before.extend(cx.output_call(callee, args)?.flatten());
+                    Ok(if callee == "plot" {
+                        Bind::Plot((cx.plots.len() - 1) as u16)
+                    } else {
+                        Bind::HLine((cx.hlines.len() - 1) as u16)
+                    })
+                }
                 _ => Err(cx.err("fill() takes two plots or two hlines, by name (p1 = plot(…)).")),
             }
         };
@@ -2757,9 +4184,9 @@ impl Cx {
         };
         let default = value::with_transp(value::opaque(0x2196F3), 90.0);
         // Gradient fills use the top colour.
-        let colour_arg = b[2].or(b[7]);
+        let colour_arg = if gradient { b[4].or(b[5]) } else { b[2] };
         let (mut color, mut palette) = self.color_arg(colour_arg, default)?;
-        if let Some(t) = b[9] {
+        if !gradient && let Some(t) = b[8] {
             let t = self.expr(t)?;
             if let Some(tv) = self.const_or_default(&t) {
                 palette = palette.iter().map(|c| value::with_transp(*c, tv.f())).collect();
@@ -2769,8 +4196,10 @@ impl Cx {
                 color = Some(self.nat(f, vec![c, t]));
             }
         }
-        let title = self.const_str(b[3])?.unwrap_or_else(|| "Background".into());
-        let visible = !self.display_none(args)?;
+        let title = self
+            .const_str(if gradient { b[6] } else { b[3] })?
+            .unwrap_or_else(|| "Background".into());
+        let visible = !self.display_none(&args)?;
         self.fills.push(FillDef {
             title,
             between,
@@ -2778,7 +4207,11 @@ impl Cx {
             visible,
         });
         let i = (self.fills.len() - 1) as u16;
-        Ok(color.map(|color| S::FillColor { i, color }))
+        before.extend(color.map(|color| S::FillColor { i, color }));
+        Ok(match before.len() {
+            0 | 1 => before.pop(),
+            _ => Some(S::Many(before)),
+        })
     }
 }
 

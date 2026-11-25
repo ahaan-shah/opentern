@@ -11,10 +11,20 @@ use crate::value::V;
 
 type R = Result<V, String>;
 
-fn arr<'a>(g: &'a G, v: &V) -> Result<&'a Vec<V>, String> {
+fn arr<'a>(g: &'a G, v: &V) -> Result<&'a [V], String> {
     match v {
-        V::Ref(r) => match g.heap.get(*r) {
+        V::Ref(r) => g.heap.items(*r).ok_or_else(|| "This isn't an array.".into()),
+        V::Na => Err("The array is na (create it with array.new first).".into()),
+        _ => Err("This isn't an array.".into()),
+    }
+}
+
+/// An array to add to or take from.
+fn arr_mut<'a>(g: &'a mut G, v: &V) -> Result<&'a mut Vec<V>, String> {
+    match v {
+        V::Ref(r) => match g.heap.get_mut(*r) {
             Some(Obj::Array(a)) => Ok(a),
+            Some(Obj::Slice { .. }) => Err("A slice's size can't change; copy it first (array.copy).".into()),
             _ => Err("This isn't an array.".into()),
         },
         V::Na => Err("The array is na (create it with array.new first).".into()),
@@ -22,15 +32,22 @@ fn arr<'a>(g: &'a G, v: &V) -> Result<&'a Vec<V>, String> {
     }
 }
 
-fn arr_mut<'a>(g: &'a mut G, v: &V) -> Result<&'a mut Vec<V>, String> {
+/// An array's items, to change in place.
+fn items_mut<'a>(g: &'a mut G, v: &V) -> Result<&'a mut [V], String> {
     match v {
-        V::Ref(r) => match g.heap.get_mut(*r) {
-            Some(Obj::Array(a)) => Ok(a),
-            _ => Err("This isn't an array.".into()),
-        },
+        V::Ref(r) => g.heap.items_mut(*r).ok_or_else(|| "This isn't an array.".into()),
         V::Na => Err("The array is na (create it with array.new first).".into()),
         _ => Err("This isn't an array.".into()),
     }
+}
+
+const MAX_ITEMS: usize = 100_000;
+
+fn room(n: usize) -> Result<(), String> {
+    if n > MAX_ITEMS {
+        return Err("An array or matrix can't have more than 100,000 items.".into());
+    }
+    Ok(())
 }
 
 fn new_array(g: &mut G, items: Vec<V>) -> V {
@@ -168,7 +185,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(x[index(arg(a, 1), x.len())?].clone())
         }),
         d("array.set", &["id", "index", "value"], |g, a, _| {
-            let x = arr_mut(g, arg(a, 0))?;
+            let x = items_mut(g, arg(a, 0))?;
             let k = index(arg(a, 1), x.len())?;
             x[k] = arg(a, 2).clone();
             Ok(V::Na)
@@ -195,6 +212,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         }),
         d("array.unshift", &["id", "value"], |g, a, _| {
             let x = arr_mut(g, arg(a, 0))?;
+            room(x.len() + 1)?;
             x.insert(0, arg(a, 1).clone());
             Ok(V::Na)
         }),
@@ -218,6 +236,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             if at < 0 || at as usize > len {
                 return Err(format!("Index {k} is out of bounds. The array has {len} items."));
             }
+            room(len + 1)?;
             x.insert(at as usize, arg(a, 2).clone());
             Ok(V::Na)
         }),
@@ -231,12 +250,14 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(V::Na)
         }),
         d("array.concat", &["id1", "id2"], |g, a, _| {
-            let add = arr(g, arg(a, 1))?.clone();
-            arr_mut(g, arg(a, 0))?.extend(add);
+            let add = arr(g, arg(a, 1))?.to_vec();
+            let x = arr_mut(g, arg(a, 0))?;
+            room(x.len() + add.len())?;
+            x.extend(add);
             Ok(arg(a, 0).clone())
         }),
         d("array.copy", &["id"], |g, a, _| {
-            let x = arr(g, arg(a, 0))?.clone();
+            let x = arr(g, arg(a, 0))?.to_vec();
             Ok(new_array(g, x))
         }),
         d("array.slice", &["id", "index_from", "index_to"], |g, a, _| {
@@ -244,8 +265,19 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let n = x.len() as i64;
             let from = int_or(a, 1, 0).clamp(0, n) as usize;
             let to = int_or(a, 2, n).clamp(from as i64, n) as usize;
-            let part = x[from..to].to_vec();
-            Ok(new_array(g, part))
+            let V::Ref(of) = arg(a, 0) else {
+                return Err("The array is na (create it with array.new first).".into());
+            };
+            // A slice of a slice is one of the array itself.
+            let s = match g.heap.get(*of) {
+                Some(Obj::Slice { of, from: base, .. }) => Obj::Slice {
+                    of: *of,
+                    from: base + from,
+                    to: base + to,
+                },
+                _ => Obj::Slice { of: *of, from, to },
+            };
+            Ok(V::Ref(g.heap.alloc(s)))
         }),
         d("array.includes", &["id", "value"], |g, a, _| {
             Ok(V::Bool(arr(g, arg(a, 0))?.iter().any(|v| v.same(arg(a, 1)))))
@@ -356,7 +388,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(V::Float(100.0 * le as f64 / (n.len() - 1) as f64))
         }),
         d("array.standardize", &["id"], |g, a, _| {
-            let x = arr(g, arg(a, 0))?.clone();
+            let x = arr(g, arg(a, 0))?.to_vec();
             let n = nums(&x);
             let m = n.iter().sum::<f64>() / n.len().max(1) as f64;
             let sd = stats_var(&n, true).sqrt();
@@ -367,7 +399,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let x: Vec<V> = arr(g, arg(a, 0))?
                 .iter()
                 .map(|v| match v {
-                    V::Int(i) => V::Int(i.abs()),
+                    V::Int(i) => V::Int(i.wrapping_abs()),
                     V::Float(f) => V::Float(f.abs()),
                     _ => V::Na,
                 })
@@ -376,7 +408,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         }),
         d("array.sort", &["id", "order"], |g, a, _| {
             let asc = ascending(arg(a, 1));
-            let x = arr_mut(g, arg(a, 0))?;
+            let x = items_mut(g, arg(a, 0))?;
             x.sort_by(|p, q| if asc { cmp(p, q) } else { cmp(q, p) });
             Ok(V::Na)
         }),
@@ -389,12 +421,12 @@ pub(crate) fn defs() -> Vec<NatDef> {
             Ok(new_array(g, out))
         }),
         d("array.reverse", &["id"], |g, a, _| {
-            arr_mut(g, arg(a, 0))?.reverse();
+            items_mut(g, arg(a, 0))?.reverse();
             Ok(V::Na)
         }),
         d("array.fill", &["id", "value", "index_from", "index_to"], |g, a, _| {
             let val = arg(a, 1).clone();
-            let x = arr_mut(g, arg(a, 0))?;
+            let x = items_mut(g, arg(a, 0))?;
             let n = x.len() as i64;
             let from = int_or(a, 2, 0).clamp(0, n) as usize;
             let to = int_or(a, 3, n).clamp(from as i64, n) as usize;
@@ -491,6 +523,9 @@ pub(crate) fn defs() -> Vec<NatDef> {
             let src = the_map(g, arg(a, 1))?.clone();
             let m = the_map_mut(g, arg(a, 0))?;
             for (k, v) in src.keys.into_iter().zip(src.vals) {
+                if m.keys.len() >= 50_000 && m.get(&k).is_none() {
+                    return Err("A map can't have more than 50,000 keys.".into());
+                }
                 m.put(k, v);
             }
             Ok(V::Na)
@@ -547,7 +582,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         d("matrix.add_row", &["id", "row", "array_id"], |g, a, _| {
             let items = match arg(a, 2) {
                 V::Na => None,
-                v => Some(arr(g, v)?.clone()),
+                v => Some(arr(g, v)?.to_vec()),
             };
             let V::Ref(rf) = arg(a, 0) else {
                 return Err("The matrix is na.".into());
@@ -572,6 +607,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 }
                 None => vec![V::Na; *cols],
             };
+            room(data.len() + row.len())?;
             data.splice(at * *cols..at * *cols, row);
             *rows += 1;
             Ok(V::Na)
@@ -579,7 +615,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         d("matrix.add_col", &["id", "column", "array_id"], |g, a, _| {
             let items = match arg(a, 2) {
                 V::Na => None,
-                v => Some(arr(g, v)?.clone()),
+                v => Some(arr(g, v)?.to_vec()),
             };
             let V::Ref(rf) = arg(a, 0) else {
                 return Err("The matrix is na.".into());
@@ -601,6 +637,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                     rows
                 ));
             }
+            room(data.len() + *rows)?;
             let mut out = Vec::with_capacity(data.len() + *rows);
             for i in 0..*rows {
                 let row = &data[i * *cols..(i + 1) * *cols];
@@ -728,7 +765,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                         if v.len() != c1 {
                             return Err("The array's size must equal the matrix's columns.".into());
                         }
-                        let v = v.clone();
+                        let v = v.to_vec();
                         let out = (0..r1)
                             .map(|i| V::Float((0..c1).map(|j| d1[i * c1 + j].f() * v[j].f()).sum()))
                             .collect();
@@ -852,6 +889,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
             },
         ),
     ];
+    v.extend(matrix_more());
     // `array.new<float>` etc. are compiled as `array.new`; the typed
     // matrix constructor too.
     v.push(d(
@@ -863,6 +901,336 @@ pub(crate) fn defs() -> Vec<NatDef> {
         },
     ));
     v
+}
+
+/// A matrix's numbers.
+fn floats(g: &G, v: &V) -> Result<(usize, usize, Vec<f64>), String> {
+    let (r, c, d) = mat(g, v)?;
+    Ok((r, c, d.iter().map(|x| x.f()).collect()))
+}
+
+fn square(g: &G, v: &V) -> Result<(usize, Vec<f64>), String> {
+    let (r, c, d) = floats(g, v)?;
+    if r != c {
+        return Err(format!("The matrix must be square (it's {r}×{c})."));
+    }
+    Ok((r, d))
+}
+
+fn from_floats(g: &mut G, r: usize, c: usize, d: Vec<f64>) -> V {
+    new_matrix(g, r, c, d.into_iter().map(V::Float).collect())
+}
+
+/// Whether every element passes `f(row, column, value)`.
+fn each(g: &G, v: &V, f: impl Fn(usize, usize, f64) -> bool) -> R {
+    let (_, c, d) = floats(g, v)?;
+    Ok(V::Bool(d.iter().enumerate().all(|(k, x)| f(k / c, k % c, *x))))
+}
+
+fn is_square(g: &G, v: &V) -> Result<bool, String> {
+    let (r, c, _) = mat(g, v)?;
+    Ok(r == c)
+}
+
+fn mul(a: &[f64], b: &[f64], n: usize, m: usize, k: usize) -> Vec<f64> {
+    let mut out = vec![0.0; n * k];
+    for i in 0..n {
+        for j in 0..k {
+            out[i * k + j] = (0..m).map(|t| a[i * m + t] * b[t * k + j]).sum();
+        }
+    }
+    out
+}
+
+fn transposed(a: &[f64], r: usize, c: usize) -> Vec<f64> {
+    (0..c).flat_map(|j| (0..r).map(move |i| a[i * c + j])).collect()
+}
+
+/// Eigenvalues (largest first) and eigenvectors (columns) of a symmetric
+/// matrix, by Jacobi rotations.
+fn jacobi(m: &[f64], n: usize) -> (Vec<f64>, Vec<f64>) {
+    let mut a = m.to_vec();
+    let mut v = vec![0.0; n * n];
+    (0..n).for_each(|i| v[i * n + i] = 1.0);
+    for _ in 0..100 {
+        let off: f64 = (0..n)
+            .flat_map(|i| (0..n).map(move |j| (i, j)))
+            .filter(|(i, j)| i != j)
+            .map(|(i, j)| a[i * n + j].powi(2))
+            .sum();
+        if off < 1e-24 {
+            break;
+        }
+        for p in 0..n {
+            for q in p + 1..n {
+                if a[p * n + q].abs() < 1e-300 {
+                    continue;
+                }
+                let t = (a[q * n + q] - a[p * n + p]) / (2.0 * a[p * n + q]);
+                let t = t.signum() / (t.abs() + (t * t + 1.0).sqrt());
+                let t = if t == 0.0 { 1.0 } else { t };
+                let c = 1.0 / (t * t + 1.0).sqrt();
+                let s = t * c;
+                for k in 0..n {
+                    let (x, y) = (a[k * n + p], a[k * n + q]);
+                    a[k * n + p] = c * x - s * y;
+                    a[k * n + q] = s * x + c * y;
+                }
+                for k in 0..n {
+                    let (x, y) = (a[p * n + k], a[q * n + k]);
+                    a[p * n + k] = c * x - s * y;
+                    a[q * n + k] = s * x + c * y;
+                }
+                for k in 0..n {
+                    let (x, y) = (v[k * n + p], v[k * n + q]);
+                    v[k * n + p] = c * x - s * y;
+                    v[k * n + q] = s * x + c * y;
+                }
+            }
+        }
+    }
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|i, j| a[j * n + j].total_cmp(&a[i * n + i]));
+    let vals = order.iter().map(|i| a[i * n + i]).collect();
+    let mut vecs = vec![0.0; n * n];
+    for (k, i) in order.iter().enumerate() {
+        (0..n).for_each(|row| vecs[row * n + k] = v[row * n + i]);
+    }
+    (vals, vecs)
+}
+
+fn symmetric(m: &[f64], n: usize) -> bool {
+    (0..n).all(|i| (0..i).all(|j| (m[i * n + j] - m[j * n + i]).abs() <= 1e-12 * (1.0 + m[i * n + j].abs())))
+}
+
+/// Real eigenvalues of any matrix, by QR iterations; an error when some
+/// are complex.
+fn eigenvalues(m: &[f64], n: usize) -> Result<Vec<f64>, String> {
+    if symmetric(m, n) {
+        return Ok(jacobi(m, n).0);
+    }
+    let mut a = m.to_vec();
+    for _ in 0..2000 {
+        // Gram–Schmidt QR, then RQ.
+        let mut q = vec![0.0; n * n];
+        for j in 0..n {
+            let mut col: Vec<f64> = (0..n).map(|i| a[i * n + j]).collect();
+            for k in 0..j {
+                let dot: f64 = (0..n).map(|i| q[i * n + k] * a[i * n + j]).sum();
+                (0..n).for_each(|i| col[i] -= dot * q[i * n + k]);
+            }
+            let norm = col.iter().map(|x| x * x).sum::<f64>().sqrt();
+            (0..n).for_each(|i| q[i * n + j] = if norm > 1e-300 { col[i] / norm } else { 0.0 });
+        }
+        let r = mul(&transposed(&q, n, n), &a, n, n, n);
+        a = mul(&r, &q, n, n, n);
+    }
+    let scale = a.iter().fold(0.0f64, |m, x| m.max(x.abs())).max(1.0);
+    if (1..n).any(|i| a[i * n + i - 1].abs() > 1e-6 * scale) {
+        return Err("This matrix has complex eigenvalues.".into());
+    }
+    let mut v: Vec<f64> = (0..n).map(|i| a[i * n + i]).collect();
+    v.sort_by(|x, y| y.total_cmp(x));
+    Ok(v)
+}
+
+/// Eigenvectors, as columns in the order of [`eigenvalues`].
+fn eigenvectors(m: &[f64], n: usize) -> Result<Vec<f64>, String> {
+    if symmetric(m, n) {
+        return Ok(jacobi(m, n).1);
+    }
+    let vals = eigenvalues(m, n)?;
+    let mut out = vec![0.0; n * n];
+    for (k, l) in vals.iter().enumerate() {
+        // Inverse iteration from close by.
+        let mut shifted = m.to_vec();
+        let e = 1e-7 * (1.0 + l.abs());
+        (0..n).for_each(|i| shifted[i * n + i] -= l + e);
+        let inv = invert(&shifted, n).ok_or("The eigenvectors couldn't be found.")?;
+        let mut x = vec![1.0; n];
+        for _ in 0..50 {
+            x = mul(&inv, &x, n, n, 1);
+            let norm = x.iter().map(|v| v * v).sum::<f64>().sqrt();
+            x.iter_mut().for_each(|v| *v /= norm);
+        }
+        (0..n).for_each(|i| out[i * n + k] = x[i]);
+    }
+    Ok(out)
+}
+
+fn rank_of(m: &[f64], r: usize, c: usize) -> usize {
+    let mut a = m.to_vec();
+    let mut rank = 0;
+    for col in 0..c {
+        let Some(p) = (rank..r).max_by(|x, y| a[x * c + col].abs().total_cmp(&a[y * c + col].abs())) else {
+            break;
+        };
+        if a[p * c + col].abs() < 1e-10 {
+            continue;
+        }
+        (0..c).for_each(|k| a.swap(p * c + k, rank * c + k));
+        for i in rank + 1..r {
+            let f = a[i * c + col] / a[rank * c + col];
+            (col..c).for_each(|k| a[i * c + k] -= f * a[rank * c + k]);
+        }
+        rank += 1;
+    }
+    rank
+}
+
+/// The rest of `matrix.*`.
+fn matrix_more() -> Vec<NatDef> {
+    vec![
+        d("matrix.concat", &["id1", "id2"], |g, a, _| {
+            let (r2, c2, d2) = mat(g, arg(a, 1))?;
+            let d2 = d2.clone();
+            let V::Ref(rf) = arg(a, 0) else {
+                return Err("The matrix is na.".into());
+            };
+            let Some(Obj::Matrix { rows, cols, data }) = g.heap.get_mut(*rf) else {
+                return Err("This isn't a matrix.".into());
+            };
+            if *rows > 0 && *cols != c2 {
+                return Err(format!("The matrices have {cols} and {c2} columns."));
+            }
+            room(data.len() + d2.len())?;
+            *cols = c2;
+            *rows += r2;
+            data.extend(d2);
+            Ok(arg(a, 0).clone())
+        }),
+        d("matrix.mode", &["id"], |g, a, _| {
+            Ok(V::Float(super::ta::mode(&nums(mat(g, arg(a, 0))?.2))))
+        }),
+        d("matrix.reverse", &["id"], |g, a, _| {
+            if let V::Ref(rf) = arg(a, 0)
+                && let Some(Obj::Matrix { data, .. }) = g.heap.get_mut(*rf)
+            {
+                data.reverse();
+            }
+            Ok(V::Na)
+        }),
+        d("matrix.sort", &["id", "column", "order"], |g, a, _| {
+            let asc = ascending(arg(a, 2));
+            let (r, c, data) = mat(g, arg(a, 0))?;
+            if r == 0 {
+                return Ok(V::Na);
+            }
+            let k = match arg(a, 1) {
+                V::Na => 0,
+                v => index(v, c)?,
+            };
+            let mut rows: Vec<Vec<V>> = data.chunks(c.max(1)).map(|x| x.to_vec()).collect();
+            rows.sort_by(|x, y| if asc { cmp(&x[k], &y[k]) } else { cmp(&y[k], &x[k]) });
+            if let V::Ref(rf) = arg(a, 0)
+                && let Some(Obj::Matrix { data, .. }) = g.heap.get_mut(*rf)
+            {
+                *data = rows.concat();
+            }
+            Ok(V::Na)
+        }),
+        d("matrix.pow", &["id", "power"], |g, a, _| {
+            let (n, m) = square(g, arg(a, 0))?;
+            let k = int_or(a, 1, 1);
+            if !(0..=10_000).contains(&k) {
+                return Err(format!("A matrix can be raised to 0 to 10,000 (asked for {k})."));
+            }
+            let mut out = vec![0.0; n * n];
+            (0..n).for_each(|i| out[i * n + i] = 1.0);
+            let (mut base, mut k) = (m, k);
+            while k > 0 {
+                if k % 2 == 1 {
+                    out = mul(&out, &base, n, n, n);
+                }
+                base = mul(&base, &base, n, n, n);
+                k /= 2;
+            }
+            Ok(from_floats(g, n, n, out))
+        }),
+        d("matrix.kron", &["id1", "id2"], |g, a, _| {
+            let (r1, c1, x) = floats(g, arg(a, 0))?;
+            let (r2, c2, y) = floats(g, arg(a, 1))?;
+            if r1 * r2 * c1 * c2 > 100_000 {
+                return Err("A matrix can't have more than 100,000 elements.".into());
+            }
+            let (r, c) = (r1 * r2, c1 * c2);
+            let out = (0..r * c)
+                .map(|k| {
+                    let (i, j) = (k / c, k % c);
+                    x[(i / r2) * c1 + j / c2] * y[(i % r2) * c2 + j % c2]
+                })
+                .collect();
+            Ok(from_floats(g, r, c, out))
+        }),
+        d("matrix.rank", &["id"], |g, a, _| {
+            let (r, c, m) = floats(g, arg(a, 0))?;
+            Ok(V::Int(rank_of(&m, r, c) as i64))
+        }),
+        d("matrix.pinv", &["id"], |g, a, _| {
+            // Through the eigenvalues of AᵀA, so it works at any rank.
+            let (r, c, m) = floats(g, arg(a, 0))?;
+            let t = transposed(&m, r, c);
+            let (vals, vecs) = jacobi(&mul(&t, &m, c, r, c), c);
+            let top = vals.iter().fold(0.0f64, |x, y| x.max(y.abs()));
+            let mut scaled = vecs.clone();
+            for (k, l) in vals.iter().enumerate() {
+                let inv = if l.abs() > 1e-12 * top { 1.0 / l } else { 0.0 };
+                (0..c).for_each(|i| scaled[i * c + k] *= inv);
+            }
+            let inv = mul(&scaled, &transposed(&vecs, c, c), c, c, c);
+            let out = mul(&inv, &t, c, c, r);
+            Ok(from_floats(g, c, r, out))
+        }),
+        d("matrix.eigenvalues", &["id"], |g, a, _| {
+            let (n, m) = square(g, arg(a, 0))?;
+            let v = eigenvalues(&m, n)?.into_iter().map(V::Float).collect();
+            Ok(new_array(g, v))
+        }),
+        d("matrix.eigenvectors", &["id"], |g, a, _| {
+            let (n, m) = square(g, arg(a, 0))?;
+            let v = eigenvectors(&m, n)?;
+            Ok(from_floats(g, n, n, v))
+        }),
+        d("matrix.is_zero", &["id"], |g, a, _| {
+            each(g, arg(a, 0), |_, _, x| x == 0.0)
+        }),
+        d("matrix.is_binary", &["id"], |g, a, _| {
+            each(g, arg(a, 0), |_, _, x| x == 0.0 || x == 1.0)
+        }),
+        d("matrix.is_identity", &["id"], |g, a, _| {
+            let sq = is_square(g, arg(a, 0))?;
+            each(g, arg(a, 0), |i, j, x| sq && x == if i == j { 1.0 } else { 0.0 })
+        }),
+        d("matrix.is_diagonal", &["id"], |g, a, _| {
+            let sq = is_square(g, arg(a, 0))?;
+            each(g, arg(a, 0), |i, j, x| sq && (i == j || x == 0.0))
+        }),
+        d("matrix.is_antidiagonal", &["id"], |g, a, _| {
+            let (r, c, _) = mat(g, arg(a, 0))?;
+            each(g, arg(a, 0), |i, j, x| r == c && (i + j + 1 == r || x == 0.0))
+        }),
+        d("matrix.is_symmetric", &["id"], |g, a, _| {
+            let (r, c, m) = floats(g, arg(a, 0))?;
+            each(g, arg(a, 0), |i, j, x| r == c && x == m[j * c + i])
+        }),
+        d("matrix.is_antisymmetric", &["id"], |g, a, _| {
+            let (r, c, m) = floats(g, arg(a, 0))?;
+            each(g, arg(a, 0), |i, j, x| r == c && x == -m[j * c + i])
+        }),
+        d("matrix.is_triangular", &["id"], |g, a, _| {
+            let sq = is_square(g, arg(a, 0))?;
+            let upper = each(g, arg(a, 0), |i, j, x| sq && (j >= i || x == 0.0))?;
+            let lower = each(g, arg(a, 0), |i, j, x| sq && (j <= i || x == 0.0))?;
+            Ok(V::Bool(upper.truthy() || lower.truthy()))
+        }),
+        d("matrix.is_stochastic", &["id"], |g, a, _| {
+            let (_, c, m) = floats(g, arg(a, 0))?;
+            let rows = m
+                .chunks(c.max(1))
+                .all(|r| r.iter().all(|x| *x >= 0.0) && (r.iter().sum::<f64>() - 1.0).abs() < 1e-9);
+            Ok(V::Bool(rows))
+        }),
+    ]
 }
 
 fn matrix_elementwise(g: &mut G, a: &[V], f: impl Fn(f64, f64) -> f64) -> R {

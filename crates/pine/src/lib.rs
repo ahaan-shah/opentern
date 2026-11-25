@@ -21,6 +21,7 @@ mod libs;
 mod natives;
 mod parser;
 mod run;
+mod slice;
 mod value;
 
 use opentern_series::study::{Factory, Inputs, Meta};
@@ -192,6 +193,20 @@ impl Script {
 
 /// Compiles Pine source. `file` names the study (`pine:<file>`).
 pub fn compile(src: &str, file: &str, env: Env) -> Result<Script, Error> {
+    // Deeply nested scripts need more stack than some callers have.
+    std::thread::scope(|s| {
+        std::thread::Builder::new()
+            .name("pine-compile".into())
+            .stack_size(32 << 20)
+            .spawn_scoped(s, || compile_here(src, file, env))
+            .map_err(|e| Error::at(0, format!("Couldn't compile the script: {e}")))?
+            .join()
+            .unwrap_or_else(|p| std::panic::resume_unwind(p))
+    })
+}
+
+fn compile_here(src: &str, file: &str, env: Env) -> Result<Script, Error> {
+    let src = src.trim_start_matches('\u{feff}');
     let lines = lexer::lines(src)?;
     let ast = parser::Parser::new(lines).program()?;
     let version = version_of(src);
@@ -205,7 +220,7 @@ pub fn compile(src: &str, file: &str, env: Env) -> Result<Script, Error> {
 
 /// The title of a library script (`library("Title")`), if it is one.
 pub fn library_title(src: &str) -> Option<String> {
-    let lines = lexer::lines(src).ok()?;
+    let lines = lexer::lines(src.trim_start_matches('\u{feff}')).ok()?;
     let ast = parser::Parser::new(lines).program().ok()?;
     ast.iter().find_map(|s| match s {
         ast::Stmt::Expr(ast::Expr::Call { callee, args }, _) if callee == "library" => {
@@ -228,11 +243,14 @@ fn version_of(src: &str) -> u8 {
     for l in src.lines().take(30) {
         let t = l.trim().trim_start_matches('/').trim();
         if let Some(v) = t.strip_prefix("@version=") {
-            return v.trim().parse().unwrap_or(5);
+            let digits: String = v.trim().chars().take_while(|c| c.is_ascii_digit()).collect();
+            return digits.parse().unwrap_or(5);
         }
     }
     5
 }
 
+#[cfg(test)]
+mod hunt;
 #[cfg(test)]
 mod tests;

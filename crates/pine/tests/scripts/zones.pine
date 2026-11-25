@@ -1,0 +1,79 @@
+//@version=6
+indicator("Zones", "Z", overlay = true, max_boxes_count = 200, max_lines_count = 200, max_labels_count = 200, max_bars_back = 1000)
+type zone
+    box bx
+    line mid
+    float top
+    float bot
+    int born
+    bool broken = false
+    int touches = 0
+    label lb = na
+type store
+    array<zone> bull
+    array<zone> bear
+var store st = store.new(array.new<zone>(), array.new<zone>())
+int lb = input.int(5, "Pivot", 1, 50)
+int keep = input.int(6, "Keep", 1)
+float atr = ta.atr(14)
+method mitigated(zone this, bool isBull) =>
+    isBull ? close < this.bot : close > this.top
+method drop(zone this) =>
+    this.bx.delete()
+    this.mid.delete()
+    label.delete(this.lb)
+method add(array<zone> this, zone z, int maxN) =>
+    this.unshift(z)
+    if this.size() > maxN
+        old = this.pop()
+        old.drop()
+    this
+method update(array<zone> this, bool isBull) =>
+    if this.size() > 0
+        for i = this.size() - 1 to 0
+            z = this.get(i)
+            if z.mitigated(isBull)
+                z.broken := true
+                z.drop()
+                this.remove(i)
+            else
+                z.bx.set_right(bar_index + 5)
+                z.mid.set_x2(bar_index + 5)
+                if low <= z.top and high >= z.bot
+                    z.touches += 1
+                    z.lb.set_text(str.tostring(z.touches))
+ph = ta.pivothigh(high, lb, lb)
+pl = ta.pivotlow(low, lb, lb)
+if not na(pl)
+    z = zone.new(top = low[lb] + atr * 0.5, bot = low[lb], born = bar_index[lb])
+    z.bx := box.new(z.born, z.top, bar_index, z.bot, border_color = color.new(color.teal, 40), bgcolor = color.new(color.teal, 85))
+    z.mid := line.new(z.born, math.avg(z.top, z.bot), bar_index, math.avg(z.top, z.bot), color = color.gray, style = line.style_dotted)
+    z.lb := label.new(bar_index, z.top, "0", style = label.style_label_left, size = size.tiny)
+    st.bull.add(z, keep)
+if not na(ph)
+    zone z = zone.new(na, na, high[lb], high[lb] - atr * 0.5, bar_index[lb])
+    z.bx := box.new(left = z.born, top = z.top, right = bar_index, bottom = z.bot, bgcolor = color.new(color.red, 85), xloc = xloc.bar_index)
+    z.mid := line.new(z.born, z.top, bar_index, z.top)
+    st.bear.add(z, keep)
+st.bull.update(true)
+st.bear.update(false)
+var lines = array.new_line()
+if not na(ph) and not na(pl[1])
+    array.push(lines, line.new(bar_index[lb], ph, bar_index, close))
+while array.size(lines) > 10
+    line.delete(array.shift(lines))
+n = 0
+for z in st.bull
+    n += z.touches
+plot(n, "touches", display = display.data_window)
+plot(st.bull.size() + st.bear.size(), display = display.none)
+near = float(na)
+for [i, z] in st.bull
+    if na(near) or math.abs(close - z.top) < math.abs(close - near)
+        near := z.top
+plot(near, style = plot.style_linebr)
+sorted = array.new<float>()
+for z in st.bull
+    sorted.push(z.top)
+sorted.sort(order.descending)
+plot(sorted.size() > 0 ? sorted.first() : na)

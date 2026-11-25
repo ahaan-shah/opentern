@@ -135,3 +135,35 @@ impl Drawings {
             && self.polylines.is_empty()
     }
 }
+
+/// An x coordinate that's `na`: the drawing isn't shown.
+pub const NO_X: i64 = i64::MIN;
+
+impl Drawings {
+    /// Changes every x coordinate measured in time.
+    pub fn map_times(&mut self, f: impl Fn(i64) -> i64) {
+        let at = |x: &mut i64, loc: XLoc| {
+            if loc == XLoc::BarTime && *x != NO_X {
+                *x = f(*x);
+            }
+        };
+        let line = |l: &mut Line| {
+            at(&mut l.x1, l.xloc);
+            at(&mut l.x2, l.xloc);
+        };
+        self.labels.iter_mut().for_each(|l| at(&mut l.x, l.xloc));
+        self.lines.iter_mut().for_each(line);
+        self.linefills.iter_mut().for_each(|f| {
+            line(&mut f.a);
+            line(&mut f.b);
+        });
+        self.boxes.iter_mut().for_each(|b| {
+            at(&mut b.left, b.xloc);
+            at(&mut b.right, b.xloc);
+        });
+        for p in &mut self.polylines {
+            let loc = p.xloc;
+            p.points.iter_mut().for_each(|(x, _)| at(x, loc));
+        }
+    }
+}

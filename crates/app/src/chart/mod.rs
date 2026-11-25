@@ -859,8 +859,21 @@ impl Chart {
         if let Some(s) = self.studies.iter_mut().find(|s| s.uid == uid) {
             // Keeps how the study is built (a script's factory, or outputs
             // that come from a Python process).
+            let was = s.inst.levels();
             s.inst = s.inst.with_inputs(inputs);
             s.inst.recompute(bars, sess, tf);
+            // Levels follow the inputs they're made of, unless they've
+            // been set by hand in the Style tab.
+            for ((h, was), now) in s.look.hlines.iter_mut().zip(was).zip(s.inst.levels()) {
+                if h.value == was.0 && now.0.is_finite() {
+                    h.value = now.0;
+                }
+                if let (Some(a), Some(b)) = (was.1, now.1)
+                    && h.color.0 == a
+                {
+                    h.color.0 = b;
+                }
+            }
         }
         self.touch();
     }

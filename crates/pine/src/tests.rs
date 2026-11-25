@@ -487,8 +487,8 @@ fn drawings_live_until_deleted_or_pushed_out() {
     assert!(d.labels.is_empty());
     assert_eq!(d.lines.len(), 1);
     assert_eq!((d.lines[0].x1, d.lines[0].x2, d.lines[0].width), (0, 4, 2.0));
-    let red = crate::value::COLORS.iter().find(|c| c.0 == "red").unwrap().1;
-    assert_eq!(d.lines[0].color, (red << 8) | 0xFF);
+    // v6's red.
+    assert_eq!(d.lines[0].color, 0xF236_45FF);
 }
 
 #[test]
@@ -591,7 +591,7 @@ fn security_on_a_higher_timeframe() {
 
 #[test]
 fn security_still_refuses_what_it_cant_recompute() {
-    let e = err("var c = 0.0\nc += close\nplot(request.security(syminfo.tickerid, \"D\", c))");
+    let e = err("for i = 0 to 2\n    request.security(syminfo.tickerid, \"D\", close[i])\nplot(close)");
     assert!(e.message.contains("function"), "{}", e.message);
 }
 
@@ -878,9 +878,9 @@ plot(ta.dema(close, 9) - (2 * ta.ema(close, 9) - ta.ema(ta.ema(close, 9), 9)))
     let dema_diff = &plots[plots.len() - 1];
     assert!(dema_diff.iter().filter(|v| v.is_finite()).all(|v| v.abs() < 1e-9));
 
-    // Only the bundled version resolves; other versions say which one ships.
+    // Older versions are part of the bundled one; newer ones say which ships.
     let e = compile(
-        "//@version=6\nindicator(\"T\")\nimport TradingView/ta/7 as t\nplot(t.dema(close, 9))",
+        "//@version=6\nindicator(\"T\")\nimport TradingView/ta/10 as t\nplot(t.dema(close, 9))",
         "t.pine",
         Env::default(),
     )

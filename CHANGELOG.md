@@ -9,6 +9,7 @@
 - **"Theme" beside a colour** in chart settings is a plain underlined link.
 
 ### Fixed
+- **Pine scripts.** A full check of the engine fixed many scripts that stopped with an error or showed wrong values: `request.security` with your own functions, variables, loops and several symbols; dates, weeks and sessions on US daily charts; hourly bars on NSE and other exchanges that don't open on the hour; moving averages and highs/lows whose length changes; inputs grouped with named constants; date inputs; deleted drawings; risk rules in strategies; and over 80 missing functions. Strategies now follow the default FIFO closing rule, fill limits without slippage and wait for stop-limits. Heikin Ashi requests, `varip`, `indicator(timeframe = …)` and version 3 and 4 scripts now work. Thanks to the author of pull request #3 for pointing at the first ones.
 - **Panels in narrow windows.** Every bottom panel fits half a laptop screen: tabs scroll sideways with the open one in view, Paper Trading and the Strategy Lab stack, and the Strategy Report, screener, seasonality table, Script Editor and alerts log no longer run past their edges or overlap.
 - **Dividend, split and earnings details** no longer show through a dialog.
 - **The opacity slider's handle** covers the end of its line at 100%.

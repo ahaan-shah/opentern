@@ -38,9 +38,23 @@ fn oca(name: &V, kind: &V) -> (String, OcaType) {
     (name, kind)
 }
 
+/// A quantity that's given and isn't more than 0: there's nothing to order.
+fn nothing(v: &V) -> bool {
+    opt(v).is_some_and(|q| q <= 0.0)
+}
+
 /// `when = false` (v4/v5) skips the call.
 fn skipped(a: &[V], k: usize) -> bool {
     matches!(arg(a, k), V::Bool(false))
+}
+
+/// A risk rule's value, and whether it's a percentage.
+fn amount(a: &[V]) -> Option<(f64, bool)> {
+    Some((opt(arg(a, 0))?, str_or(a, 1, "") == "strategy.percent_of_equity"))
+}
+
+fn count(a: &[V]) -> Option<u32> {
+    arg(a, 0).i().and_then(|n| u32::try_from(n).ok())
 }
 
 fn text(a: &[V], k: usize) -> String {
@@ -49,7 +63,7 @@ fn text(a: &[V], k: usize) -> String {
 
 fn entry_like(g: &mut G, a: &[V], kind: OrderKind) -> R {
     // id, direction, qty, limit, stop, oca_name, oca_type, comment, …, when
-    if skipped(a, 10) {
+    if skipped(a, 10) || nothing(arg(a, 2)) {
         return Ok(V::Na);
     }
     let id = str_or(a, 0, "").to_string();
@@ -151,7 +165,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 "when",
             ],
             |g, a, _| {
-                if skipped(a, 21) {
+                if skipped(a, 21) || nothing(arg(a, 2)) || nothing(arg(a, 3)) {
                     return Ok(V::Na);
                 }
                 let id = str_or(a, 0, "").to_string();
@@ -205,7 +219,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
                 "when",
             ],
             |g, a, _| {
-                if skipped(a, 7) {
+                if skipped(a, 7) || nothing(arg(a, 2)) || nothing(arg(a, 3)) {
                     return Ok(V::Na);
                 }
                 let id = str_or(a, 0, "").to_string();
@@ -263,28 +277,44 @@ pub(crate) fn defs() -> Vec<NatDef> {
             broker(g)?.props.allow_entry_in = v;
             Ok(V::Na)
         }),
-        // Accepted; not enforced yet (see docs/notes/strategies.md, Phase 7).
         d(
             "strategy.risk.max_drawdown",
             &["value", "type", "alert_message"],
-            |_, _, _| Ok(V::Na),
+            |g, a, _| {
+                let rule = amount(a);
+                broker(g)?.risk.max_drawdown = rule;
+                Ok(V::Na)
+            },
         ),
         d(
             "strategy.risk.max_intraday_loss",
             &["value", "type", "alert_message"],
-            |_, _, _| Ok(V::Na),
+            |g, a, _| {
+                let rule = amount(a);
+                broker(g)?.risk.max_intraday_loss = rule;
+                Ok(V::Na)
+            },
         ),
         d(
             "strategy.risk.max_cons_loss_days",
             &["count", "alert_message"],
-            |_, _, _| Ok(V::Na),
+            |g, a, _| {
+                broker(g)?.risk.max_cons_loss_days = count(a);
+                Ok(V::Na)
+            },
         ),
         d(
             "strategy.risk.max_intraday_filled_orders",
             &["count", "alert_message"],
-            |_, _, _| Ok(V::Na),
+            |g, a, _| {
+                broker(g)?.risk.max_intraday_filled_orders = count(a);
+                Ok(V::Na)
+            },
         ),
-        d("strategy.risk.max_position_size", &["contracts"], |_, _, _| Ok(V::Na)),
+        d("strategy.risk.max_position_size", &["contracts"], |g, a, _| {
+            broker(g)?.risk.max_position_size = opt(arg(a, 0));
+            Ok(V::Na)
+        }),
         d("strategy.convert_to_account", &["value"], |_, a, _| {
             Ok(arg(a, 0).clone())
         }),
@@ -308,7 +338,7 @@ pub(crate) fn defs() -> Vec<NatDef> {
         })
         .var(),
         d("strategy.position_entry_name", &[], |g, _, _| {
-            Ok(V::str(broker(g)?.lots.last().map(|l| l.id.as_str()).unwrap_or("")))
+            Ok(V::str(broker(g)?.lots.first().map(|l| l.id.as_str()).unwrap_or("")))
         })
         .var(),
         d("strategy.equity", &[], |g, _, _| {
@@ -340,6 +370,41 @@ pub(crate) fn defs() -> Vec<NatDef> {
             } else {
                 b.open_profit(c) / cost * 100.0
             }))
+        })
+        .var(),
+        d("strategy.grossprofit_percent", &[], |g, _, _| {
+            let b = broker(g)?;
+            Ok(V::Float(sum_pnl(b, |p| p > 0.0) / b.props.initial_capital * 100.0))
+        })
+        .var(),
+        d("strategy.grossloss_percent", &[], |g, _, _| {
+            let b = broker(g)?;
+            Ok(V::Float(-sum_pnl(b, |p| p < 0.0) / b.props.initial_capital * 100.0))
+        })
+        .var(),
+        d("strategy.max_drawdown_percent", &[], |g, _, _| {
+            Ok(V::Float(broker(g)?.max_drawdown_pct))
+        })
+        .var(),
+        d("strategy.max_runup_percent", &[], |g, _, _| {
+            Ok(V::Float(broker(g)?.max_runup_pct))
+        })
+        .var(),
+        d("strategy.margin_liquidation_price", &[], |g, _, _| {
+            Ok(broker(g)?.liquidation_price().map_or(V::Na, V::Float))
+        })
+        .var(),
+        d("strategy.opentrades.capital_held", &[], |g, _, _| {
+            let c = g.bar().close;
+            Ok(V::Float(broker(g)?.capital_held(c)))
+        })
+        .var(),
+        d("strategy.avg_winning_trade_percent", &[], |g, _, _| {
+            Ok(avg(broker(g)?.trades.iter().filter(|t| t.pnl > 0.0).map(pct_of_entry)))
+        })
+        .var(),
+        d("strategy.avg_losing_trade_percent", &[], |g, _, _| {
+            Ok(avg(broker(g)?.trades.iter().filter(|t| t.pnl < 0.0).map(pct_of_entry)))
         })
         .var(),
         d("strategy.grossprofit", &[], |g, _, _| {
@@ -423,10 +488,12 @@ pub(crate) fn defs() -> Vec<NatDef> {
             closed(g, a, |t| V::Int(t.exit_bar as i64))
         }),
         d("strategy.closedtrades.entry_time", &["trade_num"], |g, a, _| {
-            closed(g, a, |t| V::Int(t.entry_time))
+            let t = closed(g, a, |t| V::Int(t.entry_time))?;
+            Ok(t.i().map_or(V::Na, |t| V::Int(g.open_time(t))))
         }),
         d("strategy.closedtrades.exit_time", &["trade_num"], |g, a, _| {
-            closed(g, a, |t| V::Int(t.exit_time))
+            let t = closed(g, a, |t| V::Int(t.exit_time))?;
+            Ok(t.i().map_or(V::Na, |t| V::Int(g.open_time(t))))
         }),
         d("strategy.closedtrades.entry_id", &["trade_num"], |g, a, _| {
             closed(g, a, |t| V::str(t.entry_id.as_str()))
@@ -475,7 +542,8 @@ pub(crate) fn defs() -> Vec<NatDef> {
             open_lot(g, a, |l, _| V::Int(l.bar as i64))
         }),
         d("strategy.opentrades.entry_time", &["trade_num"], |g, a, _| {
-            open_lot(g, a, |l, _| V::Int(l.time))
+            let t = open_lot(g, a, |l, _| V::Int(l.time))?;
+            Ok(t.i().map_or(V::Na, |t| V::Int(g.open_time(t))))
         }),
         d("strategy.opentrades.entry_id", &["trade_num"], |g, a, _| {
             open_lot(g, a, |l, _| V::str(l.id.as_str()))
@@ -503,6 +571,18 @@ pub(crate) fn defs() -> Vec<NatDef> {
             open_lot(g, a, |l, _| {
                 let best = if l.long { l.hi } else { l.lo };
                 V::Float(((best - l.price) * l.qty * if l.long { 1.0 } else { -1.0 }).max(0.0))
+            })
+        }),
+        d("strategy.opentrades.max_runup_percent", &["trade_num"], |g, a, _| {
+            open_lot(g, a, |l, _| {
+                let best = if l.long { l.hi } else { l.lo };
+                V::Float(((best / l.price - 1.0) * 100.0 * if l.long { 1.0 } else { -1.0 }).max(0.0))
+            })
+        }),
+        d("strategy.opentrades.max_drawdown_percent", &["trade_num"], |g, a, _| {
+            open_lot(g, a, |l, _| {
+                let worst = if l.long { l.lo } else { l.hi };
+                V::Float(-((worst / l.price - 1.0) * 100.0 * if l.long { 1.0 } else { -1.0 }).min(0.0))
             })
         }),
         d("strategy.opentrades.max_drawdown", &["trade_num"], |g, a, _| {
