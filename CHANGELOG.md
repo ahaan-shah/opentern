@@ -7,8 +7,12 @@
 
 ### Changed
 - **"Theme" beside a colour** in chart settings is a plain underlined link.
+- **Signing in to Claude Code or Codex** happens in your terminal: the agent panel shows the command to copy, for the account you picked. Opentern takes no part in it.
+- **Claude Code knows it's running in Opentern**: the app tells it its name, as it does Codex.
 
 ### Fixed
+- **Codex's models.** The menu kept the list from the first time it was opened; now it loads the current one each time you start Opentern, like Claude's.
+- **Luau, JavaScript, TypeScript and Python scripts.** Averages and highs/lows can change their length from bar to bar, a quantity of 0 orders nothing, levels follow their inputs, and daily bars carry their session's opening time. In Python, an infinite value no longer stops the script, orders take a series for their size and targets, and other programs' output can't break it.
 - **Pine scripts.** A full check of the engine fixed many scripts that stopped with an error or showed wrong values: `request.security` with your own functions, variables, loops and several symbols; dates, weeks and sessions on US daily charts; hourly bars on NSE and other exchanges that don't open on the hour; moving averages and highs/lows whose length changes; inputs grouped with named constants; date inputs; deleted drawings; risk rules in strategies; and over 80 missing functions. Strategies now follow the default FIFO closing rule, fill limits without slippage and wait for stop-limits. Heikin Ashi requests, `varip`, `indicator(timeframe = …)` and version 3 and 4 scripts now work. Thanks to the author of pull request #3 for pointing at the first ones.
 - **Panels in narrow windows.** Every bottom panel fits half a laptop screen: tabs scroll sideways with the open one in view, Paper Trading and the Strategy Lab stack, and the Strategy Report, screener, seasonality table, Script Editor and alerts log no longer run past their edges or overlap.
 - **Dividend, split and earnings details** no longer show through a dialog.

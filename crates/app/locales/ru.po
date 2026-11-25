@@ -966,6 +966,9 @@ msgstr "Классический"
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr "Claude Code сам решает, что безопасно, и спрашивает только при сомнениях."
 
+msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
+msgstr "Claude и логотип Claude — товарные знаки Anthropic. OpenAI, Codex и логотип OpenAI — товарные знаки OpenAI. Opentern не связан с этими компаниями и не одобрен ими."
+
 msgid "Claude asks before it edits files or runs commands."
 msgstr "Claude спрашивает перед изменением файлов и запуском команд."
 
@@ -1869,9 +1872,6 @@ msgstr "Фильтр файлов"
 #, message
 msgid "Find files: {0}"
 msgstr "Найти файлы: {0}"
-
-msgid "Finish signing in in your browser."
-msgstr "Завершите вход в браузере."
 
 msgid "Fisher"
 msgstr "Фишер"
@@ -3370,9 +3370,6 @@ msgstr "Открыть в файловом менеджере"
 msgid "Open on the chart"
 msgstr "Открыть на графике"
 
-msgid "Open page"
-msgstr "Открыть страницу"
-
 msgid "Open panel"
 msgstr "Открыть панель"
 
@@ -3567,9 +3564,6 @@ msgstr "Вставить изображение"
 
 msgid "Paste it anywhere."
 msgstr "Вставьте его куда угодно."
-
-msgid "Paste the code, if asked"
-msgstr "Вставьте код, если потребуется"
 
 msgid "Paste the email password (an app password), or turn email off."
 msgstr "Вставьте пароль почты (пароль приложения) или отключите почту."
@@ -4178,6 +4172,9 @@ msgstr "Запустить лабораторию стратегий"
 msgid "Run the screener"
 msgstr "Запустить скринер"
 
+msgid "Run this in a terminal"
+msgstr "Выполните это в терминале"
+
 msgid "Run-up"
 msgstr "Рост"
 
@@ -4537,9 +4534,6 @@ msgstr "Сторона"
 
 msgid "Sigma"
 msgstr "Сигма"
-
-msgid "Sign in"
-msgstr "Войти"
 
 msgid "Sign in to {0}"
 msgstr "Войти в {0}"

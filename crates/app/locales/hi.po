@@ -966,6 +966,9 @@ msgstr "क्लासिक"
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr "Claude Code खुद तय करता है कि क्या सुरक्षित है और शंका होने पर ही पूछता है।"
 
+msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
+msgstr "Claude और Claude का लोगो Anthropic के ट्रेडमार्क हैं। OpenAI, Codex और OpenAI का लोगो OpenAI के ट्रेडमार्क हैं। Opentern इनमें से किसी से संबद्ध या समर्थित नहीं है।"
+
 msgid "Claude asks before it edits files or runs commands."
 msgstr "Claude फ़ाइल बदलने या कमांड चलाने से पहले पूछता है।"
 
@@ -1869,9 +1872,6 @@ msgstr "फ़ाइलें फ़िल्टर करें"
 #, message
 msgid "Find files: {0}"
 msgstr "फ़ाइलें खोजें: {0}"
-
-msgid "Finish signing in in your browser."
-msgstr "ब्राउज़र में साइन-इन पूरा करें।"
 
 msgid "Fisher"
 msgstr "फ़िशर"
@@ -3370,9 +3370,6 @@ msgstr "फ़ाइल मैनेजर में खोलें"
 msgid "Open on the chart"
 msgstr "चार्ट पर खोलें"
 
-msgid "Open page"
-msgstr "पेज खोलें"
-
 msgid "Open panel"
 msgstr "पैनल खोलें"
 
@@ -3567,9 +3564,6 @@ msgstr "चित्र पेस्ट करें"
 
 msgid "Paste it anywhere."
 msgstr "कहीं भी पेस्ट करें।"
-
-msgid "Paste the code, if asked"
-msgstr "पूछे जाने पर कोड पेस्ट करें"
 
 msgid "Paste the email password (an app password), or turn email off."
 msgstr "ईमेल पासवर्ड (ऐप पासवर्ड) पेस्ट करें, या ईमेल बंद करें।"
@@ -4178,6 +4172,9 @@ msgstr "स्ट्रैटेजी लैब चलाएँ"
 msgid "Run the screener"
 msgstr "स्क्रीनर चलाएँ"
 
+msgid "Run this in a terminal"
+msgstr "इसे टर्मिनल में चलाएँ"
+
 msgid "Run-up"
 msgstr "रन-अप"
 
@@ -4537,9 +4534,6 @@ msgstr "पक्ष"
 
 msgid "Sigma"
 msgstr "सिग्मा"
-
-msgid "Sign in"
-msgstr "साइन इन"
 
 msgid "Sign in to {0}"
 msgstr "{0} में साइन इन करें"

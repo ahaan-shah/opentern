@@ -966,6 +966,9 @@ msgstr "クラシック"
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr "Claude Codeが安全性を判断し、確信がないときだけ確認します。"
 
+msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
+msgstr "Claude と Claude のロゴは Anthropic の商標です。OpenAI、Codex、OpenAI のロゴは OpenAI の商標です。Opentern はこれらの会社とは関係がありません。これらの会社に認められたものでもありません。"
+
 msgid "Claude asks before it edits files or runs commands."
 msgstr "Claudeはファイル編集やコマンド実行の前に確認します。"
 
@@ -1869,9 +1872,6 @@ msgstr "ファイルを絞り込む"
 #, message
 msgid "Find files: {0}"
 msgstr "ファイルを検索: {0}"
-
-msgid "Finish signing in in your browser."
-msgstr "ブラウザーでサインインを完了してください。"
 
 msgid "Fisher"
 msgstr "フィッシャー"
@@ -3370,9 +3370,6 @@ msgstr "ファイルマネージャーで開く"
 msgid "Open on the chart"
 msgstr "チャートで開く"
 
-msgid "Open page"
-msgstr "ページを開く"
-
 msgid "Open panel"
 msgstr "パネルを開く"
 
@@ -3567,9 +3564,6 @@ msgstr "画像を貼り付け"
 
 msgid "Paste it anywhere."
 msgstr "どこにでも貼り付けられます。"
-
-msgid "Paste the code, if asked"
-msgstr "求められたらコードを貼り付け"
 
 msgid "Paste the email password (an app password), or turn email off."
 msgstr "メールのパスワード(アプリパスワード)を貼り付けるか、メールをオフにしてください。"
@@ -4178,6 +4172,9 @@ msgstr "ストラテジーラボを実行"
 msgid "Run the screener"
 msgstr "スクリーナーを実行"
 
+msgid "Run this in a terminal"
+msgstr "ターミナルで実行してください"
+
 msgid "Run-up"
 msgstr "ランアップ"
 
@@ -4537,9 +4534,6 @@ msgstr "売買"
 
 msgid "Sigma"
 msgstr "シグマ"
-
-msgid "Sign in"
-msgstr "サインイン"
 
 msgid "Sign in to {0}"
 msgstr "{0}にサインイン"

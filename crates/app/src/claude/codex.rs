@@ -45,6 +45,8 @@ struct State {
     base: Usage,
     error: Option<String>,
     launch: Option<(Value, Option<String>)>,
+    /// Pages of the model list so far.
+    pages: Vec<Value>,
 }
 
 pub struct Codex {
@@ -241,75 +243,123 @@ impl Codex {
     }
 }
 
-/// The visible models of a `model/list` reply, the server's default first
-/// (the panel takes the first as the default when nothing else names one).
-fn default_first(data: &Value) -> Vec<&Value> {
-    let mut v: Vec<&Value> = data
-        .as_array()
-        .into_iter()
+/// The visible models of `model/list`'s pages as (id, name), the server's
+/// default first (the panel takes the first as the default when nothing
+/// else names one).
+fn listed(pages: &[Value]) -> Vec<(String, String)> {
+    let mut v: Vec<&Value> = pages
+        .iter()
+        .filter_map(|p| p["data"].as_array())
         .flatten()
         .filter(|m| m["hidden"] != json!(true))
         .collect();
     v.sort_by_key(|m| m["isDefault"] != json!(true));
-    v
+    v.into_iter()
+        .filter_map(|m| {
+            let id = m["id"].as_str().filter(|s| !s.is_empty())?;
+            Some((id.to_string(), m["displayName"].as_str().unwrap_or(id).to_string()))
+        })
+        .collect()
 }
+
+/// The parameters for the page after `page`, if there's one.
+fn next_page(page: &Value) -> Option<Value> {
+    let c = page["nextCursor"].as_str().filter(|c| !c.is_empty())?;
+    Some(json!({"cursor": c}))
+}
+
+/// The most pages of models read.
+const MAX_PAGES: usize = 20;
 
 /// The account's models, asked of a short-lived `codex app-server` (the
 /// model menu opened before any chat ran). Empty on any failure.
 pub fn models(exe: std::path::PathBuf, cwd: std::path::PathBuf) -> Receiver<Vec<(String, String)>> {
     let (tx, rx) = unbounded();
     let _ = std::thread::Builder::new().name("codex-models".into()).spawn(move || {
-        let mut list = Vec::new();
-        // A new workspace has no scripts folder until something is saved.
-        let _ = std::fs::create_dir_all(&cwd);
-        let mut cmd = Command::new(&exe);
-        super::accounts::apply(&mut cmd, super::Agent::Codex, &super::accounts::current(super::Agent::Codex));
-        let child = cmd
-            .arg("app-server")
-            .current_dir(&cwd)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .spawn();
-        if let Ok(mut child) = child
-            && let (Some(mut sin), Some(sout)) = (child.stdin.take(), child.stdout.take())
-        {
-            let _ = writeln!(
-                sin,
-                "{}",
-                json!({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "opentern", "title": "Opentern", "version": env!("CARGO_PKG_VERSION")}}})
-            );
-            let _ = sin.flush();
-            let start = std::time::Instant::now();
+        let _ = tx.send(ask_models(&exe, &cwd, std::time::Duration::from_secs(20)));
+    });
+    rx
+}
+
+fn ask_models(exe: &std::path::Path, cwd: &std::path::Path, limit: std::time::Duration) -> Vec<(String, String)> {
+    // A new workspace has no scripts folder until something is saved.
+    let _ = std::fs::create_dir_all(cwd);
+    let mut cmd = Command::new(exe);
+    super::accounts::apply(
+        &mut cmd,
+        super::Agent::Codex,
+        &super::accounts::current(super::Agent::Codex),
+    );
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let child = cmd
+        .arg("app-server")
+        .current_dir(cwd)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn();
+    let Ok(mut child) = child else { return Vec::new() };
+    let (Some(mut sin), Some(sout)) = (child.stdin.take(), child.stdout.take()) else {
+        return Vec::new();
+    };
+    // Read on a thread of its own, so a Codex that says nothing is given up
+    // on (killing it ends the thread).
+    let (lines_tx, lines) = unbounded();
+    let _ = std::thread::Builder::new()
+        .name("codex-models-read".into())
+        .spawn(move || {
             for line in BufReader::new(sout).lines() {
                 let Ok(line) = line else { break };
-                let Ok(v) = serde_json::from_str::<Value>(&line) else {
-                    continue;
-                };
-                if v["id"] == 1 {
-                    let _ = writeln!(sin, "{}", json!({"method": "initialized"}));
-                    let _ = writeln!(sin, "{}", json!({"id": 2, "method": "model/list", "params": {}}));
-                    let _ = sin.flush();
-                } else if v["id"] == 2 {
-                    list = default_first(&v["result"]["data"])
-                        .into_iter()
-                        .map(|m| {
-                            let id = m["id"].as_str().unwrap_or("").to_string();
-                            (id.clone(), m["displayName"].as_str().map(str::to_string).unwrap_or(id))
-                        })
-                        .collect();
-                    break;
-                }
-                if start.elapsed().as_secs() > 20 {
+                if let Ok(v) = serde_json::from_str::<Value>(&line)
+                    && lines_tx.send(v).is_err()
+                {
                     break;
                 }
             }
-            let _ = child.kill();
-            let _ = child.wait();
+        });
+    let mut say = |v: Value| {
+        let _ = writeln!(sin, "{v}");
+        let _ = sin.flush();
+    };
+    say(
+        json!({"id": 1, "method": "initialize", "params": {"clientInfo": {"name": "opentern", "title": "Opentern", "version": env!("CARGO_PKG_VERSION")}}}),
+    );
+    let end = std::time::Instant::now() + limit;
+    let mut pages: Vec<Value> = Vec::new();
+    let mut whole = false;
+    while let Ok(v) = lines.recv_deadline(end) {
+        // Only replies: Codex's own requests have ids too.
+        if v.get("method").is_some() {
+            continue;
         }
-        let _ = tx.send(list);
-    });
-    rx
+        match v["id"].as_u64() {
+            Some(_) if v.get("error").is_some() => break,
+            Some(1) => {
+                say(json!({"method": "initialized"}));
+                say(json!({"id": 2, "method": "model/list", "params": {}}));
+            }
+            Some(id) if id == pages.len() as u64 + 2 => {
+                pages.push(v["result"].clone());
+                match next_page(&v["result"]) {
+                    Some(params) if pages.len() < MAX_PAGES => {
+                        say(json!({"id": pages.len() + 2, "method": "model/list", "params": params}));
+                    }
+                    _ => {
+                        whole = true;
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
+    if whole { listed(&pages) } else { Vec::new() }
 }
 
 impl Drop for Codex {
@@ -568,16 +618,17 @@ fn handle(v: &Value, stdin: &Mutex<ChildStdin>, st: &mut State) -> Vec<Event> {
                 }
             }
             ("models", None) => {
-                let list = default_first(&v["result"]["data"])
-                    .into_iter()
-                    .map(|m| {
-                        let id = m["id"].as_str().unwrap_or("").to_string();
-                        let name = m["displayName"].as_str().map(str::to_string).unwrap_or(id.clone());
-                        (id, name)
-                    })
-                    .collect::<Vec<_>>();
-                if !list.is_empty() {
-                    out.push(Event::Models(list));
+                st.pages.push(v["result"].clone());
+                match next_page(&v["result"]) {
+                    Some(params) if st.pages.len() < MAX_PAGES => {
+                        request(stdin, st, "models", "model/list", params);
+                    }
+                    _ => {
+                        let list = listed(&std::mem::take(&mut st.pages));
+                        if !list.is_empty() {
+                            out.push(Event::Models(list));
+                        }
+                    }
                 }
             }
             ("init" | "start" | "turn", Some(e)) => {
@@ -760,5 +811,69 @@ mod tests {
         assert_eq!(diff_of(&ch), "- a\n+ b\n  c");
         let ch = json!([{"path": "/s/hi.txt", "kind": {"type": "add"}, "diff": "hi\n"}]);
         assert_eq!(diff_of(&ch), "+ hi");
+    }
+
+    /// A stand-in `codex` whose replies are `script`'s.
+    #[cfg(unix)]
+    fn fake(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let exe = dir.join("codex");
+        let src = format!(
+            "#!/usr/bin/env python3\nimport json, sys, time\ndef say(x): print(json.dumps(x), flush=True)\nfor line in sys.stdin:\n    q = json.loads(line)\n    i, m, p = q.get('id'), q.get('method'), q.get('params') or {{}}\n{body}"
+        );
+        std::fs::write(&exe, src).unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        exe
+    }
+
+    #[cfg(unix)]
+    fn ask(body: &str, secs: u64) -> Vec<(String, String)> {
+        static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("opentern-codex-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = fake(&dir, body);
+        let list = ask_models(&exe, &dir, std::time::Duration::from_secs(secs));
+        let _ = std::fs::remove_dir_all(&dir);
+        list
+    }
+
+    /// The installed Codex's own list (no model request is made).
+    #[test]
+    #[ignore = "needs Codex, signed in"]
+    fn live_models() {
+        let exe = super::super::Agent::Codex.find().expect("codex");
+        let list = ask_models(&exe, &std::env::temp_dir(), std::time::Duration::from_secs(20));
+        eprintln!("{list:?}");
+        assert!(!list.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn every_page_of_models_is_read() {
+        let list = ask(
+            "    if m == 'initialize':\n        say({'method': 'note', 'params': {}})\n        say({'id': 2, 'method': 'a/request', 'params': {}})\n        say({'id': i, 'result': {}})\n    elif m == 'model/list' and 'cursor' not in p:\n        say({'id': i, 'result': {'data': [{'id': 'old', 'displayName': 'Old'}, {'id': 'secret', 'hidden': True}], 'nextCursor': 'c2'}})\n    elif m == 'model/list':\n        say({'id': i, 'result': {'data': [{'id': 'new', 'displayName': 'New', 'isDefault': True}, {'id': 'plain'}], 'nextCursor': None}})\n",
+            20,
+        );
+        let s = |a: &str, b: &str| (a.to_string(), b.to_string());
+        assert_eq!(list, [s("new", "New"), s("old", "Old"), s("plain", "plain")]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_codex_that_fails_or_hangs_gives_no_models() {
+        let t = std::time::Instant::now();
+        assert!(ask("    pass\n", 1).is_empty());
+        assert!(t.elapsed().as_secs() < 10);
+        assert!(ask("    say({'id': i, 'error': {'message': 'signed out'}})\n", 20).is_empty());
+        assert!(ask("    sys.exit(1)\n", 20).is_empty());
+        // Half a list isn't one.
+        assert!(
+            ask(
+                "    if m == 'initialize': say({'id': i, 'result': {}})\n    elif 'cursor' not in p and m == 'model/list': say({'id': i, 'result': {'data': [{'id': 'a'}], 'nextCursor': 'x'}})\n    elif m == 'model/list': say({'id': i, 'error': {'message': 'no'}})\n",
+                20
+            )
+            .is_empty()
+        );
     }
 }

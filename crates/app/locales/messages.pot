@@ -966,6 +966,9 @@ msgstr ""
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr ""
 
+msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
+msgstr ""
+
 msgid "Claude asks before it edits files or runs commands."
 msgstr ""
 
@@ -1868,9 +1871,6 @@ msgstr ""
 
 #, message
 msgid "Find files: {0}"
-msgstr ""
-
-msgid "Finish signing in in your browser."
 msgstr ""
 
 msgid "Fisher"
@@ -3370,9 +3370,6 @@ msgstr ""
 msgid "Open on the chart"
 msgstr ""
 
-msgid "Open page"
-msgstr ""
-
 msgid "Open panel"
 msgstr ""
 
@@ -3566,9 +3563,6 @@ msgid "Paste an image"
 msgstr ""
 
 msgid "Paste it anywhere."
-msgstr ""
-
-msgid "Paste the code, if asked"
 msgstr ""
 
 msgid "Paste the email password (an app password), or turn email off."
@@ -4178,6 +4172,9 @@ msgstr ""
 msgid "Run the screener"
 msgstr ""
 
+msgid "Run this in a terminal"
+msgstr ""
+
 msgid "Run-up"
 msgstr ""
 
@@ -4536,9 +4533,6 @@ msgid "Side"
 msgstr ""
 
 msgid "Sigma"
-msgstr ""
-
-msgid "Sign in"
 msgstr ""
 
 msgid "Sign in to {0}"

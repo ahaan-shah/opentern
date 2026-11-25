@@ -307,6 +307,7 @@ safe. As the [license](LICENSE) says, Opentern comes with no warranty, and you
 use scripts, agents and their results at your own risk. Nothing in Opentern is
 financial advice.
 
-Pine Script® and TradingView® are trademarks of TradingView, Inc. Claude is a
-trademark of Anthropic. OpenAI and Codex are trademarks of OpenAI. Opentern is an
-independent project, not affiliated with or endorsed by any of them.
+Pine Script® and TradingView® are trademarks of TradingView, Inc. Claude and the
+Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are
+trademarks of OpenAI. Opentern is an independent project, not affiliated with or
+endorsed by any of them.

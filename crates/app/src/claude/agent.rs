@@ -39,6 +39,14 @@ impl Agent {
         }
     }
 
+    /// What the CLI is called in a terminal.
+    pub fn command(self) -> &'static str {
+        match self {
+            Agent::Claude => "claude",
+            Agent::Codex => "codex",
+        }
+    }
+
     /// The CLI's own install page, linked when it isn't found.
     pub fn install_url(self) -> &'static str {
         match self {
@@ -100,11 +108,31 @@ impl Agent {
         self.find_in(&dirs, cfg!(windows))
     }
 
-    fn find_in(self, dirs: &[PathBuf], windows: bool) -> Option<PathBuf> {
-        let name = match self {
-            Agent::Claude => "claude",
-            Agent::Codex => "codex",
+    /// Whether the CLI's bare name runs `exe` in a terminal.
+    pub fn on_path(self, exe: &std::path::Path) -> bool {
+        let dirs: Vec<PathBuf> = std::env::var_os("PATH")
+            .map(|p| std::env::split_paths(&p).collect())
+            .unwrap_or_default();
+        self.first_in(&dirs, cfg!(windows)).is_some_and(|f| f == exe)
+    }
+
+    /// What the bare name runs, looking through `dirs` in order. On Windows
+    /// an npm shim counts: PowerShell picks its `.ps1`, which the default
+    /// policy refuses to run, so the caller shows the full path instead.
+    fn first_in(self, dirs: &[PathBuf], windows: bool) -> Option<PathBuf> {
+        let name = self.command();
+        let names = if windows {
+            vec![format!("{name}.ps1"), format!("{name}.exe"), format!("{name}.cmd")]
+        } else {
+            vec![name.to_string()]
         };
+        dirs.iter()
+            .flat_map(|d| names.iter().map(move |n| d.join(n)))
+            .find(|p| p.is_file())
+    }
+
+    fn find_in(self, dirs: &[PathBuf], windows: bool) -> Option<PathBuf> {
+        let name = self.command();
         if !windows {
             return dirs.iter().map(|d| d.join(name)).find(|p| p.is_file());
         }

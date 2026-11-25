@@ -4,7 +4,7 @@
 //! spinner.
 //!
 //! The glyph is Simple Icons' "Claude" (CC0-1.0,
-//! https://simpleicons.org). Claude is a trademark of Anthropic; it's used
+//! https://simpleicons.org). The Claude logo is a trademark of Anthropic; it's used
 //! here only to name the integration with the user's own Claude Code.
 
 use crate::motion;

@@ -228,6 +228,8 @@ pub struct Claude {
     models_rx: Option<crossbeam_channel::Receiver<Vec<(String, String)>>>,
     /// The model list was asked for while the menu is open.
     models_asked: bool,
+    /// Codex listed its models this run (new ones come out between runs).
+    codex_models_fresh: bool,
     pub view: View,
     /// The chats list's search text.
     pub chat_query: String,
@@ -406,6 +408,40 @@ impl Claude {
                 .find(|(k, _)| k == id)
                 .map(|(_, n)| n.clone())
                 .unwrap_or_else(|| codex_name(id)),
+        }
+    }
+
+    /// Codex's models as it lists them now. Ones picked earlier that are
+    /// gone go back to the default, as does a default that's changed.
+    fn set_codex_models(&mut self, list: Vec<(String, String)>) {
+        if list.is_empty() {
+            return;
+        }
+        self.codex_models_fresh = true;
+        let gone = |m: &str| !m.is_empty() && !list.iter().any(|(k, _)| k == m);
+        if gone(&self.codex_model) {
+            self.codex_model.clear();
+        }
+        for c in self.chats.iter_mut().filter(|c| c.agent == Agent::Codex) {
+            if gone(&c.model) {
+                c.model.clear();
+            }
+        }
+        // What chats reported before may be last month's default.
+        self.defaults.remove(&Agent::Codex);
+        if self.codex_models != list {
+            self.codex_models = list;
+        }
+        self.dirty = true;
+    }
+
+    /// Whether to ask `a` for its models, with its model menu open: once a
+    /// run (the last list shows meanwhile), and again on another opening
+    /// when Codex didn't answer.
+    fn wants_models(&self, a: Agent) -> bool {
+        match a {
+            Agent::Claude => !self.claude_models_asked,
+            Agent::Codex => !self.codex_models_fresh && self.models_rx.is_none() && !self.models_asked,
         }
     }
 
@@ -929,8 +965,7 @@ impl App {
             return;
         }
         if let Event::Models(list) = e {
-            self.claude.codex_models = list;
-            self.claude.dirty = true;
+            self.claude.set_codex_models(list);
             return;
         }
         let mut exited = false;
@@ -1259,7 +1294,7 @@ impl App {
     /// Whether `agent`'s CLI is signed in; otherwise shows the sign-in gate
     /// (or a spinner while the CLI is asked) and returns false.
     fn claude_signed_in(&mut self, ui: &mut Ui, t: &Theme, agent: Agent) -> bool {
-        if crate::app::headless() && std::env::var_os(agent.env()).is_none() {
+        if crate::app::headless() && std::env::var_os(agent.env()).is_none() && !self.claude.auth.contains_key(&agent) {
             return true;
         }
         let Some(exe) = self.claude.cli_for(agent) else {
@@ -1271,8 +1306,7 @@ impl App {
             .claude
             .auth
             .entry(agent)
-            .or_insert_with(|| auth::Auth::Checking(auth::check(agent, &exe, wake.clone())));
-        let mut done = false;
+            .or_insert_with(|| auth::Auth::Checking(auth::check(agent, &exe, wake)));
         match state {
             auth::Auth::In => return true,
             auth::Auth::Checking(rx) => match rx.try_recv() {
@@ -1280,7 +1314,7 @@ impl App {
                     *state = auth::Auth::In;
                     return true;
                 }
-                Ok(false) => *state = auth::Auth::Out,
+                Ok(false) => *state = auth::Auth::Out(auth::login_command(agent, &exe)),
                 Err(_) => {
                     ui.add_space(96.0);
                     ui.vertical_centered(|ui| agent::spinner(ui, 26.0, agent, agent.accent(t)));
@@ -1288,83 +1322,71 @@ impl App {
                     return false;
                 }
             },
-            auth::Auth::SigningIn(l) => done = l.poll().is_some(),
-            auth::Auth::Out => {}
+            auth::Auth::Out(_) => {}
         }
-        if done {
-            *state = auth::Auth::Checking(auth::check(agent, &exe, wake.clone()));
-        }
+        let auth::Auth::Out(command) = state else { return false };
+        let copied_id = egui::Id::new(("agent-login-copied", agent));
+        let now = ui.input(|i| i.time);
+        let copied = ui.data(|d| d.get_temp::<f64>(copied_id)).is_some_and(|c| now - c < 1.5);
         ui.add_space(48.0);
-        let mut action = None;
+        let mut again = false;
         ui.vertical_centered(|ui| {
             halo(ui, t, agent, 38.0);
             ui.add_space(14.0);
             ui.label(RichText::new(trf!("Sign in to {}", agent.product())).font(theme::semibold(15.0)));
             ui.add_space(14.0);
-            match self.claude.auth.get_mut(&agent) {
-                Some(auth::Auth::SigningIn(l)) => {
-                    ui.label(
-                        RichText::new(tr("Finish signing in in your browser."))
-                            .color(t.text2)
-                            .size(12.5),
+            ui.label(RichText::new(tr("Run this in a terminal")).color(t.text2).size(12.5));
+            ui.add_space(10.0);
+            let w = (ui.available_width() - 32.0).clamp(0.0, 340.0);
+            egui::Frame::new()
+                .fill(t.bg)
+                .stroke(Stroke::new(1.0, t.border.gamma_multiply(0.6)))
+                .corner_radius(CornerRadius::same(8))
+                .inner_margin(Margin::symmetric(12, 9))
+                .show(ui, |ui| {
+                    ui.set_max_width((w - 24.0).max(0.0));
+                    ui.add(
+                        egui::Label::new(
+                            RichText::new(command.as_str())
+                                .font(FontId::monospace(12.0))
+                                .color(t.text),
+                        )
+                        .wrap()
+                        .selectable(true),
                     );
-                    if agent == Agent::Claude {
-                        ui.add_space(12.0);
-                        let w = (ui.available_width() - 32.0).min(260.0);
-                        let r = ui.add_sized(
-                            [w, 34.0],
-                            w::field(&mut l.code)
-                                .hint_text(tr("Paste the code, if asked"))
-                                .interactive(!l.sent),
-                        );
-                        if r.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                            l.send_code();
-                        }
-                        ui.add_space(8.0);
-                        let ready = !l.sent && !l.code.trim().is_empty();
-                        if w::button(ui, w::Kind::Primary, ready, None, tr("Continue")).clicked() {
-                            l.send_code();
-                        }
-                    }
-                    ui.add_space(8.0);
-                    ui.horizontal(|ui| {
-                        let url = l.url.clone();
-                        let width = if url.is_some() { 200.0 } else { 90.0 };
-                        ui.add_space(((ui.available_width() - width) / 2.0).max(0.0));
-                        if let Some(url) = url
-                            && w::secondary(ui, tr("Open page")).clicked()
-                        {
-                            crate::app::open_url(&url);
-                        }
-                        if w::secondary(ui, tr("Cancel")).clicked() {
-                            action = Some(false);
-                        }
-                    });
-                    ui.ctx().request_repaint_after(std::time::Duration::from_millis(500));
+                });
+            ui.add_space(14.0);
+            let copy = if copied { tr("Copied") } else { tr("Copy") };
+            let check = tr("Check again");
+            // Both buttons side by side, centred (one under the other when
+            // the pane is too narrow for that).
+            let width = |s: &str| {
+                let g = ui.painter().layout_no_wrap(s.to_string(), theme::medium(13.0), t.text);
+                (g.size().x + 28.0).max(72.0)
+            };
+            let (a, b) = (width(copy), width(check));
+            let mut buttons = |ui: &mut Ui| {
+                if w::primary(ui, copy).clicked() {
+                    ui.ctx().copy_text(command.clone());
+                    ui.data_mut(|d| d.insert_temp(copied_id, now));
                 }
-                _ => {
-                    if w::primary(ui, tr("Sign in")).clicked() {
-                        action = Some(true);
-                    }
-                    ui.add_space(8.0);
-                    if w::secondary(ui, tr("Check again")).clicked() {
-                        action = Some(false);
-                    }
-                }
+                again = w::secondary(ui, check).clicked();
+            };
+            if a + b + 8.0 <= ui.available_width() {
+                ui.allocate_ui_with_layout(vec2(a + b + 8.0, 32.0), Layout::left_to_right(Align::Center), |ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    buttons(ui);
+                });
+            } else {
+                ui.spacing_mut().item_spacing.y = 8.0;
+                buttons(ui);
             }
         });
-        match action {
-            Some(true) => {
-                let state = match auth::Login::start(agent, &exe, wake) {
-                    Ok(l) => auth::Auth::SigningIn(l),
-                    Err(_) => auth::Auth::Out,
-                };
-                self.claude.auth.insert(agent, state);
-            }
-            Some(false) => {
-                self.claude.auth.remove(&agent);
-            }
-            None => {}
+        if copied {
+            ui.ctx().request_repaint_after(std::time::Duration::from_millis(300));
+        }
+        if again {
+            self.claude.auth.remove(&agent);
         }
         false
     }
@@ -1729,6 +1751,9 @@ impl App {
             Agent::Codex => {
                 c.codex_limits.clear();
                 c.codex_models.clear();
+                c.codex_models_fresh = false;
+                // An answer on its way is the other account's.
+                c.models_rx = None;
                 c.models_asked = false;
             }
         }
@@ -2537,29 +2562,23 @@ impl App {
                     };
                     self.claude.footer.push(resp.rect);
                     self.claude_still_menu(ui, &resp, "model");
-                    // Codex's models come from the account: ask once, when
-                    // the menu first opens.
+                    // The agent's current models, when the menu opens.
                     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
-                    if agent == Agent::Codex
-                        && self.claude.codex_models.is_empty()
-                        && self.claude.models_rx.is_none()
-                        && !self.claude.models_asked
-                        && open
+                    if open
+                        && self.claude.wants_models(agent)
                         && let Some(exe) = self.claude.cli_for(agent)
                     {
-                        // Once per opening of the menu, even if it fails.
-                        self.claude.models_asked = true;
-                        self.claude.models_rx = Some(codex::models(exe, self.scripts_dir()));
-                    }
-                    // Claude Code's: once a run, when the menu first opens
-                    // (the last list, or `MODELS`, shows meanwhile).
-                    if agent == Agent::Claude
-                        && open
-                        && !self.claude.claude_models_asked
-                        && let Some(exe) = self.claude.cli_for(agent)
-                    {
-                        self.claude.claude_models_asked = true;
-                        self.claude.claude_models_rx = Some(process::models(exe, self.scripts_dir()));
+                        let dir = self.scripts_dir();
+                        match agent {
+                            Agent::Claude => {
+                                self.claude.claude_models_asked = true;
+                                self.claude.claude_models_rx = Some(process::models(exe, dir));
+                            }
+                            Agent::Codex => {
+                                self.claude.models_asked = true;
+                                self.claude.models_rx = Some(codex::models(exe, dir));
+                            }
+                        }
                     }
                     if !open {
                         self.claude.models_asked = false;
@@ -2577,7 +2596,10 @@ impl App {
                                     ui.close();
                                 }
                             }
-                            if self.claude.models_rx.is_some() && agent == Agent::Codex {
+                            if self.claude.models_rx.is_some()
+                                && self.claude.codex_models.is_empty()
+                                && agent == Agent::Codex
+                            {
                                 ui.add_space(4.0);
                                 ui.horizontal(|ui| {
                                     ui.add_space(12.0);
@@ -2636,10 +2658,7 @@ impl App {
             match rx.try_recv() {
                 Ok(list) => {
                     self.claude.models_rx = None;
-                    if !list.is_empty() {
-                        self.claude.codex_models = list;
-                        self.claude.dirty = true;
-                    }
+                    self.claude.set_codex_models(list);
                 }
                 Err(crossbeam_channel::TryRecvError::Disconnected) => self.claude.models_rx = None,
                 Err(_) => ui.ctx().request_repaint_after(std::time::Duration::from_millis(200)),
@@ -2894,10 +2913,7 @@ fn toml_model(text: &str) -> Option<String> {
 
 fn exit_message(agent: Agent, err: &str) -> String {
     let low = err.to_lowercase();
-    let (name, cmd) = match agent {
-        Agent::Claude => ("Claude Code", "claude"),
-        Agent::Codex => ("Codex", "codex"),
-    };
+    let (name, cmd) = (agent.product(), agent.command());
     if low.contains("login") || low.contains("log in") || low.contains("auth") || low.contains("api key") {
         msg!("{name} isn't signed in. Run {cmd} in a terminal once to sign in, then try again.")
     } else if err.is_empty() {
@@ -4950,6 +4966,142 @@ mod tests {
                 .any(|i| matches!(i, Item::Tool { label, .. } if label == "Looked at the chart"))
         );
         assert!(d.app.scripts_dir().join("hello.pine").is_file());
+    }
+
+    /// Signed out: the panel shows the CLI's own login command to run in a
+    /// terminal, and never runs it itself.
+    #[cfg(unix)]
+    #[test]
+    fn signing_in_happens_in_a_terminal() {
+        use std::os::unix::fs::PermissionsExt;
+        let mut d = crate::drive::Driver::new("agent-sign-in");
+        let log = d.dir.join("runs.txt");
+        for agent in Agent::ALL {
+            let exe = d.dir.join(agent.command());
+            std::fs::write(
+                &exe,
+                format!(
+                    "#!/bin/sh\necho \"{} $*\" >> '{}'\n[ -f '{}.in' ] && {{ echo '{{\"loggedIn\": true}}'; exit 0; }}\n[ \"$1\" = auth ] && echo '{{\"loggedIn\": false}}' || echo 'Not logged in'; exit 1\n",
+                    agent.command(),
+                    log.display(),
+                    exe.display(),
+                ),
+            )
+            .unwrap();
+            std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude_load();
+        d.app.claude.cli = Some(Some(d.dir.join("claude")));
+        d.app.claude.codex_cli = Some(Some(d.dir.join("codex")));
+        for (agent, login) in [(Agent::Claude, "auth login"), (Agent::Codex, "login")] {
+            d.app.claude.agent = Some(agent);
+            let exe = d.dir.join(agent.command());
+            let command = auth::login_command(agent, &exe);
+            assert!(command.ends_with(&format!(" {login}")) || command.ends_with(&format!("' {login}")));
+            d.app.claude.auth.insert(agent, auth::Auth::Out(command.clone()));
+            for _ in 0..4 {
+                d.frame(vec![]);
+            }
+            let seen = d.texts();
+            assert!(seen.contains(&command), "{command} not in {seen:?}");
+            for gone in ["Sign in", "Open page", "Continue", "Cancel"] {
+                assert!(!seen.iter().any(|s| s == gone), "{gone} is still there");
+            }
+            let copy = d.text_rect("Copy").expect("a Copy button");
+            d.click(copy.center());
+            assert!(d.text_rect("Copied").is_some());
+            // Still signed out, then signed in.
+            for signed_in in [false, true] {
+                if signed_in {
+                    std::fs::write(format!("{}.in", exe.display()), "").unwrap();
+                }
+                let again = d.text_rect("Check again").expect("a Check again button");
+                d.click(again.center());
+                // The click forgets the old answer (a headless app doesn't
+                // ask for a new one by itself).
+                let rx = auth::check(agent, &exe, || {});
+                d.app.claude.auth.insert(agent, auth::Auth::Checking(rx));
+                d.wait(|a| !matches!(a.claude.auth.get(&agent), Some(auth::Auth::Checking(_))));
+                assert_eq!(matches!(d.app.claude.auth.get(&agent), Some(auth::Auth::In)), signed_in);
+                for _ in 0..3 {
+                    d.frame(vec![]);
+                }
+            }
+        }
+        let runs = std::fs::read_to_string(&log).unwrap();
+        assert!(runs.contains("claude auth status --json") && runs.contains("codex login status"));
+        assert!(
+            runs.lines()
+                .all(|l| l == "claude auth status --json" || l == "codex login status"),
+            "{runs}"
+        );
+    }
+
+    /// Codex's saved models are asked for again each run, as Claude's are.
+    #[test]
+    fn codex_models_are_asked_for_again() {
+        let s = |a: &str, b: &str| (a.to_string(), b.to_string());
+        let mut c = Claude {
+            codex_models: vec![s("gpt-5", "GPT-5"), s("gpt-5-mini", "GPT-5 Mini")],
+            codex_model: "gpt-5-mini".into(),
+            ..Default::default()
+        };
+        c.defaults.insert(Agent::Codex, "gpt-5".into());
+        c.defaults.insert(Agent::Claude, "claude-opus-5-5".into());
+        c.chats.push(Chat::new(1, Agent::Codex, Mode::Auto, "gpt-5-mini"));
+        c.chats.push(Chat::new(2, Agent::Codex, Mode::Auto, "gpt-6"));
+        c.chats.push(Chat::new(3, Agent::Claude, Mode::Auto, "claude-opus-5-5"));
+        // The list from last time shows, and a new one is asked for.
+        assert!(c.wants_models(Agent::Codex));
+        assert_eq!(c.models_for(Agent::Codex).len(), 2);
+        // No answer: what's there stays, and the next opening asks again.
+        c.models_asked = true;
+        assert!(!c.wants_models(Agent::Codex), "once an opening");
+        c.set_codex_models(Vec::new());
+        c.models_asked = false;
+        assert!(c.wants_models(Agent::Codex));
+        assert_eq!(c.codex_models.len(), 2);
+        // The new list, its default and its names.
+        c.set_codex_models(vec![s("gpt-6", "GPT-6"), s("gpt-5", "GPT-5")]);
+        assert!(!c.wants_models(Agent::Codex), "once a run");
+        assert_eq!(c.models_for(Agent::Codex), [s("gpt-6", "GPT-6"), s("gpt-5", "GPT-5")]);
+        assert_eq!(c.default_model(Agent::Codex).as_deref(), Some("gpt-6"));
+        assert_eq!(c.codex_model, "", "a model that's gone isn't picked");
+        assert_eq!(
+            c.chats.iter().map(|c| c.model.as_str()).collect::<Vec<_>>(),
+            ["", "gpt-6", "claude-opus-5-5"]
+        );
+        assert_eq!(c.default_model(Agent::Claude).as_deref(), Some("claude-opus-5-5"));
+        // A model Codex reports after that is its default.
+        c.defaults.insert(Agent::Codex, "gpt-5".into());
+        assert_eq!(c.default_model(Agent::Codex).as_deref(), Some("gpt-5"));
+    }
+
+    /// The menu fetches the list through the real UI, from a stand-in CLI.
+    #[cfg(unix)]
+    #[test]
+    fn the_codex_menu_loads_new_models() {
+        use std::os::unix::fs::PermissionsExt;
+        let mut d = crate::drive::Driver::new("codex-models");
+        let exe = d.dir.join("codex");
+        std::fs::write(
+            &exe,
+            "#!/usr/bin/env python3\nimport json, sys\nfor line in sys.stdin:\n    q = json.loads(line)\n    if q.get('method') == 'initialize': r = {}\n    elif q.get('method') == 'model/list': r = {'data': [{'id': 'gpt-7', 'displayName': 'GPT-7', 'isDefault': True}]}\n    else: continue\n    print(json.dumps({'id': q['id'], 'result': r}), flush=True)\n",
+        )
+        .unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        d.app.layout.widget = Some(crate::shell::Widget::Claude);
+        d.app.claude.codex_cli = Some(Some(exe));
+        d.app.claude.auth.insert(Agent::Codex, auth::Auth::In);
+        d.app.claude.agent = Some(Agent::Codex);
+        d.app.claude.codex_models = vec![("gpt-5".into(), "GPT-5".into())];
+        d.frame(vec![]);
+        assert!(d.app.claude.models_rx.is_none(), "nothing starts until the menu opens");
+        d.app.claude.still_menu = Some("model".into());
+        d.wait(|a| a.claude.codex_models.iter().any(|(k, _)| k == "gpt-7"));
+        assert_eq!(d.app.claude.codex_models.len(), 1);
+        assert!(d.app.claude.models_rx.is_none());
     }
 
     /// At the narrowest pane, the composer's controls still don't overlap,

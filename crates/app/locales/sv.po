@@ -966,6 +966,9 @@ msgstr "Klassisk"
 msgid "Claude Code decides what's safe and asks only when it isn't sure."
 msgstr "Claude Code avgör vad som är säkert och frågar bara när det är osäkert."
 
+msgid "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are trademarks of OpenAI. Opentern isn't affiliated with or endorsed by either."
+msgstr "Claude och Claude-logotypen är varumärken som tillhör Anthropic. OpenAI, Codex och OpenAI-logotypen är varumärken som tillhör OpenAI. Opentern är inte knutet till eller godkänt av något av företagen."
+
 msgid "Claude asks before it edits files or runs commands."
 msgstr "Claude frågar innan det redigerar filer eller kör kommandon."
 
@@ -1869,9 +1872,6 @@ msgstr "Filtrera filer"
 #, message
 msgid "Find files: {0}"
 msgstr "Hitta filer: {0}"
-
-msgid "Finish signing in in your browser."
-msgstr "Slutför inloggningen i webbläsaren."
 
 msgid "Fisher"
 msgstr "Fisher"
@@ -3370,9 +3370,6 @@ msgstr "Öppna i filhanteraren"
 msgid "Open on the chart"
 msgstr "Öppna i diagrammet"
 
-msgid "Open page"
-msgstr "Öppna sidan"
-
 msgid "Open panel"
 msgstr "Öppna panelen"
 
@@ -3567,9 +3564,6 @@ msgstr "Klistra in en bild"
 
 msgid "Paste it anywhere."
 msgstr "Klistra in den var som helst."
-
-msgid "Paste the code, if asked"
-msgstr "Klistra in koden om du tillfrågas"
 
 msgid "Paste the email password (an app password), or turn email off."
 msgstr "Klistra in e-postlösenordet (ett applösenord) eller stäng av e-post."
@@ -4178,6 +4172,9 @@ msgstr "Kör Strategilabbet"
 msgid "Run the screener"
 msgstr "Kör aktiefiltret"
 
+msgid "Run this in a terminal"
+msgstr "Kör det här i en terminal"
+
 msgid "Run-up"
 msgstr "Uppgång"
 
@@ -4537,9 +4534,6 @@ msgstr "Sida"
 
 msgid "Sigma"
 msgstr "Sigma"
-
-msgid "Sign in"
-msgstr "Logga in"
 
 msgid "Sign in to {0}"
 msgstr "Logga in på {0}"

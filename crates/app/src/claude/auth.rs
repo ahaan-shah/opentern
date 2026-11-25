@@ -1,24 +1,24 @@
-//! Whether the user is signed in to an agent's CLI, and signing in from the
-//! panel. Claude Code answers `claude auth status` (JSON, `loggedIn`), Codex
-//! `codex login status` (exit 0 when signed in). Both checked against
-//! claude-code 2.1.311 and codex-cli 0.164.
+//! Whether the user is signed in to an agent's CLI. Claude Code answers
+//! `claude auth status` (JSON, `loggedIn`), Codex `codex login status` (exit
+//! 0 when signed in). Both checked against claude-code 2.1.332 and codex-cli
+//! 0.172.
 //!
-//! Signing in runs the CLI's own login (`claude auth login`, `codex
-//! login`), which opens the browser. Claude Code may then ask for the code
-//! the browser shows; the panel passes it on through stdin.
+//! Signing in happens outside the app: the panel shows the CLI's own login
+//! command (`claude auth login`, `codex login`) to run in a terminal. The app
+//! never starts a login, and never sees a code or a token.
 
 use super::Agent;
 use crossbeam_channel::{Receiver, unbounded};
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::Read;
 use std::path::Path;
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{Command, Stdio};
 
 /// What the panel knows about an agent's sign-in.
 pub enum Auth {
     Checking(Receiver<bool>),
     In,
-    Out,
-    SigningIn(Login),
+    /// Signed out; the command that signs in.
+    Out(String),
 }
 
 /// The CLI with the app's usual launch rules: no console window on Windows,
@@ -115,87 +115,58 @@ fn signed_in(agent: Agent, ok: bool, out: &str) -> bool {
     }
 }
 
-/// A running login.
-pub struct Login {
-    child: Child,
-    stdin: Option<ChildStdin>,
-    /// The sign-in page, once the CLI prints it (for "open it again").
-    pub url: Option<String>,
-    lines: Receiver<String>,
-    /// The code field (Claude Code only).
-    pub code: String,
-    /// A code was sent; waiting for the CLI to finish.
-    pub sent: bool,
+/// The command that signs in to the account picked in the panel, for the
+/// user to run in their own terminal (PowerShell on Windows). The panel
+/// never runs it: Anthropic doesn't let apps offer Claude's sign-in.
+pub fn login_command(agent: Agent, exe: &Path) -> String {
+    let dir = super::accounts::current(agent);
+    let inherited = std::env::var_os(super::accounts::var(agent)).is_some();
+    login_text(
+        agent,
+        &exe.to_string_lossy(),
+        agent.on_path(exe),
+        &dir,
+        inherited,
+        cfg!(windows),
+    )
 }
 
-impl Login {
-    pub fn start(agent: Agent, exe: &Path, wake: impl Fn() + Send + Sync + 'static) -> std::io::Result<Login> {
-        let mut cmd = command(agent, exe);
-        match agent {
-            Agent::Claude => cmd.args(["auth", "login"]),
-            Agent::Codex => cmd.args(["login"]),
-        };
-        let mut child = cmd
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        let (tx, lines) = unbounded();
-        let wake = std::sync::Arc::new(wake);
-        let pipes: [Option<Box<dyn Read + Send>>; 2] = [
-            child.stdout.take().map(|o| Box::new(o) as _),
-            child.stderr.take().map(|e| Box::new(e) as _),
-        ];
-        for pipe in pipes.into_iter().flatten() {
-            let tx = tx.clone();
-            let wake = wake.clone();
-            let _ = std::thread::Builder::new().name("agent-login".into()).spawn(move || {
-                for line in BufReader::new(pipe).lines() {
-                    let Ok(line) = line else { break };
-                    let _ = tx.send(line);
-                    wake();
-                }
-            });
-        }
-        Ok(Login {
-            stdin: child.stdin.take(),
-            child,
-            url: None,
-            lines,
-            code: String::new(),
-            sent: false,
-        })
-    }
-
-    /// Reads what the CLI printed; `Some(())` once it has exited.
-    pub fn poll(&mut self) -> Option<()> {
-        while let Ok(line) = self.lines.try_recv() {
-            if self.url.is_none()
-                && let Some(i) = line.find("https://")
-            {
-                let url = line[i..].split_whitespace().next().unwrap_or_default();
-                self.url = Some(url.to_string());
-            }
-        }
-        matches!(self.child.try_wait(), Ok(Some(_))).then_some(())
-    }
-
-    pub fn send_code(&mut self) {
-        let code = self.code.trim().to_string();
-        if let Some(sin) = &mut self.stdin
-            && !code.is_empty()
-        {
-            let _ = writeln!(sin, "{code}");
-            let _ = sin.flush();
-            self.sent = true;
-        }
+/// `login_command`'s text. `plain`: the bare name finds the CLI in a
+/// terminal. `inherited`: the account variable is set where the app was
+/// started, so a terminal likely has it too, and the default account means
+/// taking it away.
+fn login_text(agent: Agent, exe: &str, plain: bool, dir: &str, inherited: bool, windows: bool) -> String {
+    let var = super::accounts::var(agent);
+    let quote = |s: &str| quoted(s, windows);
+    let cli = match (plain, windows) {
+        (true, _) => agent.command().to_string(),
+        // PowerShell runs a quoted path only with `&`.
+        (false, true) => format!("& {}", quote(exe)),
+        (false, false) => quote(exe),
+    };
+    let login = match agent {
+        Agent::Claude => format!("{cli} auth login"),
+        Agent::Codex => format!("{cli} login"),
+    };
+    match (dir.is_empty(), windows) {
+        (true, _) if !inherited => login,
+        (true, true) => format!("$env:{var}=$null; {login}"),
+        (true, false) => format!("env -u {var} {login}"),
+        (false, true) => format!("$env:{var}={}; {login}", quote(dir)),
+        (false, false) => format!("{var}={} {login}", quote(dir)),
     }
 }
 
-impl Drop for Login {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+/// `s` as one word of a command. PowerShell's is always quoted.
+fn quoted(s: &str, windows: bool) -> String {
+    if windows {
+        return format!("'{}'", s.replace('\'', "''"));
+    }
+    let safe = |c: char| c.is_ascii_alphanumeric() || "/._-+:@%,".contains(c);
+    if !s.is_empty() && s.chars().all(safe) {
+        s.to_string()
+    } else {
+        format!("'{}'", s.replace('\'', r"'\''"))
     }
 }
 
@@ -213,5 +184,75 @@ mod tests {
         assert!(!signed_in(Agent::Codex, false, "WARNING: …\nNot logged in\n"));
         assert!(signed_in(Agent::Codex, true, "Logged in using ChatGPT"));
         assert!(signed_in(Agent::Codex, false, "error: unrecognized subcommand"));
+    }
+
+    #[test]
+    fn login_commands_for_a_shell() {
+        let cmd = |a, exe, plain, dir, inherited| login_text(a, exe, plain, dir, inherited, false);
+        use Agent::{Claude, Codex};
+        assert_eq!(cmd(Claude, "/usr/bin/claude", true, "", false), "claude auth login");
+        assert_eq!(cmd(Codex, "/usr/bin/codex", true, "", false), "codex login");
+        // Another account's folder goes in front.
+        assert_eq!(
+            cmd(Claude, "/usr/bin/claude", true, "/h/.claude-work", false),
+            "CLAUDE_CONFIG_DIR=/h/.claude-work claude auth login"
+        );
+        assert_eq!(
+            cmd(Codex, "/usr/bin/codex", true, "/h/.codex-work", true),
+            "CODEX_HOME=/h/.codex-work codex login"
+        );
+        // The default account, from a terminal set to another one.
+        assert_eq!(
+            cmd(Claude, "/usr/bin/claude", true, "", true),
+            "env -u CLAUDE_CONFIG_DIR claude auth login"
+        );
+        // Not on the PATH, and names a shell would split or expand.
+        assert_eq!(
+            cmd(Codex, "/opt/my tools/codex", false, "/h/it's $x", false),
+            r"CODEX_HOME='/h/it'\''s $x' '/opt/my tools/codex' login"
+        );
+    }
+
+    #[test]
+    fn login_commands_for_powershell() {
+        let cmd = |a, exe, plain, dir, inherited| login_text(a, exe, plain, dir, inherited, true);
+        use Agent::{Claude, Codex};
+        assert_eq!(cmd(Claude, r"C:\x\claude.exe", true, "", false), "claude auth login");
+        assert_eq!(
+            cmd(Claude, r"C:\a b\claude.exe", false, "", false),
+            r"& 'C:\a b\claude.exe' auth login"
+        );
+        assert_eq!(
+            cmd(Codex, r"C:\x\codex.exe", true, r"D:\o'neil\.codex-work", false),
+            r"$env:CODEX_HOME='D:\o''neil\.codex-work'; codex login"
+        );
+        assert_eq!(
+            cmd(Claude, r"C:\x\claude.exe", true, "", true),
+            "$env:CLAUDE_CONFIG_DIR=$null; claude auth login"
+        );
+    }
+
+    /// The shell reads a quoted command back as it was meant.
+    #[cfg(unix)]
+    #[test]
+    fn a_shell_runs_the_command() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("opentern login's {}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("claude");
+        std::fs::write(&exe, "#!/bin/sh\necho \"${CLAUDE_CONFIG_DIR-unset}|$*\"\n").unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let run = |account: &str, inherited| {
+            let text = login_text(Agent::Claude, &exe.to_string_lossy(), false, account, inherited, false);
+            let out = Command::new("sh")
+                .args(["-c", &text])
+                .env("CLAUDE_CONFIG_DIR", "/other")
+                .output()
+                .unwrap();
+            String::from_utf8(out.stdout).unwrap().trim().to_string()
+        };
+        assert_eq!(run("/h/a $b 'c'", false), "/h/a $b 'c'|auth login");
+        assert_eq!(run("", true), "unset|auth login");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

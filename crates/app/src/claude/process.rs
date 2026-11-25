@@ -15,6 +15,9 @@ use std::sync::{Arc, Mutex};
 /// The MCP server name the app's tools live under (`mcp__opentern__…`).
 pub const SERVER: &str = "opentern";
 
+/// Names the app to Claude Code (see `command`).
+const CLIENT_APP: &str = "CLAUDE_AGENT_SDK_CLIENT_APP";
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Mode {
     /// Claude asks before anything that changes files or runs commands.
@@ -221,7 +224,7 @@ pub struct ClaudeCode {
 impl ClaudeCode {
     pub fn start(l: &Launch, wake: Arc<dyn Fn() + Send + Sync>) -> std::io::Result<ClaudeCode> {
         let mcp = json!({"mcpServers": {SERVER: {"type": "sdk", "name": SERVER}}}).to_string();
-        let mut cmd = Command::new(&l.exe);
+        let mut cmd = command(&l.exe, &l.account);
         cmd.args([
             "-p",
             "--input-format",
@@ -249,13 +252,6 @@ impl ClaudeCode {
         }
         for d in &l.add_dirs {
             cmd.arg("--add-dir").arg(d);
-        }
-        super::accounts::apply(&mut cmd, l.agent, &l.account);
-        not_nested(&mut cmd);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         }
         // If the app dies without closing it (a crash, a kill), the kernel
         // ends Claude Code too, instead of leaving it waiting.
@@ -370,6 +366,21 @@ impl Drop for ClaudeCode {
     }
 }
 
+/// Claude Code as `account`, telling Anthropic which app runs it (the
+/// variable its SDK documents for that; sent as `x-client-app`).
+fn command(exe: &std::path::Path, account: &str) -> Command {
+    let mut cmd = Command::new(exe);
+    super::accounts::apply(&mut cmd, super::Agent::Claude, account);
+    not_nested(&mut cmd);
+    cmd.env(CLIENT_APP, concat!("opentern/", env!("CARGO_PKG_VERSION")));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    cmd
+}
+
 /// A session started from inside Claude Code (a terminal, a test) would
 /// otherwise think it's nested.
 fn not_nested(cmd: &mut Command) {
@@ -392,7 +403,7 @@ pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
         let mut list = Vec::new();
         // A new workspace has no scripts folder until something is saved.
         let _ = std::fs::create_dir_all(&cwd);
-        let mut cmd = Command::new(&exe);
+        let mut cmd = command(&exe, &super::accounts::current(super::Agent::Claude));
         cmd.args([
             "-p",
             "--input-format",
@@ -401,17 +412,6 @@ pub fn models(exe: PathBuf, cwd: PathBuf) -> Receiver<Vec<(String, String)>> {
             "stream-json",
             "--verbose",
         ]);
-        super::accounts::apply(
-            &mut cmd,
-            super::Agent::Claude,
-            &super::accounts::current(super::Agent::Claude),
-        );
-        not_nested(&mut cmd);
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-        }
         let child = cmd
             .current_dir(&cwd)
             .stdin(Stdio::piped())
@@ -686,6 +686,112 @@ mod tests {
                 ("claude-haiku-5-5".to_string(), "Haiku 5.5".to_string()),
             ]
         );
+    }
+
+    /// Anthropic hears which app it is, whichever account runs.
+    #[test]
+    fn names_the_app_for_every_account() {
+        let env = |account: &str, name: &str| {
+            command(std::path::Path::new("claude"), account)
+                .get_envs()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| v.map(|v| v.to_string_lossy().to_string()))
+        };
+        let app = Some(Some(format!("opentern/{}", env!("CARGO_PKG_VERSION"))));
+        assert_eq!(env("", CLIENT_APP), app);
+        assert_eq!(env("", "CLAUDE_CONFIG_DIR"), Some(None));
+        assert_eq!(env("/h/.claude-work", CLIENT_APP), app);
+        assert_eq!(
+            env("/h/.claude-work", "CLAUDE_CONFIG_DIR"),
+            Some(Some("/h/.claude-work".into()))
+        );
+        // Not passed off as another entrypoint.
+        assert!(!matches!(env("", "CLAUDE_CODE_ENTRYPOINT"), Some(Some(_))));
+    }
+
+    /// What the installed Claude Code sends, to a stand-in for Anthropic's
+    /// server: `x-client-app` names the app, for the default account folder
+    /// and a second one. Uses no account: the home folder, the key and the
+    /// server are made up.
+    #[cfg(unix)]
+    #[test]
+    #[ignore = "needs Claude Code"]
+    fn live_client_app() {
+        use std::os::unix::fs::PermissionsExt;
+        let real = super::super::Agent::Claude.find().expect("claude");
+        let dir = std::env::temp_dir().join(format!("opentern-client-app-{}", std::process::id()));
+        let (home, second) = (dir.join("home"), dir.join("home").join(".claude-work"));
+        std::fs::create_dir_all(&second).unwrap();
+        let server = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = server.local_addr().unwrap().port();
+        let (tx, rx) = unbounded::<String>();
+        std::thread::spawn(move || {
+            for s in server.incoming().flatten() {
+                let tx = tx.clone();
+                std::thread::spawn(move || {
+                    let mut r = BufReader::new(s);
+                    let mut head = String::new();
+                    while let Ok(n) = r.read_line(&mut head) {
+                        if n == 0 || head.ends_with("\r\n\r\n") {
+                            break;
+                        }
+                    }
+                    let _ = tx.send(head);
+                    let body = r#"{"type":"error","error":{"type":"invalid_request_error","message":"stand-in"}}"#;
+                    let _ = write!(
+                        r.get_mut(),
+                        "HTTP/1.1 400 Bad Request\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                });
+            }
+        });
+        // The real CLI with nothing of the user's: no home, no login.
+        let exe = dir.join("claude");
+        std::fs::write(
+            &exe,
+            format!(
+                "#!/bin/sh\nexec env HOME='{}' ANTHROPIC_BASE_URL=http://127.0.0.1:{port} ANTHROPIC_API_KEY=stand-in DISABLE_TELEMETRY=1 DISABLE_AUTOUPDATER=1 DISABLE_ERROR_REPORTING=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 '{}' \"$@\"\n",
+                home.display(),
+                real.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+        for account in [String::new(), second.to_string_lossy().to_string()] {
+            let mut child = command(&exe, &account)
+                .args(["-p", "hi", "--model", "claude-haiku-5-5"])
+                .current_dir(&dir)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .unwrap();
+            let end = std::time::Instant::now() + std::time::Duration::from_secs(40);
+            let head = loop {
+                let h = rx.recv_deadline(end).expect("no model request came");
+                if h.starts_with("POST /v1/messages") {
+                    break h;
+                }
+            };
+            let line = head
+                .lines()
+                .find(|l| l.to_lowercase().starts_with("x-client-app:"))
+                .unwrap_or("(none)")
+                .to_string();
+            eprintln!("account {account:?}: {line}");
+            for l in head.lines().filter(|l| l.to_lowercase().starts_with("user-agent:")) {
+                eprintln!("  {l}");
+            }
+            assert_eq!(
+                line.split_once(": ").map(|(_, v)| v.to_string()),
+                Some(format!("opentern/{}", env!("CARGO_PKG_VERSION")))
+            );
+            let _ = child.kill();
+            let _ = child.wait();
+            while rx.try_recv().is_ok() {}
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

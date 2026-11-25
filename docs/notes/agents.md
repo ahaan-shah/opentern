@@ -22,7 +22,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   message (Ask first = `untrusted`, Auto = `on-request`, sandbox
   `workspace-write`), approvals → the same approval cards (`acceptForSession`
   = Allow for this chat). Models come from `model/list` (account-specific;
-  fetched by a short-lived app-server when the model menu first opens).
+  fetched by a short-lived app-server once a run, when the model menu opens, as
+  Claude's are; the saved list shows meanwhile, and picks that are gone go back to
+  the default: `set_codex_models`).
   `process::Client` is an enum over both CLIs; `Event::Models` is Codex only.
   **Terms (checked 22 Oct 2026, learn.chatgpt.com/docs/app-server):** local or
   open-source apps may keep using app-server; it was never permitted for
@@ -188,10 +190,27 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 
 - **Agent sign-in gate** (`claude/auth.rs`): `claude auth status --json`
   (`loggedIn`), `codex login status` ("Not logged in"); only a clear
-  sign-out blocks. Sign in runs `claude auth login` (code pasted through
-  stdin) or `codex login`. Rechecked when a chat's process exits. Tests that
-  open the panel insert `Auth::In` (another test sets `OPENTERN_CLAUDE`
-  process-wide).
+  sign-out blocks. **Signing in is never done in the app** (the maintainer, 26
+  Nov 2026; Anthropic doesn't let apps offer Claude's sign-in, and T3 Code does
+  the same): the gate shows the CLI's own login command to run in a terminal,
+  with Copy and Check again (`auth::login_command`: the picked account's
+  variable in front; `env -u` / `$env:X=$null` when the default is picked but the
+  app was started with the variable set; the CLI's full path when the bare name
+  wouldn't run it; PowerShell's form on Windows, never run on a real PC). Don't
+  add a login button, a code box or anything that sees a token. Rechecked when a
+  chat's process exits. Tests that open the panel insert `Auth::In` (another test
+  sets `OPENTERN_CLAUDE` process-wide).
+- **Following Anthropic's and OpenAI's rules** (checked 26 Nov 2026 against
+  code.claude.com/docs/en/legal-and-compliance, learn.chatgpt.com/docs/app-server
+  and T3 Code): run the user's own unmodified CLI on their own plan, never read
+  login tokens, never switch accounts automatically, never set
+  `CLAUDE_CODE_ENTRYPOINT`. Claude Code gets
+  `CLAUDE_AGENT_SDK_CLIENT_APP=opentern/<version>` (`process::command`, chats and
+  the model list), sent as `x-client-app` (`live_client_app`, ignored, checks it
+  with the real CLI, a made-up home and a local stand-in server). Codex has
+  `clientInfo`. No Claude SDK, Sign in with ChatGPT or Antigravity (the
+  maintainer's call). The logos stay (the maintainer's call), credited in Settings
+  → About, the README, the website and THIRD-PARTY-LICENSES.
 - **Model shown, never "Default"**: `config_model` reads `ANTHROPIC_MODEL` /
   `~/.claude/settings.json` (aliases via `model_id`) and Codex's
   `config.toml`; else the model a chat last reported (`defaults`, saved);
@@ -205,7 +224,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   fails). Picked in the header's agent menu (shown when there's more than
   one), saved as `agent_account:<agent>`; each chat keeps the account it
   started on (`Chat::account`; older chats = the launch account), so
-  `--resume` keeps working. Every CLI start (chat, auth, login, Codex
+  `--resume` keeps working. Every CLI start (chat, auth, Codex
   model list) goes through `accounts::apply`.
 - Agent composer: its height is last frame's measured height (wrapped
   lines count); the text box scrolls past 8 lines. Strategy Lab list

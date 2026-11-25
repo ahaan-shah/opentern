@@ -125,9 +125,10 @@ def main():
     section(
         "Claude mark (crates/app/assets/claude.svg)",
         "Simple Icons, CC0 1.0 Universal, https://simpleicons.org\n"
-        "Claude is a trademark of Anthropic. OpenAI and Codex are trademarks of OpenAI\n"
-        "(the Codex mark is Phosphor's OpenAI glyph, MIT, listed with egui-phosphor\n"
-        "below). They are used only to name the integrations with the user's own CLIs.",
+        "Claude and the Claude logo are trademarks of Anthropic. OpenAI, Codex and the\n"
+        "OpenAI logo are trademarks of OpenAI (the Codex mark is Phosphor's OpenAI glyph,\n"
+        "MIT, listed with egui-phosphor below). They are used only to name the\n"
+        "integrations with the user's own CLIs.",
     )
     libs = ROOT / "crates" / "pine" / "libs" / "TradingView"
     section(
