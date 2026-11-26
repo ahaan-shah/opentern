@@ -368,6 +368,9 @@ msgstr "Alpaca no tiene barras de {0}"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · acciones de EE. UU."
 
+msgid "Also used by {0}"
+msgstr "También lo usa {0}"
+
 msgid "Americas"
 msgstr "América"
 
@@ -487,9 +490,6 @@ msgstr "Extensión Fib automática"
 
 msgid "Auto Fib Retracement"
 msgstr "Retroceso Fib automático"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "Auto, ajusta los datos a la pantalla (Alt U)"
 
 msgid "Average"
 msgstr "Media"
@@ -1532,9 +1532,6 @@ msgstr "Resaltador de tendencia bajista"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "Arrastrar para mover"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arrastra para escalar · doble clic para ajustar · clic derecho para opciones"
 
@@ -2043,9 +2040,6 @@ msgstr "Ocultar VWAP en 1D o superior"
 msgid "Hide all drawings"
 msgstr "Ocultar todos los dibujos"
 
-msgid "Hide all drawings ({0})"
-msgstr "Ocultar todos los dibujos ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "Ocultar barra de herramientas favoritas"
 
@@ -2523,9 +2517,6 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Escala logarítmica"
 
-msgid "Log scale (Alt L)"
-msgstr "Escala logarítmica (Alt L)"
-
 msgid "London"
 msgstr "Londres"
 
@@ -2782,9 +2773,6 @@ msgstr "Mercado abierto"
 
 msgid "Market overview"
 msgstr "Panorama del mercado"
-
-msgid "Market overview (Alt M)"
-msgstr "Panorama del mercado (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "Día de Martin Luther King Jr."
@@ -3653,9 +3641,6 @@ msgstr "Porcentaje rentable"
 msgid "Percent scale"
 msgstr "Escala porcentual"
 
-msgid "Percent scale (Alt P)"
-msgstr "Escala porcentual (Alt P)"
-
 msgid "Percentage"
 msgstr "Porcentaje"
 
@@ -3764,6 +3749,9 @@ msgstr "Precisión"
 
 msgid "Press Enter for {0}"
 msgstr "Pulsa Intro para {0}"
+
+msgid "Press keys"
+msgstr "Pulsa las teclas"
 
 msgid "Previous 7 days"
 msgstr "Últimos 7 días"
@@ -3999,9 +3987,6 @@ msgstr "Rectángulo"
 
 msgid "Redo"
 msgstr "Rehacer"
-
-msgid "Redo ({0})"
-msgstr "Rehacer ({0})"
 
 msgid "Refresh"
 msgstr "Actualizar"
@@ -5293,9 +5278,6 @@ msgstr "Ultra"
 
 msgid "Undo"
 msgstr "Deshacer"
-
-msgid "Undo ({0})"
-msgstr "Deshacer ({0})"
 
 msgid "Union Budget session"
 msgstr "Sesión del presupuesto de la Unión"

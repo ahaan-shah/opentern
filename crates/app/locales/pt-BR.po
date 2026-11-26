@@ -368,6 +368,9 @@ msgstr "Alpaca não tem barras de {0}"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · ações dos EUA"
 
+msgid "Also used by {0}"
+msgstr "Também usado por {0}"
+
 msgid "Americas"
 msgstr "Américas"
 
@@ -487,9 +490,6 @@ msgstr "Extensão Fib automática"
 
 msgid "Auto Fib Retracement"
 msgstr "Retração Fib automática"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "Auto, ajusta os dados à tela (Alt U)"
 
 msgid "Average"
 msgstr "Média"
@@ -1532,9 +1532,6 @@ msgstr "Destaque de tendência de baixa"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "Arraste para mover"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arraste para escalar · clique duplo para ajustar · clique direito para opções"
 
@@ -2043,9 +2040,6 @@ msgstr "Ocultar VWAP em 1D ou acima"
 msgid "Hide all drawings"
 msgstr "Ocultar todos os desenhos"
 
-msgid "Hide all drawings ({0})"
-msgstr "Ocultar todos os desenhos ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "Ocultar barra de ferramentas favoritas"
 
@@ -2523,9 +2517,6 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Escala logarítmica"
 
-msgid "Log scale (Alt L)"
-msgstr "Escala logarítmica (Alt L)"
-
 msgid "London"
 msgstr "Londres"
 
@@ -2782,9 +2773,6 @@ msgstr "Mercado aberto"
 
 msgid "Market overview"
 msgstr "Visão do mercado"
-
-msgid "Market overview (Alt M)"
-msgstr "Visão do mercado (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "Dia de Martin Luther King Jr."
@@ -3653,9 +3641,6 @@ msgstr "Porcentagem lucrativa"
 msgid "Percent scale"
 msgstr "Escala percentual"
 
-msgid "Percent scale (Alt P)"
-msgstr "Escala percentual (Alt P)"
-
 msgid "Percentage"
 msgstr "Porcentagem"
 
@@ -3764,6 +3749,9 @@ msgstr "Precisão"
 
 msgid "Press Enter for {0}"
 msgstr "Aperte Enter para {0}"
+
+msgid "Press keys"
+msgstr "Pressione as teclas"
 
 msgid "Previous 7 days"
 msgstr "Últimos 7 dias"
@@ -3999,9 +3987,6 @@ msgstr "Retângulo"
 
 msgid "Redo"
 msgstr "Refazer"
-
-msgid "Redo ({0})"
-msgstr "Refazer ({0})"
 
 msgid "Refresh"
 msgstr "Atualizar"
@@ -5293,9 +5278,6 @@ msgstr "Ultra"
 
 msgid "Undo"
 msgstr "Desfazer"
-
-msgid "Undo ({0})"
-msgstr "Desfazer ({0})"
 
 msgid "Union Budget session"
 msgstr "Sessão do orçamento da União"

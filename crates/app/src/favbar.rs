@@ -1,609 +1,566 @@
-//! Floating Favorite Drawing Tools Toolbar over the chart.
+//! The favourite drawings toolbar: a floating bar over the charts with the
+//! tools starred in the drawing toolbar's flyouts, one click each (as on
+//! TradingView). It's off until turned on with the star in the drawing
+//! toolbar. It moves by its handle (or any free spot on it), lies flat or
+//! stands upright, folds down to its handle, and its tools are reordered by
+//! dragging them. It shows only over the charts, and never in a snapshot.
 //!
-//! Provides quick 1-click access to favorited drawing tools, matching
-//! TradingView's favorite drawings bar: draggable handle, active tool
-//! highlight, horizontal/vertical orientation toggle, collapse/expand,
-//! close/hide, drag-and-drop reordering, and context menu.
+//! The bar is laid out by hand (every rect is known before anything is
+//! drawn), so folding can clip and fade its body smoothly and tests can
+//! find each part.
 
 use crate::app::App;
-use crate::chart::draw::Tool;
+use crate::chart::draw::{DEFAULT_FAVORITE_TOOLS, Tool};
 use crate::i18n::tr;
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
-use egui::{Align2, CornerRadius, CursorIcon, Id, Margin, Pos2, Sense, Stroke, Ui, vec2};
+use crate::widgets as w;
+use egui::{Align2, CornerRadius, CursorIcon, Id, LayerId, Order, Pos2, Rect, Sense, Stroke, Ui, Vec2, vec2};
+use opentern_core::Store;
 
-const BTN_SIZE: f32 = 28.0;
-const ICON_SIZE: f32 = 15.0;
+/// The favourites kind the starred tools are stored under (in order).
+pub const TOOL_FAVS: &str = "tool";
+
+/// A button's side, as in the drawing toolbar (a little smaller).
+const BTN: f32 = 32.0;
+/// Between buttons.
+const GAP: f32 = 2.0;
+/// Inside the bar's edge.
+const PAD: f32 = 5.0;
+/// The handle's depth along the bar.
+const GRIP: f32 = 22.0;
+/// The divider's depth along the bar.
+const RULE: f32 = 9.0;
+/// Kept clear of the charts' edge.
+const EDGE: f32 = 8.0;
+const RADIUS: u8 = 12;
+
+/// What the bar keeps between frames. Where it sits and how it looks are
+/// in the arrangement (`Arrangement::fav_toolbar*`), saved with the rest of
+/// the layout; the favourites themselves are in the workspace.
+#[derive(Default)]
+pub struct FavBar {
+    /// The frame (pass) the charts were last drawn in: the bar shows only
+    /// over them, so not over Settings, the overview or a maximized panel.
+    pub charts_pass: u64,
+    /// The tool being dragged to a new place (its index), while it is.
+    drag: Option<usize>,
+    /// Where things were laid out last frame (`Rect::NOTHING` when hidden).
+    pub at: Parts,
+}
+
+/// The bar's parts as laid out last frame.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Parts {
+    pub bar: Rect,
+    pub grip: Rect,
+    pub tools: Vec<Rect>,
+    pub orient: Rect,
+    pub collapse: Rect,
+    pub close: Rect,
+}
+
+impl Default for Parts {
+    fn default() -> Parts {
+        Parts {
+            bar: Rect::NOTHING,
+            grip: Rect::NOTHING,
+            tools: Vec::new(),
+            orient: Rect::NOTHING,
+            collapse: Rect::NOTHING,
+            close: Rect::NOTHING,
+        }
+    }
+}
+
+/// A new workspace starts with a few favourites (once: emptying the list
+/// later sticks).
+pub fn seed_favorites(store: &mut Store) {
+    const SEEDED: &str = "fav_tools_seeded";
+    if store.value(SEEDED).is_some() {
+        return;
+    }
+    if store.favorites(TOOL_FAVS).is_empty() {
+        let keys: Vec<String> = DEFAULT_FAVORITE_TOOLS.iter().map(|t| t.key()).collect();
+        if let Err(e) = store.set_favorites(TOOL_FAVS, &keys) {
+            crate::diag::crumb(format!("couldn't save favourite tools: {e}"));
+        }
+    }
+    let _ = store.set_value(SEEDED, "1");
+}
+
+/// Lengths along the bar's long side.
+struct Lengths {
+    /// The body (tools, divider, orientation), unfolded.
+    body: f32,
+    /// The whole bar unfolded.
+    full: f32,
+    /// The whole bar as it is (`fold` 0 = open, 1 = folded).
+    now: f32,
+}
+
+fn lengths(body: f32, fold: f32) -> Lengths {
+    // Handle, body, then fold and close.
+    let fixed = PAD + GRIP + GAP + BTN + GAP + BTN + PAD;
+    Lengths {
+        body,
+        full: fixed + body,
+        now: fixed + body * (1.0 - fold),
+    }
+}
 
 impl App {
-    /// Renders the floating favorite drawing tools toolbar over the chart.
-    pub(crate) fn favorite_toolbar(&mut self, ctx: &egui::Context) {
-        if !self.layout.fav_toolbar {
-            return;
+    /// The starred tools, in the bar's order.
+    pub fn favorite_tools(&self) -> Vec<Tool> {
+        let mut tools = Vec::new();
+        for key in self.store.favorites(TOOL_FAVS) {
+            if let Some(tool) = Tool::from_key(key)
+                && !tools.contains(&tool)
+            {
+                tools.push(tool);
+            }
         }
-        if self.settings.is_some() || self.overview_open() || self.modal.is_some() {
-            return;
-        }
-        let chart_rect = self.chart_ui.main_rect;
-        if !chart_rect.is_positive() {
-            return;
-        }
+        tools
+    }
 
+    pub fn is_tool_favorite(&self, tool: Tool) -> bool {
+        self.store.is_favorite(TOOL_FAVS, &tool.key())
+    }
+
+    /// Stars or unstars a tool. Starring one shows the bar, so it's clear
+    /// where it went.
+    pub fn toggle_favorite_tool(&mut self, tool: Tool) {
+        if !self.is_tool_favorite(tool) {
+            self.layout.fav_toolbar = true;
+        }
+        self.toggle_favorite(TOOL_FAVS, &tool.key());
+    }
+
+    pub fn set_favorite_tools(&mut self, tools: &[Tool]) {
+        let mut keys: Vec<String> = Vec::new();
+        for t in tools {
+            let k = t.key();
+            if !keys.contains(&k) {
+                keys.push(k);
+            }
+        }
+        if let Err(e) = self.store.set_favorites(TOOL_FAVS, &keys) {
+            crate::diag::crumb(format!("couldn't save favourite tools: {e}"));
+        }
+    }
+
+    /// Takes the tool at `from` out and puts it back at `to` (an index in
+    /// the list without it).
+    pub fn move_favorite_tool(&mut self, from: usize, to: usize) {
+        let mut tools = self.favorite_tools();
+        if from >= tools.len() || to >= tools.len() || from == to {
+            return;
+        }
+        let tool = tools.remove(from);
+        tools.insert(to, tool);
+        self.set_favorite_tools(&tools);
+    }
+
+    /// Whether the charts are on screen this frame, for what floats over
+    /// them (this bar, the selected drawing's): not when Settings, the
+    /// overview or a maximized panel has their place, under a dialog, or
+    /// while a snapshot is being taken (so it shows the chart alone).
+    pub(crate) fn charts_on_screen(&self, ctx: &egui::Context) -> bool {
+        self.favbar.charts_pass == ctx.cumulative_pass_nr()
+            && self.modal.is_none()
+            && self.snap.is_none()
+            && self.grid_rect.is_positive()
+    }
+
+    /// The floating bar, drawn after the charts.
+    pub(crate) fn favorite_toolbar(&mut self, ctx: &egui::Context) {
+        // Only where the charts are, and gone at once (no fade) when they
+        // aren't, or while a snapshot is being taken.
+        if !self.charts_on_screen(ctx) {
+            self.favbar.at = Parts::default();
+            self.favbar.drag = None;
+            return;
+        }
+        let shown = self.layout.fav_toolbar;
+        let k = motion::toggle(ctx, Id::new("fav-toolbar-shown"), shown, motion::STANDARD);
+        if k <= 0.0 {
+            self.favbar.at = Parts::default();
+            self.favbar.drag = None;
+            return;
+        }
         let t = self.t();
         let tools = self.favorite_tools();
-        let vertical = self.layout.fav_toolbar_vertical;
-        let collapsed = self.layout.fav_toolbar_collapsed;
-
-        // Estimated dimensions for initial placement.
-        let num_items = tools.len().max(1);
-        let est_w = if collapsed {
-            74.0
-        } else if vertical {
-            40.0
+        let fold = motion::toggle(
+            ctx,
+            Id::new("fav-toolbar-fold"),
+            self.layout.fav_toolbar_collapsed,
+            motion::STANDARD,
+        );
+        let step = BTN + GAP;
+        let label_w = if tools.is_empty() {
+            let g =
+                ctx.fonts_mut(|f| f.layout_no_wrap(tr("No favorites yet").to_string(), theme::regular(12.5), t.text3));
+            g.size().x + 16.0
         } else {
-            // margin(12) + grip(15) + divider(4) + 3 utility buttons(75) + tools * 31
-            106.0 + (num_items as f32) * 31.0
+            0.0
         };
-        let est_h = if collapsed {
-            36.0
-        } else if vertical {
-            106.0 + (num_items as f32) * 31.0
+        // Upright, an empty bar shows a star instead of the words.
+        let empty_w = |vertical: bool| if vertical { BTN } else { label_w };
+        let tools_len = |vertical: bool| {
+            if tools.is_empty() {
+                empty_w(vertical) + GAP
+            } else {
+                tools.len() as f32 * step
+            }
+        };
+        let room = self.grid_rect.shrink(EDGE);
+        // Lying flat or upright as chosen, unless only the other way fits
+        // (a narrow chart, a short window); the choice itself stays.
+        let full = |vertical: bool| lengths(tools_len(vertical) + RULE + BTN + GAP, 0.0).full;
+        let wanted = self.layout.fav_toolbar_vertical;
+        let fits = |vertical: bool| {
+            if vertical {
+                full(true) <= room.height()
+            } else {
+                full(false) <= room.width()
+            }
+        };
+        let vertical = if fits(wanted) || !fits(!wanted) {
+            wanted
         } else {
-            36.0
+            !wanted
         };
+        let empty_w = empty_w(vertical);
+        let tools_len = tools_len(vertical);
+        let len = lengths(tools_len + RULE + BTN + GAP, fold);
+        let thick = BTN + 2.0 * PAD;
+        let size = |l: f32| if vertical { vec2(thick, l) } else { vec2(l, thick) };
 
-        // Clamp to chart bounds so toolbar stays within the active chart.
-        let min_x = chart_rect.left() + 6.0;
-        let max_x = (chart_rect.right() - est_w - 6.0).max(min_x);
-        let min_y = chart_rect.top() + 6.0;
-        let max_y = (chart_rect.bottom() - est_h - 6.0).max(min_y);
-
-        // Default position: centered horizontally near the bottom for horizontal, left-center for vertical.
-        let default_pos = if vertical {
-            Pos2::new(min_x + 10.0, (chart_rect.center().y - est_h / 2.0).clamp(min_y, max_y))
-        } else {
-            Pos2::new(
-                (chart_rect.center().x - est_w / 2.0).clamp(min_x, max_x),
-                (chart_rect.bottom() - est_h - 60.0).clamp(min_y, max_y),
-            )
+        // Where it sits: a fraction of the room it can move in, measured
+        // with its unfolded size, so folding keeps the handle in place.
+        let travel = (room.size() - size(len.full)).max(Vec2::ZERO);
+        let at = self.layout.fav_toolbar_at.unwrap_or_else(|| {
+            if vertical {
+                [0.0, 0.5]
+            } else {
+                // Centred, clear of the time scale.
+                let above = if travel.y > 0.0 { 1.0 - 40.0 / travel.y } else { 1.0 };
+                [0.5, above.clamp(0.0, 1.0)]
+            }
+        });
+        let origin = room.min + vec2(at[0].clamp(0.0, 1.0) * travel.x, at[1].clamp(0.0, 1.0) * travel.y);
+        let bar = Rect::from_min_size(origin, size(len.now));
+        // A slot `from` along the long side, `l` long, across the buttons.
+        let slot = |from: f32, l: f32| {
+            if vertical {
+                Rect::from_min_size(origin + vec2(PAD, from), vec2(BTN, l))
+            } else {
+                Rect::from_min_size(origin + vec2(from, PAD), vec2(l, BTN))
+            }
         };
+        let grip = slot(PAD, GRIP);
+        let body_at = PAD + GRIP + GAP;
+        let body_full = slot(body_at, len.body);
+        let body_now = slot(body_at, len.body * (1.0 - fold));
+        let tool_rects: Vec<Rect> = (0..tools.len()).map(|i| slot(body_at + i as f32 * step, BTN)).collect();
+        let rule = slot(body_at + tools_len, RULE);
+        let orient = slot(body_at + tools_len + RULE, BTN);
+        let tail = body_at + len.body * (1.0 - fold);
+        let collapse = slot(tail, BTN);
+        let close = slot(tail + step, BTN);
 
-        let mut current_pos = self
-            .layout
-            .fav_toolbar_pos
-            .map(|[x, y]| Pos2::new(x, y))
-            .unwrap_or(default_pos);
+        let mut moved: Option<Vec2> = None;
+        let mut pick: Option<Tool> = None;
+        let mut unstar: Option<Tool> = None;
+        let mut reorder: Option<(usize, usize)> = None;
+        let mut flip = false;
+        let mut fold_now = false;
+        let mut hide = false;
+        let dragging = self.favbar.drag;
+        let mut drag_start: Option<usize> = None;
+        let mut drag_end = false;
 
-        current_pos.x = current_pos.x.clamp(min_x, max_x);
-        current_pos.y = current_pos.y.clamp(min_y, max_y);
-
-        let mut pos_changed = false;
-        let mut close_toolbar = false;
-        let mut toggle_orientation = false;
-        let mut toggle_collapse = false;
-        let mut pick_tool: Option<Tool> = None;
-        let mut remove_tool: Option<Tool> = None;
-        let mut move_act: Option<(usize, usize)> = None;
-
-        egui::Area::new(Id::new("fav-draw-toolbar"))
-            .order(egui::Order::Foreground)
-            .fixed_pos(current_pos)
+        egui::Area::new(Id::new("fav-toolbar"))
+            .order(Order::Foreground)
+            .fixed_pos(origin)
+            .constrain(false)
+            .interactable(shown)
             .show(ctx, |ui| {
-                egui::Frame::new()
-                    .fill(t.elevated)
-                    .stroke(Stroke::new(1.0, t.border))
-                    .corner_radius(CornerRadius::same(8))
-                    .inner_margin(Margin::symmetric(6, 4))
-                    .shadow(egui::Shadow {
-                        offset: [0, 4],
-                        blur: 16,
-                        spread: 0,
-                        color: t.shadow(),
-                    })
-                    .show(ui, |ui| {
-                        let mut render_body = |ui: &mut Ui| {
-                            // 1. Drag grip handle.
-                            let grip_glyph = if vertical { ph::DOTS_SIX } else { ph::DOTS_SIX_VERTICAL };
-                            let grip_size = if vertical {
-                                vec2(BTN_SIZE, 12.0)
-                            } else {
-                                vec2(12.0, BTN_SIZE)
-                            };
-                            let (grip_rect, grip_resp) = ui.allocate_exact_size(grip_size, Sense::drag());
-                            let grip_hover = motion::hover(&grip_resp);
-                            let grip_col = motion::lerp_color(t.text3, t.text, grip_hover);
-                            ui.painter().text(
-                                grip_rect.center(),
-                                Align2::CENTER_CENTER,
-                                grip_glyph,
-                                theme::regular(14.0),
-                                grip_col,
-                            );
-                            let is_dragged = grip_resp.dragged();
-                            let delta = grip_resp.drag_delta();
-                            let _grip_resp = grip_resp
-                                .on_hover_cursor(if is_dragged {
-                                    CursorIcon::Grabbing
-                                } else {
-                                    CursorIcon::Grab
-                                })
-                                .on_hover_text(tr("Drag to move"));
-                            if is_dragged {
-                                current_pos += delta;
-                                pos_changed = true;
-                            }
+                ui.multiply_opacity(k);
+                // Nothing spills over the panels beside the charts, even
+                // when neither way fits.
+                ui.set_clip_rect(self.grid_rect);
+                ui.allocate_rect(bar, Sense::hover());
+                let p = ui.painter();
+                let radius = CornerRadius::same(RADIUS);
+                p.add(ui.visuals().popup_shadow.as_shape(bar, radius));
+                p.rect(
+                    bar,
+                    radius,
+                    t.popup(),
+                    Stroke::new(1.0, t.edge()),
+                    egui::StrokeKind::Inside,
+                );
 
-                            // 2. Collapsed state: grip + star + expand + close.
-                            if collapsed {
-                                ui.add_space(2.0);
-                                let star_rect = ui.allocate_exact_size(vec2(16.0, BTN_SIZE), Sense::hover()).0;
-                                crate::widgets::filled_star(ui.painter(), star_rect.center(), 6.0, t.warn);
-                                let expand_glyph = if vertical { ph::CARET_DOWN } else { ph::CARET_RIGHT };
-                                if tool_btn(ui, &t, expand_glyph, tr("Expand toolbar"), false).clicked() {
-                                    toggle_collapse = true;
-                                }
-                                if tool_btn(ui, &t, ph::X, tr("Hide toolbar"), false).clicked() {
-                                    close_toolbar = true;
-                                }
-                                return;
-                            }
+                // The bar moves when dragged anywhere a button isn't; the
+                // handle shows where.
+                let back = ui.interact(bar, Id::new("fav-toolbar-move"), Sense::drag());
+                let lit = motion::toggle(
+                    ui.ctx(),
+                    Id::new("fav-toolbar-grip"),
+                    back.hovered() || back.dragged(),
+                    motion::MICRO,
+                );
+                ui.painter().text(
+                    grip.center(),
+                    Align2::CENTER_CENTER,
+                    if vertical { ph::DOTS_SIX } else { ph::DOTS_SIX_VERTICAL },
+                    theme::regular(18.0),
+                    motion::lerp_color(t.text3, t.text, lit),
+                );
+                if back.dragged() {
+                    moved = Some(back.drag_delta());
+                }
+                back.on_hover_cursor(if moved.is_some() {
+                    CursorIcon::Grabbing
+                } else {
+                    CursorIcon::Grab
+                });
 
-                            // 3. Empty state: when no tools are favorited.
-                            if tools.is_empty() {
-                                ui.add_space(4.0);
-                                ui.label(
-                                    egui::RichText::new(tr("No favorites yet"))
-                                        .font(theme::regular(12.0))
-                                        .color(t.text3),
-                                );
-                                ui.add_space(4.0);
-                                if tool_btn(ui, &t, ph::X, tr("Hide toolbar"), false).clicked() {
-                                    close_toolbar = true;
-                                }
-                                return;
-                            }
-
-                            // 4. Tool buttons.
-                            let drag_id = Id::new("fav-toolbar-tool-drag");
-                            let dragging_from: Option<usize> = ui.data(|d| d.get_temp(drag_id));
-
-                            for (idx, &tool) in tools.iter().enumerate() {
-                                let active = self.layout.tool == tool;
-                                let tip = format!("{} ({})", tr(tool.name()), tool.shortcut());
-                                let (rect, resp) =
-                                    ui.allocate_exact_size(vec2(BTN_SIZE, BTN_SIZE), Sense::click_and_drag());
-                                let hover = motion::hover(&resp);
-
-                                // Background fill.
-                                if active {
-                                    ui.painter().rect_filled(rect, CornerRadius::same(6), t.accent_soft());
-                                } else if hover > 0.0 {
-                                    ui.painter().rect_filled(
-                                        rect,
-                                        CornerRadius::same(6),
-                                        motion::with_alpha(t.hover_wash(), hover),
-                                    );
-                                }
-
-                                // Tool icon.
-                                let col = if active {
-                                    t.accent
-                                } else {
-                                    motion::lerp_color(t.text2, t.text, hover)
-                                };
-                                ui.painter().text(
-                                    rect.center(),
-                                    Align2::CENTER_CENTER,
-                                    tool.icon(),
-                                    theme::regular(ICON_SIZE),
-                                    col,
-                                );
-
-                                // Reordering drag indicator.
-                                if let Some(from) = dragging_from
-                                    && resp.hovered()
-                                    && from != idx
-                                {
-                                    let stroke = Stroke::new(2.0, t.accent);
-                                    if vertical {
-                                        let y = if from < idx { rect.bottom() } else { rect.top() };
-                                        ui.painter().hline(rect.x_range(), y, stroke);
-                                    } else {
-                                        let x = if from < idx { rect.right() } else { rect.left() };
-                                        ui.painter().vline(x, rect.y_range(), stroke);
-                                    }
-                                }
-
-                                if resp.drag_started() {
-                                    ui.data_mut(|d| d.insert_temp(drag_id, Some(idx)));
-                                }
-
-                                if resp.clicked() {
-                                    pick_tool = Some(if active { Tool::Cross } else { tool });
-                                }
-
-                                // Context menu on right click.
-                                egui::Popup::context_menu(&resp).show(|ui| {
-                                    ui.set_width(170.0);
-                                    ui.spacing_mut().item_spacing.y = 1.0;
-                                    if crate::widgets::menu_item(
-                                        ui,
-                                        &t,
-                                        Some(ph::STAR),
-                                        tr("Remove from favorites"),
-                                        "",
-                                        false,
-                                    )
-                                    .clicked()
-                                    {
-                                        remove_tool = Some(tool);
-                                        ui.close();
-                                    }
-                                    if idx > 0 {
-                                        let move_prev_tip = if vertical { tr("Move up") } else { tr("Move left") };
-                                        let move_prev_icon = if vertical { ph::ARROW_UP } else { ph::ARROW_LEFT };
-                                        if crate::widgets::menu_item(
-                                            ui,
-                                            &t,
-                                            Some(move_prev_icon),
-                                            move_prev_tip,
-                                            "",
-                                            false,
-                                        )
-                                        .clicked()
-                                        {
-                                            move_act = Some((idx, idx - 1));
-                                            ui.close();
-                                        }
-                                    }
-                                    if idx + 1 < tools.len() {
-                                        let move_next_tip = if vertical { tr("Move down") } else { tr("Move right") };
-                                        let move_next_icon = if vertical { ph::ARROW_DOWN } else { ph::ARROW_RIGHT };
-                                        if crate::widgets::menu_item(
-                                            ui,
-                                            &t,
-                                            Some(move_next_icon),
-                                            move_next_tip,
-                                            "",
-                                            false,
-                                        )
-                                        .clicked()
-                                        {
-                                            move_act = Some((idx, idx + 1));
-                                            ui.close();
-                                        }
-                                    }
-                                });
-
-                                resp.on_hover_cursor(CursorIcon::PointingHand).on_hover_text(tip);
-                            }
-
-                            // Handle dropping a reordered tool.
-                            if let Some(from) = dragging_from
-                                && ui.input(|i| i.pointer.any_released())
-                            {
-                                if let Some(hover_pos) = ui.ctx().pointer_hover_pos() {
-                                    let target = tools.iter().enumerate().min_by_key(|(_, t)| {
-                                        let est_tool_center = if vertical {
-                                            current_pos.y + 20.0 + (idx_to_f32(t, &tools)) * 31.0
-                                        } else {
-                                            current_pos.x + 20.0 + (idx_to_f32(t, &tools)) * 31.0
-                                        };
-                                        let pointer_val = if vertical { hover_pos.y } else { hover_pos.x };
-                                        ((est_tool_center - pointer_val).abs() * 10.0) as i64
-                                    });
-                                    if let Some((to, _)) = target
-                                        && from != to
-                                    {
-                                        move_act = Some((from, to));
-                                    }
-                                }
-                                ui.data_mut(|d| d.insert_temp::<Option<usize>>(drag_id, None));
-                            }
-
-                            // 5. Divider.
-                            let div_size = if vertical {
-                                vec2(BTN_SIZE, 1.0)
-                            } else {
-                                vec2(1.0, BTN_SIZE)
-                            };
-                            let div_rect = ui.allocate_exact_size(div_size, Sense::hover()).0;
-                            ui.painter().rect_filled(div_rect, CornerRadius::ZERO, t.border);
-
-                            // 6. Orientation toggle.
-                            let orient_glyph = if vertical { ph::ROWS } else { ph::COLUMNS };
-                            let orient_tip = if vertical {
-                                tr("Horizontal toolbar")
-                            } else {
-                                tr("Vertical toolbar")
-                            };
-                            if tool_btn(ui, &t, orient_glyph, orient_tip, false).clicked() {
-                                toggle_orientation = true;
-                            }
-
-                            // 7. Collapse toggle.
-                            let collapse_glyph = if vertical { ph::CARET_UP } else { ph::CARET_LEFT };
-                            if tool_btn(ui, &t, collapse_glyph, tr("Collapse toolbar"), false).clicked() {
-                                toggle_collapse = true;
-                            }
-
-                            // 8. Close button.
-                            if tool_btn(ui, &t, ph::X, tr("Hide toolbar"), false).clicked() {
-                                close_toolbar = true;
-                            }
-                        };
-
+                // The body (tools, divider, orientation) folds away into the
+                // handle: clipped to what's left of it, and fading.
+                let mut body = ui.new_child(egui::UiBuilder::new().max_rect(body_full));
+                body.set_clip_rect(body_now.intersect(ui.clip_rect()));
+                body.multiply_opacity(1.0 - fold);
+                if fold < 1.0 {
+                    if tools.is_empty() {
+                        let r = slot(body_at, empty_w);
                         if vertical {
-                            ui.vertical(|ui| {
-                                ui.spacing_mut().item_spacing = vec2(0.0, 3.0);
-                                render_body(ui);
-                            });
+                            let resp = body.interact(r, Id::new("fav-toolbar-empty"), Sense::hover());
+                            body.painter().text(
+                                r.center(),
+                                Align2::CENTER_CENTER,
+                                ph::STAR,
+                                theme::regular(16.0),
+                                t.text3,
+                            );
+                            resp.on_hover_text(tr("No favorites yet"));
                         } else {
-                            ui.horizontal(|ui| {
-                                ui.spacing_mut().item_spacing = vec2(3.0, 0.0);
-                                render_body(ui);
-                            });
+                            body.painter().text(
+                                r.center(),
+                                Align2::CENTER_CENTER,
+                                tr("No favorites yet"),
+                                theme::regular(12.5),
+                                t.text3,
+                            );
                         }
-                    });
+                    }
+                    for (i, (&tool, &r)) in tools.iter().zip(&tool_rects).enumerate() {
+                        let on = self.layout.tool == tool;
+                        let tip = self.keys.tip(tr(tool.name()), crate::keys::Action::Tool(tool));
+                        let lifted = dragging == Some(i);
+                        let mut cell = body.new_child(egui::UiBuilder::new().max_rect(r));
+                        if lifted {
+                            cell.multiply_opacity(0.3);
+                        }
+                        let id = Id::new(("fav-toolbar-tool", tool.key()));
+                        let resp = {
+                            let resp = cell.interact(r, id, Sense::click_and_drag());
+                            w::tool_button_look(&cell, &t, resp, tool.icon(), &tip, on)
+                        };
+                        if resp.drag_started() {
+                            drag_start = Some(i);
+                        }
+                        if lifted && resp.drag_stopped() {
+                            drag_end = true;
+                        }
+                        if resp.clicked() {
+                            pick = Some(if on { Tool::Cross } else { tool });
+                        }
+                        egui::Popup::context_menu(&resp).show(|ui| {
+                            ui.set_width(200.0);
+                            ui.spacing_mut().item_spacing.y = 1.0;
+                            if w::menu_item(ui, &t, Some(ph::STAR), tr("Remove from favorites"), "", false).clicked() {
+                                unstar = Some(tool);
+                                ui.close();
+                            }
+                            let (back_label, back_icon, on_label, on_icon) = if vertical {
+                                (tr("Move up"), ph::ARROW_UP, tr("Move down"), ph::ARROW_DOWN)
+                            } else {
+                                (tr("Move left"), ph::ARROW_LEFT, tr("Move right"), ph::ARROW_RIGHT)
+                            };
+                            if i > 0 && w::menu_item(ui, &t, Some(back_icon), back_label, "", false).clicked() {
+                                reorder = Some((i, i - 1));
+                                ui.close();
+                            }
+                            if i + 1 < tools.len() && w::menu_item(ui, &t, Some(on_icon), on_label, "", false).clicked()
+                            {
+                                reorder = Some((i, i + 1));
+                                ui.close();
+                            }
+                        });
+                    }
+                    rule_line(&body, &t, rule, vertical);
+                    let (glyph, tip) = if vertical {
+                        (ph::ROWS, tr("Horizontal toolbar"))
+                    } else {
+                        (ph::COLUMNS, tr("Vertical toolbar"))
+                    };
+                    if button(&mut body, &t, orient, "fav-toolbar-orient", glyph, tip).clicked() {
+                        flip = true;
+                    }
+                }
+
+                // Fold and close stay, after the body.
+                let (glyph, tip) = match (vertical, fold > 0.5) {
+                    (false, false) => (ph::CARET_LEFT, tr("Collapse toolbar")),
+                    (false, true) => (ph::CARET_RIGHT, tr("Expand toolbar")),
+                    (true, false) => (ph::CARET_UP, tr("Collapse toolbar")),
+                    (true, true) => (ph::CARET_DOWN, tr("Expand toolbar")),
+                };
+                if button(ui, &t, collapse, "fav-toolbar-fold-btn", glyph, tip).clicked() {
+                    fold_now = true;
+                }
+                if button(ui, &t, close, "fav-toolbar-close", ph::X, tr("Hide toolbar")).clicked() {
+                    hide = true;
+                }
+
+                // A tool on the move: it follows the pointer, and a line
+                // marks where it would land.
+                if let Some(from) = dragging
+                    && from < tool_rects.len()
+                    && let Some(pointer) = ui.ctx().pointer_interact_pos()
+                {
+                    let to = drop_slot(&tool_rects, from, pointer, vertical);
+                    if to != from {
+                        let others: Vec<Rect> = tool_rects
+                            .iter()
+                            .enumerate()
+                            .filter(|(j, _)| *j != from)
+                            .map(|(_, r)| *r)
+                            .collect();
+                        let line = if to == 0 {
+                            if vertical {
+                                others[0].top() - GAP / 2.0
+                            } else {
+                                others[0].left() - GAP / 2.0
+                            }
+                        } else if vertical {
+                            others[to - 1].bottom() + GAP / 2.0
+                        } else {
+                            others[to - 1].right() + GAP / 2.0
+                        };
+                        let stroke = Stroke::new(2.0, t.accent);
+                        let r = tool_rects[0];
+                        if vertical {
+                            ui.painter().hline(r.x_range().shrink(3.0), line, stroke);
+                        } else {
+                            ui.painter().vline(line, r.y_range().shrink(3.0), stroke);
+                        }
+                    }
+                    let ghost = Rect::from_center_size(pointer, vec2(BTN, BTN));
+                    let lp = ui
+                        .ctx()
+                        .layer_painter(LayerId::new(Order::Tooltip, Id::new("fav-toolbar-ghost")));
+                    lp.add(ui.visuals().popup_shadow.as_shape(ghost, CornerRadius::same(8)));
+                    lp.rect_filled(ghost, CornerRadius::same(8), t.accent_soft());
+                    lp.text(
+                        ghost.center(),
+                        Align2::CENTER_CENTER,
+                        tools[from].icon(),
+                        theme::regular(BTN * 0.56),
+                        t.accent,
+                    );
+                    ui.ctx().set_cursor_icon(CursorIcon::Grabbing);
+                }
             });
 
-        // Apply state changes.
-        if pos_changed {
-            self.layout.fav_toolbar_pos = Some([current_pos.x, current_pos.y]);
-            self.save_fav_toolbar_settings();
+        self.favbar.at = Parts {
+            bar,
+            grip,
+            tools: if fold < 1.0 { tool_rects.clone() } else { Vec::new() },
+            orient,
+            collapse,
+            close,
+        };
+
+        // A tool dropped somewhere new.
+        if let Some(from) = self.favbar.drag {
+            let released = ctx.input(|i| !i.pointer.any_down());
+            if drag_end || released {
+                if let Some(pointer) = ctx.pointer_interact_pos().or(ctx.input(|i| i.pointer.latest_pos()))
+                    && from < tool_rects.len()
+                {
+                    let to = drop_slot(&tool_rects, from, pointer, vertical);
+                    reorder = reorder.or(Some((from, to)));
+                }
+                self.favbar.drag = None;
+            }
         }
-        if close_toolbar {
-            self.layout.fav_toolbar = false;
-            self.save_fav_toolbar_settings();
+        if let Some(i) = drag_start {
+            self.favbar.drag = Some(i);
         }
-        if toggle_orientation {
-            self.layout.fav_toolbar_vertical = !self.layout.fav_toolbar_vertical;
-            self.save_fav_toolbar_settings();
+        if let Some(d) = moved {
+            // Back to a fraction of the room, kept in memory: the layout is
+            // saved with the window, not each frame.
+            let p = origin + d - room.min;
+            let f = |v: f32, room: f32| if room > 0.0 { (v / room).clamp(0.0, 1.0) } else { 0.0 };
+            self.layout.fav_toolbar_at = Some([f(p.x, travel.x), f(p.y, travel.y)]);
         }
-        if toggle_collapse {
-            self.layout.fav_toolbar_collapsed = !self.layout.fav_toolbar_collapsed;
-            self.save_fav_toolbar_settings();
-        }
-        if let Some(tool) = pick_tool {
+        if let Some(tool) = pick {
             self.pick_tool(tool);
         }
-        if let Some(tool) = remove_tool {
+        if let Some(tool) = unstar {
             self.toggle_favorite_tool(tool);
         }
-        if let Some((from, to)) = move_act {
+        if let Some((from, to)) = reorder {
             self.move_favorite_tool(from, to);
+        }
+        if flip {
+            // From the way it shows (which may not be the one chosen).
+            self.layout.fav_toolbar_vertical = !vertical;
+        }
+        if fold_now {
+            self.layout.fav_toolbar_collapsed = !self.layout.fav_toolbar_collapsed;
+        }
+        if hide {
+            self.layout.fav_toolbar = false;
         }
     }
 }
 
-fn idx_to_f32(target: &Tool, list: &[Tool]) -> f32 {
-    list.iter().position(|t| t == target).unwrap_or(0) as f32
+/// Where the tool at `from` would land if let go at `pointer`: its index in
+/// the list without it (the number of other tools before the pointer).
+fn drop_slot(rects: &[Rect], from: usize, pointer: Pos2, vertical: bool) -> usize {
+    rects
+        .iter()
+        .enumerate()
+        .filter(|(j, _)| *j != from)
+        .filter(|(_, r)| {
+            if vertical {
+                r.center().y < pointer.y
+            } else {
+                r.center().x < pointer.x
+            }
+        })
+        .count()
 }
 
-/// A compact icon button for toolbar utilities (close, orientation, collapse).
-fn tool_btn(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, active: bool) -> egui::Response {
-    let size = 22.0;
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
-    let hover = motion::hover(&resp);
-    if active {
-        ui.painter().rect_filled(rect, CornerRadius::same(5), t.accent_soft());
-    } else if hover > 0.0 {
-        ui.painter()
-            .rect_filled(rect, CornerRadius::same(5), motion::with_alpha(t.hover_wash(), hover));
-    }
-    let col = if active {
-        t.accent
+/// One of the bar's own buttons (orientation, fold, close).
+fn button(ui: &mut Ui, t: &Theme, rect: Rect, id: &str, glyph: &str, tip: &str) -> egui::Response {
+    let resp = ui.interact(rect, Id::new(id), Sense::click());
+    w::tool_button_look(ui, t, resp, glyph, tip, false)
+}
+
+fn rule_line(ui: &Ui, t: &Theme, r: Rect, vertical: bool) {
+    let stroke = Stroke::new(1.0, t.border);
+    if vertical {
+        ui.painter().hline(r.x_range().shrink(6.0), r.center().y, stroke);
     } else {
-        motion::lerp_color(t.text3, t.text, hover)
-    };
-    ui.painter()
-        .text(rect.center(), Align2::CENTER_CENTER, glyph, theme::regular(13.0), col);
-    resp.on_hover_cursor(CursorIcon::PointingHand).on_hover_text(tip)
+        ui.painter().vline(r.center().x, r.y_range().shrink(6.0), stroke);
+    }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::chart::draw::DEFAULT_FAVORITE_TOOLS;
-    use crate::drive::Driver;
-    use crate::multi::Grid;
-    use egui::{Key, Modifiers};
-    use opentern_core::Store;
-
-    #[test]
-    fn test_default_favorite_tools_initialization() {
-        let d = Driver::new("fav-defaults");
-        let favs = d.app.favorite_tools();
-        assert_eq!(favs.len(), 12, "initial favorites count");
-        assert_eq!(favs, DEFAULT_FAVORITE_TOOLS);
-        assert!(d.app.is_tool_favorite(Tool::Cross));
-        assert!(d.app.is_tool_favorite(Tool::TrendLine));
-        assert!(d.app.is_tool_favorite(Tool::Text));
-        assert!(!d.app.is_tool_favorite(Tool::Pitchfork));
-    }
-
-    #[test]
-    fn test_add_remove_toggle_favorite() {
-        let mut d = Driver::new("fav-toggle");
-        assert!(!d.app.is_tool_favorite(Tool::Pitchfork));
-
-        // Add pitchfork.
-        d.app.toggle_favorite_tool(Tool::Pitchfork);
-        assert!(d.app.is_tool_favorite(Tool::Pitchfork));
-        assert!(d.app.favorite_tools().contains(&Tool::Pitchfork));
-        assert!(d.app.layout.fav_toolbar, "adding favorite reveals toolbar");
-
-        // Remove pitchfork.
-        d.app.toggle_favorite_tool(Tool::Pitchfork);
-        assert!(!d.app.is_tool_favorite(Tool::Pitchfork));
-        assert!(!d.app.favorite_tools().contains(&Tool::Pitchfork));
-    }
-
-    #[test]
-    fn test_duplicate_prevention() {
-        let mut d = Driver::new("fav-dups");
-        let tools_with_dups = vec![
-            Tool::TrendLine,
-            Tool::TrendLine,
-            Tool::HorizontalLine,
-            Tool::TrendLine,
-            Tool::Rectangle,
-            Tool::Rectangle,
-        ];
-        d.app.set_favorite_tools(&tools_with_dups);
-        let favs = d.app.favorite_tools();
-        assert_eq!(
-            favs,
-            vec![Tool::TrendLine, Tool::HorizontalLine, Tool::Rectangle],
-            "duplicates filtered out"
-        );
-    }
-
-    #[test]
-    fn test_reordering() {
-        let mut d = Driver::new("fav-reorder");
-        d.app
-            .set_favorite_tools(&[Tool::Cross, Tool::TrendLine, Tool::Rectangle]);
-        assert_eq!(
-            d.app.favorite_tools(),
-            vec![Tool::Cross, Tool::TrendLine, Tool::Rectangle]
-        );
-
-        // Move Rectangle from index 2 to index 0.
-        d.app.move_favorite_tool(2, 0);
-        assert_eq!(
-            d.app.favorite_tools(),
-            vec![Tool::Rectangle, Tool::Cross, Tool::TrendLine]
-        );
-
-        // Move Rectangle from index 0 to index 1.
-        d.app.move_favorite_tool(0, 1);
-        assert_eq!(
-            d.app.favorite_tools(),
-            vec![Tool::Cross, Tool::Rectangle, Tool::TrendLine]
-        );
-    }
-
-    #[test]
-    fn test_persistence_after_reload() {
-        let dir = std::env::temp_dir().join(format!("opentern-fav-persist-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let store = Store::open(&dir).unwrap();
-        let mut app = App::with_context(
-            &egui::Context::default(),
-            crate::shell::Arrangement::default(),
-            store,
-            true,
-        );
-
-        // Customize favorites and toolbar.
-        app.set_favorite_tools(&[Tool::Ray, Tool::Triangle, Tool::Brush]);
-        app.layout.fav_toolbar_vertical = true;
-        app.layout.fav_toolbar_pos = Some([123.0, 456.0]);
-        app.layout.fav_toolbar_collapsed = true;
-        app.save_fav_toolbar_settings();
-
-        // Drop app and reopen from the same store.
-        drop(app);
-        let store2 = Store::open(&dir).unwrap();
-        let app2 = App::with_context(
-            &egui::Context::default(),
-            crate::shell::Arrangement::default(),
-            store2,
-            true,
-        );
-
-        assert_eq!(
-            app2.favorite_tools(),
-            vec![Tool::Ray, Tool::Triangle, Tool::Brush],
-            "favorites persisted"
-        );
-        assert!(app2.layout.fav_toolbar_vertical, "vertical orientation persisted");
-        assert_eq!(app2.layout.fav_toolbar_pos, Some([123.0, 456.0]), "position persisted");
-        assert!(app2.layout.fav_toolbar_collapsed, "collapsed state persisted");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_empty_favorites_state() {
-        let dir = std::env::temp_dir().join(format!("opentern-fav-empty-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        let store = Store::open(&dir).unwrap();
-        let mut app = App::with_context(
-            &egui::Context::default(),
-            crate::shell::Arrangement::default(),
-            store,
-            true,
-        );
-
-        // Clear all favorites.
-        app.set_favorite_tools(&[]);
-        assert!(app.favorite_tools().is_empty());
-
-        // Reopen from store: empty state must not re-seed defaults.
-        drop(app);
-        let store2 = Store::open(&dir).unwrap();
-        let app2 = App::with_context(
-            &egui::Context::default(),
-            crate::shell::Arrangement::default(),
-            store2,
-            true,
-        );
-        assert!(
-            app2.favorite_tools().is_empty(),
-            "empty favorites state persists without re-seeding"
-        );
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn test_tool_activation_and_escape() {
-        let mut d = Driver::new("fav-activation");
-        d.app.pick_tool(Tool::TrendLine);
-        assert_eq!(d.app.layout.tool, Tool::TrendLine);
-
-        // Picking the same tool cancels to Cross.
-        d.app.pick_tool(Tool::Cross);
-        assert_eq!(d.app.layout.tool, Tool::Cross);
-
-        // Pick rectangle then press Escape.
-        d.app.pick_tool(Tool::Rectangle);
-        assert_eq!(d.app.layout.tool, Tool::Rectangle);
-        d.key(Key::Escape, Modifiers::NONE);
-        assert_eq!(d.app.layout.tool, Tool::Cross, "Escape cancels tool to cross");
-    }
-
-    #[test]
-    fn test_driver_favorite_toolbar_rendering_and_layouts() {
-        let mut d = Driver::new("fav-render");
-        assert!(d.app.layout.fav_toolbar);
-
-        // Render frame with single chart.
-        d.frame(vec![]);
-        assert!(d.app.chart_ui.main_rect.is_positive());
-
-        // Switch to 2-chart grid.
-        d.app.set_grid(Grid::TwoCols);
-        d.frame(vec![]);
-        assert!(d.app.chart_ui.main_rect.is_positive());
-
-        // Switch to 4-chart grid.
-        d.app.set_grid(Grid::Four);
-        d.frame(vec![]);
-        assert!(d.app.chart_ui.main_rect.is_positive());
-
-        // Toggle vertical toolbar.
-        d.app.layout.fav_toolbar_vertical = true;
-        d.frame(vec![]);
-
-        // Toggle collapsed toolbar.
-        d.app.layout.fav_toolbar_collapsed = true;
-        d.frame(vec![]);
-
-        // Close toolbar.
-        d.app.layout.fav_toolbar = false;
-        d.frame(vec![]);
-        assert!(!d.app.layout.fav_toolbar);
-    }
-}
+mod tests;

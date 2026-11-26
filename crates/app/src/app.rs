@@ -104,8 +104,10 @@ pub struct App {
     still_colors: Option<(bool, opentern_series::Rgba)>,
     /// `OPENTERN_STILL=claude:<message>`: send it once bars are in.
     still_claude: Option<String>,
-    /// `OPENTERN_STILL=snap`: take a chart snapshot once bars are in.
-    still_snap: bool,
+    /// The favourite drawings toolbar's state between frames.
+    pub(crate) favbar: crate::favbar::FavBar,
+    /// The keyboard shortcuts in use (Settings → Keyboard shortcuts).
+    pub(crate) keys: crate::keys::Keymap,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Folders picked in Settings → General (`None` = inside the
@@ -156,36 +158,9 @@ impl App {
 
     /// Builds the app against any egui context (the real window, or a
     /// headless one in tests).
-    pub(crate) fn with_context(ctx: &egui::Context, mut layout: Arrangement, mut store: Store, demo: bool) -> App {
-        if let Some(j) = store.value("fav_toolbar")
-            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&j)
-        {
-            if let Some(b) = v.get("visible").and_then(|x| x.as_bool()) {
-                layout.fav_toolbar = b;
-            }
-            if let Some(b) = v.get("vertical").and_then(|x| x.as_bool()) {
-                layout.fav_toolbar_vertical = b;
-            }
-            if let Some(b) = v.get("collapsed").and_then(|x| x.as_bool()) {
-                layout.fav_toolbar_collapsed = b;
-            }
-            if let Some(pos_arr) = v.get("pos").and_then(|x| x.as_array())
-                && pos_arr.len() == 2
-                && let (Some(x), Some(y)) = (pos_arr[0].as_f64(), pos_arr[1].as_f64())
-            {
-                layout.fav_toolbar_pos = Some([x as f32, y as f32]);
-            }
-        }
-        if store.value("fav_tools_init").is_none() {
-            if store.favorites("tool").is_empty() {
-                let default_keys: Vec<String> = crate::chart::draw::DEFAULT_FAVORITE_TOOLS
-                    .iter()
-                    .map(|t| t.id().to_string())
-                    .collect();
-                let _ = store.set_favorites("tool", &default_keys);
-            }
-            let _ = store.set_value("fav_tools_init", "1");
-        }
+    pub(crate) fn with_context(ctx: &egui::Context, layout: Arrangement, mut store: Store, demo: bool) -> App {
+        crate::favbar::seed_favorites(&mut store);
+        let keys = crate::keys::Keymap::load(&store);
         crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
         crate::popups::install(ctx);
@@ -293,7 +268,8 @@ impl App {
             still_replay: false,
             still_colors: None,
             still_claude: None,
-            still_snap: false,
+            favbar: Default::default(),
+            keys,
             logos,
             folders,
             python_notice: None,
@@ -602,8 +578,9 @@ impl App {
                 }
             } else if part == "measure" {
                 self.still_measure = true;
-            } else if part == "snap" {
-                self.still_snap = true;
+            } else if part == "favbar" || part == "favbar:vertical" {
+                self.layout.fav_toolbar = true;
+                self.layout.fav_toolbar_vertical = part == "favbar:vertical";
             } else if part == "replay:play" {
                 self.still_replay = true;
             } else if part == "replay" {
@@ -953,74 +930,6 @@ impl App {
         if let Err(e) = self.store.set_favorites(kind, &list) {
             crate::diag::crumb(format!("couldn't save favourites: {e}"));
         }
-    }
-
-    pub const TOOL_FAVS: &'static str = "tool";
-
-    pub fn favorite_tools(&self) -> Vec<Tool> {
-        let favs = self.store.favorites(Self::TOOL_FAVS);
-        let mut tools = Vec::new();
-        for id in favs {
-            if let Some(tool) = Tool::from_id(id)
-                && !tools.contains(&tool)
-            {
-                tools.push(tool);
-            }
-        }
-        tools
-    }
-
-    pub fn is_tool_favorite(&self, tool: Tool) -> bool {
-        self.store.is_favorite(Self::TOOL_FAVS, tool.id())
-    }
-
-    pub fn toggle_favorite_tool(&mut self, tool: Tool) {
-        let id = tool.id();
-        let mut list = self.store.favorites(Self::TOOL_FAVS).to_vec();
-        if let Some(pos) = list.iter().position(|k| k == id) {
-            list.remove(pos);
-        } else {
-            list.push(id.to_string());
-            // Favoriting a tool automatically reveals the toolbar.
-            self.layout.fav_toolbar = true;
-        }
-        if let Err(e) = self.store.set_favorites(Self::TOOL_FAVS, &list) {
-            crate::diag::crumb(format!("couldn't save favorite tools: {e}"));
-        }
-        self.save_fav_toolbar_settings();
-    }
-
-    pub fn set_favorite_tools(&mut self, tools: &[Tool]) {
-        let mut keys = Vec::new();
-        for t in tools {
-            let id = t.id().to_string();
-            if !keys.contains(&id) {
-                keys.push(id);
-            }
-        }
-        if let Err(e) = self.store.set_favorites(Self::TOOL_FAVS, &keys) {
-            crate::diag::crumb(format!("couldn't save favorite tools: {e}"));
-        }
-    }
-
-    pub fn move_favorite_tool(&mut self, from: usize, to: usize) {
-        let mut tools = self.favorite_tools();
-        if from >= tools.len() || to >= tools.len() || from == to {
-            return;
-        }
-        let item = tools.remove(from);
-        tools.insert(to, item);
-        self.set_favorite_tools(&tools);
-    }
-
-    pub fn save_fav_toolbar_settings(&mut self) {
-        let data = serde_json::json!({
-            "visible": self.layout.fav_toolbar,
-            "vertical": self.layout.fav_toolbar_vertical,
-            "pos": self.layout.fav_toolbar_pos,
-            "collapsed": self.layout.fav_toolbar_collapsed,
-        });
-        let _ = self.store.set_value("fav_toolbar", &data.to_string());
     }
 
     /// The inputs and look a newly added indicator gets: the saved default
@@ -1425,8 +1334,12 @@ impl App {
         if self.modal.is_some() || ctx.egui_wants_keyboard_input() || self.editor.tree_has_keys(ctx) {
             return;
         }
-        // Settings has the chart's place: Esc closes it, nothing else applies.
-        if self.settings.is_some() {
+        // Settings has the chart's place: Esc closes it, nothing else
+        // applies; while a shortcut waits for its keys, they're its.
+        if let Some(page) = &self.settings {
+            if page.recording.is_some() {
+                return;
+            }
             if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
                 self.settings = None;
             }
@@ -1455,21 +1368,26 @@ impl App {
                         self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(&s.to_uppercase())));
                     }
                 }
+                // The shortcuts that can be changed (`keys.rs`).
                 egui::Event::Key {
-                    key: egui::Key::R,
+                    key,
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.alt && !modifiers.shift => self.chart.reset_view(),
-
+                } if self.keys.action(crate::keys::Chord::new(key, modifiers)).is_some() => {
+                    if let Some(a) = self.keys.action(crate::keys::Chord::new(key, modifiers)) {
+                        self.run_shortcut(ctx, a);
+                    }
+                }
+                // Redo's second key, as in most apps, unless it's been
+                // given to something.
                 egui::Event::Key {
-                    key: egui::Key::F,
+                    key: egui::Key::Z,
                     pressed: true,
                     modifiers,
                     ..
-                } if modifiers.shift => {
-                    let full = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
+                } if modifiers.command && modifiers.shift => {
+                    self.chart.redo();
                 }
                 egui::Event::Key {
                     key: egui::Key::Delete | egui::Key::Backspace,
@@ -1485,88 +1403,6 @@ impl App {
                     self.pick_tool(Tool::Cross);
                 }
                 egui::Event::Key {
-                    key: egui::Key::Z,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.command => {
-                    if modifiers.shift {
-                        self.chart.redo();
-                    } else {
-                        self.chart.undo();
-                    }
-                }
-                egui::Event::Key {
-                    key: egui::Key::Y,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.command => {
-                    self.chart.redo();
-                }
-                egui::Event::Key {
-                    key: egui::Key::A,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.shift => {
-                    self.open_alert_dialog(None);
-                }
-                egui::Event::Key {
-                    key: egui::Key::S,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.shift => self.take_snapshot(crate::snapshot::Snap::Save),
-                egui::Event::Key {
-                    key: egui::Key::W,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.shift && !modifiers.command => self.watch_chart_symbol(),
-                egui::Event::Key {
-                    key: egui::Key::M,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.shift && !modifiers.command => {
-                    let open = self.overview_open();
-                    self.set_overview(!open);
-                }
-                // TradingView's: Ctrl+Alt+H hides (or shows) every drawing.
-                egui::Event::Key {
-                    key: egui::Key::H,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && modifiers.command => {
-                    self.layout.hide_drawings = !self.layout.hide_drawings;
-                }
-                // Price scale: TradingView's Alt L (log) and Alt P (percent),
-                // and Alt U for auto.
-                egui::Event::Key {
-                    key: key @ (egui::Key::L | egui::Key::P | egui::Key::U),
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.shift && !modifiers.command => match key {
-                    egui::Key::L => self.toggle_log_scale(),
-                    egui::Key::P => self.toggle_percent_scale(),
-                    _ => self.toggle_auto_scale(),
-                },
-                // Drawing tools: TradingView's Alt keys, Alt Shift for the rest
-                // (`Tool::shortcut`).
-                egui::Event::Key {
-                    key,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && !modifiers.command => {
-                    if let Some(tool) = Tool::for_key(key, modifiers.shift) {
-                        self.pick_tool(tool);
-                    }
-                }
-                egui::Event::Key {
                     key: egui::Key::ArrowLeft,
                     pressed: true,
                     ..
@@ -1578,6 +1414,36 @@ impl App {
                 } => self.chart.view.right += 1.0,
                 _ => {}
             }
+        }
+    }
+
+    /// Does what a changeable shortcut is for.
+    fn run_shortcut(&mut self, ctx: &egui::Context, a: crate::keys::Action) {
+        use crate::keys::Action;
+        match a {
+            Action::Alert => self.open_alert_dialog(None),
+            Action::ResetView => self.chart.reset_view(),
+            Action::Snapshot => self.take_snapshot(crate::snapshot::Snap::Save),
+            Action::Watch => self.watch_chart_symbol(),
+            Action::Overview => {
+                let open = self.overview_open();
+                self.set_overview(!open);
+            }
+            Action::FullScreen => {
+                let full = ctx.input(|i| i.viewport().fullscreen.unwrap_or(false));
+                ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
+            }
+            Action::Undo => {
+                self.chart.undo();
+            }
+            Action::Redo => {
+                self.chart.redo();
+            }
+            Action::HideDrawings => self.layout.hide_drawings = !self.layout.hide_drawings,
+            Action::LogScale => self.toggle_log_scale(),
+            Action::PercentScale => self.toggle_percent_scale(),
+            Action::AutoScale => self.toggle_auto_scale(),
+            Action::Tool(tool) => self.pick_tool(tool),
         }
     }
 
@@ -1613,10 +1479,6 @@ impl App {
                 crate::chart::draw::Anchor { t: a.time, p: a.low },
                 crate::chart::draw::Anchor { t: b.time, p: b.high },
             );
-        }
-        if self.still_snap && self.chart.bars.len() > 80 {
-            self.still_snap = false;
-            self.take_snapshot(crate::snapshot::Snap::Save);
         }
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {

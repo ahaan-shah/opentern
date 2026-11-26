@@ -391,6 +391,7 @@ impl App {
     pub(crate) fn chart_grid(&mut self, ui: &mut Ui, t: &Theme) {
         let full = ui.max_rect();
         self.grid_rect = full;
+        self.favbar.charts_pass = ui.ctx().cumulative_pass_nr();
         let n = self.chart_count();
         if n <= 1 {
             self.multi.cross_time = None;

@@ -368,6 +368,9 @@ msgstr "Alpaca har inga {0}-staplar"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · amerikanska aktier"
 
+msgid "Also used by {0}"
+msgstr "Används också av {0}"
+
 msgid "Americas"
 msgstr "Amerika"
 
@@ -487,9 +490,6 @@ msgstr "Automatisk Fib-förlängning"
 
 msgid "Auto Fib Retracement"
 msgstr "Automatisk Fib-rekyl"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "Auto, passar in data på skärmen (Alt U)"
 
 msgid "Average"
 msgstr "Medelvärde"
@@ -1532,9 +1532,6 @@ msgstr "Markering av nedåttrend"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "Dra för att flytta"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
 
@@ -2043,9 +2040,6 @@ msgstr "Dölj VWAP på 1D eller högre"
 msgid "Hide all drawings"
 msgstr "Dölj alla ritningar"
 
-msgid "Hide all drawings ({0})"
-msgstr "Dölj alla ritningar ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "Dölj favoritverktygsfältet"
 
@@ -2523,9 +2517,6 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Logskala"
 
-msgid "Log scale (Alt L)"
-msgstr "Logskala (Alt L)"
-
 msgid "London"
 msgstr ""
 
@@ -2782,9 +2773,6 @@ msgstr "Marknaden öppen"
 
 msgid "Market overview"
 msgstr "Marknadsöversikt"
-
-msgid "Market overview (Alt M)"
-msgstr "Marknadsöversikt (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "Martin Luther King-dagen"
@@ -3653,9 +3641,6 @@ msgstr "Procent vinst"
 msgid "Percent scale"
 msgstr "Procentskala"
 
-msgid "Percent scale (Alt P)"
-msgstr "Procentskala (Alt P)"
-
 msgid "Percentage"
 msgstr "Procentandel"
 
@@ -3764,6 +3749,9 @@ msgstr "Precision"
 
 msgid "Press Enter for {0}"
 msgstr "Tryck på Retur för {0}"
+
+msgid "Press keys"
+msgstr "Tryck på tangenterna"
 
 msgid "Previous 7 days"
 msgstr "Senaste 7 dagarna"
@@ -3999,9 +3987,6 @@ msgstr "Rektangel"
 
 msgid "Redo"
 msgstr "Gör om"
-
-msgid "Redo ({0})"
-msgstr "Gör om ({0})"
 
 msgid "Refresh"
 msgstr "Uppdatera"
@@ -5293,9 +5278,6 @@ msgstr "Ultra"
 
 msgid "Undo"
 msgstr "Ångra"
-
-msgid "Undo ({0})"
-msgstr "Ångra ({0})"
 
 msgid "Union Budget session"
 msgstr "Budgetsession"

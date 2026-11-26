@@ -368,6 +368,9 @@ msgstr ""
 msgid "Alpaca · US stocks"
 msgstr ""
 
+msgid "Also used by {0}"
+msgstr ""
+
 msgid "Americas"
 msgstr ""
 
@@ -486,9 +489,6 @@ msgid "Auto Fib Extension"
 msgstr ""
 
 msgid "Auto Fib Retracement"
-msgstr ""
-
-msgid "Auto, fits data to screen (Alt U)"
 msgstr ""
 
 msgid "Average"
@@ -1532,9 +1532,6 @@ msgstr ""
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr ""
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr ""
 
@@ -2043,9 +2040,6 @@ msgstr ""
 msgid "Hide all drawings"
 msgstr ""
 
-msgid "Hide all drawings ({0})"
-msgstr ""
-
 msgid "Hide favorite drawings toolbar"
 msgstr ""
 
@@ -2523,9 +2517,6 @@ msgstr ""
 msgid "Log scale"
 msgstr ""
 
-msgid "Log scale (Alt L)"
-msgstr ""
-
 msgid "London"
 msgstr ""
 
@@ -2781,9 +2772,6 @@ msgid "Market open"
 msgstr ""
 
 msgid "Market overview"
-msgstr ""
-
-msgid "Market overview (Alt M)"
 msgstr ""
 
 msgid "Martin Luther King Jr. Day"
@@ -3653,9 +3641,6 @@ msgstr ""
 msgid "Percent scale"
 msgstr ""
 
-msgid "Percent scale (Alt P)"
-msgstr ""
-
 msgid "Percentage"
 msgstr ""
 
@@ -3763,6 +3748,9 @@ msgid "Precision"
 msgstr ""
 
 msgid "Press Enter for {0}"
+msgstr ""
+
+msgid "Press keys"
 msgstr ""
 
 msgid "Previous 7 days"
@@ -3998,9 +3986,6 @@ msgid "Rectangle"
 msgstr ""
 
 msgid "Redo"
-msgstr ""
-
-msgid "Redo ({0})"
 msgstr ""
 
 msgid "Refresh"
@@ -5292,9 +5277,6 @@ msgid "Ultra"
 msgstr ""
 
 msgid "Undo"
-msgstr ""
-
-msgid "Undo ({0})"
 msgstr ""
 
 msgid "Union Budget session"

@@ -3,7 +3,19 @@
 ## Unreleased
 
 ### New
-- **Favorite drawings toolbar.** A floating TradingView-style toolbar over the chart for quick one-click access to your favorite drawing tools. Hover over any tool in the drawing flyouts to star it (or right-click standalone tools like Measure and Zoom). The floating toolbar can be dragged anywhere over the chart, toggled between horizontal and vertical orientations, collapsed into a compact pill, reordered by drag-and-drop or context menu, and toggled on or off via the star button in the left sidebar.
+- **Favorite drawings toolbar.** Star a tool in the drawing toolbar's lists and it gets a one-click button on a small bar that floats over the chart. Turn the bar on with the star in the drawing toolbar. Drag it anywhere over the chart by its handle, stand it upright, fold it down to its handle, or drag its tools into another order. It shows only over the charts and stays out of snapshots. Thanks to the author of pull request #4.
+
+- **Your own keyboard shortcuts.** In Settings → Keyboard shortcuts, press the pencil beside a shortcut and then the new keys; Delete takes one off, and a changed one has a button back to its default. Keys two shortcuts share are marked with a "!" (the one you set wins). Menus and tooltips show yours.
+
+### Changed
+- **A drawing tool stays picked** after you place a drawing, so you can draw another right away; Esc puts it down. Turn off "Stay in drawing mode" in the drawing toolbar to go back to the cursor after each one.
+- **The drawing toolbar's buttons lose their little arrows.** Click a tool that's already picked, or right-click any of them, to open its list.
+- **Stars are smooth and crisp** wherever you mark a favorite.
+- **The bar for a selected drawing** matches the new floating bars, and opens clear of the favorite drawings toolbar.
+
+### Fixed
+- **The bar for a selected drawing no longer shows over Settings** (or the market overview, a maximized panel or a snapshot).
+- **Long tool names no longer run into their shortcut** in the drawing toolbar's lists; a menu shortens a name rather than overlap.
 
 ## 0.3.6 (2026-11-26)
 

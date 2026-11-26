@@ -11,7 +11,14 @@ use egui::{Align2, Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, vec
 /// A square icon button, as in the drawing toolbar and the widget rail.
 /// `active` marks the selected tool or open widget.
 pub fn tool_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, active: bool, size: f32) -> Response {
-    let (rect, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let (_, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    tool_button_look(ui, t, resp, glyph, tip, active)
+}
+
+/// A `tool_button`'s look on a response the caller made (a button laid
+/// out by hand, or sensing drags too).
+pub fn tool_button_look(ui: &Ui, t: &Theme, resp: Response, glyph: &str, tip: &str, active: bool) -> Response {
+    let rect = resp.rect;
     let hover = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     let on = motion::toggle(ui.ctx(), resp.id.with("on"), active, motion::MICRO);
     if ui.is_rect_visible(rect) {
@@ -24,7 +31,7 @@ pub fn tool_button(ui: &mut Ui, t: &Theme, glyph: &str, tip: &str, active: bool,
             rect.center(),
             Align2::CENTER_CENTER,
             glyph,
-            theme::regular(size * 0.56),
+            theme::regular(rect.height() * 0.56),
             color,
         );
     }
@@ -817,7 +824,7 @@ pub fn menu_row(
     selected: bool,
     enabled: bool,
 ) -> Response {
-    menu_row_tinted(ui, t, icon, label, hint, selected, enabled, None)
+    menu_row_tinted(ui, t, icon, label, hint, selected, enabled, None, 0.0)
 }
 
 /// A menu row whose icon is drawn by `paint` (rect, colour).
@@ -828,7 +835,7 @@ pub fn menu_item_painted(
     label: &str,
     selected: bool,
 ) -> Response {
-    let resp = menu_row_tinted(ui, t, Some(" "), label, "", selected, true, None);
+    let resp = menu_row_tinted(ui, t, Some(" "), label, "", selected, true, None, 0.0);
     if ui.is_rect_visible(resp.rect) {
         let c = if selected { t.accent } else { t.text2 };
         let icon = Rect::from_center_size(
@@ -840,9 +847,37 @@ pub fn menu_item_painted(
     resp
 }
 
+/// A menu row that leaves `trail` points free at its right end for the
+/// caller's own button (a star), with the hint before it.
+pub fn menu_item_trailing(
+    ui: &mut Ui,
+    t: &Theme,
+    icon: Option<&str>,
+    label: &str,
+    hint: &str,
+    selected: bool,
+    trail: f32,
+) -> Response {
+    menu_row_tinted(ui, t, icon, label, hint, selected, true, None, trail)
+}
+
+/// How wide a menu needs to be for this row to show whole.
+pub fn menu_row_width(ui: &Ui, icon: bool, label: &str, hint: &str, trail: f32) -> f32 {
+    let w = |s: &str, f| ui.painter().layout_no_wrap(s.to_string(), f, Color32::WHITE).size().x;
+    let hint_w = if hint.is_empty() {
+        0.0
+    } else {
+        HINT_GAP + w(hint, theme::regular(12.0))
+    };
+    10.0 + if icon { 26.0 } else { 0.0 } + w(label, theme::regular(13.5)) + hint_w + 10.0 + trail
+}
+
+/// The least room between a menu row's label and its hint.
+const HINT_GAP: f32 = 16.0;
+
 /// A menu row in red, for removing or deleting.
 pub fn menu_danger(ui: &mut Ui, t: &Theme, icon: Option<&str>, label: &str) -> Response {
-    menu_row_tinted(ui, t, icon, label, "", false, true, Some(t.neg))
+    menu_row_tinted(ui, t, icon, label, "", false, true, Some(t.neg), 0.0)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -855,6 +890,7 @@ fn menu_row_tinted(
     selected: bool,
     enabled: bool,
     tint: Option<Color32>,
+    trail: f32,
 ) -> Response {
     let width = ui.available_width().max(120.0);
     let sense = if enabled { Sense::click() } else { Sense::hover() };
@@ -895,22 +931,28 @@ fn menu_row_tinted(
             );
             x += 26.0;
         }
-        p.text(
-            egui::pos2(x, rect.center().y),
-            Align2::LEFT_CENTER,
-            label,
-            theme::regular(13.5),
-            base,
-        );
+        // The hint first: the label gets what's left, and is shortened
+        // with "…" rather than run under it (a long name, a long language).
+        let mut end = rect.right() - 10.0 - trail;
         if !hint.is_empty() {
-            p.text(
-                egui::pos2(rect.right() - 10.0, rect.center().y),
+            let r = p.text(
+                egui::pos2(end, rect.center().y),
                 Align2::RIGHT_CENTER,
                 hint,
                 theme::regular(12.0),
                 t.text3,
             );
+            end = r.left() - HINT_GAP;
         }
+        let mut job = egui::text::LayoutJob::simple_singleline(label.to_string(), theme::regular(13.5), base);
+        job.wrap = egui::text::TextWrapping {
+            max_width: (end - x).max(0.0),
+            max_rows: 1,
+            break_anywhere: true,
+            overflow_character: Some('…'),
+        };
+        let g = ui.painter().layout_job(job);
+        p.galley(egui::pos2(x, rect.center().y - g.size().y / 2.0), g, base);
     }
     if enabled {
         resp.on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -962,21 +1004,17 @@ pub fn progress(ui: &mut Ui, t: &Theme, id: egui::Id, size: egui::Vec2, frac: f3
     resp
 }
 
-/// A solid five-point star (the icon font only has the outline), drawn as
-/// a fan from its centre. `r` is the outer radius.
+/// A solid star: the outline star's filled twin from the icon font, so it
+/// is smooth at any size and lines up with `ph::STAR`. `r` is about the
+/// outer radius (6.5 matches a 14-point outline star).
 pub fn filled_star(p: &egui::Painter, c: egui::Pos2, r: f32, color: Color32) {
-    use std::f32::consts::PI;
-    let mut mesh = egui::Mesh::default();
-    mesh.colored_vertex(c, color);
-    for k in 0..10 {
-        let a = -PI / 2.0 + k as f32 * PI / 5.0;
-        let rr = if k % 2 == 0 { r } else { r * 0.45 };
-        mesh.colored_vertex(c + vec2(a.cos(), a.sin()) * rr, color);
-    }
-    for k in 0..10u32 {
-        mesh.add_triangle(0, 1 + k, 1 + (k + 1) % 10);
-    }
-    p.add(mesh);
+    p.text(
+        c,
+        Align2::CENTER_CENTER,
+        crate::icons::ph::STAR,
+        theme::filled(r * 2.2),
+        color,
+    );
 }
 
 /// An icon button like `tool_button` whose icon turns while

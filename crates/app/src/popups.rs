@@ -16,7 +16,7 @@ const IN: f32 = 0.24;
 const OUT: f32 = 0.18;
 
 /// Areas that fade on their own, or follow something as it moves.
-const NOT_OURS: [&str; 1] = ["drawing-bar"];
+const NOT_OURS: [&str; 2] = ["drawing-bar", "fav-toolbar"];
 
 #[derive(Clone)]
 struct Pop {

@@ -263,8 +263,14 @@ pub fn weighted(members: &[(&Member, f64)], p: Period, sizing: Sizing) -> f64 {
 }
 
 /// The overview's top-bar button: a little treemap.
-pub fn button(ui: &mut Ui, t: &Theme, active: bool) -> egui::Response {
-    map_button(ui, t, active, 30.0, tr("Market overview (Alt M)"))
+pub fn button(ui: &mut Ui, t: &Theme, active: bool, keys: &crate::keys::Keymap) -> egui::Response {
+    map_button(
+        ui,
+        t,
+        active,
+        30.0,
+        &keys.tip(tr("Market overview"), crate::keys::Action::Overview),
+    )
 }
 
 /// A button with the overview's little treemap.

@@ -368,6 +368,9 @@ msgstr "Alpaca के पास {0} बार नहीं हैं"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · अमेरिकी शेयर"
 
+msgid "Also used by {0}"
+msgstr "{0} भी इसका उपयोग करता है"
+
 msgid "Americas"
 msgstr "अमेरिका"
 
@@ -487,9 +490,6 @@ msgstr "ऑटो फ़िब एक्सटेंशन"
 
 msgid "Auto Fib Retracement"
 msgstr "ऑटो फ़िब रिट्रेसमेंट"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "ऑटो, डेटा स्क्रीन पर फ़िट करता है (Alt U)"
 
 msgid "Average"
 msgstr "औसत"
@@ -1532,9 +1532,6 @@ msgstr "डाउनट्रेंड हाइलाइटर"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr "डॉ. बाबासाहेब आंबेडकर जयंती"
 
-msgid "Drag to move"
-msgstr "स्थान बदलने के लिए खींचें"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
@@ -2043,9 +2040,6 @@ msgstr "1D या ऊपर VWAP छिपाएँ"
 msgid "Hide all drawings"
 msgstr "सभी ड्रॉइंग छिपाएँ"
 
-msgid "Hide all drawings ({0})"
-msgstr "सभी ड्रॉइंग छिपाएँ ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "पसंदीदा ड्रॉइंग टूलबार छिपाएँ"
 
@@ -2523,9 +2517,6 @@ msgstr "लॉग"
 msgid "Log scale"
 msgstr "लॉग स्केल"
 
-msgid "Log scale (Alt L)"
-msgstr "लॉग स्केल (Alt L)"
-
 msgid "London"
 msgstr "लंदन"
 
@@ -2782,9 +2773,6 @@ msgstr "बाज़ार खुला"
 
 msgid "Market overview"
 msgstr "बाज़ार अवलोकन"
-
-msgid "Market overview (Alt M)"
-msgstr "बाज़ार अवलोकन (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "मार्टिन लूथर किंग जूनियर दिवस"
@@ -3653,9 +3641,6 @@ msgstr "लाभप्रद प्रतिशत"
 msgid "Percent scale"
 msgstr "प्रतिशत स्केल"
 
-msgid "Percent scale (Alt P)"
-msgstr "प्रतिशत स्केल (Alt P)"
-
 msgid "Percentage"
 msgstr "प्रतिशत"
 
@@ -3764,6 +3749,9 @@ msgstr "परिशुद्धता"
 
 msgid "Press Enter for {0}"
 msgstr "{0} के लिए Enter दबाएँ"
+
+msgid "Press keys"
+msgstr "कुंजियाँ दबाएँ"
 
 msgid "Previous 7 days"
 msgstr "पिछले 7 दिन"
@@ -3999,9 +3987,6 @@ msgstr "आयत"
 
 msgid "Redo"
 msgstr "फिर करें"
-
-msgid "Redo ({0})"
-msgstr "फिर करें ({0})"
 
 msgid "Refresh"
 msgstr "ताज़ा करें"
@@ -5293,9 +5278,6 @@ msgstr "अल्ट्रा"
 
 msgid "Undo"
 msgstr "पूर्ववत करें"
-
-msgid "Undo ({0})"
-msgstr "पूर्ववत करें ({0})"
 
 msgid "Union Budget session"
 msgstr "केंद्रीय बजट सत्र"

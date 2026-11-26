@@ -665,7 +665,17 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
     if let Some(v) = fonts.families.get_mut(&FontFamily::Proportional) {
         v.insert(1, "phosphor".into());
     }
+    // Filled icons (a set favourite's star), picked by family: the
+    // variants share codepoints, so they can't both be fallbacks.
+    egui_phosphor::add_font_bytes_as_family(&mut fonts, FILLED, egui_phosphor::Variant::Fill.font_bytes());
     ctx.set_fonts(fonts);
+}
+
+const FILLED: &str = "phosphor-fill";
+
+/// Phosphor's filled icons (same glyph names as `ph`).
+pub fn filled(size: f32) -> FontId {
+    FontId::new(size, FontFamily::Name(FILLED.into()))
 }
 
 pub fn regular(size: f32) -> FontId {

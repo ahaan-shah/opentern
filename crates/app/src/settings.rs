@@ -123,6 +123,8 @@ pub struct SettingsPage {
     chart: Option<ChartSettings>,
     /// Its flows stop when Settings closes.
     pub(crate) transfer: Option<crate::transfer::Transfer>,
+    /// The shortcut waiting for its new keys.
+    pub(crate) recording: Option<crate::keys::Action>,
 }
 
 impl SettingsPage {
@@ -132,6 +134,7 @@ impl SettingsPage {
             providers: None,
             chart: None,
             transfer: None,
+            recording: None,
         }
     }
 }
@@ -249,7 +252,7 @@ impl App {
                     .providers
                     .get_or_insert_with(|| self.providers_form())
                     .page(ui, self, t),
-                Cat::Shortcuts => shortcuts(ui, t),
+                Cat::Shortcuts => self.shortcuts_page(ui, t, &mut page.recording),
                 Cat::Transfer => page
                     .transfer
                     .get_or_insert_with(|| crate::transfer::Transfer::new(self))
@@ -855,124 +858,322 @@ impl App {
     }
 }
 
-/// The keyboard shortcuts sheet: TradingView's, plus Opentern's own.
-fn shortcuts(ui: &mut Ui, t: &Theme) {
-    use crate::chart::draw::Tool;
-    let general: &[(&str, &str)] = &[
-        (nt!("Symbol search"), nt!("Type anywhere")),
-        (nt!("Change the interval"), nt!("Type a number")),
-        (nt!("Indicators"), "/"),
-        (nt!("Create an alert"), "Alt A"),
-        (nt!("Reset the chart view"), "Alt R"),
-        (nt!("Save a snapshot"), "Alt S"),
-        (nt!("Add to watchlist"), "Alt W"),
-        (nt!("Market overview"), "Alt M"),
-        (nt!("Full screen"), "Shift F"),
-        (nt!("Undo"), "Ctrl Z"),
-        (nt!("Redo"), "Ctrl Y"),
-        (nt!("Step one bar"), "← →"),
-        (nt!("Measure"), "Shift Drag"),
-        (nt!("Hide all drawings"), "Ctrl Alt H"),
-        (nt!("Delete the selected drawing"), nt!("Delete")),
-        (nt!("Cancel"), "Esc"),
-    ];
-    let scale: &[(&str, &str)] = &[(nt!("Log"), "Alt L"), (nt!("Percent"), "Alt P"), (nt!("Auto"), "Alt U")];
-    let agent: &[(&str, &str)] = &[
-        (nt!("Send"), "Enter"),
-        (nt!("New line"), "Shift Enter"),
-        (
-            nt!("Paste an image"),
-            if cfg!(target_os = "macos") { "Cmd V" } else { "Ctrl V" },
-        ),
-        (nt!("Answer a prompt"), "1 2 3"),
-    ];
-    crate::dialogs::section(ui, t, tr("General"));
-    for (what, keys) in general {
-        shortcut_row(ui, t, None, tr(what), keys);
+impl App {
+    /// The keyboard shortcuts sheet: TradingView's, plus Opentern's own.
+    /// A pencil (or a click on the keys) waits for new keys: Delete takes
+    /// them off, Esc keeps what was there. A changed one gets a reset
+    /// beside it; keys two shortcuts share are edged in orange with a "!".
+    /// Keys that belong to typing or a place are listed but fixed
+    /// (`keys.rs`).
+    fn shortcuts_page(&mut self, ui: &mut Ui, t: &Theme, recording: &mut Option<Action>) {
+        use crate::chart::draw::Tool;
+        // The next chord goes to the row that's waiting for it.
+        if let Some(a) = *recording {
+            ui.ctx().request_repaint();
+            let events = ui.input(|i| i.events.clone());
+            for e in events {
+                let egui::Event::Key {
+                    key,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } = e
+                else {
+                    continue;
+                };
+                let chord = Chord::new(key, modifiers);
+                let new = match key {
+                    egui::Key::Escape => {
+                        *recording = None;
+                        break;
+                    }
+                    egui::Key::Delete | egui::Key::Backspace if modifiers.is_none() => None,
+                    _ if chord.usable() => Some(chord),
+                    _ => continue,
+                };
+                self.keys.set(a, new);
+                self.keys.save(&mut self.store);
+                *recording = None;
+                break;
+            }
+        }
+        let fixed = |what: &'static str, keys: &'static str| (what, keys);
+        let general_first = [
+            fixed(nt!("Symbol search"), nt!("Type anywhere")),
+            fixed(nt!("Change the interval"), nt!("Type a number")),
+            fixed(nt!("Indicators"), "/"),
+        ];
+        let general_last = [
+            fixed(nt!("Step one bar"), "← →"),
+            fixed(nt!("Measure"), "Shift Drag"),
+            fixed(nt!("Delete the selected drawing"), nt!("Delete")),
+            fixed(nt!("Cancel"), "Esc"),
+        ];
+        let agent = [
+            fixed(nt!("Send"), "Enter"),
+            fixed(nt!("New line"), "Shift Enter"),
+            fixed(
+                nt!("Paste an image"),
+                if cfg!(target_os = "macos") { "Cmd V" } else { "Ctrl V" },
+            ),
+            fixed(nt!("Answer a prompt"), "1 2 3"),
+        ];
+        let mut clicked = false;
+        crate::dialogs::section(ui, t, tr("General"));
+        ui.spacing_mut().item_spacing.y = 0.0;
+        for (what, keys) in general_first {
+            shortcut_row(ui, t, None, tr(what), keys);
+        }
+        for a in Action::GENERAL {
+            clicked |= self.shortcut_edit_row(ui, t, None, a, recording);
+        }
+        for (what, keys) in general_last {
+            shortcut_row(ui, t, None, tr(what), keys);
+        }
+        ui.add_space(18.0);
+        crate::dialogs::section(ui, t, tr("Price scale"));
+        for a in Action::SCALE {
+            clicked |= self.shortcut_edit_row(ui, t, None, a, recording);
+        }
+        ui.add_space(18.0);
+        crate::dialogs::section(ui, t, tr("Drawing tools"));
+        shortcut_row(ui, t, Some(Tool::Cross.icon()), tr(Tool::Cross.name()), "Esc");
+        for tool in Tool::ALL.into_iter().filter(|t| *t != Tool::Cross) {
+            clicked |= self.shortcut_edit_row(ui, t, Some(tool.icon()), Action::Tool(tool), recording);
+        }
+        ui.add_space(18.0);
+        crate::dialogs::section(ui, t, tr("Agent panel"));
+        for (what, keys) in agent {
+            shortcut_row(ui, t, None, tr(what), keys);
+        }
+        // A click anywhere else stops waiting.
+        if !clicked && recording.is_some() && ui.input(|i| i.pointer.any_click()) {
+            *recording = None;
+        }
     }
-    ui.add_space(10.0);
-    crate::dialogs::section(ui, t, tr("Price scale"));
-    for (what, keys) in scale {
-        shortcut_row(ui, t, None, tr(what), keys);
-    }
-    ui.add_space(10.0);
-    crate::dialogs::section(ui, t, tr("Drawing tools"));
-    for tool in Tool::ALL {
-        shortcut_row(ui, t, Some(tool.icon()), tr(tool.name()), tool.shortcut());
-    }
-    ui.add_space(10.0);
-    crate::dialogs::section(ui, t, tr("Agent panel"));
-    for (what, keys) in agent {
-        shortcut_row(ui, t, None, tr(what), keys);
+
+    /// A row whose keys can be changed. Returns whether one of its buttons
+    /// (or its keys) was clicked.
+    fn shortcut_edit_row(
+        &mut self,
+        ui: &mut Ui,
+        t: &Theme,
+        icon: Option<&str>,
+        a: Action,
+        recording: &mut Option<Action>,
+    ) -> bool {
+        let waiting = *recording == Some(a);
+        let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::hover());
+        let line = row_text(ui, t, r, icon, tr(a.name()));
+        let clashes = self.keys.clashes(a);
+        let keys_end = line.right() - 4.0;
+        let cy = r.center().y;
+
+        // The keys (or the wait for them), right-aligned before the gutter;
+        // a clash leaves room for its "!".
+        let mark_w = if clashes.is_empty() || waiting { 0.0 } else { 18.0 };
+        let caps = if waiting {
+            let now = ui.input(|i| i.time);
+            let held = ui.input(|i| i.modifiers);
+            let mut words: Vec<&str> = Vec::new();
+            if held.command {
+                words.push(if cfg!(target_os = "macos") { "Cmd" } else { "Ctrl" });
+            }
+            if held.alt {
+                words.push("Alt");
+            }
+            if held.shift {
+                words.push("Shift");
+            }
+            // The modifiers held so far, then a pulsing slot for the key.
+            let pulse = 0.5 + 0.5 * ((now * 4.0).sin() as f32);
+            let slot = waiting_slot(ui, t, keys_end, cy, pulse);
+            let left = keycaps(ui, t, slot.left() - CAP_GAP, cy, &words.join(" "), Cap::Lit);
+            Rect::from_min_max(pos2(left, slot.top()), slot.max)
+        } else {
+            let label = self.keys.label(a);
+            let end = keys_end - mark_w;
+            if label.is_empty() {
+                let g = ui.painter().layout_no_wrap("—".into(), theme::regular(14.0), t.text3);
+                let at = pos2(end - g.size().x - 6.0, cy - g.size().y / 2.0);
+                let rect = Rect::from_min_size(at, g.size());
+                ui.painter().galley(at, g, t.text3);
+                rect
+            } else {
+                let style = if clashes.is_empty() { Cap::Plain } else { Cap::Clash };
+                let left = keycaps(ui, t, end, cy, &label, style);
+                Rect::from_min_max(pos2(left, cy - CAP_H / 2.0), pos2(end, cy + CAP_H / 2.0))
+            }
+        };
+        if mark_w > 0.0 {
+            let m = Rect::from_center_size(pos2(keys_end - mark_w / 2.0 + 2.0, cy), vec2(mark_w, CAP_H));
+            ui.painter()
+                .text(m.center(), Align2::CENTER_CENTER, "!", theme::semibold(17.0), t.warn);
+            let names: Vec<&str> = clashes.iter().map(|b| tr(b.name())).collect();
+            ui.interact(m, ui.id().with(("clash", a)), Sense::hover())
+                .on_hover_text(trf!("Also used by {}", names.join(", ")));
+        }
+        // The keys themselves can be clicked too.
+        let on_keys = ui
+            .interact(caps.expand(3.0), ui.id().with(("keys", a)), Sense::click())
+            .on_hover_cursor(egui::CursorIcon::PointingHand);
+
+        // Outside the row, on the right: edit, and reset once changed.
+        let edit_r = Rect::from_center_size(pos2(line.right() + GUTTER_PAD + BTN / 2.0, cy), vec2(BTN, BTN));
+        let reset_r = edit_r.translate(vec2(BTN + 4.0, 0.0));
+        let edit = ui.interact(edit_r, ui.id().with(("edit", a)), Sense::click());
+        let edit = w::tool_button_look(ui, t, edit, ph::PENCIL_SIMPLE, trc("button", "Change"), waiting);
+        let mut reset = false;
+        if !self.keys.is_default(a) {
+            let rr = ui.interact(reset_r, ui.id().with(("reset", a)), Sense::click());
+            reset = w::tool_button_look(ui, t, rr, ph::ARROW_COUNTER_CLOCKWISE, tr("Reset"), false).clicked();
+        }
+        if reset {
+            self.keys.reset(a);
+            self.keys.save(&mut self.store);
+            *recording = None;
+            return true;
+        }
+        if edit.clicked() || on_keys.clicked() {
+            *recording = if waiting { None } else { Some(a) };
+            return true;
+        }
+        false
     }
 }
 
-/// One row of the sheet: what it does on the left, its keys as keycaps on
-/// the right ("Type anywhere" and the like as plain words).
+use crate::keys::{Action, Chord};
+use crate::widgets as w;
+
+/// A sheet row's height, its keycaps' height and the gap between them.
+const ROW_H: f32 = 46.0;
+const CAP_H: f32 = 28.0;
+const CAP_GAP: f32 = 5.0;
+/// The edit and reset buttons, right of the rows' lines.
+const BTN: f32 = 28.0;
+const GUTTER_PAD: f32 = 10.0;
+const GUTTER: f32 = GUTTER_PAD + BTN + 4.0 + BTN;
+
+/// How a keycap looks.
+#[derive(Clone, Copy, PartialEq)]
+enum Cap {
+    Plain,
+    /// Shared with another shortcut: edged in orange.
+    Clash,
+    /// Held while new keys are being pressed.
+    Lit,
+}
+
+/// One fixed row of the sheet: what it does on the left, its keys as
+/// keycaps on the right ("Type anywhere" and the like as plain words).
 fn shortcut_row(ui: &mut Ui, t: &Theme, icon: Option<&str>, what: &str, keys: &str) {
-    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), 34.0), Sense::hover());
-    let p = ui.painter();
-    p.hline(
-        r.x_range(),
-        r.bottom() - 0.5,
-        Stroke::new(1.0, t.border.gamma_multiply(0.5)),
-    );
-    let mut x = r.left() + 2.0;
-    if let Some(i) = icon {
-        p.text(
-            pos2(x + 8.0, r.center().y),
-            Align2::CENTER_CENTER,
-            i,
-            theme::regular(15.0),
-            t.text2,
-        );
-        x += 26.0;
-    }
-    p.text(
-        pos2(x, r.center().y),
-        Align2::LEFT_CENTER,
-        what,
-        theme::regular(13.5),
-        t.text,
-    );
-    let words = keys.starts_with("Type");
-    if words {
-        p.text(
-            pos2(r.right() - 4.0, r.center().y),
+    let (r, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW_H), Sense::hover());
+    let line = row_text(ui, t, r, icon, what);
+    let end = line.right() - 4.0;
+    if keys.starts_with("Type") {
+        ui.painter().text(
+            pos2(end - 6.0, r.center().y),
             Align2::RIGHT_CENTER,
             tr(keys),
-            theme::regular(12.5),
+            theme::regular(13.0),
             t.text2,
         );
         return;
     }
-    // Keycaps, laid out right to left. Ctrl is Cmd on macOS.
-    let mut right = r.right() - 2.0;
-    for k in keys.split(' ').rev() {
+    keycaps(ui, t, end, r.center().y, keys, Cap::Plain);
+}
+
+/// A sheet row's rule, icon and words. The rule stops short of the gutter
+/// (where a row's buttons go); returns the part left of it.
+fn row_text(ui: &Ui, t: &Theme, r: Rect, icon: Option<&str>, what: &str) -> Rect {
+    let line = Rect::from_min_max(r.min, pos2(r.right() - GUTTER, r.bottom()));
+    let p = ui.painter();
+    p.hline(
+        line.x_range(),
+        line.bottom() - 0.5,
+        Stroke::new(1.0, t.border.gamma_multiply(0.5)),
+    );
+    let mut x = line.left() + 6.0;
+    if let Some(i) = icon {
+        p.text(
+            pos2(x + 9.0, line.center().y),
+            Align2::CENTER_CENTER,
+            i,
+            theme::regular(17.0),
+            t.text2,
+        );
+        x += 30.0;
+    }
+    p.text(
+        pos2(x, line.center().y),
+        Align2::LEFT_CENTER,
+        what,
+        theme::regular(14.0),
+        t.text,
+    );
+    line
+}
+
+/// Keys as keycaps ending at `right`, centred on `cy`: rounded, with a
+/// deeper bottom edge, like a key. Ctrl is Cmd on macOS. Returns where
+/// they start.
+fn keycaps(ui: &Ui, t: &Theme, right: f32, cy: f32, keys: &str, style: Cap) -> f32 {
+    let p = ui.painter();
+    let mut right = right;
+    for k in keys.split(' ').filter(|k| !k.is_empty()).rev() {
         let k = if cfg!(target_os = "macos") && k == "Ctrl" {
             "Cmd"
         } else {
             k
         };
-        let g = p.layout_no_wrap(tr(k).to_string(), theme::medium(12.0), t.text);
-        let w = (g.size().x + 14.0).max(24.0);
-        let cap = Rect::from_min_size(pos2(right - w, r.center().y - 11.0), vec2(w, 22.0));
+        let (fill, edge, ink) = match style {
+            Cap::Plain => (t.hover, t.border, t.text),
+            Cap::Clash => (t.hover, t.warn, t.text),
+            Cap::Lit => (t.accent_soft(), t.accent, t.accent),
+        };
+        let g = p.layout_no_wrap(tr(k).to_string(), theme::medium(13.5), ink);
+        let w = (g.size().x + 18.0).max(CAP_H);
+        let cap = Rect::from_min_size(pos2(right - w, cy - CAP_H / 2.0), vec2(w, CAP_H));
+        // The key's side, a little below its face.
+        p.rect_filled(
+            cap.translate(vec2(0.0, 2.0)),
+            CornerRadius::same(7),
+            edge.gamma_multiply(if style == Cap::Plain { 0.9 } else { 0.55 }),
+        );
         p.rect(
             cap,
-            CornerRadius::same(6),
-            t.hover,
-            Stroke::new(1.0, t.border),
+            CornerRadius::same(7),
+            fill,
+            Stroke::new(if style == Cap::Clash { 1.5 } else { 1.0 }, edge),
             egui::StrokeKind::Inside,
         );
-        // A slightly deeper bottom edge, like a key.
-        p.hline(
-            cap.x_range().shrink(4.0),
-            cap.bottom() - 0.5,
-            Stroke::new(1.0, t.border.lerp_to_gamma(t.text3, 0.3)),
-        );
-        p.galley(cap.center() - g.size() / 2.0, g, t.text);
-        right = cap.left() - 4.0;
+        p.galley(cap.center() - g.size() / 2.0 - vec2(0.0, 0.5), g, ink);
+        right = cap.left() - CAP_GAP;
     }
+    right + CAP_GAP
+}
+
+/// The slot waiting for a key: an accent-edged keycap that pulses, with
+/// "Press keys" in it. Ends at `right`.
+fn waiting_slot(ui: &Ui, t: &Theme, right: f32, cy: f32, pulse: f32) -> Rect {
+    let p = ui.painter();
+    let g = p.layout_no_wrap(tr("Press keys").to_string(), theme::medium(13.5), t.accent);
+    let w = g.size().x + 26.0;
+    let cap = Rect::from_min_size(pos2(right - w, cy - CAP_H / 2.0), vec2(w, CAP_H));
+    p.rect_filled(
+        cap.expand(3.0 * pulse),
+        CornerRadius::same(9),
+        motion::with_alpha(t.accent, 0.12 * pulse),
+    );
+    p.rect(
+        cap,
+        CornerRadius::same(7),
+        t.accent_soft(),
+        Stroke::new(1.5, motion::with_alpha(t.accent, 0.55 + 0.45 * pulse)),
+        egui::StrokeKind::Inside,
+    );
+    p.galley(cap.center() - g.size() / 2.0 - vec2(0.0, 0.5), g, t.accent);
+    cap
 }
 
 /// The app icon as a texture, rendered once from the packaged SVG.

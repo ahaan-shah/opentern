@@ -368,6 +368,9 @@ msgstr "Alpaca hat keine {0}-Balken"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · US-Aktien"
 
+msgid "Also used by {0}"
+msgstr "Auch belegt von {0}"
+
 msgid "Americas"
 msgstr "Amerika"
 
@@ -487,9 +490,6 @@ msgstr "Auto-Fib-Extension"
 
 msgid "Auto Fib Retracement"
 msgstr "Auto-Fib-Retracement"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "Auto, Daten einpassen (Alt U)"
 
 msgid "Average"
 msgstr "Durchschnitt"
@@ -1532,9 +1532,6 @@ msgstr "Abwärtstrend-Hervorhebung"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "Ziehen zum Verschieben"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Ziehen zum Skalieren · Doppelklick zum Einpassen · Rechtsklick für Optionen"
 
@@ -2043,9 +2040,6 @@ msgstr "VWAP ab 1D ausblenden"
 msgid "Hide all drawings"
 msgstr "Alle Zeichnungen ausblenden"
 
-msgid "Hide all drawings ({0})"
-msgstr "Alle Zeichnungen ausblenden ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "Favoriten-Zeichenleiste ausblenden"
 
@@ -2523,9 +2517,6 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Log-Skala"
 
-msgid "Log scale (Alt L)"
-msgstr "Log-Skala (Alt L)"
-
 msgid "London"
 msgstr ""
 
@@ -2782,9 +2773,6 @@ msgstr "Markt geöffnet"
 
 msgid "Market overview"
 msgstr "Marktübersicht"
-
-msgid "Market overview (Alt M)"
-msgstr "Marktübersicht (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "Martin Luther King Jr. Day"
@@ -3653,9 +3641,6 @@ msgstr "Prozent profitabel"
 msgid "Percent scale"
 msgstr "Prozentskala"
 
-msgid "Percent scale (Alt P)"
-msgstr "Prozentskala (Alt P)"
-
 msgid "Percentage"
 msgstr "Prozentsatz"
 
@@ -3764,6 +3749,9 @@ msgstr "Genauigkeit"
 
 msgid "Press Enter for {0}"
 msgstr "Enter für {0} drücken"
+
+msgid "Press keys"
+msgstr "Tasten drücken"
 
 msgid "Previous 7 days"
 msgstr "Letzte 7 Tage"
@@ -3999,9 +3987,6 @@ msgstr "Rechteck"
 
 msgid "Redo"
 msgstr "Wiederholen"
-
-msgid "Redo ({0})"
-msgstr "Wiederholen ({0})"
 
 msgid "Refresh"
 msgstr "Aktualisieren"
@@ -5293,9 +5278,6 @@ msgstr "Ultra"
 
 msgid "Undo"
 msgstr "Rückgängig"
-
-msgid "Undo ({0})"
-msgstr "Rückgängig ({0})"
 
 msgid "Union Budget session"
 msgstr "Sitzung zum Unionshaushalt"

@@ -1,5 +1,6 @@
 //! The floating toolbar over the chart for the selected drawing: colours,
-//! width, line style, text, lock, default style and delete.
+//! width, line style, text, lock, default style and delete. It looks like
+//! the favourite drawings toolbar (`favbar.rs`) and keeps out of its way.
 
 use crate::app::App;
 use crate::chart::draw::Tool;
@@ -7,7 +8,8 @@ use crate::dialogs::color::color_button;
 use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::theme;
-use egui::{CornerRadius, Margin, Stroke, vec2};
+use crate::widgets as w;
+use egui::{CornerRadius, Margin, Pos2, Rect, Stroke, vec2};
 use opentern_series::study::LineStyle;
 
 impl App {
@@ -17,11 +19,11 @@ impl App {
             self.chart_ui.draw.selected = None;
             return;
         };
-        if self.modal.is_some() {
+        if !self.charts_on_screen(ctx) {
             return;
         }
         let t = self.t();
-        let anchor = self.chart_ui.main_rect.center_top() + vec2(0.0, 44.0);
+        let anchor = self.drawing_bar_anchor(ctx);
         let mut edit = d.clone();
         let mut delete = false;
         let mut save_default = false;
@@ -30,25 +32,25 @@ impl App {
             .pivot(egui::Align2::CENTER_TOP)
             .fixed_pos(anchor)
             .show(ctx, |ui| {
+                // The floating bars' surface (`favbar.rs`): the popups'
+                // fill, edge and shadow, the same height.
                 egui::Frame::new()
-                    .fill(t.elevated)
-                    .stroke(Stroke::new(1.0, t.border))
-                    .corner_radius(CornerRadius::same(10))
-                    .inner_margin(Margin::symmetric(8, 4))
-                    .shadow(egui::Shadow {
-                        offset: [0, 6],
-                        blur: 18,
-                        spread: 0,
-                        color: t.shadow(),
-                    })
+                    .fill(t.popup())
+                    .stroke(Stroke::new(1.0, t.edge()))
+                    .corner_radius(CornerRadius::same(12))
+                    .inner_margin(Margin::symmetric(6, 5))
+                    .shadow(ui.visuals().popup_shadow)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
+                            ui.spacing_mut().item_spacing.x = 4.0;
+                            ui.set_min_height(BTN);
+                            ui.add_space(6.0);
                             ui.label(
                                 egui::RichText::new(tr(d.tool.name()))
                                     .font(theme::medium(12.5))
                                     .color(t.text2),
                             );
-                            ui.separator();
+                            w::vdivider(ui, &t);
                             color_button(ui, &t, &mut edit.style.color);
                             let fills = matches!(
                                 d.tool,
@@ -91,40 +93,55 @@ impl App {
                                         .desired_width(140.0),
                                 );
                             }
+                            // Toggles and buttons as in the drawing toolbar.
+                            let toggle = |ui: &mut egui::Ui, on: &mut bool, glyph: &str, tip: &str| {
+                                if w::tool_button(ui, &t, glyph, tip, *on, BTN).clicked() {
+                                    *on = !*on;
+                                }
+                            };
                             if matches!(d.tool, Tool::TrendLine | Tool::Arrow) {
-                                ui.toggle_value(&mut edit.style.extend_left, ph::ARROW_LINE_LEFT)
-                                    .on_hover_text(tr("Extend left"));
-                                ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
-                                    .on_hover_text(tr("Extend right"));
+                                toggle(ui, &mut edit.style.extend_left, ph::ARROW_LINE_LEFT, tr("Extend left"));
+                                toggle(
+                                    ui,
+                                    &mut edit.style.extend_right,
+                                    ph::ARROW_LINE_RIGHT,
+                                    tr("Extend right"),
+                                );
                             }
                             if matches!(d.tool, Tool::FibRetracement | Tool::FibExtension) {
-                                ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
-                                    .on_hover_text(tr("Extend lines right"));
+                                toggle(
+                                    ui,
+                                    &mut edit.style.extend_right,
+                                    ph::ARROW_LINE_RIGHT,
+                                    tr("Extend lines right"),
+                                );
                             }
                             if matches!(
                                 d.tool,
                                 Tool::HorizontalLine | Tool::HorizontalRay | Tool::FibRetracement | Tool::FibExtension
                             ) {
-                                ui.toggle_value(&mut edit.style.labels, ph::TAG)
-                                    .on_hover_text(tr("Price labels"));
+                                toggle(ui, &mut edit.style.labels, ph::TAG, tr("Price labels"));
                             }
-                            ui.separator();
+                            w::vdivider(ui, &t);
                             let lock = if edit.locked {
                                 ph::LOCK_SIMPLE
                             } else {
                                 ph::LOCK_SIMPLE_OPEN
                             };
-                            ui.toggle_value(&mut edit.locked, lock);
-                            if crate::widgets::eased(ui, egui::Button::new(ph::STAR))
-                                .on_hover_text(tr("Use this style for new drawings of this kind"))
-                                .clicked()
+                            toggle(ui, &mut edit.locked, lock, "");
+                            if w::tool_button(
+                                ui,
+                                &t,
+                                ph::STAR,
+                                tr("Use this style for new drawings of this kind"),
+                                false,
+                                BTN,
+                            )
+                            .clicked()
                             {
                                 save_default = true;
                             }
-                            if crate::widgets::eased(ui, egui::Button::new(ph::TRASH))
-                                .on_hover_text(tr("Remove (Delete)"))
-                                .clicked()
-                            {
+                            if w::tool_button(ui, &t, ph::TRASH, tr("Remove (Delete)"), false, BTN).clicked() {
                                 delete = true;
                             }
                         });
@@ -140,5 +157,43 @@ impl App {
         if edit != d {
             self.edit_drawing(id, |x| *x = edit);
         }
+    }
+}
+
+/// Its buttons' side, as on the favourite drawings toolbar.
+const BTN: f32 = 32.0;
+
+impl App {
+    /// Where the bar goes (its top centre): over the top of the chart,
+    /// unless the favourite drawings toolbar is there; then below, above
+    /// or beside that, whichever fits first.
+    fn drawing_bar_anchor(&self, ctx: &egui::Context) -> Pos2 {
+        let usual = self.chart_ui.main_rect.center_top() + vec2(0.0, 44.0);
+        let fav = self.favbar.at.bar;
+        if !fav.is_positive() {
+            return usual;
+        }
+        // Its size as last drawn (a guess before then).
+        let size = ctx
+            .memory(|m| m.area_rect(egui::Id::new("drawing-bar")))
+            .map_or(vec2(420.0, 42.0), |r| r.size());
+        let rect = |top_centre: Pos2| Rect::from_min_size(top_centre - vec2(size.x / 2.0, 0.0), size);
+        const GAP: f32 = 8.0;
+        let clear = fav.expand(GAP / 2.0);
+        let room = self.grid_rect;
+        let x = usual.x;
+        [
+            usual,
+            Pos2::new(x, fav.bottom() + GAP),
+            Pos2::new(x, fav.top() - GAP - size.y),
+            Pos2::new(fav.right() + GAP + size.x / 2.0, usual.y),
+            Pos2::new(fav.left() - GAP - size.x / 2.0, usual.y),
+        ]
+        .into_iter()
+        .find(|&p| {
+            let r = rect(p);
+            room.contains_rect(r) && !r.intersects(clear)
+        })
+        .unwrap_or(usual)
     }
 }

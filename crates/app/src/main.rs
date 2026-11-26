@@ -34,6 +34,7 @@ mod format;
 mod i18n;
 mod icons;
 mod indices;
+mod keys;
 mod lab;
 mod layouts;
 mod logos;

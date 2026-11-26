@@ -368,6 +368,9 @@ msgstr "Alpaca 没有 {0} K 线"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · 美股"
 
+msgid "Also used by {0}"
+msgstr "{0}也在使用"
+
 msgid "Americas"
 msgstr "美洲"
 
@@ -487,9 +490,6 @@ msgstr "自动斐波那契扩展"
 
 msgid "Auto Fib Retracement"
 msgstr "自动斐波那契回撤"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "自动，数据适应屏幕 (Alt U)"
 
 msgid "Average"
 msgstr "平均"
@@ -1532,9 +1532,6 @@ msgstr "下降趋势高亮"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "拖动以移动"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 
@@ -2043,9 +2040,6 @@ msgstr "在 1D 及以上隐藏 VWAP"
 msgid "Hide all drawings"
 msgstr "隐藏所有绘图"
 
-msgid "Hide all drawings ({0})"
-msgstr "隐藏所有绘图 ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "隐藏常用绘图工具栏"
 
@@ -2523,9 +2517,6 @@ msgstr "对数"
 msgid "Log scale"
 msgstr "对数刻度"
 
-msgid "Log scale (Alt L)"
-msgstr "对数刻度 (Alt L)"
-
 msgid "London"
 msgstr "伦敦"
 
@@ -2782,9 +2773,6 @@ msgstr "开市"
 
 msgid "Market overview"
 msgstr "市场概览"
-
-msgid "Market overview (Alt M)"
-msgstr "市场概览 (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "马丁·路德·金纪念日"
@@ -3653,9 +3641,6 @@ msgstr "胜率"
 msgid "Percent scale"
 msgstr "百分比刻度"
 
-msgid "Percent scale (Alt P)"
-msgstr "百分比刻度 (Alt P)"
-
 msgid "Percentage"
 msgstr "百分比"
 
@@ -3764,6 +3749,9 @@ msgstr "精度"
 
 msgid "Press Enter for {0}"
 msgstr "按 Enter 切换到 {0}"
+
+msgid "Press keys"
+msgstr "请按键"
 
 msgid "Previous 7 days"
 msgstr "过去 7 天"
@@ -3999,9 +3987,6 @@ msgstr "矩形"
 
 msgid "Redo"
 msgstr "重做"
-
-msgid "Redo ({0})"
-msgstr "重做 ({0})"
 
 msgid "Refresh"
 msgstr "刷新"
@@ -5293,9 +5278,6 @@ msgstr "Ultra"
 
 msgid "Undo"
 msgstr "撤销"
-
-msgid "Undo ({0})"
-msgstr "撤销 ({0})"
 
 msgid "Union Budget session"
 msgstr "联邦预算特别时段"

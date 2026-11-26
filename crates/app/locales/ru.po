@@ -368,6 +368,9 @@ msgstr "У Alpaca нет баров {0}"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · акции США"
 
+msgid "Also used by {0}"
+msgstr "Также используется: {0}"
+
 msgid "Americas"
 msgstr "Америка"
 
@@ -487,9 +490,6 @@ msgstr "Авторасширение Фибоначчи"
 
 msgid "Auto Fib Retracement"
 msgstr "Автокоррекция Фибоначчи"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "Авто, вмещает данные на экран (Alt U)"
 
 msgid "Average"
 msgstr "Среднее"
@@ -1532,9 +1532,6 @@ msgstr "Подсветка нисходящего тренда"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "Потяните для перемещения"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
 
@@ -2043,9 +2040,6 @@ msgstr "Скрывать VWAP на 1D и выше"
 msgid "Hide all drawings"
 msgstr "Скрыть все рисунки"
 
-msgid "Hide all drawings ({0})"
-msgstr "Скрыть все рисунки ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "Скрыть панель избранных инструментов"
 
@@ -2523,9 +2517,6 @@ msgstr "Лог"
 msgid "Log scale"
 msgstr "Логарифмическая шкала"
 
-msgid "Log scale (Alt L)"
-msgstr "Логарифмическая шкала (Alt L)"
-
 msgid "London"
 msgstr "Лондон"
 
@@ -2782,9 +2773,6 @@ msgstr "Рынок открыт"
 
 msgid "Market overview"
 msgstr "Обзор рынка"
-
-msgid "Market overview (Alt M)"
-msgstr "Обзор рынка (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "День Мартина Лютера Кинга"
@@ -3653,9 +3641,6 @@ msgstr "Процент прибыльных"
 msgid "Percent scale"
 msgstr "Процентная шкала"
 
-msgid "Percent scale (Alt P)"
-msgstr "Процентная шкала (Alt P)"
-
 msgid "Percentage"
 msgstr "Процент"
 
@@ -3764,6 +3749,9 @@ msgstr "Точность"
 
 msgid "Press Enter for {0}"
 msgstr "Нажмите Enter для {0}"
+
+msgid "Press keys"
+msgstr "Нажмите клавиши"
 
 msgid "Previous 7 days"
 msgstr "Последние 7 дней"
@@ -3999,9 +3987,6 @@ msgstr "Прямоугольник"
 
 msgid "Redo"
 msgstr "Повторить"
-
-msgid "Redo ({0})"
-msgstr "Повторить ({0})"
 
 msgid "Refresh"
 msgstr "Обновить"
@@ -5293,9 +5278,6 @@ msgstr "Ультра"
 
 msgid "Undo"
 msgstr "Отменить"
-
-msgid "Undo ({0})"
-msgstr "Отменить ({0})"
 
 msgid "Union Budget session"
 msgstr "Сессия бюджета Индии"

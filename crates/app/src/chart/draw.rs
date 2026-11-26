@@ -175,6 +175,7 @@ impl Tool {
     /// The tool's shortcut: TradingView's default where it has one (Alt T,
     /// H, V, C, F and Alt Shift R), else Alt Shift and a letter, clear of
     /// TradingView's other Alt keys (G, I, L, P, R, S, W, Z on their own).
+    /// The default only: what a tool's key is now is in `keys::Keymap`.
     pub fn shortcut(self) -> &'static str {
         use Tool::*;
         match self {
@@ -211,12 +212,6 @@ impl Tool {
             FixedRangeVolumeProfile => "Alt Shift G",
             AnchoredVolumeProfile => "Alt Shift A",
         }
-    }
-
-    /// The tool a key press picks, if any (Alt or Alt Shift plus a letter).
-    pub fn for_key(key: egui::Key, shift: bool) -> Option<Tool> {
-        let want = format!("Alt {}{}", if shift { "Shift " } else { "" }, key.name());
-        Tool::ALL.into_iter().find(|t| t.shortcut() == want)
     }
 
     pub fn name(self) -> &'static str {
@@ -327,72 +322,18 @@ impl Tool {
         format!("{self:?}")
     }
 
-    /// A stable string id used for serialization in favorites and settings.
-    pub fn id(self) -> &'static str {
-        use Tool::*;
-        match self {
-            Cross => "cross",
-            Eraser => "eraser",
-            Zoom => "zoom",
-            Measure => "measure",
-            TrendLine => "trend_line",
-            Ray => "ray",
-            ExtendedLine => "extended_line",
-            Arrow => "arrow",
-            HorizontalLine => "horizontal_line",
-            HorizontalRay => "horizontal_ray",
-            VerticalLine => "vertical_line",
-            CrossLine => "cross_line",
-            ParallelChannel => "parallel_channel",
-            FibRetracement => "fib_retracement",
-            FibExtension => "fib_extension",
-            Pitchfork => "pitchfork",
-            Path => "path",
-            Triangle => "triangle",
-            LongPosition => "long_position",
-            ShortPosition => "short_position",
-            PriceRange => "price_range",
-            DateRange => "date_range",
-            DatePriceRange => "date_price_range",
-            Rectangle => "rectangle",
-            Ellipse => "ellipse",
-            Brush => "brush",
-            Text => "text",
-            ArrowUp => "arrow_up",
-            ArrowDown => "arrow_down",
-            AnchoredVwap => "anchored_vwap",
-            FixedRangeVolumeProfile => "fixed_range_volume_profile",
-            AnchoredVolumeProfile => "anchored_volume_profile",
-        }
-    }
-
-    /// Looks up a tool by id, case-insensitively, supporting snake_case, PascalCase, or "Cursor".
-    pub fn from_id(s: &str) -> Option<Tool> {
-        let clean = s.trim();
-        if clean.eq_ignore_ascii_case("cursor") {
-            return Some(Tool::Cross);
-        }
-        Tool::ALL.into_iter().find(|t| {
-            t.id().eq_ignore_ascii_case(clean)
-                || format!("{t:?}").eq_ignore_ascii_case(clean)
-                || t.id().replace('_', "").eq_ignore_ascii_case(&clean.replace('_', ""))
-        })
+    /// The tool whose `key()` this is.
+    pub fn from_key(key: &str) -> Option<Tool> {
+        Tool::ALL.into_iter().find(|t| t.key() == key)
     }
 }
 
-/// The initial favorites shown before the user customizes their list.
-pub const DEFAULT_FAVORITE_TOOLS: [Tool; 12] = [
-    Tool::Cross,
+/// The favourite tools a new workspace starts with: a few of the most used.
+pub const DEFAULT_FAVORITE_TOOLS: [Tool; 5] = [
     Tool::TrendLine,
     Tool::HorizontalLine,
-    Tool::HorizontalRay,
-    Tool::VerticalLine,
     Tool::Rectangle,
-    Tool::Brush,
     Tool::FibRetracement,
-    Tool::ParallelChannel,
-    Tool::LongPosition,
-    Tool::ShortPosition,
     Tool::Text,
 ];
 
@@ -1472,9 +1413,6 @@ mod tests {
                 assert!(Tool::ALL.contains(t), "{t:?} missing from Tool::ALL");
             }
         }
-        assert_eq!(Tool::for_key(egui::Key::T, false), Some(Tool::TrendLine));
-        assert_eq!(Tool::for_key(egui::Key::R, true), Some(Tool::Rectangle));
-        assert_eq!(Tool::for_key(egui::Key::R, false), None, "Alt R resets the chart");
     }
 
     use super::*;

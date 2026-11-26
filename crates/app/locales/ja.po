@@ -368,6 +368,9 @@ msgstr "Alpacaに{0}足はありません"
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · 米国株"
 
+msgid "Also used by {0}"
+msgstr "{0}でも使用中"
+
 msgid "Americas"
 msgstr "南北アメリカ"
 
@@ -487,9 +490,6 @@ msgstr "自動フィボエクステンション"
 
 msgid "Auto Fib Retracement"
 msgstr "自動フィボリトレースメント"
-
-msgid "Auto, fits data to screen (Alt U)"
-msgstr "自動、データを画面に合わせる (Alt U)"
 
 msgid "Average"
 msgstr "平均"
@@ -1532,9 +1532,6 @@ msgstr "下降トレンドの強調"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
-msgid "Drag to move"
-msgstr "ドラッグして移動"
-
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
@@ -2043,9 +2040,6 @@ msgstr "1D以上でVWAPを隠す"
 msgid "Hide all drawings"
 msgstr "すべての描画を隠す"
 
-msgid "Hide all drawings ({0})"
-msgstr "すべての描画を隠す ({0})"
-
 msgid "Hide favorite drawings toolbar"
 msgstr "お気に入り描画ツールバーを隠す"
 
@@ -2523,9 +2517,6 @@ msgstr "対数"
 msgid "Log scale"
 msgstr "対数スケール"
 
-msgid "Log scale (Alt L)"
-msgstr "対数スケール (Alt L)"
-
 msgid "London"
 msgstr "ロンドン"
 
@@ -2782,9 +2773,6 @@ msgstr "市場は開場中"
 
 msgid "Market overview"
 msgstr "マーケット概要"
-
-msgid "Market overview (Alt M)"
-msgstr "マーケット概要 (Alt M)"
 
 msgid "Martin Luther King Jr. Day"
 msgstr "キング牧師記念日"
@@ -3653,9 +3641,6 @@ msgstr "勝率"
 msgid "Percent scale"
 msgstr "パーセントスケール"
 
-msgid "Percent scale (Alt P)"
-msgstr "パーセントスケール (Alt P)"
-
 msgid "Percentage"
 msgstr "割合"
 
@@ -3764,6 +3749,9 @@ msgstr "精度"
 
 msgid "Press Enter for {0}"
 msgstr "Enterで{0}に変更"
+
+msgid "Press keys"
+msgstr "キーを押してください"
 
 msgid "Previous 7 days"
 msgstr "過去7日間"
@@ -3999,9 +3987,6 @@ msgstr "長方形"
 
 msgid "Redo"
 msgstr "やり直す"
-
-msgid "Redo ({0})"
-msgstr "やり直す ({0})"
 
 msgid "Refresh"
 msgstr "更新"
@@ -5293,9 +5278,6 @@ msgstr "ウルトラ"
 
 msgid "Undo"
 msgstr "元に戻す"
-
-msgid "Undo ({0})"
-msgstr "元に戻す ({0})"
 
 msgid "Union Budget session"
 msgstr "連邦予算セッション"

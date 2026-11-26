@@ -188,3 +188,62 @@ What's new reopens it. Still: `whatsnew`.
 - **Hovers** ease: `motion::hover(&resp)` (or `hover_if` for rows whose buttons take the
   hover), never `if resp.hovered()` picking a colour. egui's own buttons go through
   `widgets::eased`, combo boxes through `widgets::combo`.
+
+## Favorite drawings toolbar (Nov 2026, from pull request #4)
+- `favbar.rs`: a floating bar over the charts with the starred tools (favourites kind
+  `tool`, keys `Tool::key()`, in order). **Off by default**; the star button in the
+  drawing toolbar shows it, and starring a tool does too. A new workspace is seeded
+  once with `DEFAULT_FAVORITE_TOOLS` (five: trend line, horizontal line, rectangle,
+  Fib retracement, text; `fav_tools_seeded` in settings), so an emptied list stays
+  empty.
+- Where it sits, its orientation and folding live in `Arrangement`
+  (`fav_toolbar*`), saved with the window like the rest of the layout. The position
+  is a fraction of the room it can move in, measured with the unfolded size, so it
+  keeps its place as the window resizes and folding leaves the handle put. Nothing
+  is written to the workspace while it's dragged.
+- Shown only in a pass where `chart_grid` ran (`FavBar::charts_pass`): not over
+  Settings, the overview or a maximized bottom panel; and not while a snapshot is
+  pending (`App::snap`), so snapshots never include it.
+- Laid out by hand (every rect computed up front, kept in `FavBar::at` for tests).
+  The body (tools, divider, orientation) folds into the handle: clipped and faded
+  with `motion::toggle`. Its show/hide fades on its own, so `popups.rs` leaves the
+  `fav-toolbar` area alone. Buttons are `widgets::tool_button_at`, the drawing
+  toolbar's look; the frame uses the popups' fill, edge and shadow.
+- Reordering: a tool's button senses drags; while one is lifted, a ghost follows the
+  pointer, a line marks the landing slot (`drop_slot`: how many other tools' centres
+  are before the pointer), and the drop moves it once. Dragging anywhere else on the
+  bar moves the bar.
+- Drawing toolbar groups have no arrows: a click picks the group's tool; a click on
+  it while it's picked, or a right-click, toggles the flyout. Flyout rows carry a
+  star (`tool_menu_row`); the list stays open while starring.
+- `widgets::filled_star` draws Phosphor's filled star (the `fill` font variant,
+  `theme::filled`), which lines up with the outline `ph::STAR`.
+- Drawing tools stay picked after a drawing (`Arrangement::back_to_cursor`, off by
+  default; it replaced `stay_drawing` so saved layouts don't keep the old way). Zoom
+  is one go whatever the setting.
+- Both floating bars ask `App::charts_on_screen` before drawing.
+- Menu rows (`widgets::menu_row_tinted`) lay out the hint first and shorten the label
+  with "…" to fit; `menu_row_width` sizes a menu to its rows (the tool flyouts do).
+- The selected drawing's bar (`drawbar.rs`) shares the look (popup fill, edge and
+  shadow, radius 12, 42 high, `tool_button`s at 32) and keeps clear of the
+  favourites bar: `drawing_bar_anchor` tries its usual place, then below, above and
+  beside `FavBar::at.bar` (last frame's), the first that fits the charts.
+
+## Keyboard shortcuts (Nov 2026)
+- `keys.rs`: `Action` (the general ones, the price scale's, every drawing tool but the
+  cursor) and `Chord` (key + Ctrl/Cmd, Alt, Shift; stored as "Ctrl Alt Shift K").
+  `Keymap` = defaults (TradingView's; tools' from `Tool::shortcut`) plus the user's
+  changes, kept as JSON under `shortcuts` in settings, read once at launch.
+- `App::shortcuts` asks the keymap first (`run_shortcut`), then the fixed keys: typing
+  to search, numbers, "/", arrows, Delete, Esc, Ctrl Shift Z (redo's second key). The
+  editor's and the agent panel's keys aren't in it.
+- Every label of a shortcut comes from the keymap (`Keymap::label`, `tip`): tool
+  flyouts, the favourites bar, undo/redo, scale buttons, hide drawings, overview.
+- The sheet (`settings.rs`): a pencil (or a click on the keys) records
+  (`SettingsPage::recording`; the app's own shortcuts and Esc-closes-Settings stand
+  aside meanwhile): the held modifiers show as lit keycaps beside a pulsing "Press
+  keys"; Esc cancels, Delete clears, a usable chord needs Ctrl/Cmd or Alt (or is
+  F1–F12). Shared keys stay on both (`Keymap::clashes`): orange-edged keycaps and a
+  "!" whose tooltip names the other; pressing them runs the one the user set
+  (`Keymap::action`). Rows have no gaps (lines sit midway); their rule stops at a
+  gutter on the right holding the pencil and, once changed, a reset.

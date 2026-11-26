@@ -10,6 +10,7 @@ use crate::chart::style::SeriesKind;
 use crate::dialogs::{Modal, TemplateKind};
 use crate::i18n::{nt, tr, trf, trm};
 use crate::icons::ph;
+use crate::keys::Action;
 use crate::motion;
 use crate::theme::{self, Theme};
 use crate::widgets as w;
@@ -144,7 +145,10 @@ pub struct Arrangement {
     /// The tool each toolbar group shows (the last one picked from it).
     pub group_tools: Vec<(Group, Tool)>,
     pub magnet: bool,
-    pub stay_drawing: bool,
+    /// After a drawing is placed, go back to the cursor (TradingView's
+    /// default). Off: the tool stays picked for the next one. (Replaces
+    /// `stay_drawing`, whose saved "off" would have kept the old way.)
+    pub back_to_cursor: bool,
     pub lock_drawings: bool,
     pub hide_drawings: bool,
     /// The bottom panel takes nearly all the height (the chart keeps a sliver).
@@ -153,13 +157,16 @@ pub struct Arrangement {
     pub toolbar: bool,
     /// The market overview has the chart area (and the bottom panel's).
     pub overview: bool,
-    /// The favorite drawing tools floating toolbar is showing.
+    /// The favourite drawings toolbar floats over the charts (off until
+    /// turned on in the drawing toolbar).
     pub fav_toolbar: bool,
-    /// Favorite toolbar orientation: vertical rather than horizontal.
+    /// It stands upright rather than lying flat.
     pub fav_toolbar_vertical: bool,
-    /// Favorite toolbar position on the screen.
-    pub fav_toolbar_pos: Option<[f32; 2]>,
-    /// Favorite toolbar collapsed into a compact pill.
+    /// Where it sits over the charts, as fractions of the room it has to
+    /// move in (so it keeps its place as the window resizes); `None` until
+    /// it's first moved.
+    pub fav_toolbar_at: Option<[f32; 2]>,
+    /// Folded down to its handle.
     pub fav_toolbar_collapsed: bool,
 }
 
@@ -173,15 +180,15 @@ impl Default for Arrangement {
             tool: Tool::Cross,
             group_tools: Vec::new(),
             magnet: false,
-            stay_drawing: false,
+            back_to_cursor: false,
             lock_drawings: false,
             hide_drawings: false,
             panel_max: false,
             toolbar: true,
             overview: false,
-            fav_toolbar: true,
+            fav_toolbar: false,
             fav_toolbar_vertical: false,
-            fav_toolbar_pos: None,
+            fav_toolbar_at: None,
             fav_toolbar_collapsed: false,
         }
     }
@@ -415,7 +422,7 @@ impl App {
                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                 .show(|ui| self.grid_menu(ui, t));
             let ov = self.overview_open();
-            let resp = crate::overview::button(ui, t, ov);
+            let resp = crate::overview::button(ui, t, ov, &self.keys);
             self.overview.drawn.borrow_mut().button = Some(resp.rect);
             if resp.clicked() {
                 self.set_overview(!ov);
@@ -508,7 +515,7 @@ impl App {
                 if ui
                     .add_enabled_ui(self.chart.can_undo(), |ui| w::eased(ui, undo))
                     .inner
-                    .on_hover_text(trf!("Undo ({})", shortcut!("Z")))
+                    .on_hover_text(self.keys.tip(tr("Undo"), Action::Undo))
                     .clicked()
                 {
                     self.chart.undo();
@@ -517,7 +524,7 @@ impl App {
                 if ui
                     .add_enabled_ui(self.chart.can_redo(), |ui| w::eased(ui, redo))
                     .inner
-                    .on_hover_text(trf!("Redo ({})", shortcut!("Y")))
+                    .on_hover_text(self.keys.tip(tr("Redo"), Action::Redo))
                     .clicked()
                 {
                     self.chart.redo();
@@ -781,12 +788,12 @@ impl App {
                 t,
                 ph::PENCIL_SIMPLE,
                 tr("Stay in drawing mode"),
-                l.stay_drawing,
+                !l.back_to_cursor,
                 36.0,
             )
             .clicked()
             {
-                l.stay_drawing = !l.stay_drawing;
+                l.back_to_cursor = !l.back_to_cursor;
             }
             let lock = if l.lock_drawings {
                 ph::LOCK_SIMPLE
@@ -801,7 +808,7 @@ impl App {
                 ui,
                 t,
                 eye,
-                &trf!("Hide all drawings ({})", shortcut!("Alt H")),
+                &self.keys.tip(tr("Hide all drawings"), Action::HideDrawings),
                 l.hide_drawings,
                 36.0,
             )
@@ -816,7 +823,6 @@ impl App {
             };
             if w::tool_button(ui, t, ph::STAR, fav_tip, l.fav_toolbar, 36.0).clicked() {
                 l.fav_toolbar = !l.fav_toolbar;
-                self.save_fav_toolbar_settings();
             }
             w::hdivider(ui, t, TOOLBAR_W);
             let resp = w::tool_button(ui, t, ph::TRASH, tr("Remove drawings or indicators"), false, 36.0);
@@ -870,8 +876,9 @@ impl App {
         self.chart_ui.draw.cancel();
     }
 
-    /// One toolbar button with a flyout of the group's tools, as on
-    /// TradingView: click uses the shown tool, the small arrow opens the list.
+    /// One toolbar button with a flyout of the group's tools: a click uses
+    /// the shown tool, and a click on it once it's in use, or a right-click,
+    /// opens the list (where tools are starred, too).
     fn tool_group(&mut self, ui: &mut Ui, t: &Theme, g: Group) {
         let shown = self.group_tool(g);
         let active =
@@ -884,27 +891,16 @@ impl App {
             active,
             36.0,
         );
-        let r = resp.rect;
-        let caret = Rect::from_min_max(pos2(r.right() - 9.0, r.bottom() - 9.0), r.max);
-        let more = g.tools().len() > 1;
-        if more {
-            ui.painter().text(
-                caret.center(),
-                Align2::CENTER_CENTER,
-                ph::CARET_DOWN,
-                theme::regular(8.0),
-                t.text3,
-            );
-        }
-        let on_caret = resp
-            .interact_pointer_pos()
-            .is_some_and(|p| caret.expand(2.0).contains(p));
         let open_id = Id::new(("tool-flyout", g));
-        if resp.clicked() && !(more && on_caret) {
-            self.pick_tool(shown);
+        if resp.clicked() {
+            if active && self.layout.tool == shown {
+                egui::Popup::toggle_id(ui.ctx(), open_id);
+            } else {
+                self.pick_tool(shown);
+            }
         }
-        if resp.secondary_clicked() || (more && resp.clicked() && on_caret) {
-            egui::Popup::open_id(ui.ctx(), open_id);
+        if resp.secondary_clicked() {
+            egui::Popup::toggle_id(ui.ctx(), open_id);
         }
         egui::Popup::from_response(&resp)
             .id(open_id)
@@ -912,13 +908,23 @@ impl App {
             .align(egui::RectAlign::RIGHT_START)
             .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
-                ui.set_width(260.0);
+                // As wide as its longest row (name, shortcut and star).
+                let width = g
+                    .tools()
+                    .iter()
+                    .map(|tool| {
+                        let keys = self.keys.label(Action::Tool(*tool));
+                        w::menu_row_width(ui, true, tr(tool.name()), &keys, STAR_W)
+                    })
+                    .fold(230.0_f32, f32::max);
+                ui.set_width(width.ceil());
                 ui.spacing_mut().item_spacing.y = 1.0;
                 w::menu_heading(ui, t, &tr(g.name()).to_uppercase());
                 for tool in g.tools() {
                     let on = self.layout.tool == *tool;
                     let fav = self.is_tool_favorite(*tool);
-                    let (item_resp, star_resp) = tool_menu_row(ui, t, *tool, on, fav);
+                    let keys = self.keys.label(Action::Tool(*tool));
+                    let (item_resp, star_resp) = tool_menu_row(ui, t, *tool, &keys, on, fav);
                     if star_resp.clicked() {
                         self.toggle_favorite_tool(*tool);
                     } else if item_resp.clicked() {
@@ -1157,13 +1163,13 @@ impl App {
             ui.spacing_mut().item_spacing.x = 0.0;
             let auto = self.chart.panes.first().is_some_and(|p| p.scale.auto);
             if small_button(ui, t, tr("auto"), auto)
-                .on_hover_text(tr("Auto, fits data to screen (Alt U)"))
+                .on_hover_text(self.keys.tip(tr("Auto (fits data to screen)"), Action::AutoScale))
                 .clicked()
             {
                 self.toggle_auto_scale();
             }
             if small_button(ui, t, tr("log"), self.chart.log)
-                .on_hover_text(tr("Log scale (Alt L)"))
+                .on_hover_text(self.keys.tip(tr("Log scale"), Action::LogScale))
                 .clicked()
             {
                 self.toggle_log_scale();
@@ -1185,7 +1191,7 @@ impl App {
                 self.toggle_ext();
             }
             if small_button(ui, t, "%", self.chart.percent)
-                .on_hover_text(tr("Percent scale (Alt P)"))
+                .on_hover_text(self.keys.tip(tr("Percent scale"), Action::PercentScale))
                 .clicked()
             {
                 self.toggle_percent_scale();
@@ -1396,7 +1402,8 @@ impl App {
         };
         let actions = crate::chart::ui::show(ui, &mut self.chart, &mut self.chart_ui, t, interactive, &tools);
         let finished = self.chart_ui.draw.finished;
-        if finished && !self.layout.stay_drawing {
+        // Zooming is one go whatever the setting, as on TradingView.
+        if finished && (self.layout.back_to_cursor || self.layout.tool == Tool::Zoom) {
             self.layout.tool = Tool::Cross;
         }
         self.chart_actions(actions);
@@ -1532,86 +1539,48 @@ pub(crate) fn round_corners(p: &egui::Painter, r: Rect, rad: f32, fill: egui::Co
     p.add(mesh);
 }
 
-/// One row in a drawing-tool group's flyout: icon, name, shortcut hint, and favorite star.
-fn tool_menu_row(ui: &mut Ui, t: &Theme, tool: Tool, selected: bool, fav: bool) -> (egui::Response, egui::Response) {
-    let width = ui.available_width().max(250.0);
-    let (rect, resp) = ui.allocate_exact_size(vec2(width, 32.0), Sense::click());
-    let star_r = Rect::from_center_size(pos2(rect.right() - 16.0, rect.center().y), vec2(24.0, 24.0));
-    let star_resp = ui.interact(star_r, resp.id.with("star"), Sense::click());
+/// The room a flyout row keeps at its right end for the star.
+const STAR_W: f32 = 28.0;
 
-    if ui.is_rect_visible(rect) {
-        let hover = motion::toggle(
-            ui.ctx(),
-            resp.id.with("hover"),
-            resp.hovered() && !star_resp.hovered(),
-            motion::MICRO,
-        );
+/// One row in a drawing-tool group's flyout: the tool, its shortcut and a
+/// star that adds it to (or takes it off) the favourites toolbar. Returns
+/// the row's and the star's responses.
+fn tool_menu_row(
+    ui: &mut Ui,
+    t: &Theme,
+    tool: Tool,
+    keys: &str,
+    selected: bool,
+    fav: bool,
+) -> (egui::Response, egui::Response) {
+    let resp = w::menu_item_trailing(ui, t, Some(tool.icon()), tr(tool.name()), keys, selected, STAR_W);
+    let star_r = Rect::from_center_size(resp.rect.right_center() - vec2(18.0, 0.0), vec2(24.0, 24.0));
+    let star = ui.interact(star_r, resp.id.with("star"), Sense::click());
+    if ui.is_rect_visible(resp.rect) {
         let p = ui.painter();
-        if selected {
-            p.rect_filled(rect, CornerRadius::same(8), t.accent_soft());
-        }
-        if hover > 0.0 {
-            p.rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), hover));
-        }
-
-        let base_col = if selected {
-            t.accent
-        } else {
-            motion::lerp_color(t.text2, t.text, hover)
-        };
-        p.text(
-            pos2(rect.left() + 18.0, rect.center().y),
-            Align2::CENTER_CENTER,
-            tool.icon(),
-            theme::regular(16.0),
-            base_col,
-        );
-
-        p.text(
-            pos2(rect.left() + 36.0, rect.center().y),
-            Align2::LEFT_CENTER,
-            tr(tool.name()),
-            theme::regular(13.5),
-            if selected { t.accent } else { t.text },
-        );
-
-        let shortcut = tool.shortcut();
-        if !shortcut.is_empty() {
-            p.text(
-                pos2(star_r.left() - 6.0, rect.center().y),
-                Align2::RIGHT_CENTER,
-                shortcut,
-                theme::regular(12.0),
-                t.text3,
-            );
-        }
-
-        let star_near = resp.hovered() || star_resp.hovered();
-        let star_hover = motion::hover(&star_resp);
+        let lit = motion::hover(&star);
         if fav {
-            let star_col = motion::lerp_color(t.warn, t.text, star_hover * 0.3);
-            w::filled_star(p, star_r.center(), 6.5, star_col);
-        } else if star_near {
-            let star_col = motion::lerp_color(t.text3, t.warn, star_hover);
-            p.text(
-                star_r.center(),
-                Align2::CENTER_CENTER,
-                ph::STAR,
-                theme::regular(14.0),
-                star_col,
-            );
+            w::filled_star(p, star_r.center(), 6.5, motion::lerp_color(t.warn, t.text, lit * 0.25));
+        } else {
+            // An outline star shows on the row under the pointer.
+            let near = motion::hover_if(&resp, resp.hovered() || star.hovered());
+            if near > 0.0 {
+                let c = motion::lerp_color(t.text3, t.warn, lit);
+                p.text(
+                    star_r.center(),
+                    Align2::CENTER_CENTER,
+                    ph::STAR,
+                    theme::regular(14.0),
+                    motion::with_alpha(c, near),
+                );
+            }
         }
     }
-
-    let star_tip = if fav {
+    let tip = if fav {
         tr("Remove from favorites")
     } else {
         tr("Add to favorites")
     };
-    (
-        resp.on_hover_cursor(egui::CursorIcon::PointingHand),
-        star_resp
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(star_tip),
-    )
+    let star = star.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip);
+    (resp, star)
 }
