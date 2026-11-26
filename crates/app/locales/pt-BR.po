@@ -238,6 +238,9 @@ msgstr "ID da conta"
 msgid "Account settings"
 msgstr "Configurações da conta"
 
+msgid "Account size"
+msgstr "Tamanho da conta"
+
 msgid "Account size required"
 msgstr "Tamanho de conta necessário"
 
@@ -258,6 +261,9 @@ msgstr "Adicionar filtro"
 
 msgid "Add section"
 msgstr "Adicionar seção"
+
+msgid "Add text"
+msgstr "Adicionar texto"
 
 msgid "Add to chart"
 msgstr "Adicionar ao gráfico"
@@ -367,6 +373,9 @@ msgstr "Alpaca não tem barras de {0}"
 
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · ações dos EUA"
+
+msgid "Always show stats"
+msgstr "Sempre mostrar estatísticas"
 
 msgid "Americas"
 msgstr "Américas"
@@ -678,6 +687,9 @@ msgstr "Bandas de Bollinger %B"
 msgid "Borders"
 msgstr "Bordas"
 
+msgid "Bottom"
+msgstr "Abaixo"
+
 #, message
 msgid "Bought {qty} {sym} at {price}"
 msgstr "Comprou {qty} {sym} a {price}"
@@ -785,6 +797,9 @@ msgstr "Dinheiro"
 
 msgid "Categories"
 msgstr "Categorias"
+
+msgid "Center"
+msgstr "Centro"
 
 msgid "Centered"
 msgstr "Centralizado"
@@ -1061,6 +1076,9 @@ msgstr "Commodities"
 msgid "Commodity Channel Index"
 msgstr "Índice de canal de commodities (CCI)"
 
+msgid "Compact stats"
+msgstr "Estatísticas compactas"
+
 msgid "Compare"
 msgstr "Comparar"
 
@@ -1108,6 +1126,9 @@ msgstr "Linha de conversão"
 
 msgid "Conversion Line Length"
 msgstr "Período da linha de conversão"
+
+msgid "Coordinates"
+msgstr "Coordenadas"
 
 #, message
 msgid "Copied to {name}."
@@ -1483,6 +1504,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr "Não estender"
+
 msgid "Donchian Channels"
 msgstr "Canais de Donchian"
 
@@ -1700,6 +1724,9 @@ msgstr "Digite este código no seu outro dispositivo"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "Valor da empresa sobre o EBITDA de doze meses. Para o índice: EV total sobre EBITDA total"
 
+msgid "Entry price"
+msgstr "Preço de entrada"
+
 msgid "Entry {side}"
 msgstr "Entrada {side}"
 
@@ -1785,8 +1812,17 @@ msgstr "Exportado {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "Exportando"
 
+msgid "Extend"
+msgstr "Estender"
+
+msgid "Extend both"
+msgstr "Estender ambos"
+
 msgid "Extend left"
 msgstr "Estender à esquerda"
+
+msgid "Extend lines"
+msgstr "Estender linhas"
 
 msgid "Extend lines left"
 msgstr "Estender linhas à esquerda"
@@ -2231,6 +2267,9 @@ msgstr "Entrada"
 msgid "Inputs"
 msgstr "Parâmetros"
 
+msgid "Inside"
+msgstr "Dentro"
+
 msgid "Install {0}"
 msgstr "Instalar {0}"
 
@@ -2331,6 +2370,9 @@ msgstr "Fundação da Coreia"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken não tem barras de {0}"
+
+msgid "LEVELS"
+msgstr "NÍVEIS"
 
 msgid "Labels on price scale"
 msgstr "Etiquetas na escala de preços"
@@ -2602,6 +2644,9 @@ msgstr "Sequência de perdas, pior 5%"
 
 msgid "Losing trades"
 msgstr "Operações perdedoras"
+
+msgid "Lot size"
+msgstr "Tamanho do lote"
 
 msgid "Low"
 msgstr "Baixo"
@@ -2887,6 +2932,9 @@ msgstr "RCI médio"
 
 msgid "Middle RCI Length"
 msgstr "Período do RCI médio"
+
+msgid "Middle line"
+msgstr "Linha média"
 
 msgid "Millions, billions"
 msgstr "Milhões, bilhões"
@@ -3560,6 +3608,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "PROBLEMAS"
 
+msgid "PROFIT LEVEL"
+msgstr "NÍVEL DE LUCRO"
+
 msgid "PVT"
 msgstr ""
 
@@ -3861,6 +3912,9 @@ msgstr "Qtd."
 msgid "Quantity"
 msgstr "Quantidade"
 
+msgid "Quantity precision"
+msgstr "Precisão da quantidade"
+
 msgid "Quarter"
 msgstr "Trimestre"
 
@@ -4115,6 +4169,9 @@ msgstr "Redefinir conta"
 msgid "Reset settings"
 msgstr "Redefinir configurações"
 
+msgid "Reset style to defaults"
+msgstr "Restaurar estilo padrão"
+
 msgid "Reset the account to change its currency"
 msgstr "Redefina a conta para mudar a moeda"
 
@@ -4178,11 +4235,11 @@ msgstr "Barras à direita"
 msgid "Rises and falls"
 msgstr "Altas e baixas"
 
+msgid "Risk"
+msgstr "Risco"
+
 msgid "Risk/performance ratios"
 msgstr "Índices de risco/desempenho"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "Razão risco/retorno: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruína no drawdown"
@@ -4264,6 +4321,9 @@ msgstr ""
 
 msgid "SMTP server"
 msgstr "Servidor SMTP"
+
+msgid "STOP LEVEL"
+msgstr "NÍVEL DE STOP"
 
 msgid "Same % scale"
 msgstr "Mesma escala %"
@@ -4525,6 +4585,9 @@ msgstr "Mostrar na barra superior"
 msgid "Show labels"
 msgstr "Mostrar etiquetas"
 
+msgid "Show on chart"
+msgstr "Mostrar no gráfico"
+
 msgid "Show on intervals"
 msgstr "Mostrar nos intervalos"
 
@@ -4774,6 +4837,9 @@ msgstr "Stop comprado"
 msgid "Stop Short"
 msgstr "Stop vendido"
 
+msgid "Stop color"
+msgstr "Cor do stop"
+
 msgid "Stop limit"
 msgstr "Stop limite"
 
@@ -4785,9 +4851,6 @@ msgstr "Preço de stop"
 
 msgid "Stop using as default"
 msgstr "Deixar de usar como padrão"
-
-msgid "Stop: {0} ({1})"
-msgstr "Stop: {0} ({1})"
 
 msgid "Stopped"
 msgstr "Parado"
@@ -4923,8 +4986,8 @@ msgstr "Tire os scripts dela do gráfico antes de renomear."
 msgid "Take profit"
 msgstr "Realizar lucro"
 
-msgid "Target: {0} ({1})"
-msgstr "Alvo: {0} ({1})"
+msgid "Target color"
+msgstr "Cor do alvo"
 
 msgid "Teachers' Day"
 msgstr "Dia dos Professores"
@@ -4950,6 +5013,9 @@ msgstr "Token do bot do Telegram"
 msgid "Telegram chat id"
 msgstr "ID do chat do Telegram"
 
+msgid "Template"
+msgstr "Modelo"
+
 msgid "Template  {0}"
 msgstr "Modelo  {0}"
 
@@ -4958,6 +5024,12 @@ msgstr "Modelos"
 
 msgid "Text"
 msgstr "Texto"
+
+msgid "Text alignment"
+msgstr "Alinhamento do texto"
+
+msgid "Text style"
+msgstr "Estilo do texto"
 
 msgid "Thanksgiving"
 msgstr "Ação de Graças"
@@ -5129,6 +5201,9 @@ msgstr "Marque os parâmetros a variar."
 msgid "Ticked members of {0}"
 msgstr "Marcou membros de {0}"
 
+msgid "Ticks"
+msgstr "Ticks"
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "Os blocos mostram a sessão normal. Passe o mouse para ver o preço fora do horário."
 
@@ -5170,6 +5245,9 @@ msgstr "Códigos errados demais. Recomece."
 
 msgid "Took a picture of the chart"
 msgstr "Tirou uma imagem do gráfico"
+
+msgid "Top"
+msgstr "Topo"
 
 msgid "Top 150"
 msgstr "Top 150"
@@ -5856,6 +5934,9 @@ msgstr ""
 msgid "open"
 msgstr "abertura"
 
+msgid "price, bar"
+msgstr "preço, barra"
+
 msgid "sell"
 msgstr "venda"
 
@@ -5946,6 +6027,9 @@ msgstr "{0} cópia"
 
 msgid "{0} days"
 msgstr "{0} dias"
+
+msgid "{0} decimals"
+msgstr "{0} decimais"
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"

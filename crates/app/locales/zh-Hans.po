@@ -238,6 +238,9 @@ msgstr "账户 ID"
 msgid "Account settings"
 msgstr "账户设置"
 
+msgid "Account size"
+msgstr "账户大小"
+
 msgid "Account size required"
 msgstr "所需账户规模"
 
@@ -258,6 +261,9 @@ msgstr "添加筛选"
 
 msgid "Add section"
 msgstr "添加分组"
+
+msgid "Add text"
+msgstr "添加文本"
 
 msgid "Add to chart"
 msgstr "添加到图表"
@@ -367,6 +373,9 @@ msgstr "Alpaca 没有 {0} K 线"
 
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · 美股"
+
+msgid "Always show stats"
+msgstr "始终显示统计"
 
 msgid "Americas"
 msgstr "美洲"
@@ -678,6 +687,9 @@ msgstr "布林带 %B"
 msgid "Borders"
 msgstr "边框"
 
+msgid "Bottom"
+msgstr "底部"
+
 #, message
 msgid "Bought {qty} {sym} at {price}"
 msgstr "以 {price} 买入 {qty} {sym}"
@@ -785,6 +797,9 @@ msgstr "现金"
 
 msgid "Categories"
 msgstr "分类"
+
+msgid "Center"
+msgstr "居中"
 
 msgid "Centered"
 msgstr "居中"
@@ -1061,6 +1076,9 @@ msgstr "大宗商品"
 msgid "Commodity Channel Index"
 msgstr "商品通道指数 (CCI)"
 
+msgid "Compact stats"
+msgstr "精简统计"
+
 msgid "Compare"
 msgstr "对比"
 
@@ -1108,6 +1126,9 @@ msgstr "转换线"
 
 msgid "Conversion Line Length"
 msgstr "转换线长度"
+
+msgid "Coordinates"
+msgstr "坐标"
 
 #, message
 msgid "Copied to {name}."
@@ -1483,6 +1504,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr "不延长"
+
 msgid "Donchian Channels"
 msgstr "唐奇安通道"
 
@@ -1700,6 +1724,9 @@ msgstr "在另一台设备上输入此代码"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "企业价值与过去十二个月 EBITDA 之比。指数：总 EV 除以总 EBITDA"
 
+msgid "Entry price"
+msgstr "入场价格"
+
 msgid "Entry {side}"
 msgstr "{side}入场"
 
@@ -1785,8 +1812,17 @@ msgstr "导出于 {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "正在导出"
 
+msgid "Extend"
+msgstr "延长"
+
+msgid "Extend both"
+msgstr "双向延长"
+
 msgid "Extend left"
 msgstr "向左延伸"
+
+msgid "Extend lines"
+msgstr "延长线条"
 
 msgid "Extend lines left"
 msgstr "线条向左延伸"
@@ -2231,6 +2267,9 @@ msgstr "输入"
 msgid "Inputs"
 msgstr "参数"
 
+msgid "Inside"
+msgstr "内部"
+
 msgid "Install {0}"
 msgstr "安装 {0}"
 
@@ -2331,6 +2370,9 @@ msgstr "开天节"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken 没有 {0} K 线"
+
+msgid "LEVELS"
+msgstr "水平线"
 
 msgid "Labels on price scale"
 msgstr "价格刻度上的标签"
@@ -2602,6 +2644,9 @@ msgstr "连续亏损（最差 5%）"
 
 msgid "Losing trades"
 msgstr "亏损交易"
+
+msgid "Lot size"
+msgstr "手数"
 
 msgid "Low"
 msgstr "低"
@@ -2887,6 +2932,9 @@ msgstr "中期 RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期 RCI 长度"
+
+msgid "Middle line"
+msgstr "中线"
 
 msgid "Millions, billions"
 msgstr "百万、十亿"
@@ -3560,6 +3608,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "问题"
 
+msgid "PROFIT LEVEL"
+msgstr "止盈水平"
+
 msgid "PVT"
 msgstr ""
 
@@ -3861,6 +3912,9 @@ msgstr "数量"
 msgid "Quantity"
 msgstr "数量"
 
+msgid "Quantity precision"
+msgstr "数量精度"
+
 msgid "Quarter"
 msgstr "季度"
 
@@ -4115,6 +4169,9 @@ msgstr "重置账户"
 msgid "Reset settings"
 msgstr "重置设置"
 
+msgid "Reset style to defaults"
+msgstr "重置为默认样式"
+
 msgid "Reset the account to change its currency"
 msgstr "重置账户才能更改货币"
 
@@ -4178,11 +4235,11 @@ msgstr "右侧 K 线数"
 msgid "Rises and falls"
 msgstr "涨跌"
 
+msgid "Risk"
+msgstr "风险"
+
 msgid "Risk/performance ratios"
 msgstr "风险/表现比率"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "风险回报比：{rr}"
 
 msgid "Ruin at drawdown"
 msgstr "破产回撤"
@@ -4264,6 +4321,9 @@ msgstr ""
 
 msgid "SMTP server"
 msgstr "SMTP 服务器"
+
+msgid "STOP LEVEL"
+msgstr "止损水平"
 
 msgid "Same % scale"
 msgstr "同一百分比刻度"
@@ -4525,6 +4585,9 @@ msgstr "在顶栏显示"
 msgid "Show labels"
 msgstr "显示标签"
 
+msgid "Show on chart"
+msgstr "在图表上显示"
+
 msgid "Show on intervals"
 msgstr "显示的周期"
 
@@ -4774,6 +4837,9 @@ msgstr "多头止损"
 msgid "Stop Short"
 msgstr "空头止损"
 
+msgid "Stop color"
+msgstr "止损颜色"
+
 msgid "Stop limit"
 msgstr "止损限价"
 
@@ -4785,9 +4851,6 @@ msgstr "止损价"
 
 msgid "Stop using as default"
 msgstr "不再设为默认"
-
-msgid "Stop: {0} ({1})"
-msgstr "止损：{0} ({1})"
 
 msgid "Stopped"
 msgstr "已停止"
@@ -4923,8 +4986,8 @@ msgstr "请先将其脚本从图表移除再重命名。"
 msgid "Take profit"
 msgstr "止盈"
 
-msgid "Target: {0} ({1})"
-msgstr "目标：{0} ({1})"
+msgid "Target color"
+msgstr "目标颜色"
 
 msgid "Teachers' Day"
 msgstr "教师节"
@@ -4950,6 +5013,9 @@ msgstr "Telegram 机器人令牌"
 msgid "Telegram chat id"
 msgstr "Telegram 聊天 ID"
 
+msgid "Template"
+msgstr "模板"
+
 msgid "Template  {0}"
 msgstr "模板  {0}"
 
@@ -4958,6 +5024,12 @@ msgstr "模板"
 
 msgid "Text"
 msgstr "文字"
+
+msgid "Text alignment"
+msgstr "文本对齐"
+
+msgid "Text style"
+msgstr "文本样式"
 
 msgid "Thanksgiving"
 msgstr "感恩节"
@@ -5129,6 +5201,9 @@ msgstr "请勾选要变化的参数。"
 msgid "Ticked members of {0}"
 msgstr "已勾选 {0} 的成分"
 
+msgid "Ticks"
+msgstr "跳动点"
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "方块显示常规时段。悬停可查看延长时段价格。"
 
@@ -5170,6 +5245,9 @@ msgstr "错误代码过多，请重新开始。"
 
 msgid "Took a picture of the chart"
 msgstr "已截取图表图片"
+
+msgid "Top"
+msgstr "顶部"
 
 msgid "Top 150"
 msgstr "前 150"
@@ -5856,6 +5934,9 @@ msgstr ""
 msgid "open"
 msgstr "开盘"
 
+msgid "price, bar"
+msgstr "价格, K线"
+
 msgid "sell"
 msgstr "卖出"
 
@@ -5946,6 +6027,9 @@ msgstr "{0} 副本"
 
 msgid "{0} days"
 msgstr "{0} 天"
+
+msgid "{0} decimals"
+msgstr "{0} 位小数"
 
 msgid "{0} h {1} min"
 msgstr "{0} 小时 {1} 分"

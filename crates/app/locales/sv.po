@@ -238,6 +238,9 @@ msgstr "Konto-ID"
 msgid "Account settings"
 msgstr "Kontoinställningar"
 
+msgid "Account size"
+msgstr "Kontostorlek"
+
 msgid "Account size required"
 msgstr "Nödvändig kontostorlek"
 
@@ -258,6 +261,9 @@ msgstr "Lägg till filter"
 
 msgid "Add section"
 msgstr "Lägg till avsnitt"
+
+msgid "Add text"
+msgstr "Lägg till text"
 
 msgid "Add to chart"
 msgstr "Lägg till i diagrammet"
@@ -367,6 +373,9 @@ msgstr "Alpaca har inga {0}-staplar"
 
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · amerikanska aktier"
+
+msgid "Always show stats"
+msgstr "Visa alltid statistik"
 
 msgid "Americas"
 msgstr "Amerika"
@@ -678,6 +687,9 @@ msgstr "Bollingerband %B"
 msgid "Borders"
 msgstr "Kanter"
 
+msgid "Bottom"
+msgstr "Botten"
+
 #, message
 msgid "Bought {qty} {sym} at {price}"
 msgstr "Köpte {qty} {sym} för {price}"
@@ -785,6 +797,9 @@ msgstr "Kontanter"
 
 msgid "Categories"
 msgstr "Kategorier"
+
+msgid "Center"
+msgstr "Centrera"
 
 msgid "Centered"
 msgstr "Centrerad"
@@ -1061,6 +1076,9 @@ msgstr "Råvaror"
 msgid "Commodity Channel Index"
 msgstr "Råvarukanalindex (CCI)"
 
+msgid "Compact stats"
+msgstr "Kompakt statistik"
+
 msgid "Compare"
 msgstr "Jämför"
 
@@ -1108,6 +1126,9 @@ msgstr "Konverteringslinje"
 
 msgid "Conversion Line Length"
 msgstr "Konverteringslinjens längd"
+
+msgid "Coordinates"
+msgstr "Koordinater"
 
 #, message
 msgid "Copied to {name}."
@@ -1483,6 +1504,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr "Förläng inte"
+
 msgid "Donchian Channels"
 msgstr "Donchiankanaler"
 
@@ -1700,6 +1724,9 @@ msgstr "Ange den här koden på din andra enhet"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "Företagsvärde genom EBITDA för tolv månader. För indexet: totalt EV genom totalt EBITDA"
 
+msgid "Entry price"
+msgstr "Ingångspris"
+
 msgid "Entry {side}"
 msgstr "Ingång {side}"
 
@@ -1785,8 +1812,17 @@ msgstr "Exporterad {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "Exporterar"
 
+msgid "Extend"
+msgstr "Förläng"
+
+msgid "Extend both"
+msgstr "Förläng båda"
+
 msgid "Extend left"
 msgstr "Förläng åt vänster"
+
+msgid "Extend lines"
+msgstr "Förläng linjer"
 
 msgid "Extend lines left"
 msgstr "Förläng linjer åt vänster"
@@ -2231,6 +2267,9 @@ msgstr "Indata"
 msgid "Inputs"
 msgstr "Indata"
 
+msgid "Inside"
+msgstr "Inuti"
+
 msgid "Install {0}"
 msgstr "Installera {0}"
 
@@ -2331,6 +2370,9 @@ msgstr "Koreas grundande"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken har inga {0}-staplar"
+
+msgid "LEVELS"
+msgstr "NIVÅER"
 
 msgid "Labels on price scale"
 msgstr "Etiketter på prisskalan"
@@ -2602,6 +2644,9 @@ msgstr "Förlustsvit, sämsta 5 %"
 
 msgid "Losing trades"
 msgstr "Förlustaffärer"
+
+msgid "Lot size"
+msgstr "Lotstorlek"
 
 msgid "Low"
 msgstr "Låg"
@@ -2887,6 +2932,9 @@ msgstr "Mellan-RCI"
 
 msgid "Middle RCI Length"
 msgstr "Längd på mellan-RCI"
+
+msgid "Middle line"
+msgstr "Mittlinje"
 
 msgid "Millions, billions"
 msgstr "Miljoner, miljarder"
@@ -3560,6 +3608,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "PROBLEM"
 
+msgid "PROFIT LEVEL"
+msgstr "VINSTNIVÅ"
+
 msgid "PVT"
 msgstr ""
 
@@ -3861,6 +3912,9 @@ msgstr "Antal"
 msgid "Quantity"
 msgstr "Kvantitet"
 
+msgid "Quantity precision"
+msgstr "Kvantitetsprecision"
+
 msgid "Quarter"
 msgstr "Kvartal"
 
@@ -4115,6 +4169,9 @@ msgstr "Återställ konto"
 msgid "Reset settings"
 msgstr "Återställ inställningar"
 
+msgid "Reset style to defaults"
+msgstr "Återställ stil till standard"
+
 msgid "Reset the account to change its currency"
 msgstr "Återställ kontot för att byta valuta"
 
@@ -4178,11 +4235,11 @@ msgstr "Staplar till höger"
 msgid "Rises and falls"
 msgstr "Upp- och nedgångar"
 
+msgid "Risk"
+msgstr "Risk"
+
 msgid "Risk/performance ratios"
 msgstr "Risk- och resultatmått"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "Risk/vinst-kvot: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruin vid nedgång"
@@ -4264,6 +4321,9 @@ msgstr ""
 
 msgid "SMTP server"
 msgstr "SMTP-server"
+
+msgid "STOP LEVEL"
+msgstr "STOPPNIVÅ"
 
 msgid "Same % scale"
 msgstr "Samma %-skala"
@@ -4525,6 +4585,9 @@ msgstr "Visa i översta fältet"
 msgid "Show labels"
 msgstr "Visa etiketter"
 
+msgid "Show on chart"
+msgstr "Visa på diagrammet"
+
 msgid "Show on intervals"
 msgstr "Visa på intervall"
 
@@ -4774,6 +4837,9 @@ msgstr "Stopp lång"
 msgid "Stop Short"
 msgstr "Stopp kort"
 
+msgid "Stop color"
+msgstr "Stoppfärg"
+
 msgid "Stop limit"
 msgstr "Stopplimit"
 
@@ -4785,9 +4851,6 @@ msgstr "Stoppris"
 
 msgid "Stop using as default"
 msgstr "Sluta använda som standard"
-
-msgid "Stop: {0} ({1})"
-msgstr "Stopp: {0} ({1})"
 
 msgid "Stopped"
 msgstr "Stoppat"
@@ -4923,8 +4986,8 @@ msgstr "Ta bort dess skript från diagrammet innan du byter namn."
 msgid "Take profit"
 msgstr "Ta hem vinst"
 
-msgid "Target: {0} ({1})"
-msgstr "Mål: {0} ({1})"
+msgid "Target color"
+msgstr "Målfärg"
 
 msgid "Teachers' Day"
 msgstr "Lärarnas dag"
@@ -4950,6 +5013,9 @@ msgstr "Telegram-botens token"
 msgid "Telegram chat id"
 msgstr "Telegram-chatt-id"
 
+msgid "Template"
+msgstr "Mall"
+
 msgid "Template  {0}"
 msgstr "Mall  {0}"
 
@@ -4958,6 +5024,12 @@ msgstr "Mallar"
 
 msgid "Text"
 msgstr "Text"
+
+msgid "Text alignment"
+msgstr "Textjustering"
+
+msgid "Text style"
+msgstr "Textstil"
 
 msgid "Thanksgiving"
 msgstr ""
@@ -5129,6 +5201,9 @@ msgstr "Markera indata att variera."
 msgid "Ticked members of {0}"
 msgstr "Markerade medlemmar i {0}"
 
+msgid "Ticks"
+msgstr "Ticks"
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "Rutorna visar den ordinarie handeln. Håll pekaren över en för priset utanför ordinarie tider."
 
@@ -5170,6 +5245,9 @@ msgstr "För många felaktiga koder. Börja om."
 
 msgid "Took a picture of the chart"
 msgstr "Tog en bild av diagrammet"
+
+msgid "Top"
+msgstr "Topp"
 
 msgid "Top 150"
 msgstr "Topp 150"
@@ -5856,6 +5934,9 @@ msgstr ""
 msgid "open"
 msgstr "öppning"
 
+msgid "price, bar"
+msgstr "pris, stapel"
+
 msgid "sell"
 msgstr "sälj"
 
@@ -5946,6 +6027,9 @@ msgstr "{0} kopia"
 
 msgid "{0} days"
 msgstr "{0} dagar"
+
+msgid "{0} decimals"
+msgstr "{0} decimaler"
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"

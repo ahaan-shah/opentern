@@ -18,6 +18,8 @@ use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, vec2};
 
 pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
+pub mod drawing;
+pub use drawing::DrawingSettings;
 pub use indicators::Indicators;
 pub use study::StudySettings;
 pub use symbol::SymbolSearch;
@@ -26,6 +28,7 @@ pub enum Modal {
     Symbol(SymbolSearch),
     Indicators(Indicators),
     Study(StudySettings),
+    Drawing(Box<DrawingSettings>),
     ChartSettings(ChartSettings),
     SaveTemplate {
         kind: TemplateKind,
@@ -171,6 +174,7 @@ impl App {
                     Modal::Symbol(s) => s.show(ui, self, &t),
                     Modal::Indicators(s) => s.show(ui, self, &t),
                     Modal::Study(s) => s.show(ui, self, &t),
+                    Modal::Drawing(d) => d.show(ui, self, &t),
                     Modal::ChartSettings(s) => s.show(ui, self, &t),
                     Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
                     Modal::Interval(text) => interval(ui, self, &t, text),

@@ -238,6 +238,9 @@ msgstr "ID счёта"
 msgid "Account settings"
 msgstr "Настройки счёта"
 
+msgid "Account size"
+msgstr "Размер счёта"
+
 msgid "Account size required"
 msgstr "Необходимый размер счёта"
 
@@ -258,6 +261,9 @@ msgstr "Добавить фильтр"
 
 msgid "Add section"
 msgstr "Добавить раздел"
+
+msgid "Add text"
+msgstr "Добавить текст"
 
 msgid "Add to chart"
 msgstr "Добавить на график"
@@ -367,6 +373,9 @@ msgstr "У Alpaca нет баров {0}"
 
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · акции США"
+
+msgid "Always show stats"
+msgstr "Всегда показывать статистику"
 
 msgid "Americas"
 msgstr "Америка"
@@ -678,6 +687,9 @@ msgstr "Полосы Боллинджера %B"
 msgid "Borders"
 msgstr "Границы"
 
+msgid "Bottom"
+msgstr "Снизу"
+
 #, message
 msgid "Bought {qty} {sym} at {price}"
 msgstr "Куплено {qty} {sym} по {price}"
@@ -785,6 +797,9 @@ msgstr "Наличные"
 
 msgid "Categories"
 msgstr "Категории"
+
+msgid "Center"
+msgstr "По центру"
 
 msgid "Centered"
 msgstr "По центру"
@@ -1061,6 +1076,9 @@ msgstr "Сырьё"
 msgid "Commodity Channel Index"
 msgstr "Индекс товарного канала (CCI)"
 
+msgid "Compact stats"
+msgstr "Компактная статистика"
+
 msgid "Compare"
 msgstr "Сравнить"
 
@@ -1108,6 +1126,9 @@ msgstr "Линия конверсии"
 
 msgid "Conversion Line Length"
 msgstr "Длина линии конверсии"
+
+msgid "Coordinates"
+msgstr "Координаты"
 
 #, message
 msgid "Copied to {name}."
@@ -1483,6 +1504,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr "Не продолжать"
+
 msgid "Donchian Channels"
 msgstr "Каналы Дончиана"
 
@@ -1700,6 +1724,9 @@ msgstr "Введите этот код на другом устройстве"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "Стоимость компании к EBITDA за 12 месяцев. Для индекса: суммарная EV к суммарной EBITDA"
 
+msgid "Entry price"
+msgstr "Цена входа"
+
 msgid "Entry {side}"
 msgstr "Вход {side}"
 
@@ -1785,8 +1812,17 @@ msgstr "Экспортировано {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "Экспорт"
 
+msgid "Extend"
+msgstr "Продолжить"
+
+msgid "Extend both"
+msgstr "Продолжить в обе стороны"
+
 msgid "Extend left"
 msgstr "Продлить влево"
+
+msgid "Extend lines"
+msgstr "Продолжить линии"
 
 msgid "Extend lines left"
 msgstr "Продлить линии влево"
@@ -2231,6 +2267,9 @@ msgstr "Ввод"
 msgid "Inputs"
 msgstr "Параметры"
 
+msgid "Inside"
+msgstr "Внутри"
+
 msgid "Install {0}"
 msgstr "Установить {0}"
 
@@ -2331,6 +2370,9 @@ msgstr "День основания Кореи"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "У Kraken нет баров {0}"
+
+msgid "LEVELS"
+msgstr "УРОВНИ"
 
 msgid "Labels on price scale"
 msgstr "Метки на шкале цен"
@@ -2602,6 +2644,9 @@ msgstr "Серия убытков, худшие 5%"
 
 msgid "Losing trades"
 msgstr "Убыточные сделки"
+
+msgid "Lot size"
+msgstr "Размер лота"
 
 msgid "Low"
 msgstr "Низкое"
@@ -2887,6 +2932,9 @@ msgstr "Средний RCI"
 
 msgid "Middle RCI Length"
 msgstr "Длина среднего RCI"
+
+msgid "Middle line"
+msgstr "Средняя линия"
 
 msgid "Millions, billions"
 msgstr "Миллионы, миллиарды"
@@ -3560,6 +3608,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "ПРОБЛЕМЫ"
 
+msgid "PROFIT LEVEL"
+msgstr "УРОВЕНЬ ПРИБЫЛИ"
+
 msgid "PVT"
 msgstr ""
 
@@ -3861,6 +3912,9 @@ msgstr "Кол-во"
 msgid "Quantity"
 msgstr "Количество"
 
+msgid "Quantity precision"
+msgstr "Точность количества"
+
 msgid "Quarter"
 msgstr "Квартал"
 
@@ -4115,6 +4169,9 @@ msgstr "Сбросить счёт"
 msgid "Reset settings"
 msgstr "Сбросить настройки"
 
+msgid "Reset style to defaults"
+msgstr "Сбросить стиль по умолчанию"
+
 msgid "Reset the account to change its currency"
 msgstr "Чтобы сменить валюту, сбросьте счёт"
 
@@ -4178,11 +4235,11 @@ msgstr "Баров справа"
 msgid "Rises and falls"
 msgstr "Рост и падение"
 
+msgid "Risk"
+msgstr "Риск"
+
 msgid "Risk/performance ratios"
 msgstr "Показатели риска и доходности"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "Соотношение риск/прибыль: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "Разорение при просадке"
@@ -4264,6 +4321,9 @@ msgstr ""
 
 msgid "SMTP server"
 msgstr "SMTP-сервер"
+
+msgid "STOP LEVEL"
+msgstr "УРОВЕНЬ СТОПА"
 
 msgid "Same % scale"
 msgstr "Та же шкала %"
@@ -4525,6 +4585,9 @@ msgstr "Показать на верхней панели"
 msgid "Show labels"
 msgstr "Показывать метки"
 
+msgid "Show on chart"
+msgstr "Показывать на графике"
+
 msgid "Show on intervals"
 msgstr "Показывать на интервалах"
 
@@ -4774,6 +4837,9 @@ msgstr "Стоп лонга"
 msgid "Stop Short"
 msgstr "Стоп шорта"
 
+msgid "Stop color"
+msgstr "Цвет стопа"
+
 msgid "Stop limit"
 msgstr "Стоп-лимит"
 
@@ -4785,9 +4851,6 @@ msgstr "Стоп-цена"
 
 msgid "Stop using as default"
 msgstr "Не использовать по умолчанию"
-
-msgid "Stop: {0} ({1})"
-msgstr "Стоп: {0} ({1})"
 
 msgid "Stopped"
 msgstr "Остановлено"
@@ -4923,8 +4986,8 @@ msgstr "Уберите его скрипты с графика перед пер
 msgid "Take profit"
 msgstr "Тейк-профит"
 
-msgid "Target: {0} ({1})"
-msgstr "Цель: {0} ({1})"
+msgid "Target color"
+msgstr "Цвет цели"
 
 msgid "Teachers' Day"
 msgstr "День учителя"
@@ -4950,6 +5013,9 @@ msgstr "Токен бота Telegram"
 msgid "Telegram chat id"
 msgstr "ID чата Telegram"
 
+msgid "Template"
+msgstr "Шаблон"
+
 msgid "Template  {0}"
 msgstr "Шаблон  {0}"
 
@@ -4958,6 +5024,12 @@ msgstr "Шаблоны"
 
 msgid "Text"
 msgstr "Текст"
+
+msgid "Text alignment"
+msgstr "Выравнивание текста"
+
+msgid "Text style"
+msgstr "Стиль текста"
 
 msgid "Thanksgiving"
 msgstr "День благодарения"
@@ -5129,6 +5201,9 @@ msgstr "Отметьте параметры для перебора."
 msgid "Ticked members of {0}"
 msgstr "Отмечены участники {0}"
 
+msgid "Ticks"
+msgstr "Тики"
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "Плитки показывают основную сессию. Наведите, чтобы увидеть цену вне сессии."
 
@@ -5170,6 +5245,9 @@ msgstr "Слишком много неверных кодов. Начните з
 
 msgid "Took a picture of the chart"
 msgstr "Сделан снимок графика"
+
+msgid "Top"
+msgstr "Сверху"
 
 msgid "Top 150"
 msgstr "Топ-150"
@@ -5856,6 +5934,9 @@ msgstr ""
 msgid "open"
 msgstr "открытие"
 
+msgid "price, bar"
+msgstr "цена, бар"
+
 msgid "sell"
 msgstr "продажа"
 
@@ -5946,6 +6027,9 @@ msgstr "{0} копия"
 
 msgid "{0} days"
 msgstr "{0} дн."
+
+msgid "{0} decimals"
+msgstr "{0} знаков"
 
 msgid "{0} h {1} min"
 msgstr "{0} ч {1} мин"

@@ -404,6 +404,208 @@ pub struct Anchor {
     pub p: f64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TextVAlign {
+    Top,
+    #[default]
+    Inside,
+    Bottom,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TextHAlign {
+    Left,
+    Center,
+    #[default]
+    Right,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FibLevel {
+    pub enabled: bool,
+    pub level: f64,
+    pub color: Rgba,
+}
+
+pub fn default_fib_levels() -> Vec<FibLevel> {
+    vec![
+        FibLevel {
+            enabled: true,
+            level: 0.0,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.236,
+            color: Rgba::hex(0xF23645),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.382,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: true,
+            level: 0.5,
+            color: Rgba::hex(0xF23645),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.618,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.62,
+            color: Rgba::hex(0x673AB7),
+        },
+        FibLevel {
+            enabled: true,
+            level: 0.75,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: true,
+            level: 0.25,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.786,
+            color: Rgba::hex(0x00BCD4),
+        },
+        FibLevel {
+            enabled: true,
+            level: 1.0,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: 1.272,
+            color: Rgba::hex(0xFF9800),
+        },
+        FibLevel {
+            enabled: false,
+            level: 1.618,
+            color: Rgba::hex(0x2962FF),
+        },
+        FibLevel {
+            enabled: false,
+            level: 2.0,
+            color: Rgba::hex(0x2962FF),
+        },
+        FibLevel {
+            enabled: true,
+            level: -1.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: true,
+            level: -3.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: false,
+            level: -1.5,
+            color: Rgba::hex(0x00BCD4),
+        },
+        FibLevel {
+            enabled: false,
+            level: 2.414,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: -0.62,
+            color: Rgba::hex(0x9C27B0),
+        },
+        FibLevel {
+            enabled: false,
+            level: 0.79,
+            color: Rgba::hex(0xF23645),
+        },
+        FibLevel {
+            enabled: false,
+            level: 2.272,
+            color: Rgba::hex(0x787B86),
+        },
+        FibLevel {
+            enabled: false,
+            level: -2.5,
+            color: Rgba::hex(0x434651),
+        },
+        FibLevel {
+            enabled: true,
+            level: 4.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: true,
+            level: 3.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: true,
+            level: 2.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: true,
+            level: -4.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+        FibLevel {
+            enabled: true,
+            level: -2.0,
+            color: Rgba::hex(0xFFFFFF),
+        },
+    ]
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PositionParams {
+    pub account_size: f64,
+    pub currency: String,
+    pub lot_size: f64,
+    pub risk_val: f64,
+    pub risk_is_pct: bool,
+    pub leverage: f64,
+    pub qty_decimals: usize,
+    pub compact_stats: bool,
+    pub always_show_stats: bool,
+    pub show_price_labels: bool,
+    pub text_size: u8,
+    pub lines_color: Option<Rgba>,
+    pub lines_style: LineStyle,
+    pub stop_color: Option<Rgba>,
+    pub target_color: Option<Rgba>,
+    pub text_color: Option<Rgba>,
+}
+
+impl Default for PositionParams {
+    fn default() -> Self {
+        PositionParams {
+            account_size: 7500.0,
+            currency: "USD".into(),
+            lot_size: 1.0,
+            risk_val: 15.0,
+            risk_is_pct: false,
+            leverage: 1.0,
+            qty_decimals: 2,
+            compact_stats: false,
+            always_show_stats: true,
+            show_price_labels: true,
+            text_size: 11,
+            lines_color: None,
+            lines_style: LineStyle::Solid,
+            stop_color: None,
+            target_color: None,
+            text_color: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DrawStyle {
@@ -415,6 +617,24 @@ pub struct DrawStyle {
     pub extend_right: bool,
     pub font: u8,
     pub labels: bool,
+    pub text_color: Option<Rgba>,
+    pub text_size: u8,
+    pub text_bold: bool,
+    pub text_italic: bool,
+    pub text_valign: TextVAlign,
+    pub text_halign: TextHAlign,
+    pub middle_line: bool,
+    pub middle_line_color: Option<Rgba>,
+    pub middle_line_style: LineStyle,
+    pub show_trendline: bool,
+    pub trendline_color: Option<Rgba>,
+    pub trendline_style: LineStyle,
+    pub fib_levels: Option<Vec<FibLevel>>,
+    pub fib_use_one_color: bool,
+    pub fib_one_color: Option<Rgba>,
+    pub fib_background: bool,
+    pub fib_opacity: u8,
+    pub position_params: Option<PositionParams>,
 }
 
 impl Default for DrawStyle {
@@ -428,6 +648,24 @@ impl Default for DrawStyle {
             extend_right: false,
             font: 14,
             labels: true,
+            text_color: None,
+            text_size: 11,
+            text_bold: false,
+            text_italic: false,
+            text_valign: TextVAlign::Inside,
+            text_halign: TextHAlign::Right,
+            middle_line: false,
+            middle_line_color: None,
+            middle_line_style: LineStyle::Dashed,
+            show_trendline: true,
+            trendline_color: None,
+            trendline_style: LineStyle::Dashed,
+            fib_levels: None,
+            fib_use_one_color: false,
+            fib_one_color: None,
+            fib_background: true,
+            fib_opacity: 88,
+            position_params: None,
         }
     }
 }
@@ -439,14 +677,34 @@ impl DrawStyle {
         let d = DrawStyle::default();
         match tool {
             HorizontalLine | HorizontalRay | VerticalLine | CrossLine => DrawStyle { width: 1, ..d },
-            Rectangle | Ellipse | Triangle => DrawStyle {
+            Rectangle => DrawStyle {
+                color: Rgba::hex(0x2962FF),
+                fill: Rgba::hex(0x2962FF).transp(80),
+                middle_line_color: Some(Rgba::hex(0x787B86)),
+                middle_line_style: LineStyle::Dashed,
+                text_color: Some(Rgba::hex(0x000000)),
+                ..d
+            },
+            Ellipse | Triangle => DrawStyle {
                 color: Rgba::hex(0x9C27B0),
                 fill: Rgba::hex(0x9C27B0).transp(80),
                 ..d
             },
-            FibRetracement | FibExtension => DrawStyle {
+            FibRetracement => DrawStyle {
                 color: Rgba::hex(0x787B86),
                 width: 1,
+                fib_levels: Some(default_fib_levels()),
+                fib_background: true,
+                show_trendline: true,
+                ..d
+            },
+            FibExtension => DrawStyle {
+                color: Rgba::hex(0x787B86),
+                width: 1,
+                ..d
+            },
+            LongPosition | ShortPosition => DrawStyle {
+                position_params: Some(PositionParams::default()),
                 ..d
             },
             Pitchfork => DrawStyle {
@@ -714,6 +972,21 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     Stroke::NONE,
                 ));
             }
+            if !d.text.is_empty() {
+                let mid = pos2((pts[0].x + pts[1].x) / 2.0, (pts[0].y + pts[1].y) / 2.0);
+                let tc = d.style.text_color.map(c32).unwrap_or(s.color);
+                let font_size = if d.style.text_size > 0 {
+                    d.style.text_size as f32
+                } else {
+                    12.0
+                };
+                let font = if d.style.text_bold {
+                    theme::semibold(font_size)
+                } else {
+                    theme::regular(font_size)
+                };
+                p.text(mid + vec2(0.0, -8.0), Align2::CENTER_BOTTOM, &d.text, font, tc);
+            }
         }
         HorizontalLine | HorizontalRay if !pts.is_empty() => {
             let x0 = if d.tool == HorizontalRay { pts[0].x } else { r.left() };
@@ -728,6 +1001,20 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     Color32::WHITE,
                     s.color,
                 );
+            }
+            if !d.text.is_empty() {
+                let tc = d.style.text_color.map(c32).unwrap_or(s.color);
+                let font_size = if d.style.text_size > 0 {
+                    d.style.text_size as f32
+                } else {
+                    12.0
+                };
+                let font = if d.style.text_bold {
+                    theme::semibold(font_size)
+                } else {
+                    theme::regular(font_size)
+                };
+                p.text(pos2(x0 + 8.0, pts[0].y - 4.0), Align2::LEFT_BOTTOM, &d.text, font, tc);
             }
         }
         VerticalLine if !pts.is_empty() => {
@@ -761,42 +1048,71 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             } else {
                 (d.pts[1].p, d.pts[0].p - d.pts[1].p)
             };
-            let x1 = if d.style.extend_right { r.right() } else { x1 };
-            if d.tool == FibExtension && pts.len() >= 2 {
-                let tl = Stroke::new(1.0, s.color.gamma_multiply(0.7));
-                p.extend(Shape::dashed_line(&pts, tl, 5.0, 4.0));
+            let (x0, x1) = if d.style.extend_left && d.style.extend_right {
+                (r.left(), r.right())
+            } else if d.style.extend_left {
+                (r.left(), x1)
+            } else if d.style.extend_right {
+                (x0, r.right())
+            } else {
+                (x0, x1)
+            };
+
+            // Trend line
+            if d.style.show_trendline {
+                let tl_color = d
+                    .style
+                    .trendline_color
+                    .map(c32)
+                    .unwrap_or_else(|| s.color.gamma_multiply(0.7));
+                let tl_stroke = Stroke::new(1.0, tl_color);
+                line(p, pts[0], pts[1], tl_stroke, d.style.trendline_style);
             }
-            let mut prev: Option<(f32, u32)> = None;
-            for (lvl, col) in FIB_LEVELS {
-                if d.tool == FibRetracement && lvl > 1.0 {
-                    continue;
-                }
+
+            let default_lvls = default_fib_levels();
+            let levels = d.style.fib_levels.as_ref().unwrap_or(&default_lvls);
+            let mut active_levels: Vec<(f64, Color32)> = levels
+                .iter()
+                .filter(|lvl| lvl.enabled)
+                .map(|lvl| {
+                    let col = if d.style.fib_use_one_color {
+                        d.style.fib_one_color.map(c32).unwrap_or_else(|| c32(lvl.color))
+                    } else {
+                        c32(lvl.color)
+                    };
+                    (lvl.level, col)
+                })
+                .collect();
+            active_levels.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+            let mut prev: Option<(f32, Color32)> = None;
+            for (lvl, col) in active_levels {
                 let price = base + span * lvl;
                 let y = g.y.y(price);
-                let c = c32(Rgba::hex(col));
-                if let Some((py, pc)) = prev {
+                if d.style.fib_background
+                    && let Some((py, pc)) = prev
+                {
                     let band = Rect::from_x_y_ranges(x0..=x1, py.min(y)..=py.max(y));
-                    p.rect_filled(band, CornerRadius::ZERO, c32(Rgba::hex(pc).transp(88)));
+                    let opacity = (d.style.fib_opacity as f32 / 100.0) * 0.22;
+                    p.rect_filled(band, CornerRadius::ZERO, pc.linear_multiply(opacity));
                 }
-                p.hline(x0..=x1, y, Stroke::new(1.0, c));
+                line(
+                    p,
+                    pos2(x0, y),
+                    pos2(x1, y),
+                    Stroke::new(d.style.width as f32, col),
+                    d.style.line,
+                );
                 if d.style.labels {
                     p.text(
                         pos2(x0 - 4.0, y),
                         Align2::RIGHT_CENTER,
                         format!("{lvl} ({})", format::price(price, g.decimals)),
                         theme::regular(11.0),
-                        c,
+                        col,
                     );
                 }
                 prev = Some((y, col));
-            }
-            if d.tool == FibRetracement {
-                p.extend(Shape::dashed_line(
-                    &[pts[0], pts[1]],
-                    Stroke::new(1.0, s.color.gamma_multiply(0.7)),
-                    5.0,
-                    4.0,
-                ));
             }
         }
         Pitchfork if pts.len() >= 2 => {
@@ -834,19 +1150,71 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             )));
         }
         Rectangle | PriceRange | DateRange | DatePriceRange if pts.len() >= 2 => {
-            let rect = Rect::from_two_pos(pts[0], pts[1]);
+            let mut rect = Rect::from_two_pos(pts[0], pts[1]);
+            if d.tool == Rectangle {
+                if d.style.extend_left {
+                    rect.min.x = r.left();
+                }
+                if d.style.extend_right {
+                    rect.max.x = r.right();
+                }
+            }
             p.rect_filled(rect, CornerRadius::ZERO, fill);
             if d.tool == Rectangle {
                 p.rect_stroke(rect, CornerRadius::ZERO, s, egui::StrokeKind::Middle);
-                // A label above the box (the agent marks patterns this way).
-                if !d.text.is_empty() {
-                    p.text(
-                        rect.left_top() + vec2(0.0, -4.0),
-                        Align2::LEFT_BOTTOM,
-                        &d.text,
-                        theme::medium(d.style.font as f32 * 0.9),
-                        s.color,
+                // Middle line.
+                if d.style.middle_line {
+                    let mid_y = (rect.top() + rect.bottom()) / 2.0;
+                    let ml_col = d
+                        .style
+                        .middle_line_color
+                        .map(c32)
+                        .unwrap_or_else(|| s.color.gamma_multiply(0.7));
+                    line(
+                        p,
+                        pos2(rect.left(), mid_y),
+                        pos2(rect.right(), mid_y),
+                        Stroke::new(1.0, ml_col),
+                        d.style.middle_line_style,
                     );
+                }
+                // Text inside/around the rectangle.
+                if !d.text.is_empty() {
+                    let tc = d.style.text_color.map(c32).unwrap_or(s.color);
+                    let font_size = if d.style.text_size > 0 {
+                        d.style.text_size as f32
+                    } else {
+                        12.0
+                    };
+                    let font = if d.style.text_bold {
+                        theme::semibold(font_size)
+                    } else {
+                        theme::regular(font_size)
+                    };
+                    let (pos, align) = match (d.style.text_valign, d.style.text_halign) {
+                        (TextVAlign::Top, TextHAlign::Left) => (rect.left_top() + vec2(6.0, 4.0), Align2::LEFT_TOP),
+                        (TextVAlign::Top, TextHAlign::Center) => {
+                            (pos2(rect.center().x, rect.top() + 4.0), Align2::CENTER_TOP)
+                        }
+                        (TextVAlign::Top, TextHAlign::Right) => (rect.right_top() + vec2(-6.0, 4.0), Align2::RIGHT_TOP),
+                        (TextVAlign::Inside, TextHAlign::Left) => {
+                            (pos2(rect.left() + 6.0, rect.center().y), Align2::LEFT_CENTER)
+                        }
+                        (TextVAlign::Inside, TextHAlign::Center) => (rect.center(), Align2::CENTER_CENTER),
+                        (TextVAlign::Inside, TextHAlign::Right) => {
+                            (pos2(rect.right() - 6.0, rect.center().y), Align2::RIGHT_CENTER)
+                        }
+                        (TextVAlign::Bottom, TextHAlign::Left) => {
+                            (rect.left_bottom() + vec2(6.0, -4.0), Align2::LEFT_BOTTOM)
+                        }
+                        (TextVAlign::Bottom, TextHAlign::Center) => {
+                            (pos2(rect.center().x, rect.bottom() - 4.0), Align2::CENTER_BOTTOM)
+                        }
+                        (TextVAlign::Bottom, TextHAlign::Right) => {
+                            (rect.right_bottom() + vec2(-6.0, -4.0), Align2::RIGHT_BOTTOM)
+                        }
+                    };
+                    p.text(pos, align, &d.text, font, tc);
                 }
             } else {
                 measure(p, d, g, pts[0], pts[1], s);
@@ -870,9 +1238,20 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
         }
         LongPosition | ShortPosition => {
             if let Some((x0, x1, e, t, st)) = position_parts(d, g) {
+                let default_p = PositionParams::default();
+                let params = d.style.position_params.as_ref().unwrap_or(&default_p);
                 let (ye, yt, ys) = (g.y.y(e), g.y.y(t), g.y.y(st));
-                let green = Color32::from_rgba_unmultiplied(8, 153, 129, 60);
-                let red = Color32::from_rgba_unmultiplied(242, 54, 69, 60);
+                let green = params
+                    .target_color
+                    .map(c32)
+                    .unwrap_or(Color32::from_rgba_unmultiplied(8, 153, 129, 60));
+                let red = params
+                    .stop_color
+                    .map(c32)
+                    .unwrap_or(Color32::from_rgba_unmultiplied(242, 54, 69, 60));
+                let line_c = params.lines_color.map(c32).unwrap_or(Color32::from_gray(140));
+                let line_s = Stroke::new(d.style.width as f32, line_c);
+
                 p.rect_filled(
                     Rect::from_x_y_ranges(x0..=x1, ye.min(yt)..=ye.max(yt)),
                     CornerRadius::ZERO,
@@ -883,50 +1262,86 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     CornerRadius::ZERO,
                     red,
                 );
-                p.hline(x0..=x1, ye, Stroke::new(1.0, Color32::from_gray(140)));
+                line(p, pos2(x0, ye), pos2(x1, ye), line_s, params.lines_style);
+
                 let pct = |a: f64| (a / e - 1.0) * 100.0;
-                let rr = if (e - st).abs() > 0.0 {
-                    ((t - e) / (e - st)).abs()
+                let stop_dist = (e - st).abs();
+                let target_dist = (t - e).abs();
+                let rr = if stop_dist > 0.0 { target_dist / stop_dist } else { 0.0 };
+                let risk_dollars = if params.risk_is_pct {
+                    params.account_size * (params.risk_val / 100.0)
+                } else {
+                    params.risk_val
+                };
+                let qty = if stop_dist > 0.0 {
+                    (risk_dollars / (stop_dist * params.lot_size)) * params.leverage
                 } else {
                     0.0
                 };
+                let amount = qty * e;
+                let step = if g.tm.bars.is_empty() {
+                    1.0
+                } else {
+                    (g.tm.bars[0].close * 0.0001).max(1e-6)
+                };
+                let target_ticks = (target_dist / step).round() as i64;
+                let stop_ticks = (stop_dist / step).round() as i64;
+                let text_c = params.text_color.map(c32).unwrap_or(Color32::WHITE);
                 let tc = Color32::from_rgb(8, 153, 129);
                 let sc = Color32::from_rgb(242, 54, 69);
                 let cx = (x0 + x1) / 2.0;
                 let (up_t, up_s) = (yt < ye, ys < ye);
                 let place = |up: bool| if up { Align2::CENTER_BOTTOM } else { Align2::CENTER_TOP };
-                label(
-                    p,
-                    pos2(cx, yt + if up_t { -4.0 } else { 4.0 }),
-                    place(up_t),
-                    &trf!(
-                        "Target: {} ({})",
+
+                if params.show_price_labels {
+                    let target_str = format!(
+                        "Target: {} ({:+.2}%) {}, Amount: {:.0}",
                         format::price(t, g.decimals),
-                        format::signed_pct(pct(t))
-                    ),
-                    Color32::WHITE,
-                    tc,
-                );
-                label(
-                    p,
-                    pos2(cx, ys + if up_s { -4.0 } else { 4.0 }),
-                    place(up_s),
-                    &trf!(
-                        "Stop: {} ({})",
+                        pct(t),
+                        target_ticks,
+                        amount
+                    );
+                    label(
+                        p,
+                        pos2(cx, yt + if up_t { -4.0 } else { 4.0 }),
+                        place(up_t),
+                        &target_str,
+                        text_c,
+                        tc,
+                    );
+
+                    let stop_str = format!(
+                        "Stop: {} ({:+.2}%) {}, Amount: {:.0}",
                         format::price(st, g.decimals),
-                        format::signed_pct(pct(st))
-                    ),
-                    Color32::WHITE,
-                    sc,
-                );
-                label(
-                    p,
-                    pos2(x1 + 6.0, ye),
-                    Align2::LEFT_CENTER,
-                    &trf!("Risk/reward ratio: {rr:.2}"),
-                    Color32::WHITE,
-                    Color32::from_gray(90),
-                );
+                        pct(st),
+                        stop_ticks,
+                        amount
+                    );
+                    label(
+                        p,
+                        pos2(cx, ys + if up_s { -4.0 } else { 4.0 }),
+                        place(up_s),
+                        &stop_str,
+                        text_c,
+                        sc,
+                    );
+                }
+
+                if params.always_show_stats {
+                    let mid_str = if params.compact_stats {
+                        format!("R/R: {rr:.2}")
+                    } else {
+                        format!("Qty: {:.*}\nRisk/reward ratio: {rr:.2}", params.qty_decimals, qty)
+                    };
+                    label(
+                        p,
+                        pos2(x1 + 6.0, ye),
+                        Align2::LEFT_CENTER,
+                        &mid_str,
+                        text_c,
+                        Color32::from_rgb(230, 110, 15),
+                    );
+                }
             }
         }
         AnchoredVwap if !d.pts.is_empty() => {
@@ -1217,6 +1632,25 @@ pub fn handle_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
             .first()
             .map(|a| vec![pos2(g.tm.x(a.t), g.rect.center().y)])
             .unwrap_or_default(),
+        Tool::Rectangle if d.pts.len() >= 2 => {
+            let (p0, p1) = (g.pos(d.pts[0]), g.pos(d.pts[1]));
+            let min_x = p0.x.min(p1.x);
+            let max_x = p0.x.max(p1.x);
+            let min_y = p0.y.min(p1.y);
+            let max_y = p0.y.max(p1.y);
+            let mid_x = (min_x + max_x) / 2.0;
+            let mid_y = (min_y + max_y) / 2.0;
+            vec![
+                p0,
+                p1,
+                pos2(p0.x, p1.y),
+                pos2(p1.x, p0.y),
+                pos2(mid_x, min_y),
+                pos2(max_x, mid_y),
+                pos2(mid_x, max_y),
+                pos2(min_x, mid_y),
+            ]
+        }
         Tool::ParallelChannel if d.pts.len() >= 3 => {
             let (a, b) = (g.pos(d.pts[0]), g.pos(d.pts[1]));
             let off = g.pos(d.pts[2]).y - a.y;
@@ -1375,6 +1809,47 @@ pub fn drag(d: &mut Drawing, part: Part, from: Anchor, to: Anchor, tm: &TimeMap)
                     a.t = to.t;
                 }
             }
+            Tool::Rectangle if d.pts.len() >= 2 => match k {
+                0 => d.pts[0] = to,
+                1 => d.pts[1] = to,
+                2 => {
+                    d.pts[0].t = to.t;
+                    d.pts[1].p = to.p;
+                }
+                3 => {
+                    d.pts[1].t = to.t;
+                    d.pts[0].p = to.p;
+                }
+                4 => {
+                    if d.pts[0].p >= d.pts[1].p {
+                        d.pts[0].p = to.p;
+                    } else {
+                        d.pts[1].p = to.p;
+                    }
+                }
+                5 => {
+                    if d.pts[0].t >= d.pts[1].t {
+                        d.pts[0].t = to.t;
+                    } else {
+                        d.pts[1].t = to.t;
+                    }
+                }
+                6 => {
+                    if d.pts[0].p <= d.pts[1].p {
+                        d.pts[0].p = to.p;
+                    } else {
+                        d.pts[1].p = to.p;
+                    }
+                }
+                7 => {
+                    if d.pts[0].t <= d.pts[1].t {
+                        d.pts[0].t = to.t;
+                    } else {
+                        d.pts[1].t = to.t;
+                    }
+                }
+                _ => {}
+            },
             Tool::ParallelChannel if k == 2 && d.pts.len() >= 3 => {
                 // The middle handle of the second line sets the channel width.
                 let mid_p = (d.pts[0].p + d.pts[1].p) / 2.0;
@@ -1616,5 +2091,63 @@ mod tests {
         // high = 2.0 sits at y = 80; a pointer at 78 snaps to it.
         assert_eq!(magnet(b.first(), 2.2, &g.y, 78.0), 2.0);
         assert_eq!(magnet(b.first(), 9.0, &g.y, 10.0), 9.0);
+    }
+
+    #[test]
+    fn test_rectangle_eight_handles() {
+        let b = bars();
+        let g = geo(&b);
+        let mut d = Drawing {
+            id: 1,
+            tool: Tool::Rectangle,
+            pts: vec![
+                Anchor { t: 0, p: 10.0 },
+                Anchor {
+                    t: 5 * 3_600_000,
+                    p: 2.0,
+                },
+            ],
+            style: DrawStyle::default(),
+            text: "My Box".into(),
+            locked: false,
+            hidden: false,
+        };
+        let handles = handle_points(&d, &g);
+        assert_eq!(
+            handles.len(),
+            8,
+            "Rectangle must have 8 handles (4 corners + 4 edge midpoints)"
+        );
+
+        // Drag top midpoint (handle 4): changes top price
+        let from0 = d.pts[0];
+        drag(&mut d, Part::Point(4), from0, Anchor { t: 0, p: 12.0 }, &g.tm);
+        assert_eq!(d.pts[0].p, 12.0, "top price updated");
+        assert_eq!(d.pts[1].p, 2.0, "bottom price unchanged");
+
+        // Drag bottom midpoint (handle 6): changes bottom price
+        let from1 = d.pts[1];
+        drag(&mut d, Part::Point(6), from1, Anchor { t: 0, p: 1.0 }, &g.tm);
+        assert_eq!(d.pts[1].p, 1.0, "bottom price updated");
+        assert_eq!(d.pts[0].p, 12.0, "top price unchanged");
+    }
+
+    #[test]
+    fn test_fib_retracement_custom_levels() {
+        let lvls = default_fib_levels();
+        assert_eq!(lvls.len(), 26, "TradingView standard 26 fib levels");
+        assert!(lvls.iter().any(|l| l.level == 0.0 && l.enabled));
+        assert!(lvls.iter().any(|l| l.level == 0.5 && l.enabled));
+        assert!(lvls.iter().any(|l| l.level == 1.0 && l.enabled));
+        assert!(lvls.iter().any(|l| l.level == 1.618 && !l.enabled));
+    }
+
+    #[test]
+    fn test_position_params_defaults_and_calculation() {
+        let p = PositionParams::default();
+        assert_eq!(p.account_size, 7500.0);
+        assert_eq!(p.risk_val, 15.0);
+        assert_eq!(p.currency, "USD");
+        assert_eq!(p.qty_decimals, 2);
     }
 }

@@ -21,6 +21,7 @@ pub struct Tools<'a> {
 pub struct DrawUi {
     pub selected: Option<u64>,
     pub hovered: Option<u64>,
+    pub open_settings: Option<u64>,
     placing: Option<Drawing>,
     clicks: usize,
     drag: Option<(u64, Part, Anchor)>,
@@ -295,7 +296,12 @@ pub fn handle(
         }
         return resp.dragged();
     }
-    if resp.clicked() {
+    if resp.double_clicked() {
+        if let Some((id, _, _)) = press.and_then(hit_at) {
+            du.selected = Some(id);
+            du.open_settings = Some(id);
+        }
+    } else if resp.clicked() {
         du.selected = press.and_then(hit_at).map(|h| h.0);
     }
     if resp.drag_started()

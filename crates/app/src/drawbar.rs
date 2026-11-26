@@ -25,6 +25,7 @@ impl App {
         let mut edit = d.clone();
         let mut delete = false;
         let mut save_default = false;
+        let mut open_settings = false;
         egui::Area::new(egui::Id::new("drawing-bar"))
             .order(egui::Order::Foreground)
             .pivot(egui::Align2::CENTER_TOP)
@@ -63,6 +64,20 @@ impl App {
                             if fills {
                                 color_button(ui, &t, &mut edit.style.fill);
                             }
+                            if matches!(d.tool, Tool::LongPosition | Tool::ShortPosition) {
+                                let params = edit
+                                    .style
+                                    .position_params
+                                    .get_or_insert_with(crate::chart::draw::PositionParams::default);
+                                let mut tc = params.target_color.unwrap_or(opentern_series::Rgba::hex(0x089981));
+                                if color_button(ui, &t, &mut tc) {
+                                    params.target_color = Some(tc);
+                                }
+                                let mut sc = params.stop_color.unwrap_or(opentern_series::Rgba::hex(0xF23645));
+                                if color_button(ui, &t, &mut sc) {
+                                    params.stop_color = Some(sc);
+                                }
+                            }
                             crate::widgets::combo("draw-width")
                                 .width(50.0)
                                 .selected_text(trf!("{}px", edit.style.width))
@@ -84,11 +99,23 @@ impl App {
                                         crate::widgets::option_value(ui, &mut edit.style.line, s, name(s));
                                     }
                                 });
-                            if matches!(d.tool, Tool::Text | Tool::ArrowUp | Tool::ArrowDown) {
+                            if matches!(
+                                d.tool,
+                                Tool::Text
+                                    | Tool::ArrowUp
+                                    | Tool::ArrowDown
+                                    | Tool::TrendLine
+                                    | Tool::Ray
+                                    | Tool::ExtendedLine
+                                    | Tool::Arrow
+                                    | Tool::HorizontalLine
+                                    | Tool::HorizontalRay
+                                    | Tool::Rectangle
+                            ) {
                                 ui.add(
                                     crate::widgets::field(&mut edit.text)
                                         .hint_text(tr("Text"))
-                                        .desired_width(140.0),
+                                        .desired_width(120.0),
                                 );
                             }
                             if matches!(d.tool, Tool::TrendLine | Tool::Arrow) {
@@ -96,6 +123,10 @@ impl App {
                                     .on_hover_text(tr("Extend left"));
                                 ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
                                     .on_hover_text(tr("Extend right"));
+                            }
+                            if d.tool == Tool::Rectangle {
+                                ui.toggle_value(&mut edit.style.middle_line, ph::EQUALS)
+                                    .on_hover_text(tr("Middle line"));
                             }
                             if matches!(d.tool, Tool::FibRetracement | Tool::FibExtension) {
                                 ui.toggle_value(&mut edit.style.extend_right, ph::ARROW_LINE_RIGHT)
@@ -109,6 +140,12 @@ impl App {
                                     .on_hover_text(tr("Price labels"));
                             }
                             ui.separator();
+                            if crate::widgets::eased(ui, egui::Button::new(ph::GEAR))
+                                .on_hover_text(tr("Settings"))
+                                .clicked()
+                            {
+                                open_settings = true;
+                            }
                             let lock = if edit.locked {
                                 ph::LOCK_SIMPLE
                             } else {
@@ -133,6 +170,10 @@ impl App {
         if delete {
             self.delete_selected_drawing();
             return;
+        }
+        if open_settings {
+            self.modal =
+                crate::dialogs::DrawingSettings::new(self, id).map(|s| crate::dialogs::Modal::Drawing(Box::new(s)));
         }
         if save_default {
             self.save_drawing_default(d.tool, &edit.style);

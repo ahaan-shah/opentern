@@ -238,6 +238,9 @@ msgstr "口座ID"
 msgid "Account settings"
 msgstr "口座設定"
 
+msgid "Account size"
+msgstr "口座サイズ"
+
 msgid "Account size required"
 msgstr "必要口座資金"
 
@@ -258,6 +261,9 @@ msgstr "フィルターを追加"
 
 msgid "Add section"
 msgstr "セクションを追加"
+
+msgid "Add text"
+msgstr "テキストを追加"
 
 msgid "Add to chart"
 msgstr "チャートに追加"
@@ -367,6 +373,9 @@ msgstr "Alpacaに{0}足はありません"
 
 msgid "Alpaca · US stocks"
 msgstr "Alpaca · 米国株"
+
+msgid "Always show stats"
+msgstr "常に統計を表示"
 
 msgid "Americas"
 msgstr "南北アメリカ"
@@ -678,6 +687,9 @@ msgstr "ボリンジャーバンド %B"
 msgid "Borders"
 msgstr "枠線"
 
+msgid "Bottom"
+msgstr "下"
+
 #, message
 msgid "Bought {qty} {sym} at {price}"
 msgstr "{sym}を{qty}、{price}で買いました"
@@ -785,6 +797,9 @@ msgstr "現金"
 
 msgid "Categories"
 msgstr "カテゴリー"
+
+msgid "Center"
+msgstr "中央"
 
 msgid "Centered"
 msgstr "中央"
@@ -1061,6 +1076,9 @@ msgstr "商品"
 msgid "Commodity Channel Index"
 msgstr "商品チャネル指数 (CCI)"
 
+msgid "Compact stats"
+msgstr "コンパクト統計"
+
 msgid "Compare"
 msgstr "比較"
 
@@ -1108,6 +1126,9 @@ msgstr "転換線"
 
 msgid "Conversion Line Length"
 msgstr "転換線の期間"
+
+msgid "Coordinates"
+msgstr "座標"
 
 #, message
 msgid "Copied to {name}."
@@ -1483,6 +1504,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr "延長しない"
+
 msgid "Donchian Channels"
 msgstr "ドンチャンチャネル"
 
@@ -1700,6 +1724,9 @@ msgstr "もう一方のデバイスでこのコードを入力"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "企業価値 ÷ 直近12か月のEBITDA。指数では合計EV ÷ 合計EBITDA"
 
+msgid "Entry price"
+msgstr "エントリー価格"
+
 msgid "Entry {side}"
 msgstr "{side} 仕掛け"
 
@@ -1785,8 +1812,17 @@ msgstr "{when} エクスポート · Opentern {0}"
 msgid "Exporting"
 msgstr "エクスポート中"
 
+msgid "Extend"
+msgstr "延長"
+
+msgid "Extend both"
+msgstr "両側を延長"
+
 msgid "Extend left"
 msgstr "左に延長"
+
+msgid "Extend lines"
+msgstr "ラインを延長"
 
 msgid "Extend lines left"
 msgstr "線を左に延長"
@@ -2231,6 +2267,9 @@ msgstr "入力"
 msgid "Inputs"
 msgstr "入力"
 
+msgid "Inside"
+msgstr "内側"
+
 msgid "Install {0}"
 msgstr "{0}をインストール"
 
@@ -2331,6 +2370,9 @@ msgstr "開天節"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Krakenに{0}足はありません"
+
+msgid "LEVELS"
+msgstr "レベル"
 
 msgid "Labels on price scale"
 msgstr "価格スケール上のラベル"
@@ -2602,6 +2644,9 @@ msgstr "連敗 (ワースト5%)"
 
 msgid "Losing trades"
 msgstr "負けトレード"
+
+msgid "Lot size"
+msgstr "ロットサイズ"
 
 msgid "Low"
 msgstr "低"
@@ -2887,6 +2932,9 @@ msgstr "中期RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期RCIの期間"
+
+msgid "Middle line"
+msgstr "中間ライン"
 
 msgid "Millions, billions"
 msgstr "百万、十億"
@@ -3560,6 +3608,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "問題"
 
+msgid "PROFIT LEVEL"
+msgstr "利益レベル"
+
 msgid "PVT"
 msgstr ""
 
@@ -3861,6 +3912,9 @@ msgstr "数量"
 msgid "Quantity"
 msgstr "数量"
 
+msgid "Quantity precision"
+msgstr "数量の精度"
+
 msgid "Quarter"
 msgstr "四半期"
 
@@ -4115,6 +4169,9 @@ msgstr "口座をリセット"
 msgid "Reset settings"
 msgstr "設定をリセット"
 
+msgid "Reset style to defaults"
+msgstr "スタイルをデフォルトに戻す"
+
 msgid "Reset the account to change its currency"
 msgstr "通貨を変えるには口座をリセットしてください"
 
@@ -4178,11 +4235,11 @@ msgstr "右の足数"
 msgid "Rises and falls"
 msgstr "上昇と下落"
 
+msgid "Risk"
+msgstr "リスク"
+
 msgid "Risk/performance ratios"
 msgstr "リスク/パフォーマンス比率"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "リスクリワード比: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "破産とみなすドローダウン"
@@ -4264,6 +4321,9 @@ msgstr ""
 
 msgid "SMTP server"
 msgstr "SMTPサーバー"
+
+msgid "STOP LEVEL"
+msgstr "ストップレベル"
 
 msgid "Same % scale"
 msgstr "同じ%スケール"
@@ -4525,6 +4585,9 @@ msgstr "上部バーに表示"
 msgid "Show labels"
 msgstr "ラベルを表示"
 
+msgid "Show on chart"
+msgstr "チャートに表示"
+
 msgid "Show on intervals"
 msgstr "表示する時間足"
 
@@ -4774,6 +4837,9 @@ msgstr "ロングのストップ"
 msgid "Stop Short"
 msgstr "ショートのストップ"
 
+msgid "Stop color"
+msgstr "ストップ色"
+
 msgid "Stop limit"
 msgstr "ストップリミット"
 
@@ -4785,9 +4851,6 @@ msgstr "逆指値価格"
 
 msgid "Stop using as default"
 msgstr "既定から外す"
-
-msgid "Stop: {0} ({1})"
-msgstr "ストップ: {0} ({1})"
 
 msgid "Stopped"
 msgstr "停止中"
@@ -4923,8 +4986,8 @@ msgstr "名前を変える前に、そのスクリプトをチャートから外
 msgid "Take profit"
 msgstr "テイクプロフィット"
 
-msgid "Target: {0} ({1})"
-msgstr "目標: {0} ({1})"
+msgid "Target color"
+msgstr "ターゲット色"
 
 msgid "Teachers' Day"
 msgstr "教師の日"
@@ -4950,6 +5013,9 @@ msgstr "Telegramボットトークン"
 msgid "Telegram chat id"
 msgstr "TelegramチャットID"
 
+msgid "Template"
+msgstr "テンプレート"
+
 msgid "Template  {0}"
 msgstr "テンプレート  {0}"
 
@@ -4958,6 +5024,12 @@ msgstr "テンプレート"
 
 msgid "Text"
 msgstr "テキスト"
+
+msgid "Text alignment"
+msgstr "テキストの配置"
+
+msgid "Text style"
+msgstr "テキストスタイル"
 
 msgid "Thanksgiving"
 msgstr "感謝祭"
@@ -5129,6 +5201,9 @@ msgstr "変化させる入力にチェックを入れてください。"
 msgid "Ticked members of {0}"
 msgstr "{0}の構成銘柄を選択しました"
 
+msgid "Ticks"
+msgstr "ティック"
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "タイルは通常取引の値です。カーソルを合わせると時間外価格を表示します。"
 
@@ -5170,6 +5245,9 @@ msgstr "誤ったコードが多すぎます。最初からやり直してくだ
 
 msgid "Took a picture of the chart"
 msgstr "チャートの画像を撮りました"
+
+msgid "Top"
+msgstr "上"
 
 msgid "Top 150"
 msgstr "上位150"
@@ -5856,6 +5934,9 @@ msgstr ""
 msgid "open"
 msgstr "始値"
 
+msgid "price, bar"
+msgstr "価格, バー"
+
 msgid "sell"
 msgstr "売り"
 
@@ -5946,6 +6027,9 @@ msgstr "{0} コピー"
 
 msgid "{0} days"
 msgstr "{0}日"
+
+msgid "{0} decimals"
+msgstr "{0} 桁"
 
 msgid "{0} h {1} min"
 msgstr "{0}時間{1}分"

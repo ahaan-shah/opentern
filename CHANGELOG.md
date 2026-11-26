@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### New
+- **Upgraded drawing tools and Settings dialogs.** Drawing tools now match TradingView's feature depth:
+  - **Drawing Settings modal**: Double-clicking any drawing or clicking the gear icon on the floating toolbar opens a full settings dialog with Style, Text, Coordinates, Inputs, and Visibility tabs, live chart preview, and template presets.
+  - **Trendline, Ray, and Extended lines**: Added inline text labels with custom text color, font sizes, and exact coordinate editing.
+  - **Rectangle / Box**: 8 draggable handles (4 corners + 4 edge midpoints for single-dimension resizing), dashed middle line with customizable style/color, extend left/right options, and multi-line text with vertical (Inside/Top/Bottom) and horizontal (Left/Center/Right) alignments.
+  - **Fibonacci Retracement**: 26 fully customizable levels with individual level checkboxes, custom ratios, colors, optional trendline, line extensions, and background opacity shading.
+  - **Long and Short Position tools**: Comprehensive position sizing engine supporting account size, currency, lot size, cash or percent risk, leverage, target/stop ticks and prices, and chart tags showing Target, Stop, Amount, Qty, and Risk/Reward ratio.
 - **Favorite drawings toolbar.** A floating TradingView-style toolbar over the chart for quick one-click access to your favorite drawing tools. Hover over any tool in the drawing flyouts to star it (or right-click standalone tools like Measure and Zoom). The floating toolbar can be dragged anywhere over the chart, toggled between horizontal and vertical orientations, collapsed into a compact pill, reordered by drag-and-drop or context menu, and toggled on or off via the star button in the left sidebar.
 
 ## 0.3.6 (2026-11-26)

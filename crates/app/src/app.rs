@@ -106,6 +106,7 @@ pub struct App {
     still_claude: Option<String>,
     /// `OPENTERN_STILL=snap`: take a chart snapshot once bars are in.
     still_snap: bool,
+    still_demo_drawings: bool,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Folders picked in Settings → General (`None` = inside the
@@ -294,6 +295,7 @@ impl App {
             still_colors: None,
             still_claude: None,
             still_snap: false,
+            still_demo_drawings: false,
             logos,
             folders,
             python_notice: None,
@@ -604,6 +606,8 @@ impl App {
                 self.still_measure = true;
             } else if part == "snap" {
                 self.still_snap = true;
+            } else if part == "demo-drawings" {
+                self.still_demo_drawings = true;
             } else if part == "replay:play" {
                 self.still_replay = true;
             } else if part == "replay" {
@@ -1614,6 +1618,72 @@ impl App {
                 crate::chart::draw::Anchor { t: b.time, p: b.high },
             );
         }
+        if self.still_demo_drawings && self.chart.bars.len() > 80 {
+            self.still_demo_drawings = false;
+            let n = self.chart.bars.len();
+            let b0 = &self.chart.bars[n - 60];
+            let b1 = &self.chart.bars[n - 30];
+            let b2 = &self.chart.bars[n - 8];
+
+            // 1. Trendline with text
+            let mut tl = crate::chart::draw::Drawing {
+                id: 101,
+                tool: Tool::TrendLine,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: b0.time, p: b0.low },
+                    crate::chart::draw::Anchor { t: b1.time, p: b1.low },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::TrendLine),
+                text: "Key Trendline".into(),
+                locked: false,
+                hidden: false,
+            };
+            tl.style.text_bold = true;
+            self.chart.drawings.push(tl);
+
+            // 2. Rectangle with middle line and text
+            let mut rect = crate::chart::draw::Drawing {
+                id: 102,
+                tool: Tool::Rectangle,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: b1.time, p: b0.high },
+                    crate::chart::draw::Anchor { t: b2.time, p: b1.low },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::Rectangle),
+                text: "Demand Zone".into(),
+                locked: false,
+                hidden: false,
+            };
+            rect.style.middle_line = true;
+            rect.style.text_bold = true;
+            self.chart.drawings.push(rect);
+
+            // 3. Long Position
+            let lp = crate::chart::draw::Drawing {
+                id: 103,
+                tool: Tool::LongPosition,
+                pts: vec![
+                    crate::chart::draw::Anchor {
+                        t: b1.time,
+                        p: b1.close,
+                    },
+                    crate::chart::draw::Anchor {
+                        t: b2.time,
+                        p: b1.close + (b0.high - b0.low) * 1.5,
+                    },
+                    crate::chart::draw::Anchor {
+                        t: b2.time,
+                        p: b1.close - (b0.high - b0.low) * 0.5,
+                    },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::LongPosition),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.drawings.push(lp);
+            self.chart.drawings_changed += 1;
+        }
         if self.still_snap && self.chart.bars.len() > 80 {
             self.still_snap = false;
             self.take_snapshot(crate::snapshot::Snap::Save);
@@ -1657,6 +1727,10 @@ impl App {
         self.poll_overview(&ctx);
         self.shortcuts(&ctx);
         self.shell(ui);
+        if let Some(id) = self.chart_ui.draw.open_settings.take() {
+            self.modal =
+                crate::dialogs::DrawingSettings::new(self, id).map(|s| crate::dialogs::Modal::Drawing(Box::new(s)));
+        }
         self.drawing_bar(&ctx);
         self.favorite_toolbar(&ctx);
         self.modal(&ctx);
