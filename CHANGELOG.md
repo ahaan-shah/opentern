@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.3.7 (2026-11-26)
+
+A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.
 
 ### New
 - **Favorite drawings toolbar.** Star a tool in the drawing toolbar's lists and it gets a one-click button on a small bar that floats over the chart. Turn the bar on with the star in the drawing toolbar. Drag it anywhere over the chart by its handle, stand it upright, fold it down to its handle, or drag its tools into another order. It shows only over the charts and stays out of snapshots. Thanks to the author of pull request #4.
-
 - **Your own keyboard shortcuts.** In Settings → Keyboard shortcuts, press the pencil beside a shortcut and then the new keys; Delete takes one off, and a changed one has a button back to its default. Keys two shortcuts share are marked with a "!" (the one you set wins). Menus and tooltips show yours.
 
 ### Changed

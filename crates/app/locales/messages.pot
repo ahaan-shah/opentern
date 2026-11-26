@@ -137,6 +137,9 @@ msgstr ""
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr ""
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr ""
+
 msgid "A fast, local-first market analysis terminal."
 msgstr ""
 
@@ -814,6 +817,9 @@ msgid "Change"
 msgstr ""
 
 msgid "Change %"
+msgstr ""
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
 msgstr ""
 
 msgid "Change interval"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr ""
 
+msgid "Draw again without picking again"
+msgstr ""
+
 msgid "Draw with replacement"
 msgstr ""
 
@@ -1816,6 +1825,9 @@ msgid "Fast Length"
 msgstr ""
 
 msgid "Fast length"
+msgstr ""
+
+msgid "Favorite drawings toolbar"
 msgstr ""
 
 msgid "Favorites"
@@ -4683,6 +4695,9 @@ msgstr ""
 msgid "Standard Error Bands"
 msgstr ""
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr ""
+
 msgid "Start"
 msgstr ""
 
@@ -5730,6 +5745,9 @@ msgid "Your chat id (e.g. from @userinfobot)"
 msgstr ""
 
 msgid "Your conversations with your agents show up here."
+msgstr ""
+
+msgid "Your own shortcuts"
 msgstr ""
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."

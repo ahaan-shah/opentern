@@ -137,6 +137,9 @@ msgstr "6か月リターン"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます。コードによってはファイルの読み書きやインターネット接続ができ、エージェントが書いたコードも同様です。信頼できるものだけを実行してください。"
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "描画ツールは描いた後も選ばれたままです。Esc で解除します。"
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "高速でローカルファーストな市場分析ターミナル。"
 
@@ -815,6 +818,9 @@ msgstr "変化"
 
 msgid "Change %"
 msgstr "変化率 %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "設定 → キーボードショートカットで、どのショートカットも変更できます。鉛筆を押してからキーを押します。"
 
 msgid "Change interval"
 msgstr "時間足を変更"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
+msgid "Draw again without picking again"
+msgstr "選び直さずにもう一度描く"
+
 msgid "Draw with replacement"
 msgstr "復元抽出"
 
@@ -1817,6 +1826,9 @@ msgstr "短期期間"
 
 msgid "Fast length"
 msgstr "短期期間"
+
+msgid "Favorite drawings toolbar"
+msgstr "お気に入り描画ツールバー"
 
 msgid "Favorites"
 msgstr "お気に入り"
@@ -4683,6 +4695,9 @@ msgstr "標準誤差"
 msgid "Standard Error Bands"
 msgstr "標準誤差バンド"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "描画ツールバーの一覧でツールに星を付けると、チャートの上の小さなバーに並びます。描画ツールバーの星でオンにします。"
+
 msgid "Start"
 msgstr "開始"
 
@@ -5731,6 +5746,9 @@ msgstr "チャットID (例: @userinfobot で取得)"
 
 msgid "Your conversations with your agents show up here."
 msgstr "エージェントとの会話がここに表示されます。"
+
+msgid "Your own shortcuts"
+msgstr "自分のショートカット"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "ウォッチリスト、レイアウト、描画、アラート、スクリプトは残ります。"

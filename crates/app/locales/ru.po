@@ -137,6 +137,9 @@ msgstr "Доходность 6М"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Скрипт Python запускается в Python вашей системы. В зависимости от кода он может читать и менять ваши файлы и выходить в интернет, в том числе код, который пишет для вас агент. Запускайте только те, которым доверяете."
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "Инструмент рисования остаётся выбранным после каждого рисунка. Esc снимает выбор."
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "Быстрый локальный терминал для анализа рынков."
 
@@ -815,6 +818,9 @@ msgstr "Изменение"
 
 msgid "Change %"
 msgstr "Изменение %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "Измените любую комбинацию в Настройки → Горячие клавиши: нажмите карандаш, затем клавиши."
 
 msgid "Change interval"
 msgstr "Сменить интервал"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
 
+msgid "Draw again without picking again"
+msgstr "Рисуйте снова, не выбирая заново"
+
 msgid "Draw with replacement"
 msgstr "Выборка с возвращением"
 
@@ -1817,6 +1826,9 @@ msgstr "Быстрая длина"
 
 msgid "Fast length"
 msgstr "Быстрая длина"
+
+msgid "Favorite drawings toolbar"
+msgstr "Панель избранных инструментов"
 
 msgid "Favorites"
 msgstr "Избранное"
@@ -4683,6 +4695,9 @@ msgstr "Стандартная ошибка"
 msgid "Standard Error Bands"
 msgstr "Полосы стандартной ошибки"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "Отметьте инструменты звёздочкой в списках панели рисования — они появятся на небольшой панели над графиком. Включается звёздочкой на панели рисования."
+
 msgid "Start"
 msgstr "Начало"
 
@@ -5731,6 +5746,9 @@ msgstr "ID вашего чата (напр. от @userinfobot)"
 
 msgid "Your conversations with your agents show up here."
 msgstr "Здесь появятся ваши беседы с агентами."
+
+msgid "Your own shortcuts"
+msgstr "Свои горячие клавиши"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "Списки, макеты, рисунки, оповещения и скрипты останутся."

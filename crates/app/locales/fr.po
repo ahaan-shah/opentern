@@ -137,6 +137,9 @@ msgstr "Rendement 6M"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Un script Python s'exécute dans le Python de votre système. Selon son code, il peut lire et modifier vos fichiers et aller en ligne, y compris le code qu'un agent écrit pour vous. N'exécutez que ceux auxquels vous faites confiance."
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "Un outil de dessin reste choisi après chaque dessin. Échap le repose."
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "Un terminal d'analyse de marché rapide et local."
 
@@ -815,6 +818,9 @@ msgstr "Variation"
 
 msgid "Change %"
 msgstr "Variation %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "Modifiez n'importe quel raccourci dans Paramètres → Raccourcis clavier : le crayon, puis les touches."
 
 msgid "Change interval"
 msgstr "Changer d'intervalle"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Glisser pour mettre à l'échelle · double-clic pour ajuster · clic droit pour les options"
 
+msgid "Draw again without picking again"
+msgstr "Redessiner sans rechoisir"
+
 msgid "Draw with replacement"
 msgstr "Tirage avec remise"
 
@@ -1817,6 +1826,9 @@ msgstr "Longueur rapide"
 
 msgid "Fast length"
 msgstr "Longueur rapide"
+
+msgid "Favorite drawings toolbar"
+msgstr "Barre des dessins favoris"
 
 msgid "Favorites"
 msgstr "Favoris"
@@ -4683,6 +4695,9 @@ msgstr "Erreur type"
 msgid "Standard Error Bands"
 msgstr "Bandes d'erreur type"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "Marquez des outils d'une étoile dans les listes de la barre de dessin pour une petite barre au-dessus du graphique. Activez-la avec l'étoile de la barre de dessin."
+
 msgid "Start"
 msgstr "Début"
 
@@ -5731,6 +5746,9 @@ msgstr "Votre ID de chat (par ex. via @userinfobot)"
 
 msgid "Your conversations with your agents show up here."
 msgstr "Vos conversations avec vos agents apparaissent ici."
+
+msgid "Your own shortcuts"
+msgstr "Vos propres raccourcis"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "Vos listes, dispositions, dessins, alertes et scripts restent."

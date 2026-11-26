@@ -32,6 +32,32 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.7",
+        items: &[
+            Item {
+                icon: ph::STAR,
+                title: nt!("Favorite drawings toolbar"),
+                body: nt!(
+                    "Star tools in the drawing toolbar's lists for a small bar over the chart. \
+                   Turn it on with the star in the drawing toolbar."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::KEYBOARD,
+                title: nt!("Your own shortcuts"),
+                body: nt!("Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."),
+                image: None,
+            },
+            Item {
+                icon: ph::PENCIL_SIMPLE,
+                title: nt!("Draw again without picking again"),
+                body: nt!("A drawing tool stays picked after each drawing. Esc puts it down."),
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.6",
         items: &[
             Item {

@@ -137,6 +137,9 @@ msgstr "6 个月收益"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python 脚本在你系统自带的 Python 中运行。视代码而定，它可以读取和修改你的文件并访问网络，代理为你编写的代码也一样。只运行你信任的脚本。"
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "绘图工具在每次绘制后保持选中。按 Esc 取消。"
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "快速、本地优先的市场分析终端。"
 
@@ -815,6 +818,9 @@ msgstr "涨跌"
 
 msgid "Change %"
 msgstr "涨跌幅 %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "在 设置 → 键盘快捷键 中修改任意快捷键：先点铅笔，再按键。"
 
 msgid "Change interval"
 msgstr "更改周期"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 
+msgid "Draw again without picking again"
+msgstr "无需重新选择即可再画"
+
 msgid "Draw with replacement"
 msgstr "有放回抽样"
 
@@ -1817,6 +1826,9 @@ msgstr "快线长度"
 
 msgid "Fast length"
 msgstr "快线长度"
+
+msgid "Favorite drawings toolbar"
+msgstr "常用绘图工具栏"
 
 msgid "Favorites"
 msgstr "收藏"
@@ -4683,6 +4695,9 @@ msgstr "标准误差"
 msgid "Standard Error Bands"
 msgstr "标准误差带"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "在绘图工具栏的列表中为工具加星，它们就会出现在图表上方的小工具栏里。用绘图工具栏中的星标打开它。"
+
 msgid "Start"
 msgstr "起点"
 
@@ -5731,6 +5746,9 @@ msgstr "你的聊天 ID（如从 @userinfobot 获取）"
 
 msgid "Your conversations with your agents show up here."
 msgstr "你与代理的对话会显示在这里。"
+
+msgid "Your own shortcuts"
+msgstr "自定义快捷键"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "你的自选、布局、绘图、警报和脚本都会保留。"

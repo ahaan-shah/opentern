@@ -137,6 +137,9 @@ msgstr "Avkastning 6M"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Ett Python-skript körs i ditt eget systems Python. Beroende på koden kan det läsa och ändra dina filer och gå ut på nätet, även kod som en agent skriver åt dig. Kör bara skript du litar på."
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "Ett ritverktyg förblir valt efter varje ritning. Esc lägger undan det."
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "En snabb, lokal terminal för marknadsanalys."
 
@@ -815,6 +818,9 @@ msgstr "Förändring"
 
 msgid "Change %"
 msgstr "Förändring %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "Ändra vilket kortkommando som helst i Inställningar → Kortkommandon: tryck på pennan och sedan tangenterna."
 
 msgid "Change interval"
 msgstr "Ändra intervall"
@@ -1535,6 +1541,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
 
+msgid "Draw again without picking again"
+msgstr "Rita igen utan att välja om"
+
 msgid "Draw with replacement"
 msgstr "Dragning med återläggning"
 
@@ -1817,6 +1826,9 @@ msgstr "Snabb längd"
 
 msgid "Fast length"
 msgstr "Snabb längd"
+
+msgid "Favorite drawings toolbar"
+msgstr "Favoritverktygsfält"
 
 msgid "Favorites"
 msgstr "Favoriter"
@@ -4683,6 +4695,9 @@ msgstr "Standardfel"
 msgid "Standard Error Bands"
 msgstr "Standardfelsband"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "Stjärnmärk verktyg i ritverktygsfältets listor så hamnar de i ett litet fält över diagrammet. Slå på det med stjärnan i ritverktygsfältet."
+
 msgid "Start"
 msgstr "Start"
 
@@ -5731,6 +5746,9 @@ msgstr "Ditt chatt-id (t.ex. från @userinfobot)"
 
 msgid "Your conversations with your agents show up here."
 msgstr "Dina samtal med agenterna visas här."
+
+msgid "Your own shortcuts"
+msgstr "Egna kortkommandon"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "Dina bevakningslistor, layouter, ritningar, larm och skript finns kvar."

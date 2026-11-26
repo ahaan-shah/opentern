@@ -137,6 +137,9 @@ msgstr "6 माह रिटर्न"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python स्क्रिप्ट आपके सिस्टम के Python में चलती है। कोड के अनुसार यह आपकी फ़ाइलें पढ़ और बदल सकती है और इंटरनेट पर जा सकती है; एजेंट का लिखा कोड भी। केवल भरोसेमंद स्क्रिप्ट चलाएँ।"
 
+msgid "A drawing tool stays picked after each drawing. Esc puts it down."
+msgstr "हर ड्रॉइंग के बाद ड्रॉइंग टूल चुना रहता है। Esc से उसे हटाएँ।"
+
 msgid "A fast, local-first market analysis terminal."
 msgstr "तेज़, लोकल-फ़र्स्ट मार्केट विश्लेषण टर्मिनल।"
 
@@ -815,6 +818,9 @@ msgstr "बदलाव"
 
 msgid "Change %"
 msgstr "बदलाव %"
+
+msgid "Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."
+msgstr "सेटिंग्स → कीबोर्ड शॉर्टकट में कोई भी शॉर्टकट बदलें: पेंसिल दबाएँ, फिर कुंजियाँ।"
 
 msgid "Change interval"
 msgstr "अंतराल बदलें"
@@ -1535,6 +1541,9 @@ msgstr "डॉ. बाबासाहेब आंबेडकर जयंत�
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
+msgid "Draw again without picking again"
+msgstr "दोबारा चुने बिना फिर से ड्रॉ करें"
+
 msgid "Draw with replacement"
 msgstr "वापसी के साथ चयन"
 
@@ -1817,6 +1826,9 @@ msgstr "तेज़ लंबाई"
 
 msgid "Fast length"
 msgstr "तेज़ लंबाई"
+
+msgid "Favorite drawings toolbar"
+msgstr "पसंदीदा ड्रॉइंग टूलबार"
 
 msgid "Favorites"
 msgstr "पसंदीदा"
@@ -4683,6 +4695,9 @@ msgstr "मानक त्रुटि"
 msgid "Standard Error Bands"
 msgstr "मानक त्रुटि बैंड"
 
+msgid "Star tools in the drawing toolbar's lists for a small bar over the chart. Turn it on with the star in the drawing toolbar."
+msgstr "ड्रॉइंग टूलबार की सूचियों में टूल पर स्टार लगाएँ, वे चार्ट के ऊपर एक छोटे बार में आ जाएँगे। इसे ड्रॉइंग टूलबार के स्टार से चालू करें।"
+
 msgid "Start"
 msgstr "प्रारंभ"
 
@@ -5731,6 +5746,9 @@ msgstr "आपकी चैट आईडी (जैसे @userinfobot से)"
 
 msgid "Your conversations with your agents show up here."
 msgstr "एजेंटों से आपकी बातचीत यहाँ दिखेगी।"
+
+msgid "Your own shortcuts"
+msgstr "अपने शॉर्टकट"
 
 msgid "Your watchlists, layouts, drawings, alerts and scripts stay."
 msgstr "आपकी वॉचलिस्ट, लेआउट, ड्रॉइंग, अलर्ट और स्क्रिप्ट बने रहेंगे।"

@@ -81,6 +81,10 @@ https://ahaan-shah.github.io/opentern/ on pushes touching `site/`. Install lines
 must match `install.sh` / `install.ps1` and the README.
 
 ## Releasing (only when asked; same as Magpie and Spotsie)
+0. **Ask the maintainer whether to run a whole-app code review first.** Only on
+   a yes: review the entire app (not just the diff since the last tag), fix what
+   it finds (into `## Unreleased`), report, and stop until they've looked and
+   say go. On a no, carry on.
 1. Bump `version` in `Cargo.toml` (workspace) and every `opentern-* = { version
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
