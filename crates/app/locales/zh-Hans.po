@@ -1028,6 +1028,9 @@ msgstr "Coinbase 没有 {0} K 线"
 msgid "Collapse panel"
 msgstr "收起面板"
 
+msgid "Collapse toolbar"
+msgstr "收起工具栏"
+
 msgid "Color"
 msgstr "颜色"
 
@@ -1529,6 +1532,9 @@ msgstr "下降趋势高亮"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "拖动以移动"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 
@@ -1748,6 +1754,9 @@ msgstr "交易所"
 
 msgid "Exit {side}"
 msgstr "{side}出场"
+
+msgid "Expand toolbar"
+msgstr "展开工具栏"
 
 msgid "Expected payoff"
 msgstr "期望收益"
@@ -2037,11 +2046,17 @@ msgstr "隐藏所有绘图"
 msgid "Hide all drawings ({0})"
 msgstr "隐藏所有绘图 ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "隐藏常用绘图工具栏"
+
 msgid "Hide the drawing toolbar"
 msgstr "隐藏绘图工具栏"
 
 msgid "Hide the sidebar"
 msgstr "隐藏侧栏"
+
+msgid "Hide toolbar"
+msgstr "隐藏工具栏"
 
 msgid "High"
 msgstr "高"
@@ -2084,6 +2099,9 @@ msgstr "水平线"
 
 msgid "Horizontal ray"
 msgstr "水平射线"
+
+msgid "Horizontal toolbar"
+msgstr "水平工具栏"
 
 msgid "Horz grid lines"
 msgstr "水平网格线"
@@ -2925,11 +2943,23 @@ msgstr "支持更多脚本"
 msgid "Mountain Day"
 msgstr "山之日"
 
+msgid "Move down"
+msgstr "下移"
+
+msgid "Move left"
+msgstr "左移"
+
+msgid "Move right"
+msgstr "右移"
+
 msgid "Move the pointer over the chart."
 msgstr "将指针移到图表上。"
 
 msgid "Move to top"
 msgstr "移到顶部"
+
+msgid "Move up"
+msgstr "上移"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "显示 POC"
 msgid "Show Pearson's R"
 msgstr "显示皮尔逊 R"
 
+msgid "Show favorite drawings toolbar"
+msgstr "显示常用绘图工具栏"
+
 msgid "Show files ({0})"
 msgstr "显示文件 ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "垂直网格线"
 
 msgid "Vertical line"
 msgstr "垂直线"
+
+msgid "Vertical toolbar"
+msgstr "垂直工具栏"
 
 msgid "Victoria Day"
 msgstr "维多利亚日"

@@ -28,6 +28,7 @@ mod dialogs;
 mod dom;
 mod drawbar;
 mod editor;
+mod favbar;
 mod feeds;
 mod format;
 mod i18n;

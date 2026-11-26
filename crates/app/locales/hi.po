@@ -1028,6 +1028,9 @@ msgstr "Coinbase के पास {0} बार नहीं हैं"
 msgid "Collapse panel"
 msgstr "पैनल समेटें"
 
+msgid "Collapse toolbar"
+msgstr "टूलबार समेटें"
+
 msgid "Color"
 msgstr "रंग"
 
@@ -1529,6 +1532,9 @@ msgstr "डाउनट्रेंड हाइलाइटर"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr "डॉ. बाबासाहेब आंबेडकर जयंती"
 
+msgid "Drag to move"
+msgstr "स्थान बदलने के लिए खींचें"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
@@ -1748,6 +1754,9 @@ msgstr "एक्सचेंज"
 
 msgid "Exit {side}"
 msgstr "निकास {side}"
+
+msgid "Expand toolbar"
+msgstr "टूलबार फैलाएँ"
 
 msgid "Expected payoff"
 msgstr "अपेक्षित लाभ"
@@ -2037,11 +2046,17 @@ msgstr "सभी ड्रॉइंग छिपाएँ"
 msgid "Hide all drawings ({0})"
 msgstr "सभी ड्रॉइंग छिपाएँ ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "पसंदीदा ड्रॉइंग टूलबार छिपाएँ"
+
 msgid "Hide the drawing toolbar"
 msgstr "ड्रॉइंग टूलबार छिपाएँ"
 
 msgid "Hide the sidebar"
 msgstr "साइडबार छिपाएँ"
+
+msgid "Hide toolbar"
+msgstr "टूलबार छिपाएँ"
 
 msgid "High"
 msgstr "अधिक"
@@ -2084,6 +2099,9 @@ msgstr "क्षैतिज रेखा"
 
 msgid "Horizontal ray"
 msgstr "क्षैतिज किरण"
+
+msgid "Horizontal toolbar"
+msgstr "क्षैतिज टूलबार"
 
 msgid "Horz grid lines"
 msgstr "क्षैतिज ग्रिड"
@@ -2925,11 +2943,23 @@ msgstr "अब ज़्यादा स्क्रिप्ट चलती �
 msgid "Mountain Day"
 msgstr "पर्वत दिवस"
 
+msgid "Move down"
+msgstr "नीचे ले जाएँ"
+
+msgid "Move left"
+msgstr "बाएँ ले जाएँ"
+
+msgid "Move right"
+msgstr "दाएँ ले जाएँ"
+
 msgid "Move the pointer over the chart."
 msgstr "पॉइंटर चार्ट पर ले जाएँ।"
 
 msgid "Move to top"
 msgstr "सबसे ऊपर ले जाएँ"
+
+msgid "Move up"
+msgstr "ऊपर ले जाएँ"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "POC दिखाएँ"
 msgid "Show Pearson's R"
 msgstr "पियर्सन R दिखाएँ"
 
+msgid "Show favorite drawings toolbar"
+msgstr "पसंदीदा ड्रॉइंग टूलबार दिखाएँ"
+
 msgid "Show files ({0})"
 msgstr "फ़ाइलें दिखाएँ ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "लंबवत ग्रिड"
 
 msgid "Vertical line"
 msgstr "लंबवत रेखा"
+
+msgid "Vertical toolbar"
+msgstr "लंबवत टूलबार"
 
 msgid "Victoria Day"
 msgstr "विक्टोरिया दिवस"

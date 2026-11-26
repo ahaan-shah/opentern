@@ -153,6 +153,14 @@ pub struct Arrangement {
     pub toolbar: bool,
     /// The market overview has the chart area (and the bottom panel's).
     pub overview: bool,
+    /// The favorite drawing tools floating toolbar is showing.
+    pub fav_toolbar: bool,
+    /// Favorite toolbar orientation: vertical rather than horizontal.
+    pub fav_toolbar_vertical: bool,
+    /// Favorite toolbar position on the screen.
+    pub fav_toolbar_pos: Option<[f32; 2]>,
+    /// Favorite toolbar collapsed into a compact pill.
+    pub fav_toolbar_collapsed: bool,
 }
 
 impl Default for Arrangement {
@@ -171,6 +179,10 @@ impl Default for Arrangement {
             panel_max: false,
             toolbar: true,
             overview: false,
+            fav_toolbar: true,
+            fav_toolbar_vertical: false,
+            fav_toolbar_pos: None,
+            fav_toolbar_collapsed: false,
         }
     }
 }
@@ -701,30 +713,55 @@ impl App {
             }
             w::hdivider(ui, t, TOOLBAR_W);
             let measure = Tool::Measure;
-            if w::tool_button(
+            let m_resp = w::tool_button(
                 ui,
                 t,
                 ph::RULER,
                 tr("Measure (or Shift+drag)"),
                 self.layout.tool == measure,
                 36.0,
-            )
-            .clicked()
-            {
+            );
+            if m_resp.clicked() {
                 self.pick_tool(measure);
             }
-            if w::tool_button(
+            let m_fav = self.is_tool_favorite(measure);
+            egui::Popup::context_menu(&m_resp).show(|ui| {
+                ui.set_width(180.0);
+                let label = if m_fav {
+                    tr("Remove from favorites")
+                } else {
+                    tr("Add to favorites")
+                };
+                if w::menu_item(ui, t, Some(ph::STAR), label, "", false).clicked() {
+                    self.toggle_favorite_tool(measure);
+                    ui.close();
+                }
+            });
+            let zoom = Tool::Zoom;
+            let z_resp = w::tool_button(
                 ui,
                 t,
                 ph::MAGNIFYING_GLASS_PLUS,
                 tr("Zoom in (drag a range)"),
-                self.layout.tool == Tool::Zoom,
+                self.layout.tool == zoom,
                 36.0,
-            )
-            .clicked()
-            {
-                self.pick_tool(Tool::Zoom);
+            );
+            if z_resp.clicked() {
+                self.pick_tool(zoom);
             }
+            let z_fav = self.is_tool_favorite(zoom);
+            egui::Popup::context_menu(&z_resp).show(|ui| {
+                ui.set_width(180.0);
+                let label = if z_fav {
+                    tr("Remove from favorites")
+                } else {
+                    tr("Add to favorites")
+                };
+                if w::menu_item(ui, t, Some(ph::STAR), label, "", false).clicked() {
+                    self.toggle_favorite_tool(zoom);
+                    ui.close();
+                }
+            });
             w::hdivider(ui, t, TOOLBAR_W);
             let l = &mut self.layout;
             if w::tool_button(
@@ -771,6 +808,15 @@ impl App {
             .clicked()
             {
                 l.hide_drawings = !l.hide_drawings;
+            }
+            let fav_tip = if l.fav_toolbar {
+                tr("Hide favorite drawings toolbar")
+            } else {
+                tr("Show favorite drawings toolbar")
+            };
+            if w::tool_button(ui, t, ph::STAR, fav_tip, l.fav_toolbar, 36.0).clicked() {
+                l.fav_toolbar = !l.fav_toolbar;
+                self.save_fav_toolbar_settings();
             }
             w::hdivider(ui, t, TOOLBAR_W);
             let resp = w::tool_button(ui, t, ph::TRASH, tr("Remove drawings or indicators"), false, 36.0);
@@ -857,22 +903,27 @@ impl App {
         if resp.clicked() && !(more && on_caret) {
             self.pick_tool(shown);
         }
-        if more && (resp.secondary_clicked() || (resp.clicked() && on_caret)) {
+        if resp.secondary_clicked() || (more && resp.clicked() && on_caret) {
             egui::Popup::open_id(ui.ctx(), open_id);
         }
         egui::Popup::from_response(&resp)
             .id(open_id)
             .open_memory(None)
             .align(egui::RectAlign::RIGHT_START)
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClick)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
             .show(|ui| {
-                ui.set_width(230.0);
+                ui.set_width(260.0);
                 ui.spacing_mut().item_spacing.y = 1.0;
                 w::menu_heading(ui, t, &tr(g.name()).to_uppercase());
                 for tool in g.tools() {
                     let on = self.layout.tool == *tool;
-                    if w::menu_item(ui, t, Some(tool.icon()), tr(tool.name()), tool.shortcut(), on).clicked() {
+                    let fav = self.is_tool_favorite(*tool);
+                    let (item_resp, star_resp) = tool_menu_row(ui, t, *tool, on, fav);
+                    if star_resp.clicked() {
+                        self.toggle_favorite_tool(*tool);
+                    } else if item_resp.clicked() {
                         self.pick_tool(*tool);
+                        ui.close();
                     }
                 }
             });
@@ -1479,4 +1530,88 @@ pub(crate) fn round_corners(p: &egui::Painter, r: Rect, rad: f32, fill: egui::Co
         }
     }
     p.add(mesh);
+}
+
+/// One row in a drawing-tool group's flyout: icon, name, shortcut hint, and favorite star.
+fn tool_menu_row(ui: &mut Ui, t: &Theme, tool: Tool, selected: bool, fav: bool) -> (egui::Response, egui::Response) {
+    let width = ui.available_width().max(250.0);
+    let (rect, resp) = ui.allocate_exact_size(vec2(width, 32.0), Sense::click());
+    let star_r = Rect::from_center_size(pos2(rect.right() - 16.0, rect.center().y), vec2(24.0, 24.0));
+    let star_resp = ui.interact(star_r, resp.id.with("star"), Sense::click());
+
+    if ui.is_rect_visible(rect) {
+        let hover = motion::toggle(
+            ui.ctx(),
+            resp.id.with("hover"),
+            resp.hovered() && !star_resp.hovered(),
+            motion::MICRO,
+        );
+        let p = ui.painter();
+        if selected {
+            p.rect_filled(rect, CornerRadius::same(8), t.accent_soft());
+        }
+        if hover > 0.0 {
+            p.rect_filled(rect, CornerRadius::same(8), motion::with_alpha(t.hover_wash(), hover));
+        }
+
+        let base_col = if selected {
+            t.accent
+        } else {
+            motion::lerp_color(t.text2, t.text, hover)
+        };
+        p.text(
+            pos2(rect.left() + 18.0, rect.center().y),
+            Align2::CENTER_CENTER,
+            tool.icon(),
+            theme::regular(16.0),
+            base_col,
+        );
+
+        p.text(
+            pos2(rect.left() + 36.0, rect.center().y),
+            Align2::LEFT_CENTER,
+            tr(tool.name()),
+            theme::regular(13.5),
+            if selected { t.accent } else { t.text },
+        );
+
+        let shortcut = tool.shortcut();
+        if !shortcut.is_empty() {
+            p.text(
+                pos2(star_r.left() - 6.0, rect.center().y),
+                Align2::RIGHT_CENTER,
+                shortcut,
+                theme::regular(12.0),
+                t.text3,
+            );
+        }
+
+        let star_near = resp.hovered() || star_resp.hovered();
+        let star_hover = motion::hover(&star_resp);
+        if fav {
+            let star_col = motion::lerp_color(t.warn, t.text, star_hover * 0.3);
+            w::filled_star(p, star_r.center(), 6.5, star_col);
+        } else if star_near {
+            let star_col = motion::lerp_color(t.text3, t.warn, star_hover);
+            p.text(
+                star_r.center(),
+                Align2::CENTER_CENTER,
+                ph::STAR,
+                theme::regular(14.0),
+                star_col,
+            );
+        }
+    }
+
+    let star_tip = if fav {
+        tr("Remove from favorites")
+    } else {
+        tr("Add to favorites")
+    };
+    (
+        resp.on_hover_cursor(egui::CursorIcon::PointingHand),
+        star_resp
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(star_tip),
+    )
 }

@@ -1028,6 +1028,9 @@ msgstr "У Coinbase нет баров {0}"
 msgid "Collapse panel"
 msgstr "Свернуть панель"
 
+msgid "Collapse toolbar"
+msgstr "Свернуть панель инструментов"
+
 msgid "Color"
 msgstr "Цвет"
 
@@ -1529,6 +1532,9 @@ msgstr "Подсветка нисходящего тренда"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "Потяните для перемещения"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
 
@@ -1748,6 +1754,9 @@ msgstr "Биржа"
 
 msgid "Exit {side}"
 msgstr "Выход {side}"
+
+msgid "Expand toolbar"
+msgstr "Развернуть панель инструментов"
 
 msgid "Expected payoff"
 msgstr "Ожидаемый результат"
@@ -2037,11 +2046,17 @@ msgstr "Скрыть все рисунки"
 msgid "Hide all drawings ({0})"
 msgstr "Скрыть все рисунки ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "Скрыть панель избранных инструментов"
+
 msgid "Hide the drawing toolbar"
 msgstr "Скрыть панель рисования"
 
 msgid "Hide the sidebar"
 msgstr "Скрыть боковую панель"
+
+msgid "Hide toolbar"
+msgstr "Скрыть панель инструментов"
 
 msgid "High"
 msgstr "Высокое"
@@ -2084,6 +2099,9 @@ msgstr "Горизонтальная линия"
 
 msgid "Horizontal ray"
 msgstr "Горизонтальный луч"
+
+msgid "Horizontal toolbar"
+msgstr "Горизонтальная панель"
 
 msgid "Horz grid lines"
 msgstr "Гориз. сетка"
@@ -2925,11 +2943,23 @@ msgstr "Работает больше скриптов"
 msgid "Mountain Day"
 msgstr "День гор"
 
+msgid "Move down"
+msgstr "Переместить вниз"
+
+msgid "Move left"
+msgstr "Переместить влево"
+
+msgid "Move right"
+msgstr "Переместить вправо"
+
 msgid "Move the pointer over the chart."
 msgstr "Наведите указатель на график."
 
 msgid "Move to top"
 msgstr "Переместить наверх"
+
+msgid "Move up"
+msgstr "Переместить вверх"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "Показывать POC"
 msgid "Show Pearson's R"
 msgstr "Показывать R Пирсона"
 
+msgid "Show favorite drawings toolbar"
+msgstr "Показать панель избранных инструментов"
+
 msgid "Show files ({0})"
 msgstr "Показать файлы ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "Верт. сетка"
 
 msgid "Vertical line"
 msgstr "Вертикальная линия"
+
+msgid "Vertical toolbar"
+msgstr "Вертикальная панель"
 
 msgid "Victoria Day"
 msgstr "День Виктории"

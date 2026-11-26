@@ -1028,6 +1028,9 @@ msgstr "Coinbase n'a pas de barres {0}"
 msgid "Collapse panel"
 msgstr "Réduire le panneau"
 
+msgid "Collapse toolbar"
+msgstr "Réduire la barre d'outils"
+
 msgid "Color"
 msgstr "Couleur"
 
@@ -1529,6 +1532,9 @@ msgstr "Surligneur de tendance baissière"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "Glisser pour déplacer"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Glisser pour mettre à l'échelle · double-clic pour ajuster · clic droit pour les options"
 
@@ -1748,6 +1754,9 @@ msgstr "Bourse"
 
 msgid "Exit {side}"
 msgstr "Sortie {side}"
+
+msgid "Expand toolbar"
+msgstr "Développer la barre d'outils"
 
 msgid "Expected payoff"
 msgstr "Gain espéré"
@@ -2037,11 +2046,17 @@ msgstr "Masquer tous les dessins"
 msgid "Hide all drawings ({0})"
 msgstr "Masquer tous les dessins ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "Masquer la barre d'outils favoris"
+
 msgid "Hide the drawing toolbar"
 msgstr "Masquer la barre de dessin"
 
 msgid "Hide the sidebar"
 msgstr "Masquer la barre latérale"
+
+msgid "Hide toolbar"
+msgstr "Masquer la barre d'outils"
 
 msgid "High"
 msgstr "Élevé"
@@ -2084,6 +2099,9 @@ msgstr "Ligne horizontale"
 
 msgid "Horizontal ray"
 msgstr "Rayon horizontal"
+
+msgid "Horizontal toolbar"
+msgstr "Barre d'outils horizontale"
 
 msgid "Horz grid lines"
 msgstr "Grille horiz."
@@ -2925,11 +2943,23 @@ msgstr "Plus de scripts fonctionnent"
 msgid "Mountain Day"
 msgstr "Jour de la montagne"
 
+msgid "Move down"
+msgstr "Déplacer vers le bas"
+
+msgid "Move left"
+msgstr "Déplacer vers la gauche"
+
+msgid "Move right"
+msgstr "Déplacer vers la droite"
+
 msgid "Move the pointer over the chart."
 msgstr "Déplacez le pointeur sur le graphique."
 
 msgid "Move to top"
 msgstr "Déplacer en haut"
+
+msgid "Move up"
+msgstr "Déplacer vers le haut"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "Afficher le POC"
 msgid "Show Pearson's R"
 msgstr "Afficher le R de Pearson"
 
+msgid "Show favorite drawings toolbar"
+msgstr "Afficher la barre d'outils favoris"
+
 msgid "Show files ({0})"
 msgstr "Afficher les fichiers ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "Grille vert."
 
 msgid "Vertical line"
 msgstr "Ligne verticale"
+
+msgid "Vertical toolbar"
+msgstr "Barre d'outils verticale"
 
 msgid "Victoria Day"
 msgstr "Fête de la Reine"

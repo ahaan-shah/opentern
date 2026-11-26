@@ -1028,6 +1028,9 @@ msgstr "Coinbase hat keine {0}-Balken"
 msgid "Collapse panel"
 msgstr "Panel einklappen"
 
+msgid "Collapse toolbar"
+msgstr "Symbolleiste einklappen"
+
 msgid "Color"
 msgstr "Farbe"
 
@@ -1529,6 +1532,9 @@ msgstr "Abwärtstrend-Hervorhebung"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "Ziehen zum Verschieben"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Ziehen zum Skalieren · Doppelklick zum Einpassen · Rechtsklick für Optionen"
 
@@ -1748,6 +1754,9 @@ msgstr "Börse"
 
 msgid "Exit {side}"
 msgstr "Ausstieg {side}"
+
+msgid "Expand toolbar"
+msgstr "Symbolleiste ausklappen"
 
 msgid "Expected payoff"
 msgstr "Erwarteter Ertrag"
@@ -2037,11 +2046,17 @@ msgstr "Alle Zeichnungen ausblenden"
 msgid "Hide all drawings ({0})"
 msgstr "Alle Zeichnungen ausblenden ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "Favoriten-Zeichenleiste ausblenden"
+
 msgid "Hide the drawing toolbar"
 msgstr "Zeichenleiste ausblenden"
 
 msgid "Hide the sidebar"
 msgstr "Seitenleiste ausblenden"
+
+msgid "Hide toolbar"
+msgstr "Symbolleiste ausblenden"
 
 msgid "High"
 msgstr "Hoch"
@@ -2084,6 +2099,9 @@ msgstr "Horizontale Linie"
 
 msgid "Horizontal ray"
 msgstr "Horizontaler Strahl"
+
+msgid "Horizontal toolbar"
+msgstr "Horizontale Symbolleiste"
 
 msgid "Horz grid lines"
 msgstr "Horiz. Gitterlinien"
@@ -2925,11 +2943,23 @@ msgstr "Mehr Skripte laufen"
 msgid "Mountain Day"
 msgstr "Tag der Berge"
 
+msgid "Move down"
+msgstr "Nach unten verschieben"
+
+msgid "Move left"
+msgstr "Nach links verschieben"
+
+msgid "Move right"
+msgstr "Nach rechts verschieben"
+
 msgid "Move the pointer over the chart."
 msgstr "Bewege den Mauszeiger über den Chart."
 
 msgid "Move to top"
 msgstr "Nach oben"
+
+msgid "Move up"
+msgstr "Nach oben verschieben"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "POC anzeigen"
 msgid "Show Pearson's R"
 msgstr "Pearsons R anzeigen"
 
+msgid "Show favorite drawings toolbar"
+msgstr "Favoriten-Zeichenleiste anzeigen"
+
 msgid "Show files ({0})"
 msgstr "Dateien anzeigen ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "Vert. Gitterlinien"
 
 msgid "Vertical line"
 msgstr "Vertikale Linie"
+
+msgid "Vertical toolbar"
+msgstr "Vertikale Symbolleiste"
 
 msgid "Victoria Day"
 msgstr "Victoria Day"

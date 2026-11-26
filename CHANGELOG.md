@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Favorite drawings toolbar.** A floating TradingView-style toolbar over the chart for quick one-click access to your favorite drawing tools. Hover over any tool in the drawing flyouts to star it (or right-click standalone tools like Measure and Zoom). The floating toolbar can be dragged anywhere over the chart, toggled between horizontal and vertical orientations, collapsed into a compact pill, reordered by drag-and-drop or context menu, and toggled on or off via the star button in the left sidebar.
+
 ## 0.3.6 (2026-11-26)
 
 Updates and installs that finish, even on a patchy connection or a full disk.
@@ -10,6 +15,7 @@ Updates and installs that finish, even on a patchy connection or a full disk.
 - **Half-finished updates no longer pile up** next to the app; what an interrupted update left behind is cleared on the next launch.
 - **The install command no longer fails when the temporary folder is full:** it downloads to your cache folder instead, tries again when a connection drops or stalls, and says what went wrong in words when it can't.
 - **The Windows install command** tries again on a dropped connection, and always checks the download against the release's checksums.
+
 ## 0.3.5 (2026-11-26)
 
 Nine languages, a new agent panel with an effort slider, smoother motion throughout, and a full check of the script engines.

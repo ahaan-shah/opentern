@@ -1028,6 +1028,9 @@ msgstr ""
 msgid "Collapse panel"
 msgstr ""
 
+msgid "Collapse toolbar"
+msgstr ""
+
 msgid "Color"
 msgstr ""
 
@@ -1529,6 +1532,9 @@ msgstr ""
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr ""
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr ""
 
@@ -1747,6 +1753,9 @@ msgid "Exchange"
 msgstr ""
 
 msgid "Exit {side}"
+msgstr ""
+
+msgid "Expand toolbar"
 msgstr ""
 
 msgid "Expected payoff"
@@ -2037,10 +2046,16 @@ msgstr ""
 msgid "Hide all drawings ({0})"
 msgstr ""
 
+msgid "Hide favorite drawings toolbar"
+msgstr ""
+
 msgid "Hide the drawing toolbar"
 msgstr ""
 
 msgid "Hide the sidebar"
+msgstr ""
+
+msgid "Hide toolbar"
 msgstr ""
 
 msgid "High"
@@ -2083,6 +2098,9 @@ msgid "Horizontal line"
 msgstr ""
 
 msgid "Horizontal ray"
+msgstr ""
+
+msgid "Horizontal toolbar"
 msgstr ""
 
 msgid "Horz grid lines"
@@ -2925,10 +2943,22 @@ msgstr ""
 msgid "Mountain Day"
 msgstr ""
 
+msgid "Move down"
+msgstr ""
+
+msgid "Move left"
+msgstr ""
+
+msgid "Move right"
+msgstr ""
+
 msgid "Move the pointer over the chart."
 msgstr ""
 
 msgid "Move to top"
+msgstr ""
+
+msgid "Move up"
 msgstr ""
 
 #, message
@@ -4480,6 +4510,9 @@ msgstr ""
 msgid "Show Pearson's R"
 msgstr ""
 
+msgid "Show favorite drawings toolbar"
+msgstr ""
+
 msgid "Show files ({0})"
 msgstr ""
 
@@ -5442,6 +5475,9 @@ msgid "Vert grid lines"
 msgstr ""
 
 msgid "Vertical line"
+msgstr ""
+
+msgid "Vertical toolbar"
 msgstr ""
 
 msgid "Victoria Day"

@@ -1028,6 +1028,9 @@ msgstr "Coinbaseに{0}足はありません"
 msgid "Collapse panel"
 msgstr "パネルをたたむ"
 
+msgid "Collapse toolbar"
+msgstr "ツールバーをたたむ"
+
 msgid "Color"
 msgstr "色"
 
@@ -1529,6 +1532,9 @@ msgstr "下降トレンドの強調"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "ドラッグして移動"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
@@ -1748,6 +1754,9 @@ msgstr "取引所"
 
 msgid "Exit {side}"
 msgstr "{side} 手仕舞い"
+
+msgid "Expand toolbar"
+msgstr "ツールバーを展開"
 
 msgid "Expected payoff"
 msgstr "期待損益"
@@ -2037,11 +2046,17 @@ msgstr "すべての描画を隠す"
 msgid "Hide all drawings ({0})"
 msgstr "すべての描画を隠す ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "お気に入り描画ツールバーを隠す"
+
 msgid "Hide the drawing toolbar"
 msgstr "描画ツールバーを隠す"
 
 msgid "Hide the sidebar"
 msgstr "サイドバーを隠す"
+
+msgid "Hide toolbar"
+msgstr "ツールバーを隠す"
 
 msgid "High"
 msgstr "高"
@@ -2084,6 +2099,9 @@ msgstr "水平線"
 
 msgid "Horizontal ray"
 msgstr "水平レイ"
+
+msgid "Horizontal toolbar"
+msgstr "水平ツールバー"
 
 msgid "Horz grid lines"
 msgstr "横グリッド線"
@@ -2925,11 +2943,23 @@ msgstr "より多くのスクリプトが動作"
 msgid "Mountain Day"
 msgstr "山の日"
 
+msgid "Move down"
+msgstr "下へ移動"
+
+msgid "Move left"
+msgstr "左へ移動"
+
+msgid "Move right"
+msgstr "右へ移動"
+
 msgid "Move the pointer over the chart."
 msgstr "チャート上にカーソルを移動してください。"
 
 msgid "Move to top"
 msgstr "一番上へ移動"
+
+msgid "Move up"
+msgstr "上へ移動"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "POCを表示"
 msgid "Show Pearson's R"
 msgstr "ピアソンのRを表示"
 
+msgid "Show favorite drawings toolbar"
+msgstr "お気に入り描画ツールバーを表示"
+
 msgid "Show files ({0})"
 msgstr "ファイルを表示 ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "縦グリッド線"
 
 msgid "Vertical line"
 msgstr "垂直線"
+
+msgid "Vertical toolbar"
+msgstr "垂直ツールバー"
 
 msgid "Victoria Day"
 msgstr "ビクトリア・デー"

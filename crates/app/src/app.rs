@@ -104,6 +104,8 @@ pub struct App {
     still_colors: Option<(bool, opentern_series::Rgba)>,
     /// `OPENTERN_STILL=claude:<message>`: send it once bars are in.
     still_claude: Option<String>,
+    /// `OPENTERN_STILL=snap`: take a chart snapshot once bars are in.
+    still_snap: bool,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Folders picked in Settings → General (`None` = inside the
@@ -154,7 +156,36 @@ impl App {
 
     /// Builds the app against any egui context (the real window, or a
     /// headless one in tests).
-    pub(crate) fn with_context(ctx: &egui::Context, layout: Arrangement, store: Store, demo: bool) -> App {
+    pub(crate) fn with_context(ctx: &egui::Context, mut layout: Arrangement, mut store: Store, demo: bool) -> App {
+        if let Some(j) = store.value("fav_toolbar")
+            && let Ok(v) = serde_json::from_str::<serde_json::Value>(&j)
+        {
+            if let Some(b) = v.get("visible").and_then(|x| x.as_bool()) {
+                layout.fav_toolbar = b;
+            }
+            if let Some(b) = v.get("vertical").and_then(|x| x.as_bool()) {
+                layout.fav_toolbar_vertical = b;
+            }
+            if let Some(b) = v.get("collapsed").and_then(|x| x.as_bool()) {
+                layout.fav_toolbar_collapsed = b;
+            }
+            if let Some(pos_arr) = v.get("pos").and_then(|x| x.as_array())
+                && pos_arr.len() == 2
+                && let (Some(x), Some(y)) = (pos_arr[0].as_f64(), pos_arr[1].as_f64())
+            {
+                layout.fav_toolbar_pos = Some([x as f32, y as f32]);
+            }
+        }
+        if store.value("fav_tools_init").is_none() {
+            if store.favorites("tool").is_empty() {
+                let default_keys: Vec<String> = crate::chart::draw::DEFAULT_FAVORITE_TOOLS
+                    .iter()
+                    .map(|t| t.id().to_string())
+                    .collect();
+                let _ = store.set_favorites("tool", &default_keys);
+            }
+            let _ = store.set_value("fav_tools_init", "1");
+        }
         crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
         crate::popups::install(ctx);
@@ -262,6 +293,7 @@ impl App {
             still_replay: false,
             still_colors: None,
             still_claude: None,
+            still_snap: false,
             logos,
             folders,
             python_notice: None,
@@ -570,6 +602,8 @@ impl App {
                 }
             } else if part == "measure" {
                 self.still_measure = true;
+            } else if part == "snap" {
+                self.still_snap = true;
             } else if part == "replay:play" {
                 self.still_replay = true;
             } else if part == "replay" {
@@ -919,6 +953,74 @@ impl App {
         if let Err(e) = self.store.set_favorites(kind, &list) {
             crate::diag::crumb(format!("couldn't save favourites: {e}"));
         }
+    }
+
+    pub const TOOL_FAVS: &'static str = "tool";
+
+    pub fn favorite_tools(&self) -> Vec<Tool> {
+        let favs = self.store.favorites(Self::TOOL_FAVS);
+        let mut tools = Vec::new();
+        for id in favs {
+            if let Some(tool) = Tool::from_id(id)
+                && !tools.contains(&tool)
+            {
+                tools.push(tool);
+            }
+        }
+        tools
+    }
+
+    pub fn is_tool_favorite(&self, tool: Tool) -> bool {
+        self.store.is_favorite(Self::TOOL_FAVS, tool.id())
+    }
+
+    pub fn toggle_favorite_tool(&mut self, tool: Tool) {
+        let id = tool.id();
+        let mut list = self.store.favorites(Self::TOOL_FAVS).to_vec();
+        if let Some(pos) = list.iter().position(|k| k == id) {
+            list.remove(pos);
+        } else {
+            list.push(id.to_string());
+            // Favoriting a tool automatically reveals the toolbar.
+            self.layout.fav_toolbar = true;
+        }
+        if let Err(e) = self.store.set_favorites(Self::TOOL_FAVS, &list) {
+            crate::diag::crumb(format!("couldn't save favorite tools: {e}"));
+        }
+        self.save_fav_toolbar_settings();
+    }
+
+    pub fn set_favorite_tools(&mut self, tools: &[Tool]) {
+        let mut keys = Vec::new();
+        for t in tools {
+            let id = t.id().to_string();
+            if !keys.contains(&id) {
+                keys.push(id);
+            }
+        }
+        if let Err(e) = self.store.set_favorites(Self::TOOL_FAVS, &keys) {
+            crate::diag::crumb(format!("couldn't save favorite tools: {e}"));
+        }
+    }
+
+    pub fn move_favorite_tool(&mut self, from: usize, to: usize) {
+        let mut tools = self.favorite_tools();
+        if from >= tools.len() || to >= tools.len() || from == to {
+            return;
+        }
+        let item = tools.remove(from);
+        tools.insert(to, item);
+        self.set_favorite_tools(&tools);
+    }
+
+    pub fn save_fav_toolbar_settings(&mut self) {
+        let data = serde_json::json!({
+            "visible": self.layout.fav_toolbar,
+            "vertical": self.layout.fav_toolbar_vertical,
+            "pos": self.layout.fav_toolbar_pos,
+            "collapsed": self.layout.fav_toolbar_collapsed,
+        });
+        let _ = self.store.set_value("fav_toolbar", &data.to_string());
     }
 
     /// The inputs and look a newly added indicator gets: the saved default
@@ -1512,6 +1614,10 @@ impl App {
                 crate::chart::draw::Anchor { t: b.time, p: b.high },
             );
         }
+        if self.still_snap && self.chart.bars.len() > 80 {
+            self.still_snap = false;
+            self.take_snapshot(crate::snapshot::Snap::Save);
+        }
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {
             let (title, body) = match note {
@@ -1552,6 +1658,7 @@ impl App {
         self.shortcuts(&ctx);
         self.shell(ui);
         self.drawing_bar(&ctx);
+        self.favorite_toolbar(&ctx);
         self.modal(&ctx);
         if let Some((custom, mut c)) = self.still_colors {
             let t = self.t();

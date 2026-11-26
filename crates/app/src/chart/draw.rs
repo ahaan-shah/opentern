@@ -326,7 +326,75 @@ impl Tool {
     pub fn key(self) -> String {
         format!("{self:?}")
     }
+
+    /// A stable string id used for serialization in favorites and settings.
+    pub fn id(self) -> &'static str {
+        use Tool::*;
+        match self {
+            Cross => "cross",
+            Eraser => "eraser",
+            Zoom => "zoom",
+            Measure => "measure",
+            TrendLine => "trend_line",
+            Ray => "ray",
+            ExtendedLine => "extended_line",
+            Arrow => "arrow",
+            HorizontalLine => "horizontal_line",
+            HorizontalRay => "horizontal_ray",
+            VerticalLine => "vertical_line",
+            CrossLine => "cross_line",
+            ParallelChannel => "parallel_channel",
+            FibRetracement => "fib_retracement",
+            FibExtension => "fib_extension",
+            Pitchfork => "pitchfork",
+            Path => "path",
+            Triangle => "triangle",
+            LongPosition => "long_position",
+            ShortPosition => "short_position",
+            PriceRange => "price_range",
+            DateRange => "date_range",
+            DatePriceRange => "date_price_range",
+            Rectangle => "rectangle",
+            Ellipse => "ellipse",
+            Brush => "brush",
+            Text => "text",
+            ArrowUp => "arrow_up",
+            ArrowDown => "arrow_down",
+            AnchoredVwap => "anchored_vwap",
+            FixedRangeVolumeProfile => "fixed_range_volume_profile",
+            AnchoredVolumeProfile => "anchored_volume_profile",
+        }
+    }
+
+    /// Looks up a tool by id, case-insensitively, supporting snake_case, PascalCase, or "Cursor".
+    pub fn from_id(s: &str) -> Option<Tool> {
+        let clean = s.trim();
+        if clean.eq_ignore_ascii_case("cursor") {
+            return Some(Tool::Cross);
+        }
+        Tool::ALL.into_iter().find(|t| {
+            t.id().eq_ignore_ascii_case(clean)
+                || format!("{t:?}").eq_ignore_ascii_case(clean)
+                || t.id().replace('_', "").eq_ignore_ascii_case(&clean.replace('_', ""))
+        })
+    }
 }
+
+/// The initial favorites shown before the user customizes their list.
+pub const DEFAULT_FAVORITE_TOOLS: [Tool; 12] = [
+    Tool::Cross,
+    Tool::TrendLine,
+    Tool::HorizontalLine,
+    Tool::HorizontalRay,
+    Tool::VerticalLine,
+    Tool::Rectangle,
+    Tool::Brush,
+    Tool::FibRetracement,
+    Tool::ParallelChannel,
+    Tool::LongPosition,
+    Tool::ShortPosition,
+    Tool::Text,
+];
 
 /// A point on the chart.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]

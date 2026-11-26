@@ -1028,6 +1028,9 @@ msgstr "Coinbase har inga {0}-staplar"
 msgid "Collapse panel"
 msgstr "Fäll ihop panelen"
 
+msgid "Collapse toolbar"
+msgstr "Fäll ihop verktygsfältet"
+
 msgid "Color"
 msgstr "Färg"
 
@@ -1529,6 +1532,9 @@ msgstr "Markering av nedåttrend"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr "Dra för att flytta"
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
 
@@ -1748,6 +1754,9 @@ msgstr "Börs"
 
 msgid "Exit {side}"
 msgstr "Utgång {side}"
+
+msgid "Expand toolbar"
+msgstr "Expandera verktygsfältet"
 
 msgid "Expected payoff"
 msgstr "Förväntat utfall"
@@ -2037,11 +2046,17 @@ msgstr "Dölj alla ritningar"
 msgid "Hide all drawings ({0})"
 msgstr "Dölj alla ritningar ({0})"
 
+msgid "Hide favorite drawings toolbar"
+msgstr "Dölj favoritverktygsfältet"
+
 msgid "Hide the drawing toolbar"
 msgstr "Dölj ritverktygsfältet"
 
 msgid "Hide the sidebar"
 msgstr "Dölj sidofältet"
+
+msgid "Hide toolbar"
+msgstr "Dölj verktygsfältet"
 
 msgid "High"
 msgstr "Hög"
@@ -2084,6 +2099,9 @@ msgstr "Horisontell linje"
 
 msgid "Horizontal ray"
 msgstr "Horisontell stråle"
+
+msgid "Horizontal toolbar"
+msgstr "Horisontellt verktygsfält"
 
 msgid "Horz grid lines"
 msgstr "Horis. rutnät"
@@ -2925,11 +2943,23 @@ msgstr "Fler skript fungerar"
 msgid "Mountain Day"
 msgstr "Bergens dag"
 
+msgid "Move down"
+msgstr "Flytta nedåt"
+
+msgid "Move left"
+msgstr "Flytta åt vänster"
+
+msgid "Move right"
+msgstr "Flytta åt höger"
+
 msgid "Move the pointer over the chart."
 msgstr "Flytta pekaren över diagrammet."
 
 msgid "Move to top"
 msgstr "Flytta överst"
+
+msgid "Move up"
+msgstr "Flytta uppåt"
 
 #, message
 msgid "Moved to {0}."
@@ -4480,6 +4510,9 @@ msgstr "Visa POC"
 msgid "Show Pearson's R"
 msgstr "Visa Pearsons R"
 
+msgid "Show favorite drawings toolbar"
+msgstr "Visa favoritverktygsfältet"
+
 msgid "Show files ({0})"
 msgstr "Visa filer ({0})"
 
@@ -5443,6 +5476,9 @@ msgstr "Vert. rutnät"
 
 msgid "Vertical line"
 msgstr "Vertikal linje"
+
+msgid "Vertical toolbar"
+msgstr "Vertikalt verktygsfält"
 
 msgid "Victoria Day"
 msgstr "Victoriadagen"
