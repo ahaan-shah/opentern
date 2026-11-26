@@ -22,7 +22,7 @@ pub const TOP_H: f32 = 44.0;
 pub const TOOLBAR_W: f32 = 48.0;
 pub const RAIL_W: f32 = 46.0;
 pub const RANGE_H: f32 = 32.0;
-pub const TABS_H: f32 = 32.0;
+pub const TABS_H: f32 = 40.0;
 /// The gap between cards, and their corner radius.
 pub const GAP: f32 = 5.0;
 /// The least the chart keeps when the bottom panel grows (legend, a few
@@ -145,10 +145,6 @@ pub struct Arrangement {
     /// The tool each toolbar group shows (the last one picked from it).
     pub group_tools: Vec<(Group, Tool)>,
     pub magnet: bool,
-    /// After a drawing is placed, go back to the cursor (TradingView's
-    /// default). Off: the tool stays picked for the next one. (Replaces
-    /// `stay_drawing`, whose saved "off" would have kept the old way.)
-    pub back_to_cursor: bool,
     pub lock_drawings: bool,
     pub hide_drawings: bool,
     /// The bottom panel takes nearly all the height (the chart keeps a sliver).
@@ -180,7 +176,6 @@ impl Default for Arrangement {
             tool: Tool::Cross,
             group_tools: Vec::new(),
             magnet: false,
-            back_to_cursor: false,
             lock_drawings: false,
             hide_drawings: false,
             panel_max: false,
@@ -782,18 +777,6 @@ impl App {
             .clicked()
             {
                 l.magnet = !l.magnet;
-            }
-            if w::tool_button(
-                ui,
-                t,
-                ph::PENCIL_SIMPLE,
-                tr("Stay in drawing mode"),
-                !l.back_to_cursor,
-                36.0,
-            )
-            .clicked()
-            {
-                l.back_to_cursor = !l.back_to_cursor;
             }
             let lock = if l.lock_drawings {
                 ph::LOCK_SIMPLE
@@ -1402,8 +1385,9 @@ impl App {
         };
         let actions = crate::chart::ui::show(ui, &mut self.chart, &mut self.chart_ui, t, interactive, &tools);
         let finished = self.chart_ui.draw.finished;
-        // Zooming is one go whatever the setting, as on TradingView.
-        if finished && (self.layout.back_to_cursor || self.layout.tool == Tool::Zoom) {
+        // A drawing tool stays picked until another is (or Esc); zooming
+        // is one go, as on TradingView.
+        if finished && self.layout.tool == Tool::Zoom {
             self.layout.tool = Tool::Cross;
         }
         self.chart_actions(actions);

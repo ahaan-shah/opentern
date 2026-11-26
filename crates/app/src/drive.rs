@@ -742,19 +742,6 @@ mod tests {
         assert_eq!(d.app.layout.tool, Tool::Cross, "zooming is one go, as on TradingView");
     }
 
-    /// With "Stay in drawing mode" off, a placed drawing puts the tool
-    /// down (TradingView's way).
-    #[test]
-    fn back_to_the_cursor_when_asked() {
-        let mut d = Driver::new("back-to-cursor");
-        d.app.layout.back_to_cursor = true;
-        d.pick(Tool::TrendLine);
-        d.click(d.at(0.3, 0.5));
-        d.click(d.at(0.6, 0.3));
-        assert_eq!(d.app.chart.drawings.len(), 1);
-        assert_eq!(d.app.layout.tool, Tool::Cross);
-    }
-
     #[test]
     fn python_script_plots_on_the_chart_and_matches_the_builtin() {
         if opentern_script::python::interpreter().is_none() {
@@ -1013,6 +1000,70 @@ mod tests {
         let eth = s.inst.out.plots[0].iter().rev().nth(1).copied().unwrap();
         let btc = d.app.chart.bars.iter().rev().nth(1).unwrap().close;
         assert!(eth != btc, "a different series: {eth} vs {btc}");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// The bundled Correlation Coefficient runs like a script (no file on
+    /// disk), fetches the other symbol, and agrees with a Pearson
+    /// correlation worked out here from the same two series.
+    #[test]
+    fn correlation_coefficient_is_built_in_and_right() {
+        let mut d = Driver::new("correlation");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        // The other symbol's closes as the script sees them, to check against.
+        std::fs::write(
+            dir.join("goog.pine"),
+            "//@version=6\nindicator(\"Goog\")\nplot(request.security(\"NASDAQ:GOOG\", timeframe.period, close))\n",
+        )
+        .unwrap();
+        let file = crate::sources::BUNDLED[0].file;
+        assert!(!dir.join(file).exists(), "nothing on disk");
+        d.app.add_script(file);
+        d.app.add_script("goog.pine");
+        let cc = format!("pine:{file}");
+        let ready = |a: &crate::app::App, id: &str| {
+            a.chart.studies.iter().find(|s| s.meta().id == id).is_some_and(|s| {
+                let p = &s.inst.out.plots[0];
+                p.len() > 30 && !p[p.len() - 2].is_nan()
+            })
+        };
+        d.wait(|a| ready(a, &cc) && ready(a, "pine:goog.pine"));
+        let get = |id: &str| {
+            d.app
+                .chart
+                .studies
+                .iter()
+                .find(|s| s.meta().id == id)
+                .unwrap()
+                .inst
+                .out
+                .plots[0]
+                .clone()
+        };
+        let (r, other) = (get(&cc), get("pine:goog.pine"));
+        let closes: Vec<f64> = d.app.chart.bars.iter().map(|b| b.close).collect();
+        let s = d.app.chart.studies.iter().find(|s| s.meta().id == cc).unwrap();
+        assert_eq!(s.meta().name, "Correlation Coefficient");
+        assert_eq!(s.meta().hlines.len(), 3);
+        let n = r.len();
+        let mut checked = 0;
+        for i in (n - 40)..(n - 1) {
+            let (x, y) = (&closes[i + 1 - 20..=i], &other[i + 1 - 20..=i]);
+            if y.iter().any(|v| v.is_nan()) {
+                continue;
+            }
+            let mean = |v: &[f64]| v.iter().sum::<f64>() / v.len() as f64;
+            let (mx, my) = (mean(x), mean(y));
+            let cov: f64 = x.iter().zip(y).map(|(a, b)| (a - mx) * (b - my)).sum();
+            let vx: f64 = x.iter().map(|a| (a - mx).powi(2)).sum();
+            let vy: f64 = y.iter().map(|b| (b - my).powi(2)).sum();
+            let want = cov / (vx * vy).sqrt();
+            assert!((r[i] - want).abs() < 1e-9, "bar {i}: {} vs {want}", r[i]);
+            assert!((-1.0..=1.0).contains(&r[i]));
+            checked += 1;
+        }
+        assert!(checked > 20, "{checked}");
         assert_eq!(d.app.panics, 0);
     }
 

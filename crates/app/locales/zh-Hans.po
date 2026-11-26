@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "自 2016 年 3 月 1 日起按更广泛的交易计算；此前的数值为当时公布的数值。"
+
 msgid "Calendar"
 msgstr "日历"
 
@@ -1130,6 +1133,9 @@ msgstr "复制图片"
 
 msgid "Corpus Christi"
 msgstr "基督圣体节"
+
+msgid "Correlation Coefficient"
+msgstr "相关系数"
 
 msgid "Costs"
 msgstr "成本"
@@ -2204,6 +2210,9 @@ msgstr "印度市场"
 msgid "Indian large caps"
 msgstr "印度大盘股"
 
+msgid "Indicator"
+msgstr "指标"
+
 msgid "Indicator inputs"
 msgstr "指标参数"
 
@@ -3013,6 +3022,9 @@ msgstr "市政选举（马哈拉施特拉）"
 msgid "My plan includes SIP"
 msgstr "我的套餐包含 SIP"
 
+msgid "My scripts"
+msgstr "我的脚本"
+
 msgid "NEW SCRIPT HERE"
 msgstr "在此新建脚本"
 
@@ -3214,6 +3226,9 @@ msgstr "没有运行满足条件（交易太少或脚本失败）。"
 
 msgid "No script"
 msgstr "无脚本"
+
+msgid "No scripts yet"
+msgstr "还没有脚本"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "暂无脚本。按 + 新建。"
@@ -3674,9 +3689,6 @@ msgstr "表现"
 msgid "Periods"
 msgstr "周期数"
 
-msgid "Pick a new starting bar"
-msgstr "选择新的起始 K 线"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "请至少选择一个要优化的参数。"
@@ -3837,6 +3849,9 @@ msgstr "盈利窗口"
 msgid "Properties"
 msgstr "属性"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "由纽约联储于纽约时间上午 9:00 左右公布，对应上一个工作日。"
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "将最佳参数应用到图表策略"
 
@@ -3964,9 +3979,6 @@ msgstr "读取季节性"
 #, message
 msgid "Read {0}"
 msgstr "读取 {0}"
-
-msgid "Real time"
-msgstr "实时"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "使用 Upstox 账户获取印度实时价格。在 upstox.com/developer 创建应用并粘贴访问令牌（有效期至次日早晨）。"
@@ -4729,9 +4741,6 @@ msgstr "状态"
 msgid "Status line"
 msgstr "状态行"
 
-msgid "Stay in drawing mode"
-msgstr "保持绘图模式"
-
 msgid "StdDev"
 msgstr "标准差"
 
@@ -4797,6 +4806,9 @@ msgstr "已停止。"
 
 msgid "Stop|order"
 msgstr "止损单"
+
+msgid "Strategy"
+msgstr "策略"
 
 msgid "Strategy Lab"
 msgstr "策略实验室"
@@ -4923,6 +4935,12 @@ msgstr "请先将其脚本从图表移除再重命名。"
 msgid "Take profit"
 msgstr "止盈"
 
+msgid "Target {lo}%"
+msgstr "目标 {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "目标 {lo}–{hi}%"
+
 msgid "Target: {0} ({1})"
 msgstr "目标：{0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "每个窗口有 {0} 种组合，超过网格上限 {1}。请缩小范围
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "共有 {combos} 种组合，超过网格上限 {MAX_GRID}。请缩小范围，或使用随机或贝叶斯。"
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "联邦基金利率每天公布一次。请选择 1D 或更长周期。"
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "纽约联储未发送任何利率。"
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "未能加载纽约联储的利率。"
 
 msgid "The account was reset."
 msgstr "账户已重置。"
@@ -6162,6 +6192,9 @@ msgstr "在图表的 {n} 根 K 线上，从 {combos} 种组合中运行 {p} 次�
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} 根 K 线，{time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} 个基点"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · 已触发 {1} 次"

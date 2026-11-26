@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr ""
+
 msgid "Calendar"
 msgstr ""
 
@@ -1129,6 +1132,9 @@ msgid "Copy image"
 msgstr ""
 
 msgid "Corpus Christi"
+msgstr ""
+
+msgid "Correlation Coefficient"
 msgstr ""
 
 msgid "Costs"
@@ -2204,6 +2210,9 @@ msgstr ""
 msgid "Indian large caps"
 msgstr ""
 
+msgid "Indicator"
+msgstr ""
+
 msgid "Indicator inputs"
 msgstr ""
 
@@ -3013,6 +3022,9 @@ msgstr ""
 msgid "My plan includes SIP"
 msgstr ""
 
+msgid "My scripts"
+msgstr ""
+
 msgid "NEW SCRIPT HERE"
 msgstr ""
 
@@ -3213,6 +3225,9 @@ msgid "No run met the conditions (too few trades, or the script failed)."
 msgstr ""
 
 msgid "No script"
+msgstr ""
+
+msgid "No scripts yet"
 msgstr ""
 
 msgid "No scripts yet. Press + to start one."
@@ -3674,9 +3689,6 @@ msgstr ""
 msgid "Periods"
 msgstr ""
 
-msgid "Pick a new starting bar"
-msgstr ""
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr ""
@@ -3837,6 +3849,9 @@ msgstr ""
 msgid "Properties"
 msgstr ""
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr ""
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr ""
 
@@ -3963,9 +3978,6 @@ msgstr ""
 
 #, message
 msgid "Read {0}"
-msgstr ""
-
-msgid "Real time"
 msgstr ""
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
@@ -4729,9 +4741,6 @@ msgstr ""
 msgid "Status line"
 msgstr ""
 
-msgid "Stay in drawing mode"
-msgstr ""
-
 msgid "StdDev"
 msgstr ""
 
@@ -4796,6 +4805,9 @@ msgid "Stopped."
 msgstr ""
 
 msgid "Stop|order"
+msgstr ""
+
+msgid "Strategy"
 msgstr ""
 
 msgid "Strategy Lab"
@@ -4923,6 +4935,12 @@ msgstr ""
 msgid "Take profit"
 msgstr ""
 
+msgid "Target {lo}%"
+msgstr ""
+
+msgid "Target {lo}–{hi}%"
+msgstr ""
+
 msgid "Target: {0} ({1})"
 msgstr ""
 
@@ -4993,6 +5011,18 @@ msgstr ""
 
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
+msgstr ""
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr ""
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr ""
+
+#, message
+msgid "The New York Fed's rates didn't load."
 msgstr ""
 
 msgid "The account was reset."
@@ -6161,6 +6191,9 @@ msgid "{p} runs of {combos} combinations on the chart's {n} bars."
 msgstr ""
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
+msgstr ""
+
+msgid "{sign}{n} bp"
 msgstr ""
 
 msgid "{state} · {0} · fired {1}×"

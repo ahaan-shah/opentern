@@ -421,3 +421,26 @@ fn the_drawing_bar_opens_clear_of_the_favorites() {
     let usual = d.ctx.memory(|m| m.area_rect(Id::new("drawing-bar"))).unwrap();
     assert!(usual.top() < drawing_bar.top());
 }
+
+/// A replay's controls keep their spot: the bar moves to just above them,
+/// and stays put when it doesn't overlap.
+#[test]
+fn the_bar_steps_aside_for_the_replay_controls() {
+    use egui::{Pos2, Rect, vec2};
+    let room = Rect::from_min_max(Pos2::ZERO, Pos2::new(1000.0, 600.0));
+    let replay = Rect::from_center_size(Pos2::new(500.0, 560.0), vec2(400.0, 42.0));
+    let size = vec2(300.0, 42.0);
+    let over = Pos2::new(350.0, 545.0);
+    let moved = super::clear_of(over, size, replay, room);
+    assert_eq!(moved.x, over.x, "straight up");
+    assert!(moved.y + size.y <= replay.top() - 7.9, "{moved:?}");
+    assert!(room.contains_rect(Rect::from_min_size(moved, size)));
+    let away = Pos2::new(20.0, 20.0);
+    assert_eq!(super::clear_of(away, size, replay, room), away);
+    // No room above (a short chart): beside it instead.
+    let short = Rect::from_min_max(Pos2::new(0.0, 530.0), Pos2::new(1000.0, 600.0));
+    let narrow = vec2(250.0, 42.0);
+    let side = super::clear_of(Pos2::new(350.0, 539.0), narrow, replay, short);
+    assert!(!Rect::from_min_size(side, narrow).intersects(replay), "{side:?}");
+    assert!(short.contains_rect(Rect::from_min_size(side, narrow)));
+}

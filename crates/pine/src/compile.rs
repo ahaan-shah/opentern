@@ -3111,6 +3111,7 @@ impl Cx {
                     InputKind::Int {
                         min: minval.as_ref().and_then(|v| v.i()).unwrap_or(-1_000_000_000_000),
                         max: maxval.as_ref().and_then(|v| v.i()).unwrap_or(1_000_000_000_000),
+                        step: step.as_ref().and_then(|v| v.i()).filter(|s| *s > 0).unwrap_or(1),
                     },
                     Value::Int(defval.i().unwrap_or(0)),
                     Conv::Int,

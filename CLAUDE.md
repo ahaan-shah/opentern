@@ -132,7 +132,12 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
   500 list (niftyindices.com) at most weekly, Yahoo's
   screener, spark and batch quotes, plus Binance's 24h and trading-day tickers
-  and daily bars for coins. **No CoinGecko** (removed Nov 2026, the
+  and daily bars for coins. The Fed funds rate (`NYFED:EFFR`) comes from
+  `markets.newyorkfed.org` (keyless; `data/src/nyfed.rs`), only while it's on a
+  chart, in a watchlist or in an alert: the whole history once per run, then the
+  last 10 days after 9:05 and 14:35 New York time. **Not FRED** (its terms forbid
+  caching). The New York Fed's notice (`nyfed::NOTICE`) stays in English, in the
+  legend tooltip and the README. **No CoinGecko** (removed Nov 2026, the
   maintainer's call: its keyless API is "for testing" and needs a visible
   credit; prices come from the exchanges anyway). The agent
   panel (`docs/notes/agents.md`) only talks through the user's own Claude Code or
@@ -209,8 +214,7 @@ user-facing changes to a fresh `## Unreleased` section at the top of
 3. **Phase 14:** still to do: notarizing the macOS app (`docs/notes/release.md`).
 
 **Loose ends from earlier phases** (fit in where natural):
-- Correlation Coefficient as a Rust built-in (needs feeds for built-ins; Pine can
-  do it now); Technical Ratings and Bollinger Bars (need TradingView's source or
+- Technical Ratings and Bollinger Bars (need TradingView's source or
   an export); the breadth/OI/intrabar-volume built-ins (`docs/indicators.md`).
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check

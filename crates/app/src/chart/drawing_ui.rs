@@ -27,8 +27,7 @@ pub struct DrawUi {
     zoom_from: Option<Pos2>,
     /// The quick measure on screen (the Measure tool, or Shift+drag).
     measure: Option<Measure>,
-    /// The tool finished a drawing (the app switches back to the cross
-    /// unless "stay in drawing mode" is on).
+    /// The tool finished its job (the Zoom tool then puts itself down).
     pub finished: bool,
 }
 

@@ -605,6 +605,21 @@ impl App {
         // Prices first, so the columns can be sized to what they hold.
         let quotes = self.quotes.clone();
         let price = |s: &Symbol| match quotes.get(&s.id) {
+            // A rate's day change in basis points, as rates are quoted.
+            Some((last, prev)) if opentern_core::daily_only(&s.id) => {
+                let ch = last - prev;
+                (
+                    crate::format::price(*last, s.precision()),
+                    crate::format::bp(ch),
+                    if ch.abs() < 0.005 {
+                        t.text2
+                    } else if ch > 0.0 {
+                        t.pos
+                    } else {
+                        t.neg
+                    },
+                )
+            }
             Some((last, prev)) if *prev != 0.0 => {
                 let pct = (last / prev - 1.0) * 100.0;
                 (

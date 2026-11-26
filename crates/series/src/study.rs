@@ -79,6 +79,8 @@ pub enum InputKind {
     Int {
         min: i64,
         max: i64,
+        /// What one arrow-key press adds (Pine's `step`; 1 when unset).
+        step: i64,
     },
     Float {
         min: f64,
@@ -398,8 +400,8 @@ impl Inputs {
         for spec in &meta.inputs {
             let Some(v) = self.values.get(spec.id) else { continue };
             let ok = match (&spec.kind, v) {
-                (InputKind::Int { min, max }, Value::Int(x)) => Some(Value::Int((*x).clamp(*min, *max))),
-                (InputKind::Int { min, max }, Value::Float(x)) => Some(Value::Int((*x as i64).clamp(*min, *max))),
+                (InputKind::Int { min, max, .. }, Value::Int(x)) => Some(Value::Int((*x).clamp(*min, *max))),
+                (InputKind::Int { min, max, .. }, Value::Float(x)) => Some(Value::Int((*x as i64).clamp(*min, *max))),
                 (InputKind::Float { min, max, .. }, Value::Float(x)) => Some(Value::Float(x.clamp(*min, *max))),
                 (InputKind::Float { min, max, .. }, Value::Int(x)) => Some(Value::Float((*x as f64).clamp(*min, *max))),
                 (InputKind::Bool, Value::Bool(_)) => Some(v.clone()),

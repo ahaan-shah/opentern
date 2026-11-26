@@ -619,6 +619,21 @@ impl App {
             return;
         }
         let Some(lang) = Lang::of(file) else { return };
+        // A bundled built-in: its source, read-only, as the others'.
+        if let Some(b) = crate::sources::BUNDLED.iter().find(|b| b.file == file) {
+            self.editor.docs.push(Doc {
+                key: file.to_string(),
+                title: b.name.to_string(),
+                lang,
+                text: b.source.to_string(),
+                saved: b.source.to_string(),
+                mtime: None,
+                readonly: true,
+                jump: None,
+            });
+            self.editor.active = self.editor.docs.len() - 1;
+            return;
+        }
         let path = self.scripts_dir().join(file);
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         self.editor.docs.push(Doc {
@@ -1812,7 +1827,7 @@ impl App {
             let p = ui.painter().with_clip_rect(r);
             if on {
                 p.rect_filled(r, CornerRadius::ZERO, c.bg);
-                p.hline(r.x_range(), r.top() + 1.0, Stroke::new(2.0, t.accent));
+                p.hline(r.x_range(), r.bottom() - 1.0, Stroke::new(2.0, t.accent));
             } else if hover > 0.0 {
                 p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6 * hover));
             }

@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **The Fed funds rate.** Search "fed funds" or "EFFR" for the US effective federal funds rate, daily since July 2000, from the Federal Reserve Bank of New York. The Fed's target range shows as a band behind it and in the legend ("Target 3.75–4.00%"), and the day's change is in basis points. It's published once a day around 9:00 a.m. New York time, so it has daily, weekly and monthly charts only.
+- **Correlation Coefficient** is a built-in: how closely the chart moves with another symbol over the last bars, from −1 to 1.
+- **Your own scripts in the Indicators dialog.** "My scripts" lists the indicators and strategies in your scripts folder, by their titles; search finds them too, and they can be starred.
+
+### Changed
+- **Drawing tools simply stay picked.** Draw as many as you like with a tool until you pick another, the cursor, or press Esc. The "Stay in drawing mode" button is gone.
+- **Replay controls** match the favorite drawings toolbar: the same rounded bar, icon buttons with their names in tooltips, and dividers.
+- **Indicator settings:** a long input name wraps instead of running under its box. Clicking a number puts the cursor where you click instead of selecting it all, and ↑/↓ step it by the script's `step` (1 for whole numbers when a script sets none).
+- **Easier to hit:** indicator names and their buttons on the chart are a little larger.
+- **Date ranges (1D to All) no longer jump:** the chart shows the chosen range from the first bars on, instead of showing them at the old zoom for a moment and then snapping.
+- **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

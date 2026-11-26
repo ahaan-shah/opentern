@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "Calculé sur un ensemble plus large de transactions depuis le 1er mars 2016 ; les valeurs antérieures sont celles publiées à l'époque."
+
 msgid "Calendar"
 msgstr "Calendrier"
 
@@ -1130,6 +1133,9 @@ msgstr "Copier l'image"
 
 msgid "Corpus Christi"
 msgstr "Fête-Dieu"
+
+msgid "Correlation Coefficient"
+msgstr "Coefficient de corrélation"
 
 msgid "Costs"
 msgstr "Coûts"
@@ -2204,6 +2210,9 @@ msgstr "Marchés indiens"
 msgid "Indian large caps"
 msgstr "Grandes valeurs indiennes"
 
+msgid "Indicator"
+msgstr "Indicateur"
+
 msgid "Indicator inputs"
 msgstr "Paramètres des indicateurs"
 
@@ -3013,6 +3022,9 @@ msgstr "Élections municipales (Maharashtra)"
 msgid "My plan includes SIP"
 msgstr "Mon forfait comprend SIP"
 
+msgid "My scripts"
+msgstr "Mes scripts"
+
 msgid "NEW SCRIPT HERE"
 msgstr "NOUVEAU SCRIPT ICI"
 
@@ -3214,6 +3226,9 @@ msgstr "Aucun essai ne remplit les conditions (trop peu de transactions, ou éch
 
 msgid "No script"
 msgstr "Aucun script"
+
+msgid "No scripts yet"
+msgstr "Pas encore de scripts"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "Aucun script. Appuyez sur + pour en créer un."
@@ -3674,9 +3689,6 @@ msgstr "Performance"
 msgid "Periods"
 msgstr "Périodes"
 
-msgid "Pick a new starting bar"
-msgstr "Choisir une autre barre de départ"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "Choisissez au moins un paramètre à optimiser."
@@ -3837,6 +3849,9 @@ msgstr "Fenêtres rentables"
 msgid "Properties"
 msgstr "Propriétés"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "Publié par la Fed de New York vers 9 h, heure de New York, pour le jour ouvré précédent."
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "Appliquer les meilleurs paramètres à la stratégie du graphique"
 
@@ -3964,9 +3979,6 @@ msgstr "Lire la saisonnalité"
 #, message
 msgid "Read {0}"
 msgstr "Lire {0}"
-
-msgid "Real time"
-msgstr "Temps réel"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Prix indiens en temps réel avec un compte Upstox. Créez une app sur upstox.com/developer et collez son jeton d'accès (valable jusqu'au lendemain matin)."
@@ -4729,9 +4741,6 @@ msgstr "Statut"
 msgid "Status line"
 msgstr "Ligne d'état"
 
-msgid "Stay in drawing mode"
-msgstr "Rester en mode dessin"
-
 msgid "StdDev"
 msgstr "Écart-type"
 
@@ -4797,6 +4806,9 @@ msgstr "Arrêté."
 
 msgid "Stop|order"
 msgstr "Stop"
+
+msgid "Strategy"
+msgstr "Stratégie"
 
 msgid "Strategy Lab"
 msgstr "Labo de stratégies"
@@ -4923,6 +4935,12 @@ msgstr "Retirez ses scripts du graphique avant de le renommer."
 msgid "Take profit"
 msgstr "Prise de profit"
 
+msgid "Target {lo}%"
+msgstr "Cible {lo} %"
+
+msgid "Target {lo}–{hi}%"
+msgstr "Cible {lo}–{hi} %"
+
 msgid "Target: {0} ({1})"
 msgstr "Objectif : {0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "Cela fait {0} combinaisons par fenêtre, plus que les {1} de la grille. 
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "Cela fait {combos} combinaisons, plus que les {MAX_GRID} de la grille. Resserrez les plages ou utilisez Aléatoire ou Bayésienne."
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "Le taux des fonds fédéraux est publié une fois par jour. Choisissez 1D ou plus."
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "La Fed de New York n'a envoyé aucun taux."
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "Les taux de la Fed de New York n'ont pas pu être chargés."
 
 msgid "The account was reset."
 msgstr "Le compte a été réinitialisé."
@@ -6162,6 +6192,9 @@ msgstr "{p} essais de {combos} combinaisons sur les {n} barres du graphique."
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} barres, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} pb"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · déclenchée {1}×"

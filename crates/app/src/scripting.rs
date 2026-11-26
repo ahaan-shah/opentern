@@ -142,6 +142,7 @@ fn input_spec(d: &python::InputDesc) -> InputSpec {
             InputKind::Int {
                 min: d.min.map(|v| v as i64).unwrap_or(-1_000_000_000),
                 max: d.max.map(|v| v as i64).unwrap_or(1_000_000_000),
+                step: d.step.map(|v| v as i64).filter(|s| *s > 0).unwrap_or(1),
             },
             Value::Int(num(&d.default) as i64),
         ),

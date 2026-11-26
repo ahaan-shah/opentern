@@ -128,6 +128,27 @@ every data change (scripts re-run on it).
   `Market::of` checks ids for `TVC:` ones. Icons: flags
   (`assets/flags/`, flag-icons MIT, `logos::flag_of`) for non-US/India
   indices, yields and DXY; badges for the rest.
+- **The Fed funds rate** (`NYFED:EFFR`, Nov 2026, `nyfed.rs`): the New York
+  Fed's markets API, keyless. `…/effr/search.json?startDate=2000-07-01&endDate=…`
+  gives the whole history (~6,600 days, 1.5 MB) once per run; then
+  `…/effr/last/10.json`. Every caller (chart, quotes every 30 s, alerts,
+  search prices) goes through one memo (`nyfed::days`) whose `next_check` asks
+  only after 9:05 and 14:35 New York on weekdays (every 15 min between them
+  while the previous business day is missing; 5 min after a failure). Fields:
+  `effectiveDate`, `percentRate`, `targetRateFrom`/`To` (before 16 Dec 2008
+  only `From`: one target), `revisionIndicator` "r". Bars: O=H=L=C, volume 0,
+  UTC midnight; weeks and months resampled in the provider; no intraday
+  (`nyfed::DAILY_ONLY`). `since()` returns a week extra so revisions replace
+  bars. The target band (`chart::ui::target_band`) and legend "Target …" read
+  `nyfed::targets()` (never fetches). `opentern_core::daily_only(id)`: step
+  line instead of candles, no market dot ("Daily" tag with the source and
+  terms instead), never stale, change in bp. Search aliases:
+  `opentern_core::search_aliases`. Terms checked 27 Nov 2026 (page updated
+  9 Jun 2023): automated access OK if it doesn't burden the site; store and
+  redistribute OK for personal or business purposes; the notice
+  (`nyfed::NOTICE`, kept in English) wherever it's shown; no endorsement or
+  name in advertising. Live test: `fed_funds_rate_from_the_new_york_fed`.
+  Not done: Fed funds futures (`ZQ=F`) aren't in the app.
 - **Perpetuals** (`….P`, TradingView's name): `Binance::perp()` (fapi; its
   market streams are under `/market/ws/` since late 2026: the old `/ws/`
   path connects and sends nothing), `Bybit::perp()` (`category=linear`),

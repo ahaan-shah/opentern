@@ -699,7 +699,7 @@ impl App {
                     };
                     let as_text = v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
                     let val = match &spec.kind {
-                        InputKind::Int { min, max } => v
+                        InputKind::Int { min, max, .. } => v
                             .as_f64()
                             .or_else(|| as_text.parse().ok())
                             .map(|x| In::Int((x.round() as i64).clamp(*min, *max))),

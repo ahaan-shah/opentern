@@ -153,7 +153,7 @@ pub(crate) fn instance_for_file(
     if !opentern_core::transfer::stays_inside(file) {
         return Err(msg!("{file} isn't in the scripts folder"));
     }
-    let src = std::fs::read_to_string(dir.join(file)).map_err(|e| msg!("Couldn't read {file}: {e}"))?;
+    let src = crate::sources::script_source(dir, file).map_err(|e| msg!("Couldn't read {file}: {e}"))?;
     let compiled = match lang {
         Lang::Pine => {
             let env = Env {
@@ -212,11 +212,12 @@ impl App {
     pub(crate) fn compile_pine(&mut self, i: usize) {
         let path = self.scripts_dir().join(&self.scripts[i].file);
         let env = self.pine_env();
+        let read = crate::sources::script_source(&self.scripts_dir(), &self.scripts[i].file);
         let run = &mut self.scripts[i];
         run.mtime = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
         run.env_key = Self::env_key(&env);
         run.checked = Some(Instant::now());
-        let src = match std::fs::read_to_string(&path) {
+        let src = match read {
             Ok(s) => s,
             Err(e) => {
                 run.compile_error = Some(msg!("Couldn't read {}: {e}", run.file));

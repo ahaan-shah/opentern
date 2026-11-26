@@ -149,17 +149,17 @@ pub fn drag_handle(ui: &mut Ui, t: &Theme, rect: Rect, id: &str, vertical: bool)
     // hover the grip takes the accent and a thin line marks the edge.
     let c = rect.center();
     let grip = if vertical {
-        Rect::from_center_size(c, egui::vec2(4.0, 36.0))
+        Rect::from_center_size(c, egui::vec2(5.0, 44.0))
     } else {
-        Rect::from_center_size(c, egui::vec2(36.0, 4.0))
+        Rect::from_center_size(c, egui::vec2(44.0, 5.0))
     };
     let p = ui.painter();
     if lit > 0.0 {
-        let line = motion::with_alpha(t.accent, lit * 0.45);
+        let line = motion::with_alpha(t.accent, lit * 0.75);
         if vertical {
-            p.vline(c.x, rect.y_range(), Stroke::new(1.0, line));
+            p.vline(c.x, rect.y_range(), Stroke::new(2.0, line));
         } else {
-            p.hline(rect.x_range(), c.y, Stroke::new(1.0, line));
+            p.hline(rect.x_range(), c.y, Stroke::new(2.0, line));
         }
     }
     // Side handles sit in the gap between cards, where a resting grip reads
@@ -169,7 +169,7 @@ pub fn drag_handle(ui: &mut Ui, t: &Theme, rect: Rect, id: &str, vertical: bool)
     } else {
         t.text3.gamma_multiply(0.55)
     };
-    p.rect_filled(grip, CornerRadius::same(2), motion::lerp_color(rest, t.accent, lit));
+    p.rect_filled(grip, CornerRadius::same(3), motion::lerp_color(rest, t.accent, lit));
     let resp = resp.on_hover_cursor(if vertical {
         egui::CursorIcon::ResizeHorizontal
     } else {
@@ -448,6 +448,86 @@ pub fn secondary(ui: &mut Ui, label: &str) -> Response {
 /// makes fields shorter than the dropdowns beside them).
 pub fn field(text: &mut dyn egui::TextBuffer) -> egui::TextEdit<'_> {
     egui::TextEdit::singleline(text).margin(vec2(12.0, 8.0))
+}
+
+/// Decimal places worth showing for `x` (up to 4): 2.5 → 1, 0.25 → 2.
+pub fn decimals_of(x: f64) -> usize {
+    (0..4)
+        .find(|&d| ((x * 10f64.powi(d as i32)).round() - x * 10f64.powi(d as i32)).abs() < 1e-9)
+        .unwrap_or(4)
+}
+
+/// A number box. A click puts the cursor where it lands (nothing gets
+/// selected), typing edits the number, and ↑/↓ add or take away `step`,
+/// kept within `min..=max`. `decimals` is how many places it shows (0 for
+/// whole numbers). True when the value changed.
+#[allow(clippy::too_many_arguments)]
+pub fn number(ui: &mut Ui, id: egui::Id, value: &mut f64, step: f64, min: f64, max: f64, decimals: usize) -> bool {
+    let fmt = |v: f64| format!("{v:.decimals$}");
+    let key = id.with("typed");
+    let focused = ui.memory(|m| m.has_focus(id));
+    // While it has the cursor, the text as typed (it may be half a number).
+    let mut text = if focused {
+        ui.data_mut(|d| d.get_temp::<String>(key))
+            .unwrap_or_else(|| fmt(*value))
+    } else {
+        fmt(*value)
+    };
+    let mut changed = false;
+    if focused {
+        let (up, down) = ui.input_mut(|i| {
+            (
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowUp),
+                i.consume_key(egui::Modifiers::NONE, egui::Key::ArrowDown),
+            )
+        });
+        let by = if up {
+            step
+        } else if down {
+            -step
+        } else {
+            0.0
+        };
+        if by != 0.0 {
+            let base = text
+                .trim()
+                .parse::<f64>()
+                .ok()
+                .filter(|v| v.is_finite())
+                .unwrap_or(*value);
+            // Rounded to what it shows, so steps of 0.1 never drift.
+            let places = decimals.max(decimals_of(step)) as i32;
+            let k = 10f64.powi(places);
+            let v = (((base + by) * k).round() / k).clamp(min, max);
+            if v != *value {
+                *value = v;
+                changed = true;
+            }
+            text = fmt(v);
+        }
+    }
+    let w = ui
+        .painter()
+        .layout_no_wrap(text.clone(), egui::FontId::proportional(14.0), Color32::WHITE)
+        .size()
+        .x;
+    let resp = ui.add(field(&mut text).id(id).desired_width((w + 34.0).clamp(56.0, 160.0)));
+    if resp.changed()
+        && let Ok(v) = text.trim().parse::<f64>()
+        && v.is_finite()
+    {
+        let v = if decimals == 0 { v.round() } else { v }.clamp(min, max);
+        if v != *value {
+            *value = v;
+            changed = true;
+        }
+    }
+    if resp.has_focus() {
+        ui.data_mut(|d| d.insert_temp(key, text));
+    } else {
+        ui.data_mut(|d| d.remove::<String>(key));
+    }
+    changed
 }
 
 /// A multi-line text field with the same padding as [`field`], so its
@@ -1182,5 +1262,59 @@ mod tests {
         let (col, center) = line(vec![]);
         assert_eq!(col, t.text2);
         assert_eq!(line(vec![egui::Event::PointerMoved(center)]).0, t.accent);
+    }
+
+    /// A click puts the cursor in without selecting the number; ↑/↓ step
+    /// it by the script's step, within its limits; typing sets it.
+    #[test]
+    fn number_box_steps_with_arrows_and_selects_nothing_on_click() {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx, "Inter");
+        let id = egui::Id::new("n");
+        let mut v = 2.5;
+        let mut rect = Rect::NOTHING;
+        let frame = |events: Vec<egui::Event>, v: &mut f64, rect: &mut Rect| {
+            let raw = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, vec2(400.0, 200.0))),
+                events,
+                ..Default::default()
+            };
+            let _ = ctx.run_ui(raw, |ui| {
+                number(ui, id, v, 0.1, 0.0, 2.7, 1);
+                *rect = ui.min_rect();
+            });
+        };
+        frame(vec![], &mut v, &mut rect);
+        let at = rect.left_center() + vec2(14.0, 0.0);
+        let button = |pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(vec![egui::Event::PointerMoved(at)], &mut v, &mut rect);
+        frame(vec![button(true)], &mut v, &mut rect);
+        frame(vec![button(false)], &mut v, &mut rect);
+        frame(vec![], &mut v, &mut rect);
+        assert!(ctx.memory(|m| m.has_focus(id)), "the click focused it");
+        let state = egui::TextEdit::load_state(&ctx, id).unwrap();
+        let range = state.cursor.char_range().unwrap();
+        assert_eq!(range.primary, range.secondary, "nothing selected");
+        let key = |k| egui::Event::Key {
+            key: k,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(vec![key(egui::Key::ArrowUp)], &mut v, &mut rect);
+        assert!((v - 2.6).abs() < 1e-12, "{v}");
+        frame(vec![key(egui::Key::ArrowUp)], &mut v, &mut rect);
+        frame(vec![key(egui::Key::ArrowUp)], &mut v, &mut rect);
+        assert_eq!(v, 2.7, "kept within the maximum");
+        frame(vec![key(egui::Key::ArrowDown)], &mut v, &mut rect);
+        assert!((v - 2.6).abs() < 1e-12, "{v}");
+        assert_eq!(decimals_of(0.25), 2);
+        assert_eq!(decimals_of(3.0), 0);
     }
 }

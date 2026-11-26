@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "С 1 марта 2016 года рассчитывается по более широкому кругу сделок; более ранние значения — в том виде, в каком были опубликованы."
+
 msgid "Calendar"
 msgstr "Календарь"
 
@@ -1130,6 +1133,9 @@ msgstr "Копировать изображение"
 
 msgid "Corpus Christi"
 msgstr "Праздник Тела Христова"
+
+msgid "Correlation Coefficient"
+msgstr "Коэффициент корреляции"
 
 msgid "Costs"
 msgstr "Издержки"
@@ -2204,6 +2210,9 @@ msgstr "Рынки Индии"
 msgid "Indian large caps"
 msgstr "Крупные компании Индии"
 
+msgid "Indicator"
+msgstr "Индикатор"
+
 msgid "Indicator inputs"
 msgstr "Параметры индикаторов"
 
@@ -3013,6 +3022,9 @@ msgstr "Муниципальные выборы (Махараштра)"
 msgid "My plan includes SIP"
 msgstr "Мой тариф включает SIP"
 
+msgid "My scripts"
+msgstr "Мои скрипты"
+
 msgid "NEW SCRIPT HERE"
 msgstr "НОВЫЙ СКРИПТ"
 
@@ -3214,6 +3226,9 @@ msgstr "Ни один прогон не выполнил условия (мал�
 
 msgid "No script"
 msgstr "Без скрипта"
+
+msgid "No scripts yet"
+msgstr "Скриптов пока нет"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "Скриптов пока нет. Нажмите +, чтобы создать."
@@ -3674,9 +3689,6 @@ msgstr "Результаты"
 msgid "Periods"
 msgstr "Периоды"
 
-msgid "Pick a new starting bar"
-msgstr "Выбрать другой начальный бар"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "Выберите хотя бы один параметр для оптимизации."
@@ -3837,6 +3849,9 @@ msgstr "Прибыльные окна"
 msgid "Properties"
 msgstr "Свойства"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "Публикуется ФРБ Нью-Йорка около 9:00 по нью-йоркскому времени за предыдущий рабочий день."
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "Применить лучшие параметры к стратегии на графике"
 
@@ -3964,9 +3979,6 @@ msgstr "Прочитать сезонность"
 #, message
 msgid "Read {0}"
 msgstr "Прочитать {0}"
-
-msgid "Real time"
-msgstr "Реальное время"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Цены Индии в реальном времени со счётом Upstox. Создайте приложение на upstox.com/developer и вставьте его токен доступа (действует до следующего утра)."
@@ -4729,9 +4741,6 @@ msgstr "Статус"
 msgid "Status line"
 msgstr "Строка статуса"
 
-msgid "Stay in drawing mode"
-msgstr "Оставаться в режиме рисования"
-
 msgid "StdDev"
 msgstr "Ст. откл."
 
@@ -4797,6 +4806,9 @@ msgstr "Остановлено."
 
 msgid "Stop|order"
 msgstr "Стоп"
+
+msgid "Strategy"
+msgstr "Стратегия"
 
 msgid "Strategy Lab"
 msgstr "Лаборатория стратегий"
@@ -4923,6 +4935,12 @@ msgstr "Уберите его скрипты с графика перед пер
 msgid "Take profit"
 msgstr "Тейк-профит"
 
+msgid "Target {lo}%"
+msgstr "Цель {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "Цель {lo}–{hi}%"
+
 msgid "Target: {0} ({1})"
 msgstr "Цель: {0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "Это {0} комбинаций на окно, больше лимита
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "Это {combos} комбинаций, больше лимита сетки {MAX_GRID}. Сузьте диапазоны или выберите случайный или байесовский поиск."
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "Ставка по федеральным фондам публикуется раз в день. Выберите 1D или больше."
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "ФРБ Нью-Йорка не прислал ставок."
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "Не удалось загрузить ставки ФРБ Нью-Йорка."
 
 msgid "The account was reset."
 msgstr "Счёт сброшен."
@@ -6162,6 +6192,9 @@ msgstr "Прогонов: {p} из {combos} комбинаций, баров н�
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\nбаров: {nb}, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} б. п."
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · сработало {1}×"

@@ -184,18 +184,20 @@ impl StudySettings {
             }
             let mut value = self.inputs.values.get(spec.id).cloned().unwrap_or(spec.default.clone());
             form_row(ui, t, of_study(meta, spec.title), |ui| match (&spec.kind, &mut value) {
-                (InputKind::Int { min, max }, Value::Int(v)) => {
-                    changed |= ui.add(egui::DragValue::new(v).range(*min..=*max).speed(0.2)).changed();
+                (InputKind::Int { min, max, step }, Value::Int(v)) => {
+                    let mut x = *v as f64;
+                    let id = ui.id().with(("input", spec.id));
+                    if crate::widgets::number(ui, id, &mut x, *step as f64, *min as f64, *max as f64, 0) {
+                        *v = x as i64;
+                        changed = true;
+                    }
                 }
                 (InputKind::Float { min, max, step }, Value::Float(v)) => {
-                    changed |= ui
-                        .add(
-                            egui::DragValue::new(v)
-                                .range(*min..=*max)
-                                .speed(*step * 0.2)
-                                .max_decimals(4),
-                        )
-                        .changed();
+                    let places = crate::widgets::decimals_of(*step)
+                        .max(crate::widgets::decimals_of(*v))
+                        .max(1);
+                    let id = ui.id().with(("input", spec.id));
+                    changed |= crate::widgets::number(ui, id, v, *step, *min, *max, places);
                 }
                 (InputKind::Bool, Value::Bool(v)) => {
                     changed |= crate::widgets::checkbox(ui, v, "").changed();

@@ -378,7 +378,8 @@ pub const INDICES: &[(&str, &str, &str, &str, &str, f64)] = &[
     ),
 ];
 
-/// Every index, rate and volatility index above, as symbols.
+/// Every index, rate and volatility index above, as symbols, and the Fed
+/// funds rate.
 pub fn indices() -> Vec<Symbol> {
     INDICES
         .iter()
@@ -391,7 +392,44 @@ pub fn indices() -> Vec<Symbol> {
             min_qty: 0.0,
             timezone: (*tz).into(),
         })
+        .chain(std::iter::once(fed_funds()))
         .collect()
+}
+
+/// The effective federal funds rate, from the New York Fed (not Yahoo).
+pub const FED_FUNDS: &str = "NYFED:EFFR";
+
+/// The effective federal funds rate as a symbol: one value a business day.
+pub fn fed_funds() -> Symbol {
+    Symbol {
+        id: FED_FUNDS.into(),
+        description: "US Effective Federal Funds Rate".into(),
+        kind: AssetKind::Index,
+        currency: "%".into(),
+        tick_size: 0.01,
+        min_qty: 0.0,
+        timezone: "America/New_York".into(),
+    }
+}
+
+/// Other words search finds a symbol by (upper case, as typed).
+pub fn search_aliases(id: &str) -> &'static [&'static str] {
+    match id {
+        FED_FUNDS => &[
+            "FED FUNDS",
+            "FED FUNDS RATE",
+            "FEDFUNDS",
+            "FED RATE",
+            "INTEREST RATE",
+            "DFF",
+        ],
+        _ => &[],
+    }
+}
+
+/// Whether a symbol is published once a day rather than traded.
+pub fn daily_only(id: &str) -> bool {
+    id == FED_FUNDS
 }
 
 /// Our index id → Yahoo's ticker (`TVC:NI225` → `^N225`).

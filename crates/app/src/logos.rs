@@ -173,7 +173,7 @@ fn flag_of(s: &Symbol) -> Option<&'static str> {
         "ASX:XJO" => "au",
         "TSX:TSX" => "ca",
         "BMFBOVESPA:IBOV" => "br",
-        "TVC:US03MY" | "TVC:US05Y" | "TVC:US10Y" | "TVC:US30Y" | "TVC:DXY" => "us",
+        "TVC:US03MY" | "TVC:US05Y" | "TVC:US10Y" | "TVC:US30Y" | "TVC:DXY" | opentern_core::FED_FUNDS => "us",
         _ => return None,
     })
 }

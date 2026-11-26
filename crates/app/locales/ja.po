@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "2016年3月1日以降はより広い取引から算出。それ以前の値は当時の公表どおり。"
+
 msgid "Calendar"
 msgstr "カレンダー"
 
@@ -1130,6 +1133,9 @@ msgstr "画像をコピー"
 
 msgid "Corpus Christi"
 msgstr "聖体の祝日"
+
+msgid "Correlation Coefficient"
+msgstr "相関係数"
 
 msgid "Costs"
 msgstr "コスト"
@@ -2204,6 +2210,9 @@ msgstr "インド市場"
 msgid "Indian large caps"
 msgstr "インド大型株"
 
+msgid "Indicator"
+msgstr "インジケーター"
+
 msgid "Indicator inputs"
 msgstr "インジケーターの入力"
 
@@ -3013,6 +3022,9 @@ msgstr "自治体選挙 (マハラシュトラ)"
 msgid "My plan includes SIP"
 msgstr "プランにSIPが含まれる"
 
+msgid "My scripts"
+msgstr "マイスクリプト"
+
 msgid "NEW SCRIPT HERE"
 msgstr "ここに新規スクリプト"
 
@@ -3214,6 +3226,9 @@ msgstr "条件を満たす実行はありませんでした(トレードが少�
 
 msgid "No script"
 msgstr "スクリプトなし"
+
+msgid "No scripts yet"
+msgstr "スクリプトはまだありません"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "スクリプトはまだありません。+を押して始めましょう。"
@@ -3674,9 +3689,6 @@ msgstr "パフォーマンス"
 msgid "Periods"
 msgstr "期間数"
 
-msgid "Pick a new starting bar"
-msgstr "新しい開始足を選択"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "最適化する入力を1つ以上選んでください。"
@@ -3837,6 +3849,9 @@ msgstr "利益が出た期間"
 msgid "Properties"
 msgstr "プロパティ"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "ニューヨーク連銀がニューヨーク時間の午前9時ごろ、前営業日分を公表します。"
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "最良の入力をチャートのストラテジーに適用"
 
@@ -3964,9 +3979,6 @@ msgstr "季節性を読む"
 #, message
 msgid "Read {0}"
 msgstr "{0}を読む"
-
-msgid "Real time"
-msgstr "リアルタイム"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Upstox口座によるインドのリアルタイム価格。upstox.com/developer でアプリを作り、アクセストークンを貼り付けます(翌朝まで有効)。"
@@ -4729,9 +4741,6 @@ msgstr "状態"
 msgid "Status line"
 msgstr "ステータスライン"
 
-msgid "Stay in drawing mode"
-msgstr "描画モードを維持"
-
 msgid "StdDev"
 msgstr "標準偏差"
 
@@ -4797,6 +4806,9 @@ msgstr "停止しました。"
 
 msgid "Stop|order"
 msgstr "逆指値"
+
+msgid "Strategy"
+msgstr "ストラテジー"
 
 msgid "Strategy Lab"
 msgstr "ストラテジーラボ"
@@ -4923,6 +4935,12 @@ msgstr "名前を変える前に、そのスクリプトをチャートから外
 msgid "Take profit"
 msgstr "テイクプロフィット"
 
+msgid "Target {lo}%"
+msgstr "誘導目標 {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "誘導目標 {lo}–{hi}%"
+
 msgid "Target: {0} ({1})"
 msgstr "目標: {0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "期間あたり{0}通りで、グリッドの上限{1}を超えていま
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "{combos}通りで、グリッドの上限{MAX_GRID}を超えています。範囲を狭めるか、ランダムまたはベイズを使ってください。"
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "FF金利は1日1回公表されます。1D以上を選んでください。"
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "ニューヨーク連銀から金利が届きませんでした。"
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "ニューヨーク連銀の金利を読み込めませんでした。"
 
 msgid "The account was reset."
 msgstr "口座をリセットしました。"
@@ -6162,6 +6192,9 @@ msgstr "チャートの{n}本で、{combos}通りのうち{p}回実行。"
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb}本、{time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} bp"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · {1}回発動"

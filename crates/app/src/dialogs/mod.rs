@@ -14,7 +14,7 @@ mod symbol;
 
 use crate::app::App;
 use crate::theme::{self, Theme};
-use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, vec2};
+use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, pos2, vec2};
 
 pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
@@ -342,16 +342,17 @@ pub fn form_row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut U
 /// [`form_row`] with a label column `w` wide.
 pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
+        // A long label wraps inside its column rather than running under
+        // the control.
+        let galley = ui
+            .painter()
+            .layout(label.to_string(), theme::regular(13.0), t.text2, w - 12.0);
         // As tall as a field or a dropdown, so the label sits on the
         // control's centre line.
-        let (r, _) = ui.allocate_exact_size(vec2(w, 34.0), egui::Sense::hover());
-        ui.painter().text(
-            r.left_center(),
-            egui::Align2::LEFT_CENTER,
-            label,
-            theme::regular(13.0),
-            t.text2,
-        );
+        let h = (galley.size().y + 8.0).max(34.0);
+        let (r, _) = ui.allocate_exact_size(vec2(w, h), egui::Sense::hover());
+        ui.painter()
+            .galley(pos2(r.left(), r.center().y - galley.size().y / 2.0), galley, t.text2);
         control(ui);
     });
 }

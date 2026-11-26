@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "Beräknas på ett bredare urval av affärer sedan 1 mars 2016; tidigare värden är som de publicerades då."
+
 msgid "Calendar"
 msgstr "Kalender"
 
@@ -1130,6 +1133,9 @@ msgstr "Kopiera bild"
 
 msgid "Corpus Christi"
 msgstr "Kristi lekamens fest"
+
+msgid "Correlation Coefficient"
+msgstr "Korrelationskoefficient"
 
 msgid "Costs"
 msgstr "Kostnader"
@@ -2204,6 +2210,9 @@ msgstr "Indiska marknader"
 msgid "Indian large caps"
 msgstr "Stora indiska bolag"
 
+msgid "Indicator"
+msgstr "Indikator"
+
 msgid "Indicator inputs"
 msgstr "Indikatorers indata"
 
@@ -3013,6 +3022,9 @@ msgstr "Kommunalval (Maharashtra)"
 msgid "My plan includes SIP"
 msgstr "Mitt abonnemang har SIP"
 
+msgid "My scripts"
+msgstr "Mina skript"
+
 msgid "NEW SCRIPT HERE"
 msgstr "NYTT SKRIPT HÄR"
 
@@ -3214,6 +3226,9 @@ msgstr "Ingen körning uppfyllde villkoren (för få affärer, eller så misslyc
 
 msgid "No script"
 msgstr "Inget skript"
+
+msgid "No scripts yet"
+msgstr "Inga skript än"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "Inga skript än. Tryck på + för att börja."
@@ -3674,9 +3689,6 @@ msgstr "Utveckling"
 msgid "Periods"
 msgstr "Perioder"
 
-msgid "Pick a new starting bar"
-msgstr "Välj en ny startstapel"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "Välj minst en indata att optimera."
@@ -3837,6 +3849,9 @@ msgstr "Lönsamma fönster"
 msgid "Properties"
 msgstr "Egenskaper"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "Publiceras av New York Fed runt 9.00 New York-tid, för föregående bankdag."
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "Använd bästa indata i diagrammets strategi"
 
@@ -3964,9 +3979,6 @@ msgstr "Läs säsongsmönstret"
 #, message
 msgid "Read {0}"
 msgstr "Läs {0}"
-
-msgid "Real time"
-msgstr "Realtid"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Indiska realtidspriser med ett Upstox-konto. Skapa en app på upstox.com/developer och klistra in dess åtkomsttoken (den gäller till nästa morgon)."
@@ -4729,9 +4741,6 @@ msgstr "Status"
 msgid "Status line"
 msgstr "Statusrad"
 
-msgid "Stay in drawing mode"
-msgstr "Stanna i ritläge"
-
 msgid "StdDev"
 msgstr "Std.avv."
 
@@ -4797,6 +4806,9 @@ msgstr "Stoppat."
 
 msgid "Stop|order"
 msgstr "Stopp"
+
+msgid "Strategy"
+msgstr "Strategi"
 
 msgid "Strategy Lab"
 msgstr "Strategilabb"
@@ -4923,6 +4935,12 @@ msgstr "Ta bort dess skript från diagrammet innan du byter namn."
 msgid "Take profit"
 msgstr "Ta hem vinst"
 
+msgid "Target {lo}%"
+msgstr "Mål {lo} %"
+
+msgid "Target {lo}–{hi}%"
+msgstr "Mål {lo}–{hi} %"
+
 msgid "Target: {0} ({1})"
 msgstr "Mål: {0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "Det blir {0} kombinationer per fönster, fler än rutnätets {1}. Minska
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "Det blir {combos} kombinationer, fler än rutnätets {MAX_GRID}. Minska intervallen eller använd Slumpmässig eller Bayesiansk."
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "Fed funds-räntan publiceras en gång om dagen. Välj 1D eller längre."
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "New York Fed skickade inga räntor."
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "New York Feds räntor kunde inte laddas."
 
 msgid "The account was reset."
 msgstr "Kontot återställdes."
@@ -6162,6 +6192,9 @@ msgstr "{p} körningar av {combos} kombinationer på diagrammets {n} staplar."
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} staplar, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} bp"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · utlöst {1}×"

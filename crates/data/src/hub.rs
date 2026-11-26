@@ -657,6 +657,15 @@ impl Provider for Missing {
     }
 }
 
+/// Why a chart can't have `tf` bars of `sym`.
+fn no_bars(sym: &Symbol, tf: Timeframe) -> String {
+    if opentern_core::daily_only(&sym.id) {
+        crate::nyfed::DAILY_ONLY.into()
+    } else {
+        format!("{} bars aren't available for this symbol.", tf.label())
+    }
+}
+
 /// Which source serves a symbol: by its exchange prefix, using an account
 /// provider (Alpaca for US stocks, Upstox for NSE/BSE) when its keys are
 /// set, else Yahoo.
@@ -673,6 +682,9 @@ pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
         && let Some(p) = crate::expr::ExprProvider::new(sym, demo)
     {
         return Arc::new(p);
+    }
+    if sym.id == crate::nyfed::ID {
+        return Arc::new(crate::nyfed::NyFed::new(demo));
     }
     if demo {
         return Arc::new(Demo);
@@ -786,7 +798,7 @@ fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) 
         .collect()
 }
 
-static DEMO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+pub(crate) static DEMO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// How many minutes behind the exchange a symbol's free prices are, when
 /// known: CME's and ICE's futures (our commodities, from Yahoo) reach free
@@ -802,7 +814,7 @@ pub fn delayed_minutes(sym: &Symbol) -> Option<u32> {
 fn yahoo_routed(sym: &Symbol) -> bool {
     let c = creds().read().unwrap_or_else(|e| e.into_inner());
     match sym.exchange() {
-        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "OANDA" | "IBKR" => false,
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "OANDA" | "IBKR" | "NYFED" => false,
         "NASDAQ" | "NYSE" | "AMEX" => c.alpaca.is_none(),
         "NSE" | "BSE" => c.upstox.is_none(),
         _ => true,
@@ -1052,7 +1064,7 @@ impl Session {
         let Some(base) = resample::choose_base(tf, &provider.natives()) else {
             out.send(Event::Status {
                 chart,
-                status: Status::Error(format!("{} bars aren't available for this symbol.", tf.label())),
+                status: Status::Error(no_bars(&symbol, tf)),
             });
             return;
         };
@@ -1674,6 +1686,14 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
     let d = s.description.to_uppercase();
     if t == q {
         return Some(0);
+    }
+    // Other names for it ("fed funds" → EFFR).
+    let aliases = opentern_core::search_aliases(&s.id);
+    if aliases.contains(&q) {
+        return Some(1);
+    }
+    if q.len() >= 3 && aliases.iter().any(|a| a.starts_with(q)) {
+        return Some(30);
     }
     if s.id.starts_with("BINANCE:")
         && let Some(quote) = t.strip_prefix(q)
@@ -2300,6 +2320,19 @@ mod tests {
         assert!(rank(&aapl, "APPLE NASDAQ").is_some());
         let spx = mk("SP:SPX", "S&P 500");
         assert!(rank(&spx, "SP500").is_some());
+        // The Fed funds rate by its other names.
+        let effr = opentern_core::fed_funds();
+        for q in [
+            "EFFR",
+            "FED FUNDS",
+            "FEDFUNDS",
+            "INTEREST RATE",
+            "FED FU",
+            "FEDERAL FUNDS",
+        ] {
+            assert!(rank(&effr, q).is_some_and(|r| r <= 55), "{q}: {:?}", rank(&effr, q));
+        }
+        assert_eq!(rank(&aapl, "FED FUNDS"), None);
     }
 
     #[test]

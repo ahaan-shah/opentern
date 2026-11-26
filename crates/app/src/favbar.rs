@@ -250,6 +250,12 @@ impl App {
             }
         });
         let origin = room.min + vec2(at[0].clamp(0.0, 1.0) * travel.x, at[1].clamp(0.0, 1.0) * travel.y);
+        // A replay's controls keep their spot; the bar steps aside while
+        // they're up (where it was chosen to sit is kept).
+        let origin = match crate::chart::replay::bar_rect(ctx) {
+            Some(replay) => clear_of(origin, size(len.full), replay, room),
+            None => origin,
+        };
         let bar = Rect::from_min_size(origin, size(len.now));
         // A slot `from` along the long side, `l` long, across the buttons.
         let slot = |from: f32, l: f32| {
@@ -545,6 +551,34 @@ fn drop_slot(rects: &[Rect], from: usize, pointer: Pos2, vertical: bool) -> usiz
             }
         })
         .count()
+}
+
+/// Where a bar of `size` at `origin` goes so it stays clear of `other`:
+/// where it is if it already is, else just above, below, left or right of
+/// it (the nearest that fits inside `room`).
+fn clear_of(origin: Pos2, size: Vec2, other: Rect, room: Rect) -> Pos2 {
+    const SPACE: f32 = 8.0;
+    let keep_out = other.expand(SPACE);
+    // Touching its edge is clear (egui's `intersects` counts that).
+    let overlaps = |p: Pos2| Rect::from_min_size(p, size).intersect(keep_out).is_positive();
+    if !overlaps(origin) {
+        return origin;
+    }
+    let inside = |p: Pos2| {
+        let max = (room.max - size).max(room.min);
+        p.clamp(room.min, max)
+    };
+    [
+        Pos2::new(origin.x, keep_out.top() - size.y),
+        Pos2::new(origin.x, keep_out.bottom()),
+        Pos2::new(keep_out.left() - size.x, origin.y),
+        Pos2::new(keep_out.right(), origin.y),
+    ]
+    .into_iter()
+    .map(inside)
+    .filter(|&p| !overlaps(p))
+    .min_by(|a, b| a.distance(origin).total_cmp(&b.distance(origin)))
+    .unwrap_or(origin)
 }
 
 /// One of the bar's own buttons (orientation, fold, close).

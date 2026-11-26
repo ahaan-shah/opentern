@@ -8,7 +8,7 @@ use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
-use egui::{Align2, Color32, CornerRadius, Id, Pos2, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align2, CornerRadius, Id, Pos2, Rect, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::Bar;
 use std::time::{Duration, Instant};
 
@@ -167,113 +167,102 @@ impl Chart {
     }
 }
 
-/// The replay's floating controls at the bottom of the main pane.
+fn bar_id() -> Id {
+    Id::new("replay-bar-rect")
+}
+
+/// Where a replay's controls are on screen, when one was drawn this frame
+/// or the last: their spot is fixed, so other floating bars move instead.
+pub fn bar_rect(ctx: &egui::Context) -> Option<Rect> {
+    let now = ctx.cumulative_frame_nr();
+    ctx.data(|d| d.get_temp::<(Rect, u64)>(bar_id()))
+        .filter(|(_, f)| *f + 1 >= now)
+        .map(|(r, _)| r)
+}
+
+/// The replay's floating controls at the bottom of the main pane, in the
+/// favourite drawings toolbar's look: the same height, corners, shadow,
+/// square icon buttons (names in their tooltips) and dividers.
 pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
+    const BTN: f32 = 32.0;
+    const GAP: f32 = 2.0;
+    const PAD: f32 = 5.0;
+    const RULE: f32 = 9.0;
     let Some(r) = chart.replay.as_ref() else { return };
     let selecting = r.selecting;
     let playing = r.playing;
     let speed = r.speed;
     let has_full = !r.full.is_empty();
     let left = r.left();
-    // Wide enough for what's in it: the buttons, the bars-left count and ×.
     let speed_label = SPEEDS[speed.min(SPEEDS.len() - 1)].1;
-    let measure = |text: String, font: egui::FontId| ui.painter().layout_no_wrap(text, font, t.text).size().x;
-    let btn = |glyph: &str, label: &str| {
-        let text = if label.is_empty() {
-            glyph.to_string()
-        } else {
-            format!("{glyph}  {label}")
-        };
-        measure(text, theme::medium(12.5)) + 18.0
-    };
-    let w = if selecting && !has_full {
-        8.0 + btn(ph::SCISSORS, tr("Select bar"))
-            + 8.0
-            + measure(tr("Click a bar to start from it").into(), theme::regular(12.5))
-            + 44.0
+    let measure = |text: &str, font: egui::FontId| ui.painter().layout_no_wrap(text.to_string(), font, t.text).size().x;
+    let speed_text = format!("{}  {speed_label}", ph::GAUGE);
+    let speed_w = measure(&speed_text, theme::medium(12.5)) + 16.0;
+    let hint = tr("Click a bar to start from it");
+    let left_text = trf!("{left} left");
+    let picking = selecting && !has_full;
+    let w = if picking {
+        PAD + BTN + RULE + measure(hint, theme::regular(12.5)) + 12.0 + BTN + PAD
     } else {
-        8.0 + btn(ph::SCISSORS, tr("Select bar"))
-            + btn(ph::PAUSE, "")
-            + btn(ph::SKIP_FORWARD, "")
-            + btn(ph::GAUGE, speed_label)
-            + btn(ph::FAST_FORWARD, tr("Real time"))
-            + 6.0
-            + measure(trf!("{left} left"), theme::regular(11.5))
-            + 44.0
+        PAD + BTN
+            + RULE
+            + (BTN + GAP) * 2.0
+            + speed_w
+            + RULE
+            + BTN
+            + 8.0
+            + measure(&left_text, theme::regular(12.0))
+            + 8.0
+            + BTN
+            + PAD
     };
-    let bar = Rect::from_center_size(pos2(pane.center().x, pane.bottom() - 30.0), vec2(w, 36.0));
+    let h = BTN + PAD * 2.0;
+    let bar = Rect::from_center_size(pos2(pane.center().x, pane.bottom() - h / 2.0 - 12.0), vec2(w, h));
+    // The favourite drawings toolbar steps out of its way (`favbar.rs`).
+    let frame = ui.ctx().cumulative_frame_nr();
+    ui.ctx().data_mut(|d| d.insert_temp(bar_id(), (bar, frame)));
+    let radius = CornerRadius::same(12);
     let p = ui.painter();
-    p.rect_filled(
-        bar.translate(vec2(0.0, 2.0)),
-        CornerRadius::same(10),
-        Color32::from_black_alpha(40),
-    );
-    p.rect_filled(bar, CornerRadius::same(10), t.elevated);
-    p.rect_stroke(
+    p.add(ui.visuals().popup_shadow.as_shape(bar, radius));
+    p.rect(
         bar,
-        CornerRadius::same(10),
-        Stroke::new(1.0, t.border),
+        radius,
+        t.popup(),
+        Stroke::new(1.0, t.edge()),
         egui::StrokeKind::Inside,
     );
-    let mut x = bar.left() + 8.0;
-    let mut button = |ui: &mut Ui, glyph: &str, label: &str, tip: &str, on: bool, key: &str| -> bool {
-        let font = theme::medium(12.5);
-        let text = if label.is_empty() {
-            glyph.to_string()
-        } else {
-            format!("{glyph}  {label}")
-        };
-        let gw = ui.painter().layout_no_wrap(text.clone(), font.clone(), t.text).size().x;
-        let r = Rect::from_min_size(pos2(x, bar.top() + 5.0), vec2(gw + 16.0, 26.0));
-        x = r.right() + 2.0;
-        let resp = ui.interact(r, Id::new(("replay", chart_key(bar.min), key)), Sense::click());
-        let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
-        let p = ui.painter();
-        p.rect_filled(r, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hov));
-        if on {
-            p.rect_filled(r, CornerRadius::same(6), t.accent_soft());
-        }
-        p.text(
-            r.center(),
-            Align2::CENTER_CENTER,
-            text,
-            font,
-            if on { t.accent } else { t.text },
-        );
-        resp.on_hover_text(tip)
-            .on_hover_cursor(egui::CursorIcon::PointingHand)
-            .clicked()
+    let key = chart_key(bar.min);
+    let mut x = bar.left() + PAD;
+    let top = bar.top() + PAD;
+    let rule = |ui: &Ui, x: &mut f32| {
+        let cx = *x + RULE / 2.0 - GAP / 2.0;
+        ui.painter()
+            .vline(cx, bar.y_range().shrink(PAD + 6.0), Stroke::new(1.0, t.border));
+        *x += RULE - GAP;
     };
-    if button(
-        ui,
-        ph::SCISSORS,
-        tr("Select bar"),
-        tr("Pick a new starting bar"),
-        selecting,
-        "select",
-    ) && let Some(r) = chart.replay.as_mut()
+    let icon = |ui: &mut Ui, x: &mut f32, glyph: &str, tip: &str, on: bool, id: &str| -> bool {
+        let r = Rect::from_min_size(pos2(*x, top), vec2(BTN, BTN));
+        *x = r.right() + GAP;
+        let resp = ui.interact(r, Id::new(("replay", key, id)), Sense::click());
+        crate::widgets::tool_button_look(ui, t, resp, glyph, tip, on).clicked()
+    };
+    if icon(ui, &mut x, ph::SCISSORS, tr("Select bar"), selecting, "select")
+        && let Some(r) = chart.replay.as_mut()
     {
         r.selecting = !r.selecting;
         r.playing = false;
     }
-    if selecting && !has_full {
+    rule(ui, &mut x);
+    if picking {
         ui.painter().text(
-            pos2(x + 8.0, bar.center().y),
+            pos2(x + 6.0, bar.center().y),
             Align2::LEFT_CENTER,
-            tr("Click a bar to start from it"),
+            hint,
             theme::regular(12.5),
             t.text2,
         );
-        let close = Rect::from_center_size(pos2(bar.right() - 20.0, bar.center().y), vec2(26.0, 26.0));
-        let resp = ui.interact(close, Id::new(("replay-close", chart_key(bar.min))), Sense::click());
-        ui.painter().text(
-            close.center(),
-            Align2::CENTER_CENTER,
-            ph::X,
-            theme::regular(14.0),
-            t.text2,
-        );
-        if resp.clicked() {
+        let mut xr = bar.right() - PAD - BTN;
+        if icon(ui, &mut xr, ph::X, tr("Close"), false, "close") {
             chart.replay = None;
         }
         return;
@@ -283,57 +272,54 @@ pub fn controls(ui: &mut Ui, chart: &mut Chart, t: &Theme, pane: Rect) {
     } else {
         (ph::PLAY, tr("Play"))
     };
-    if button(ui, glyph, "", tip, false, "play")
+    if icon(ui, &mut x, glyph, tip, playing, "play")
         && let Some(r) = chart.replay.as_mut()
     {
         r.playing = !r.playing && r.cut < r.full.len();
         r.selecting = false;
     }
-    if button(ui, ph::SKIP_FORWARD, "", tr("Forward one bar"), false, "step") {
+    if icon(ui, &mut x, ph::SKIP_FORWARD, tr("Forward one bar"), false, "step") {
         if let Some(r) = chart.replay.as_mut() {
             r.selecting = false;
         }
         chart.replay_step();
     }
-    if button(
-        ui,
-        ph::GAUGE,
-        speed_label,
-        tr("Speed: time per bar (click to change)"),
-        false,
-        "speed",
-    ) && let Some(r) = chart.replay.as_mut()
+    // The speed: its value in words, so a button with text.
+    let sr = Rect::from_min_size(pos2(x, top), vec2(speed_w, BTN));
+    x = sr.right() + GAP;
+    let resp = ui.interact(sr, Id::new(("replay", key, "speed")), Sense::click());
+    let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+    let pt = ui.painter();
+    pt.rect_filled(sr, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hov));
+    pt.text(
+        sr.center(),
+        Align2::CENTER_CENTER,
+        &speed_text,
+        theme::medium(12.5),
+        motion::lerp_color(t.text2, t.text, hov),
+    );
+    if resp
+        .on_hover_text(tr("Speed: time per bar (click to change)"))
+        .on_hover_cursor(egui::CursorIcon::PointingHand)
+        .clicked()
+        && let Some(r) = chart.replay.as_mut()
     {
         r.speed = (r.speed + 1) % SPEEDS.len();
     }
-    if button(
-        ui,
-        ph::FAST_FORWARD,
-        tr("Real time"),
-        tr("Jump to real time"),
-        false,
-        "live",
-    ) {
+    rule(ui, &mut x);
+    if icon(ui, &mut x, ph::FAST_FORWARD, tr("Jump to real time"), false, "live") {
         chart.exit_replay();
         return;
     }
     ui.painter().text(
         pos2(x + 6.0, bar.center().y),
         Align2::LEFT_CENTER,
-        trf!("{left} left"),
-        theme::regular(11.5),
+        left_text,
+        theme::regular(12.0),
         t.text3,
     );
-    let close = Rect::from_center_size(pos2(bar.right() - 20.0, bar.center().y), vec2(26.0, 26.0));
-    let resp = ui.interact(close, Id::new(("replay-close", chart_key(bar.min))), Sense::click());
-    ui.painter().text(
-        close.center(),
-        Align2::CENTER_CENTER,
-        ph::X,
-        theme::regular(14.0),
-        t.text2,
-    );
-    if resp.clicked() {
+    let mut xr = bar.right() - PAD - BTN;
+    if icon(ui, &mut xr, ph::X, tr("Close"), false, "close") {
         chart.exit_replay();
     }
 }

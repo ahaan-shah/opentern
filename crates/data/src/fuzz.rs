@@ -49,6 +49,17 @@ mod tests {
             },
         );
         json_target(
+            "new york fed effr",
+            json!({"refRates":[
+                {"effectiveDate":"2026-11-24","type":"EFFR","percentRate":3.88,"targetRateFrom":3.75,"targetRateTo":4.0,"revisionIndicator":""},
+                {"effectiveDate":"2000-07-03","type":"EFFR","percentRate":7.03,"targetRateFrom":6.5,"revisionIndicator":"r"}
+            ]}),
+            |v| {
+                let days = crate::nyfed::parse(v);
+                let _ = crate::nyfed::bars(&days);
+            },
+        );
+        json_target(
             "bybit ws",
             json!({"topic":"kline.60.BTCUSDT","data":[{"start":1700000000000i64,"open":"1","close":"2","high":"3","low":"0.5","volume":"7"}]}),
             |v| {

@@ -752,6 +752,9 @@ msgstr ""
 msgid "CSV"
 msgstr ""
 
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "1 मार्च 2016 से सौदों के व्यापक समूह से गणना; पहले के मान उस समय प्रकाशित रूप में।"
+
 msgid "Calendar"
 msgstr "कैलेंडर"
 
@@ -1130,6 +1133,9 @@ msgstr "चित्र कॉपी करें"
 
 msgid "Corpus Christi"
 msgstr "कॉर्पस क्रिस्टी"
+
+msgid "Correlation Coefficient"
+msgstr "सहसंबंध गुणांक"
 
 msgid "Costs"
 msgstr "लागत"
@@ -2204,6 +2210,9 @@ msgstr "भारतीय बाज़ार"
 msgid "Indian large caps"
 msgstr "भारतीय लार्ज कैप"
 
+msgid "Indicator"
+msgstr "संकेतक"
+
 msgid "Indicator inputs"
 msgstr "इंडिकेटर इनपुट"
 
@@ -3013,6 +3022,9 @@ msgstr "नगर निगम चुनाव (महाराष्ट्र)"
 msgid "My plan includes SIP"
 msgstr "मेरे प्लान में SIP है"
 
+msgid "My scripts"
+msgstr "मेरी स्क्रिप्ट"
+
 msgid "NEW SCRIPT HERE"
 msgstr "यहाँ नई स्क्रिप्ट"
 
@@ -3214,6 +3226,9 @@ msgstr "कोई रन शर्तें पूरी नहीं कर स
 
 msgid "No script"
 msgstr "कोई स्क्रिप्ट नहीं"
+
+msgid "No scripts yet"
+msgstr "अभी कोई स्क्रिप्ट नहीं"
 
 msgid "No scripts yet. Press + to start one."
 msgstr "अभी कोई स्क्रिप्ट नहीं। शुरू करने के लिए + दबाएँ।"
@@ -3674,9 +3689,6 @@ msgstr "प्रदर्शन"
 msgid "Periods"
 msgstr "अवधियाँ"
 
-msgid "Pick a new starting bar"
-msgstr "नया प्रारंभिक बार चुनें"
-
 #, message
 msgid "Pick at least one input to optimize."
 msgstr "ऑप्टिमाइज़ के लिए कम से कम एक इनपुट चुनें।"
@@ -3837,6 +3849,9 @@ msgstr "लाभप्रद विंडो"
 msgid "Properties"
 msgstr "गुण"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "न्यूयॉर्क फ़ेड द्वारा न्यूयॉर्क समय के अनुसार लगभग सुबह 9:00 बजे, पिछले कारोबारी दिन के लिए प्रकाशित।"
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "सर्वोत्तम इनपुट चार्ट की स्ट्रैटेजी पर लगाएँ"
 
@@ -3964,9 +3979,6 @@ msgstr "मौसमी रुझान पढ़ें"
 #, message
 msgid "Read {0}"
 msgstr "{0} पढ़ें"
-
-msgid "Real time"
-msgstr "रियल टाइम"
 
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Upstox खाते से भारतीय रियल-टाइम भाव। upstox.com/developer पर ऐप बनाकर उसका एक्सेस टोकन पेस्ट करें (अगली सुबह तक चलता है)।"
@@ -4729,9 +4741,6 @@ msgstr "स्थिति"
 msgid "Status line"
 msgstr "स्टेटस लाइन"
 
-msgid "Stay in drawing mode"
-msgstr "ड्रॉइंग मोड में रहें"
-
 msgid "StdDev"
 msgstr "मानक विचलन"
 
@@ -4797,6 +4806,9 @@ msgstr "रुका।"
 
 msgid "Stop|order"
 msgstr "स्टॉप"
+
+msgid "Strategy"
+msgstr "रणनीति"
 
 msgid "Strategy Lab"
 msgstr "स्ट्रैटेजी लैब"
@@ -4923,6 +4935,12 @@ msgstr "नाम बदलने से पहले इसकी स्क्�
 msgid "Take profit"
 msgstr "टेक प्रॉफ़िट"
 
+msgid "Target {lo}%"
+msgstr "लक्ष्य {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "लक्ष्य {lo}–{hi}%"
+
 msgid "Target: {0} ({1})"
 msgstr "लक्ष्य: {0} ({1})"
 
@@ -4994,6 +5012,18 @@ msgstr "प्रति विंडो {0} संयोजन हैं, ग्
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "{combos} संयोजन हैं, ग्रिड की सीमा {MAX_GRID} से अधिक। रेंज घटाएँ या यादृच्छिक या बेज़ियन चुनें।"
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "फ़ेड फ़ंड्स दर दिन में एक बार प्रकाशित होती है। 1D या उससे लंबा चुनें।"
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "न्यूयॉर्क फ़ेड ने कोई दर नहीं भेजी।"
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "न्यूयॉर्क फ़ेड की दरें लोड नहीं हुईं।"
 
 msgid "The account was reset."
 msgstr "खाता रीसेट हुआ।"
@@ -6162,6 +6192,9 @@ msgstr "चार्ट के {n} बार पर {combos} संयोजन�
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} बार, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} bp"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · {1} बार चला"

@@ -236,7 +236,7 @@ fn run_study(
 /// A sensible starting range for an input.
 fn default_row(spec: &opentern_series::study::InputSpec) -> Option<ParamRow> {
     let range = match (&spec.kind, &spec.default) {
-        (InputKind::Int { min, max }, d) => {
+        (InputKind::Int { min, max, .. }, d) => {
             let d = match d {
                 Value::Int(v) => *v,
                 Value::Float(v) => *v as i64,
@@ -2190,7 +2190,11 @@ mod tests {
         let spec = opentern_series::study::InputSpec {
             id: "len",
             title: "Length",
-            kind: InputKind::Int { min: 1, max: 500 },
+            kind: InputKind::Int {
+                min: 1,
+                max: 500,
+                step: 1,
+            },
             default: Value::Int(14),
             group: None,
         };

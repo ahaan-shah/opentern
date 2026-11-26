@@ -243,8 +243,9 @@ pub fn show(
         pos2(plot_all.right(), full.bottom()),
     );
 
-    if !chart.bars.is_empty() && chart.status != Status::Loading {
-        chart.fit_range(plot_all.width());
+    if !chart.bars.is_empty() {
+        let done = chart.status != Status::Loading;
+        chart.fit_range(plot_all.width(), done);
     }
 
     // ---- horizontal map and visible range
@@ -295,6 +296,11 @@ pub fn show(
                     grow(b.high);
                     grow(b.low);
                 }
+            }
+            // The Fed's target range behind the Fed funds rate.
+            for (_, lo, hi) in target_band(chart, first, last) {
+                grow(lo);
+                grow(hi);
             }
             // The pre-market or after-hours price, while the latest bar
             // shows, so its label stays on the scale.
@@ -887,6 +893,7 @@ pub fn show(
         if chart.ext {
             draw_ext_hours(&p, chart, &x, first, last, g.rect);
         }
+        draw_target_band(&p, chart, &g.y, &x, first, last, g.rect);
         draw_series(&p, chart, &g.y, &x, first, last, ppp, g.rect);
         draw_compares(&p, chart, &g.y, &x, first, last, &owns);
         super::profile::paint_overlays(&p, chart, &g.y, &x, first, last, g.rect);
@@ -1615,19 +1622,26 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
     let bw = chart.view.bar_w;
     let px = 1.0 / ppp;
     let up_of = |i: usize| bar_color(chart, i, &chart.bars[i]);
-    match st.kind {
+    // A rate published once a day has no candles (open = high = low =
+    // close): it steps from one value to the next.
+    let kind = if opentern_core::daily_only(&chart.symbol.id) && !st.kind.is_line() {
+        SeriesKind::StepLine
+    } else {
+        st.kind
+    };
+    match kind {
         SeriesKind::Line | SeriesKind::LineMarkers | SeriesKind::StepLine | SeriesKind::Area => {
             let mut pts: Vec<Pos2> = Vec::with_capacity((last - first + 1) * 2);
             for (i, bar) in chart.bars.iter().enumerate().take(last + 1).skip(first) {
                 let q = pos2(x.x(i as f64), y.y(bar.close));
-                if st.kind == SeriesKind::StepLine
+                if kind == SeriesKind::StepLine
                     && let Some(prev) = pts.last().copied()
                 {
                     pts.push(pos2(q.x, prev.y));
                 }
                 pts.push(q);
             }
-            if st.kind == SeriesKind::Area {
+            if kind == SeriesKind::Area {
                 let mut mesh = Mesh::default();
                 paint::area_under(
                     &mut mesh,
@@ -1640,7 +1654,7 @@ fn draw_series(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, las
                 p.add(mesh);
             }
             let stroke = Stroke::new(st.line_width as f32, c32(st.line_color));
-            if st.kind == SeriesKind::LineMarkers && bw >= 3.0 {
+            if kind == SeriesKind::LineMarkers && bw >= 3.0 {
                 let r = (st.line_width as f32 + 1.5).min(bw * 0.45);
                 for q in &pts {
                     p.circle_filled(*q, r, stroke.color);
@@ -2487,6 +2501,55 @@ fn draw_ext_hours(p: &Painter, chart: &Chart, x: &XMap, first: usize, last: usiz
     flush(run);
 }
 
+/// The FOMC's target range on each visible bar of the Fed funds rate
+/// (the range on the bar's last day): (bar, from, to). Empty for other
+/// symbols, or before the rate has loaded.
+fn target_band(chart: &Chart, first: usize, last: usize) -> Vec<(usize, f64, f64)> {
+    let n = chart.bars.len();
+    if !opentern_core::daily_only(&chart.symbol.id) || n == 0 || first >= n {
+        return Vec::new();
+    }
+    let days = opentern_data::nyfed::targets();
+    let mut out = Vec::new();
+    for i in first..=last.min(n - 1) {
+        let end = chart.bars.get(i + 1).map_or(i64::MAX, |b| b.time);
+        let k = days.partition_point(|d| d.time < end);
+        if let Some((lo, hi)) = k.checked_sub(1).and_then(|k| days[k].target) {
+            out.push((i, lo, hi));
+        }
+    }
+    out
+}
+
+/// The target range as a soft band behind the rate, stepping where the
+/// Fed moved it (a single target before Dec 2008 shows as a thin line).
+#[allow(clippy::too_many_arguments)]
+fn draw_target_band(p: &Painter, chart: &Chart, y: &YMap, x: &XMap, first: usize, last: usize, rect: Rect) {
+    let band = target_band(chart, first, last);
+    if band.is_empty() {
+        return;
+    }
+    let fill = c32(chart.style.line_color).gamma_multiply(0.14);
+    let half = x.bar_w / 2.0;
+    let mut k = 0;
+    while k < band.len() {
+        // One rectangle per run of bars with the same range.
+        let (a, lo, hi) = band[k];
+        let mut b = a;
+        while k + 1 < band.len() && band[k + 1].1 == lo && band[k + 1].2 == hi && band[k + 1].0 == b + 1 {
+            k += 1;
+            b = band[k].0;
+        }
+        let (top, bottom) = (y.y(hi), y.y(lo));
+        let r = Rect::from_x_y_ranges(
+            x.x(a as f64) - half..=x.x(b as f64) + half,
+            top.min(bottom - 1.0)..=bottom,
+        );
+        p.rect_filled(r.intersect(rect), 0.0, fill);
+        k += 1;
+    }
+}
+
 fn trim_num(v: f64) -> String {
     let s = format!("{v:.4}");
     s.trim_end_matches('0').trim_end_matches('.').to_string()
@@ -2652,7 +2715,10 @@ fn draw_shape(
 /// per study with its values, and the eye / settings / remove buttons on
 /// hover.
 /// Room for a study row's buttons (eye, settings, source, remove, more).
-const LEGEND_BUTTONS: f32 = 5.0 * 22.0;
+const LEGEND_BUTTONS: f32 = 5.0 * (LEGEND_BTN + 2.0);
+/// A study row's button, and the row's height.
+const LEGEND_BTN: f32 = 24.0;
+const STUDY_ROW: f32 = 24.0;
 
 #[allow(clippy::too_many_arguments)]
 fn legend(
@@ -2693,9 +2759,13 @@ fn legend(
             };
             let r = painter.text(tpos, Align2::LEFT_TOP, &title, bold.clone(), pal.text);
             let mut xx = r.right() + 10.0;
-            // Market open or closed (not for crypto, which never closes).
+            // Market open or closed (not for crypto, which never closes,
+            // nor a rate published once a day).
             let market = opentern_core::calendar::Market::of(&chart.symbol);
-            if market != opentern_core::calendar::Market::Crypto {
+            let daily_only = opentern_core::daily_only(&chart.symbol.id);
+            if daily_only {
+                xx = daily_rate_tags(ui, &painter, pal, chart, idx, xx, pos.y);
+            } else if market != opentern_core::calendar::Market::Crypto {
                 let now = jiff::Timestamp::now().as_millisecond();
                 let state = opentern_core::calendar::state(market, now);
                 let (col, tip) = match &state {
@@ -2795,7 +2865,13 @@ fn legend(
                 let b = chart.bars[i];
                 let up = bar_color(chart, i, &b);
                 let vc = c32(if up { st.up_body } else { st.down_body });
-                for (l, v) in [("O", b.open), ("H", b.high), ("L", b.low), ("C", b.close)] {
+                // A rate's open, high and low are its close: one value.
+                let values: &[(&str, f64)] = if daily_only {
+                    &[("C", b.close)]
+                } else {
+                    &[("O", b.open), ("H", b.high), ("L", b.low), ("C", b.close)]
+                };
+                for &(l, v) in values {
                     let r1 = painter.text(pos2(xx, pos.y + 1.0), Align2::LEFT_TOP, l, font.clone(), pal.text2);
                     let r2 = painter.text(
                         pos2(r1.right() + 3.0, pos.y + 1.0),
@@ -2811,13 +2887,12 @@ fn legend(
                     let ch = b.close - prev;
                     let pct = if prev != 0.0 { ch / prev * 100.0 } else { 0.0 };
                     let sign = if ch >= 0.0 { "+" } else { "" };
-                    let r = painter.text(
-                        pos2(xx, pos.y + 1.0),
-                        Align2::LEFT_TOP,
-                        format!("{sign}{} ({})", format::price(ch, prec), format::signed_pct(pct)),
-                        font.clone(),
-                        vc,
-                    );
+                    let text = if daily_only {
+                        format::bp(ch)
+                    } else {
+                        format!("{sign}{} ({})", format::price(ch, prec), format::signed_pct(pct))
+                    };
+                    let r = painter.text(pos2(xx, pos.y + 1.0), Align2::LEFT_TOP, text, font.clone(), vc);
                     xx = r.right() + 8.0;
                 }
                 if st.show_volume {
@@ -2961,6 +3036,9 @@ fn legend(
             .filter(|s| s.pane == pane_id)
             .map(|s| s.uid)
             .collect();
+        // Indicator rows: a touch larger than the symbol's, with buttons
+        // big enough to hit easily.
+        let sfont = theme::regular(13.5);
         for uid in uids {
             let Some(s) = chart.studies.iter().find(|s| s.uid == uid) else {
                 continue;
@@ -2973,7 +3051,7 @@ fn legend(
             let galley = st.show_study_titles.then(|| {
                 let mut job = egui::text::LayoutJob::single_section(
                     title.clone(),
-                    egui::TextFormat::simple(font.clone(), motion::with_alpha(pal.text, dim)),
+                    egui::TextFormat::simple(sfont.clone(), motion::with_alpha(pal.text, dim)),
                 );
                 job.wrap = egui::text::TextWrapping::truncate_at_width(max_title);
                 ui.fonts_mut(|f| f.layout_job(job))
@@ -2982,7 +3060,7 @@ fn legend(
             let title_w = galley.as_ref().map_or(0.0, |g| g.size().x);
             // Hover covers the title and its buttons, however wide.
             let row_w = (g.rect.width() * 0.75).max(title_w + 12.0 + LEGEND_BUTTONS);
-            let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(row_w, LEGEND_ROW));
+            let row_rect = Rect::from_min_size(pos - vec2(4.0, 2.0), vec2(row_w, STUDY_ROW));
             let hovered = ui.rect_contains_pointer(row_rect);
             let slot = painter.add(egui::Shape::Noop);
             let title_rect = match galley {
@@ -2997,8 +3075,8 @@ fn legend(
             // Buttons sit right after the title while hovered.
             if hovered {
                 let mut btn = |glyph: &str, tip: &str, id: &str| -> bool {
-                    let r = Rect::from_min_size(pos2(xx, pos.y - 2.0), vec2(20.0, 18.0));
-                    xx += 22.0;
+                    let r = Rect::from_min_size(pos2(xx, pos.y - 3.0), vec2(LEGEND_BTN, LEGEND_BTN - 2.0));
+                    xx += LEGEND_BTN + 2.0;
                     let resp = ui.interact(r, Id::new(("legend", chart.id, uid, id)), Sense::click());
                     let bg = motion::with_alpha(t.hover_wash(), motion::hover(&resp));
                     painter.rect_filled(r, CornerRadius::same(4), bg);
@@ -3006,7 +3084,7 @@ fn legend(
                         r.center(),
                         Align2::CENTER_CENTER,
                         glyph,
-                        theme::regular(13.0),
+                        theme::regular(15.0),
                         pal.text2,
                     );
                     resp.on_hover_text(tip).clicked()
@@ -3031,7 +3109,7 @@ fn legend(
                     actions.push(Action::RemoveStudy(uid));
                 }
                 if more {
-                    actions.push(Action::StudyMenu(uid, pos2(xx, pos.y + LEGEND_ROW)));
+                    actions.push(Action::StudyMenu(uid, pos2(xx, pos.y + STUDY_ROW)));
                 }
             }
             let Some(s) = chart.studies.iter().find(|s| s.uid == uid) else {
@@ -3055,7 +3133,7 @@ fn legend(
                     };
                     let col = c32(*look.colors.get(ci as usize).unwrap_or(&look.colors[0])).to_opaque();
                     let text = if v.is_finite() { fmt(v) } else { "—".into() };
-                    let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, font.clone(), col);
+                    let r = painter.text(pos2(xx, pos.y), Align2::LEFT_TOP, text, sfont.clone(), col);
                     xx = r.right() + 8.0;
                 }
             }
@@ -3065,12 +3143,12 @@ fn legend(
                     pos2(xx, pos.y),
                     Align2::LEFT_TOP,
                     format!("{}  {}", ph::WARNING_CIRCLE, first.trim()),
-                    font.clone(),
+                    sfont.clone(),
                     t.neg,
                 );
                 xx = r.right() + 8.0;
             }
-            legend_backing(&painter, slot, pos, xx - 8.0, LEGEND_ROW, pal, t, hovered);
+            legend_backing(&painter, slot, pos, xx - 8.0, STUDY_ROW, pal, t, hovered);
             // Double-click the title for settings, as on TradingView.
             let mut title_resp = ui.interact(title_rect, Id::new(("legend-title", chart.id, uid)), Sense::click());
             if cut {
@@ -3082,10 +3160,60 @@ fn legend(
             if title_resp.secondary_clicked() {
                 actions.push(Action::StudyMenu(uid, title_rect.left_bottom()));
             }
-            pos.y += LEGEND_ROW;
+            pos.y += STUDY_ROW;
         }
     }
     let _ = FontId::default();
+}
+
+/// A rate published once a day (the Fed funds rate): a "Daily" tag in
+/// place of the market's open/closed dot, its source and terms in the
+/// tooltip (the New York Fed's terms ask for both), and the FOMC's target
+/// range on the bar under the crosshair. Returns where the row goes on.
+#[allow(clippy::too_many_arguments)]
+fn daily_rate_tags(
+    ui: &mut Ui,
+    painter: &egui::Painter,
+    pal: &Palette,
+    chart: &Chart,
+    idx: Option<usize>,
+    mut xx: f32,
+    y: f32,
+) -> f32 {
+    let g = painter.layout_no_wrap(tr("Daily").to_string(), theme::regular(11.0), pal.text2);
+    let r = Rect::from_min_size(pos2(xx + 2.0, y + 1.0), g.size() + vec2(10.0, 2.0));
+    painter.rect_filled(r, CornerRadius::same(4), pal.text2.gamma_multiply(0.14));
+    painter.galley(r.min + vec2(5.0, 1.0), g, pal.text2);
+    let tip = format!(
+        "{}\n{}\n\n{}",
+        tr("Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."),
+        tr("Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."),
+        // The wording the New York Fed's terms ask for, kept in English.
+        opentern_data::nyfed::NOTICE,
+    );
+    ui.interact(r, ui.id().with("daily-rate"), Sense::hover())
+        .on_hover_text(tip);
+    xx = r.right() + 8.0;
+    // The range on the bar's last day (a week's or month's end).
+    let end = idx
+        .or(chart.bars.len().checked_sub(1))
+        .map(|i| chart.bars.get(i + 1).map_or(i64::MAX, |b| b.time));
+    if let Some((lo, hi)) = end.and_then(crate::chart::fed_target) {
+        let text = if lo == hi {
+            trf!("Target {lo:.2}%")
+        } else {
+            trf!("Target {lo:.2}–{hi:.2}%")
+        };
+        let r = painter.text(
+            pos2(xx, y + 1.0),
+            Align2::LEFT_TOP,
+            text,
+            theme::regular(12.0),
+            pal.text2,
+        );
+        xx = r.right() + 10.0;
+    }
+    xx
 }
 
 /// A soft backing behind one legend row, so the text reads over candles

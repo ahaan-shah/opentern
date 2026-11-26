@@ -6,7 +6,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - 27 tools in TradingView's groups (lines, Fib/Gann, patterns, forecasting/measure,
   shapes, text, icons) with flyouts that remember the last tool; anchored by time and
   price (`draw::TimeMap` interpolates between bars and extrapolates past the ends).
-  Magnet, stay-in-drawing mode, lock/hide all, remove menu, Eraser, Zoom (drag a range).
+  Magnet, lock/hide all, remove menu, Eraser, Zoom (drag a range).
 - Select, move (body or handles), Delete, Esc, undo/redo (Ctrl+Z/Y, top bar buttons),
   floating toolbar (colours, width, style, text, extend, labels, lock, "use this style
   for new drawings" → templates kind `drawing`, name = `Tool::key()`).
@@ -218,9 +218,9 @@ What's new reopens it. Still: `whatsnew`.
   star (`tool_menu_row`); the list stays open while starring.
 - `widgets::filled_star` draws Phosphor's filled star (the `fill` font variant,
   `theme::filled`), which lines up with the outline `ph::STAR`.
-- Drawing tools stay picked after a drawing (`Arrangement::back_to_cursor`, off by
-  default; it replaced `stay_drawing` so saved layouts don't keep the old way). Zoom
-  is one go whatever the setting.
+- Drawing tools stay picked after a drawing, until another tool, the cross or Esc
+  (the maintainer, Nov 2026: no "Stay in drawing mode" setting; it was removed and
+  a saved `back_to_cursor` is ignored). Zoom is one go.
 - Both floating bars ask `App::charts_on_screen` before drawing.
 - Menu rows (`widgets::menu_row_tinted`) lay out the hint first and shorten the label
   with "…" to fit; `menu_row_width` sizes a menu to its rows (the tool flyouts do).

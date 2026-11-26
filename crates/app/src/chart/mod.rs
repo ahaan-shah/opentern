@@ -40,9 +40,21 @@ pub fn steadily_open(symbol: &Symbol, now_ms: i64) -> bool {
     use opentern_core::calendar;
     let market = calendar::Market::of(symbol);
     let since = now_ms - STALE_AFTER.as_millis() as i64;
+    // A rate published once a day is never "stale" between publications.
+    if opentern_core::daily_only(&symbol.id) {
+        return false;
+    }
     market == calendar::Market::Crypto
         || (calendar::state(market, now_ms) == calendar::State::Open
             && calendar::state(market, since) == calendar::State::Open)
+}
+
+/// The FOMC's target range (from, to) on the last day before `end` (ms),
+/// once the Fed funds rate has loaded this run.
+pub fn fed_target(end: i64) -> Option<(f64, f64)> {
+    let days = opentern_data::nyfed::targets();
+    let i = days.partition_point(|d| d.time < end);
+    days[..i].last()?.target
 }
 
 /// Pre-market amber, after-hours blue (as TradingView's sun and moon).
@@ -1201,7 +1213,10 @@ impl Chart {
     }
 
     /// Fits `fit_days` of history to `width` pixels, once there are bars.
-    pub fn fit_range(&mut self, width: f32) {
+    /// Applied on every frame while the bars are still loading (cached ones
+    /// show first, the network's follow), so the view never shows the new
+    /// bars at the old zoom and then jumps; settled when loading is `done`.
+    pub fn fit_range(&mut self, width: f32, done: bool) {
         let (Some(days), Some(last)) = (self.fit_days, self.bars.last()) else {
             return;
         };
@@ -1222,7 +1237,9 @@ impl Chart {
         for p in &mut self.panes {
             p.scale.auto = true;
         }
-        self.fit_days = None;
+        if done {
+            self.fit_days = None;
+        }
     }
 
     pub fn next_drawing_id(&self) -> u64 {
@@ -1302,6 +1319,34 @@ mod tests {
     fn chart() -> Chart {
         let sym = opentern_core::starter_watchlist().remove(0);
         Chart::new(1, sym, Timeframe::parse("1h").unwrap())
+    }
+
+    /// A range button's fit holds from the first (cached) bars while the
+    /// rest load, and stops once they're in: the view never shows the new
+    /// bars at the old zoom and then jumps.
+    #[test]
+    fn a_range_fit_holds_while_bars_load() {
+        let mut c = chart();
+        c.view.bar_w = 40.0;
+        c.fit_days = Some(10);
+        c.status = Status::Loading;
+        // Cached bars: 5 days of hourly bars.
+        c.bars = bars(120, 0);
+        c.fit_range(1000.0, false);
+        let early = c.view.bar_w;
+        assert!(early < 10.0, "fitted at once, not at the old zoom: {early}");
+        assert!(c.fit_days.is_some(), "still pending while loading");
+        // The network's bars: 20 days. The fit follows them.
+        c.bars = bars(480, 0);
+        c.fit_range(1000.0, false);
+        assert!(c.view.bar_w < early, "{} vs {early}", c.view.bar_w);
+        c.status = Status::Live;
+        c.fit_range(1000.0, true);
+        assert!(c.fit_days.is_none(), "done once loaded");
+        // The user's own zoom afterwards stays.
+        c.view.bar_w = 30.0;
+        c.fit_range(1000.0, true);
+        assert_eq!(c.view.bar_w, 30.0);
     }
 
     #[test]

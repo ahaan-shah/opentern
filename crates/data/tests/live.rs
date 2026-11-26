@@ -862,3 +862,30 @@ fn search_peeks_prices() {
     }
     assert_eq!(got.len(), want.len(), "{got:?}");
 }
+
+/// The New York Fed's effective federal funds rate: the whole history in
+/// one request, a chart through the hub, and a second ask served from the
+/// memo (no second request until the next publication time).
+#[test]
+#[ignore]
+fn fed_funds_rate_from_the_new_york_fed() {
+    let days = opentern_data::nyfed::days().unwrap();
+    assert!(days.len() > 6000, "{} days", days.len());
+    let last = days.last().unwrap();
+    let age = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as i64
+        - last.time)
+        / 86_400_000;
+    assert!(age <= 6, "newest day is {age} days old");
+    assert!(
+        last.target
+            .is_some_and(|(a, b)| a <= last.rate + 0.25 && last.rate - 0.25 <= b)
+    );
+    let again = opentern_data::nyfed::days().unwrap();
+    assert!(Arc::ptr_eq(&days, &again), "asked the network twice");
+    println!("EFFR: {} days, last {last:?}", days.len());
+    open(opentern_core::fed_funds(), "1D", false);
+    open(opentern_core::fed_funds(), "1W", false);
+}

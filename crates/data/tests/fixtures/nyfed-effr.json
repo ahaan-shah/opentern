@@ -1,0 +1,122 @@
+{
+ "refRates": [
+  {
+   "effectiveDate": "2026-11-24",
+   "type": "EFFR",
+   "percentRate": 3.88,
+   "percentPercentile1": 3.85,
+   "percentPercentile25": 3.88,
+   "percentPercentile75": 3.89,
+   "percentPercentile99": 3.95,
+   "targetRateFrom": 3.75,
+   "targetRateTo": 4.0,
+   "volumeInBillions": 88,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-11-23",
+   "type": "EFFR",
+   "percentRate": 3.88,
+   "percentPercentile1": 3.85,
+   "percentPercentile25": 3.88,
+   "percentPercentile75": 3.89,
+   "percentPercentile99": 3.95,
+   "targetRateFrom": 3.75,
+   "targetRateTo": 4.0,
+   "volumeInBillions": 87,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2026-11-20",
+   "type": "EFFR",
+   "percentRate": 3.88,
+   "percentPercentile1": 3.85,
+   "percentPercentile25": 3.88,
+   "percentPercentile75": 3.89,
+   "percentPercentile99": 3.95,
+   "targetRateFrom": 3.75,
+   "targetRateTo": 4.0,
+   "volumeInBillions": 91,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2023-07-25",
+   "type": "EFFR",
+   "percentRate": 5.08,
+   "percentPercentile1": 5.05,
+   "percentPercentile25": 5.07,
+   "percentPercentile75": 5.08,
+   "percentPercentile99": 5.4,
+   "targetRateFrom": 5.0,
+   "targetRateTo": 5.25,
+   "volumeInBillions": 89,
+   "revisionIndicator": "",
+   "footnoteId": 1
+  },
+  {
+   "effectiveDate": "2017-05-31",
+   "type": "EFFR",
+   "percentRate": 0.83,
+   "percentPercentile1": 0.81,
+   "percentPercentile25": 0.82,
+   "percentPercentile75": 0.83,
+   "percentPercentile99": 1.05,
+   "targetRateFrom": 0.75,
+   "targetRateTo": 1.0,
+   "volumeInBillions": 79,
+   "revisionIndicator": "r"
+  },
+  {
+   "effectiveDate": "2008-12-17",
+   "type": "EFFR",
+   "percentRate": 0.12,
+   "targetRateFrom": 0.0,
+   "targetRateTo": 0.25,
+   "intraDayLow": 0.01,
+   "intraDayHigh": 0.5,
+   "stdDeviation": 0.1,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2008-12-16",
+   "type": "EFFR",
+   "percentRate": 0.17,
+   "targetRateFrom": 0.0,
+   "targetRateTo": 0.25,
+   "intraDayLow": 0.01,
+   "intraDayHigh": 1.0,
+   "stdDeviation": 0.17,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2008-12-15",
+   "type": "EFFR",
+   "percentRate": 0.18,
+   "targetRateFrom": 1.0,
+   "intraDayLow": 0.01,
+   "intraDayHigh": 1.0,
+   "stdDeviation": 0.2,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2000-07-05",
+   "type": "EFFR",
+   "percentRate": 6.52,
+   "targetRateFrom": 6.5,
+   "intraDayLow": 2.0,
+   "intraDayHigh": 6.94,
+   "stdDeviation": 0.5,
+   "revisionIndicator": ""
+  },
+  {
+   "effectiveDate": "2000-07-03",
+   "type": "EFFR",
+   "percentRate": 7.03,
+   "targetRateFrom": 6.5,
+   "intraDayLow": 5.5,
+   "intraDayHigh": 7.5,
+   "stdDeviation": 0.28,
+   "revisionIndicator": ""
+  }
+ ]
+}
