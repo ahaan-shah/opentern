@@ -837,7 +837,7 @@ pub fn show(
                 let (vals, step) = if g.y.log {
                     log_ticks(g.y.lo, g.y.hi, g.rect.height())
                 } else {
-                    scale::price_ticks(g.y.lo, g.y.hi, g.rect.height(), 48.0)
+                    scale::price_ticks(g.y.lo, g.y.hi, g.rect.height(), 34.0)
                 };
                 let d = format::decimals_for(step, 0);
                 vals.into_iter()
@@ -982,12 +982,24 @@ pub fn show(
         for (v, label) in list {
             let yy = g.y.y(*v);
             if yy > g.rect.top() + 6.0 && yy < g.rect.bottom() - 6.0 {
+                let is_major = if *v != 0.0 {
+                    let mag = 10f64.powi(v.abs().log10().floor() as i32);
+                    let rem = (v / (mag * 0.01)).round();
+                    (v - rem * (mag * 0.01)).abs() < 1e-6
+                } else {
+                    false
+                };
+                let font = if is_major {
+                    theme::semibold(chart.style.scale_font as f32)
+                } else {
+                    scale_font.clone()
+                };
                 painter.text(
                     pos2(scale_col.left() + 8.0, yy),
                     Align2::LEFT_CENTER,
                     label,
-                    scale_font.clone(),
-                    pal.scale_text,
+                    font,
+                    if is_major { t.text } else { pal.scale_text },
                 );
             }
         }

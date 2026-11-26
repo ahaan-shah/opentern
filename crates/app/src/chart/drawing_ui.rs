@@ -299,12 +299,7 @@ pub fn handle(
         return resp.dragged();
     }
     let ctrl = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
-    if resp.double_clicked() {
-        if let Some((id, _, _)) = press.and_then(hit_at) {
-            du.selected = Some(id);
-            du.open_settings = Some(id);
-        }
-    } else if resp.clicked() {
+    if resp.clicked() {
         if let Some((id, _, _)) = press.and_then(hit_at) {
             if ctrl {
                 if let Some(pos) = du.multi_selected.iter().position(|&x| x == id) {
