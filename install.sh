@@ -133,7 +133,7 @@ need awk
 # Name the version up front (and download exactly that one) by following
 # GitHub's redirect from /releases/latest to its tag.
 if [ "$VERSION" = "latest" ] && [ -z "${OPENTERN_BASE_URL:-}" ]; then
-    tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)"
+    tag="$(curl -fsSLI --connect-timeout 10 --retry 2 -o /dev/null -w '%{url_effective}' "https://github.com/$REPO/releases/latest" 2>/dev/null || true)"
     case "$tag" in */tag/v*) VERSION="${tag##*/tag/v}" ;; esac
 fi
 if [ "$VERSION" = "latest" ]; then
@@ -146,12 +146,51 @@ else
 fi
 BASE="${OPENTERN_BASE_URL:-$BASE}"
 
-TMP="$(mktemp -d)"
+# A server that never answers, or a transfer that stops, is given up on and
+# tried again instead of waiting for the system's two-minute TCP timeout.
+CURL_OPTS="--connect-timeout 10 --retry 4 --retry-delay 1 --speed-limit 1024 --speed-time 30"
+
+# Downloads go to a fresh folder in the temporary directory. If that has no
+# room (a full /tmp, or a per-user quota on it), the user's cache folder.
+TMP="$(mktemp -d 2>/dev/null || true)"
+FALLBACK=""
 PID=""
 cleanup() {
     [ -n "$PID" ] && kill "$PID" 2>/dev/null
     [ -n "$FANCY" ] && printf '\033[?25h'
-    rm -rf "$TMP"
+    [ -n "$TMP" ] && rm -rf "$TMP"
+}
+# Moves the downloads to the cache folder; false if that's where they are.
+use_fallback() {
+    [ -z "$FALLBACK" ] || return 1
+    case "$OS" in
+    Darwin) root="$HOME/Library/Caches" ;;
+    *) root="${XDG_CACHE_HOME:-$HOME/.cache}" ;;
+    esac
+    mkdir -p "$root" 2>/dev/null || return 1
+    new="$(mktemp -d "$root/opentern-install.XXXXXX" 2>/dev/null)" || return 1
+    if [ -n "$TMP" ]; then
+        # What's already downloaded comes along.
+        for f in "$TMP"/*; do [ -f "$f" ] && mv "$f" "$new/" 2>/dev/null; done
+        rm -rf "$TMP"
+    fi
+    TMP="$new"
+    FALLBACK=1
+}
+[ -n "$TMP" ] || use_fallback || die "couldn't make a folder to download into"
+
+# What a curl exit code means, in words.
+why() {
+    case "$1" in
+    6) printf "couldn't look up the server (check your connection)" ;;
+    7) printf "couldn't connect to the server (check your connection)" ;;
+    22) printf "the server refused it" ;;
+    23) printf "there's no room to save it in %s" "$(tilde "$(dirname "$TMP")")" ;;
+    28) printf "the connection timed out" ;;
+    35 | 60) printf "a secure connection couldn't be made" ;;
+    56) printf "the connection dropped" ;;
+    *) printf "curl error %s" "$1" ;;
+    esac
 }
 trap cleanup EXIT
 trap 'cleanup; trap - EXIT; exit 130' INT TERM
@@ -187,16 +226,30 @@ mb() {
     printf '%d.%d' $((tenths / 10)) $((tenths % 10))
 }
 
-# Downloads $1 into $TMP; `bar` draws the progress bar in a terminal.
+# Downloads $1 into $TMP; `bar` draws the progress bar in a terminal. A
+# download that can't be saved is tried once more in the cache folder.
 fetch() {
+    while :; do
+        if fetch_once "$@"; then return 0; else status=$?; fi
+        if [ "$status" -eq 23 ] && use_fallback; then
+            say "No room in the temporary folder: downloading to $(tilde "$(dirname "$TMP")") instead"
+            continue
+        fi
+        die "couldn't download $1: $(why "$status")"
+    done
+}
+
+fetch_once() {
     if [ -z "$FANCY" ] || [ "${2:-}" != bar ]; then
         [ -n "$FANCY" ] || say "Downloading $1"
-        curl -fsSL "$BASE/$1" -o "$TMP/$1" || die "couldn't download $BASE/$1"
-        return 0
+        # shellcheck disable=SC2086
+        curl -fsSL $CURL_OPTS "$BASE/$1" -o "$TMP/$1" 2>/dev/null
+        return
     fi
-    : >"$TMP/headers"
+    : >"$TMP/headers" 2>/dev/null || return 23
     printf '\033[?25l'
-    curl -fsSL -D "$TMP/headers" "$BASE/$1" -o "$TMP/$1" 2>/dev/null &
+    # shellcheck disable=SC2086
+    curl -fsSL $CURL_OPTS -D "$TMP/headers" "$BASE/$1" -o "$TMP/$1" 2>/dev/null &
     PID=$!
     while kill -0 "$PID" 2>/dev/null; do
         draw "$1"
@@ -204,10 +257,26 @@ fetch() {
     done
     if wait "$PID"; then status=0; else status=$?; fi
     PID=""
-    [ "$status" -eq 0 ] || die "couldn't download $BASE/$1"
+    if [ "$status" -ne 0 ]; then
+        printf '\r\033[K\033[?25h'
+        return "$status"
+    fi
     draw "$1"
     printf '\033[?25h\n\n'
 }
+
+# Runs `$1`, a function that unpacks into $TMP; if that runs out of room, it
+# runs again in the cache folder (the download comes along).
+unpack() {
+    "$1" 2>/dev/null && return 0
+    if use_fallback; then
+        say "No room in the temporary folder: unpacking in $(tilde "$(dirname "$TMP")") instead"
+        "$1" 2>/dev/null && return 0
+    fi
+    die "couldn't unpack the download (is there room in $(tilde "$(dirname "$TMP")")?)"
+}
+untar() { tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"; }
+unzip_app() { unzip -q "$TMP/$ASSET" -d "$TMP"; }
 
 start() {
     banner
@@ -244,7 +313,7 @@ Linux)
     start
     fetch "$NAME.tar.gz" bar
     verify "$NAME.tar.gz"
-    tar -xzf "$TMP/$NAME.tar.gz" -C "$TMP"
+    unpack untar
     SRC="$TMP/$NAME"
 
     mkdir -p "$BIN_DIR" "$DATA/applications" "$ICONS/scalable/apps"
@@ -276,7 +345,7 @@ Darwin)
     start
     fetch "$ASSET" bar
     verify "$ASSET"
-    unzip -q "$TMP/$ASSET" -d "$TMP"
+    unpack unzip_app
     if [ -w /Applications ]; then DEST=/Applications; else DEST="$HOME/Applications"; mkdir -p "$DEST"; fi
     rm -rf "$DEST/Opentern.app"
     mv "$TMP/Opentern.app" "$DEST/"

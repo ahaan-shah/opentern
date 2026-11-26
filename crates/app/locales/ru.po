@@ -159,6 +159,9 @@ msgstr "Небольшой помощник продолжает проверя�
 msgid "A special session"
 msgstr "Особая сессия"
 
+msgid "A steadier install line"
+msgstr "Более надёжная команда установки"
+
 #, message
 msgid "A trailing stop follows the price; it can't be moved."
 msgstr "Скользящий стоп следует за ценой; сдвинуть его нельзя."
@@ -376,6 +379,9 @@ msgstr "Пароль приложения, а не ваш обычный"
 
 msgid "An empty list"
 msgstr "Пустой список"
+
+msgid "An update no longer sits at 100%. A slow or dropped connection picks up where it stopped, and if it can't finish you'll see why and can try again."
+msgstr "Обновление больше не замирает на 100 %. Медленное или оборванное соединение продолжает с того места, где остановилось, а если завершить не удаётся, вы увидите причину и сможете повторить попытку."
 
 msgid "Anchor Period"
 msgstr "Период привязки"
@@ -906,6 +912,9 @@ msgstr "Проверено: {0}"
 msgid "Checking"
 msgstr "Проверка"
 
+msgid "Checking the download"
+msgstr "Проверка загрузки"
+
 msgid "Chg%"
 msgstr "Изм.%"
 
@@ -1070,6 +1079,9 @@ msgstr "Индексы сравнены"
 msgid "Compared with"
 msgstr "В сравнении с"
 
+msgid "Connection dropped, trying again"
+msgstr "Соединение прервалось, повторная попытка"
+
 msgid "Connors RSI"
 msgstr "RSI Коннорса"
 
@@ -1231,6 +1243,9 @@ msgstr "Не удалось начать прогон."
 #, message
 msgid "Couldn't start {0}: {e}"
 msgstr "Не удалось запустить {0}: {e}"
+
+msgid "Couldn't update: {0}. Click to try again."
+msgstr "Не удалось обновить: {0}. Нажмите, чтобы повторить."
 
 #, message
 msgid "Couldn't update: {e}"
@@ -1501,6 +1516,12 @@ msgstr "Скачать изображение"
 
 msgid "Download {0}"
 msgstr "Скачать {0}"
+
+msgid "Downloading {0}"
+msgstr "Загрузка {0}"
+
+msgid "Downloading {0} ({1}%)"
+msgstr "Загрузка {0} ({1} %)"
 
 msgid "Downtrend Highlighter"
 msgstr "Подсветка нисходящего тренда"
@@ -1947,6 +1968,9 @@ msgstr "Общие"
 msgid "Geometric shapes"
 msgstr "Геометрические фигуры"
 
+msgid "GitHub couldn't be reached. Check your connection and try again."
+msgstr "Не удалось связаться с GitHub. Проверьте подключение и повторите попытку."
+
 msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
 msgstr "Gmail, Outlook и большинство служб требуют пароль приложения: создайте его в настройках безопасности своей учётной записи."
 
@@ -2191,6 +2215,9 @@ msgstr "Параметры"
 
 msgid "Install {0}"
 msgstr "Установить {0}"
+
+msgid "Installing {0}"
+msgstr "Установка {0}"
 
 msgid "Interactive Brokers"
 msgstr ""
@@ -3400,6 +3427,9 @@ msgstr "Opentern открыт в другом окне. Закройте его 
 
 msgid "Opentern is up to date"
 msgstr "Установлена последняя версия Opentern"
+
+msgid "Opentern isn't allowed to replace itself where it's installed."
+msgstr "У Opentern нет прав заменить себя в папке, где он установлен."
 
 msgid "Opentern {0}"
 msgstr ""
@@ -4955,8 +4985,14 @@ msgstr "Служба данных ответила ошибкой ({c})."
 msgid "The data service refused the key. Check it in Settings → Data providers."
 msgstr "Служба данных отклонила ключ. Проверьте его в Настройки → Поставщики данных."
 
+msgid "The download came through damaged. Try again."
+msgstr "Загрузка пришла повреждённой. Повторите попытку."
+
 msgid "The gateway URL should look like https://localhost:5000"
 msgstr "URL шлюза должен быть вида https://localhost:5000"
+
+msgid "The install command tries again when a connection drops, and downloads somewhere else when the temporary folder is full."
+msgstr "Команда установки повторяет попытку при обрыве соединения и загружает в другое место, если временная папка заполнена."
 
 msgid "The other device runs a different version of Opentern. Update both, then try again."
 msgstr "На другом устройстве другая версия Opentern. Обновите обе и попробуйте снова."
@@ -4997,6 +5033,9 @@ msgstr "Тема"
 #, message
 msgid "There are no bars to test on yet."
 msgstr "Пока нет баров для теста."
+
+msgid "There isn't room on this computer to download it."
+msgstr "На этом компьютере нет места для загрузки."
 
 msgid "There's already an account with this name."
 msgstr "Счёт с таким именем уже есть."
@@ -5274,11 +5313,8 @@ msgstr "{file} обновлён на графике."
 msgid "Updates"
 msgstr "Обновления"
 
-msgid "Updating to {0}"
-msgstr "Обновление до {0}"
-
-msgid "Updating to {0} ({1}%)"
-msgstr "Обновление до {0} ({1}%)"
+msgid "Updates that don't get stuck"
+msgstr "Обновления, которые не зависают"
 
 msgid "Upper"
 msgstr "Верхняя"

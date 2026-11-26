@@ -938,7 +938,16 @@ impl App {
         let tip = match &self.updater.phase {
             Phase::Available(r) => trf!("Opentern {} is available. Click to update.", r.version),
             Phase::Manual(r, why) => trf!("Opentern {} is available. {why}.", r.version, why = trm(why)),
-            Phase::Installing(r) => trf!("Updating to {} ({:.0}%)", r.version, self.updater.progress * 100.0),
+            Phase::Installing(r) => match self.updater.step {
+                opentern_core::update::Step::Checking => tr("Checking the download").into(),
+                opentern_core::update::Step::Installing => trf!("Installing {}", r.version),
+                opentern_core::update::Step::Retrying => tr("Connection dropped, trying again").into(),
+                _ => trf!("Downloading {} ({:.0}%)", r.version, self.updater.progress * 100.0),
+            },
+            Phase::Retry(_, why) => trf!(
+                "Couldn't update: {}. Click to try again.",
+                trm(why).trim_end_matches('.')
+            ),
             Phase::Ready(r) => trf!("Opentern {} is installed. Click to restart.", r.version),
             _ => String::new(),
         };
@@ -957,7 +966,8 @@ impl App {
         let p = ui.painter();
         p.rect_filled(rect, CornerRadius::same(7), motion::with_alpha(t.hover_wash(), hover));
         let c = rect.center();
-        let glyph = if ready {
+        let retry = matches!(self.updater.phase, Phase::Retry(..));
+        let glyph = if ready || retry {
             ph::ARROW_CLOCKWISE
         } else if installing {
             ph::ARROW_DOWN
@@ -981,7 +991,8 @@ impl App {
                     .collect()
             };
             let top = -std::f32::consts::FRAC_PI_2;
-            if installing && self.updater.progress <= 0.0 {
+            let waiting = !matches!(self.updater.step, opentern_core::update::Step::Downloading(_));
+            if installing && (self.updater.progress <= 0.0 || waiting) {
                 // Waiting for the first bytes: a short arc going round.
                 let spin = ui.input(|i| i.time) as f32 * 4.0;
                 p.add(egui::Shape::line(arc(top + spin, 1.4), Stroke::new(1.8, ring)));
@@ -996,7 +1007,7 @@ impl App {
             }
         } else {
             let dot = rect.right_top() + vec2(-8.0, 8.0);
-            p.circle_filled(dot, 3.5, t.accent);
+            p.circle_filled(dot, 3.5, if retry { t.warn } else { t.accent });
         }
         let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand).on_hover_text(tip);
         if resp.clicked() {

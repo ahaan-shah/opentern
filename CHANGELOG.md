@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.6 (2026-11-26)
+
+Updates and installs that finish, even on a patchy connection or a full disk.
+
+### Fixed
+- **Updates no longer freeze at 100%.** Opentern waited without limit on a GitHub download server that didn't answer, and could sit there for minutes before checking the download; it now gives up on such a server in seconds and uses another. Downloads come in pieces, so one that stalls or drops carries on from where it stopped.
+- **A failed update says why and offers Try again,** in plain words (no connection, no room, a damaged download), instead of leaving the bar where it was. Each step shows as it happens: downloading, checking, installing.
+- **Half-finished updates no longer pile up** next to the app; what an interrupted update left behind is cleared on the next launch.
+- **The install command no longer fails when the temporary folder is full:** it downloads to your cache folder instead, tries again when a connection drops or stalls, and says what went wrong in words when it can't.
+- **The Windows install command** tries again on a dropped connection, and always checks the download against the release's checksums.
 ## 0.3.5 (2026-11-26)
 
 Nine languages, a new agent panel with an effort slider, smoother motion throughout, and a full check of the script engines.

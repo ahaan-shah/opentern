@@ -90,3 +90,46 @@ jobs:
       - run: cargo test --all --locked
         env:
           OPENTERN_HEADLESS: "1"
+
+  # The install lines, run for real against the latest release on each
+  # platform. On Linux the temporary folder is a 1 MB disk, so the
+  # installer has to notice it's full and download somewhere else.
+  installers:
+    name: install-${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: install.sh with a full temporary folder
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p "$RUNNER_TEMP/tiny" "$RUNNER_TEMP/user"
+          sudo mount -t tmpfs -o size=1m,mode=1777 tmpfs "$RUNNER_TEMP/tiny"
+          out="$(TMPDIR="$RUNNER_TEMP/tiny" OPENTERN_INSTALL_DIR="$RUNNER_TEMP/user/bin" \
+            XDG_DATA_HOME="$RUNNER_TEMP/user/data" XDG_CACHE_HOME="$RUNNER_TEMP/user/cache" sh install.sh 2>&1)"
+          echo "$out"
+          echo "$out" | grep -q "No room in the temporary folder"
+          "$RUNNER_TEMP/user/bin/opentern" --version
+          test -z "$(ls -A "$RUNNER_TEMP/user/cache")"
+      - name: install.sh
+        if: runner.os != 'Windows'
+        run: |
+          OPENTERN_INSTALL_DIR="$RUNNER_TEMP/bin" XDG_DATA_HOME="$RUNNER_TEMP/data" sh install.sh
+          if [ "$RUNNER_OS" = macOS ]; then
+            app=/Applications/Opentern.app; [ -d "$app" ] || app="$HOME/Applications/Opentern.app"
+            "$app/Contents/MacOS/opentern" --version
+          else
+            "$RUNNER_TEMP/bin/opentern" --version
+          fi
+      - name: install.ps1, as `irm | iex` runs it
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\Opentern\opentern.exe'
+          if (-not (Test-Path $exe)) { throw "not installed at $exe" }
+          if (Get-Variable -Name state -Scope Global -ErrorAction SilentlyContinue) { throw "the installer left variables in the session" }

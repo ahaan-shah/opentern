@@ -159,6 +159,9 @@ msgstr "Un petit assistant continue de surveiller vos alertes et vous prévient.
 msgid "A special session"
 msgstr "Une séance spéciale"
 
+msgid "A steadier install line"
+msgstr "Une commande d'installation plus fiable"
+
 #, message
 msgid "A trailing stop follows the price; it can't be moved."
 msgstr "Un stop suiveur suit le prix ; il ne peut pas être déplacé."
@@ -376,6 +379,9 @@ msgstr "Un mot de passe d'application, pas celui de votre compte"
 
 msgid "An empty list"
 msgstr "Une liste vide"
+
+msgid "An update no longer sits at 100%. A slow or dropped connection picks up where it stopped, and if it can't finish you'll see why and can try again."
+msgstr "Une mise à jour ne reste plus bloquée à 100 %. Une connexion lente ou coupée reprend là où elle s'est arrêtée, et si elle ne peut pas aboutir, vous voyez pourquoi et pouvez réessayer."
 
 msgid "Anchor Period"
 msgstr "Période d'ancrage"
@@ -906,6 +912,9 @@ msgstr "{0} vérifié"
 msgid "Checking"
 msgstr "Vérification"
 
+msgid "Checking the download"
+msgstr "Vérification du téléchargement"
+
 msgid "Chg%"
 msgstr "Var. %"
 
@@ -1070,6 +1079,9 @@ msgstr "Indices comparés"
 msgid "Compared with"
 msgstr "Comparé à"
 
+msgid "Connection dropped, trying again"
+msgstr "Connexion coupée, nouvelle tentative"
+
 msgid "Connors RSI"
 msgstr "RSI de Connors"
 
@@ -1231,6 +1243,9 @@ msgstr "Impossible de démarrer l'exécution."
 #, message
 msgid "Couldn't start {0}: {e}"
 msgstr "Impossible de démarrer {0} : {e}"
+
+msgid "Couldn't update: {0}. Click to try again."
+msgstr "Mise à jour impossible : {0}. Cliquez pour réessayer."
 
 #, message
 msgid "Couldn't update: {e}"
@@ -1501,6 +1516,12 @@ msgstr "Télécharger l'image"
 
 msgid "Download {0}"
 msgstr "Télécharger {0}"
+
+msgid "Downloading {0}"
+msgstr "Téléchargement de {0}"
+
+msgid "Downloading {0} ({1}%)"
+msgstr "Téléchargement de {0} ({1} %)"
 
 msgid "Downtrend Highlighter"
 msgstr "Surligneur de tendance baissière"
@@ -1947,6 +1968,9 @@ msgstr "Général"
 msgid "Geometric shapes"
 msgstr "Formes géométriques"
 
+msgid "GitHub couldn't be reached. Check your connection and try again."
+msgstr "GitHub est injoignable. Vérifiez votre connexion et réessayez."
+
 msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
 msgstr "Gmail, Outlook et la plupart des fournisseurs exigent un mot de passe d'application : créez-en un dans les réglages de sécurité de votre compte."
 
@@ -2191,6 +2215,9 @@ msgstr "Paramètres"
 
 msgid "Install {0}"
 msgstr "Installer {0}"
+
+msgid "Installing {0}"
+msgstr "Installation de {0}"
 
 msgid "Interactive Brokers"
 msgstr ""
@@ -3400,6 +3427,9 @@ msgstr "Opentern est ouvert dans une autre fenêtre. Fermez-la, puis importez."
 
 msgid "Opentern is up to date"
 msgstr "Opentern est à jour"
+
+msgid "Opentern isn't allowed to replace itself where it's installed."
+msgstr "Opentern n'a pas le droit de se remplacer à l'endroit où il est installé."
 
 msgid "Opentern {0}"
 msgstr ""
@@ -4955,8 +4985,14 @@ msgstr "Le service de données a répondu par une erreur ({c})."
 msgid "The data service refused the key. Check it in Settings → Data providers."
 msgstr "Le service de données a refusé la clé. Vérifiez-la dans Paramètres → Fournisseurs de données."
 
+msgid "The download came through damaged. Try again."
+msgstr "Le téléchargement est arrivé endommagé. Réessayez."
+
 msgid "The gateway URL should look like https://localhost:5000"
 msgstr "L'URL de la passerelle doit ressembler à https://localhost:5000"
+
+msgid "The install command tries again when a connection drops, and downloads somewhere else when the temporary folder is full."
+msgstr "La commande d'installation réessaie quand la connexion se coupe et télécharge ailleurs quand le dossier temporaire est plein."
 
 msgid "The other device runs a different version of Opentern. Update both, then try again."
 msgstr "L'autre appareil utilise une version différente d'Opentern. Mettez les deux à jour, puis réessayez."
@@ -4997,6 +5033,9 @@ msgstr "Thème"
 #, message
 msgid "There are no bars to test on yet."
 msgstr "Il n'y a pas encore de barres à tester."
+
+msgid "There isn't room on this computer to download it."
+msgstr "Il n'y a pas assez de place sur cet ordinateur pour le télécharger."
 
 msgid "There's already an account with this name."
 msgstr "Un compte porte déjà ce nom."
@@ -5274,11 +5313,8 @@ msgstr "{file} mis à jour sur le graphique."
 msgid "Updates"
 msgstr "Mises à jour"
 
-msgid "Updating to {0}"
-msgstr "Mise à jour vers {0}"
-
-msgid "Updating to {0} ({1}%)"
-msgstr "Mise à jour vers {0} ({1} %)"
+msgid "Updates that don't get stuck"
+msgstr "Des mises à jour qui ne restent plus bloquées"
 
 msgid "Upper"
 msgstr "Supérieure"

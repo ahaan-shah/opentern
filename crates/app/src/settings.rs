@@ -771,7 +771,14 @@ impl App {
                     ui.label(subtle(format!("{}.", trm(why))));
                 }
                 Phase::Installing(r) => {
-                    ui.label(subtle(trf!("Updating to {}", r.version)));
+                    use opentern_core::update::Step;
+                    let step = self.updater.step;
+                    ui.label(subtle(match step {
+                        Step::Downloading(_) => trf!("Downloading {}", r.version),
+                        Step::Retrying => tr("Connection dropped, trying again").into(),
+                        Step::Checking => tr("Checking the download").into(),
+                        Step::Installing => trf!("Installing {}", r.version),
+                    }));
                     crate::widgets::progress(
                         ui,
                         t,
@@ -779,7 +786,17 @@ impl App {
                         vec2(160.0, 6.0),
                         self.updater.progress,
                     );
-                    ui.label(subtle(format!("{:.0}%", self.updater.progress * 100.0)));
+                    if matches!(step, Step::Downloading(_) | Step::Retrying) {
+                        ui.label(subtle(format!("{:.0}%", self.updater.progress * 100.0)));
+                    } else {
+                        ui.add(egui::Spinner::new().size(13.0).color(t.text3));
+                    }
+                }
+                Phase::Retry(_, why) => {
+                    if crate::widgets::primary(ui, tr("Try again")).clicked() {
+                        self.update_action(ui.ctx());
+                    }
+                    ui.label(subtle(trm(why).into_owned()));
                 }
                 Phase::Ready(r) => {
                     if crate::widgets::primary(ui, tr("Restart Opentern")).clicked() {

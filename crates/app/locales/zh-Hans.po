@@ -159,6 +159,9 @@ msgstr "一个小助手会继续检查你的警报并通知你。再次打开 Op
 msgid "A special session"
 msgstr "特别交易时段"
 
+msgid "A steadier install line"
+msgstr "更可靠的安装命令"
+
 #, message
 msgid "A trailing stop follows the price; it can't be moved."
 msgstr "跟踪止损跟随价格，无法移动。"
@@ -376,6 +379,9 @@ msgstr "应用专用密码，不是登录密码"
 
 msgid "An empty list"
 msgstr "空列表"
+
+msgid "An update no longer sits at 100%. A slow or dropped connection picks up where it stopped, and if it can't finish you'll see why and can try again."
+msgstr "更新不会再停在 100%。缓慢或中断的连接会从中断处继续；如果无法完成，您会看到原因并可以重试。"
 
 msgid "Anchor Period"
 msgstr "锚定周期"
@@ -906,6 +912,9 @@ msgstr "已检查 {0}"
 msgid "Checking"
 msgstr "正在检查"
 
+msgid "Checking the download"
+msgstr "正在检查下载内容"
+
 msgid "Chg%"
 msgstr "涨跌%"
 
@@ -1070,6 +1079,9 @@ msgstr "已对比指数"
 msgid "Compared with"
 msgstr "对比对象"
 
+msgid "Connection dropped, trying again"
+msgstr "连接已中断，正在重试"
+
 msgid "Connors RSI"
 msgstr "康纳斯 RSI"
 
@@ -1231,6 +1243,9 @@ msgstr "无法开始运行。"
 #, message
 msgid "Couldn't start {0}: {e}"
 msgstr "无法启动 {0}：{e}"
+
+msgid "Couldn't update: {0}. Click to try again."
+msgstr "无法更新：{0}。点击重试。"
 
 #, message
 msgid "Couldn't update: {e}"
@@ -1501,6 +1516,12 @@ msgstr "下载图片"
 
 msgid "Download {0}"
 msgstr "下载 {0}"
+
+msgid "Downloading {0}"
+msgstr "正在下载 {0}"
+
+msgid "Downloading {0} ({1}%)"
+msgstr "正在下载 {0}（{1}%）"
 
 msgid "Downtrend Highlighter"
 msgstr "下降趋势高亮"
@@ -1947,6 +1968,9 @@ msgstr "常规"
 msgid "Geometric shapes"
 msgstr "几何图形"
 
+msgid "GitHub couldn't be reached. Check your connection and try again."
+msgstr "无法连接 GitHub。请检查网络连接后重试。"
+
 msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
 msgstr "Gmail、Outlook 等多数邮箱需要应用专用密码：请在账户的安全设置中创建。"
 
@@ -2191,6 +2215,9 @@ msgstr "参数"
 
 msgid "Install {0}"
 msgstr "安装 {0}"
+
+msgid "Installing {0}"
+msgstr "正在安装 {0}"
 
 msgid "Interactive Brokers"
 msgstr ""
@@ -3400,6 +3427,9 @@ msgstr "Opentern 已在另一个窗口打开。请关闭后再导入。"
 
 msgid "Opentern is up to date"
 msgstr "Opentern 已是最新版本"
+
+msgid "Opentern isn't allowed to replace itself where it's installed."
+msgstr "Opentern 没有权限在其安装位置替换自身。"
 
 msgid "Opentern {0}"
 msgstr ""
@@ -4955,8 +4985,14 @@ msgstr "数据服务返回错误 ({c})。"
 msgid "The data service refused the key. Check it in Settings → Data providers."
 msgstr "数据服务拒绝了密钥。请在 设置 → 数据提供商 中检查。"
 
+msgid "The download came through damaged. Try again."
+msgstr "下载的文件已损坏。请重试。"
+
 msgid "The gateway URL should look like https://localhost:5000"
 msgstr "网关 URL 应类似 https://localhost:5000"
+
+msgid "The install command tries again when a connection drops, and downloads somewhere else when the temporary folder is full."
+msgstr "连接中断时，安装命令会自动重试；临时文件夹已满时，会改为下载到其他位置。"
 
 msgid "The other device runs a different version of Opentern. Update both, then try again."
 msgstr "另一台设备的 Opentern 版本不同。请更新两台设备后重试。"
@@ -4997,6 +5033,9 @@ msgstr "主题"
 #, message
 msgid "There are no bars to test on yet."
 msgstr "还没有可测试的 K 线。"
+
+msgid "There isn't room on this computer to download it."
+msgstr "这台电脑没有足够的空间来下载。"
 
 msgid "There's already an account with this name."
 msgstr "已有同名账户。"
@@ -5274,11 +5313,8 @@ msgstr "已更新图表上的 {file}。"
 msgid "Updates"
 msgstr "更新"
 
-msgid "Updating to {0}"
-msgstr "正在更新到 {0}"
-
-msgid "Updating to {0} ({1}%)"
-msgstr "正在更新到 {0} ({1}%)"
+msgid "Updates that don't get stuck"
+msgstr "不会卡住的更新"
 
 msgid "Upper"
 msgstr "上轨"

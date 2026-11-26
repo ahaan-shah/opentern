@@ -36,6 +36,31 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
    only after `hyprctl activewindow` shows your own pid; `widget:none` closes
    the side panel. Still to do: notarizing the macOS app.
 
+## Updates and the install lines (0.3.6)
+- **The updater never waits without a limit** (`update::Limits`): 10 s to
+  connect (ureq shares it across a host's addresses, so one that doesn't
+  answer falls through to the next), 30 s for a response, and downloads in
+  2 MB HTTP ranges with 90 s each, a stalled or dropped piece asked for again
+  from the byte it got to (four tries without progress). Before 0.3.6 there
+  were no limits: one of GitHub's four download addresses not answering on the
+  maintainer's network held each request for Linux's ~2 min TCP timeout, and
+  the bar sat at 100% while `SHA256SUMS` was fetched. Tests: `update::tests`
+  (a local server that stalls, drops, ignores ranges, never answers) and
+  `live_release_download` (ignored; the real release through GitHub's redirect).
+- Steps (`update::Step`) show in Settings → About and on the top-bar button; a
+  failed install is `Phase::Retry` with the reason in words
+  (`updater::reason`) and Try again. Work folders of interrupted updates
+  (`.opentern-update-<pid>` beside the binary) are cleared on launch.
+- **`install.sh`**: curl with `--connect-timeout 10 --retry 4 --speed-limit
+  1024 --speed-time 30`; a download or unpack that can't be saved in
+  `$TMPDIR` (a full `/tmp`, or a per-user quota) moves to the cache folder;
+  curl's exit codes are said in words. **`install.ps1`**: 60 s per request,
+  four tries, `%LOCALAPPDATA%` when the temp folder is full, `SHA256SUMS`
+  required. CI's `installers` job runs both for real on every push (Linux with
+  a 1 MB temp folder).
+- `bundle-macos.sh` sizes the `.dmg` itself: `hdiutil`'s own guess fell short
+  once the app grew (0.3.5's first tag).
+
 ## Website
 **Screenshots (refreshed 24 Nov 2026):** demo data in a seed workspace
 (`scripts/ma_cross.pine`, an MA Cross 12/30 strategy; five NSE sector indices

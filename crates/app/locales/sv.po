@@ -159,6 +159,9 @@ msgstr "En liten hjälpare fortsätter bevaka dina larm och meddelar dig. Den sl
 msgid "A special session"
 msgstr "En särskild handelsdag"
 
+msgid "A steadier install line"
+msgstr "Ett stabilare installationskommando"
+
 #, message
 msgid "A trailing stop follows the price; it can't be moved."
 msgstr "En släpande stopp följer priset; den kan inte flyttas."
@@ -376,6 +379,9 @@ msgstr "Ett applösenord, inte din inloggning"
 
 msgid "An empty list"
 msgstr "En tom lista"
+
+msgid "An update no longer sits at 100%. A slow or dropped connection picks up where it stopped, and if it can't finish you'll see why and can try again."
+msgstr "En uppdatering fastnar inte längre på 100 %. En långsam eller bruten anslutning fortsätter där den slutade, och om den inte kan bli klar ser du varför och kan försöka igen."
 
 msgid "Anchor Period"
 msgstr "Ankarperiod"
@@ -906,6 +912,9 @@ msgstr "Kontrollerade {0}"
 msgid "Checking"
 msgstr "Kontrollerar"
 
+msgid "Checking the download"
+msgstr "Kontrollerar nedladdningen"
+
 msgid "Chg%"
 msgstr "Förä.%"
 
@@ -1070,6 +1079,9 @@ msgstr "Jämförde indexen"
 msgid "Compared with"
 msgstr "Jämfört med"
 
+msgid "Connection dropped, trying again"
+msgstr "Anslutningen bröts, försöker igen"
+
 msgid "Connors RSI"
 msgstr "Connors RSI"
 
@@ -1231,6 +1243,9 @@ msgstr "Det gick inte att starta körningen."
 #, message
 msgid "Couldn't start {0}: {e}"
 msgstr "Det gick inte att starta {0}: {e}"
+
+msgid "Couldn't update: {0}. Click to try again."
+msgstr "Det gick inte att uppdatera: {0}. Klicka för att försöka igen."
 
 #, message
 msgid "Couldn't update: {e}"
@@ -1501,6 +1516,12 @@ msgstr "Ladda ner bild"
 
 msgid "Download {0}"
 msgstr "Ladda ner {0}"
+
+msgid "Downloading {0}"
+msgstr "Laddar ned {0}"
+
+msgid "Downloading {0} ({1}%)"
+msgstr "Laddar ned {0} ({1} %)"
 
 msgid "Downtrend Highlighter"
 msgstr "Markering av nedåttrend"
@@ -1947,6 +1968,9 @@ msgstr "Allmänt"
 msgid "Geometric shapes"
 msgstr "Geometriska former"
 
+msgid "GitHub couldn't be reached. Check your connection and try again."
+msgstr "Det gick inte att nå GitHub. Kontrollera anslutningen och försök igen."
+
 msgid "Gmail, Outlook and most providers need an app password: make one in your account's security settings."
 msgstr "Gmail, Outlook och de flesta leverantörer kräver ett applösenord: skapa ett i kontots säkerhetsinställningar."
 
@@ -2191,6 +2215,9 @@ msgstr "Indata"
 
 msgid "Install {0}"
 msgstr "Installera {0}"
+
+msgid "Installing {0}"
+msgstr "Installerar {0}"
 
 msgid "Interactive Brokers"
 msgstr ""
@@ -3400,6 +3427,9 @@ msgstr "Opentern är öppet i ett annat fönster. Stäng det och importera sedan
 
 msgid "Opentern is up to date"
 msgstr "Opentern är uppdaterat"
+
+msgid "Opentern isn't allowed to replace itself where it's installed."
+msgstr "Opentern får inte ersätta sig själv där den är installerad."
 
 msgid "Opentern {0}"
 msgstr ""
@@ -4955,8 +4985,14 @@ msgstr "Datatjänsten svarade med ett fel ({c})."
 msgid "The data service refused the key. Check it in Settings → Data providers."
 msgstr "Datatjänsten nekade nyckeln. Kontrollera den i Inställningar → Dataleverantörer."
 
+msgid "The download came through damaged. Try again."
+msgstr "Nedladdningen kom fram skadad. Försök igen."
+
 msgid "The gateway URL should look like https://localhost:5000"
 msgstr "Gateway-URL:en ska se ut som https://localhost:5000"
+
+msgid "The install command tries again when a connection drops, and downloads somewhere else when the temporary folder is full."
+msgstr "Installationskommandot försöker igen när en anslutning bryts och laddar ned någon annanstans när den tillfälliga mappen är full."
 
 msgid "The other device runs a different version of Opentern. Update both, then try again."
 msgstr "Den andra enheten kör en annan version av Opentern. Uppdatera båda och försök igen."
@@ -4997,6 +5033,9 @@ msgstr "Tema"
 #, message
 msgid "There are no bars to test on yet."
 msgstr "Det finns inga staplar att testa på än."
+
+msgid "There isn't room on this computer to download it."
+msgstr "Det finns inte plats på den här datorn för att ladda ned den."
 
 msgid "There's already an account with this name."
 msgstr "Det finns redan ett konto med det namnet."
@@ -5274,11 +5313,8 @@ msgstr "Uppdaterade {file} i diagrammet."
 msgid "Updates"
 msgstr "Uppdateringar"
 
-msgid "Updating to {0}"
-msgstr "Uppdaterar till {0}"
-
-msgid "Updating to {0} ({1}%)"
-msgstr "Uppdaterar till {0} ({1} %)"
+msgid "Updates that don't get stuck"
+msgstr "Uppdateringar som inte fastnar"
 
 msgid "Upper"
 msgstr "Övre"

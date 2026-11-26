@@ -472,6 +472,11 @@ impl App {
                     .find(|c| format!("{c:?}").eq_ignore_ascii_case(cat.trim_start_matches(':')))
                     .unwrap_or(Cat::General);
                 self.open_settings(cat);
+            } else if part == "update:install" {
+                // Checks the feed (`OPENTERN_UPDATE_FEED`) and installs what
+                // it finds, as a click on Update would.
+                self.updater.install_found = true;
+                self.updater.check(&self.egui_ctx.clone(), true);
             } else if let Some(u) = part.strip_prefix("update:") {
                 // The update button mid-download (`update:40`) or installed
                 // (`update:ready`), with a made-up release.
@@ -487,6 +492,12 @@ impl App {
                 self.updater.phase = match u {
                     "ready" => Phase::Ready(r),
                     "available" => Phase::Available(r),
+                    "retry" => Phase::Retry(r, crate::updater::reason("network: offline")),
+                    "checking" => {
+                        self.updater.step = opentern_core::update::Step::Checking;
+                        self.updater.progress = 1.0;
+                        Phase::Installing(r)
+                    }
                     pct => {
                         self.updater.progress = pct.parse::<f32>().unwrap_or(0.0) / 100.0;
                         Phase::Installing(r)
@@ -680,7 +691,7 @@ impl App {
 
     pub fn update_action(&mut self, ctx: &egui::Context) {
         match &self.updater.phase {
-            Phase::Available(_) => self.updater.install(ctx),
+            Phase::Available(_) | Phase::Retry(..) => self.updater.install(ctx),
             Phase::Manual(r, _) => open_url(&r.page),
             Phase::Ready(_) => self.updater.restart(ctx),
             _ => {}

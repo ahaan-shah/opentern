@@ -32,6 +32,29 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.6",
+        items: &[
+            Item {
+                icon: ph::ARROW_CIRCLE_UP,
+                title: nt!("Updates that don't get stuck"),
+                body: nt!(
+                    "An update no longer sits at 100%. A slow or dropped connection picks up \
+                   where it stopped, and if it can't finish you'll see why and can try again."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::DOWNLOAD_SIMPLE,
+                title: nt!("A steadier install line"),
+                body: nt!(
+                    "The install command tries again when a connection drops, and downloads \
+                   somewhere else when the temporary folder is full."
+                ),
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.5",
         items: &[
             Item {

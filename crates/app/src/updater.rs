@@ -4,7 +4,7 @@
 //! when they click Restart.
 
 use crate::i18n::{msg, nt};
-use opentern_core::update::{self, Plan, Release};
+use opentern_core::update::{self, Plan, Release, Step};
 use std::sync::mpsc;
 
 /// The spinner shows for at least this long, so a fast check still reads as
@@ -22,6 +22,8 @@ pub enum Phase {
     /// Can't install in place here; offer the release page instead.
     Manual(Release, String),
     Installing(Release),
+    /// An install that didn't finish: why, in words, and Try again.
+    Retry(Release, String),
     /// Installed; takes effect after a restart.
     Ready(Release),
     Failed(String),
@@ -29,13 +31,15 @@ pub enum Phase {
 
 enum Msg {
     Checked(Result<Option<Release>, String>),
-    Progress(f32),
+    Step(Step),
     Installed(Result<(), String>),
 }
 
 pub struct Updater {
     pub phase: Phase,
     pub progress: f32,
+    /// Where the install under way has got to.
+    pub step: Step,
     rx: Option<mpsc::Receiver<Msg>>,
     started: f64,
     /// A check result waiting out MIN_CHECK.
@@ -45,6 +49,9 @@ pub struct Updater {
     restart_on_exit: bool,
     /// Restarting the same version: not an update, so no What's new.
     relaunch_only: bool,
+    /// `OPENTERN_STILL=update:install`: install what the check finds, as a
+    /// click on Update would (end-to-end runs against a test feed).
+    pub install_found: bool,
     /// Where this copy was launched from, read before any update swaps it:
     /// afterwards Linux reports the renamed old file ("….old (deleted)").
     exe: Option<std::path::PathBuf>,
@@ -56,6 +63,7 @@ impl Default for Updater {
         Updater {
             phase: Phase::Idle,
             progress: 0.0,
+            step: Step::Downloading(0.0),
             rx: None,
             started: 0.0,
             held: None,
@@ -63,6 +71,7 @@ impl Default for Updater {
             manual: false,
             restart_on_exit: false,
             relaunch_only: false,
+            install_found: false,
             exe: std::env::current_exe().ok(),
         }
     }
@@ -77,7 +86,7 @@ impl Updater {
     pub fn prompt(&self) -> bool {
         matches!(
             self.phase,
-            Phase::Available(_) | Phase::Manual(..) | Phase::Installing(_) | Phase::Ready(_)
+            Phase::Available(_) | Phase::Manual(..) | Phase::Installing(_) | Phase::Retry(..) | Phase::Ready(_)
         )
     }
 
@@ -92,7 +101,8 @@ impl Updater {
             return;
         }
         self.launch_done = true;
-        if enabled {
+        // Never over an update already under way, finished or waiting to be tried again.
+        if enabled && self.phase == Phase::Idle {
             self.check(ctx, false);
         }
     }
@@ -135,18 +145,19 @@ impl Updater {
     /// Downloads and installs the available release. Only ever called from
     /// a click.
     pub fn install(&mut self, ctx: &egui::Context) {
-        let Phase::Available(release) = self.phase.clone() else {
+        let (Phase::Available(release) | Phase::Retry(release, _)) = self.phase.clone() else {
             return;
         };
         self.phase = Phase::Installing(release.clone());
         self.progress = 0.0;
+        self.step = Step::Downloading(0.0);
         let (tx, rx) = mpsc::channel();
         let ctx2 = ctx.clone();
         std::thread::spawn(move || {
             let tx2 = tx.clone();
             let ctx3 = ctx2.clone();
-            let r = update::install(&release, &move |p| {
-                let _ = tx2.send(Msg::Progress(p));
+            let r = update::install(&release, &move |s| {
+                let _ = tx2.send(Msg::Step(s));
                 ctx3.request_repaint();
             })
             .map_err(|e| e.to_string());
@@ -223,7 +234,12 @@ impl Updater {
             while let Ok(msg) = rx.try_recv() {
                 match msg {
                     Msg::Checked(r) => self.held = Some(r),
-                    Msg::Progress(p) => self.progress = p,
+                    Msg::Step(s) => {
+                        self.step = s;
+                        if let Step::Downloading(p) = s {
+                            self.progress = p;
+                        }
+                    }
                     Msg::Installed(Ok(())) => {
                         if let Phase::Installing(r) = &self.phase {
                             note = Some(Ok(msg!("Opentern {} is installed. Restart to use it.", r.version)));
@@ -232,8 +248,11 @@ impl Updater {
                     }
                     Msg::Installed(Err(e)) => {
                         crate::diag::crumb(format!("update failed: {e}"));
-                        note = Some(Err(msg!("Couldn't update: {e}")));
-                        self.phase = Phase::Failed(msg!("Couldn't update: {e}"));
+                        let why = reason(&e);
+                        note = Some(Err(msg!("Couldn't update: {e}", e = why)));
+                        if let Phase::Installing(r) = &self.phase {
+                            self.phase = Phase::Retry(r.clone(), why);
+                        }
                     }
                 }
             }
@@ -264,9 +283,43 @@ impl Updater {
                 };
             }
         }
+        if self.install_found && matches!(self.phase, Phase::Available(_)) {
+            self.install_found = false;
+            self.install(ctx);
+        }
         if self.busy() {
             ctx.request_repaint();
         }
         note
+    }
+}
+
+/// An update error in words people use. The core's are technical ("network:
+/// offline", "Disk quota exceeded (os error 122)").
+pub fn reason(e: &str) -> String {
+    let l = e.to_lowercase();
+    if l.contains(update::OFFLINE) {
+        nt!("GitHub couldn't be reached. Check your connection and try again.").into()
+    } else if l.contains("quota") || l.contains("no space") || l.contains("os error 28") {
+        nt!("There isn't room on this computer to download it.").into()
+    } else if l.contains("checksum") || l.contains("corrupted") {
+        nt!("The download came through damaged. Try again.").into()
+    } else if l.contains("permission denied") || l.contains("os error 13") {
+        nt!("Opentern isn't allowed to replace itself where it's installed.").into()
+    } else {
+        e.trim_start_matches("network: ").to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reason;
+
+    #[test]
+    fn errors_read_as_words() {
+        assert!(reason("network: offline").starts_with("GitHub couldn't be reached"));
+        assert!(reason("Disk quota exceeded (os error 122)").starts_with("There isn't room"));
+        assert!(reason("the download is corrupted (checksum mismatch)").starts_with("The download came"));
+        assert_eq!(reason("network: http status: 500"), "http status: 500");
     }
 }

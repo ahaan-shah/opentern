@@ -23,6 +23,7 @@
 use crate::{Error, Result};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 const REPO: &str = "ahaan-shah/opentern";
 const LATEST: &str = "https://api.github.com/repos/ahaan-shah/opentern/releases/latest";
@@ -68,20 +69,68 @@ pub fn is_newer(candidate: &str, current: &str) -> bool {
 /// connection, DNS failure, timeout), as opposed to answering with an error.
 pub const OFFLINE: &str = "offline";
 
+/// How long each part of a request may take. Without them a server that
+/// never answers holds a download for as long as the system's own TCP
+/// timeout (about two minutes per address on Linux), which looked like the
+/// update had frozen. The connect budget is shared out across a host's
+/// addresses, so one that doesn't answer falls through to the next quickly.
+#[derive(Clone, Copy, Debug)]
+pub struct Limits {
+    pub resolve: Duration,
+    pub connect: Duration,
+    pub response: Duration,
+    /// For one ranged piece of a download, start to finish.
+    pub piece: Duration,
+    /// How big a piece is: small enough that a stalled one costs little.
+    pub piece_bytes: u64,
+    /// Tries for a piece that makes no progress at all.
+    pub tries: u32,
+}
+
+impl Limits {
+    pub const NORMAL: Limits = Limits {
+        resolve: Duration::from_secs(15),
+        connect: Duration::from_secs(10),
+        response: Duration::from_secs(30),
+        piece: Duration::from_secs(90),
+        piece_bytes: 2 << 20,
+        tries: 4,
+    };
+}
+
+fn agent(l: &Limits) -> ureq::Agent {
+    ureq::Agent::config_builder()
+        .timeout_resolve(Some(l.resolve))
+        .timeout_connect(Some(l.connect))
+        .timeout_send_request(Some(l.response))
+        .timeout_recv_response(Some(l.response))
+        .user_agent(AGENT)
+        .build()
+        .into()
+}
+
+fn http_error(e: ureq::Error) -> Error {
+    match e {
+        ureq::Error::StatusCode(404) => Error::Http("no published release found".into()),
+        ureq::Error::Io(_)
+        | ureq::Error::Timeout(_)
+        | ureq::Error::HostNotFound
+        | ureq::Error::ConnectionFailed
+        | ureq::Error::BodyStalled => Error::Http(OFFLINE.into()),
+        e => Error::Http(e.to_string()),
+    }
+}
+
 fn get(url: &str) -> Result<ureq::http::Response<ureq::Body>> {
-    ureq::get(url)
-        .header("User-Agent", AGENT)
+    let l = Limits::NORMAL;
+    agent(&l)
+        .get(url)
         .header("Accept", "application/vnd.github+json")
+        .config()
+        .timeout_global(Some(l.piece))
+        .build()
         .call()
-        .map_err(|e| match e {
-            ureq::Error::StatusCode(404) => Error::Http("no published release found".into()),
-            ureq::Error::Io(_)
-            | ureq::Error::Timeout(_)
-            | ureq::Error::HostNotFound
-            | ureq::Error::ConnectionFailed
-            | ureq::Error::BodyStalled => Error::Http(OFFLINE.into()),
-            e => Error::Http(e.to_string()),
-        })
+        .map_err(http_error)
 }
 
 /// Runs the GitHub CLI with fixed arguments; its stdout on success.
@@ -237,30 +286,141 @@ fn sha256_file(path: &Path) -> Result<String> {
     Ok(h.finalize().iter().map(|b| format!("{b:02x}")).collect())
 }
 
+/// Where an install has got to, for the progress shown.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Step {
+    /// How much of the download is in, 0–1.
+    Downloading(f32),
+    /// The connection dropped or stalled; trying again from where it got to.
+    Retrying,
+    /// Checking the download against SHA256SUMS.
+    Checking,
+    /// Unpacking and swapping it in.
+    Installing,
+}
+
+#[cfg(test)]
 fn download(url: &str, to: &Path, progress: &dyn Fn(f32)) -> Result<()> {
+    download_with(url, to, &Limits::NORMAL, progress, &|| {})
+}
+
+/// Downloads `url` into `to` a piece at a time (HTTP ranges), each piece
+/// with its own time limit. A piece that stalls or drops is asked for again
+/// from the byte it got to, up to `tries` times running without progress.
+/// A server that ignores ranges sends the whole file in one go.
+fn download_with(url: &str, to: &Path, l: &Limits, progress: &dyn Fn(f32), retrying: &dyn Fn()) -> Result<()> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         std::fs::copy(url.trim_start_matches("file://"), to)?;
         progress(1.0);
         return Ok(());
     }
-    let mut res = get(url)?;
-    let total = res.body().content_length().unwrap_or(0);
-    let mut reader = res.body_mut().as_reader();
+    let agent = agent(l);
     let mut out = std::fs::File::create(to)?;
-    let mut buf = vec![0u8; 1 << 16];
     let mut done = 0u64;
+    let mut total: Option<u64> = None;
+    let mut fails = 0u32;
+    // The last request failed (dropped, stalled, refused a connection).
+    let mut again = false;
+    let mut last_err = Error::Http(OFFLINE.into());
+    let mut buf = vec![0u8; 1 << 16];
     loop {
-        let n = reader.read(&mut buf)?;
-        if n == 0 {
+        if total.is_some_and(|t| done >= t) {
             break;
         }
-        out.write_all(&buf[..n])?;
-        done += n as u64;
-        if total > 0 {
-            progress((done as f32 / total as f32).min(1.0));
+        if fails >= l.tries {
+            return Err(last_err);
+        }
+        if again {
+            retrying();
+            std::thread::sleep(Duration::from_millis(400 * u64::from(fails.max(1))));
+        }
+        again = false;
+        let end = done + l.piece_bytes - 1;
+        let res = agent
+            .get(url)
+            .header("Range", format!("bytes={done}-{end}"))
+            .config()
+            .timeout_global(Some(l.piece))
+            .build()
+            .call();
+        let mut res = match res {
+            Ok(r) => r,
+            // Asked past the end: the file was exactly a multiple of pieces.
+            Err(ureq::Error::StatusCode(416)) if done > 0 && total.is_none() => break,
+            Err(e) => {
+                let e = http_error(e);
+                // A missing file or a refusal won't get better by asking again.
+                if !matches!(&e, Error::Http(m) if m == OFFLINE) {
+                    return Err(e);
+                }
+                last_err = e;
+                fails += 1;
+                again = true;
+                continue;
+            }
+        };
+        let whole = res.status() == 200;
+        if whole {
+            // No ranges here: start again from the top, in one go.
+            if done > 0 {
+                out.set_len(0)?;
+                use std::io::Seek;
+                out.seek(std::io::SeekFrom::Start(0))?;
+                done = 0;
+            }
+            total = res.body().content_length();
+        } else if let Some(t) = res
+            .headers()
+            .get("content-range")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.rsplit('/').next())
+            .and_then(|v| v.trim().parse::<u64>().ok())
+        {
+            total = Some(t);
+        }
+        let before = done;
+        let mut reader = res.body_mut().as_reader();
+        let read = loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break Ok(()),
+                Ok(n) => {
+                    out.write_all(&buf[..n])?;
+                    done += n as u64;
+                    if let Some(t) = total.filter(|t| *t > 0) {
+                        progress((done as f32 / t as f32).min(1.0));
+                    }
+                }
+                Err(e) => break Err(e),
+            }
+        };
+        match read {
+            Ok(()) if whole || total.is_none() => {
+                // In one go, or a server that never says how big: done when
+                // it ends, if it sent what it promised.
+                if total.is_some_and(|t| done < t) {
+                    last_err = Error::Http(OFFLINE.into());
+                    fails += 1;
+                    again = true;
+                    continue;
+                }
+                total = Some(done);
+            }
+            Ok(()) => {}
+            // Stalled past the piece's time limit, or the connection dropped:
+            // ask again from where it got to.
+            Err(_) => {
+                last_err = Error::Http(OFFLINE.into());
+                again = true;
+            }
+        }
+        if done > before {
+            fails = 0;
+        } else {
+            fails += 1;
         }
     }
     out.sync_all()?;
+    progress(1.0);
     Ok(())
 }
 
@@ -279,7 +439,7 @@ fn run(cmd: &mut std::process::Command) -> Result<()> {
 
 /// Downloads `release` and installs it over this copy. `progress` gets the
 /// download fraction (0–1). On success the new version runs on next launch.
-pub fn install(release: &Release, progress: &dyn Fn(f32)) -> Result<()> {
+pub fn install(release: &Release, step: &dyn Fn(Step)) -> Result<()> {
     let (asset, target) = match plan() {
         Plan::Replace { asset, target } => (asset, target),
         Plan::Manual(why) => return Err(Error::Msg(why)),
@@ -295,7 +455,7 @@ pub fn install(release: &Release, progress: &dyn Fn(f32)) -> Result<()> {
     // A private repository's files need the GitHub CLI's sign-in.
     let fetch = |name: &str, url: &str, to: &Path, progress: &dyn Fn(f32)| -> Result<()> {
         if !release.gh {
-            return download(url, to, progress);
+            return download_with(url, to, &Limits::NORMAL, progress, &|| step(Step::Retrying));
         }
         let dir = to.parent().unwrap_or(Path::new(".")).to_string_lossy().into_owned();
         gh(&[
@@ -316,7 +476,9 @@ pub fn install(release: &Release, progress: &dyn Fn(f32)) -> Result<()> {
     };
     let result = (|| {
         let file = work.join(&asset);
-        fetch(&asset, url, &file, progress)?;
+        step(Step::Downloading(0.0));
+        fetch(&asset, url, &file, &|p| step(Step::Downloading(p)))?;
+        step(Step::Checking);
 
         // Every release carries SHA256SUMS; never install one that doesn't.
         let sums_url = release
@@ -337,6 +499,7 @@ pub fn install(release: &Release, progress: &dyn Fn(f32)) -> Result<()> {
             }
         }
 
+        step(Step::Installing);
         let unpacked = work.join("unpacked");
         std::fs::create_dir_all(&unpacked)?;
         if asset.ends_with(".tar.gz") {
@@ -454,20 +617,40 @@ fn shown(p: &Path) -> String {
     }
 }
 
-/// Removes what a previous update left behind (the old Windows exe).
+/// Removes what a previous update left behind: the old Windows exe, and
+/// the work folder of an update that was closed or crashed part way (each
+/// is named after the process that made it; this one's is kept).
 pub fn cleanup() {
-    if let Ok(exe) = std::env::current_exe() {
-        let old = exe.with_file_name(format!(
-            ".{}.old",
-            exe.file_name().unwrap_or_default().to_string_lossy()
-        ));
-        let _ = std::fs::remove_file(old);
+    let Ok(exe) = std::env::current_exe() else { return };
+    let old = exe.with_file_name(format!(
+        ".{}.old",
+        exe.file_name().unwrap_or_default().to_string_lossy()
+    ));
+    let _ = std::fs::remove_file(old);
+    if let Some(dir) = exe.parent() {
+        clean_work_dirs(dir, std::process::id());
+    }
+}
+
+fn clean_work_dirs(dir: &Path, keep: u32) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let mine = format!(".opentern-update-{keep}");
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let pid = name.strip_prefix(".opentern-update-");
+        if pid.is_some_and(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+            && name != mine
+            && e.file_type().is_ok_and(|t| t.is_dir())
+        {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::Write;
 
     #[test]
     fn versions() {
@@ -552,6 +735,243 @@ mod tests {
         swap(&fresh, &target).unwrap();
         assert_eq!(std::fs::read_to_string(&target).unwrap(), "new build");
     }
+    /// A stand-in download server on localhost. `serve` answers each
+    /// request; it gets the request's Range start and how many requests came
+    /// before.
+    fn server(serve: impl Fn(&mut std::net::TcpStream, u64, usize) + Send + Sync + 'static) -> String {
+        use std::io::BufRead;
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = l.local_addr().unwrap().port();
+        let serve = std::sync::Arc::new(serve);
+        std::thread::spawn(move || {
+            for (n, s) in l.incoming().enumerate() {
+                let Ok(mut s) = s else { continue };
+                let serve = serve.clone();
+                std::thread::spawn(move || {
+                    let mut r = std::io::BufReader::new(s.try_clone().unwrap());
+                    let mut from = 0;
+                    loop {
+                        let mut line = String::new();
+                        if r.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                            break;
+                        }
+                        if let Some(v) = line.to_ascii_lowercase().strip_prefix("range: bytes=") {
+                            from = v.split('-').next().unwrap().trim().parse().unwrap_or(0);
+                        }
+                    }
+                    serve(&mut s, from, n);
+                });
+            }
+        });
+        format!("http://127.0.0.1:{port}/file")
+    }
+
+    fn body() -> Vec<u8> {
+        (0..300_000u32).map(|i| (i * 7 % 251) as u8).collect()
+    }
+
+    /// The `n`-th request's answer: a 206 for `from..`, at most `piece` bytes,
+    /// cut short after `cut` bytes (then stalls for `stall`, or hangs up).
+    fn ranged(s: &mut std::net::TcpStream, from: u64, piece: u64, cut: Option<usize>, stall: Option<Duration>) {
+        let all = body();
+        let end = (from + piece).min(all.len() as u64);
+        let part = &all[from as usize..end as usize];
+        let head = format!(
+            "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nConnection: close\r\n\r\n",
+            part.len(),
+            from,
+            end - 1,
+            all.len()
+        );
+        let _ = s.write_all(head.as_bytes());
+        let send = cut.unwrap_or(part.len()).min(part.len());
+        let _ = s.write_all(&part[..send]);
+        let _ = s.flush();
+        if let Some(d) = stall {
+            std::thread::sleep(d);
+        }
+    }
+
+    fn quick() -> Limits {
+        Limits {
+            resolve: Duration::from_secs(2),
+            connect: Duration::from_millis(400),
+            response: Duration::from_secs(2),
+            piece: Duration::from_millis(700),
+            piece_bytes: 64 << 10,
+            tries: 4,
+        }
+    }
+
+    fn fetch(url: &str, l: &Limits) -> (Result<()>, Vec<u8>, usize, f32) {
+        let dir = tempfile::tempdir().unwrap();
+        let to = dir.path().join("f");
+        let retries = std::sync::atomic::AtomicUsize::new(0);
+        let last = std::sync::Mutex::new(0.0f32);
+        let r = download_with(url, &to, l, &|p| *last.lock().unwrap() = p, &|| {
+            retries.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
+        let got = std::fs::read(&to).unwrap_or_default();
+        let p = *last.lock().unwrap();
+        (r, got, retries.into_inner(), p)
+    }
+
+    #[test]
+    fn downloads_in_pieces() {
+        let l = quick();
+        let url = server(move |s, from, _| ranged(s, from, 64 << 10, None, None));
+        let (r, got, retries, p) = fetch(&url, &l);
+        r.unwrap();
+        assert_eq!(got, body());
+        assert_eq!((retries, p), (0, 1.0));
+    }
+
+    /// The frozen update: a piece that stops arriving is asked for again
+    /// from the byte it got to, within the piece's time limit.
+    #[test]
+    fn a_stalled_piece_resumes() {
+        let l = quick();
+        let url = server(move |s, from, n| {
+            let stall = (n == 1).then_some(Duration::from_secs(5));
+            ranged(s, from, 64 << 10, stall.map(|_| 1000), stall)
+        });
+        let t = std::time::Instant::now();
+        let (r, got, retries, _) = fetch(&url, &l);
+        r.unwrap();
+        assert_eq!(got, body(), "resumed at the right byte");
+        assert!(retries >= 1);
+        assert!(t.elapsed() < Duration::from_secs(4), "{:?}", t.elapsed());
+    }
+
+    #[test]
+    fn a_dropped_connection_resumes() {
+        let l = quick();
+        let url = server(move |s, from, n| {
+            let cut = matches!(n, 0 | 2).then_some(5000);
+            ranged(s, from, 64 << 10, cut, None)
+        });
+        let (r, got, retries, _) = fetch(&url, &l);
+        r.unwrap();
+        // Each cut piece still got somewhere, so it goes on from there.
+        assert_eq!(got, body());
+        assert!(retries >= 1);
+    }
+
+    #[test]
+    fn a_server_without_ranges_sends_it_whole() {
+        let l = quick();
+        let url = server(move |s, _, _| {
+            let all = body();
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                all.len()
+            );
+            let _ = s.write_all(head.as_bytes());
+            let _ = s.write_all(&all);
+        });
+        let (r, got, _, p) = fetch(&url, &l);
+        r.unwrap();
+        assert_eq!(got, body());
+        assert_eq!(p, 1.0);
+    }
+
+    /// One that never gets anywhere gives up after its tries, with the
+    /// "offline" error the app words for people, instead of hanging.
+    #[test]
+    fn a_server_that_never_answers_gives_up() {
+        let l = quick();
+        let url = server(move |_, _, _| std::thread::sleep(Duration::from_secs(10)));
+        let t = std::time::Instant::now();
+        let (r, _, retries, _) = fetch(&url, &l);
+        assert!(matches!(r, Err(Error::Http(m)) if m == OFFLINE));
+        assert_eq!(retries, 3);
+        assert!(t.elapsed() < Duration::from_secs(9), "{:?}", t.elapsed());
+    }
+
+    /// An address that takes no connections at all (a black hole, like the
+    /// GitHub server that froze 0.3.4's updater) hits the connect limit, not
+    /// the system's two-minute TCP timeout.
+    #[test]
+    fn an_address_that_never_connects_gives_up_quickly() {
+        let l = Limits { tries: 2, ..quick() };
+        let t = std::time::Instant::now();
+        // TEST-NET-1: reserved, never routed.
+        let (r, _, _, _) = fetch("http://192.0.2.1:81/file", &l);
+        assert!(r.is_err());
+        assert!(t.elapsed() < Duration::from_secs(5), "{:?}", t.elapsed());
+    }
+
+    #[test]
+    fn a_missing_file_isnt_retried() {
+        let l = quick();
+        let url = server(move |s, _, _| {
+            let _ = s.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        });
+        let (r, _, retries, _) = fetch(&url, &l);
+        assert!(r.is_err());
+        assert_eq!(retries, 0);
+    }
+
+    #[test]
+    fn leftover_work_folders_are_cleared() {
+        let dir = tempfile::tempdir().unwrap();
+        for n in ["123", "456", "789"] {
+            let d = dir.path().join(format!(".opentern-update-{n}"));
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("x.tar.gz"), "half").unwrap();
+        }
+        for keep in [".opentern-update-", ".opentern-update-abc", "opentern"] {
+            std::fs::write(dir.path().join(keep), "").unwrap();
+        }
+        clean_work_dirs(dir.path(), 456);
+        let mut left: Vec<String> = std::fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        left.sort();
+        assert_eq!(
+            left,
+            [
+                ".opentern-update-",
+                ".opentern-update-456",
+                ".opentern-update-abc",
+                "opentern"
+            ]
+        );
+    }
+
+    /// The real release, through GitHub's redirect: pieces come back as 206
+    /// and the result matches SHA256SUMS. Uses the network.
+    #[test]
+    #[ignore]
+    fn live_release_download() {
+        let base = std::env::var("RELEASE_BASE")
+            .unwrap_or_else(|_| "https://github.com/ahaan-shah/opentern/releases/latest/download".into());
+        let dir = tempfile::tempdir().unwrap();
+        let name = "opentern-x86_64-unknown-linux-gnu.tar.gz";
+        let t = std::time::Instant::now();
+        download_with(
+            &format!("{base}/{name}"),
+            &dir.path().join(name),
+            &Limits::NORMAL,
+            &|_| {},
+            &|| eprintln!("retrying at {:?}", t.elapsed()),
+        )
+        .unwrap();
+        download(&format!("{base}/SHA256SUMS"), &dir.path().join("SUMS"), &|_| {}).unwrap();
+        let sums = std::fs::read_to_string(dir.path().join("SUMS")).unwrap();
+        let want = sums
+            .lines()
+            .find(|l| l.ends_with(name))
+            .unwrap()
+            .split_whitespace()
+            .next()
+            .unwrap();
+        assert_eq!(sha256_file(&dir.path().join(name)).unwrap(), want);
+        eprintln!("{name} in {:?}", t.elapsed());
+    }
+
     #[test]
     fn asset_names_match_release_builds() {
         // A contract with release.yml, install.sh and install.ps1.
