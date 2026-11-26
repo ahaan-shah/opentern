@@ -217,10 +217,14 @@ impl App {
             return;
         }
         if resp.should_close() {
-            // Esc or a click outside: settings dialogs cancel their preview.
+            // Esc or a click outside: study/chart settings cancel preview,
+            // while drawing settings keep user edits on canvas click.
             match &mut modal {
                 Modal::Study(s) => s.cancel(self),
                 Modal::ChartSettings(s) => s.cancel(self),
+                Modal::Drawing(_) => {
+                    self.chart.push_undo();
+                }
                 _ => {}
             }
             return;

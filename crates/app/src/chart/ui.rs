@@ -33,7 +33,7 @@ pub enum Action {
     /// on its legend row or price scale).
     CompareMenu(usize, Pos2),
     MoreHistory,
-    ChartSettings,
+    ChartMenu(Pos2, f64),
     RemoveCompare(usize),
     /// Chart trading: a paper order's line was dragged to a new price.
     PaperMove(u64, f64),
@@ -569,8 +569,11 @@ pub fn show(
             pane.scale.hi = hi;
         }
     }
-    if plot_resp.secondary_clicked() {
-        actions.push(Action::ChartSettings);
+    if plot_resp.secondary_clicked()
+        && let Some(p) = plot_resp.interact_pointer_pos()
+    {
+        let price = geos.first().map(|g| g.y.value(p.y)).unwrap_or(0.0);
+        actions.push(Action::ChartMenu(p, price));
     }
     if plot_resp.hovered() && interactive {
         let (scroll, zoom) = ui.input(|i| (i.smooth_scroll_delta, i.zoom_delta()));
@@ -608,7 +611,7 @@ pub fn show(
         let dy = scale_resp.drag_delta().y;
         let g = &geos[k];
         let pane = &mut chart.panes[k];
-        let f = (dy as f64 * 0.006).exp();
+        let f = (dy as f64 * 0.0018).exp();
         let (tlo, thi) = if g.y.log {
             (pane.scale.lo.ln(), pane.scale.hi.ln())
         } else {
@@ -619,6 +622,27 @@ pub fn show(
         let (nlo, nhi) = (mid - half, mid + half);
         pane.scale.auto = false;
         (pane.scale.lo, pane.scale.hi) = if g.y.log { (nlo.exp(), nhi.exp()) } else { (nlo, nhi) };
+    }
+    if scale_resp.hovered() && interactive {
+        let scroll = ui.input(|i| i.smooth_scroll_delta);
+        if scroll.y != 0.0
+            && let Some(p) = pointer
+            && let Some(k) = geos.iter().position(|g| p.y >= g.rect.top() && p.y <= g.rect.bottom())
+        {
+            let g = &geos[k];
+            let pane = &mut chart.panes[k];
+            let f = (-scroll.y as f64 * 0.0012).exp();
+            let (tlo, thi) = if g.y.log {
+                (pane.scale.lo.ln(), pane.scale.hi.ln())
+            } else {
+                (pane.scale.lo, pane.scale.hi)
+            };
+            let mid = (tlo + thi) / 2.0;
+            let half = (thi - tlo) / 2.0 * f;
+            let (nlo, nhi) = (mid - half, mid + half);
+            pane.scale.auto = false;
+            (pane.scale.lo, pane.scale.hi) = if g.y.log { (nlo.exp(), nhi.exp()) } else { (nlo, nhi) };
+        }
     }
     if scale_resp.drag_stopped() {
         cui.scale_drag = None;
@@ -640,7 +664,7 @@ pub fn show(
         );
         let sc = &mut chart.compares[*ci].scale;
         if resp.dragged() {
-            let f = (resp.drag_delta().y as f64 * 0.006).exp();
+            let f = (resp.drag_delta().y as f64 * 0.0018).exp();
             let (tl, th) = if y.log {
                 (sc.lo.ln(), sc.hi.ln())
             } else {
@@ -822,7 +846,7 @@ pub fn show(
                         let v = if v.abs() < step * 1e-6 { 0.0 } else { v };
                         let s = match g.format {
                             Format::Volume => format::compact_for(v, &chart.symbol),
-                            Format::Price => format::price(v, d.max(chart.precision().min(d))),
+                            Format::Price => format::price(v, d.max(chart.precision())),
                             Format::Fixed(_) => format::price(v, d),
                         };
                         (v, if s.is_empty() { fmt(v) } else { s })

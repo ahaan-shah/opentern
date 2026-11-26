@@ -256,6 +256,9 @@ msgstr "Activa"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Añade primero una estrategia al gráfico. Una estrategia es un script que empieza con strategy(…)."
 
+msgid "Add alert on {0} at {1}..."
+msgstr "Añadir alerta en {0} a {1}..."
+
 msgid "Add filter"
 msgstr "Añadir filtro"
 
@@ -568,6 +571,9 @@ msgstr "INDICADORES INTEGRADOS"
 
 msgid "Background"
 msgstr "Fondo"
+
+msgid "Background color"
+msgstr "Color de fondo"
 
 msgid "Backtest's max drawdown"
 msgstr "Drawdown máximo del backtest"
@@ -1142,6 +1148,9 @@ msgstr "Copiar"
 
 msgid "Copy image"
 msgstr "Copiar imagen"
+
+msgid "Copy price {0}"
+msgstr "Copiar precio {0}"
 
 msgid "Corpus Christi"
 msgstr "Corpus Christi"
@@ -2073,6 +2082,9 @@ msgstr "Oculto"
 msgid "Hide"
 msgstr "Ocultar"
 
+msgid "Hide / show"
+msgstr "Ocultar / mostrar"
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "Ocultar VWAP en 1D o superior"
 
@@ -2555,6 +2567,9 @@ msgstr "Cargando…"
 
 msgid "Local"
 msgstr "Local"
+
+msgid "Lock / unlock"
+msgstr "Bloquear / desbloquear"
 
 msgid "Lock all drawings"
 msgstr "Bloquear todos los dibujos"
@@ -3391,6 +3406,9 @@ msgstr "ESQUEMA"
 msgid "OUTPUT"
 msgstr "SALIDA"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "Árbol de objetos y ventana de datos"
 
@@ -4166,6 +4184,9 @@ msgstr "Restablecer"
 msgid "Reset account"
 msgstr "Restablecer cuenta"
 
+msgid "Reset chart view"
+msgstr "Restablecer vista del gráfico"
+
 msgid "Reset settings"
 msgstr "Restablecer ajustes"
 
@@ -4521,6 +4542,9 @@ msgstr "Ajustes"
 
 msgid "Settings → Export and import → Import → Receive"
 msgstr "Ajustes → Exportar e importar → Importar → Recibir"
+
+msgid "Settings..."
+msgstr "Configuración..."
 
 msgid "Shanghai"
 msgstr "Shanghái"
@@ -5027,6 +5051,9 @@ msgstr "Texto"
 
 msgid "Text alignment"
 msgstr "Alineación de texto"
+
+msgid "Text color"
+msgstr "Color de texto"
 
 msgid "Text style"
 msgstr "Estilo de texto"
@@ -5998,6 +6025,9 @@ msgstr "{0}  Buscar símbolos para añadir"
 msgid "{0}  insert"
 msgstr "{0}  insertar"
 
+msgid "{0} ({1}% opacity)"
+msgstr "{0} ({1}% opacidad)"
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} barras, {time}"
 
@@ -6030,6 +6060,9 @@ msgstr "{0} días"
 
 msgid "{0} decimals"
 msgstr "{0} decimales"
+
+msgid "{0} drawings selected"
+msgstr "{0} dibujos seleccionados"
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"

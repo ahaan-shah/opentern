@@ -182,6 +182,14 @@ impl App {
         }
         self.modal = Some(super::Modal::Alert(Box::new(form)));
     }
+
+    pub(crate) fn open_alert_dialog_at(&mut self, price: f64) {
+        self.open_alert_dialog(None);
+        if let Some(super::Modal::Alert(f)) = &mut self.modal {
+            f.value = price;
+            f.value_text = Some(crate::format::price(price, self.chart.precision()));
+        }
+    }
 }
 
 fn same_source(a: &Condition, b: &Condition) -> bool {

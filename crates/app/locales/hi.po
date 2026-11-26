@@ -256,6 +256,9 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
+msgid "Add alert on {0} at {1}..."
+msgstr "{0} पर {1} पर अलर्ट जोड़ें..."
+
 msgid "Add filter"
 msgstr "फ़िल्टर जोड़ें"
 
@@ -568,6 +571,9 @@ msgstr "अंतर्निहित इंडिकेटर"
 
 msgid "Background"
 msgstr "पृष्ठभूमि"
+
+msgid "Background color"
+msgstr "पृष्ठभूमि का रंग"
 
 msgid "Backtest's max drawdown"
 msgstr "बैकटेस्ट का अधिकतम ड्रॉडाउन"
@@ -1142,6 +1148,9 @@ msgstr "कॉपी करें"
 
 msgid "Copy image"
 msgstr "चित्र कॉपी करें"
+
+msgid "Copy price {0}"
+msgstr "कीमत {0} कॉपी करें"
 
 msgid "Corpus Christi"
 msgstr "कॉर्पस क्रिस्टी"
@@ -2073,6 +2082,9 @@ msgstr "छिपा हुआ"
 msgid "Hide"
 msgstr "छिपाएँ"
 
+msgid "Hide / show"
+msgstr "छिपाएँ / दिखाएँ"
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "1D या ऊपर VWAP छिपाएँ"
 
@@ -2555,6 +2567,9 @@ msgstr "लोड हो रहा है…"
 
 msgid "Local"
 msgstr "स्थानीय"
+
+msgid "Lock / unlock"
+msgstr "लॉक / अनलॉक करें"
 
 msgid "Lock all drawings"
 msgstr "सभी ड्रॉइंग लॉक करें"
@@ -3391,6 +3406,9 @@ msgstr "रूपरेखा"
 msgid "OUTPUT"
 msgstr "आउटपुट"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "ऑब्जेक्ट ट्री और डेटा विंडो"
 
@@ -4166,6 +4184,9 @@ msgstr "रीसेट"
 msgid "Reset account"
 msgstr "खाता रीसेट करें"
 
+msgid "Reset chart view"
+msgstr "चार्ट दृश्य रीसेट करें"
+
 msgid "Reset settings"
 msgstr "सेटिंग्स रीसेट करें"
 
@@ -4521,6 +4542,9 @@ msgstr "सेटिंग्स"
 
 msgid "Settings → Export and import → Import → Receive"
 msgstr "सेटिंग्स → निर्यात और आयात → आयात → प्राप्त करें"
+
+msgid "Settings..."
+msgstr "सेटिंग्स..."
 
 msgid "Shanghai"
 msgstr "शंघाई"
@@ -5027,6 +5051,9 @@ msgstr "टेक्स्ट"
 
 msgid "Text alignment"
 msgstr "टेक्स्ट संरेखण"
+
+msgid "Text color"
+msgstr "टेक्स्ट रंग"
 
 msgid "Text style"
 msgstr "टेक्स्ट शैली"
@@ -5998,6 +6025,9 @@ msgstr "{0}  जोड़ने के लिए सिंबल खोजें
 msgid "{0}  insert"
 msgstr "{0}  डालें"
 
+msgid "{0} ({1}% opacity)"
+msgstr "{0} ({1}% अपारदर्शिता)"
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} बार, {time}"
 
@@ -6030,6 +6060,9 @@ msgstr "{0} दिन"
 
 msgid "{0} decimals"
 msgstr "{0} दशमलव"
+
+msgid "{0} drawings selected"
+msgstr "{0} रेखाचित्र चयनित"
 
 msgid "{0} h {1} min"
 msgstr "{0} घं {1} मि"

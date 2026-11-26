@@ -1014,7 +1014,23 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 } else {
                     theme::regular(font_size)
                 };
-                p.text(pos2(x0 + 8.0, pts[0].y - 4.0), Align2::LEFT_BOTTOM, &d.text, font, tc);
+                let (px, halign) = match d.style.text_halign {
+                    TextHAlign::Left => (x0 + 8.0, Align2::LEFT_BOTTOM),
+                    TextHAlign::Center => ((x0 + r.right()) / 2.0, Align2::CENTER_BOTTOM),
+                    TextHAlign::Right => (r.right() - 8.0, Align2::RIGHT_BOTTOM),
+                };
+                let (py, align) = match d.style.text_valign {
+                    TextVAlign::Bottom => (
+                        pts[0].y + 4.0,
+                        match halign {
+                            Align2::LEFT_BOTTOM => Align2::LEFT_TOP,
+                            Align2::CENTER_BOTTOM => Align2::CENTER_TOP,
+                            _ => Align2::RIGHT_TOP,
+                        },
+                    ),
+                    _ => (pts[0].y - 4.0, halign),
+                };
+                p.text(pos2(px, py), align, &d.text, font, tc);
             }
         }
         VerticalLine if !pts.is_empty() => {
@@ -1335,8 +1351,8 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     };
                     label(
                         p,
-                        pos2(x1 + 6.0, ye),
-                        Align2::LEFT_CENTER,
+                        pos2(cx, ye),
+                        Align2::CENTER_CENTER,
                         &mid_str,
                         text_c,
                         Color32::from_rgb(230, 110, 15),

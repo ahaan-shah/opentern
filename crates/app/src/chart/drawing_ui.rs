@@ -20,6 +20,7 @@ pub struct Tools<'a> {
 #[derive(Default)]
 pub struct DrawUi {
     pub selected: Option<u64>,
+    pub multi_selected: Vec<u64>,
     pub hovered: Option<u64>,
     pub open_settings: Option<u64>,
     placing: Option<Drawing>,
@@ -58,6 +59,7 @@ impl DrawUi {
         }
         if self.placing.take().is_none() {
             self.selected = None;
+            self.multi_selected.clear();
         }
         self.zoom_from = None;
     }
@@ -296,13 +298,37 @@ pub fn handle(
         }
         return resp.dragged();
     }
+    let ctrl = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
     if resp.double_clicked() {
         if let Some((id, _, _)) = press.and_then(hit_at) {
             du.selected = Some(id);
             du.open_settings = Some(id);
         }
     } else if resp.clicked() {
-        du.selected = press.and_then(hit_at).map(|h| h.0);
+        if let Some((id, _, _)) = press.and_then(hit_at) {
+            if ctrl {
+                if let Some(pos) = du.multi_selected.iter().position(|&x| x == id) {
+                    du.multi_selected.remove(pos);
+                    if du.selected == Some(id) {
+                        du.selected = du.multi_selected.last().copied();
+                    }
+                } else {
+                    if let Some(prev) = du.selected
+                        && !du.multi_selected.contains(&prev)
+                    {
+                        du.multi_selected.push(prev);
+                    }
+                    du.multi_selected.push(id);
+                    du.selected = Some(id);
+                }
+            } else {
+                du.selected = Some(id);
+                du.multi_selected.clear();
+            }
+        } else if !ctrl {
+            du.selected = None;
+            du.multi_selected.clear();
+        }
     }
     if resp.drag_started()
         && let Some(p) = origin
@@ -379,7 +405,7 @@ pub fn paint(
     let p = painter.with_clip_rect(rect);
     if !tools.hide_all {
         for d in &chart.drawings {
-            let sel = du.selected == Some(d.id) || du.hovered == Some(d.id);
+            let sel = du.selected == Some(d.id) || du.multi_selected.contains(&d.id) || du.hovered == Some(d.id);
             draw::paint(&p, d, &g, sel, bg);
         }
     }

@@ -65,6 +65,11 @@ fn swatch(ui: &Ui, t: &Theme, r: egui::Rect, color: Rgba, radius: u8) {
 /// A colour swatch button that opens the picker. Returns true when the
 /// colour changed.
 pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
+    color_button_with_tip(ui, t, color, "")
+}
+
+/// A colour swatch button with a custom hover tooltip.
+pub fn color_button_with_tip(ui: &mut Ui, t: &Theme, color: &mut Rgba, tip: &str) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
     let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
@@ -81,8 +86,16 @@ pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     }
     let mut resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let a = c32(*color).a();
-    if a < 255 && !open {
-        resp = resp.on_hover_text(trf!("{}% opacity", (a as f32 / 2.55).round()));
+    if !open {
+        if !tip.is_empty() {
+            if a < 255 {
+                resp = resp.on_hover_text(trf!("{} ({}% opacity)", tip, (a as f32 / 2.55).round()));
+            } else {
+                resp = resp.on_hover_text(tip);
+            }
+        } else if a < 255 {
+            resp = resp.on_hover_text(trf!("{}% opacity", (a as f32 / 2.55).round()));
+        }
     }
     let mut changed = false;
     egui::Popup::from_toggle_button_response(&resp)

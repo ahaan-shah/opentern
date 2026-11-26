@@ -6,7 +6,8 @@ use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
 use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
-use crate::i18n::{msg, nt, tr};
+use crate::format;
+use crate::i18n::{msg, nt, tr, trf};
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
 use crate::updater::{Phase, Updater};
@@ -64,6 +65,7 @@ pub struct App {
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
+    pub chart_menu: Option<(egui::Pos2, f64)>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -269,6 +271,7 @@ impl App {
             layout_name,
             study_menu: None,
             compare_menu: None,
+            chart_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -897,9 +900,15 @@ impl App {
     }
 
     pub fn delete_selected_drawing(&mut self) {
-        if let Some(id) = self.chart_ui.draw.selected.take() {
+        let mut ids = std::mem::take(&mut self.chart_ui.draw.multi_selected);
+        if let Some(id) = self.chart_ui.draw.selected.take()
+            && !ids.contains(&id)
+        {
+            ids.push(id);
+        }
+        if !ids.is_empty() {
             self.chart.push_undo();
-            self.chart.drawings.retain(|d| d.id != id);
+            self.chart.drawings.retain(|d| !ids.contains(&d.id));
             self.chart.drawings_changed += 1;
         }
     }
@@ -1118,8 +1127,8 @@ impl App {
                 Action::CompareMenu(i, pos) => self.compare_menu = Some((i, pos)),
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
                 Action::RemoveCompare(i) => self.remove_compare(i),
-                Action::ChartSettings => {
-                    self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)))
+                Action::ChartMenu(pos, price) => {
+                    self.chart_menu = Some((pos, price));
                 }
                 Action::PaperMove(id, price) => self.paper_move(id, price),
                 Action::PaperCancel(id) => self.paper_cancel(id),
@@ -1184,6 +1193,120 @@ impl App {
             && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
         if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.compare_menu = None;
+        }
+    }
+
+    /// Right-click context menu on the chart canvas, matching TradingView.
+    fn chart_menu(&mut self, ctx: &egui::Context) {
+        let Some((pos, price)) = self.chart_menu else { return };
+        let t = self.t();
+        let mut close = false;
+        let mut open_settings = false;
+        let mut reset_view = false;
+        let mut copy_price = false;
+        let mut add_alert = false;
+        let mut open_object_tree = false;
+        let mut remove_drawings = false;
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let prec = self.chart.precision();
+        let price_str = format::price(price, prec);
+
+        let area = egui::Area::new(egui::Id::new("chart-context-menu"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_width(240.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROWS_COUNTER_CLOCKWISE),
+                        tr("Reset chart view"),
+                        shortcut!("Alt R"),
+                        false,
+                    )
+                    .clicked()
+                    {
+                        reset_view = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::COPY), &trf!("Copy price {}", price_str), "", false).clicked() {
+                        copy_price = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    let alert_label = trf!("Add alert on {} at {}...", sym_ticker, price_str);
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert_label, shortcut!("Alt A"), false).clicked() {
+                        add_alert = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::STACK), tr("Object tree"), "", false).clicked() {
+                        open_object_tree = true;
+                        close = true;
+                    }
+
+                    if !self.chart.drawings.is_empty() {
+                        w::menu_rule(ui, &t);
+                        let n = self.chart.drawings.len();
+                        let label = if n == 1 {
+                            tr("Remove 1 drawing").to_string()
+                        } else {
+                            trf!("Remove {n} drawings")
+                        };
+                        if w::menu_item(ui, &t, Some(ph::PENCIL_SIMPLE_SLASH), &label, "", false).clicked() {
+                            remove_drawings = true;
+                            close = true;
+                        }
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::GEAR), tr("Settings..."), "", false).clicked() {
+                        open_settings = true;
+                        close = true;
+                    }
+                });
+            });
+
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.chart_menu = None;
+        }
+        if reset_view {
+            self.chart.reset_view();
+        }
+        if copy_price {
+            ctx.copy_text(price_str);
+        }
+        if add_alert {
+            self.open_alert_dialog_at(price);
+        }
+        if open_object_tree {
+            self.layout.widget = Some(crate::shell::Widget::ObjectTree);
+        }
+        if remove_drawings {
+            self.chart.push_undo();
+            self.chart.drawings.clear();
+            self.chart.drawings_changed += 1;
+        }
+        if open_settings {
+            self.modal = Some(crate::dialogs::Modal::ChartSettings(
+                crate::dialogs::ChartSettings::new(self),
+            ));
         }
     }
 
@@ -1751,6 +1874,7 @@ impl App {
         self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
+        self.chart_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1781,6 +1905,7 @@ impl App {
         self.modal = None;
         self.study_menu = None;
         self.compare_menu = None;
+        self.chart_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

@@ -169,8 +169,14 @@ impl Symbol {
         self.id.split_once(':').map(|(_, t)| t).unwrap_or(&self.id)
     }
 
-    /// Decimal places implied by the tick size (0.01 → 2).
+    /// Decimal places implied by the tick size (0.01 → 2, Forex → 5, JPY → 3).
     pub fn precision(&self) -> usize {
+        if self.kind == AssetKind::Forex {
+            if self.ticker().ends_with("JPY") {
+                return 3;
+            }
+            return 5;
+        }
         let mut p = 0;
         let mut t = self.tick_size;
         while p < 10 && (t - t.round()).abs() > 1e-9 {

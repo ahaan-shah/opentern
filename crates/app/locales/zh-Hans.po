@@ -256,6 +256,9 @@ msgstr "启用"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
 
+msgid "Add alert on {0} at {1}..."
+msgstr "在 {0} 的 {1} 添加警报..."
+
 msgid "Add filter"
 msgstr "添加筛选"
 
@@ -568,6 +571,9 @@ msgstr "内置指标"
 
 msgid "Background"
 msgstr "背景"
+
+msgid "Background color"
+msgstr "背景颜色"
 
 msgid "Backtest's max drawdown"
 msgstr "回测最大回撤"
@@ -1142,6 +1148,9 @@ msgstr "复制"
 
 msgid "Copy image"
 msgstr "复制图片"
+
+msgid "Copy price {0}"
+msgstr "复制价格 {0}"
 
 msgid "Corpus Christi"
 msgstr "基督圣体节"
@@ -2073,6 +2082,9 @@ msgstr "隐藏"
 msgid "Hide"
 msgstr "隐藏"
 
+msgid "Hide / show"
+msgstr "隐藏 / 显示"
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "在 1D 及以上隐藏 VWAP"
 
@@ -2555,6 +2567,9 @@ msgstr "加载中…"
 
 msgid "Local"
 msgstr "本地"
+
+msgid "Lock / unlock"
+msgstr "锁定 / 解锁"
 
 msgid "Lock all drawings"
 msgstr "锁定所有绘图"
@@ -3391,6 +3406,9 @@ msgstr "大纲"
 msgid "OUTPUT"
 msgstr "输出"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "对象树与数据窗口"
 
@@ -4166,6 +4184,9 @@ msgstr "重置"
 msgid "Reset account"
 msgstr "重置账户"
 
+msgid "Reset chart view"
+msgstr "重置图表视图"
+
 msgid "Reset settings"
 msgstr "重置设置"
 
@@ -4521,6 +4542,9 @@ msgstr "设置"
 
 msgid "Settings → Export and import → Import → Receive"
 msgstr "设置 → 导出与导入 → 导入 → 接收"
+
+msgid "Settings..."
+msgstr "设置..."
 
 msgid "Shanghai"
 msgstr "上海"
@@ -5027,6 +5051,9 @@ msgstr "文字"
 
 msgid "Text alignment"
 msgstr "文本对齐"
+
+msgid "Text color"
+msgstr "文本颜色"
 
 msgid "Text style"
 msgstr "文本样式"
@@ -5998,6 +6025,9 @@ msgstr "{0}  搜索要添加的品种"
 msgid "{0}  insert"
 msgstr "{0}  插入"
 
+msgid "{0} ({1}% opacity)"
+msgstr "{0} ({1}% 不透明度)"
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} 根 K 线，{time}"
 
@@ -6030,6 +6060,9 @@ msgstr "{0} 天"
 
 msgid "{0} decimals"
 msgstr "{0} 位小数"
+
+msgid "{0} drawings selected"
+msgstr "已选择 {0} 个绘图"
 
 msgid "{0} h {1} min"
 msgstr "{0} 小时 {1} 分"

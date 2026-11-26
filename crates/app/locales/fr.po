@@ -256,6 +256,9 @@ msgstr "Active"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Ajoutez d'abord une stratégie au graphique. Une stratégie est un script qui commence par strategy(…)."
 
+msgid "Add alert on {0} at {1}..."
+msgstr "Ajouter une alerte sur {0} à {1}..."
+
 msgid "Add filter"
 msgstr "Ajouter un filtre"
 
@@ -568,6 +571,9 @@ msgstr "INDICATEURS INTÉGRÉS"
 
 msgid "Background"
 msgstr "Arrière-plan"
+
+msgid "Background color"
+msgstr "Couleur d'arrière-plan"
 
 msgid "Backtest's max drawdown"
 msgstr "Drawdown max. du backtest"
@@ -1142,6 +1148,9 @@ msgstr "Copier"
 
 msgid "Copy image"
 msgstr "Copier l'image"
+
+msgid "Copy price {0}"
+msgstr "Copier le prix {0}"
 
 msgid "Corpus Christi"
 msgstr "Fête-Dieu"
@@ -2073,6 +2082,9 @@ msgstr "Masqué"
 msgid "Hide"
 msgstr "Masquer"
 
+msgid "Hide / show"
+msgstr "Masquer / afficher"
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "Masquer le VWAP à partir de 1D"
 
@@ -2555,6 +2567,9 @@ msgstr "Chargement…"
 
 msgid "Local"
 msgstr "Local"
+
+msgid "Lock / unlock"
+msgstr "Verrouiller / déverrouiller"
 
 msgid "Lock all drawings"
 msgstr "Verrouiller tous les dessins"
@@ -3391,6 +3406,9 @@ msgstr "PLAN"
 msgid "OUTPUT"
 msgstr "SORTIE"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "Arbre des objets et fenêtre de données"
 
@@ -4166,6 +4184,9 @@ msgstr "Réinitialiser"
 msgid "Reset account"
 msgstr "Réinitialiser le compte"
 
+msgid "Reset chart view"
+msgstr "Réinitialiser la vue du graphique"
+
 msgid "Reset settings"
 msgstr "Réinitialiser les paramètres"
 
@@ -4521,6 +4542,9 @@ msgstr "Paramètres"
 
 msgid "Settings → Export and import → Import → Receive"
 msgstr "Paramètres → Exporter et importer → Importer → Recevoir"
+
+msgid "Settings..."
+msgstr "Paramètres..."
 
 msgid "Shanghai"
 msgstr ""
@@ -5027,6 +5051,9 @@ msgstr "Texte"
 
 msgid "Text alignment"
 msgstr "Alignement du texte"
+
+msgid "Text color"
+msgstr "Couleur du texte"
 
 msgid "Text style"
 msgstr "Style de texte"
@@ -5998,6 +6025,9 @@ msgstr "{0}  Rechercher des symboles à ajouter"
 msgid "{0}  insert"
 msgstr "{0}  insérer"
 
+msgid "{0} ({1}% opacity)"
+msgstr "{0} ({1}% opacité)"
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} barres, {time}"
 
@@ -6030,6 +6060,9 @@ msgstr "{0} jours"
 
 msgid "{0} decimals"
 msgstr "{0} décimales"
+
+msgid "{0} drawings selected"
+msgstr "{0} dessins sélectionnés"
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"
