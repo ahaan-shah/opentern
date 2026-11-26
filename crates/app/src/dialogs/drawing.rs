@@ -609,7 +609,16 @@ fn show_text_tab(ui: &mut Ui, t: &Theme, d: &mut Drawing) -> bool {
         changed |= toggle_btn(ui, t, "I", &mut d.style.text_italic).changed();
     });
 
-    if matches!(d.tool, Tool::Rectangle | Tool::HorizontalLine | Tool::HorizontalRay) {
+    if matches!(
+        d.tool,
+        Tool::Rectangle
+            | Tool::HorizontalLine
+            | Tool::HorizontalRay
+            | Tool::TrendLine
+            | Tool::Ray
+            | Tool::ExtendedLine
+            | Tool::Arrow
+    ) {
         form_row(ui, t, tr("Text alignment"), |ui| {
             let vname = match d.style.text_valign {
                 TextVAlign::Top => tr("Top"),

@@ -1216,7 +1216,7 @@ impl App {
             .fixed_pos(pos)
             .show(ctx, |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_width(240.0);
+                    ui.set_width(330.0);
                     ui.spacing_mut().item_spacing.y = 1.0;
                     use crate::icons::ph;
                     use crate::widgets as w;

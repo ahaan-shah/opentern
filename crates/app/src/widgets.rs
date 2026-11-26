@@ -6,7 +6,7 @@
 use crate::icons::ph;
 use crate::motion;
 use crate::theme::{self, Theme};
-use egui::{Align2, Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, vec2};
+use egui::{Align2, Color32, CornerRadius, Rect, Response, Sense, Stroke, Ui, pos2, vec2};
 
 /// A square icon button, as in the drawing toolbar and the widget rail.
 /// `active` marks the selected tool or open widget.
@@ -895,22 +895,20 @@ fn menu_row_tinted(
             );
             x += 26.0;
         }
-        p.text(
-            egui::pos2(x, rect.center().y),
-            Align2::LEFT_CENTER,
-            label,
-            theme::regular(13.5),
-            base,
-        );
-        if !hint.is_empty() {
-            p.text(
-                egui::pos2(rect.right() - 10.0, rect.center().y),
-                Align2::RIGHT_CENTER,
-                hint,
-                theme::regular(12.0),
+        let hint_w = if !hint.is_empty() {
+            let hg = p.layout_no_wrap(hint.to_string(), theme::regular(12.0), t.text3);
+            p.galley_with_override_text_color(
+                pos2(rect.right() - 10.0 - hg.size().x, rect.center().y - hg.size().y / 2.0),
+                hg.clone(),
                 t.text3,
             );
-        }
+            hg.size().x + 14.0
+        } else {
+            0.0
+        };
+        let label_w = (rect.right() - x - hint_w - 6.0).max(40.0);
+        let lg = p.layout(label.to_string(), theme::regular(13.5), base, label_w);
+        p.galley_with_override_text_color(pos2(x, rect.center().y - lg.size().y / 2.0), lg, base);
     }
     if enabled {
         resp.on_hover_cursor(egui::CursorIcon::PointingHand)

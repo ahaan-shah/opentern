@@ -973,7 +973,6 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 ));
             }
             if !d.text.is_empty() {
-                let mid = pos2((pts[0].x + pts[1].x) / 2.0, (pts[0].y + pts[1].y) / 2.0);
                 let tc = d.style.text_color.map(c32).unwrap_or(s.color);
                 let font_size = if d.style.text_size > 0 {
                     d.style.text_size as f32
@@ -985,7 +984,16 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 } else {
                     theme::regular(font_size)
                 };
-                p.text(mid + vec2(0.0, -8.0), Align2::CENTER_BOTTOM, &d.text, font, tc);
+                let base_pt = match d.style.text_halign {
+                    TextHAlign::Left => pts[0] + (pts[1] - pts[0]) * 0.15,
+                    TextHAlign::Center => pos2((pts[0].x + pts[1].x) / 2.0, (pts[0].y + pts[1].y) / 2.0),
+                    TextHAlign::Right => pts[0] + (pts[1] - pts[0]) * 0.85,
+                };
+                let (offset, align) = match d.style.text_valign {
+                    TextVAlign::Bottom => (vec2(0.0, 6.0), Align2::CENTER_TOP),
+                    _ => (vec2(0.0, -6.0), Align2::CENTER_BOTTOM),
+                };
+                p.text(base_pt + offset, align, &d.text, font, tc);
             }
         }
         HorizontalLine | HorizontalRay if !pts.is_empty() => {
@@ -1445,14 +1453,28 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
     // Other tools' labels: above a horizontal line at the right, else
     // above the first point.
     if !d.text.is_empty()
-        && !matches!(d.tool, Text | ArrowUp | ArrowDown | Rectangle)
+        && !matches!(
+            d.tool,
+            Text | ArrowUp
+                | ArrowDown
+                | Rectangle
+                | TrendLine
+                | Ray
+                | ExtendedLine
+                | Arrow
+                | HorizontalLine
+                | HorizontalRay
+        )
         && let Some(&first) = pts.first()
     {
-        let (at, align) = match d.tool {
-            HorizontalLine | HorizontalRay => (pos2(r.right() - 6.0, first.y - 3.0), Align2::RIGHT_BOTTOM),
-            _ => (first + vec2(0.0, -4.0), Align2::LEFT_BOTTOM),
-        };
-        p.text(at, align, &d.text, theme::medium(d.style.font as f32 * 0.9), s.color);
+        let at = first + vec2(0.0, -4.0);
+        p.text(
+            at,
+            Align2::LEFT_BOTTOM,
+            &d.text,
+            theme::medium(d.style.font as f32 * 0.9),
+            s.color,
+        );
     }
     if sel {
         for (i, q) in handle_points(d, g).into_iter().enumerate() {
