@@ -610,7 +610,7 @@ impl App {
             Some((last, prev)) if opentern_core::daily_only(&s.id) => {
                 let ch = last - prev;
                 (
-                    crate::format::price(*last, s.precision()),
+                    crate::format::price(*last, s.precision_at(*last)),
                     crate::format::bp(ch),
                     if ch.abs() < 0.005 {
                         t.text2
@@ -624,7 +624,7 @@ impl App {
             Some((last, prev)) if *prev != 0.0 => {
                 let pct = (last / prev - 1.0) * 100.0;
                 (
-                    crate::format::price(*last, s.precision()),
+                    crate::format::price(*last, s.precision_at(*last)),
                     crate::format::signed_pct(pct),
                     if pct >= 0.0 { t.pos } else { t.neg },
                 )

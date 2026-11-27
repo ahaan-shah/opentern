@@ -550,7 +550,7 @@ impl SymbolSearch {
                                     c,
                                 );
                             }
-                            let d = s.precision().max(if last < 1.0 { 4 } else { 2 });
+                            let d = s.precision_at(last).max(if last < 1.0 { 4 } else { 2 });
                             let pr = p.text(
                                 pos2(change_x - CHANGE_W, y),
                                 Align2::RIGHT_CENTER,

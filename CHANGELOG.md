@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Hyperliquid prices keep the right decimals as they move.** Hyperliquid's price step depends on the price (five significant figures), so a coin that crosses 1, 10 or 1,000 (or BTC below 10,000) now shows and takes one decimal more or less right away, on the chart, in watchlists and in the DOM.
+
 ## 0.3.8 (2026-11-28)
 
 Hyperliquid's markets, a deeper equity chart in the Strategy Report, Fib levels and drawing templates you choose, the Fed funds rate, indicators on indicators, and strategies that recalculate on order fills.

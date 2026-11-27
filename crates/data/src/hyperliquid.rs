@@ -121,18 +121,6 @@ pub(crate) fn parse_ws(v: &serde_json::Value) -> Vec<Bar> {
     }
 }
 
-/// The price step Hyperliquid allows: five significant figures, at most
-/// `6 - szDecimals` decimals, and whole numbers always.
-fn tick_size(px: f64, sz_decimals: i64) -> f64 {
-    let most = 10f64.powi(-(6 - sz_decimals.clamp(0, 6)) as i32);
-    let sig = if px > 0.0 && px.is_finite() {
-        10f64.powi(px.log10().floor() as i32 - 4)
-    } else {
-        most
-    };
-    sig.max(most).min(1.0)
-}
-
 /// Names for builder-dex markets whose ticker doesn't say what they are
 /// (Hyperliquid lists only tickers), so a search by name finds them.
 /// Listed companies are found through the stock search instead
@@ -220,7 +208,7 @@ pub(crate) fn parse_perps(v: &serde_json::Value, quote: &str) -> Vec<Symbol> {
                 description,
                 kind: AssetKind::Crypto,
                 currency: quote.into(),
-                tick_size: tick_size(px, sz),
+                tick_size: opentern_core::hyperliquid_tick(px, sz),
                 min_qty: 10f64.powi(-(sz.clamp(0, 12) as i32)),
                 timezone: "UTC".into(),
             })
@@ -482,9 +470,10 @@ mod tests {
     #[test]
     fn steps_follow_the_price() {
         // Five significant figures, capped by 6 - szDecimals decimals.
-        assert!((tick_size(1.2345, 2) - 0.0001).abs() < 1e-12);
-        assert!((tick_size(0.5, 0) - 0.00001).abs() < 1e-12);
-        assert!((tick_size(0.5, 3) - 0.001).abs() < 1e-12);
-        assert_eq!(tick_size(250_000.0, 5), 1.0);
+        let tick = opentern_core::hyperliquid_tick;
+        assert!((tick(1.2345, 2) - 0.0001).abs() < 1e-12);
+        assert!((tick(0.5, 0) - 0.00001).abs() < 1e-12);
+        assert!((tick(0.5, 3) - 0.001).abs() < 1e-12);
+        assert_eq!(tick(250_000.0, 5), 1.0);
     }
 }

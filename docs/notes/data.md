@@ -175,7 +175,11 @@ every data change (scripts re-run on it).
   **Only the newest 5000 candles of each interval exist** (1m ≈ 3.5 days);
   paging back stops there. Tick size isn't published: five significant
   figures, at most `6 - szDecimals` decimals, whole numbers always
-  (`tick_size`, from the mark price when the list is fetched).
+  (`opentern_core::hyperliquid_tick`). The list stores the step at the mark
+  price when it's fetched; after that it follows the price: `Symbol::tick_at`/
+  `precision_at` work it out from the price and the lot step (`min_qty` =
+  `10^-szDecimals`), and a chart (and each compared symbol) calls `retick` on
+  every new bar, so the scale, DOM, paper orders and `syminfo.mintick` keep up.
 - **Hyperliquid builder dexes (HIP-3)**: `perpDexs` names them (xyz, para, io,
   km…); each dex's `metaAndAssetCtxs` takes `"dex"` and names its markets
   `xyz:GOLD`. Ids put the dex before an underscore, `HYPERLIQUID:XYZ_GOLDUSDC.P`

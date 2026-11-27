@@ -573,6 +573,14 @@ impl Chart {
         let Some(c) = self.compares.iter_mut().find(|c| c.session == id) else {
             return;
         };
+        if let Event::Bars { bars, .. } = &e
+            && let Some(b) = bars.last()
+        {
+            c.symbol.retick(b.close);
+        }
+        if let Event::Tick { bar, .. } = &e {
+            c.symbol.retick(bar.close);
+        }
         match e {
             Event::Bars { bars, .. } => c.bars = bars,
             Event::Tick { bar, .. } => match c.bars.last_mut() {
@@ -1255,6 +1263,8 @@ impl Chart {
         {
             self.newest = Some(*b);
             self.moved = Some(std::time::Instant::now());
+            // Hyperliquid's price step follows the price.
+            self.symbol.retick(b.close);
         }
         if self.replay_absorb(&e) {
             return;
