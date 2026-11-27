@@ -137,9 +137,6 @@ msgstr ""
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr ""
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr ""
-
 msgid "A fast, local-first market analysis terminal."
 msgstr ""
 
@@ -1593,9 +1590,6 @@ msgid "Drag to move"
 msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
-msgstr ""
-
-msgid "Draw again without picking again"
 msgstr ""
 
 msgid "Draw horizontal line at {0}"
@@ -4847,9 +4841,6 @@ msgid "Status"
 msgstr ""
 
 msgid "Status line"
-msgstr ""
-
-msgid "Stay in drawing mode"
 msgstr ""
 
 msgid "StdDev"

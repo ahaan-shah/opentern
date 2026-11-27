@@ -137,9 +137,6 @@ msgstr "Rentabilidad 6M"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Un script de Python se ejecuta en el Python de tu sistema. Según su código, puede leer y cambiar tus archivos y conectarse a internet, y eso incluye el código que un agente escriba para ti. Ejecuta solo los que te den confianza."
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "Una herramienta de dibujo sigue elegida tras cada dibujo. Esc la suelta."
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "Un terminal de análisis de mercados rápido y local."
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arrastra para escalar · doble clic para ajustar · clic derecho para opciones"
-
-msgid "Draw again without picking again"
-msgstr "Dibuja otra vez sin volver a elegir"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "Estado"
 
 msgid "Status line"
 msgstr "Línea de estado"
-
-msgid "Stay in drawing mode"
-msgstr "Seguir en modo dibujo"
 
 msgid "StdDev"
 msgstr "Desv. est."

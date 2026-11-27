@@ -137,9 +137,6 @@ msgstr "Доходность 6М"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Скрипт Python запускается в Python вашей системы. В зависимости от кода он может читать и менять ваши файлы и выходить в интернет, в том числе код, который пишет для вас агент. Запускайте только те, которым доверяете."
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "Инструмент рисования остаётся выбранным после каждого рисунка. Esc снимает выбор."
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "Быстрый локальный терминал для анализа рынков."
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
-
-msgid "Draw again without picking again"
-msgstr "Рисуйте снова, не выбирая заново"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "Статус"
 
 msgid "Status line"
 msgstr "Строка статуса"
-
-msgid "Stay in drawing mode"
-msgstr "Оставаться в режиме рисования"
 
 msgid "StdDev"
 msgstr "Ст. откл."

@@ -137,9 +137,6 @@ msgstr "6 个月收益"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python 脚本在你系统自带的 Python 中运行。视代码而定，它可以读取和修改你的文件并访问网络，代理为你编写的代码也一样。只运行你信任的脚本。"
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "绘图工具在每次绘制后保持选中。按 Esc 取消。"
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "快速、本地优先的市场分析终端。"
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
-
-msgid "Draw again without picking again"
-msgstr "无需重新选择即可再画"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "状态"
 
 msgid "Status line"
 msgstr "状态行"
-
-msgid "Stay in drawing mode"
-msgstr "保持绘图模式"
 
 msgid "StdDev"
 msgstr "标准差"

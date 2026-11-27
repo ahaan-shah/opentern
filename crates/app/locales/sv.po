@@ -137,9 +137,6 @@ msgstr "Avkastning 6M"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Ett Python-skript körs i ditt eget systems Python. Beroende på koden kan det läsa och ändra dina filer och gå ut på nätet, även kod som en agent skriver åt dig. Kör bara skript du litar på."
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "Ett ritverktyg förblir valt efter varje ritning. Esc lägger undan det."
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "En snabb, lokal terminal för marknadsanalys."
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
-
-msgid "Draw again without picking again"
-msgstr "Rita igen utan att välja om"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "Status"
 
 msgid "Status line"
 msgstr "Statusrad"
-
-msgid "Stay in drawing mode"
-msgstr "Stanna i ritläge"
 
 msgid "StdDev"
 msgstr "Std.avv."

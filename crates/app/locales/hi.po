@@ -137,9 +137,6 @@ msgstr "6 माह रिटर्न"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python स्क्रिप्ट आपके सिस्टम के Python में चलती है। कोड के अनुसार यह आपकी फ़ाइलें पढ़ और बदल सकती है और इंटरनेट पर जा सकती है; एजेंट का लिखा कोड भी। केवल भरोसेमंद स्क्रिप्ट चलाएँ।"
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "हर ड्रॉइंग के बाद ड्रॉइंग टूल चुना रहता है। Esc से उसे हटाएँ।"
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "तेज़, लोकल-फ़र्स्ट मार्केट विश्लेषण टर्मिनल।"
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
-
-msgid "Draw again without picking again"
-msgstr "दोबारा चुने बिना फिर से ड्रॉ करें"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "स्थिति"
 
 msgid "Status line"
 msgstr "स्टेटस लाइन"
-
-msgid "Stay in drawing mode"
-msgstr "ड्रॉइंग मोड में रहें"
 
 msgid "StdDev"
 msgstr "मानक विचलन"

@@ -137,9 +137,6 @@ msgstr "6か月リターン"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます。コードによってはファイルの読み書きやインターネット接続ができ、エージェントが書いたコードも同様です。信頼できるものだけを実行してください。"
 
-msgid "A drawing tool stays picked after each drawing. Esc puts it down."
-msgstr "描画ツールは描いた後も選ばれたままです。Esc で解除します。"
-
 msgid "A fast, local-first market analysis terminal."
 msgstr "高速でローカルファーストな市場分析ターミナル。"
 
@@ -1594,9 +1591,6 @@ msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
-
-msgid "Draw again without picking again"
-msgstr "選び直さずにもう一度描く"
 
 msgid "Draw horizontal line at {0}"
 msgstr ""
@@ -4848,9 +4842,6 @@ msgstr "状態"
 
 msgid "Status line"
 msgstr "ステータスライン"
-
-msgid "Stay in drawing mode"
-msgstr "描画モードを維持"
 
 msgid "StdDev"
 msgstr "標準偏差"
