@@ -52,6 +52,14 @@ pub enum Persist {
 pub type Param = (String, Option<Expr>, Option<String>);
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct TypeField {
+    pub name: String,
+    pub default: Option<Expr>,
+    pub ty: Option<String>,
+    pub varip: bool,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Decl {
         persist: Persist,
@@ -108,10 +116,10 @@ pub enum Stmt {
         line: usize,
         method: bool,
     },
-    /// `type Name` with its fields (name, default, type).
+    /// `type Name` with its fields.
     Type {
         name: String,
-        fields: Vec<Param>,
+        fields: Vec<TypeField>,
         line: usize,
     },
     /// `enum Name` with members and their titles (the member's name when

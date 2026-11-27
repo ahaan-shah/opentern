@@ -1,0 +1,27 @@
+//@version=6
+// BLOCKED-ORACLE. Inspect history and aliasing on historical fill executions.
+strategy("COOF conditional state oracle", calc_on_order_fills=true)
+int first = input.int(20, "Signal bar")
+type Counts
+    int ordinary = 0
+    varip int retained = 0
+varip Counts object = na
+var array<int> ordinary = array.new_int()
+varip array<int> alias = ordinary
+varip int lastSeen = 0
+probe() =>
+    varip int local = 0
+    local += 1
+    [local, local[1]]
+if bar_index == first
+    strategy.entry("A", strategy.long)
+bool edge = strategy.opentrades != lastSeen
+if edge or bar_index == first + 2
+    [local, previous] = probe()
+    if na(object)
+        object := Counts.new()
+    object.ordinary += 1
+    object.retained += 1
+    alias.push(bar_index)
+    log.info("bar={0} local={1} previous={2} object={3}/{4} aliasSize={5} sameSize={6}", bar_index, local, previous, object.ordinary, object.retained, alias.size(), ordinary.size())
+lastSeen := strategy.opentrades

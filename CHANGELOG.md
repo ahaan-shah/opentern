@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Pine strategies with `calc_on_order_fills=true` recalculate after fills and can place orders for the remaining path of the simulated bar.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

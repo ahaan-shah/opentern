@@ -1,0 +1,18 @@
+//@version=6
+// BLOCKED-ORACLE. Run once per mode. Compare Pine Logs and the trade list.
+strategy("COOF shared tick oracle", calc_on_order_fills=true, pyramiding=2, margin_long=0, margin_short=0)
+int first = input.int(20, "Signal bar")
+bool reverse = input.bool(false, "Reverse instead of cancelling")
+varip int pass = 0
+pass += 1
+if bar_index >= first and bar_index <= first + 2
+    log.info("bar={0} pass={1} size={2} open={3} closed={4}", bar_index, pass, strategy.position_size, strategy.opentrades, strategy.closedtrades)
+if bar_index == first
+    strategy.entry("A", strategy.long, qty=1)
+    if not reverse
+        strategy.entry("B", strategy.long, qty=1)
+if strategy.opentrades == 1 and strategy.opentrades.entry_id(0) == "A"
+    if reverse
+        strategy.entry("R", strategy.short, qty=1)
+    else
+        strategy.cancel("B")

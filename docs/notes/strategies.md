@@ -8,6 +8,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   trailing stops, OCA cancel/reduce, exit `qty_percent` of the entered size,
   `allow_entry_in`, running max drawdown/run-up, and **pyramiding fixed to TradingView's
   rule** (0 and 1 = one entry). `docs/metrics.md` records the fill model.
+- With `calc_on_order_fills`, Pine resumes the simulated OHLC path after
+  each fill group. Fills at one tick are grouped, and a reversal exposes
+  the closing and opening legs separately. The ordinary closing calculation
+  runs after the path's callbacks. Rollback keeps the broker and `varip`
+  state, and each bar commits history and equity once. TradingView cases
+  awaiting external confirmation are listed in `crates/pine/tests/oracles/order_fills/`.
 - `app/src/strategy.rs`: strategy runs are rebuilt only when `data_version`, `changed` or
   a Python result (`ScriptRun::out_seq`) changes; Python strategies replay their
   `intents` through a broker. Strategy Report tab: Overview (KPI cards, compact on short

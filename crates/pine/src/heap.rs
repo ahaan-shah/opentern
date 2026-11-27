@@ -7,7 +7,7 @@
 
 use crate::value::V;
 use opentern_series::drawings::NO_X;
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -165,6 +165,8 @@ pub(crate) struct Heap {
     pub drawn: [VecDeque<u32>; 6],
     /// `max_labels_count` etc.
     pub limits: [usize; 6],
+    recalculating: bool,
+    new_udts: HashMap<u32, Vec<V>>,
 }
 
 impl Default for Heap {
@@ -177,6 +179,8 @@ impl Default for Heap {
             live_after_gc: 0,
             drawn: Default::default(),
             limits: [50, 50, 50, 40, 50, 50],
+            recalculating: false,
+            new_udts: HashMap::new(),
         }
     }
 }
@@ -195,6 +199,14 @@ pub(crate) fn kind_index(k: DrawKind) -> usize {
 impl Heap {
     pub fn alloc(&mut self, o: Obj) -> u32 {
         self.allocated += 1;
+        if self.recalculating {
+            let id = self.objs.len() as u32;
+            if let Obj::Udt { fields, .. } = &o {
+                self.new_udts.insert(id, fields.clone());
+            }
+            self.objs.push(Some(o));
+            return id;
+        }
         match self.free.pop() {
             Some(i) => {
                 self.objs[i as usize] = Some(o);
@@ -262,6 +274,110 @@ impl Heap {
 
     pub fn get_mut(&mut self, r: u32) -> Option<&mut Obj> {
         self.objs.get_mut(r as usize).and_then(|o| o.as_mut())
+    }
+
+    pub fn begin_recalculations(&mut self) {
+        self.recalculating = true;
+    }
+
+    pub fn end_recalculations(&mut self) {
+        self.recalculating = false;
+        self.new_udts.clear();
+    }
+
+    /// Restores committed objects and drawings and carries over only
+    /// objects referenced from intrabar-persistent slots or fields.
+    pub fn rollback(&self, previous: &Heap, types: &[crate::compile::TypeDef], mut roots: Vec<u32>) -> Heap {
+        let mut next = self.clone();
+        // Keep allocation IDs unique across the bar, including for deleted handles.
+        next.objs.resize_with(previous.objs.len(), || None);
+        let mut deleted: HashSet<_> = previous.dead.iter().copied().collect();
+        // Committed UDTs can contain varip fields even without a varip
+        // reference to the object itself.
+        for (i, obj) in self.objs.iter().enumerate() {
+            if let Some(Obj::Udt { ty, .. }) = obj
+                && types.get(*ty as usize).is_some_and(|t| !t.varip_fields.is_empty())
+            {
+                next.retain_udt_fields(previous, types, i as u32, &mut roots);
+            }
+        }
+
+        let mut kept = HashSet::new();
+        while let Some(id) = roots.pop() {
+            if !kept.insert(id) || id as usize >= previous.objs.len() {
+                continue;
+            }
+            let i = id as usize;
+            match &previous.objs[i] {
+                Some(Obj::Udt { ty, .. }) if types.get(*ty as usize).is_some() => {
+                    if next.objs[i].is_none() {
+                        let fields = previous.new_udts[&id].clone();
+                        next.new_udts.insert(id, fields.clone());
+                        next.objs[i] = Some(Obj::Udt { ty: *ty, fields });
+                    }
+                    next.retain_udt_fields(previous, types, id, &mut roots);
+                    if i >= self.objs.len()
+                        && let Some(obj) = &next.objs[i]
+                    {
+                        // A new retained object can also refer to objects
+                        // allocated by its constructor on this bar.
+                        let mut refs = Vec::new();
+                        obj.refs(&mut refs);
+                        roots.extend(refs.into_iter().filter(|id| *id as usize >= self.objs.len()));
+                    }
+                }
+                obj => {
+                    next.objs[i] = obj.clone();
+                    if let Some(obj) = obj {
+                        obj.refs(&mut roots);
+                    }
+                }
+            }
+        }
+
+        for ((drawn, prior), limit) in next.drawn.iter_mut().zip(&previous.drawn).zip(next.limits) {
+            drawn.retain(|id| next.objs[*id as usize].is_some());
+            drawn.extend(
+                prior
+                    .iter()
+                    .copied()
+                    .filter(|id| kept.contains(id) && *id as usize >= self.objs.len()),
+            );
+            while drawn.len() > limit {
+                let id = drawn.pop_front().unwrap();
+                next.objs[id as usize] = None;
+                deleted.insert(id);
+            }
+        }
+        // Keep recycled IDs out of the allocator during this bar. Free
+        // slots are used again after the closing execution.
+        for (i, obj) in next.objs.iter().enumerate() {
+            if i >= self.objs.len() && obj.is_some() {
+                next.allocated += 1;
+            }
+            if obj.is_none() && (i >= self.objs.len() || self.objs[i].is_some()) {
+                let id = i as u32;
+                if deleted.contains(&id) {
+                    next.dead.push(id);
+                } else {
+                    next.free.push(id);
+                }
+            }
+        }
+        next
+    }
+
+    fn retain_udt_fields(&mut self, previous: &Heap, types: &[crate::compile::TypeDef], id: u32, roots: &mut Vec<u32>) {
+        if let (Some(Obj::Udt { ty, fields }), Some(Obj::Udt { fields: current, .. })) =
+            (self.get_mut(id), previous.get(id))
+        {
+            for &field in &types[*ty as usize].varip_fields {
+                fields[field] = current[field].clone();
+                if let V::Ref(id) = &fields[field] {
+                    roots.push(*id);
+                }
+            }
+        }
     }
 
     /// Whether a collection is worth running now.
