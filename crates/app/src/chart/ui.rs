@@ -565,13 +565,13 @@ pub fn show(
             let pill_body_r = Rect::from_min_max(pill_r.min, pos2(trash_r.left(), pill_r.bottom()));
 
             let del_resp = ui.interact(trash_r, Id::new(("del-alert", alert.id)), Sense::click());
-            if del_resp.hovered() {
+            let over_trash = del_resp.hovered() || pointer.is_some_and(|p| trash_r.contains(p));
+            if over_trash {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                 alert_used = true;
-            }
-            if del_resp.clicked() {
-                actions.push(Action::DeleteAlert(alert.id));
-                alert_used = true;
+                if del_resp.clicked() {
+                    actions.push(Action::DeleteAlert(alert.id));
+                }
                 continue;
             }
 
