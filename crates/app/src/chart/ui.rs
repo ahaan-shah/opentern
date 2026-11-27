@@ -559,22 +559,25 @@ pub fn show(
             if yy < g.rect.top() || yy > g.rect.bottom() {
                 continue;
             }
-            let line_r = Rect::from_min_max(pos2(g.rect.left(), yy - 7.0), pos2(g.rect.right(), yy + 7.0));
-            let t = ui.interact(line_r, Id::new(("alert-drag", chart.id, alert.id)), Sense::drag());
-            if t.hovered() || t.dragged() {
-                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
-                alert_used = true;
-            }
-            if t.dragged()
-                && let Some(p) = t.interact_pointer_pos()
-            {
-                let v = (g.y.value(p.y) / tick).round() * tick;
-                cui.alert_drag = Some((alert.id, v));
-            }
-            if t.drag_stopped()
-                && let Some((id, v)) = cui.alert_drag.take()
-            {
-                actions.push(Action::MoveAlert(id, v));
+            let in_pill = pointer.is_some_and(|p| (p.x - g.rect.center().x).abs() < 120.0 && (p.y - yy).abs() < 16.0);
+            if !in_pill {
+                let line_r = Rect::from_min_max(pos2(g.rect.left(), yy - 7.0), pos2(g.rect.right(), yy + 7.0));
+                let t = ui.interact(line_r, Id::new(("alert-drag", chart.id, alert.id)), Sense::drag());
+                if t.hovered() || t.dragged() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                    alert_used = true;
+                }
+                if t.dragged()
+                    && let Some(p) = t.interact_pointer_pos()
+                {
+                    let v = (g.y.value(p.y) / tick).round() * tick;
+                    cui.alert_drag = Some((alert.id, v));
+                }
+                if t.drag_stopped()
+                    && let Some((id, v)) = cui.alert_drag.take()
+                {
+                    actions.push(Action::MoveAlert(id, v));
+                }
             }
         }
     }
@@ -1144,25 +1147,32 @@ pub fn show(
                             text_g,
                             Color32::WHITE,
                         );
-                        let trash_r =
-                            Rect::from_center_size(pos2(pill_r.right() - 12.0, pill_r.center().y), vec2(16.0, 16.0));
+                        let pill_click_r = Rect::from_min_max(pill_r.min, pos2(pill_r.right() - 24.0, pill_r.bottom()));
+                        let trash_r = Rect::from_min_max(pos2(pill_r.right() - 24.0, pill_r.top()), pill_r.max);
+                        let del_resp = ui.interact(trash_r, Id::new(("del-alert", alert.id)), Sense::click());
+                        let del_hov = del_resp.hovered();
+                        let del_col = if del_hov { t.neg } else { Color32::WHITE };
                         painter.text(
                             trash_r.center(),
                             Align2::CENTER_CENTER,
                             ph::TRASH,
-                            theme::regular(12.0),
-                            Color32::WHITE,
+                            theme::regular(13.0),
+                            del_col,
                         );
-                        if ui
-                            .interact(trash_r, Id::new(("del-alert", alert.id)), Sense::click())
-                            .clicked()
-                        {
+                        if del_hov {
+                            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                        }
+                        if del_resp.clicked() {
                             actions.push(Action::DeleteAlert(alert.id));
-                        } else if ui
-                            .interact(pill_r, Id::new(("edit-alert", alert.id)), Sense::click())
-                            .clicked()
-                        {
-                            actions.push(Action::EditAlert(alert.id));
+                        } else {
+                            let edit_resp =
+                                ui.interact(pill_click_r, Id::new(("edit-alert", alert.id)), Sense::click());
+                            if edit_resp.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                            if edit_resp.clicked() {
+                                actions.push(Action::EditAlert(alert.id));
+                            }
                         }
                     } else {
                         let tip = pos2(g.rect.right() - 1.0, snap(yy, ppp));
