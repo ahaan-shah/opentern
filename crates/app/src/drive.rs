@@ -733,6 +733,33 @@ mod tests {
     }
 
     #[test]
+    fn scale_gestures_zoom_the_hovered_axis_in_the_expected_direction() {
+        let mut d = Driver::new("scale-gestures");
+        let price = d.at(1.0, 0.5) + vec2(12.0, 0.0);
+        let time = pos2(d.at(0.4, 0.5).x, d.app.grid_rect.bottom() - 12.0);
+        let price_range = |d: &Driver| {
+            let scale = &d.app.chart.panes[0].scale;
+            scale.hi - scale.lo
+        };
+        let range = price_range(&d);
+        let bar_w = d.app.chart.view.bar_w;
+        d.scroll(price, 12.0);
+        assert!(price_range(&d) < range);
+        assert!(!d.app.chart.panes[0].scale.auto);
+        assert_eq!(d.app.chart.view.bar_w, bar_w);
+
+        let range = price_range(&d);
+        d.scroll(time, 12.0);
+        let zoomed = d.app.chart.view.bar_w;
+        assert!(zoomed > bar_w);
+        assert_eq!(price_range(&d), range);
+
+        d.drag(time, time + vec2(72.0, 0.0));
+        assert!(d.app.chart.view.bar_w < zoomed);
+        assert_eq!(price_range(&d), range);
+    }
+
+    #[test]
     fn zoom_tool_fits_the_dragged_range() {
         let mut d = Driver::new("zoom");
         let w0 = d.app.chart.view.bar_w;
