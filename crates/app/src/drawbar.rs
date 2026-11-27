@@ -150,6 +150,7 @@ impl App {
                             };
                             toggle(ui, &mut edit.locked, lock, "");
                             let r = w::tool_button(ui, &t, ph::PALETTE, tr("Template"), false, BTN);
+                            self.still_open(ui, &r, "drawing-template");
                             if r.clicked() {
                                 // The menu would sit over the levels panel.
                                 levels_open = false;
@@ -304,16 +305,18 @@ fn fib_levels_panel(ctx: &egui::Context, t: &theme::Theme, at: Pos2, tool: Tool,
                 .show(ui, |ui| {
                     ui.spacing_mut().item_spacing = vec2(6.0, 4.0);
                     let mut remove = None;
+                    // As tall as the window allows below the bar, so the
+                    // standard set shows whole on most screens.
+                    let room = (ctx.content_rect().bottom() - at.y - 110.0).max(140.0);
                     egui::ScrollArea::vertical()
-                        .max_height(340.0)
+                        .max_height(room)
                         .auto_shrink([true, true])
                         .show(ui, |ui| {
                             for (i, l) in levels.iter_mut().enumerate() {
                                 ui.push_id(i, |ui| {
                                     ui.horizontal(|ui| {
                                         w::checkbox(ui, &mut l.on, "");
-                                        ui.spacing_mut().interact_size.x = 64.0;
-                                        ui.add(egui::DragValue::new(&mut l.value).speed(0.001).max_decimals(4));
+                                        w::number(ui, ui.id().with("value"), &mut l.value, 0.01, -100.0, 100.0, 3);
                                         color_button(ui, t, &mut l.color);
                                         if w::tool_button(ui, t, ph::X, tr("Remove"), false, 26.0).clicked() {
                                             remove = Some(i);
@@ -352,11 +355,7 @@ fn fib_levels_panel(ctx: &egui::Context, t: &theme::Theme, at: Pos2, tool: Tool,
     ctx.data_mut(|m| m.insert_temp(new_key, typed));
     if levels != before {
         // The standard set is stored as none, so it follows the defaults.
-        style.levels = if levels == FibLevel::standard(tool) {
-            Vec::new()
-        } else {
-            levels
-        };
+        style.levels = (levels != FibLevel::standard(tool)).then_some(levels);
     }
 }
 
@@ -436,10 +435,12 @@ mod tests {
         d.app.chart_ui.draw.selected = Some(id);
         let mut swing = style(&d, id);
         swing.width = 3;
-        swing.levels = crate::chart::draw::FibLevel::standard(Tool::FibRetracement)
-            .into_iter()
-            .filter(|l| [0.382, 0.5, 0.618].contains(&l.value))
-            .collect();
+        swing.levels = Some(
+            crate::chart::draw::FibLevel::standard(Tool::FibRetracement)
+                .into_iter()
+                .filter(|l| [0.382, 0.5, 0.618].contains(&l.value))
+                .collect(),
+        );
         let s = swing.clone();
         d.app.edit_drawing(id, |x| x.style = s);
         d.frame(vec![]);

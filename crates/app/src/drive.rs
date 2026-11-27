@@ -350,7 +350,9 @@ mod tests {
         let plus = pos2(main.right() - 12.0, main.center().y);
         let view = d.app.chart.view.right;
         d.click(plus);
-        let Some(m) = d.app.price_menu.clone() else { panic!("the menu opens") };
+        let Some(m) = d.app.price_menu.clone() else {
+            panic!("the menu opens")
+        };
         assert!(m.price > 0.0);
         assert!(d.app.chart.drawings.is_empty(), "the click doesn't reach the plot");
         assert_eq!(d.app.chart.view.right, view, "nor pans it");

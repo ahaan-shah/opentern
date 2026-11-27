@@ -111,6 +111,11 @@ pub struct App {
     pub(crate) still_menu: Option<String>,
     /// `OPENTERN_STILL=measure`: show a measure once bars are in.
     still_measure: bool,
+    /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
+    /// (with its Levels panel open) once bars are in.
+    still_fib: Option<bool>,
+    /// `OPENTERN_STILL=price-menu`: the "+" menu by the price scale.
+    still_price_menu: bool,
     /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
     still_replay: bool,
     /// `OPENTERN_STILL=colors[:custom]`: the colour picker on its own.
@@ -285,6 +290,8 @@ impl App {
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
             still_measure: false,
+            still_fib: None,
+            still_price_menu: false,
             still_replay: false,
             still_colors: None,
             still_claude: None,
@@ -599,6 +606,10 @@ impl App {
                 }
             } else if part == "measure" {
                 self.still_measure = true;
+            } else if part == "price-menu" {
+                self.still_price_menu = true;
+            } else if part == "fib" || part == "fib:levels" {
+                self.still_fib = Some(part == "fib:levels");
             } else if part == "favbar" || part == "favbar:vertical" {
                 self.layout.fav_toolbar = true;
                 self.layout.fav_toolbar_vertical = part == "favbar:vertical";
@@ -1119,16 +1130,20 @@ impl App {
             .constrain(true)
             .show(ctx, |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_min_width(240.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
                     use crate::icons::ph;
                     use crate::widgets as w;
                     let alert = trf!("Add alert on {ticker} at {}", m.text);
+                    let line = trf!("Draw horizontal line at {}", m.text);
+                    // As wide as its longer row: at the scale, it would
+                    // otherwise stretch across the chart.
+                    let width =
+                        w::menu_row_width(ui, true, &alert, "", 0.0).max(w::menu_row_width(ui, true, &line, "", 0.0));
+                    ui.set_width(width.max(200.0));
+                    ui.spacing_mut().item_spacing.y = 1.0;
                     if w::menu_item(ui, &t, Some(ph::ALARM), &alert, "", false).clicked() {
                         self.open_alert_at(m.price);
                         close = true;
                     }
-                    let line = trf!("Draw horizontal line at {}", m.text);
                     if w::menu_item(ui, &t, Some(ph::MINUS), &line, "", false).clicked() {
                         self.add_horizontal_line(m.price);
                         close = true;
@@ -1611,6 +1626,43 @@ impl App {
             let n = self.chart.bars.len();
             self.chart.toggle_replay();
             self.chart.replay_from(n - 1161);
+        }
+        if self.still_price_menu
+            && let Some(b) = self.chart.bars.last().copied()
+            && self.chart_ui.main_rect.width() > 100.0
+        {
+            self.still_price_menu = false;
+            let r = self.chart_ui.main_rect;
+            self.price_menu = Some(PriceMenu {
+                chart: self.chart.id,
+                price: b.close,
+                text: crate::format::price(b.close, self.chart.precision()),
+                pos: egui::pos2(r.right(), r.center().y),
+            });
+        }
+        if let Some(levels) = self.still_fib
+            && self.chart.bars.len() > 80
+        {
+            self.still_fib = None;
+            let n = self.chart.bars.len();
+            let (a, b) = (self.chart.bars[n - 60], self.chart.bars[n - 12]);
+            let id = self.chart.next_drawing_id();
+            self.chart.drawings.push(Drawing {
+                id,
+                tool: Tool::FibRetracement,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: a.time, p: a.low },
+                    crate::chart::draw::Anchor { t: b.time, p: b.high },
+                ],
+                style: DrawStyle::for_tool(Tool::FibRetracement),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            });
+            self.chart_ui.draw.selected = Some(id);
+            if levels {
+                ctx.data_mut(|m| m.insert_temp(egui::Id::new("fib-levels-open"), id));
+            }
         }
         if self.still_measure && self.chart.bars.len() > 80 {
             self.still_measure = false;

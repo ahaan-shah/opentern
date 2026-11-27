@@ -356,10 +356,11 @@ pub struct DrawStyle {
     pub extend_right: bool,
     pub font: u8,
     pub labels: bool,
-    /// Fib retracement and extension levels; empty means the standard
+    /// Fib retracement and extension levels; none means the standard
     /// ones (`FibLevel::standard`), so older drawings need no migration.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub levels: Vec<FibLevel>,
+    /// An empty list is a Fib whose levels were all removed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub levels: Option<Vec<FibLevel>>,
 }
 
 /// One level of a Fib retracement or extension.
@@ -388,11 +389,7 @@ impl FibLevel {
 impl DrawStyle {
     /// The Fib levels to draw, in the order they were set.
     pub fn fib_levels(&self, tool: Tool) -> Vec<FibLevel> {
-        if self.levels.is_empty() {
-            FibLevel::standard(tool)
-        } else {
-            self.levels.clone()
-        }
+        self.levels.clone().unwrap_or_else(|| FibLevel::standard(tool))
     }
 }
 
@@ -407,7 +404,7 @@ impl Default for DrawStyle {
             extend_right: false,
             font: 14,
             labels: true,
-            levels: Vec::new(),
+            levels: None,
         }
     }
 }
@@ -1620,7 +1617,7 @@ mod tests {
             "style":{"color":0,"width":1,"line":"Solid","fill":0,"extend_left":false,
             "extend_right":false,"font":14,"labels":true}}"#;
         let mut d: Drawing = serde_json::from_str(old).unwrap();
-        assert!(d.style.levels.is_empty());
+        assert!(d.style.levels.is_none());
         let shown: Vec<f64> = shown_levels(&d).iter().map(|l| l.value).collect();
         assert_eq!(shown, [0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0]);
         assert_eq!(
@@ -1638,7 +1635,7 @@ mod tests {
             color: Rgba::hex(0x2962FF),
             on: true,
         });
-        d.style.levels = levels;
+        d.style.levels = Some(levels);
         let shown: Vec<f64> = shown_levels(&d).iter().map(|l| l.value).collect();
         assert_eq!(shown, [-0.27, 0.0, 0.382, 0.5, 0.618, 0.786, 1.0, 1.618]);
         // 0 at the end point, 1 at the start.
@@ -1646,5 +1643,11 @@ mod tests {
 
         let back: Drawing = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
         assert_eq!(back, d);
+
+        // Every level removed stays removed, also after a save.
+        d.style.levels = Some(Vec::new());
+        assert!(shown_levels(&d).is_empty());
+        let back: Drawing = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
+        assert!(shown_levels(&back).is_empty());
     }
 }
