@@ -36,6 +36,7 @@ pub enum Action {
     ChartMenu(Pos2, f64),
     DeleteAlert(i64),
     EditAlert(i64),
+    MoveAlert(i64, f64),
     RemoveCompare(usize),
     /// Chart trading: a paper order's line was dragged to a new price.
     PaperMove(u64, f64),
@@ -62,6 +63,8 @@ pub struct ChartUi {
     pub season: super::profile::SeasonCache,
     /// A paper order being dragged: (order, price under the pointer).
     pub paper_drag: Option<(u64, f64)>,
+    /// An alert line being dragged: (alert id, price under the pointer).
+    pub alert_drag: Option<(i64, f64)>,
 }
 
 impl Default for ChartUi {
@@ -76,6 +79,7 @@ impl Default for ChartUi {
             hover_time: None,
             season: Default::default(),
             paper_drag: None,
+            alert_drag: None,
         }
     }
 }
@@ -534,8 +538,45 @@ pub fn show(
             }
         }
     }
+    // Active alert dragging on the chart.
+    let mut alert_used = false;
+    if interactive && let Some(g) = geos.first() {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        for alert in &chart.alerts {
+            let price = match cui.alert_drag {
+                Some((id, p)) if id == alert.id => p,
+                _ => alert.price,
+            };
+            let yy = g.y.y(price);
+            if yy < g.rect.top() || yy > g.rect.bottom() {
+                continue;
+            }
+            let line_r = Rect::from_min_max(pos2(g.rect.left(), yy - 7.0), pos2(g.rect.right(), yy + 7.0));
+            let t = ui.interact(line_r, Id::new(("alert-drag", chart.id, alert.id)), Sense::drag());
+            if t.hovered() || t.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                alert_used = true;
+            }
+            if t.dragged()
+                && let Some(p) = t.interact_pointer_pos()
+            {
+                let v = (g.y.value(p.y) / tick).round() * tick;
+                cui.alert_drag = Some((alert.id, v));
+            }
+            if t.drag_stopped()
+                && let Some((id, v)) = cui.alert_drag.take()
+            {
+                actions.push(Action::MoveAlert(id, v));
+            }
+        }
+    }
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
     let drawing_used = !paper_used
+        && !alert_used
         && interactive
         && n > 0
         && !choosing
@@ -553,7 +594,7 @@ pub fn show(
     if (tools.tool.is_drawing() || tools.tool == super::draw::Tool::Measure) && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
-    if plot_resp.dragged() && !drawing_used && !paper_used {
+    if plot_resp.dragged() && !drawing_used && !paper_used && !alert_used {
         let d = plot_resp.drag_delta();
         chart.view.right -= (d.x / chart.view.bar_w) as f64;
         // Dragging vertically pans the price too, which ends autoscale.
@@ -1055,29 +1096,43 @@ pub fn show(
         let pane_id = chart.panes[k].id;
         let mut tags: Vec<(f32, String, Color32, Option<String>)> = Vec::new();
         if k == 0 {
-            let alert_col = Color32::from_rgb(235, 140, 25);
+            let line_col = if t.dark {
+                Color32::from_gray(180)
+            } else {
+                Color32::from_rgb(40, 40, 40)
+            };
+            let black_badge_col = Color32::from_rgb(20, 20, 20);
             for alert in &chart.alerts {
-                let yy = g.y.y(alert.price);
+                let price = match cui.alert_drag {
+                    Some((id, p)) if id == alert.id => p,
+                    _ => alert.price,
+                };
+                let yy = g.y.y(price);
                 if yy >= g.rect.top() && yy <= g.rect.bottom() {
                     styled_hline(
                         &clip_painter(g.rect),
                         g.rect.left(),
                         g.rect.right(),
                         snap(yy, ppp),
-                        Stroke::new(1.0, alert_col),
+                        Stroke::new(1.0, line_col),
                         opentern_series::study::LineStyle::Dashed,
                     );
-                    tags.push((yy, format::price(alert.price, prec), alert_col, None));
-                    let near = pointer.is_some_and(|p| (p.y - yy).abs() < 12.0 && g.rect.contains(p));
+                    tags.push((yy, format::price(price, prec), black_badge_col, None));
+                    let near = pointer.is_some_and(|p| (p.y - yy).abs() < 12.0 && g.rect.contains(p))
+                        || cui.alert_drag.is_some_and(|(id, _)| id == alert.id);
                     if near {
+                        let handle_pos = pos2(g.rect.right() - 8.0, snap(yy, ppp));
+                        painter.circle_filled(handle_pos, 4.0, t.bg);
+                        painter.circle_stroke(handle_pos, 4.0, Stroke::new(1.5, line_col));
+
                         let text_g = painter.layout_no_wrap(alert.label.clone(), theme::medium(11.5), Color32::WHITE);
                         let pill_w = text_g.size().x + 36.0;
                         let pill_r = Rect::from_center_size(pos2(g.rect.center().x, yy), vec2(pill_w, 22.0));
-                        painter.rect_filled(pill_r, CornerRadius::same(5), Color32::from_black_alpha(200));
+                        painter.rect_filled(pill_r, CornerRadius::same(5), Color32::from_black_alpha(220));
                         painter.rect_stroke(
                             pill_r,
                             CornerRadius::same(5),
-                            Stroke::new(1.0, alert_col),
+                            Stroke::new(1.0, line_col),
                             egui::StrokeKind::Inside,
                         );
                         painter.galley(
@@ -1105,6 +1160,18 @@ pub fn show(
                         {
                             actions.push(Action::EditAlert(alert.id));
                         }
+                    } else {
+                        let tip = pos2(g.rect.right() - 1.0, snap(yy, ppp));
+                        let arrow_size = 5.0;
+                        painter.add(egui::Shape::convex_polygon(
+                            vec![
+                                tip,
+                                tip + vec2(-arrow_size, -arrow_size * 0.7),
+                                tip + vec2(-arrow_size, arrow_size * 0.7),
+                            ],
+                            line_col,
+                            Stroke::NONE,
+                        ));
                     }
                 }
             }

@@ -5,7 +5,7 @@
 use super::{Done, frame};
 use crate::alerts::{TELEGRAM_CHAT, TELEGRAM_TOKEN, line_condition, now_ms};
 use crate::app::App;
-use crate::i18n::{msg, nt, tr, trl, trm};
+use crate::i18n::{msg, nt, tr, trf, trl, trm};
 use crate::theme::Theme;
 use egui::{Ui, vec2};
 use opentern_engine::alerts::{Alert, Condition, Freq, Op};
@@ -184,6 +184,38 @@ impl App {
     }
 
     pub(crate) fn open_alert_dialog_at(&mut self, price: f64) {
+        if self.store.value("alert_configured").is_some() {
+            // User has previously configured alert preferences: create immediately.
+            let sym = self.chart.symbol.clone();
+            let prec = self.chart.precision();
+            let price_str = crate::format::price(price, prec);
+            let mut a = Alert {
+                symbol: sym.id.clone(),
+                tf: self.chart.tf.label(),
+                condition: Condition::Price {
+                    op: Op::Crossing,
+                    value: price,
+                },
+                active: true,
+                ..Alert::default()
+            };
+            if let Some(j) = self.store.value("alert_defaults")
+                && let Ok(saved) = serde_json::from_str::<Alert>(&j)
+            {
+                a.freq = saved.freq;
+                a.notify = saved.notify;
+                a.sound = saved.sound;
+                a.webhook = saved.webhook;
+                a.email = saved.email;
+                a.telegram = saved.telegram;
+                a.message = saved.message;
+            }
+            let label = trf!("Add alert on {} at {}...", sym.ticker(), price_str);
+            self.save_alert(a);
+            self.notify(crate::icons::ph::ALARM, nt!("Alert created"), &label, None, false);
+            return;
+        }
+
         self.open_alert_dialog(None);
         if let Some(super::Modal::Alert(f)) = &mut self.modal {
             f.value = price;
@@ -491,6 +523,10 @@ impl AlertForm {
                                 {
                                     self.error = e;
                                     return;
+                                }
+                                let _ = app.store.set_value("alert_configured", "1");
+                                if let Ok(j) = serde_json::to_string(&a) {
+                                    let _ = app.store.set_value("alert_defaults", &j);
                                 }
                                 app.save_alert(a);
                                 *done = Done::Close;

@@ -327,6 +327,9 @@ msgstr "Панель агента"
 msgid "Alert"
 msgstr "Оповещение"
 
+msgid "Alert created"
+msgstr "Оповещение создано"
+
 msgid "Alerts"
 msgstr "Оповещения"
 
@@ -1422,6 +1425,9 @@ msgstr "Задержка {min} мин"
 
 msgid "Delete"
 msgstr "Удалить"
+
+msgid "Delete all alerts"
+msgstr "Удалить все оповещения"
 
 msgid "Delete folder (if empty)"
 msgstr "Удалить папку (если пуста)"

@@ -327,6 +327,9 @@ msgstr "Agentpanel"
 msgid "Alert"
 msgstr "Larm"
 
+msgid "Alert created"
+msgstr "Larm skapat"
+
 msgid "Alerts"
 msgstr "Larm"
 
@@ -1422,6 +1425,9 @@ msgstr "{min} min fördröjt"
 
 msgid "Delete"
 msgstr "Ta bort"
+
+msgid "Delete all alerts"
+msgstr "Ta bort alla larm"
 
 msgid "Delete folder (if empty)"
 msgstr "Ta bort mappen (om den är tom)"

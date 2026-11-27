@@ -327,6 +327,9 @@ msgstr "エージェントパネル"
 msgid "Alert"
 msgstr "アラート"
 
+msgid "Alert created"
+msgstr "アラートを作成しました"
+
 msgid "Alerts"
 msgstr "アラート"
 
@@ -1422,6 +1425,9 @@ msgstr "{min}分遅延"
 
 msgid "Delete"
 msgstr "削除"
+
+msgid "Delete all alerts"
+msgstr "すべてのアラートを削除"
 
 msgid "Delete folder (if empty)"
 msgstr "フォルダーを削除 (空の場合)"

@@ -327,6 +327,9 @@ msgstr "代理面板"
 msgid "Alert"
 msgstr "警报"
 
+msgid "Alert created"
+msgstr "警报已创建"
+
 msgid "Alerts"
 msgstr "警报"
 
@@ -1422,6 +1425,9 @@ msgstr "延迟 {min} 分钟"
 
 msgid "Delete"
 msgstr "删除"
+
+msgid "Delete all alerts"
+msgstr "删除所有警报"
 
 msgid "Delete folder (if empty)"
 msgstr "删除文件夹（如为空）"

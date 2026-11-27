@@ -327,6 +327,9 @@ msgstr "Agent-Panel"
 msgid "Alert"
 msgstr "Alarm"
 
+msgid "Alert created"
+msgstr "Alarm erstellt"
+
 msgid "Alerts"
 msgstr "Alarme"
 
@@ -1422,6 +1425,9 @@ msgstr "{min} Min. verzögert"
 
 msgid "Delete"
 msgstr "Löschen"
+
+msgid "Delete all alerts"
+msgstr "Alle Alarme löschen"
 
 msgid "Delete folder (if empty)"
 msgstr "Ordner löschen (falls leer)"

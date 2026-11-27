@@ -327,6 +327,9 @@ msgstr "Panneau de l'agent"
 msgid "Alert"
 msgstr "Alerte"
 
+msgid "Alert created"
+msgstr "Alerte créée"
+
 msgid "Alerts"
 msgstr "Alertes"
 
@@ -1422,6 +1425,9 @@ msgstr "Différé de {min} min"
 
 msgid "Delete"
 msgstr "Supprimer"
+
+msgid "Delete all alerts"
+msgstr "Supprimer toutes les alertes"
 
 msgid "Delete folder (if empty)"
 msgstr "Supprimer le dossier (s'il est vide)"

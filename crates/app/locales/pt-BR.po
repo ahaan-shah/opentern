@@ -327,6 +327,9 @@ msgstr "Painel do agente"
 msgid "Alert"
 msgstr "Alerta"
 
+msgid "Alert created"
+msgstr "Alerta criado"
+
 msgid "Alerts"
 msgstr "Alertas"
 
@@ -1422,6 +1425,9 @@ msgstr "Atraso de {min} min"
 
 msgid "Delete"
 msgstr "Excluir"
+
+msgid "Delete all alerts"
+msgstr "Excluir todos os alertas"
 
 msgid "Delete folder (if empty)"
 msgstr "Excluir pasta (se vazia)"

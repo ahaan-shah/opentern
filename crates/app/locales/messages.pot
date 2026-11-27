@@ -327,6 +327,9 @@ msgstr ""
 msgid "Alert"
 msgstr ""
 
+msgid "Alert created"
+msgstr ""
+
 msgid "Alerts"
 msgstr ""
 
@@ -1421,6 +1424,9 @@ msgid "Delayed {min} min"
 msgstr ""
 
 msgid "Delete"
+msgstr ""
+
+msgid "Delete all alerts"
 msgstr ""
 
 msgid "Delete folder (if empty)"

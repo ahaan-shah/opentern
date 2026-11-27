@@ -309,48 +309,54 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
 
 fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
     let mut done = Done::Keep;
-    ui.set_width(220.0);
-    ui.horizontal(|ui| {
-        ui.label(
-            egui::RichText::new(tr("Change interval"))
-                .font(theme::semibold(16.0))
-                .color(t.text),
-        );
-        ui.add_space(4.0);
-        let info = ui.label(
-            egui::RichText::new(crate::icons::ph::INFO)
-                .font(theme::regular(14.0))
-                .color(t.text3),
-        );
-        info.on_hover_cursor(egui::CursorIcon::PointingHand)
-            .on_hover_text(tr("Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."));
-    });
-    ui.add_space(8.0);
-    let r = ui.add(
-        egui::TextEdit::singleline(text)
-            .font(theme::medium(18.0))
-            .desired_width(220.0)
-            .margin(egui::Margin::symmetric(10, 8)),
-    );
-    if !r.has_focus() {
-        r.request_focus();
-        if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id) {
-            let end = egui::text::CCursor::new(text.chars().count());
-            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
-            state.store(ui.ctx(), r.id);
-        }
+    let up = text.to_uppercase();
+    if *text != up {
+        *text = up;
     }
-    ui.add_space(6.0);
-    let parsed = opentern_core::Timeframe::parse(text);
-    let hint = match parsed {
-        Some(tf) => interval_long_name(tf),
-        None => tr("Like 15, 4h, D, W or 3M").into(),
-    };
+    ui.set_width(220.0);
     ui.vertical_centered(|ui| {
+        ui.horizontal(|ui| {
+            ui.add_space((ui.available_width() - 146.0).max(0.0) / 2.0);
+            ui.label(
+                egui::RichText::new(tr("Change interval"))
+                    .font(theme::semibold(16.0))
+                    .color(t.text),
+            );
+            ui.add_space(4.0);
+            let info = ui.label(
+                egui::RichText::new(crate::icons::ph::INFO)
+                    .font(theme::regular(14.0))
+                    .color(t.text3),
+            );
+            info.on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(tr("Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."));
+        });
+        ui.add_space(8.0);
+        let r = ui.add(
+            egui::TextEdit::singleline(text)
+                .font(theme::medium(18.0))
+                .horizontal_align(Align::Center)
+                .desired_width(180.0)
+                .margin(egui::Margin::symmetric(10, 8)),
+        );
+        if !r.has_focus() {
+            r.request_focus();
+            if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id) {
+                let end = egui::text::CCursor::new(text.chars().count());
+                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
+                state.store(ui.ctx(), r.id);
+            }
+        }
+        ui.add_space(6.0);
+        let parsed = parse_interval_input(text);
+        let hint = match parsed {
+            Some(tf) => interval_long_name(tf),
+            None => tr("Like 15, 4h, D, W or 3M").into(),
+        };
         ui.label(egui::RichText::new(hint).font(theme::regular(13.0)).color(t.text3));
     });
     if ui.input(|i| i.key_pressed(egui::Key::Enter))
-        && let Some(tf) = parsed
+        && let Some(tf) = parse_interval_input(text)
     {
         app.set_interval_synced(tf);
         done = Done::Close;
@@ -359,6 +365,35 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
         done = Done::Close;
     }
     done
+}
+
+fn parse_interval_input(text: &str) -> Option<opentern_core::Timeframe> {
+    use opentern_core::{Timeframe, Unit};
+    let clean = text.trim();
+    if clean.is_empty() {
+        return None;
+    }
+    // If ending with M or m: TradingView treats it as MONTHS! E.g. "1M", "1m" -> 1 Month.
+    if clean.ends_with('M') || clean.ends_with('m') {
+        let num_str = clean[..clean.len() - 1].trim();
+        let n = if num_str.is_empty() {
+            1
+        } else {
+            num_str.parse::<u32>().ok()?
+        };
+        return Some(Timeframe {
+            unit: Unit::Month,
+            count: n,
+        });
+    }
+    // If only numbers entered: TradingView treats it as minutes (e.g. "5" -> 5 minutes, "1" -> 1 minute).
+    if let Ok(n) = clean.parse::<u32>() {
+        return Some(Timeframe {
+            unit: Unit::Minute,
+            count: n,
+        });
+    }
+    Timeframe::parse(clean)
 }
 
 fn interval_long_name(tf: opentern_core::Timeframe) -> String {

@@ -1177,6 +1177,7 @@ impl App {
                         self.open_alert_dialog(Some(a));
                     }
                 }
+                Action::MoveAlert(id, price) => self.move_alert(id, price),
                 Action::PaperMove(id, price) => self.paper_move(id, price),
                 Action::PaperCancel(id) => self.paper_cancel(id),
                 Action::PaperClose => {

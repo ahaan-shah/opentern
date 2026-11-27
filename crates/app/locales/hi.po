@@ -327,6 +327,9 @@ msgstr "एजेंट पैनल"
 msgid "Alert"
 msgstr "अलर्ट"
 
+msgid "Alert created"
+msgstr "अलर्ट बनाया गया"
+
 msgid "Alerts"
 msgstr "अलर्ट"
 
@@ -1422,6 +1425,9 @@ msgstr "{min} मिनट की देरी"
 
 msgid "Delete"
 msgstr "हटाएँ"
+
+msgid "Delete all alerts"
+msgstr "सभी अलर्ट हटाएं"
 
 msgid "Delete folder (if empty)"
 msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
