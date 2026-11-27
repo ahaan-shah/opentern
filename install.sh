@@ -215,7 +215,7 @@ draw() {
     fi
     done_part="" left_part="" n=0
     while [ $n -lt $width ]; do
-        if [ $n -lt $filled ]; then done_part="$done_part■"; else left_part="$left_part·"; fi
+        if [ $n -lt $filled ]; then done_part="${done_part}■"; else left_part="${left_part}·"; fi
         n=$((n + 1))
     done
     printf '\r\033[K  %s%s%s%s%s  %4s  %s%s%s' "$GREEN" "$done_part" "$RESET$DIM" "$left_part" "$RESET" "$pct" "$DIM" "$size" "$RESET"

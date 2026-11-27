@@ -26,6 +26,9 @@
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
 - **A deeper equity chart in the Strategy Report.** Its legend turns Equity, Buy & hold and Drawdown on and off; it shows money or percent, on a linear or log scale, with dates along the bottom. Drag across it to zoom into a range and see that range's profit, drawdown and trades; double-click to see everything again. Click it to show that day on the price chart. The worst drawdown stands out in the drawdown strip, the tooltip lists the trades that closed on a bar, and the three lines' colours are in Strategy settings. Buy & hold now matches the report's Buy & hold return. Thanks to the author of pull request #9.
 
+### Fixed
+- The macOS installer stopped with "left_part?: unbound variable" before downloading. macOS runs the script with an older shell that misread the progress bar's dots.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.
