@@ -88,6 +88,12 @@ struct PaneGeo {
     pct_base: Option<f64>,
 }
 
+/// How long until a countdown showing `left` ms (whole seconds, rounded
+/// down) shows the next second, a few ms past so it has turned over.
+fn next_second(left: i64) -> std::time::Duration {
+    std::time::Duration::from_millis(left.rem_euclid(1000) as u64 + 5)
+}
+
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
     let p = chart.precision();
     let market = format::market_of(&chart.symbol);
@@ -1166,8 +1172,16 @@ pub fn show(
             }
         }
     }
-    if chart.style.countdown && chart.status == Status::Live && chart.tf.millis().is_some() {
-        ui.ctx().request_repaint_after(std::time::Duration::from_secs(1));
+    // Wake when the countdown's second turns over, not a second after this
+    // frame: price updates land at any moment, and a timer counted from
+    // them drifted against the clock (a 1.8 s pause, then a 0.2 s step).
+    if chart.style.countdown
+        && chart.status == Status::Live
+        && !chart.style.kind.time_free()
+        && let (Some(len), Some(b)) = (chart.tf.millis(), chart.bars.last())
+    {
+        let left = b.time + len - jiff::Timestamp::now().as_millisecond();
+        ui.ctx().request_repaint_after(next_second(left));
     }
 
     // ---- the quick measure's ends, marked on both axes
@@ -3245,4 +3259,21 @@ fn legend_backing(
         slot,
         egui::epaint::RectShape::new(r, CornerRadius::same(5), fill, stroke, egui::StrokeKind::Inside),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_second;
+    use std::time::Duration;
+
+    /// The countdown wakes just after its shown second turns over, whenever
+    /// the frame that asks happens to be.
+    #[test]
+    fn the_countdown_wakes_on_the_second() {
+        assert_eq!(next_second(59_870), Duration::from_millis(875));
+        assert_eq!(next_second(59_001), Duration::from_millis(6));
+        assert_eq!(next_second(59_000), Duration::from_millis(5));
+        // Past the close, before the new bar arrives: still once a second.
+        assert_eq!(next_second(-250), Duration::from_millis(755));
+    }
 }
