@@ -54,6 +54,30 @@ same app with other charts in it.
     again, then catch up on the bars they missed (the Strategy Report covers
     the shown workspace's strategies).
 
+## Scripts recalculate in the background (Nov 2026)
+Today a script's full recalculation (adding it, new inputs, a new symbol or
+interval, more history) runs on the UI thread in `Chart::run_study`, so a
+heavy script freezes the chart for that long (a 20,000-bar strategy can take
+0.3 s or more). Built-ins are fast enough to stay as they are.
+
+- **How:** for a script study (`inst.factory()` is some, not external), a full
+  run builds a fresh `Instance` (`with_inputs`), sends it with a copy of the
+  bars, sessions, interval and its links to `rayon::spawn`, and the chart keeps
+  drawing the old outputs. The result comes back on a channel the chart owns,
+  polled each frame (`App::frame`, every chart via `each_chart`); the worker
+  calls `request_repaint`. On arrival: drop it if a newer run was asked for or
+  the bars were replaced since (an epoch bumped by `recompute_all`), otherwise
+  `update` it to catch up with bars that came meanwhile, swap it in and
+  `touch()`.
+- **Live ticks** keep updating the old instance while a run is out.
+- **Order:** a study that reads another (`study_order`, `refresh_readers`)
+  waits until the one it reads has come back, then runs with the new links.
+- **Crashes:** wrap the run in `catch_unwind` (rayon aborts on a panic) and
+  report "The script crashed." as the screener does.
+- **Tests:** run synchronously while the chart has no egui context (unit
+  tests), so the existing chart tests don't change; check `drive.rs` tests and
+  stills, which may expect a script's lines on the first frames.
+
 ## Strategies: bar magnifier and every-tick recalculation (Nov 2026)
 Waiting on outside pull requests for issues #5 (`calc_on_order_fills`) and #6
 (Strategy Report Overview chart); the maintainer reviews them first. These two
