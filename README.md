@@ -293,6 +293,19 @@ Debian or Ubuntu: `pkg-config libdbus-1-dev libxkbcommon-dev libwayland-dev
 libgl1-mesa-dev libgtk-3-dev`). For day-to-day work, `cargo run --profile fast
 -- --demo` builds quicker.
 
+### Opentern Dev (Linux)
+
+`scripts/dev-install.sh` builds your checkout and installs it as **Opentern Dev**,
+next to the released app: `~/.local/bin/opentern-dev` and an entry in your app
+menu. It's a separate app: its own workspace (`~/.local/share/opentern-dev`), its
+own saved API keys, and it never updates itself. Run the script again to replace
+it with a newer build; `scripts/dev-install.sh --remove` takes it away (its
+workspace stays). The install command above always installs the released app,
+with its own updates.
+
+Opentern Dev is built from your copy of the code. Usually that's the same as the
+latest release; if `main` has changes that aren't released yet, you get them early.
+
 ## License
 
 [MIT](LICENSE). Indicators ported from MPL-2.0 Pine scripts stay MPL-2.0 file
