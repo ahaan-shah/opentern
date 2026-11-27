@@ -4018,6 +4018,9 @@ msgstr "やり直す"
 msgid "Refresh"
 msgstr "更新"
 
+msgid "Regular"
+msgstr "標準"
+
 msgid "Rel volume"
 msgstr "相対出来高"
 

@@ -4018,6 +4018,9 @@ msgstr "फिर करें"
 msgid "Refresh"
 msgstr "ताज़ा करें"
 
+msgid "Regular"
+msgstr "सामान्य"
+
 msgid "Rel volume"
 msgstr "सापेक्ष वॉल्यूम"
 

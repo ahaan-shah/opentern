@@ -4018,6 +4018,9 @@ msgstr "Gör om"
 msgid "Refresh"
 msgstr "Uppdatera"
 
+msgid "Regular"
+msgstr "Normal"
+
 msgid "Rel volume"
 msgstr "Rel. volym"
 

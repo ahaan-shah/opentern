@@ -4018,6 +4018,9 @@ msgstr "Wiederholen"
 msgid "Refresh"
 msgstr "Aktualisieren"
 
+msgid "Regular"
+msgstr "Normal"
+
 msgid "Rel volume"
 msgstr "Rel. Volumen"
 

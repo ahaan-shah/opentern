@@ -4018,6 +4018,9 @@ msgstr "Повторить"
 msgid "Refresh"
 msgstr "Обновить"
 
+msgid "Regular"
+msgstr "Обычный"
+
 msgid "Rel volume"
 msgstr "Отн. объём"
 

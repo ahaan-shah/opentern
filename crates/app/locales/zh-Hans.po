@@ -4018,6 +4018,9 @@ msgstr "重做"
 msgid "Refresh"
 msgstr "刷新"
 
+msgid "Regular"
+msgstr "常规"
+
 msgid "Rel volume"
 msgstr "相对成交量"
 

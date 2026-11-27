@@ -25,9 +25,13 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - `app/src/strategy.rs`: strategy runs are rebuilt only when `data_version`, `changed` or
   a Python result (`ScriptRun::out_seq`) changes; Python strategies replay their
   `intents` through a broker. Strategy Report tab: Overview (KPI cards, compact on short
-  panels; equity, buy & hold and drawdown chart with hover), Performance, Trades
+  panels; equity, buy & hold and drawdown chart with hover and independent
+  legend toggles), Performance, Trades
   analysis, Risk/performance ratios, List of trades (virtualised rows, Export → CSV in
   `<workspace>/exports/`), Properties. Short tab names under 980 px.
+  The Overview chart scales to its visible series, starts at the first
+  executed fill, rebases buy & hold at that bar's open, and includes earlier
+  equity values when computing the drawdown peak.
 - Chart: `Chart::marks` (fills as arrows with "Long +1" labels, dashed entry→exit links,
   the open position's average price) and `Chart::paper` (paper position solid, orders
   dashed, with tags).

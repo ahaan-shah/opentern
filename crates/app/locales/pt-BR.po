@@ -4018,6 +4018,9 @@ msgstr "Refazer"
 msgid "Refresh"
 msgstr "Atualizar"
 
+msgid "Regular"
+msgstr "Normal"
+
 msgid "Rel volume"
 msgstr "Volume rel."
 
