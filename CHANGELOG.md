@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Strategy Report Overview starts at the first fill and scales to the series selected in its clickable legend.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

@@ -606,8 +606,7 @@ fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
         return;
     }
     let size = vec2(ui.available_width(), h);
-    let (rect, resp) = ui.allocate_exact_size(size, Sense::hover());
-    equity_chart(ui, t, &run.broker, bars, rect, resp.hover_pos(), f);
+    equity_chart(ui, t, &run.broker, bars, size, f);
 }
 
 /// A headline number in a card of width `w` (one line when `compact`).
@@ -679,148 +678,341 @@ pub(crate) fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, va
     }
 }
 
-/// Equity (accent), buy & hold (muted) and drawdown (under the zero line
-/// of its own strip), with a hover read-out.
-fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover: Option<egui::Pos2>, f: &Fmt) {
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum PerformanceScale {
+    #[default]
+    Regular,
+    Percent,
+}
+
+impl PerformanceScale {
+    fn axis_label(self, value: f64) -> String {
+        match self {
+            Self::Regular => num(value, 0),
+            Self::Percent => pct(value),
+        }
+    }
+
+    fn tooltip_value(self, value: f64, f: &Fmt) -> String {
+        match self {
+            Self::Regular => f.money(value),
+            Self::Percent => pct(value),
+        }
+    }
+}
+
+/// Equity, buy & hold and drawdown, with a clickable legend and hover read-out.
+fn equity_chart(ui: &mut Ui, t: &Theme, b: &Broker, bars: &[Bar], size: egui::Vec2, f: &Fmt) {
+    let (id, rect) = ui.allocate_space(size);
     let p = ui.painter_at(rect);
-    let n = b.equity.len().min(bars.len());
-    if n < 2 {
+    let end = b.equity.len().min(bars.len());
+    let start = b.fills.first().map_or(0, |fill| fill.bar);
+    if start >= end || (end == 1 && b.fills.is_empty()) {
         return;
     }
+    let bars = &bars[start..end];
+    let values = &b.equity[start..end];
+    let n = bars.len();
+
     let cap = b.props.initial_capital;
-    let first_open = bars[0].open;
-    let hold: Vec<f64> = bars[..n]
-        .iter()
-        .map(|x| {
-            if first_open > 0.0 {
-                cap * x.close / first_open
-            } else {
-                cap
-            }
-        })
-        .collect();
-    let mut peak = f64::MIN;
-    let dd: Vec<f64> = b.equity[..n]
-        .iter()
-        .map(|e| {
-            peak = peak.max(*e);
-            peak - e
-        })
-        .collect();
-    let max_dd = dd.iter().cloned().fold(0.0, f64::max);
-    let right_gutter = 86.0;
-    let plot = Rect::from_min_max(rect.min, pos2(rect.right() - right_gutter, rect.bottom()));
-    let dd_h = (plot.height() * 0.22).min(70.0);
-    let eq_rect = Rect::from_min_max(plot.min, pos2(plot.right(), plot.bottom() - dd_h - 6.0));
-    let dd_rect = Rect::from_min_max(pos2(plot.left(), plot.bottom() - dd_h), plot.max);
-    let (lo, hi) = b.equity[..n]
-        .iter()
-        .chain(&hold)
-        .fold((f64::MAX, f64::MIN), |(l, h), v| (l.min(*v), h.max(*v)));
-    let pad = ((hi - lo) * 0.06).max(1e-9);
-    let (lo, hi) = (lo - pad, hi + pad);
-    let xs = |i: usize| plot.left() + plot.width() * i as f32 / (n - 1) as f32;
-    let ys = |v: f64| eq_rect.bottom() - eq_rect.height() * ((v - lo) / (hi - lo)) as f32;
-    // Grid and scale.
-    let font = egui::FontId::proportional(11.0);
-    for k in 0..4 {
-        let v = lo + (hi - lo) * k as f64 / 4.0;
-        let y = ys(v);
-        p.hline(eq_rect.x_range(), y, Stroke::new(1.0, t.border.gamma_multiply(0.6)));
-        // The lowest label would sit on the drawdown strip's.
-        if k == 0 {
-            continue;
+    let scale_id = ui.make_persistent_id("equity-chart-scale");
+    let percent_available = cap > 0.0;
+    let mut scale = if percent_available {
+        ui.data(|d| d.get_temp::<PerformanceScale>(scale_id))
+            .unwrap_or_default()
+    } else {
+        PerformanceScale::Regular
+    };
+    let header = Rect::from_min_size(rect.min, vec2(rect.width(), 26.0));
+    let mut controls = ui.new_child(
+        egui::UiBuilder::new()
+            .id_salt(scale_id)
+            .max_rect(header)
+            .layout(Layout::right_to_left(Align::Center)),
+    );
+    controls.spacing_mut().item_spacing.x = 0.0;
+    for (choice, label, enabled) in [
+        (PerformanceScale::Percent, tr("Percent"), percent_available),
+        (PerformanceScale::Regular, tr("Regular"), true),
+    ] {
+        let response = controls
+            .add_enabled_ui(enabled, |ui| small_button(ui, t, label, scale == choice))
+            .inner;
+        if response.clicked() && scale != choice {
+            scale = choice;
+            ui.data_mut(|d| d.insert_temp(scale_id, scale));
+            ui.ctx().request_repaint();
         }
-        p.text(
-            pos2(plot.right() + 8.0, y),
-            Align2::LEFT_CENTER,
-            grouped(v, 0),
-            font.clone(),
-            t.text3,
-        );
+        response.widget_info(|| {
+            egui::WidgetInfo::selected(
+                egui::WidgetType::SelectableLabel,
+                response.enabled(),
+                scale == choice,
+                label,
+            )
+        });
     }
-    let base = ys(cap);
-    p.hline(eq_rect.x_range(), base, Stroke::new(1.0, t.text3.gamma_multiply(0.5)));
-    // Area under equity, tinted by gain or loss against the starting capital.
-    let line: Vec<egui::Pos2> = (0..n).map(|i| pos2(xs(i), ys(b.equity[i]))).collect();
-    let mut mesh = egui::Mesh::default();
-    for i in 0..n - 1 {
-        let (a, c) = (line[i], line[i + 1]);
-        let col = if b.equity[i] >= cap { t.pos } else { t.neg }.gamma_multiply(0.12);
-        let idx = mesh.vertices.len() as u32;
-        mesh.colored_vertex(a, col);
-        mesh.colored_vertex(c, col);
-        mesh.colored_vertex(pos2(c.x, base), col);
-        mesh.colored_vertex(pos2(a.x, base), col);
-        mesh.add_triangle(idx, idx + 1, idx + 2);
-        mesh.add_triangle(idx, idx + 2, idx + 3);
+
+    let font = egui::FontId::proportional(11.0);
+    let legend_id = ui.make_persistent_id("equity-chart-legend");
+    let previous = ui.data(|d| d.get_temp(legend_id)).unwrap_or([true; 3]);
+    let mut visible = previous;
+    let legend_rect = Rect::from_min_max(header.min, pos2(controls.cursor().right(), header.bottom()));
+    let mut x = rect.left() + 6.0;
+    let legend = [
+        (0, tr("Equity"), t.accent),
+        (1, tr("Buy & hold"), t.text3),
+        (2, tr("Drawdown"), t.neg),
+    ]
+    .map(|(i, name, c)| {
+        let g = p.layout_no_wrap(name.to_string(), font.clone(), t.text2);
+        let at = x;
+        let hit =
+            Rect::from_min_size(pos2(x, header.top()), vec2(g.size().x + 18.0, header.height())).intersect(legend_rect);
+        let mut resp = ui
+            .interact(hit, legend_id.with(i), Sense::click())
+            .on_hover_cursor(egui::CursorIcon::PointingHand);
+        if resp.clicked() {
+            visible[i] = !visible[i];
+            resp.mark_changed();
+        }
+        resp.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, ui.is_enabled(), visible[i], name));
+        x += g.size().x + 28.0;
+        (at, g, c, visible[i])
+    });
+    if visible != previous {
+        ui.data_mut(|d| d.insert_temp(legend_id, visible));
     }
-    p.add(mesh);
-    let hold_line: Vec<egui::Pos2> = (0..n).map(|i| pos2(xs(i), ys(hold[i]))).collect();
-    p.add(egui::Shape::line(hold_line, Stroke::new(1.0, t.text3)));
-    p.add(egui::Shape::line(line.clone(), Stroke::new(1.6, t.accent)));
-    // Drawdown strip.
-    if max_dd > 0.0 {
-        let mut mesh = egui::Mesh::default();
-        let col = t.neg.gamma_multiply(0.55);
-        for (i, d) in dd.iter().enumerate() {
-            if *d <= 0.0 {
+    let [equity_on, hold_on, drawdown_on] = visible;
+    let has_curves = equity_on || hold_on;
+
+    let equity = equity_on.then(|| {
+        values
+            .iter()
+            .map(|e| match scale {
+                PerformanceScale::Regular => e - cap,
+                PerformanceScale::Percent => (e - cap) / cap * 100.0,
+            })
+            .collect::<Vec<_>>()
+    });
+    let hold = hold_on.then(|| {
+        let first_open = bars[0].open;
+        bars.iter()
+            .map(|x| {
+                let change = if first_open > 0.0 {
+                    x.close / first_open - 1.0
+                } else {
+                    0.0
+                };
+                match scale {
+                    PerformanceScale::Regular => cap * change,
+                    PerformanceScale::Percent => change * 100.0,
+                }
+            })
+            .collect::<Vec<_>>()
+    });
+    let dd = drawdown_on.then(|| {
+        // Keep the drawdown of each visible bar relative to the original equity peak.
+        let mut peak = b.equity[..start].iter().copied().fold(f64::MIN, f64::max);
+        values
+            .iter()
+            .map(|e| {
+                peak = peak.max(*e);
+                match scale {
+                    PerformanceScale::Regular => Some(e - peak),
+                    PerformanceScale::Percent => (peak > 0.0).then(|| (e - peak) / peak * 100.0),
+                }
+            })
+            .collect::<Vec<_>>()
+    });
+    let right_gutter = 86.0;
+    let plot = Rect::from_min_max(
+        pos2(rect.left(), header.bottom()),
+        pos2(rect.right() - right_gutter, rect.bottom()),
+    );
+    let dd_h = (plot.height() * 0.22).min(70.0);
+    let xs = |i: usize| plot.left() + plot.width() * i as f32 / (n - 1).max(1) as f32;
+    let hover = ui.interact(plot, id, Sense::hover()).hover_pos();
+    let hover_index = hover
+        .filter(|h| (has_curves || drawdown_on) && plot.contains(*h))
+        .map(|h| {
+            (((h.x - plot.left()) / plot.width()) * (n - 1) as f32)
+                .round()
+                .clamp(0.0, (n - 1) as f32) as usize
+        });
+
+    let mut equity_marker = None;
+    let zero_stroke = Stroke::new(1.5, t.text3);
+    if has_curves {
+        let eq_rect = if drawdown_on {
+            Rect::from_min_max(plot.min, pos2(plot.right(), plot.bottom() - dd_h - 6.0))
+        } else {
+            plot
+        };
+        let (lo, hi) = equity
+            .as_deref()
+            .into_iter()
+            .chain(hold.as_deref())
+            .flatten()
+            .fold((0.0_f64, 0.0_f64), |(l, h), v| (l.min(*v), h.max(*v)));
+        let pad = ((hi - lo) * 0.06).max(1e-9);
+        let (lo, hi) = (lo - pad, hi + pad);
+        let ys = |v: f64| eq_rect.bottom() - eq_rect.height() * ((v - lo) / (hi - lo)) as f32;
+        let base = ys(0.0);
+        // Grid and scale.
+        for k in 0..4 {
+            let v = lo + (hi - lo) * k as f64 / 4.0;
+            let y = ys(v);
+            p.hline(eq_rect.x_range(), y, Stroke::new(1.0, t.border.gamma_multiply(0.6)));
+            // The lowest label is too close to the bottom edge or the drawdown scale.
+            if k == 0 || (y - base).abs() < 11.0 {
                 continue;
             }
-            let h = dd_rect.height() * (*d / max_dd) as f32;
-            let w = (plot.width() / n as f32).max(1.0);
-            let r = Rect::from_min_size(pos2(xs(i) - w / 2.0, dd_rect.top()), vec2(w, h));
-            mesh.add_colored_rect(r, col);
+            p.text(
+                pos2(plot.right() + 8.0, y),
+                Align2::LEFT_CENTER,
+                scale.axis_label(v),
+                font.clone(),
+                t.text3,
+            );
         }
-        p.add(mesh);
+        let line = equity.as_ref().map(|values| {
+            let line: Vec<_> = values.iter().enumerate().map(|(i, v)| pos2(xs(i), ys(*v))).collect();
+            let mut mesh = egui::Mesh::default();
+            let mut shade = |a: egui::Pos2, c: egui::Pos2, positive| {
+                let col = if positive { t.pos } else { t.neg }.gamma_multiply(0.12);
+                let idx = mesh.vertices.len() as u32;
+                mesh.colored_vertex(a, col);
+                mesh.colored_vertex(c, col);
+                mesh.colored_vertex(pos2(c.x, base), col);
+                mesh.colored_vertex(pos2(a.x, base), col);
+                mesh.add_triangle(idx, idx + 1, idx + 2);
+                mesh.add_triangle(idx, idx + 2, idx + 3);
+            };
+            for i in 0..n - 1 {
+                let (a, c) = (line[i], line[i + 1]);
+                let (v, next) = (values[i], values[i + 1]);
+                let positive = v >= 0.0;
+                if positive == (next >= 0.0) {
+                    shade(a, c, positive);
+                } else {
+                    let crossing = pos2(egui::lerp(a.x..=c.x, (v / (v - next)) as f32), base);
+                    shade(a, crossing, positive);
+                    shade(crossing, c, !positive);
+                }
+            }
+            p.add(mesh);
+            line
+        });
+        p.hline(eq_rect.x_range(), base, zero_stroke);
         p.text(
-            pos2(plot.right() + 8.0, dd_rect.bottom() - 6.0),
+            pos2(plot.right() + 8.0, base),
             Align2::LEFT_CENTER,
-            format!("−{}", grouped(max_dd, 0)),
+            scale.axis_label(0.0),
             font.clone(),
-            t.neg,
+            t.text2,
+        );
+        let paint_curve = |line: Vec<_>, stroke: Stroke| {
+            if let [point] = line.as_slice() {
+                p.circle_filled(*point, stroke.width, stroke.color);
+            } else {
+                p.add(egui::Shape::line(line, stroke));
+            }
+        };
+        if let Some(hold) = &hold {
+            let line = hold.iter().enumerate().map(|(i, v)| pos2(xs(i), ys(*v))).collect();
+            paint_curve(line, Stroke::new(1.0, t.text3));
+        }
+        if let Some(line) = line {
+            equity_marker = hover_index.map(|i| line[i]);
+            paint_curve(line, Stroke::new(1.6, t.accent));
+        }
+    }
+    if let Some(dd) = &dd {
+        let dd_rect = if has_curves {
+            Rect::from_min_max(pos2(plot.left(), plot.bottom() - dd_h), plot.max)
+        } else {
+            plot
+        };
+        let min_dd = dd.iter().flatten().copied().fold(0.0, f64::min);
+        if min_dd < 0.0 {
+            let mut mesh = egui::Mesh::default();
+            let col = t.neg.gamma_multiply(0.55);
+            for (i, d) in dd
+                .iter()
+                .enumerate()
+                .filter_map(|(i, d)| d.filter(|d| *d < 0.0).map(|d| (i, d)))
+            {
+                let h = dd_rect.height() * (d / min_dd) as f32;
+                let w = (plot.width() / n as f32).max(1.0);
+                let r = Rect::from_min_size(pos2(xs(i) - w / 2.0, dd_rect.top()), vec2(w, h));
+                mesh.add_colored_rect(r, col);
+            }
+            p.add(mesh);
+            p.text(
+                pos2(plot.right() + 8.0, dd_rect.bottom() - 6.0),
+                Align2::LEFT_CENTER,
+                scale.axis_label(min_dd),
+                font.clone(),
+                t.neg,
+            );
+        }
+        p.hline(dd_rect.x_range(), dd_rect.top(), zero_stroke);
+        p.text(
+            pos2(plot.right() + 8.0, dd_rect.top()),
+            Align2::LEFT_CENTER,
+            scale.axis_label(0.0),
+            font.clone(),
+            t.text2,
         );
     }
-    p.hline(dd_rect.x_range(), dd_rect.top(), Stroke::new(1.0, t.border));
     // Legend.
-    let legend = [
-        (tr("Equity"), t.accent),
-        (tr("Buy & hold"), t.text3),
-        (tr("Drawdown"), t.neg),
-    ];
-    let mut x = eq_rect.left() + 6.0;
-    for (name, c) in legend {
+    for (x, g, c, on) in legend {
+        let mut p = p.with_clip_rect(legend_rect);
+        if !on {
+            p.multiply_opacity(0.45);
+        }
         p.rect_filled(
-            Rect::from_center_size(pos2(x + 5.0, eq_rect.top() + 9.0), vec2(10.0, 3.0)),
+            Rect::from_center_size(pos2(x + 5.0, header.center().y), vec2(10.0, 3.0)),
             1.0,
             c,
         );
-        let g = p.layout_no_wrap(name.to_string(), font.clone(), t.text2);
-        let w = g.size().x;
-        p.galley(pos2(x + 14.0, eq_rect.top() + 2.0), g, t.text2);
-        x += w + 28.0;
+        p.galley(pos2(x + 14.0, header.center().y - g.size().y / 2.0), g, t.text2);
     }
     // Hover read-out.
-    if let Some(h) = hover.filter(|h| plot.contains(*h)) {
-        let i = (((h.x - plot.left()) / plot.width()) * (n - 1) as f32)
-            .round()
-            .clamp(0.0, (n - 1) as f32) as usize;
+    if let Some(i) = hover_index {
         let xx = xs(i);
         p.vline(xx, plot.y_range(), Stroke::new(1.0, t.text3.gamma_multiply(0.6)));
-        p.circle_filled(line[i], 3.5, t.accent);
-        let text = trf!(
-            "{}\nEquity  {}\nBuy & hold  {}\nDrawdown  {}",
-            time_text(bars[i].time, &f.tz),
-            f.money(b.equity[i]),
-            f.money(hold[i]),
-            f.money(-dd[i]),
-        );
+        if let Some(marker) = equity_marker {
+            p.circle_filled(marker, 3.5, t.accent);
+        }
+        let time = time_text(bars[i].time, &f.tz);
+        let display = |value| scale.tooltip_value(value, f);
+        let equity = equity.as_ref().map(|v| display(v[i]));
+        let hold = hold.as_ref().map(|v| display(v[i]));
+        let dd = dd.as_ref().map(|v| v[i].map_or_else(|| "—".into(), display));
+        let text = match (&equity, &hold, &dd) {
+            (Some(equity), Some(hold), Some(dd)) => {
+                trf!("{}\nEquity  {}\nBuy & hold  {}\nDrawdown  {}", time, equity, hold, dd,)
+            }
+            _ => {
+                let mut text = time;
+                for (name, value) in [(tr("Equity"), equity), (tr("Buy & hold"), hold), (tr("Drawdown"), dd)] {
+                    if let Some(value) = value {
+                        use std::fmt::Write;
+                        let _ = write!(text, "\n{name}  {value}");
+                    }
+                }
+                text
+            }
+        };
         let g = p.layout(text, font, t.text, 220.0);
         let size = g.size() + vec2(16.0, 12.0);
-        let mut at = pos2(xx + 12.0, eq_rect.top() + 24.0);
+        let mut at = pos2(xx + 12.0, plot.top() + 24.0);
         if at.x + size.x > plot.right() {
             at.x = xx - 12.0 - size.x;
         }
+        at.y = at.y.clamp(plot.top(), (plot.bottom() - size.y).max(plot.top()));
         let r = Rect::from_min_size(at, size);
         p.rect(
             r,
@@ -1185,6 +1377,629 @@ fn properties(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], sym: &str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use egui::epaint::ClippedShape;
+
+    fn overview_fixture() -> (Props, Vec<Bar>) {
+        let props = Props {
+            initial_capital: 1000.0,
+            slippage: 15,
+            mintick: 1.0,
+            ..Props::default()
+        };
+        let bars = [
+            (0, 10.0, 20.0),
+            (1, 90.0, 100.0),
+            (3, 50.0, 60.0),
+            (7, 70.0, 80.0),
+            (10, 60.0, 65.0),
+        ]
+        .into_iter()
+        .map(|(minute, open, close)| Bar {
+            time: minute * 60_000,
+            open,
+            high: close + 15.0,
+            low: open,
+            close,
+            volume: 1.0,
+        })
+        .collect();
+        (props, bars)
+    }
+
+    fn overview_entry(bar: usize) -> serde_json::Value {
+        serde_json::json!({"bar": bar, "type": "entry", "id": "L", "qty": 2.0})
+    }
+
+    fn overview_test_context() -> egui::Context {
+        let ctx = egui::Context::default();
+        theme::install_fonts(&ctx, theme::FONTS[0].name);
+        ctx
+    }
+
+    fn overview_frame(
+        ctx: &egui::Context,
+        broker: &Broker,
+        bars: &[Bar],
+        events: Vec<egui::Event>,
+    ) -> Vec<ClippedShape> {
+        overview_frame_at_height(ctx, broker, bars, 200.0, events)
+    }
+
+    fn overview_frame_at_height(
+        ctx: &egui::Context,
+        broker: &Broker,
+        bars: &[Bar],
+        height: f32,
+        events: Vec<egui::Event>,
+    ) -> Vec<ClippedShape> {
+        let size = vec2(600.0, height);
+        let input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(egui::Pos2::ZERO, size)),
+            events,
+            ..Default::default()
+        };
+        let theme = Theme::by_name("Tern Dark");
+        let fmt = Fmt {
+            ccy: "USD".into(),
+            tz: jiff::tz::TimeZone::UTC,
+        };
+        let mut output = ctx.run_ui(input, |ui| equity_chart(ui, &theme, broker, bars, size, &fmt));
+        output.textures_delta.clear();
+        output.shapes
+    }
+
+    fn overview_hover(ctx: &egui::Context, broker: &Broker, bars: &[Bar], x: f32) -> Vec<ClippedShape> {
+        overview_frame(ctx, broker, bars, vec![egui::Event::PointerMoved(pos2(x, 100.0))]);
+        overview_frame(ctx, broker, bars, vec![])
+    }
+
+    fn overview_tooltip(shapes: &[ClippedShape]) -> Option<&str> {
+        shapes.iter().find_map(|shape| match &shape.shape {
+            egui::Shape::Text(text) if text.galley.text().starts_with("1970-01-") => Some(text.galley.text()),
+            _ => None,
+        })
+    }
+
+    fn overview_curve(shapes: &[ClippedShape], width: f32) -> Option<&[egui::Pos2]> {
+        shapes.iter().find_map(|shape| match &shape.shape {
+            egui::Shape::Path(path) if path.stroke.width == width => Some(path.points.as_slice()),
+            _ => None,
+        })
+    }
+
+    fn overview_click(
+        ctx: &egui::Context,
+        broker: &Broker,
+        bars: &[Bar],
+        shapes: &[ClippedShape],
+        name: &str,
+    ) -> Vec<ClippedShape> {
+        let pos = shapes
+            .iter()
+            .find_map(|shape| match &shape.shape {
+                egui::Shape::Text(text) if text.galley.text() == name => Some(text.pos + vec2(4.0, 4.0)),
+                _ => None,
+            })
+            .unwrap();
+        let button = |pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        overview_frame(ctx, broker, bars, vec![egui::Event::PointerMoved(pos), button(true)]);
+        overview_frame(ctx, broker, bars, vec![button(false)])
+    }
+
+    fn overview_context(broker: &Broker, bars: &[Bar], percent: bool) -> egui::Context {
+        let ctx = overview_test_context();
+        if percent {
+            let shapes = overview_frame(&ctx, broker, bars, vec![]);
+            overview_click(&ctx, broker, bars, &shapes, "Percent");
+        }
+        ctx
+    }
+
+    fn overview_axis_has(shapes: &[ClippedShape], label: &str) -> bool {
+        shapes.iter().any(|shape| match &shape.shape {
+            egui::Shape::Text(text) => text.pos.x >= 522.0 && text.galley.text() == label,
+            _ => false,
+        })
+    }
+
+    fn overview_drawdown_mesh<'a>(shapes: &'a [ClippedShape], theme: &Theme) -> Option<&'a egui::Mesh> {
+        shapes.iter().find_map(|shape| match &shape.shape {
+            egui::Shape::Mesh(mesh)
+                if mesh
+                    .vertices
+                    .first()
+                    .is_some_and(|v| v.color == theme.neg.gamma_multiply(0.55)) =>
+            {
+                Some(mesh.as_ref())
+            }
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn overview_delayed_fill_aligns_series_and_hover() {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        assert_eq!((broker.fills[0].bar, broker.fills[0].time), (2, bars[2].time));
+        assert_eq!(broker.fills[0].price, 65.0);
+        assert_eq!(broker.equity, [1000.0, 1000.0, 990.0, 1030.0, 1000.0]);
+
+        for percent in [false, true] {
+            let ctx = overview_context(&broker, &bars, percent);
+            for (x, time, regular, percent_values) in [
+                (
+                    1.0,
+                    "00:03",
+                    ["−10.00 USD", "200.00 USD", "−10.00 USD"],
+                    ["−1.00%", "20.00%", "−1.00%"],
+                ),
+                (
+                    257.0,
+                    "00:07",
+                    ["30.00 USD", "600.00 USD", "0.00 USD"],
+                    ["3.00%", "60.00%", "0.00%"],
+                ),
+                (
+                    513.0,
+                    "00:10",
+                    ["0.00 USD", "300.00 USD", "−30.00 USD"],
+                    ["0.00%", "30.00%", "−2.91%"],
+                ),
+            ] {
+                let [equity, hold, dd] = if percent { percent_values } else { regular };
+                let tooltip = format!("1970-01-01 {time}\nEquity  {equity}\nBuy & hold  {hold}\nDrawdown  {dd}");
+                let shapes = overview_hover(&ctx, &broker, &bars, x);
+                assert_eq!(overview_tooltip(&shapes), Some(tooltip.as_str()));
+                for width in [1.6, 1.0] {
+                    let curve = overview_curve(&shapes, width).unwrap();
+                    assert_eq!(
+                        curve.iter().map(|point| point.x).collect::<Vec<_>>(),
+                        [0.0, 257.0, 514.0]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn overview_first_bar_fill_and_no_fill_keep_full_history() {
+        let (mut props, bars) = overview_fixture();
+        props.process_orders_on_close = true;
+        let first = replay(props.clone(), &[overview_entry(0)], &bars, false);
+        assert_eq!(first.fills[0].bar, 0);
+        let mut limit = overview_entry(0);
+        limit["limit"] = serde_json::json!(1.0);
+        let none = replay(props, &[limit], &bars, false);
+        assert!(none.fills.is_empty());
+        assert_eq!(none.pending.len(), 1);
+
+        for (broker, regular, percent_value) in [(&first, "−30.00 USD", "−3.00%"), (&none, "0.00 USD", "0.00%")] {
+            for (percent, equity, hold) in [(false, regular, "1,000.00 USD"), (true, percent_value, "100.00%")] {
+                let ctx = overview_context(broker, &bars, percent);
+                let left = overview_hover(&ctx, broker, &bars, 1.0);
+                let tooltip = overview_tooltip(&left).unwrap();
+                assert!(tooltip.starts_with(&format!("1970-01-01 00:00\nEquity  {equity}\nBuy & hold  {hold}")));
+                assert_eq!(overview_curve(&left, 1.6).unwrap().len(), bars.len());
+                assert_eq!(overview_curve(&left, 1.0).unwrap().len(), bars.len());
+                let right = overview_hover(&ctx, broker, &bars, 513.0);
+                assert!(overview_tooltip(&right).unwrap().starts_with("1970-01-01 00:10"));
+            }
+        }
+    }
+
+    #[test]
+    fn overview_last_bar_fill_draws_single_sample() {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(3)], &bars, false);
+        assert_eq!(broker.fills[0].bar, 4);
+        for (percent, tooltip) in [
+            (
+                false,
+                "1970-01-01 00:10\nEquity  −20.00 USD\nBuy & hold  83.33 USD\nDrawdown  −20.00 USD",
+            ),
+            (
+                true,
+                "1970-01-01 00:10\nEquity  −2.00%\nBuy & hold  8.33%\nDrawdown  −2.00%",
+            ),
+        ] {
+            let ctx = overview_context(&broker, &bars, percent);
+            let shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+            let dots: Vec<_> = shapes
+                .iter()
+                .filter_map(|shape| match &shape.shape {
+                    egui::Shape::Circle(circle) => Some(circle.center),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(dots.len(), 2);
+            assert!(dots.iter().all(|dot| dot.x == 0.0 && dot.y.is_finite()));
+            let shapes = overview_hover(&ctx, &broker, &bars, 513.0);
+            assert_eq!(overview_tooltip(&shapes), Some(tooltip));
+        }
+    }
+
+    #[test]
+    fn overview_toggles_and_autoscale_use_visible_series_after_fill() {
+        for percent in [false, true] {
+            check_overview_toggles_and_autoscale(percent);
+        }
+    }
+
+    fn check_overview_toggles_and_autoscale(percent: bool) {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        let theme = Theme::by_name("Tern Dark");
+        let ctx = overview_context(&broker, &bars, percent);
+        let names = ["Equity", "Buy & hold", "Drawdown"];
+        let mut shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+        let plot_height = 200.0 - 26.0;
+        let dd_top = 200.0 - plot_height * 0.22;
+        // Each transition is a single click, covering every legend combination and restoring the default.
+        for (toggle, visible) in [
+            (None, [true, true, true]),
+            (Some(1), [true, false, true]),
+            (Some(2), [true, false, false]),
+            (Some(1), [true, true, false]),
+            (Some(0), [false, true, false]),
+            (Some(2), [false, true, true]),
+            (Some(1), [false, false, true]),
+            (Some(2), [false, false, false]),
+            (Some(1), [false, true, false]),
+            (Some(0), [true, true, false]),
+            (Some(2), [true, true, true]),
+        ] {
+            if let Some(i) = toggle {
+                shapes = overview_click(&ctx, &broker, &bars, &shapes, names[i]);
+                assert_eq!(
+                    overview_curve(&shapes, 1.6).is_some(),
+                    visible[0],
+                    "click frame {visible:?}"
+                );
+                assert_eq!(
+                    overview_curve(&shapes, 1.0).is_some(),
+                    visible[1],
+                    "click frame {visible:?}"
+                );
+            }
+
+            shapes = overview_hover(&ctx, &broker, &bars, 257.0);
+            let tooltip = overview_tooltip(&shapes);
+            assert_eq!(tooltip.is_some(), visible.contains(&true), "{visible:?}");
+            if let Some(tooltip) = tooltip {
+                assert!(tooltip.starts_with("1970-01-01 00:07"));
+                for (name, on) in names.into_iter().zip(visible) {
+                    assert_eq!(tooltip.contains(&format!("\n{name}  ")), on, "{visible:?}");
+                }
+                assert!(
+                    tooltip
+                        .lines()
+                        .skip(1)
+                        .all(|line| line.ends_with(if percent { "%" } else { " USD" }))
+                );
+            }
+            let curve_height = if visible[2] { dd_top - 6.0 - 26.0 } else { plot_height };
+            for (i, width) in [1.6, 1.0].into_iter().enumerate() {
+                let curve = overview_curve(&shapes, width);
+                assert_eq!(curve.is_some(), visible[i], "{visible:?}");
+                if let Some(curve) = curve {
+                    let height = (curve[0].y - curve[1].y).abs();
+                    let fraction = if visible[0] && visible[1] {
+                        [40.0, 400.0][i] / 610.0
+                    } else if i == 1 {
+                        400.0 / 600.0
+                    } else {
+                        1.0
+                    };
+                    assert!(
+                        (height - curve_height * fraction / 1.12).abs() < 0.01,
+                        "{visible:?} {height}"
+                    );
+                }
+            }
+            let drawdown_mesh = overview_drawdown_mesh(&shapes, &theme);
+            assert_eq!(drawdown_mesh.is_some(), visible[2], "{visible:?}");
+            if let Some(mesh) = drawdown_mesh {
+                let top = if visible[0] || visible[1] { dd_top } else { 26.0 };
+                assert_eq!(mesh.vertices.len(), 8);
+                assert_eq!(mesh.vertices[0].pos.y, top);
+                assert_eq!(mesh.vertices[4].pos.y, top);
+                assert_eq!(mesh.vertices[6].pos.y, 200.0);
+            }
+        }
+    }
+
+    #[test]
+    fn overview_localizes_partial_tooltip_and_keeps_visibility_across_languages() {
+        use crate::i18n::{self, Lang};
+
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        let ctx = overview_test_context();
+        i18n::set(Lang::German);
+        let shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+        overview_click(&ctx, &broker, &bars, &shapes, "Buy & Hold");
+        let shapes = overview_hover(&ctx, &broker, &bars, 257.0);
+        let tooltip = overview_tooltip(&shapes).unwrap();
+        assert!(tooltip.contains("\nKapital  "));
+        assert!(!tooltip.contains("\nBuy & Hold  "));
+
+        i18n::set(Lang::English);
+        let shapes = overview_hover(&ctx, &broker, &bars, 257.0);
+        let tooltip = overview_tooltip(&shapes).unwrap();
+        assert!(tooltip.contains("\nEquity  "));
+        assert!(!tooltip.contains("\nBuy & hold  "));
+    }
+
+    #[test]
+    fn overview_scale_switch_updates_axis_and_drawdown_on_the_click_frame() {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        let ctx = overview_test_context();
+        let theme = Theme::by_name("Tern Dark");
+        let shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+        let shapes = overview_click(&ctx, &broker, &bars, &shapes, "Buy & hold");
+
+        for (name, bottom, fraction, tooltip) in [
+            ("Regular", "−30", 1.0 / 3.0, "Equity  −10.00 USD\nDrawdown  −10.00 USD"),
+            ("Percent", "−2.91%", 1.03 / 3.0, "Equity  −1.00%\nDrawdown  −1.00%"),
+            ("Regular", "−30", 1.0 / 3.0, "Equity  −10.00 USD\nDrawdown  −10.00 USD"),
+        ] {
+            let frame = overview_click(&ctx, &broker, &bars, &shapes, name);
+            assert!(overview_axis_has(&frame, bottom), "{name}");
+            assert!(overview_curve(&frame, 1.0).is_none(), "{name}");
+            let mesh = overview_drawdown_mesh(&frame, &theme).unwrap();
+            let first = mesh.vertices[2].pos.y - mesh.vertices[0].pos.y;
+            let last = mesh.vertices[6].pos.y - mesh.vertices[4].pos.y;
+            assert!((first / last - fraction).abs() < 1e-4, "{name}");
+
+            let hover = overview_hover(&ctx, &broker, &bars, 1.0);
+            assert!(overview_tooltip(&hover).unwrap().ends_with(tooltip), "{name}");
+        }
+
+        overview_click(&ctx, &broker, &bars, &shapes, "Percent");
+        let fresh = overview_test_context();
+        assert!(
+            overview_tooltip(&overview_hover(&fresh, &broker, &bars, 1.0))
+                .unwrap()
+                .ends_with("Drawdown  −10.00 USD")
+        );
+        assert!(
+            overview_tooltip(&overview_hover(&ctx, &broker, &bars, 1.0))
+                .unwrap()
+                .ends_with("Drawdown  −1.00%")
+        );
+    }
+
+    #[test]
+    fn overview_zero_lines_and_equity_fill_use_the_performance_baseline() {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        let theme = Theme::by_name("Tern Dark");
+        for (percent, label) in [(false, "0"), (true, "0.00%")] {
+            let ctx = overview_context(&broker, &bars, percent);
+            let shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+            let zeroes: Vec<_> = shapes
+                .iter()
+                .filter_map(|shape| match &shape.shape {
+                    egui::Shape::LineSegment { points, stroke } if *stroke == Stroke::new(1.5, theme.text3) => {
+                        assert_eq!(points[0].y, points[1].y);
+                        Some(points[0].y)
+                    }
+                    _ => None,
+                })
+                .collect();
+            let equity = overview_curve(&shapes, 1.6).unwrap();
+            let drawdown = overview_drawdown_mesh(&shapes, &theme).unwrap();
+            assert_eq!(zeroes, [equity[2].y, drawdown.vertices[0].pos.y]);
+            assert!(zeroes[0] < zeroes[1]);
+            assert!(overview_axis_has(&shapes, label));
+
+            let colors = [theme.neg.gamma_multiply(0.12), theme.pos.gamma_multiply(0.12)];
+            let fill = shapes.iter().find_map(|shape| match &shape.shape {
+                egui::Shape::Mesh(mesh) if mesh.vertices.first().is_some_and(|v| v.color == colors[0]) => Some(mesh),
+                _ => None,
+            });
+            let fill = fill.unwrap();
+            let crossing = pos2(64.25, zeroes[0]);
+            for color in colors {
+                assert!(
+                    fill.vertices
+                        .iter()
+                        .any(|v| v.pos.distance(crossing) < 0.01 && v.color == color)
+                );
+            }
+
+            let shapes = overview_click(&ctx, &broker, &bars, &shapes, "Equity");
+            let hold_only = overview_click(&ctx, &broker, &bars, &shapes, "Drawdown");
+            let zeroes: Vec<_> = hold_only
+                .iter()
+                .filter_map(|shape| match &shape.shape {
+                    egui::Shape::LineSegment { points, stroke } if *stroke == Stroke::new(1.5, theme.text3) => {
+                        assert!(points.iter().all(|&point| shape.clip_rect.contains(point)));
+                        Some(*points)
+                    }
+                    _ => None,
+                })
+                .collect();
+            let [[left, right]] = zeroes.as_slice() else {
+                panic!("Expected a single zero line with only Buy & hold visible");
+            };
+            assert_eq!((left.x, right.x), (0.0, 514.0));
+            assert_eq!(left.y, right.y);
+            assert!(left.y > 26.0 && left.y < 200.0);
+            let hold = overview_curve(&hold_only, 1.0).unwrap();
+            assert!(hold.iter().all(|point| point.y < left.y));
+            assert!(overview_axis_has(&hold_only, label));
+        }
+    }
+
+    #[test]
+    fn overview_full_tooltip_fits_the_minimum_plot_height() {
+        let (props, bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        let plot = Rect::from_min_max(pos2(0.0, 26.0), pos2(514.0, 90.0));
+        for (percent, unit) in [(false, " USD"), (true, "%")] {
+            let ctx = overview_context(&broker, &bars, percent);
+            let pointer = egui::Event::PointerMoved(pos2(257.0, 55.0));
+            overview_frame_at_height(&ctx, &broker, &bars, 90.0, vec![pointer]);
+            let shapes = overview_frame_at_height(&ctx, &broker, &bars, 90.0, vec![]);
+            let (background, background_clip, text, text_clip) = shapes
+                .windows(2)
+                .find_map(|pair| match (&pair[0].shape, &pair[1].shape) {
+                    (egui::Shape::Rect(rect), egui::Shape::Text(text))
+                        if text.galley.text().starts_with("1970-01-01 00:07") =>
+                    {
+                        Some((rect.rect, pair[0].clip_rect, text, pair[1].clip_rect))
+                    }
+                    _ => None,
+                })
+                .expect("Tooltip background and text");
+            assert_eq!(background.left(), 269.0);
+            assert!(plot.contains_rect(background), "{unit} {background:?}");
+            assert!(background_clip.contains_rect(background), "{unit} {background:?}");
+            assert_eq!(text.galley.rows.len(), 4);
+            let mut lines = text.galley.text().lines();
+            assert_eq!(lines.next(), Some("1970-01-01 00:07"));
+            for (line, label) in lines.zip(["Equity  ", "Buy & hold  ", "Drawdown  "]) {
+                assert!(line.starts_with(label) && line.ends_with(unit), "{line}");
+            }
+            for row in &text.galley.rows {
+                let bounds = row.rect().translate(text.pos.to_vec2());
+                assert!(background.contains_rect(bounds), "{unit} {bounds:?}");
+                assert!(text_clip.contains_rect(bounds), "{unit} {bounds:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn overview_buy_and_hold_falls_back_to_zero_performance_for_nonpositive_open() {
+        let (props, mut bars) = overview_fixture();
+        let broker = replay(props, &[overview_entry(1)], &bars, false);
+        for open in [0.0, -1.0] {
+            bars[broker.fills[0].bar].open = open;
+            for (percent, label) in [(false, "0.00 USD"), (true, "0.00%")] {
+                let ctx = overview_context(&broker, &bars, percent);
+                for x in [1.0, 513.0] {
+                    let shapes = overview_hover(&ctx, &broker, &bars, x);
+                    assert!(
+                        overview_tooltip(&shapes)
+                            .unwrap()
+                            .contains(&format!("\nBuy & hold  {label}\n"))
+                    );
+                    let hold = overview_curve(&shapes, 1.0).unwrap();
+                    assert!(hold.iter().all(|p| p.y.is_finite() && p.y == hold[0].y));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn overview_nonpositive_initial_capital_disables_percent() {
+        let (props, bars) = overview_fixture();
+        let funded = replay(props, &[], &bars, false);
+        for cap in [0.0, -1.0] {
+            let props = Props::from_json(&serde_json::json!({"initial_capital": cap}), 0.01, 1.0);
+            let broker = replay(props, &[], &bars, false);
+            assert_eq!(broker.props.initial_capital, cap);
+
+            let ctx = overview_test_context();
+            let shapes = overview_frame(&ctx, &broker, &bars, vec![]);
+            let click = overview_click(&ctx, &broker, &bars, &shapes, "Percent");
+            assert!(overview_axis_has(&click, "0"));
+            assert!(!overview_axis_has(&click, "0.00%"));
+            let hover = overview_hover(&ctx, &funded, &bars, 1.0);
+            assert!(overview_tooltip(&hover).unwrap().contains("Equity  0.00 USD"));
+
+            let ctx = overview_context(&funded, &bars, true);
+            let hover = overview_hover(&ctx, &broker, &bars, 1.0);
+            assert!(overview_tooltip(&hover).unwrap().contains("Equity  0.00 USD"));
+            let hover = overview_hover(&ctx, &funded, &bars, 1.0);
+            assert!(overview_tooltip(&hover).unwrap().contains("Equity  0.00%"));
+        }
+    }
+
+    #[test]
+    fn overview_percent_drawdown_skips_nonpositive_pine_peaks_and_resumes() {
+        let bars = [(0, 2.0), (1, 1.5), (2, 3.5), (3, 3.25)].map(|(day, v)| Bar {
+            time: day * 86_400_000,
+            open: v,
+            high: v,
+            low: v,
+            close: v,
+            volume: 1.0,
+        });
+        let theme = Theme::by_name("Tern Dark");
+        for (slippage, equity, percent_equity, regular_equity, resumed_dd) in [
+            (100, [0.0, -0.5, 1.5, 1.25], "−150.00%", "−1.50 USD", "−16.67%"),
+            (150, [-0.5, -1.0, 1.0, 0.75], "−200.00%", "−2.00 USD", "−25.00%"),
+        ] {
+            // Run the real Pine strategy that fills on its first close.
+            let script = opentern_pine::compile(
+                &format!(
+                    r#"//@version=6
+strategy("Overview drawdown", initial_capital=1, margin_long=0, process_orders_on_close=true, slippage={slippage})
+if bar_index == 0
+    strategy.entry("L", strategy.long, qty=1)
+"#
+                ),
+                "overview_drawdown.pine",
+                opentern_pine::Env::default(),
+            )
+            .unwrap();
+            let mut run = script.study(&opentern_series::study::Inputs::default());
+            run.run(&bars, Timeframe::new(1, opentern_core::Unit::Day));
+            assert!(run.error().is_none(), "{:?}", run.error());
+            let broker = run.broker().unwrap();
+            assert_eq!(broker.props.initial_capital, 1.0);
+            assert_eq!(broker.fills[0].bar, 0);
+            assert_eq!(broker.equity, equity);
+
+            let ctx = overview_context(broker, &bars, true);
+            let unavailable = overview_hover(&ctx, broker, &bars[..2], 513.0);
+            let tooltip = overview_tooltip(&unavailable).unwrap();
+            assert!(tooltip.ends_with(&format!("Equity  {percent_equity}\nBuy & hold  −25.00%\nDrawdown  —")));
+            assert!(overview_drawdown_mesh(&unavailable, &theme).is_none());
+            assert!(overview_axis_has(&unavailable, "0.00%"));
+            for width in [1.6, 1.0] {
+                assert!(
+                    overview_curve(&unavailable, width)
+                        .unwrap()
+                        .iter()
+                        .all(|p| p.is_finite())
+                );
+            }
+
+            for (x, value) in [(1.0, "—"), (171.0, "—"), (343.0, "0.00%"), (513.0, resumed_dd)] {
+                let shapes = overview_hover(&ctx, broker, &bars, x);
+                let tooltip = overview_tooltip(&shapes).unwrap();
+                assert!(tooltip.ends_with(&format!("Drawdown  {value}")), "{tooltip}");
+                let dd = overview_drawdown_mesh(&shapes, &theme).unwrap();
+                assert_eq!(dd.vertices.len(), 4);
+                assert!(dd.vertices.iter().all(|v| v.pos.is_finite() && v.pos.x > 400.0));
+                assert_eq!(dd.vertices[2].pos.y, 200.0);
+                assert!(overview_axis_has(&shapes, resumed_dd));
+            }
+
+            let shapes = overview_frame(&ctx, broker, &bars, vec![]);
+            let shapes = overview_click(&ctx, broker, &bars, &shapes, "Regular");
+            assert_eq!(overview_drawdown_mesh(&shapes, &theme).unwrap().vertices.len(), 8);
+            let shapes = overview_hover(&ctx, broker, &bars[..2], 513.0);
+            assert!(overview_tooltip(&shapes).unwrap().ends_with(&format!(
+                "Equity  {regular_equity}\nBuy & hold  −0.25 USD\nDrawdown  −0.50 USD"
+            )));
+            for (x, value) in [(1.0, "0.00"), (171.0, "−0.50"), (343.0, "0.00"), (513.0, "−0.25")] {
+                let shapes = overview_hover(&ctx, broker, &bars, x);
+                let tooltip = overview_tooltip(&shapes).unwrap();
+                assert!(tooltip.ends_with(&format!("Drawdown  {value} USD")), "{tooltip}");
+            }
+        }
+    }
 
     #[test]
     fn number_formatting() {
