@@ -262,6 +262,108 @@ fn forex_flags(s: &Symbol) -> Option<(&'static str, &'static str)> {
     Some((currency_flag(&b)?, currency_flag(&q)?))
 }
 
+/// Hyperliquid's builder-dex markets that aren't a listed company, a
+/// commodity, a currency or an index we draw: private companies, crypto
+/// gauges, foreign shares with no US ticker. A letter, never a look-alike.
+const HYPERLIQUID_NO_LOGO: [&str; 26] = [
+    "OAI",
+    "ANTH",
+    "ANT",
+    "SPCX",
+    "MINIMAX",
+    "ZHIPU",
+    "SHEIN",
+    "UNITREE",
+    "CXMT",
+    "JIO",
+    "TOTAL2",
+    "OTHERS",
+    "BTCD",
+    "BVIV",
+    "PURRDAT",
+    "ANSEM",
+    "SMSN",
+    "SKHX",
+    "SKHY",
+    "SOFTBANK",
+    "HYUNDAI",
+    "KIOXIA",
+    "XIAOMI",
+    "TCNT",
+    "CAMBRICON",
+    "GIGADEV",
+];
+
+/// What a Hyperliquid perpetual's logo is drawn from: its coin, or for a
+/// builder dex's market (`XYZ_GOLDUSDC.P`) the gold, currency, index or
+/// company it follows (`COMEX:GC1!`, `FX:EURUSD`, `SP:SPX`, `NASDAQ:TSLA`).
+/// None for anything else (the symbol itself).
+fn stand_in(s: &Symbol) -> Option<Symbol> {
+    if s.exchange() != "HYPERLIQUID" {
+        return None;
+    }
+    let t = s.ticker().strip_suffix(".P").unwrap_or(s.ticker());
+    let t = ["USDC", "USDT0", "USDH", "USDE"]
+        .iter()
+        .find_map(|q| t.strip_suffix(q).filter(|b| !b.is_empty()))
+        .unwrap_or(t);
+    let make = |id: &str, kind| {
+        Some(Symbol {
+            kind,
+            ..Symbol::bare(id)
+        })
+    };
+    let Some((_, name)) = t.split_once('_') else {
+        // kPEPE is a thousand PEPE: the coin's logo.
+        let coin = t
+            .strip_prefix('k')
+            .filter(|c| c.starts_with(|ch: char| ch.is_ascii_uppercase()))?;
+        return make(&format!("HYPERLIQUID:{coin}USDC.P"), AssetKind::Crypto);
+    };
+    let name = name.to_ascii_uppercase();
+    let (id, kind) = match name.as_str() {
+        "GOLD" => ("COMEX:GC1!", AssetKind::Commodity),
+        "SILVER" => ("COMEX:SI1!", AssetKind::Commodity),
+        "COPPER" => ("COMEX:HG1!", AssetKind::Commodity),
+        "PLATINUM" => ("NYMEX:PL1!", AssetKind::Commodity),
+        "PALLADIUM" => ("NYMEX:PA1!", AssetKind::Commodity),
+        "CL" | "WTI" => ("NYMEX:CL1!", AssetKind::Commodity),
+        "BRENTOIL" | "BRENT" => ("ICEEUR:BRN1!", AssetKind::Commodity),
+        "NATGAS" => ("NYMEX:NG1!", AssetKind::Commodity),
+        "HO" => ("NYMEX:HO1!", AssetKind::Commodity),
+        "EUR" => ("FX:EURUSD", AssetKind::Forex),
+        "GBP" => ("FX:GBPUSD", AssetKind::Forex),
+        "JPY" => ("FX:USDJPY", AssetKind::Forex),
+        "SP500" => ("SP:SPX", AssetKind::Index),
+        "XYZ100" => ("NASDAQ:NDX", AssetKind::Index),
+        "JP225" => ("TVC:NI225", AssetKind::Index),
+        "KR200" => ("TVC:KOSPI", AssetKind::Index),
+        "NIFTY" => ("NSE:NIFTY", AssetKind::Index),
+        "2Y" | "10Y" | "30Y" => ("TVC:US10Y", AssetKind::Index),
+        "RELIANCE" => ("NSE:RELIANCE", AssetKind::Stock),
+        n if HYPERLIQUID_NO_LOGO.contains(&n) || !n.chars().all(|c| c.is_ascii_alphanumeric()) => {
+            // Named as itself, so its letter is its own.
+            return make(&format!("HYPERLIQUID:{n}"), AssetKind::Futures);
+        }
+        n => {
+            // A US share or fund: on the exchange whose logo we ship, else
+            // any of them (`US`, tried in turn).
+            let lower = n.to_ascii_lowercase();
+            let ex = ["nasdaq", "nyse", "amex"]
+                .into_iter()
+                .find(|e| {
+                    let k = format!("co-{e}-{lower}");
+                    crate::logos_bundled::BUNDLED.iter().any(|(b, _)| *b == k)
+                        || crate::logos_bundled::BUNDLED_IMAGES.iter().any(|(b, _)| *b == k)
+                })
+                .unwrap_or("us")
+                .to_ascii_uppercase();
+            return make(&format!("{ex}:{n}"), AssetKind::Stock);
+        }
+    };
+    make(id, kind)
+}
+
 /// A crypto pair's coin: BTCUSDT → btc.
 fn coin(ticker: &str) -> Option<String> {
     // A perpetual (BTCUSDT.P) shows its coin's logo.
@@ -525,11 +627,26 @@ fn logoapi(agent: &ureq::Agent, s: &Symbol) -> Got {
     if t.is_empty() || !t.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') {
         return Got::None;
     }
-    let ticker = match s.exchange() {
-        e @ ("NASDAQ" | "NYSE" | "AMEX" | "NSE") => format!("{e}:{t}"),
-        "BSE" => format!("{t}.BO"),
+    let tickers = match s.exchange() {
+        e @ ("NASDAQ" | "NYSE" | "AMEX" | "NSE") => vec![format!("{e}:{t}")],
+        "BSE" => vec![format!("{t}.BO")],
+        // A share whose US exchange we don't know (a Hyperliquid market's).
+        "US" => ["NASDAQ", "NYSE", "AMEX"].map(|e| format!("{e}:{t}")).to_vec(),
         _ => return Got::None,
     };
+    let mut later = false;
+    for ticker in tickers {
+        match logoapi_one(agent, &ticker) {
+            Got::None => {}
+            Got::Later => later = true,
+            got => return got,
+        }
+    }
+    if later { Got::Later } else { Got::None }
+}
+
+/// One logoapi.sh ticker (`NASDAQ:TSLA`, `RELIANCE.BO`).
+fn logoapi_one(agent: &ureq::Agent, ticker: &str) -> Got {
     let url = format!("https://logoapi.sh/ticker/{ticker}.svg?fallback=none");
     let mut r = match agent.get(&url).call() {
         Ok(r) => r,
@@ -943,6 +1060,8 @@ impl Logos {
 
     /// Paints a symbol's logo as a disc of radius `r` at `c`.
     pub fn paint(&self, p: &egui::Painter, t: &Theme, s: &Symbol, c: Pos2, r: f32) {
+        let stand = stand_in(s);
+        let s = stand.as_ref().unwrap_or(s);
         if self.enabled
             && let Some((bg, mark)) = badge(s)
         {
@@ -1232,6 +1351,38 @@ mod tests {
             assert!(local(&k, &dir).is_some(), "{} isn't local", s.id);
         }
         assert!(local("coin-notacoinxyz", &dir).is_none());
+    }
+
+    /// Hyperliquid's markets draw the logo of what they follow: the coin
+    /// (kPEPE as PEPE), gold, a currency pair, an index, a company.
+    #[test]
+    fn hyperliquid_markets_take_what_they_follow() {
+        let id = |t: &str| stand_in(&Symbol::bare(&format!("HYPERLIQUID:{t}"))).map(|s| (s.id, s.kind));
+        assert_eq!(id("BTCUSDC.P"), None);
+        assert_eq!(
+            id("kPEPEUSDC.P"),
+            Some(("HYPERLIQUID:PEPEUSDC.P".into(), AssetKind::Crypto))
+        );
+        assert_eq!(id("XYZ_GOLDUSDC.P"), Some(("COMEX:GC1!".into(), AssetKind::Commodity)));
+        assert_eq!(id("XYZ_EURUSDC.P"), Some(("FX:EURUSD".into(), AssetKind::Forex)));
+        assert_eq!(id("XYZ_SP500USDC.P"), Some(("SP:SPX".into(), AssetKind::Index)));
+        assert_eq!(id("XYZ_TSLAUSDC.P"), Some(("NASDAQ:TSLA".into(), AssetKind::Stock)));
+        assert_eq!(id("XYZ_ORCLUSDC.P"), Some(("NYSE:ORCL".into(), AssetKind::Stock)));
+        // A share we ship no logo for: asked of each US exchange.
+        assert_eq!(id("XYZ_QQQZUSDC.P"), Some(("US:QQQZ".into(), AssetKind::Stock)));
+        assert_eq!(
+            id("PARA_OAIUSDH.P"),
+            Some(("HYPERLIQUID:OAI".into(), AssetKind::Futures))
+        );
+        // What they draw: gold's picture, the two flags, the S&P's badge.
+        let gold = stand_in(&Symbol::bare("HYPERLIQUID:XYZ_GOLDUSDC.P")).unwrap();
+        assert_eq!(key(&gold).as_deref(), Some("cmdty-gold"));
+        let eur = stand_in(&Symbol::bare("HYPERLIQUID:XYZ_EURUSDC.P")).unwrap();
+        assert_eq!(forex_flags(&eur), Some(("eu", "us")));
+        let spx = stand_in(&Symbol::bare("HYPERLIQUID:XYZ_SP500USDC.P")).unwrap();
+        assert_eq!(badge(&spx).map(|b| b.1), Some("500"));
+        let oai = stand_in(&Symbol::bare("HYPERLIQUID:PARA_OAIUSDH.P")).unwrap();
+        assert_eq!(key(&oai), None, "a letter, no look-alike");
     }
 
     #[test]

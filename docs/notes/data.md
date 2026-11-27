@@ -28,7 +28,8 @@ every data change (scripts re-run on it).
   credentials restarts open chart sessions. Quotes for non-Yahoo, non-Binance symbols
   come from two daily bars every 30 s. Search loads Bybit/OKX/Coinbase/Kraken lists
   (daily since Nov 2026; a coin search with no match asks Binance's exchangeInfo
-  for that pair at once, alongside Yahoo's search), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows;
+  for that pair at once, alongside Yahoo's search), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows,
+  and `EXCHANGE:` alone lists that exchange (`hub::browse`: major coins first, up to 500);
   `OANDA:X` / `IBKR:X` are offered as typed.
 - **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
   machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
@@ -183,7 +184,16 @@ every data change (scripts re-run on it).
   Candles, the stream and `l2Book` take `xyz:GOLD` as the coin; funding asks
   that dex. Search ranks them by the name after the underscore. The same asset
   can be on several dexes (NVDA on xyz and io). Kind is `Crypto` (they trade
-  around the clock). Spot is still left out.
+  around the clock). Spot is still left out. Hyperliquid lists only tickers,
+  so `hyperliquid::name_of` names the ones a ticker doesn't explain (SpaceX's
+  SPCX, OpenAI, gold, crude oil) in the description; a US company in the
+  results (Yahoo's "tesla" → NASDAQ:TSLA) brings its perpetuals right after
+  it (`hub::with_hyperliquid`, by `hyperliquid::underlying`). Logos: the app
+  draws what a market follows (`logos::stand_in`: gold's picture, EURUSD's
+  flags, the S&P's badge, the company's logo tried on NASDAQ, NYSE and AMEX);
+  private companies and crypto gauges keep a letter. Prices checked against
+  spot on 27 Nov 2026 (gold 3,649.50 vs Binance's gold index 3,650.66; COMEX
+  futures sit higher by their premium).
 - **Delisted pairs:** Binance keeps listing pairs it stopped (status
   BREAK, e.g. XMRUSDT): `ticker/price` and `24hr` still return the last
   trade from years ago, klines end then, and a `tradingDay` batch with any

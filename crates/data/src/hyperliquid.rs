@@ -133,6 +133,66 @@ fn tick_size(px: f64, sz_decimals: i64) -> f64 {
     sig.max(most).min(1.0)
 }
 
+/// Names for builder-dex markets whose ticker doesn't say what they are
+/// (Hyperliquid lists only tickers), so a search by name finds them.
+/// Listed companies are found through the stock search instead
+/// (`underlying`).
+fn name_of(c: &str) -> Option<&'static str> {
+    Some(match c {
+        "SPCX" => "SpaceX",
+        "OAI" => "OpenAI",
+        "ANTH" => "Anthropic",
+        "SMSN" => "Samsung Electronics",
+        "SKHX" | "SKHY" => "SK Hynix",
+        "SOFTBANK" => "SoftBank",
+        "HYUNDAI" => "Hyundai",
+        "KIOXIA" => "Kioxia",
+        "XIAOMI" => "Xiaomi",
+        "TCNT" => "Tencent",
+        "MINIMAX" => "MiniMax",
+        "ZHIPU" => "Zhipu AI",
+        "SHEIN" => "Shein",
+        "UNITREE" => "Unitree Robotics",
+        "CAMBRICON" => "Cambricon",
+        "CXMT" => "CXMT",
+        "JIO" => "Jio Platforms",
+        "GIGADEV" => "GigaDevice",
+        "GOLD" => "Gold",
+        "SILVER" => "Silver",
+        "COPPER" => "Copper",
+        "PLATINUM" => "Platinum",
+        "PALLADIUM" => "Palladium",
+        "CL" => "WTI Crude Oil",
+        "BRENTOIL" => "Brent Crude Oil",
+        "NATGAS" => "Natural Gas",
+        "HO" => "Heating Oil",
+        "SP500" => "S&P 500",
+        "JP225" => "Nikkei 225",
+        "KR200" => "KOSPI 200",
+        "NIFTY" => "Nifty 50",
+        "EUR" => "Euro",
+        "GBP" => "British Pound",
+        "JPY" => "Japanese Yen",
+        "BTCD" => "Bitcoin Dominance",
+        _ => return None,
+    })
+}
+
+/// A builder-dex market's underlying ticker: "HYPERLIQUID:XYZ_TSLAUSDC.P"
+/// → "TSLA". None for Hyperliquid's own coins and other exchanges.
+pub fn underlying(sym: &Symbol) -> Option<&str> {
+    if sym.exchange() != "HYPERLIQUID" {
+        return None;
+    }
+    let t = sym.ticker();
+    let t = t.strip_suffix(".P").unwrap_or(t);
+    let t = QUOTES
+        .iter()
+        .find_map(|q| t.strip_suffix(q).filter(|c| !c.is_empty()))
+        .unwrap_or(t);
+    t.split_once('_').map(|(_, c)| c).filter(|c| !c.is_empty())
+}
+
 /// `metaAndAssetCtxs` → the perpetuals trading now, quoted in `quote` (the
 /// dex's collateral). A builder dex's names are "xyz:GOLD".
 pub(crate) fn parse_perps(v: &serde_json::Value, quote: &str) -> Vec<Symbol> {
@@ -147,7 +207,8 @@ pub(crate) fn parse_perps(v: &serde_json::Value, quote: &str) -> Vec<Symbol> {
             let (ticker, description) = match name.split_once(':') {
                 Some((dex, c)) if !dex.is_empty() && !c.is_empty() => {
                     let dex = dex.to_ascii_uppercase();
-                    (format!("{dex}_{c}"), format!("{c} / {quote} Perpetual ({dex})"))
+                    let label = name_of(c).unwrap_or(c);
+                    (format!("{dex}_{c}"), format!("{label} / {quote} Perpetual ({dex})"))
                 }
                 Some(_) => return None,
                 None => (name.to_string(), format!("{name} / {quote} Perpetual")),
@@ -350,7 +411,12 @@ mod tests {
         let list = parse_perps(&v, "USDC");
         let ids: Vec<&str> = list.iter().map(|s| s.id.as_str()).collect();
         assert_eq!(ids, ["HYPERLIQUID:XYZ_GOLDUSDC.P", "HYPERLIQUID:XYZ_SP500USDC.P"]);
-        assert_eq!(list[0].description, "GOLD / USDC Perpetual (XYZ)");
+        // Named where the ticker doesn't say: SpaceX's SPCX, gold.
+        assert_eq!(list[0].description, "Gold / USDC Perpetual (XYZ)");
+        assert_eq!(name_of("SPCX"), Some("SpaceX"));
+        assert_eq!(underlying(&list[0]), Some("GOLD"));
+        assert_eq!(underlying(&Symbol::bare("HYPERLIQUID:BTCUSDC.P")), None);
+        assert_eq!(underlying(&Symbol::bare("NASDAQ:TSLA")), None);
         assert_eq!(coin(&list[1]), "xyz:SP500");
         assert_eq!(parse_funding(&v, "xyz:GOLD"), Some(0.00001));
         assert_eq!(on_dex(serde_json::json!({"type": "x"}), "xyz")["dex"], "xyz");

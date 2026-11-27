@@ -776,8 +776,9 @@ fn funding(sym: &Symbol, demo: bool) -> crate::provider::Result<(f64, i64)> {
 }
 
 /// When the exchanges' symbol lists were last fetched. Renamed when the
-/// lists gain a source (v2: perpetuals; v3: Hyperliquid; v4: its USDC names; v5: its builder dexes), so they're fetched again at once.
-const LISTS_AT: &str = "symbol_lists_at_v5";
+/// lists gain a source (v2: perpetuals; v3: Hyperliquid; v4: its USDC names; v5: its builder dexes;
+/// v6: their names), so they're fetched again at once.
+const LISTS_AT: &str = "symbol_lists_at_v6";
 
 /// Swaps delisted pairs for their successors, saying so once each.
 fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) -> Vec<Symbol> {
@@ -1897,6 +1898,82 @@ pub(crate) fn coin_lookups(q: &str, hits: &[&Symbol]) -> Vec<String> {
     }
 }
 
+/// The Hyperliquid perpetuals that follow a US share or fund
+/// (`NASDAQ:TSLA` → `HYPERLIQUID:XYZ_TSLAUSDC.P`).
+fn hyperliquid_of(known: &[Symbol], s: &Symbol) -> Vec<Symbol> {
+    use opentern_core::AssetKind;
+    if !matches!(s.kind, AssetKind::Stock | AssetKind::Fund)
+        || !matches!(s.exchange(), "NASDAQ" | "NYSE" | "AMEX" | "ARCA" | "BATS")
+    {
+        return Vec::new();
+    }
+    known
+        .iter()
+        .filter(|k| crate::hyperliquid::underlying(k) == Some(s.ticker()))
+        .cloned()
+        .collect()
+}
+
+/// A company in the results ("tesla" finds NASDAQ:TSLA) brings its
+/// Hyperliquid perpetuals, ranked as it is so they sit right after it.
+fn with_hyperliquid(known: &[Symbol], hits: &mut Vec<(u32, Symbol)>) {
+    let lifts: Vec<(u32, Symbol)> = hits
+        .iter()
+        .flat_map(|(r, s)| hyperliquid_of(known, s).into_iter().map(move |p| (*r, p)))
+        .collect();
+    for (r, p) in lifts {
+        // Already found by a looser match: moved up beside its company.
+        match hits.iter_mut().find(|(_, h)| h.id == p.id) {
+            Some(hit) => hit.0 = hit.0.min(r),
+            None => hits.push((r, p)),
+        }
+    }
+}
+
+/// How many symbols an exchange's prefix alone lists ("BINANCE:").
+const BROWSE: usize = 500;
+
+/// The coins listed first when browsing an exchange, biggest first.
+const MAJORS: [&str; 24] = [
+    "BTC", "ETH", "XRP", "BNB", "SOL", "DOGE", "TRX", "ADA", "HYPE", "LINK", "AVAX", "SUI", "XLM", "BCH", "TON", "LTC",
+    "DOT", "SHIB", "UNI", "NEAR", "APT", "AAVE", "PEPE", "ETC",
+];
+
+/// An exchange's known symbols for its prefix alone: the major coins
+/// first (each one's USDT, USDC, then USD pair, spot before perpetual),
+/// then the rest by ticker.
+fn browse(known: &[Symbol], exchange: &str) -> Vec<Symbol> {
+    let quotes = ["USDT", "USDC", "USD"];
+    let key = |s: &Symbol| {
+        let t = s.ticker().to_uppercase();
+        let perp = t.ends_with(".P");
+        let pair = t.trim_end_matches(".P");
+        let (base, q) = quotes
+            .iter()
+            .enumerate()
+            .find_map(|(i, q)| {
+                pair.strip_suffix(q)
+                    .filter(|b| !b.is_empty())
+                    .map(|b| (b.to_string(), i))
+            })
+            .unwrap_or_else(|| (pair.to_string(), quotes.len()));
+        // Hyperliquid's thousand-unit coins (kPEPE) rank as their coin.
+        let base = base
+            .strip_prefix('K')
+            .filter(|b| MAJORS.contains(b))
+            .map_or(base.clone(), str::to_string);
+        let major = MAJORS.iter().position(|m| *m == base).unwrap_or(MAJORS.len());
+        (major, q, perp, t)
+    };
+    let mut list: Vec<(_, Symbol)> = known
+        .iter()
+        .filter(|s| s.exchange() == exchange)
+        .map(|s| (key(s), s.clone()))
+        .collect();
+    list.sort_by(|a, b| a.0.cmp(&b.0));
+    list.into_iter().take(BROWSE).map(|(_, s)| s).collect()
+}
+
 fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out) {
     let cache = Cache::open(&dir).ok();
     // The exchanges' symbol lists refresh daily on their own thread, so a
@@ -2054,6 +2131,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                         }
                     }
                 }
+                with_hyperliquid(&known, &mut hits);
                 out.send(Event::Search { seq, results: sorted(hits), done: true });
                 if seq < SEARCH_ALL {
                     busy = false;
@@ -2102,9 +2180,14 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                 None => (None, q),
             };
             if q.is_empty() {
+                // "HYPERLIQUID:" alone lists that exchange's symbols.
+                let results = match &want_ex {
+                    Some(e) => browse(&known, e),
+                    None => opentern_core::starter_watchlist(),
+                };
                 out.send(Event::Search {
                     seq,
-                    results: opentern_core::starter_watchlist(),
+                    results,
                     done: true,
                 });
                 continue;
@@ -2162,6 +2245,9 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
             } else {
                 Vec::new()
             };
+            if want_ex.is_none() {
+                with_hyperliquid(&known, &mut hits);
+            }
             let network = !asks.is_empty() || (!demo && want_ex.is_none());
             out.send(Event::Search {
                 seq,
@@ -2313,6 +2399,90 @@ mod tests {
         let mut stock = coin("NASDAQ:NEWC");
         stock.kind = opentern_core::AssetKind::Stock;
         assert_eq!(coin_lookups("NEWC", &[&stock]), vec!["NEWCUSDT".to_string()]);
+    }
+
+    /// A company the stock search finds by name brings its Hyperliquid
+    /// perpetuals ("tesla" → NASDAQ:TSLA, then XYZ_TSLAUSDC.P); SpaceX,
+    /// with no listing, is found by the name Hyperliquid's list carries.
+    #[test]
+    fn searching_a_company_finds_its_hyperliquid_perpetual() {
+        let known = vec![
+            Symbol::bare("HYPERLIQUID:XYZ_TSLAUSDC.P"),
+            Symbol::bare("HYPERLIQUID:IO_NVDAUSDC.P"),
+            Symbol::bare("HYPERLIQUID:BTCUSDC.P"),
+            Symbol {
+                description: "SpaceX / USDC Perpetual (XYZ)".into(),
+                ..Symbol::bare("HYPERLIQUID:XYZ_SPCXUSDC.P")
+            },
+        ];
+        let stock = |id: &str| Symbol {
+            kind: opentern_core::AssetKind::Stock,
+            ..Symbol::bare(id)
+        };
+        let ids = |v: Vec<Symbol>| v.into_iter().map(|s| s.id).collect::<Vec<_>>();
+        assert_eq!(
+            ids(hyperliquid_of(&known, &stock("NASDAQ:TSLA"))),
+            ["HYPERLIQUID:XYZ_TSLAUSDC.P"]
+        );
+        assert_eq!(
+            ids(hyperliquid_of(&known, &stock("NASDAQ:NVDA"))),
+            ["HYPERLIQUID:IO_NVDAUSDC.P"]
+        );
+        assert!(hyperliquid_of(&known, &stock("NSE:TSLA")).is_empty());
+        // Wherever the company came from, its perpetual sits right after it.
+        let mut hits = vec![(20, stock("NASDAQ:TSLA")), (30, stock("NASDAQ:AAPL"))];
+        with_hyperliquid(&known, &mut hits);
+        assert_eq!(
+            hits.last().map(|(r, s)| (*r, s.id.as_str())),
+            Some((20, "HYPERLIQUID:XYZ_TSLAUSDC.P"))
+        );
+        with_hyperliquid(&known, &mut hits);
+        assert_eq!(hits.len(), 3, "added once");
+        // Found already by a loose match: moved up beside the company.
+        let mut hits = vec![(99, known[0].clone()), (50, stock("NASDAQ:TSLA"))];
+        with_hyperliquid(&known, &mut hits);
+        assert_eq!(hits[0].0, 50);
+        assert!(rank(&known[3], "SPACEX").is_some());
+    }
+
+    /// An exchange's prefix alone lists that exchange only, the major
+    /// coins first (spot, then perpetual), the rest by ticker.
+    #[test]
+    fn an_exchange_prefix_alone_lists_its_symbols() {
+        let ids = [
+            "HYPERLIQUID:XYZ_GOLDUSDC.P",
+            "HYPERLIQUID:ATOMUSDC.P",
+            "HYPERLIQUID:kPEPEUSDC.P",
+            "HYPERLIQUID:ETHUSDC.P",
+            "HYPERLIQUID:BTCUSDC.P",
+            "BINANCE:BTCUSDT.P",
+            "BINANCE:ETHBTC",
+            "BINANCE:BTCUSDT",
+            "BINANCE:ETHUSDT",
+            "OKX:BTCUSDT",
+        ];
+        let known: Vec<Symbol> = ids.iter().map(|id| Symbol::bare(id)).collect();
+        let got = |e: &str| browse(&known, e).into_iter().map(|s| s.id).collect::<Vec<_>>();
+        assert_eq!(
+            got("HYPERLIQUID"),
+            [
+                "HYPERLIQUID:BTCUSDC.P",
+                "HYPERLIQUID:ETHUSDC.P",
+                "HYPERLIQUID:kPEPEUSDC.P",
+                "HYPERLIQUID:ATOMUSDC.P",
+                "HYPERLIQUID:XYZ_GOLDUSDC.P",
+            ]
+        );
+        assert_eq!(
+            got("BINANCE"),
+            [
+                "BINANCE:BTCUSDT",
+                "BINANCE:BTCUSDT.P",
+                "BINANCE:ETHUSDT",
+                "BINANCE:ETHBTC"
+            ]
+        );
+        assert!(got("KRAKEN").is_empty());
     }
 
     /// Hyperliquid's builder-dex markets are found by the asset's name,
