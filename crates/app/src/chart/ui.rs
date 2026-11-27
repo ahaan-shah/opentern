@@ -109,9 +109,10 @@ fn next_second(left: i64) -> std::time::Duration {
 /// Where the crosshair's "+" sits: at the pointer's height, against the
 /// price scale inside the main pane.
 fn plus_rect(pane: Rect, y: f32) -> Rect {
-    const S: f32 = 18.0;
-    let y = y.clamp(pane.top() + S / 2.0, pane.bottom() - S / 2.0);
-    Rect::from_min_size(pos2(pane.right() - S - 3.0, y - S / 2.0), vec2(S, S))
+    // An indicator row's button (`LEGEND_BTN`).
+    let (w, h) = (LEGEND_BTN, LEGEND_BTN - 2.0);
+    let y = y.clamp(pane.top() + h / 2.0, pane.bottom() - h / 2.0);
+    Rect::from_min_size(pos2(pane.right() - w - 4.0, y - h / 2.0), vec2(w, h))
 }
 
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
@@ -567,7 +568,7 @@ pub fn show(
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
     // The "+" at the crosshair's height, by the price scale: it follows the
     // pointer and wins the press over the plot, like the paper tags.
-    let mut plus: Option<(Rect, bool)> = None;
+    let mut plus: Option<(Rect, f32)> = None;
     let mut plus_used = false;
     if interactive
         && n > 0
@@ -599,7 +600,7 @@ pub fn show(
             });
         }
         plus_used = resp.hovered() || resp.is_pointer_button_down_on() || resp.clicked();
-        plus = Some((r, resp.hovered()));
+        plus = Some((r, motion::hover(&resp)));
     }
     let drawing_used = !paper_used
         && !plus_used
@@ -1344,21 +1345,29 @@ pub fn show(
                 vec2(scale_w - 2.0, tag_h),
             );
             paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
-            if let Some((r, hover)) = plus {
-                let fill = if hover {
-                    pal.label_bg
-                } else {
-                    motion::lerp_color(pal.bg, pal.label_bg, 0.12)
-                };
-                let ink = if hover { Color32::WHITE } else { pal.text2 };
+            if let Some((r, over)) = plus {
+                // As an indicator row's button on its hovered backing
+                // (`legend_backing`): the chart's background, a hairline
+                // edge, the hover wash under a muted glyph.
                 painter.rect(
                     r,
-                    CornerRadius::same(3),
-                    fill,
-                    Stroke::new(1.0, if hover { pal.label_bg } else { pal.border }),
+                    CornerRadius::same(5),
+                    motion::with_alpha(pal.bg, 0.94),
+                    Stroke::new(1.0, t.border),
                     egui::StrokeKind::Inside,
                 );
-                painter.text(r.center(), Align2::CENTER_CENTER, ph::PLUS, theme::regular(12.0), ink);
+                painter.rect_filled(
+                    r.shrink(1.0),
+                    CornerRadius::same(4),
+                    motion::with_alpha(t.hover_wash(), over),
+                );
+                painter.text(
+                    r.center(),
+                    Align2::CENTER_CENTER,
+                    ph::PLUS,
+                    theme::regular(15.0),
+                    pal.text2,
+                );
             }
             if geos.first().is_some_and(|m| m.rect == g.rect) {
                 for (ci, col, y) in &owns {
