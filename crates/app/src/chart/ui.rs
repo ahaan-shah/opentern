@@ -109,10 +109,10 @@ fn next_second(left: i64) -> std::time::Duration {
 /// Where the crosshair's "+" sits: at the pointer's height, against the
 /// price scale inside the main pane.
 fn plus_rect(pane: Rect, y: f32) -> Rect {
-    // An indicator row's button (`LEGEND_BTN`).
-    let (w, h) = (LEGEND_BTN, LEGEND_BTN - 2.0);
-    let y = y.clamp(pane.top() + h / 2.0, pane.bottom() - h / 2.0);
-    Rect::from_min_size(pos2(pane.right() - w - 4.0, y - h / 2.0), vec2(w, h))
+    // Small, so it stays out of the way of the bars.
+    const S: f32 = 18.0;
+    let y = y.clamp(pane.top() + S / 2.0, pane.bottom() - S / 2.0);
+    Rect::from_min_size(pos2(pane.right() - S - 3.0, y - S / 2.0), vec2(S, S))
 }
 
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
@@ -1348,25 +1348,27 @@ pub fn show(
             if let Some((r, over)) = plus {
                 // As an indicator row's button on its hovered backing
                 // (`legend_backing`): the chart's background, a hairline
-                // edge, the hover wash under a muted glyph.
+                // edge, the hover wash under a muted glyph. Dimmed until
+                // the pointer is on it.
+                let a = 0.45 + 0.55 * over;
                 painter.rect(
                     r,
-                    CornerRadius::same(5),
+                    CornerRadius::same(4),
                     motion::with_alpha(pal.bg, 0.94),
-                    Stroke::new(1.0, t.border),
+                    Stroke::new(1.0, motion::with_alpha(t.border, a)),
                     egui::StrokeKind::Inside,
                 );
                 painter.rect_filled(
                     r.shrink(1.0),
-                    CornerRadius::same(4),
+                    CornerRadius::same(3),
                     motion::with_alpha(t.hover_wash(), over),
                 );
                 painter.text(
                     r.center(),
                     Align2::CENTER_CENTER,
                     ph::PLUS,
-                    theme::regular(15.0),
-                    pal.text2,
+                    theme::regular(12.0),
+                    motion::with_alpha(pal.text2, a),
                 );
             }
             if geos.first().is_some_and(|m| m.rect == g.rect) {
