@@ -22,6 +22,7 @@ pub const SPEEDS: [(f32, &str); 6] = [
     (30.0, "0.03s"),
 ];
 
+#[derive(Clone)]
 pub struct Replay {
     /// Choosing the bar to start from (the cursor shows where it cuts).
     pub selecting: bool,
@@ -116,13 +117,17 @@ impl Chart {
         }
     }
 
+    pub(crate) fn absorbs_history(&self) -> bool {
+        self.replay.as_ref().is_some_and(|r| !r.selecting || !r.full.is_empty())
+    }
+
     /// New data while replaying goes to the hidden bars; the chart keeps
     /// showing the replay. Returns true when it took the event.
     pub(super) fn replay_absorb(&mut self, e: &opentern_data::Event) -> bool {
-        let Some(r) = self.replay.as_mut() else { return false };
-        if r.selecting && r.full.is_empty() {
+        if !self.absorbs_history() {
             return false;
         }
+        let r = self.replay.as_mut().unwrap();
         match e {
             opentern_data::Event::Bars { bars, complete, .. } => {
                 let shown = r.full.get(r.cut.saturating_sub(1)).map(|b| b.time);

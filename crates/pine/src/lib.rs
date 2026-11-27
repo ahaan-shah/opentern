@@ -85,6 +85,40 @@ pub struct Env {
 /// and every script compiled with it.
 pub type Feeds = Arc<std::sync::RwLock<std::collections::HashMap<String, Arc<Vec<opentern_core::Bar>>>>>;
 
+thread_local! {
+    static FEED_SNAPSHOT: std::cell::RefCell<Option<(Feeds, Feeds)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Use a private copy of the feed map for evaluations on the calling
+/// thread. Compiled studies continue to use the live feed map after this
+/// scope, including the study instances produced inside it.
+pub fn with_feed_snapshot<R>(live: &Feeds, f: impl FnOnce(&Feeds) -> R) -> R {
+    struct Restore(Option<(Feeds, Feeds)>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            FEED_SNAPSHOT.with(|s| s.replace(self.0.take()));
+        }
+    }
+    let snapshot = Arc::new(std::sync::RwLock::new(
+        live.read().unwrap_or_else(|e| e.into_inner()).clone(),
+    ));
+    let _restore = Restore(FEED_SNAPSHOT.with(|s| s.replace(Some((live.clone(), snapshot.clone())))));
+    f(&snapshot)
+}
+
+impl Env {
+    fn feed(&self, key: &str) -> Option<Arc<Vec<opentern_core::Bar>>> {
+        FEED_SNAPSHOT.with(|s| {
+            let snapshot = s.borrow();
+            let feeds = match snapshot.as_ref() {
+                Some((live, snapshot)) if Arc::ptr_eq(live, &self.feeds) => snapshot,
+                _ => &self.feeds,
+            };
+            feeds.read().ok().and_then(|m| m.get(key).cloned())
+        })
+    }
+}
+
 /// The key of a feed: the symbol as the script wrote it, and the timeframe.
 pub fn feed_key(symbol: &str, tf: opentern_core::Timeframe) -> String {
     format!("{symbol}|{}", tf.label())

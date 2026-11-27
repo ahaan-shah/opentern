@@ -1400,6 +1400,11 @@ impl App {
             style: &styles,
             logos: Some(&self.logos),
         };
+        // Replay advances after the data phase, as it does for a
+        // synchronous batch. The replay controls remain interactive.
+        if !self.history_pending() {
+            self.chart.replay_tick(ui.ctx());
+        }
         let actions = crate::chart::ui::show(ui, &mut self.chart, &mut self.chart_ui, t, interactive, &tools);
         let finished = self.chart_ui.draw.finished;
         // Zooming is one go whatever the setting, as on TradingView.

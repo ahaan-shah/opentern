@@ -457,10 +457,7 @@ fn from_feed(
     (gaps, lookahead, lower): (bool, bool, bool),
 ) -> Result<V, Stop> {
     let symbol = symbol.unwrap_or(&x.g.env.tickerid).to_string();
-    let feed = {
-        let key = feed_key(&symbol, st.tf);
-        x.g.env.feeds.read().ok().and_then(|m| m.get(&key).cloned())
-    };
+    let feed = x.g.env.feed(&feed_key(&symbol, st.tf));
     let Some(feed) = feed else {
         if !x.g.wanted.iter().any(|(s, t)| *s == symbol && *t == st.tf) {
             x.g.wanted.push((symbol, st.tf));

@@ -6,6 +6,7 @@
 //! keep moving.
 
 use crate::app::App;
+use crate::chart::PreparedStudies;
 use opentern_core::{Bar, Symbol, Timeframe};
 use opentern_pine::PineStudy;
 use std::collections::HashMap;
@@ -31,6 +32,27 @@ pub struct FeedReq {
 pub struct FeedState {
     pub reqs: HashMap<String, FeedReq>,
     next_seq: u64,
+}
+
+impl FeedState {
+    pub(crate) fn key(&self, seq: u64) -> Option<&str> {
+        self.reqs
+            .iter()
+            .find_map(|(key, r)| (r.seq == seq).then_some(key.as_str()))
+    }
+}
+
+pub(crate) fn is_feed_seq(seq: u64) -> bool {
+    (SEQ_BASE..crate::onboarding::SEQ_BASE).contains(&seq)
+}
+
+pub(crate) fn replace_feed(feeds: &opentern_pine::Feeds, key: &str, bars: Vec<Bar>) -> bool {
+    let mut feeds = feeds.write().unwrap_or_else(|e| e.into_inner());
+    if feeds.get(key).is_some_and(|old| **old == bars) {
+        return false;
+    }
+    feeds.insert(key.to_owned(), Arc::new(bars));
+    true
 }
 
 /// How many bars of `tf` cover the chart's history, with some warm-up.
@@ -114,7 +136,7 @@ impl App {
     }
 
     /// A feed arrived: store it and rerun every chart's Pine scripts.
-    pub(crate) fn feed_fetched(&mut self, seq: u64, result: Result<Vec<Bar>, String>) {
+    pub(crate) fn feed_fetched(&mut self, seq: u64, result: Result<Vec<Bar>, String>, ready: &mut PreparedStudies) {
         let Some((key, req)) = self.feeds_state.reqs.iter_mut().find(|(_, r)| r.seq == seq) else {
             return;
         };
@@ -126,22 +148,13 @@ impl App {
                 Vec::new()
             }
         };
-        let key = key.clone();
-        let changed = {
-            let mut m = self.feeds.write().unwrap_or_else(|e| e.into_inner());
-            let same = m.get(&key).is_some_and(|old| **old == bars);
-            if !same {
-                m.insert(key, Arc::new(bars));
-            }
-            !same
-        };
-        if changed {
-            self.each_chart(|a| a.rerun_pine());
+        if replace_feed(&self.feeds, key, bars) {
+            self.each_chart(|a| a.rerun_pine(ready));
         }
     }
 
     /// Recomputes the Pine studies on this chart (new feed data).
-    fn rerun_pine(&mut self) {
+    fn rerun_pine(&mut self, ready: &mut PreparedStudies) {
         let uids: Vec<u64> = self
             .scripts
             .iter()
@@ -156,7 +169,8 @@ impl App {
                 .find(|s| s.uid == uid)
                 .map(|s| s.inst.inputs.clone())
             {
-                self.chart.set_inputs(uid, &ins);
+                let inst = ready.remove(&(self.chart.id, uid));
+                self.chart.set_inputs_prepared(uid, &ins, inst);
             }
         }
     }

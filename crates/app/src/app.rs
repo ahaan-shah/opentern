@@ -4,7 +4,7 @@
 use crate::chart::draw::{DrawStyle, Drawing, Tool};
 use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
-use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
+use crate::chart::{Chart, PreparedStudies, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
 use crate::i18n::{msg, nt, tr};
 use crate::shell::{Arrangement, Tab};
@@ -16,6 +16,9 @@ use opentern_series::Meta;
 use opentern_series::study::Inputs;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+
+#[path = "pine_history.rs"]
+mod pine_history;
 
 /// Settings key for the symbols picked in symbol search.
 const RECENTS_KEY: &str = "recent_symbols";
@@ -56,6 +59,7 @@ pub struct App {
     /// down for it (`daemon.rs`). `None` in tests and a second window.
     pub(crate) app_lock: Option<std::fs::File>,
     pub hub: Hub,
+    history_batch: Option<pine_history::PendingBatch>,
     pub chart: Chart,
     pub chart_ui: ChartUi,
     pub modal: Option<Modal>,
@@ -255,6 +259,7 @@ impl App {
             overview,
             lab: Default::default(),
             dom: Default::default(),
+            history_batch: None,
             feeds: Default::default(),
             feeds_state: Default::default(),
             notes: Default::default(),
@@ -1185,7 +1190,16 @@ impl App {
         if std::mem::take(&mut self.quotes_due) {
             self.subscribe_quotes();
         }
-        for e in self.hub.poll() {
+        self.poll_history_batch(Hub::poll);
+    }
+
+    fn dispatch_events(&mut self, batch: impl IntoIterator<Item = (Event, pine_history::PreparedEvent)>) {
+        for (e, p) in batch {
+            let pine_history::PreparedEvent {
+                mut studies,
+                quote_time,
+            } = p;
+            let prepared = &mut studies;
             // Sessions the alert watcher opened for itself.
             let Some(e) = self.alerts.watcher.apply(e) else {
                 continue;
@@ -1208,11 +1222,11 @@ impl App {
                     self.quotes.insert(id, (last, prev));
                 }
                 Event::Quote { id, last, prev } => {
-                    let now = jiff::Timestamp::now().as_millisecond();
+                    let now = quote_time.unwrap_or_else(|| jiff::Timestamp::now().as_millisecond());
                     let slots = self.slots.iter_mut().flatten().map(|s| &mut s.chart);
                     for c in std::iter::once(&mut self.chart).chain(slots) {
                         if c.symbol.id == id {
-                            c.take_quote(last, now);
+                            c.take_quote_with(last, now, &mut |c| c.recompute_prepared(prepared));
                         }
                     }
                     self.quote_at.insert(id.clone(), std::time::Instant::now());
@@ -1234,7 +1248,7 @@ impl App {
                     symbol,
                     tf,
                     result,
-                } => self.fetched(seq, &symbol, tf, result),
+                } => self.fetched(seq, &symbol, tf, result, prepared),
                 e @ (Event::Hotlist { .. } | Event::News { .. }) => self.side_event(e),
                 Event::Depth { seq, result } => self.dom_event(seq, result),
                 Event::Overview { seq, market, result } => self.overview_event(seq, market, result),
@@ -1271,7 +1285,7 @@ impl App {
                 | Event::Lot { chart, .. }
                 | Event::Corporate { chart, .. }) => {
                     if chart == self.chart.id {
-                        self.chart.apply(e);
+                        self.chart.apply_with(e, &mut |c| c.recompute_prepared(prepared));
                     } else if self.chart.owns_compare(chart) {
                         self.chart.apply_compare(e);
                     } else if let Some(c) = self
@@ -1282,7 +1296,7 @@ impl App {
                         .find(|c| c.id == chart || c.owns_compare(chart))
                     {
                         if c.id == chart {
-                            c.apply(e);
+                            c.apply_with(e, &mut |c| c.recompute_prepared(prepared));
                         } else {
                             c.apply_compare(e);
                         }
@@ -1294,7 +1308,14 @@ impl App {
 
     /// One-off history arrived: for the screener, or a backtest over other
     /// symbols.
-    fn fetched(&mut self, seq: u64, symbol: &str, _tf: Timeframe, result: Result<Vec<opentern_core::Bar>, String>) {
+    fn fetched(
+        &mut self,
+        seq: u64,
+        symbol: &str,
+        _tf: Timeframe,
+        result: Result<Vec<opentern_core::Bar>, String>,
+        prepared: &mut PreparedStudies,
+    ) {
         if seq >= crate::indices::SEQ_BASE {
             self.indices_fetched(symbol, result);
         } else if seq >= crate::seasonal::SEQ_BASE {
@@ -1302,7 +1323,7 @@ impl App {
         } else if seq >= crate::onboarding::SEQ_BASE {
             self.onboarding_fetched(symbol, result);
         } else if seq >= crate::feeds::SEQ_BASE {
-            self.feed_fetched(seq, result);
+            self.feed_fetched(seq, result, prepared);
         } else if seq >= 1 << 41 {
             self.lab_fetched(seq, symbol, result);
         } else {

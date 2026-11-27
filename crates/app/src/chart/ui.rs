@@ -175,7 +175,6 @@ pub fn show(
     tools: &super::drawing_ui::Tools,
 ) -> Vec<Action> {
     let mut actions = Vec::new();
-    chart.replay_tick(ui.ctx());
     let full = ui.max_rect();
     let pal = chart.style.palette(t);
     let painter = ui.painter_at(full);

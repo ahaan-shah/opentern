@@ -19,6 +19,7 @@ use opentern_core::{Bar, Symbol, Timeframe};
 use opentern_data::{Event, Status};
 use opentern_series::study::{Inputs, Instance, Meta, Placement, sessions};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 pub use style::{ChartStyle, StudyLook};
 
 /// Bars of empty space kept right of the last bar by default.
@@ -221,6 +222,8 @@ impl Default for View {
         }
     }
 }
+
+pub(crate) type PreparedStudies = HashMap<(u64, u64), Instance>;
 
 pub struct Chart {
     pub id: u64,
@@ -855,13 +858,20 @@ impl Chart {
 
     /// New inputs for a study: it recomputes from the first bar.
     pub fn set_inputs(&mut self, uid: u64, inputs: &Inputs) {
+        self.set_inputs_prepared(uid, inputs, None);
+    }
+
+    pub(crate) fn set_inputs_prepared(&mut self, uid: u64, inputs: &Inputs, ready: Option<Instance>) {
         let (bars, sess, tf) = (&self.bars, &self.sessions, self.tf);
         if let Some(s) = self.studies.iter_mut().find(|s| s.uid == uid) {
             // Keeps how the study is built (a script's factory, or outputs
             // that come from a Python process).
             let was = s.inst.levels();
-            s.inst = s.inst.with_inputs(inputs);
-            s.inst.recompute(bars, sess, tf);
+            s.inst = ready.unwrap_or_else(|| {
+                let mut inst = s.inst.with_inputs(inputs);
+                inst.recompute(bars, sess, tf);
+                inst
+            });
             // Levels follow the inputs they're made of, unless they've
             // been set by hand in the Style tab.
             for ((h, was), now) in s.look.hlines.iter_mut().zip(was).zip(s.inst.levels()) {
@@ -879,9 +889,43 @@ impl Chart {
     }
 
     fn recompute_all(&mut self) {
+        self.recompute_prepared(&mut PreparedStudies::new());
+    }
+
+    pub(crate) fn recompute_prepared(&mut self, ready: &mut PreparedStudies) {
         for s in &mut self.studies {
-            s.inst.recompute(&self.bars, &self.sessions, self.tf);
+            if let Some(inst) = ready.remove(&(self.id, s.uid)) {
+                s.inst = inst;
+            } else {
+                s.inst.recompute(&self.bars, &self.sessions, self.tf);
+            }
         }
+    }
+
+    pub(crate) fn recompute_instance(&self, inst: &mut Instance) {
+        inst.recompute(&self.bars, &self.sessions, self.tf);
+    }
+
+    /// Only the inputs to the series pipeline. The preview has no studies
+    /// or UI state and can run the same bar transformations on the worker.
+    pub(crate) fn history_preview(&self) -> Self {
+        let mut c = Self::new(self.id, self.symbol.clone(), self.tf);
+        c.raw.clone_from(&self.raw);
+        c.bars.clone_from(&self.bars);
+        c.sessions.clone_from(&self.sessions);
+        c.sym_tz = self.sym_tz.clone();
+        c.style = self.style.clone();
+        c.corporate.clone_from(&self.corporate);
+        c.adj = self.adj;
+        c.replay.clone_from(&self.replay);
+        c
+    }
+
+    pub(crate) fn ticks_rebuild(&self) -> bool {
+        !matches!(
+            self.style.transform(&[]),
+            style::Transform::None | style::Transform::HeikinAshi
+        )
     }
 
     pub fn last_index(&self) -> f64 {
@@ -903,11 +947,16 @@ impl Chart {
         (!self.replaying()).then(|| self.raw.last().map(|b| b.close)).flatten()
     }
 
+    #[cfg(test)]
+    pub fn take_quote(&mut self, price: f64, now_ms: i64) {
+        self.take_quote_with(price, now_ms, &mut Self::recompute_all);
+    }
+
     /// A quote that arrived after the chart's last update: moved into the
     /// forming bar, so the chart and the watchlist show the same price.
     /// Ignored once that bar's period is over (the quote may belong to the
     /// next one).
-    pub fn take_quote(&mut self, price: f64, now_ms: i64) {
+    pub(crate) fn take_quote_with(&mut self, price: f64, now_ms: i64, recompute: &mut impl FnMut(&mut Self)) {
         let Some(&last) = self.raw.last() else { return };
         let span = self.tf.millis().unwrap_or(31 * 86_400_000);
         if self.replaying() || !price.is_finite() || price <= 0.0 || last.close == price || now_ms >= last.time + span {
@@ -919,7 +968,7 @@ impl Chart {
             low: last.low.min(price),
             ..last
         };
-        self.apply(Event::Tick { chart: self.id, bar });
+        self.apply_with(Event::Tick { chart: self.id, bar }, recompute);
     }
 
     /// How long a live chart's prices have gone without moving while its
@@ -989,7 +1038,12 @@ impl Chart {
     }
 
     /// Applies a data event meant for this chart.
+    #[cfg(test)]
     pub fn apply(&mut self, e: Event) {
+        self.apply_with(e, &mut Self::recompute_all);
+    }
+
+    pub(crate) fn apply_with(&mut self, e: Event, recompute: &mut impl FnMut(&mut Self)) {
         let newest = match &e {
             Event::Bars { bars, .. } => bars.last(),
             Event::Tick { bar, .. } => Some(bar),
@@ -1010,8 +1064,8 @@ impl Chart {
             self.data_version += 1;
         }
         match e {
-            Event::Bars { bars, complete, .. } => self.replace_bars(bars, complete),
-            Event::Tick { bar, .. } => self.tick(bar),
+            Event::Bars { bars, complete, .. } => self.replace_bars(bars, complete, recompute),
+            Event::Tick { bar, .. } => self.tick_with(bar, recompute),
             Event::Status { status, .. } => self.status = status,
             Event::Lot { min_qty, .. } => {
                 self.symbol.min_qty = min_qty;
@@ -1020,14 +1074,14 @@ impl Chart {
             Event::Corporate { corporate, .. } => {
                 self.corporate = Some(corporate);
                 if self.adj {
-                    self.rebuild();
+                    self.rebuild_with(recompute);
                 }
             }
             _ => {}
         }
     }
 
-    fn replace_bars(&mut self, bars: Vec<Bar>, complete: bool) {
+    fn replace_bars(&mut self, bars: Vec<Bar>, complete: bool, recompute: &mut impl FnMut(&mut Self)) {
         let was_empty = self.bars.is_empty();
         // Older history arrived at the front: keep the view where it was.
         let shift = match (self.bars.first(), bars.first()) {
@@ -1040,7 +1094,7 @@ impl Chart {
         self.complete = complete;
         self.asked_more = false;
         self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
-        self.recompute_all();
+        recompute(self);
         if was_empty || following {
             self.view.right = self.last_index() + RIGHT_MARGIN;
         } else {
@@ -1049,6 +1103,10 @@ impl Chart {
     }
 
     fn tick(&mut self, bar: Bar) {
+        self.tick_with(bar, &mut Self::recompute_all);
+    }
+
+    fn tick_with(&mut self, bar: Bar, recompute: &mut impl FnMut(&mut Self)) {
         let following = self.following();
         // The newest bars are never scaled (no dividend comes after them).
         match self.raw.last_mut() {
@@ -1068,7 +1126,7 @@ impl Chart {
             }
             // Bricks, lines and columns: built again from all the bars.
             _ => {
-                self.rebuild();
+                self.rebuild_with(recompute);
                 if following {
                     self.view.right = self.last_index() + RIGHT_MARGIN;
                 }
@@ -1125,10 +1183,14 @@ impl Chart {
     /// Builds the shown bars again from the raw ones (chart type or ADJ
     /// changed) and recomputes the studies.
     pub fn rebuild(&mut self) {
+        self.rebuild_with(&mut Self::recompute_all);
+    }
+
+    fn rebuild_with(&mut self, recompute: &mut impl FnMut(&mut Self)) {
         let following = self.following();
         self.bars = self.display();
         self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
-        self.recompute_all();
+        recompute(self);
         self.data_version += 1;
         if following {
             self.view.right = self.last_index() + RIGHT_MARGIN;

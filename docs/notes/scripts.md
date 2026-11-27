@@ -142,6 +142,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   them in `App::feeds` (one store for all charts), reruns every chart's Pine
   studies, and refreshes feeds in use every minute. Symbols resolve like
   formulas (`expr::resolve`). Inputs can pick symbol and timeframe.
+- Whole-history Pine recomputes triggered by hub events run on a worker.
+  The UI keeps the previous complete data batch while it waits. The worker
+  uses private chart series and a copy of the feed map, in hub order. The
+  original batch is then dispatched once with the prepared study instances.
+  Changes to chart data, replay or the Pine study configuration invalidate
+  the work before publication.
 - A feed bar counts as finished when its period has ended by the chart bar's
   close; lookahead/gaps/forming-bar repaint follow the same rules as HTF bars.
 - `run::period_end` + `calendar::last_close_in`: daily-and-longer periods of
