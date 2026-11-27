@@ -309,36 +309,75 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
 
 fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
     let mut done = Done::Keep;
-    if frame(ui, t, tr("Change interval"), 300.0, |ui| {
-        let r = ui.add(
-            crate::widgets::field(text)
-                .font(theme::regular(15.0))
-                .desired_width(f32::INFINITY),
+    ui.set_width(220.0);
+    ui.horizontal(|ui| {
+        ui.label(
+            egui::RichText::new(tr("Change interval"))
+                .font(theme::semibold(16.0))
+                .color(t.text),
         );
-        if !r.has_focus() {
-            r.request_focus();
-            if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id) {
-                let end = egui::text::CCursor::new(text.chars().count());
-                state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
-                state.store(ui.ctx(), r.id);
-            }
+        ui.add_space(4.0);
+        let info = ui.label(
+            egui::RichText::new(crate::icons::ph::INFO)
+                .font(theme::regular(14.0))
+                .color(t.text3),
+        );
+        info.on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(tr("Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."));
+    });
+    ui.add_space(8.0);
+    let r = ui.add(
+        egui::TextEdit::singleline(text)
+            .font(theme::medium(18.0))
+            .desired_width(220.0)
+            .margin(egui::Margin::symmetric(10, 8)),
+    );
+    if !r.has_focus() {
+        r.request_focus();
+        if let Some(mut state) = egui::TextEdit::load_state(ui.ctx(), r.id) {
+            let end = egui::text::CCursor::new(text.chars().count());
+            state.cursor.set_char_range(Some(egui::text::CCursorRange::one(end)));
+            state.store(ui.ctx(), r.id);
         }
-        let parsed = opentern_core::Timeframe::parse(text);
-        let hint = match parsed {
-            Some(tf) => trf!("Press Enter for {}", tf.label()),
-            None => tr("Like 15, 4h, D, W or 3M").into(),
-        };
-        ui.label(egui::RichText::new(hint).color(t.text3));
-        if ui.input(|i| i.key_pressed(egui::Key::Enter))
-            && let Some(tf) = parsed
-        {
-            app.set_interval_synced(tf);
-            done = Done::Close;
-        }
-    }) {
+    }
+    ui.add_space(6.0);
+    let parsed = opentern_core::Timeframe::parse(text);
+    let hint = match parsed {
+        Some(tf) => interval_long_name(tf),
+        None => tr("Like 15, 4h, D, W or 3M").into(),
+    };
+    ui.vertical_centered(|ui| {
+        ui.label(egui::RichText::new(hint).font(theme::regular(13.0)).color(t.text3));
+    });
+    if ui.input(|i| i.key_pressed(egui::Key::Enter))
+        && let Some(tf) = parsed
+    {
+        app.set_interval_synced(tf);
+        done = Done::Close;
+    }
+    if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         done = Done::Close;
     }
     done
+}
+
+fn interval_long_name(tf: opentern_core::Timeframe) -> String {
+    use opentern_core::Unit;
+    let n = tf.count;
+    match (tf.unit, n) {
+        (Unit::Second, 1) => tr("1 second").into(),
+        (Unit::Second, _) => trf!("{n} seconds"),
+        (Unit::Minute, 1) => tr("1 minute").into(),
+        (Unit::Minute, _) => trf!("{n} minutes"),
+        (Unit::Hour, 1) => tr("1 hour").into(),
+        (Unit::Hour, _) => trf!("{n} hours"),
+        (Unit::Day, 1) => tr("1 day").into(),
+        (Unit::Day, _) => trf!("{n} days"),
+        (Unit::Week, 1) => tr("1 week").into(),
+        (Unit::Week, _) => trf!("{n} weeks"),
+        (Unit::Month, 1) => tr("1 month").into(),
+        (Unit::Month, _) => trf!("{n} months"),
+    }
 }
 
 /// A labelled row in a settings form: label on the left, control on the

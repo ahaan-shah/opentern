@@ -3831,9 +3831,6 @@ msgstr "Линия цены до/после рынка"
 msgid "Precision"
 msgstr "Точность"
 
-msgid "Press Enter for {0}"
-msgstr "Нажмите Enter для {0}"
-
 msgid "Previous 7 days"
 msgstr "Последние 7 дней"
 
@@ -5380,6 +5377,9 @@ msgstr "Введите число"
 
 msgid "Type anywhere"
 msgstr "Печатайте где угодно"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "Введите число для минутных графиков (например, 5 для 5-минутного). Или число с буквой: S для секунд, H (часы), D (дни), W (недели), M (месяцы)."
 
 msgid "UO"
 msgstr ""

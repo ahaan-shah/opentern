@@ -644,6 +644,7 @@ impl App {
             w if w.starts_with("search:") => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(
                 &w["search:".len()..].to_uppercase(),
             ))),
+            w if w.starts_with("interval:") => Some(Modal::Interval(w["interval:".len()..].to_string())),
             "python-notice" => Some(Modal::PythonNotice),
             "paper-account" => {
                 self.open_paper_account(true);
@@ -711,6 +712,44 @@ impl App {
         for i in 0..self.chart.compares.len() {
             self.open_compare(i);
         }
+        self.sync_chart_alerts();
+    }
+
+    /// Syncs active alerts for the current symbol to the chart for rendering.
+    pub fn sync_chart_alerts(&mut self) {
+        let prec = self.chart.precision();
+        let sym_id = self.chart.symbol.id.clone();
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let now = crate::alerts::now_ms();
+        let mut list = Vec::new();
+        for (alert, _) in &self.alerts.list {
+            if !alert.active {
+                continue;
+            }
+            let matches_sym =
+                alert.symbol == sym_id || alert.symbol == sym_ticker || alert.symbol.ends_with(&sym_ticker);
+            if !matches_sym {
+                continue;
+            }
+            let price = match &alert.condition {
+                opentern_engine::alerts::Condition::Price { value, .. } => Some(*value),
+                opentern_engine::alerts::Condition::Line { .. } => alert.condition.line_price(now),
+                _ => None,
+            };
+            if let Some(p) = price {
+                let label = if alert.name.is_empty() {
+                    format!("{} Crossing {}", sym_ticker, crate::format::price(p, prec))
+                } else {
+                    alert.name.clone()
+                };
+                list.push(crate::alerts::ChartAlert {
+                    id: alert.id,
+                    price: p,
+                    label,
+                });
+            }
+        }
+        self.chart.alerts = list;
     }
 
     pub fn toggle_dark(&mut self, ctx: &egui::Context) {
@@ -1129,6 +1168,14 @@ impl App {
                 Action::RemoveCompare(i) => self.remove_compare(i),
                 Action::ChartMenu(pos, price) => {
                     self.chart_menu = Some((pos, price));
+                }
+                Action::DeleteAlert(id) => {
+                    self.delete_alert(id);
+                }
+                Action::EditAlert(id) => {
+                    if let Some((a, _)) = self.alerts.list.iter().find(|(x, _)| x.id == id).cloned() {
+                        self.open_alert_dialog(Some(a));
+                    }
                 }
                 Action::PaperMove(id, price) => self.paper_move(id, price),
                 Action::PaperCancel(id) => self.paper_cancel(id),
@@ -1849,6 +1896,7 @@ impl App {
         self.poll_claude();
         self.poll_overview(&ctx);
         self.shortcuts(&ctx);
+        self.sync_chart_alerts();
         self.shell(ui);
         if let Some(id) = self.chart_ui.draw.open_settings.take() {
             self.modal =

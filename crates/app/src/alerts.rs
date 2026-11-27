@@ -28,6 +28,14 @@ pub const EMAIL_PORT: &str = "email_smtp_port";
 pub const EMAIL_USER: &str = "email_smtp_user";
 pub const EMAIL_TO: &str = "email_to";
 
+/// An active alert shown on the chart canvas and price scale.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChartAlert {
+    pub id: i64,
+    pub price: f64,
+    pub label: String,
+}
+
 /// Where an alert's email goes.
 #[derive(Clone, Debug)]
 pub struct EmailTo {

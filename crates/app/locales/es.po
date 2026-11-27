@@ -3831,9 +3831,6 @@ msgstr "Línea de precio pre/posmercado"
 msgid "Precision"
 msgstr "Precisión"
 
-msgid "Press Enter for {0}"
-msgstr "Pulsa Intro para {0}"
-
 msgid "Previous 7 days"
 msgstr "Últimos 7 días"
 
@@ -5380,6 +5377,9 @@ msgstr "Escribe un número"
 
 msgid "Type anywhere"
 msgstr "Escribe en cualquier sitio"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "Escribe el número para gráficos de minutos (ej. 5 para 5 minutos). O número más letra: S para segundo, H (por hora), D (diario), W (semanal), M (mensual)."
 
 msgid "UO"
 msgstr ""

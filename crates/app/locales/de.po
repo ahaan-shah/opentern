@@ -3831,9 +3831,6 @@ msgstr "Preislinie vor-/nachbörslich"
 msgid "Precision"
 msgstr "Genauigkeit"
 
-msgid "Press Enter for {0}"
-msgstr "Enter für {0} drücken"
-
 msgid "Previous 7 days"
 msgstr "Letzte 7 Tage"
 
@@ -5380,6 +5377,9 @@ msgstr "Zahl tippen"
 
 msgid "Type anywhere"
 msgstr "Einfach tippen"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "Intervallzahl für Minuten-Charts eingeben (z. B. 5 für 5-Minuten-Chart). Oder Zahl plus Buchstabe: S für Sekunde, H (stündlich), D (täglich), W (wöchentlich), M (monatlich)."
 
 msgid "UO"
 msgstr ""

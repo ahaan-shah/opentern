@@ -34,6 +34,8 @@ pub enum Action {
     CompareMenu(usize, Pos2),
     MoreHistory,
     ChartMenu(Pos2, f64),
+    DeleteAlert(i64),
+    EditAlert(i64),
     RemoveCompare(usize),
     /// Chart trading: a paper order's line was dragged to a new price.
     PaperMove(u64, f64),
@@ -1052,6 +1054,61 @@ pub fn show(
     for (k, g) in geos.iter().enumerate() {
         let pane_id = chart.panes[k].id;
         let mut tags: Vec<(f32, String, Color32, Option<String>)> = Vec::new();
+        if k == 0 {
+            let alert_col = Color32::from_rgb(235, 140, 25);
+            for alert in &chart.alerts {
+                let yy = g.y.y(alert.price);
+                if yy >= g.rect.top() && yy <= g.rect.bottom() {
+                    styled_hline(
+                        &clip_painter(g.rect),
+                        g.rect.left(),
+                        g.rect.right(),
+                        snap(yy, ppp),
+                        Stroke::new(1.0, alert_col),
+                        opentern_series::study::LineStyle::Dashed,
+                    );
+                    tags.push((yy, format::price(alert.price, prec), alert_col, None));
+                    let near = pointer.is_some_and(|p| (p.y - yy).abs() < 12.0 && g.rect.contains(p));
+                    if near {
+                        let text_g = painter.layout_no_wrap(alert.label.clone(), theme::medium(11.5), Color32::WHITE);
+                        let pill_w = text_g.size().x + 36.0;
+                        let pill_r = Rect::from_center_size(pos2(g.rect.center().x, yy), vec2(pill_w, 22.0));
+                        painter.rect_filled(pill_r, CornerRadius::same(5), Color32::from_black_alpha(200));
+                        painter.rect_stroke(
+                            pill_r,
+                            CornerRadius::same(5),
+                            Stroke::new(1.0, alert_col),
+                            egui::StrokeKind::Inside,
+                        );
+                        painter.galley(
+                            pos2(pill_r.left() + 8.0, pill_r.center().y - text_g.size().y / 2.0),
+                            text_g,
+                            Color32::WHITE,
+                        );
+                        let trash_r =
+                            Rect::from_center_size(pos2(pill_r.right() - 12.0, pill_r.center().y), vec2(16.0, 16.0));
+                        painter.text(
+                            trash_r.center(),
+                            Align2::CENTER_CENTER,
+                            ph::TRASH,
+                            theme::regular(12.0),
+                            Color32::WHITE,
+                        );
+                        if ui
+                            .interact(trash_r, Id::new(("del-alert", alert.id)), Sense::click())
+                            .clicked()
+                        {
+                            actions.push(Action::DeleteAlert(alert.id));
+                        } else if ui
+                            .interact(pill_r, Id::new(("edit-alert", alert.id)), Sense::click())
+                            .clicked()
+                        {
+                            actions.push(Action::EditAlert(alert.id));
+                        }
+                    }
+                }
+            }
+        }
         if k == 0
             && let Some(b) = chart.bars.last()
         {

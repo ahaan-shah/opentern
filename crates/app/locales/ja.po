@@ -3831,9 +3831,6 @@ msgstr "時間外価格ライン"
 msgid "Precision"
 msgstr "精度"
 
-msgid "Press Enter for {0}"
-msgstr "Enterで{0}に変更"
-
 msgid "Previous 7 days"
 msgstr "過去7日間"
 
@@ -5380,6 +5377,9 @@ msgstr "数字を入力"
 
 msgid "Type anywhere"
 msgstr "どこでも入力"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "分足チャートの場合は数値を入力 (例: 5分足なら 5)。その他の足は数値と文字: 秒は S、時間は H、日は D、週は W、月は M。"
 
 msgid "UO"
 msgstr ""

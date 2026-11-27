@@ -9,6 +9,8 @@
   - **Rectangle / Box**: 8 draggable handles (4 corners + 4 edge midpoints for single-dimension resizing), dashed middle line with customizable style/color, extend left/right options, and multi-line text with vertical (Inside/Top/Bottom) and horizontal (Left/Center/Right) alignments.
   - **Fibonacci Retracement**: 26 fully customizable levels with individual level checkboxes, custom ratios, colors, optional trendline, line extensions, and background opacity shading.
   - **Long and Short Position tools**: Comprehensive position sizing engine supporting account size, currency, lot size, cash or percent risk, leverage, target/stop ticks and prices, and chart tags showing Target, Stop, Amount, Qty, and Risk/Reward ratio.
+- **Active alerts on chart**: Active alerts now render on the chart canvas as dashed amber lines with an alert badge on the price scale and an interactive hover pill displaying the alert label and a quick-delete trash button, matching TradingView.
+- **Compact Change interval popover**: Redesigned as a floating popover card over the chart with an info icon, keyboard shortcut guidance tooltip, and live interval name resolution (e.g., "1 minute", "4 hours").
 - **Favorite drawings toolbar.** A floating TradingView-style toolbar over the chart for quick one-click access to your favorite drawing tools. Hover over any tool in the drawing flyouts to star it (or right-click standalone tools like Measure and Zoom). The floating toolbar can be dragged anywhere over the chart, toggled between horizontal and vertical orientations, collapsed into a compact pill, reordered by drag-and-drop or context menu, and toggled on or off via the star button in the left sidebar.
 
 ## 0.3.6 (2026-11-26)

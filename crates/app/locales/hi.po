@@ -3831,9 +3831,6 @@ msgstr "बाज़ार से पहले/बाद भाव रेखा"
 msgid "Precision"
 msgstr "परिशुद्धता"
 
-msgid "Press Enter for {0}"
-msgstr "{0} के लिए Enter दबाएँ"
-
 msgid "Previous 7 days"
 msgstr "पिछले 7 दिन"
 
@@ -5380,6 +5377,9 @@ msgstr "संख्या टाइप करें"
 
 msgid "Type anywhere"
 msgstr "कहीं भी टाइप करें"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "मिनट चार्ट के लिए अंतराल संख्या टाइप करें (उदा. 5 मिनट चार्ट के लिए 5)। या अन्य अंतरालों के लिए संख्या और अक्षर: सेकंड के लिए S, घंटे के लिए H, दैनिक के लिए D, साप्ताहिक के लिए W, मासिक के लिए M।"
 
 msgid "UO"
 msgstr ""

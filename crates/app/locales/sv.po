@@ -3831,9 +3831,6 @@ msgstr "Prislinje för för-/efterhandel"
 msgid "Precision"
 msgstr "Precision"
 
-msgid "Press Enter for {0}"
-msgstr "Tryck på Retur för {0}"
-
 msgid "Previous 7 days"
 msgstr "Senaste 7 dagarna"
 
@@ -5380,6 +5377,9 @@ msgstr "Skriv ett tal"
 
 msgid "Type anywhere"
 msgstr "Skriv var som helst"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "Ange intervallnummer för minutdiagram (t.ex. 5 för 5 minuter). Eller siffra plus bokstav: S för sekund, H (timmar), D (dagligen), W (veckovis), M (månadsvis)."
 
 msgid "UO"
 msgstr ""

@@ -3831,9 +3831,6 @@ msgstr "盘前/盘后价格线"
 msgid "Precision"
 msgstr "精度"
 
-msgid "Press Enter for {0}"
-msgstr "按 Enter 切换到 {0}"
-
 msgid "Previous 7 days"
 msgstr "过去 7 天"
 
@@ -5380,6 +5377,9 @@ msgstr "输入数字"
 
 msgid "Type anywhere"
 msgstr "随处输入"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr "输入分钟图表的间隔数值（如 5 分钟图表输入 5）。或其他周期的数值加字母：秒用 S、小时用 H、日线用 D、周线用 W、月线用 M。"
 
 msgid "UO"
 msgstr ""
