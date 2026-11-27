@@ -5133,6 +5133,10 @@ msgstr ""
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr ""
 
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr ""
+
 msgid "This is a library: import it from another script."
 msgstr ""
 

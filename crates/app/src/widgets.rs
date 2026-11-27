@@ -42,13 +42,23 @@ pub fn tool_button_look(ui: &Ui, t: &Theme, resp: Response, glyph: &str, tip: &s
 /// A text (optionally icon + text) button for the top bar. `active` shows
 /// it as selected, like the current interval.
 pub fn bar_button(ui: &mut Ui, t: &Theme, icon: Option<&str>, text: &str, tip: &str, active: bool) -> Response {
-    let font = theme::medium(13.0);
-    let label = match icon {
-        Some(i) if text.is_empty() => i.to_string(),
-        Some(i) => format!("{i}  {text}"),
-        None => text.to_string(),
+    // The icon at the toolbars' size (as `tool_button` draws it), the text
+    // at the bar's.
+    let mut job = egui::text::LayoutJob::default();
+    let fmt = |font| egui::TextFormat {
+        font_id: font,
+        color: t.text,
+        valign: egui::Align::Center,
+        ..Default::default()
     };
-    let galley = ui.painter().layout_no_wrap(label, font, t.text);
+    if let Some(i) = icon {
+        job.append(i, 0.0, fmt(theme::regular(16.8)));
+    }
+    if !text.is_empty() {
+        let gap = if icon.is_some() { 6.0 } else { 0.0 };
+        job.append(text, gap, fmt(theme::medium(13.0)));
+    }
+    let galley = ui.fonts_mut(|f| f.layout_job(job));
     let h = 30.0;
     let w = (galley.size().x + 16.0).max(h);
     let (rect, resp) = ui.allocate_exact_size(vec2(w, h), Sense::click());
@@ -1279,10 +1289,12 @@ mod tests {
                 events,
                 ..Default::default()
             };
-            let _ = ctx.run_ui(raw, |ui| {
+            let mut out = ctx.run_ui(raw, |ui| {
                 number(ui, id, v, 0.1, 0.0, 2.7, 1);
                 *rect = ui.min_rect();
             });
+            // No renderer here: drop the font atlas's upload.
+            out.textures_delta.clear();
         };
         frame(vec![], &mut v, &mut rect);
         let at = rect.left_center() + vec2(14.0, 0.0);

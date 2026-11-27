@@ -5133,6 +5133,10 @@ msgstr "此文件含有 {0} 个 Python 脚本"
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "此文件由更新版本的 Opentern 生成。请更新 Opentern 后导入。"
 
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "这是开发版本：它不会自行更新。"
+
 msgid "This is a library: import it from another script."
 msgstr "这是一个库：请从其他脚本导入。"
 

@@ -506,20 +506,25 @@ impl App {
                     self.chart.toggle_replay();
                 }
                 w::vdivider(ui, t);
-                let undo = egui::Button::new(ph::ARROW_U_UP_LEFT).frame(false);
+                // Undo and redo look like the drawing toolbar's buttons.
+                let undo_tip = self.keys.tip(tr("Undo"), Action::Undo);
+                let can_undo = self.chart.can_undo();
                 if ui
-                    .add_enabled_ui(self.chart.can_undo(), |ui| w::eased(ui, undo))
+                    .add_enabled_ui(can_undo, |ui| {
+                        w::tool_button(ui, t, ph::ARROW_U_UP_LEFT, &undo_tip, false, 30.0)
+                    })
                     .inner
-                    .on_hover_text(self.keys.tip(tr("Undo"), Action::Undo))
                     .clicked()
                 {
                     self.chart.undo();
                 }
-                let redo = egui::Button::new(ph::ARROW_U_UP_RIGHT).frame(false);
+                let redo_tip = self.keys.tip(tr("Redo"), Action::Redo);
+                let can_redo = self.chart.can_redo();
                 if ui
-                    .add_enabled_ui(self.chart.can_redo(), |ui| w::eased(ui, redo))
+                    .add_enabled_ui(can_redo, |ui| {
+                        w::tool_button(ui, t, ph::ARROW_U_UP_RIGHT, &redo_tip, false, 30.0)
+                    })
                     .inner
-                    .on_hover_text(self.keys.tip(tr("Redo"), Action::Redo))
                     .clicked()
                 {
                     self.chart.redo();

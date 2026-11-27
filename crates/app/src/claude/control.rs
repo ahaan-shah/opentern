@@ -751,6 +751,7 @@ impl App {
                             InputKind::Source => json!("source: open, high, low, close, hl2, hlc3, ohlc4, hlcc4"),
                             InputKind::Choice(o) => json!({ "one_of": o }),
                             InputKind::Color => json!("colour #RRGGBBAA"),
+                            InputKind::Symbol { .. } => json!("symbol, e.g. NASDAQ:AAPL or BINANCE:BTCUSDT"),
                             _ => json!("text"),
                         };
                         json!({"id": s.id, "title": s.title, "value": cur, "kind": kind})

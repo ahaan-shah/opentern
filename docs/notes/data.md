@@ -148,7 +148,11 @@ every data change (scripts re-run on it).
   redistribute OK for personal or business purposes; the notice
   (`nyfed::NOTICE`, kept in English) wherever it's shown; no endorsement or
   name in advertising. Live test: `fed_funds_rate_from_the_new_york_fed`.
-  Not done: Fed funds futures (`ZQ=F`) aren't in the app.
+- **Fed funds futures** (`CBOT:ZQ1!`, Nov 2026): `opentern_core::futures()`, kind
+  `Futures`, Yahoo's `ZQ=F` (Yahoo's search tags it `CBT`, `id_for` maps it back).
+  Tick 0.0025 (CBOT's front month), hours and the 10-minute delay like the commodities,
+  the US flag as its icon, search aliases "ZQ", "ZQ=F", "fed funds futures". Before
+  this, `ZQ=F` opened only as a raw Yahoo ticker (no name, wrong tick, no delay tag).
 - **Perpetuals** (`….P`, TradingView's name): `Binance::perp()` (fapi; its
   market streams are under `/market/ws/` since late 2026: the old `/ws/`
   path connects and sends nothing), `Bybit::perp()` (`category=linear`),

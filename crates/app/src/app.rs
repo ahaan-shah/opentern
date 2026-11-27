@@ -163,6 +163,12 @@ impl App {
         let keys = crate::keys::Keymap::load(&store);
         crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
+        // The computer's fonts as fallbacks, found in the background (not in
+        // tests and drills: their text stays the same everywhere).
+        if !headless() {
+            let wake = ctx.clone();
+            crate::sysfonts::start(move || wake.request_repaint());
+        }
         crate::popups::install(ctx);
         let theme = ThemeState::new(ctx, &store.settings().theme);
         let wake_ctx = ctx.clone();
@@ -389,6 +395,7 @@ impl App {
                     .chain(opentern_core::indices())
                     .chain(opentern_core::commodities())
                     .chain(opentern_core::spot_commodities())
+                    .chain(opentern_core::futures())
                     .find(|s| s.id == id)
                     .unwrap_or_else(|| Symbol {
                         kind: if crypto {
@@ -1241,7 +1248,7 @@ impl App {
                 Event::OverviewPrices { seq, market, result } => self.overview_prices(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
                 Event::Peek { quotes, .. } => {
-                    if let Some(Modal::Symbol(s)) = &mut self.modal {
+                    if let Some(s) = self.modal.as_mut().and_then(Modal::search_mut) {
                         for (id, last, prev) in quotes {
                             s.peek.insert(id, (last, prev));
                         }
@@ -1254,17 +1261,20 @@ impl App {
                 }
                 // What's known shows at once; the full answer replaces it.
                 // Enter waits for the full one (`got`).
-                Event::Search { seq, results, done } => match &mut self.modal {
-                    Some(Modal::Symbol(s)) if seq == self.search_seq => {
-                        s.results = results;
-                        s.quick = seq;
-                        if done {
-                            s.got = seq;
+                Event::Search { seq, results, done } if seq == self.search_seq => match &mut self.modal {
+                    Some(Modal::Index(e)) => e.results = results,
+                    Some(m) => {
+                        if let Some(s) = m.search_mut() {
+                            s.results = results;
+                            s.quick = seq;
+                            if done {
+                                s.got = seq;
+                            }
                         }
                     }
-                    Some(Modal::Index(e)) if seq == self.search_seq => e.results = results,
-                    _ => {}
+                    None => {}
                 },
+                Event::Search { .. } => {}
                 e @ (Event::Bars { chart, .. }
                 | Event::Tick { chart, .. }
                 | Event::Status { chart, .. }
@@ -1451,6 +1461,10 @@ impl App {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
         theme::tick_scrollbars(&ctx);
+        // The computer's fallback fonts were found: put them behind ours.
+        if crate::sysfonts::take_ready() {
+            theme::install_fonts(&ctx, &self.store.settings().font);
+        }
         self.logos.poll(&ctx);
         let now = ctx.input(|i| i.time);
         if self.onboarding.as_ref().is_some_and(|o| o.covers(now)) {

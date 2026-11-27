@@ -179,3 +179,51 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   in `python.rs`): `opentern_core::bartime` is shared by Pine, Luau/JS and Python
   (`scripting::script_bars`); `host.rs` windows keep their inputs for a changed length
   (`WINDOWS`). Python replies are strict JSON: `_num` turns nan and infinity into none.
+
+## Indicators on indicators (Nov 2026)
+A `Source` input (built-ins' "source", Pine's `input.source`) can name another
+study's plot on the same chart: `study:<uid>:<plot>` (`opentern_series::study::link_key`,
+`parse_link`). Built our own way after reviewing PR #7 (theirs only covered Pine):
+- **Built-ins** need no changes: `Ctx::src` returns the linked value when the study's
+  "source" input is linked (`Ctx::links`, set per run with `Instance::set_links`).
+  Fixed fields (`Source::Hl2.of(bar)`) don't go through it.
+- **Pine**: `run::Src::Link(input id)`; `E::InSrc`/`E::InSrcH` read `G::links` at the
+  chart bar (`link_at`), history included. Inside `request.security` it's an error
+  (other bars); a script on its own higher `timeframe` reads na. Pine input ids are the
+  slugged title ("Src" → `src`).
+- **Chart** (`chart/mod.rs`): `links_for` hands each study its plots just before it runs;
+  `study_order` runs providers before readers (a loop is cut, never hangs);
+  `refresh_readers` reruns readers, down the chain, when a provider's inputs change, a
+  script recompiles or Python output arrives. `remove_study` puts readers back on their
+  default; `lift_study` + `add_instance_as` move a script between panes keeping its id.
+  `SavedStudy::uid` keeps ids across restarts (`from_state` starts fresh ids above saved
+  ones; `add_*_as(…, want)` take them back), so restore order doesn't matter.
+- **Dialog**: `dialogs::study::link_choices` offers other studies' plots to any study,
+  never one that already reads this study (`Chart::readers_of`).
+- **Luau/JS** (Nov 2026): `input.source` returns the input's text, so a linked one returns
+  `study:<uid>:<plot>`; `ScriptStudy::linked` maps input ids to those names and each bar
+  passes `c.link(id, 0)` as an extra `bar` field (`Vm::on_bar`'s `extra`). `bar[src]`
+  works unchanged.
+- **Python**: `Chart::linked_lines(uid)` goes with each run (`Runner::run`'s `extra`, JSON
+  `bars.extra`, null for na); the SDK's `Bars.__getitem__` looks there first. A
+  fingerprint of those lines (`scripting::fingerprint`) reruns the script when they
+  change (the source's settings, its own new output). Legend and Object tree name them
+  (`Chart::study_title`: "RSI 14 EMA: EMA"; "—" while the source is missing).
+- Not linked: background alerts evaluated without a chart, indicator templates applied
+  to another chart (their ids point nowhere: na until relinked).
+- Tests (`chart::tests`): RSI of EMA vs a Wilder RSI written in the test, Pine `ta.sma`
+  and `s[2]` on a built-in, a built-in SMA on a Pine plot, the signal-script case with
+  live ticks, a chain after an input change, restart in reverse order, removal, loops.
+- Built-ins must read their source through `Ctx::src`, never `Source::of(bar)`
+  (Stoch RSI did, and ignored links). `chart::tests::every_builtin_with_a_source_reads_a_line_exactly`
+  runs each built-in on a linked EMA against the same built-in on bars whose close is
+  that EMA; KC, Median and Volatility Stop add an ATR of the real bars, so only their
+  source-only lines are compared.
+
+## Symbol inputs (Nov 2026)
+Pine's `input.symbol` is `InputKind::Symbol { confirm }` (Text value). The settings show
+a button that opens the symbol search inside the dialog (`StudySettings::picking`, a
+`SymbolSearch` with `Pick::Input`; `Modal::search_mut` routes search results to it; Esc
+goes back to the settings). `confirm = true` opens it when the study is added from the
+Indicators dialog (`dialogs::indicators::add_entry`); Correlation Coefficient sets it.
+

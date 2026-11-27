@@ -5133,6 +5133,10 @@ msgstr "Este arquivo tem {0} scripts Python"
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "Este arquivo é de uma versão mais nova do Opentern. Atualize o Opentern para importá-lo."
 
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "Esta é uma cópia de desenvolvimento: ela não se atualiza sozinha."
+
 msgid "This is a library: import it from another script."
 msgstr "É uma biblioteca: importe-a em outro script."
 

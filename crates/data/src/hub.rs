@@ -801,11 +801,13 @@ fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) 
 pub(crate) static DEMO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// How many minutes behind the exchange a symbol's free prices are, when
-/// known: CME's and ICE's futures (our commodities, from Yahoo) reach free
+/// known: CME's and ICE's futures (our commodities and futures, from Yahoo) reach free
 /// sources at least 10 minutes late. Daily closes are the settlements.
 pub fn delayed_minutes(sym: &Symbol) -> Option<u32> {
-    (sym.kind == opentern_core::AssetKind::Commodity
-        && !DEMO.load(std::sync::atomic::Ordering::Relaxed)
+    (matches!(
+        sym.kind,
+        opentern_core::AssetKind::Commodity | opentern_core::AssetKind::Futures
+    ) && !DEMO.load(std::sync::atomic::Ordering::Relaxed)
         && yahoo_routed(sym))
     .then_some(10)
 }
@@ -1937,6 +1939,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         let mut known: Vec<Symbol> = opentern_core::starter_watchlist();
         known.extend(opentern_core::commodities());
         known.extend(opentern_core::spot_commodities());
+        known.extend(opentern_core::futures());
         known.extend(opentern_core::indices());
         known.extend(crate::overview::listed_stocks());
         if let Some(c) = cache {

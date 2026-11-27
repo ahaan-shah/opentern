@@ -4,15 +4,21 @@
 
 ### New
 - **The Fed funds rate.** Search "fed funds" or "EFFR" for the US effective federal funds rate, daily since July 2000, from the Federal Reserve Bank of New York. The Fed's target range shows as a band behind it and in the legend ("Target 3.75–4.00%"), and the day's change is in basis points. It's published once a day around 9:00 a.m. New York time, so it has daily, weekly and monthly charts only.
-- **Correlation Coefficient** is a built-in: how closely the chart moves with another symbol over the last bars, from −1 to 1.
+- **Correlation Coefficient** is a built-in: how closely the chart moves with another symbol over the last bars, from −1 to 1. Adding it opens the symbol search to pick that symbol.
+- **Symbol inputs use the symbol search.** A script's `input.symbol` is picked like any symbol, from part of its name; with `confirm = true` the search opens as soon as the indicator is added.
+- **Indicators on indicators.** An indicator's Source can be another indicator's line on the chart, as on TradingView: an RSI of an EMA, a moving average of a script's plot, a script acting on another script's signal. Built-ins and scripts in every language can (in Luau, JavaScript and Python, `bar[src]` or `bars[src]` gives the line); the list never offers a loop, links come back with the layout, and removing the source puts its readers back on their own.
+- **Text in any language shows.** Characters the app's fonts don't have (Chinese, Japanese, Korean, Arabic, Hebrew, Thai, the Indian scripts and more, in your scripts and names) are drawn with your computer's own fonts, without making the app any bigger.
+- **30-Day Fed Funds Futures** (`CBOT:ZQ1!`): search "ZQ" or "fed funds futures". Prices are 100 minus the month's expected average rate, delayed 10 minutes.
 - **Your own scripts in the Indicators dialog.** "My scripts" lists the indicators and strategies in your scripts folder, by their titles; search finds them too, and they can be starred.
 
 ### Changed
+- **The agent writes Pine.** Asked for an indicator or a strategy, Claude or Codex writes it in Pine Script unless you ask for another language, and keeps a script's own language when changing it.
 - **Drawing tools simply stay picked.** Draw as many as you like with a tool until you pick another, the cursor, or press Esc. The "Stay in drawing mode" button is gone.
 - **Replay controls** match the favorite drawings toolbar: the same rounded bar, icon buttons with their names in tooltips, and dividers.
 - **Indicator settings:** a long input name wraps instead of running under its box. Clicking a number puts the cursor where you click instead of selecting it all, and ↑/↓ step it by the script's `step` (1 for whole numbers when a script sets none).
 - **Easier to hit:** indicator names and their buttons on the chart are a little larger.
 - **Date ranges (1D to All) no longer jump:** the chart shows the chosen range from the first bars on, instead of showing them at the old zoom for a moment and then snapping.
+- **Top bar icons** are the size of the drawing toolbar's, and undo and redo look like its buttons.
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
 
 ## 0.3.7 (2026-11-26)

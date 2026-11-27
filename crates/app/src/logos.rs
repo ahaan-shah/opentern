@@ -83,7 +83,7 @@ fn file_key(s: &Symbol) -> Option<String> {
             (!t.is_empty()).then(|| format!("co-{}-{}", s.exchange().to_lowercase(), t.to_lowercase()))
         }
         AssetKind::Commodity => opentern_core::commodity_of(s).map(|c| format!("cmdty-{c}")),
-        AssetKind::Index => flag_of(s).map(|c| format!("flag-{c}")),
+        AssetKind::Index | AssetKind::Futures => flag_of(s).map(|c| format!("flag-{c}")),
         _ => None,
     }
 }
@@ -173,7 +173,13 @@ fn flag_of(s: &Symbol) -> Option<&'static str> {
         "ASX:XJO" => "au",
         "TSX:TSX" => "ca",
         "BMFBOVESPA:IBOV" => "br",
-        "TVC:US03MY" | "TVC:US05Y" | "TVC:US10Y" | "TVC:US30Y" | "TVC:DXY" | opentern_core::FED_FUNDS => "us",
+        "TVC:US03MY"
+        | "TVC:US05Y"
+        | "TVC:US10Y"
+        | "TVC:US30Y"
+        | "TVC:DXY"
+        | opentern_core::FED_FUNDS
+        | opentern_core::FED_FUNDS_FUTURES => "us",
         _ => return None,
     })
 }

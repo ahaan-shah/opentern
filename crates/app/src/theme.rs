@@ -613,6 +613,19 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
         add(format!("{name}-medium"), medium);
     }
 
+    // The computer's own fonts, last, for what nothing bundled draws
+    // (sysfonts.rs; none until they've been found).
+    let system: Vec<String> = crate::sysfonts::faces().iter().map(|f| f.key.clone()).collect();
+    for f in crate::sysfonts::faces() {
+        fonts.font_data.insert(
+            f.key.clone(),
+            std::sync::Arc::new(FontData {
+                font: std::borrow::Cow::Borrowed(f.bytes),
+                index: f.index,
+                tweak: Default::default(),
+            }),
+        );
+    }
     let fallbacks: Vec<String> = fonts
         .families
         .get(&FontFamily::Proportional)
@@ -627,6 +640,7 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
         };
         v.extend(scripts.map(|(n, ..)| format!("{n}{heavy}")));
         v.extend(fallbacks.iter().cloned());
+        v.extend(system.iter().cloned());
         v
     };
     fonts.families.insert(FontFamily::Proportional, family("ui"));
@@ -653,6 +667,7 @@ pub fn install_fonts(ctx: &egui::Context, font_name: &str) {
         for (i, (n, ..)) in scripts.iter().enumerate() {
             v.insert(i + 1, (*n).into());
         }
+        v.extend(system.iter().cloned());
     }
     // Phosphor icons as a fallback in every family so icons mix into text.
     let phosphor = egui_phosphor::Variant::Regular.font_bytes();

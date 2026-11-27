@@ -192,7 +192,12 @@ struct Job {
     seq: u64,
     bars: Arc<Vec<Bar>>,
     inputs: serde_json::Value,
+    extra: Extra,
 }
+
+/// Other indicators' lines a script reads: (the name its `input.source`
+/// returned, one value per bar). `bars[name]` gives them in Python.
+pub type Extra = Vec<(String, Arc<Vec<f64>>)>;
 
 /// A script's worker: send it bars with [`Runner::run`]; read results with
 /// [`Runner::poll`]. Only the newest pending request is run.
@@ -222,12 +227,13 @@ impl Runner {
     }
 
     /// Asks for a run on these bars; returns its number.
-    pub fn run(&mut self, bars: Arc<Vec<Bar>>, inputs: serde_json::Value) -> u64 {
+    pub fn run(&mut self, bars: Arc<Vec<Bar>>, inputs: serde_json::Value, extra: Extra) -> u64 {
         self.seq += 1;
         let _ = self.jobs.send(Job {
             seq: self.seq,
             bars,
             inputs,
+            extra,
         });
         self.seq
     }
@@ -237,8 +243,19 @@ impl Runner {
     }
 }
 
-fn bars_json(bars: &[Bar]) -> serde_json::Value {
+fn bars_json(bars: &[Bar], extra: &Extra) -> serde_json::Value {
+    // One value per bar; na (null) where the line has none.
+    let lines: serde_json::Map<String, serde_json::Value> = extra
+        .iter()
+        .map(|(k, v)| {
+            let vals: Vec<Option<f64>> = (0..bars.len())
+                .map(|i| v.get(i).copied().filter(|x| x.is_finite()))
+                .collect();
+            (k.clone(), serde_json::json!(vals))
+        })
+        .collect();
     serde_json::json!({
+        "extra": lines,
         "time": bars.iter().map(|b| b.time).collect::<Vec<_>>(),
         "open": bars.iter().map(|b| b.open).collect::<Vec<_>>(),
         "high": bars.iter().map(|b| b.high).collect::<Vec<_>>(),
@@ -342,7 +359,7 @@ fn worker(
         };
         let Some(job) = job else { continue };
         let started = Instant::now();
-        let req = serde_json::json!({"cmd": "run", "inputs": job.inputs, "bars": bars_json(&job.bars)});
+        let req = serde_json::json!({"cmd": "run", "inputs": job.inputs, "bars": bars_json(&job.bars, &job.extra)});
         match p.ask(&req) {
             Ok(r) => {
                 if !r.log.is_empty() {
@@ -422,7 +439,7 @@ mod tests {
         .unwrap();
         let mut r = Runner::start(script.clone(), dir.path().join("sdk"), Arc::new(|| {}));
         let b = bars(50);
-        r.run(b.clone(), serde_json::json!({"length": 3}));
+        r.run(b.clone(), serde_json::json!({"length": 3}), Vec::new());
         let Event::Output { meta, out, .. } = wait(&r, |e| matches!(e, Event::Output { .. })) else {
             unreachable!()
         };
@@ -462,7 +479,7 @@ mod tests {
         let bad = dir.path().join("bad.py");
         std::fs::write(&bad, "from opentern import *\ndef compute(bars):\n    1/0\n").unwrap();
         let mut r = Runner::start(bad, dir.path().join("sdk"), Arc::new(|| {}));
-        r.run(bars(10), serde_json::json!({}));
+        r.run(bars(10), serde_json::json!({}), Vec::new());
         let deadline = Instant::now() + Duration::from_secs(20);
         let mut msg = None;
         while Instant::now() < deadline && msg.is_none() {
@@ -483,7 +500,7 @@ mod tests {
         )
         .unwrap();
         let mut r = Runner::start(st, dir.path().join("sdk"), Arc::new(|| {}));
-        r.run(bars(60), serde_json::json!({}));
+        r.run(bars(60), serde_json::json!({}), Vec::new());
         let Event::Output { meta, out, .. } = wait(&r, |e| matches!(e, Event::Output { .. })) else {
             unreachable!()
         };
@@ -499,7 +516,7 @@ mod tests {
         let st = dir.path().join("s.py");
         std::fs::write(&st, format!("from opentern import *\n{body}")).unwrap();
         let mut r = Runner::start(st, dir.path().join("sdk"), Arc::new(|| {}));
-        r.run(bars(n), serde_json::json!({}));
+        r.run(bars(n), serde_json::json!({}), Vec::new());
         let deadline = Instant::now() + Duration::from_secs(20);
         while Instant::now() < deadline {
             for e in r.poll() {
@@ -602,7 +619,7 @@ mod tests {
         let mut r = Runner::start(st, dir.path().join("sdk"), Arc::new(|| {}));
         let mut b = bars(3).to_vec();
         b[1].volume = f64::NAN;
-        r.run(Arc::new(b), serde_json::json!({}));
+        r.run(Arc::new(b), serde_json::json!({}), Vec::new());
         let Event::Output { out, .. } = wait(&r, |e| matches!(e, Event::Output { .. } | Event::Error(_))) else {
             panic!("an error")
         };

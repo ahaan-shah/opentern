@@ -176,11 +176,15 @@ class Bars:
         self.hlc3 = [(h + l + c) / 3 for h, l, c in zip(self.high, self.low, self.close)]
         self.ohlc4 = [(o + h + l + c) / 4 for o, h, l, c in zip(self.open, self.high, self.low, self.close)]
         self.hlcc4 = [(h + l + c + c) / 4 for h, l, c in zip(self.high, self.low, self.close)]
+        # Other indicators' lines, by the name input.source returned for them.
+        self._lines = {k: [nan if v is None else v for v in vs] for k, vs in d.get("extra", {}).items()}
 
     def __len__(self):
         return len(self.close)
 
     def __getitem__(self, name):
+        if name in self._lines:
+            return self._lines[name]
         return getattr(self, name)
 
     def df(self):

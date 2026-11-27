@@ -5133,6 +5133,10 @@ msgstr "इस फ़ाइल में {0} Python स्क्रिप्ट 
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "यह फ़ाइल Opentern के नए संस्करण से बनी है। आयात के लिए Opentern अपडेट करें।"
 
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "यह डेवलपमेंट कॉपी है: यह अपने आप अपडेट नहीं होती।"
+
 msgid "This is a library: import it from another script."
 msgstr "यह लाइब्रेरी है: दूसरी स्क्रिप्ट से आयात करें।"
 

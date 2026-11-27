@@ -19,7 +19,11 @@ use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, pos2, vec2};
 pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
 pub use indicators::Indicators;
+#[cfg(test)]
+pub(crate) use indicators::{Entry, add_entry};
 pub use study::StudySettings;
+#[cfg(test)]
+pub(crate) use study::link_choices;
 pub use symbol::SymbolSearch;
 
 pub enum Modal {
@@ -143,6 +147,18 @@ pub fn sheen(ui: &Ui, t: &Theme, slots: &[egui::layers::ShapeIdx], frame: egui::
 pub fn sheen_slots(ui: &Ui) -> Vec<egui::layers::ShapeIdx> {
     // 24 bands, then the border drawn again over them.
     (0..25).map(|_| ui.painter().add(egui::Shape::Noop)).collect()
+}
+
+impl Modal {
+    /// The symbol search on screen: the dialog itself, or one an
+    /// indicator's settings opened for a symbol input.
+    pub(crate) fn search_mut(&mut self) -> Option<&mut SymbolSearch> {
+        match self {
+            Modal::Symbol(s) => Some(s),
+            Modal::Study(s) => s.picking.as_mut().map(|(_, s)| s.as_mut()),
+            _ => None,
+        }
+    }
 }
 
 impl App {

@@ -11,6 +11,7 @@ use crate::motion;
 use crate::theme::{self, Theme};
 use egui::{Align2, CornerRadius, Sense, Ui, pos2, vec2};
 use opentern_series::builtins;
+use opentern_series::study::InputKind;
 use opentern_series::study::{Category, Meta};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -25,7 +26,7 @@ enum Tab {
 /// One row: a built-in (Rust, or a bundled Pine script) or the person's
 /// own script.
 #[derive(Clone)]
-enum Entry {
+pub(crate) enum Entry {
     Builtin(&'static Meta),
     Script {
         /// Its path in the scripts folder (or `@opentern/…`, bundled).
@@ -353,13 +354,40 @@ impl Indicators {
         if let Some(id) = star {
             app.toggle_favorite("indicator", &id);
         }
-        match add {
-            Some(Entry::Builtin(m)) => app.add_study(m),
-            Some(Entry::Script { file, .. }) => app.add_script(&file),
-            None => {}
+        if let Some(e) = add
+            && add_entry(app, e)
+        {
+            return Done::Keep;
         }
         done
     }
+}
+
+/// Puts a row's indicator on the chart. One that asks for a symbol (Pine's
+/// `confirm = true`, as on Correlation Coefficient) opens its settings with
+/// the symbol search, and this says so (true).
+pub(crate) fn add_entry(app: &mut App, e: Entry) -> bool {
+    let before: Vec<u64> = app.chart.studies.iter().map(|s| s.uid).collect();
+    match e {
+        Entry::Builtin(m) => app.add_study(m),
+        Entry::Script { file, .. } => app.add_script(&file),
+    }
+    let new = app.chart.studies.iter().find(|s| !before.contains(&s.uid));
+    let ask = new.and_then(|s| {
+        let i = s
+            .meta()
+            .inputs
+            .iter()
+            .find(|i| matches!(i.kind, InputKind::Symbol { confirm: true }))?;
+        Some((s.uid, i.id))
+    });
+    if let Some((uid, input)) = ask
+        && let Some(settings) = super::StudySettings::new(app, uid)
+    {
+        app.modal = Some(super::Modal::Study(settings.picking(input)));
+        return true;
+    }
+    false
 }
 
 fn category_icon(c: Category) -> &'static str {

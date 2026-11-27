@@ -742,6 +742,91 @@ mod tests {
         assert_eq!(d.app.layout.tool, Tool::Cross, "zooming is one go, as on TradingView");
     }
 
+    /// A Python script reads another indicator's line: `bars[src]` is the
+    /// line when its Source is linked, and a change to the line reruns it.
+    #[test]
+    fn python_reads_another_indicators_line() {
+        if opentern_script::python::interpreter().is_none() {
+            eprintln!("no Python; skipping");
+            return;
+        }
+        let mut d = Driver::new("python-link");
+        let dir = d.app.scripts_dir();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("reader.py"),
+            "from opentern import *\nindicator('Reader')\nsrc = input.source('close', 'Src')\n\
+             def compute(bars):\n    plot([v * 2 for v in bars[src]], 'Double')\n",
+        )
+        .unwrap();
+        let ema_meta = opentern_series::builtins::by_id("ema").unwrap();
+        d.app.add_study(ema_meta);
+        let ema = d.app.chart.studies.iter().find(|s| s.meta().id == "ema").unwrap().uid;
+        d.app.add_script("reader.py");
+        d.wait(|a| {
+            a.chart
+                .studies
+                .iter()
+                .any(|s| s.meta().id == "py:reader.py" && !s.inst.out.plots.is_empty())
+        });
+        let py = d
+            .app
+            .chart
+            .studies
+            .iter()
+            .find(|s| s.meta().id == "py:reader.py")
+            .unwrap()
+            .uid;
+        let mut inputs = d
+            .app
+            .chart
+            .studies
+            .iter()
+            .find(|s| s.uid == py)
+            .unwrap()
+            .inst
+            .inputs
+            .clone();
+        inputs.set(
+            "src",
+            opentern_series::study::Value::Text(opentern_series::study::link_key(ema, 0)),
+        );
+        d.app.chart.set_inputs(py, &inputs);
+        let matches = |a: &crate::app::App| {
+            let get = |u: u64| {
+                a.chart
+                    .studies
+                    .iter()
+                    .find(|s| s.uid == u)
+                    .map(|s| s.inst.out.plots[0].clone())
+            };
+            let (Some(e), Some(p)) = (get(ema), get(py)) else {
+                return false;
+            };
+            e.len() == p.len()
+                && e.iter().filter(|v| v.is_finite()).count() > 50
+                && e.iter()
+                    .zip(&p)
+                    .all(|(x, y)| (x.is_nan() && y.is_nan()) || (x * 2.0 - y).abs() < 1e-9)
+        };
+        d.wait(matches);
+        // The EMA's settings change: the script follows.
+        let mut ei = d
+            .app
+            .chart
+            .studies
+            .iter()
+            .find(|s| s.uid == ema)
+            .unwrap()
+            .inst
+            .inputs
+            .clone();
+        ei.set("length", opentern_series::study::Value::Int(30));
+        d.app.chart.set_inputs(ema, &ei);
+        d.wait(matches);
+        assert_eq!(d.app.panics, 0);
+    }
+
     #[test]
     fn python_script_plots_on_the_chart_and_matches_the_builtin() {
         if opentern_script::python::interpreter().is_none() {
@@ -1000,6 +1085,54 @@ mod tests {
         let eth = s.inst.out.plots[0].iter().rev().nth(1).copied().unwrap();
         let btc = d.app.chart.bars.iter().rev().nth(1).unwrap().close;
         assert!(eth != btc, "a different series: {eth} vs {btc}");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// Adding Correlation Coefficient opens its settings with the symbol
+    /// search (its symbol input has `confirm = true`); the search finds a
+    /// ticker from part of it, and picking it sets the input. Esc in the
+    /// search goes back to the settings, not out of them.
+    #[test]
+    fn correlation_asks_for_its_symbol_with_the_real_search() {
+        let mut d = Driver::new("correlation-pick");
+        let b = &crate::sources::BUNDLED[0];
+        let entry = crate::dialogs::Entry::Script {
+            file: b.file.to_string(),
+            name: b.name.to_string(),
+            strategy: false,
+            bundled: Some(b.category),
+        };
+        assert!(crate::dialogs::add_entry(&mut d.app, entry));
+        let picking =
+            |a: &crate::app::App| matches!(&a.modal, Some(crate::dialogs::Modal::Study(s)) if s.picking.is_some());
+        assert!(picking(&d.app), "the search opens at once");
+        d.frame(vec![]);
+        for ch in "ETH".chars() {
+            d.frame(vec![Event::Text(ch.to_string())]);
+        }
+        d.wait(|a| match &a.modal {
+            Some(crate::dialogs::Modal::Study(s)) => s
+                .picking
+                .as_ref()
+                .is_some_and(|(_, s)| s.query == "ETH" && s.got == s.seq),
+            _ => false,
+        });
+        d.key(Key::Enter, Modifiers::NONE);
+        d.wait(|a| matches!(&a.modal, Some(crate::dialogs::Modal::Study(s)) if s.picking.is_none()));
+        let cc = format!("pine:{}", b.file);
+        let s = d.app.chart.studies.iter().find(|s| s.meta().id == cc).unwrap();
+        let sym = s.inst.inputs.text("symbol").to_string();
+        assert_eq!(sym, "BINANCE:ETHUSDT", "the top match, as in the symbol search");
+        // Esc in a reopened search keeps the settings open.
+        if let Some(crate::dialogs::Modal::Study(st)) = d.app.modal.take() {
+            d.app.modal = Some(crate::dialogs::Modal::Study(st.picking("symbol")));
+        }
+        d.frame(vec![]);
+        d.key(Key::Escape, Modifiers::NONE);
+        d.frame(vec![]);
+        assert!(matches!(&d.app.modal, Some(crate::dialogs::Modal::Study(s)) if s.picking.is_none()));
+        let s = d.app.chart.studies.iter().find(|s| s.meta().id == cc).unwrap();
+        assert_eq!(s.inst.inputs.text("symbol"), sym, "Esc changed nothing");
         assert_eq!(d.app.panics, 0);
     }
 

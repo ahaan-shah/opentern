@@ -3024,6 +3024,7 @@ impl Cx {
         let minval = get(self, "minval")?;
         let maxval = get(self, "maxval")?;
         let step = get(self, "step")?;
+        let confirm = get(self, "confirm")?;
         let options: Vec<V> = match params.iter().position(|p| *p == "options").and_then(|k| b[k]) {
             Some(Expr::Tuple(items)) => {
                 let mut out = Vec::new();
@@ -3124,6 +3125,13 @@ impl Cx {
                     },
                     Value::Float(defval.f()),
                     Conv::Float,
+                ),
+                ("input.symbol", _) => (
+                    InputKind::Symbol {
+                        confirm: confirm.as_ref().is_some_and(|v| v.truthy()),
+                    },
+                    Value::Text(defval.as_str().unwrap_or("").into()),
+                    Conv::Str,
                 ),
                 ("input.time", _) => (
                     InputKind::Text,

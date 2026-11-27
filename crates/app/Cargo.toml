@@ -31,6 +31,10 @@ opentern-i18n-macros = { version = "0.3.7", path = "../i18n-macros" }
 opentern-pine = { version = "0.3.7", path = "../pine" }
 opentern-script = { version = "0.3.7", path = "../script" }
 opentern-series = { version = "0.3.7", path = "../series" }
+# Fonts on the computer, as fallbacks for scripts the bundled ones lack
+# (sysfonts.rs); mapped, not read, so only glyphs drawn cost memory.
+fontdb = { version = "0.24", default-features = false, features = ["std", "fs", "fontconfig"] }
+memmap2 = "0.9"
 png = "0.18"
 pollster = "1.0.1"
 base64 = "0.22.1"

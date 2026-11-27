@@ -344,6 +344,11 @@ pub struct SavedStudy {
     #[serde(default = "yes")]
     pub visible: bool,
     pub pane: u64,
+    /// The study's id on the chart: a `Source` input linked to another
+    /// indicator names it by this, so it's kept across a restart (0 in
+    /// layouts from before links).
+    #[serde(default)]
+    pub uid: u64,
 }
 
 fn yes() -> bool {
@@ -488,6 +493,17 @@ impl Chart {
                 c.compares[k].pane = id;
             }
         }
+        // Fresh ids start above every saved one, so studies can take back
+        // the ids their links name.
+        c.next_uid = s
+            .studies
+            .iter()
+            .map(|st| st.uid.max(st.pane))
+            .chain(c.panes.iter().map(|p| p.id))
+            .chain(c.compares.iter().map(|x| x.pane))
+            .max()
+            .unwrap_or(0)
+            + 1;
         for st in s.studies {
             c.add_saved(&st);
         }
@@ -507,6 +523,7 @@ impl Chart {
             .map(|s| s.uid)
             .chain(c.panes.iter().map(|p| p.id))
             .chain(c.compares.iter().map(|x| x.pane))
+            .chain(c.pending_scripts.iter().map(|s| s.uid))
             .max()
             .unwrap_or(0)
             + 1;
@@ -650,6 +667,7 @@ impl Chart {
                 look: s.look.clone(),
                 visible: s.visible,
                 pane: s.pane,
+                uid: s.uid,
             })
             .collect()
     }
@@ -709,6 +727,19 @@ impl Chart {
     /// Adds a study with given inputs and look. Pane studies get a new pane
     /// below the others unless `pane` names an existing one.
     pub fn add_study(&mut self, meta: &'static Meta, inputs: &Inputs, look: StudyLook, pane: Option<u64>) -> u64 {
+        self.add_study_as(meta, inputs, look, pane, 0)
+    }
+
+    /// [`Chart::add_study`], taking id `want` when it's free (a saved study
+    /// whose id other studies' links name).
+    pub fn add_study_as(
+        &mut self,
+        meta: &'static Meta,
+        inputs: &Inputs,
+        look: StudyLook,
+        pane: Option<u64>,
+        want: u64,
+    ) -> u64 {
         let pane = match meta.placement {
             Placement::Overlay | Placement::Bottom => 0,
             Placement::Pane => match pane.filter(|p| *p != 0 && self.panes.iter().any(|x| x.id == *p)) {
@@ -724,23 +755,35 @@ impl Chart {
                 }
             },
         };
-        let uid = self.new_uid();
-        let mut inst = Instance::new(meta, inputs);
-        inst.recompute(&self.bars, &self.sessions, self.tf);
+        let uid = self.claim_uid(want);
         self.studies.push(StudyView {
             uid,
-            inst,
+            inst: Instance::new(meta, inputs),
             look: look.fitted(meta),
             visible: true,
             pane,
         });
-        self.touch();
+        self.added(uid);
         uid
     }
 
     /// Adds a study whose instance is already built (scripts), in `pane`
     /// (or a new pane for pane studies).
+    #[cfg(test)]
     pub fn add_instance(&mut self, inst: Instance, look: StudyLook, pane: Option<u64>, visible: bool) -> u64 {
+        self.add_instance_as(inst, look, pane, visible, 0)
+    }
+
+    /// [`Chart::add_instance`], taking id `want` when it's free (a saved
+    /// script whose id other studies' links name).
+    pub fn add_instance_as(
+        &mut self,
+        inst: Instance,
+        look: StudyLook,
+        pane: Option<u64>,
+        visible: bool,
+        want: u64,
+    ) -> u64 {
         let meta = inst.meta;
         let pane = match meta.placement {
             Placement::Overlay | Placement::Bottom => 0,
@@ -766,9 +809,7 @@ impl Chart {
                 }
             },
         };
-        let uid = self.new_uid();
-        let mut inst = inst;
-        inst.recompute(&self.bars, &self.sessions, self.tf);
+        let uid = self.claim_uid(want);
         self.studies.push(StudyView {
             uid,
             look: look.fitted(meta),
@@ -776,20 +817,180 @@ impl Chart {
             visible,
             pane,
         });
-        self.touch();
+        self.added(uid);
         uid
+    }
+
+    /// Id `want` if it's free (and not 0), else a fresh one.
+    fn claim_uid(&mut self, want: u64) -> u64 {
+        let used = |c: &Chart, id: u64| {
+            c.studies.iter().any(|s| s.uid == id)
+                || c.panes.iter().any(|p| p.id == id)
+                || c.compares.iter().any(|x| x.pane == id)
+        };
+        if want != 0 && !used(self, want) {
+            self.next_uid = self.next_uid.max(want + 1);
+            return want;
+        }
+        self.new_uid()
+    }
+
+    /// A study was just added: run it (reading what it's linked to), then
+    /// the studies already linked to its id (a layout restoring them).
+    fn added(&mut self, uid: u64) {
+        if let Some(i) = self.studies.iter().position(|s| s.uid == uid) {
+            self.run_study(i, true);
+        }
+        self.refresh_readers(uid);
+        self.touch();
+    }
+
+    /// The other studies' plots study `i`'s linked `Source` inputs read
+    /// (empty values while the one named isn't on the chart).
+    fn links_for(&self, i: usize) -> opentern_series::study::Links {
+        self.studies[i]
+            .inst
+            .linked_inputs()
+            .into_iter()
+            .map(|(id, uid, plot)| {
+                let vals = self
+                    .studies
+                    .iter()
+                    .find(|s| s.uid == uid && s.uid != self.studies[i].uid)
+                    .and_then(|s| s.inst.out.plots.get(plot))
+                    .cloned()
+                    .unwrap_or_default();
+                (id.to_string(), std::sync::Arc::new(vals))
+            })
+            .collect()
+    }
+
+    /// The other indicators' lines study `uid` reads, by the text of the
+    /// input that names each (`study:<uid>:<plot>`): what a Python script's
+    /// `bars[name]` gives.
+    pub fn linked_lines(&self, uid: u64) -> Vec<(String, std::sync::Arc<Vec<f64>>)> {
+        let Some(i) = self.studies.iter().position(|s| s.uid == uid) else {
+            return Vec::new();
+        };
+        let inputs = &self.studies[i].inst.inputs;
+        self.links_for(i)
+            .into_iter()
+            .map(|(id, v)| (inputs.text(&id).to_string(), v))
+            .collect()
+    }
+
+    /// Runs study `i` over the bars, from the first (`full`) or only the
+    /// new and forming ones, with the plots it reads as they stand.
+    fn run_study(&mut self, i: usize, full: bool) {
+        let links = self.links_for(i);
+        let (bars, sess, tf) = (&self.bars, &self.sessions, self.tf);
+        let s = &mut self.studies[i];
+        s.inst.set_links(links);
+        if full {
+            s.inst.recompute(bars, sess, tf);
+        } else {
+            s.inst.update(bars, sess, tf);
+        }
+    }
+
+    /// The studies `uid` reads (its linked inputs' studies).
+    fn reads(&self, i: usize) -> Vec<u64> {
+        self.studies[i]
+            .inst
+            .linked_inputs()
+            .into_iter()
+            .map(|(_, u, _)| u)
+            .collect()
+    }
+
+    /// Every study, ordered so each comes after the ones it reads. A loop
+    /// (which the Source list never offers) is cut where it closes.
+    fn study_order(&self) -> Vec<usize> {
+        fn visit(c: &Chart, i: usize, state: &mut [u8], out: &mut Vec<usize>) {
+            if state[i] != 0 {
+                return;
+            }
+            state[i] = 1;
+            for uid in c.reads(i) {
+                if let Some(j) = c.studies.iter().position(|s| s.uid == uid) {
+                    visit(c, j, state, out);
+                }
+            }
+            state[i] = 2;
+            out.push(i);
+        }
+        let mut state = vec![0u8; self.studies.len()];
+        let mut out = Vec::with_capacity(self.studies.len());
+        for i in 0..self.studies.len() {
+            visit(self, i, &mut state, &mut out);
+        }
+        out
+    }
+
+    /// The studies that read `uid`, directly or through others.
+    pub fn readers_of(&self, uid: u64) -> Vec<u64> {
+        let mut found: Vec<u64> = Vec::new();
+        let mut todo = vec![uid];
+        while let Some(u) = todo.pop() {
+            for (i, s) in self.studies.iter().enumerate() {
+                if !found.contains(&s.uid) && s.uid != uid && self.reads(i).contains(&u) {
+                    found.push(s.uid);
+                    todo.push(s.uid);
+                }
+            }
+        }
+        found
+    }
+
+    /// Runs again, from the first bar, every study that reads `uid` (its
+    /// values changed), in order.
+    pub fn refresh_readers(&mut self, uid: u64) {
+        let readers = self.readers_of(uid);
+        if readers.is_empty() {
+            return;
+        }
+        for i in self.study_order() {
+            if readers.contains(&self.studies[i].uid) {
+                self.run_study(i, true);
+            }
+        }
+    }
+
+    /// The legend's name for a study, a linked source named by the study
+    /// and plot it reads ("RSI 14 EMA: EMA").
+    pub fn study_title(&self, s: &StudyView, with_inputs: bool) -> String {
+        if !with_inputs {
+            return s.title(false);
+        }
+        let summary = s.inst.inputs.summary_with(s.meta(), |text| {
+            let (uid, plot) = opentern_series::study::parse_link(text)?;
+            Some(match self.studies.iter().find(|x| x.uid == uid) {
+                Some(src) => format!(
+                    "{}: {}",
+                    src.meta().short,
+                    src.meta().plots.get(plot).map_or("", |p| p.title)
+                ),
+                None => "—".into(),
+            })
+        });
+        if summary.is_empty() {
+            s.meta().short.to_string()
+        } else {
+            format!("{} {summary}", s.meta().short)
+        }
     }
 
     /// Swaps a study's instance (a script whose outputs changed shape),
     /// keeping its place and as much of its look as still fits.
     pub fn replace_instance(&mut self, uid: u64, inst: Instance) {
-        let (bars, sess, tf) = (&self.bars, &self.sessions, self.tf);
-        if let Some(s) = self.studies.iter_mut().find(|s| s.uid == uid) {
-            let mut inst = inst;
-            inst.recompute(bars, sess, tf);
-            s.look = s.look.fitted(inst.meta);
-            s.inst = inst;
-        }
+        let Some(i) = self.studies.iter().position(|s| s.uid == uid) else {
+            return;
+        };
+        let s = &mut self.studies[i];
+        s.look = s.look.fitted(inst.meta);
+        s.inst = inst;
+        self.run_study(i, true);
+        self.refresh_readers(uid);
     }
 
     pub fn bars_arc(&self) -> std::sync::Arc<Vec<Bar>> {
@@ -820,7 +1021,7 @@ impl Chart {
             None
         };
         self.next_uid = self.next_uid.max(s.pane + 1);
-        let uid = self.add_study(meta, &s.inputs, s.look.clone(), pane);
+        let uid = self.add_study_as(meta, &s.inputs, s.look.clone(), pane, s.uid);
         if let Some(v) = self.studies.iter_mut().find(|v| v.uid == uid) {
             v.visible = s.visible;
         }
@@ -858,7 +1059,46 @@ impl Chart {
         if pane != 0 && !self.studies.iter().any(|s| s.pane == pane) {
             self.panes.retain(|p| p.id != pane);
         }
+        // Studies that read it go back to their own default source.
+        let direct: Vec<(u64, Inputs)> = self
+            .studies
+            .iter()
+            .filter_map(|s| {
+                let linked = s.inst.linked_inputs();
+                let ids: Vec<&str> = linked
+                    .iter()
+                    .filter(|(_, u, _)| *u == uid)
+                    .map(|(id, ..)| *id)
+                    .collect();
+                if ids.is_empty() {
+                    return None;
+                }
+                let mut inputs = s.inst.inputs.clone();
+                for id in ids {
+                    if let Some(spec) = s.meta().input(id) {
+                        inputs.set(id, spec.default.clone());
+                    }
+                }
+                Some((s.uid, inputs))
+            })
+            .collect();
+        for (reader, inputs) in direct {
+            self.set_inputs(reader, &inputs);
+        }
         self.touch();
+    }
+
+    /// Takes a study off the chart to put it back in another place (a
+    /// script that moved between the price pane and its own): unlike
+    /// [`Chart::remove_study`], the studies linked to it keep their links,
+    /// as it comes back with the same id.
+    pub fn lift_study(&mut self, uid: u64) {
+        if let Some(i) = self.studies.iter().position(|s| s.uid == uid) {
+            let pane = self.studies.remove(i).pane;
+            if pane != 0 && !self.studies.iter().any(|s| s.pane == pane) {
+                self.panes.retain(|p| p.id != pane);
+            }
+        }
     }
 
     pub fn study_mut(&mut self, uid: u64) -> Option<&mut StudyView> {
@@ -867,13 +1107,14 @@ impl Chart {
 
     /// New inputs for a study: it recomputes from the first bar.
     pub fn set_inputs(&mut self, uid: u64, inputs: &Inputs) {
-        let (bars, sess, tf) = (&self.bars, &self.sessions, self.tf);
-        if let Some(s) = self.studies.iter_mut().find(|s| s.uid == uid) {
+        if let Some(i) = self.studies.iter().position(|s| s.uid == uid) {
             // Keeps how the study is built (a script's factory, or outputs
             // that come from a Python process).
-            let was = s.inst.levels();
-            s.inst = s.inst.with_inputs(inputs);
-            s.inst.recompute(bars, sess, tf);
+            let was = self.studies[i].inst.levels();
+            self.studies[i].inst = self.studies[i].inst.with_inputs(inputs);
+            self.run_study(i, true);
+            self.refresh_readers(uid);
+            let s = &mut self.studies[i];
             // Levels follow the inputs they're made of, unless they've
             // been set by hand in the Style tab.
             for ((h, was), now) in s.look.hlines.iter_mut().zip(was).zip(s.inst.levels()) {
@@ -891,8 +1132,8 @@ impl Chart {
     }
 
     fn recompute_all(&mut self) {
-        for s in &mut self.studies {
-            s.inst.recompute(&self.bars, &self.sessions, self.tf);
+        for i in self.study_order() {
+            self.run_study(i, true);
         }
     }
 
@@ -1109,8 +1350,8 @@ impl Chart {
                 }
             }
         }
-        for s in &mut self.studies {
-            s.inst.update(&self.bars, &self.sessions, self.tf);
+        for i in self.study_order() {
+            self.run_study(i, false);
         }
     }
 
@@ -1347,6 +1588,583 @@ mod tests {
         c.view.bar_w = 30.0;
         c.fit_range(1000.0, true);
         assert_eq!(c.view.bar_w, 30.0);
+    }
+
+    // ---- indicator on indicator (linked Source inputs)
+    use opentern_series::study::Value;
+
+    /// SMA worked out here, not with the app's code: na until a whole
+    /// window of numbers.
+    fn sma_ref(x: &[f64], n: usize) -> Vec<f64> {
+        (0..x.len())
+            .map(|i| {
+                if i + 1 < n {
+                    return f64::NAN;
+                }
+                let w = &x[i + 1 - n..=i];
+                if w.iter().any(|v| !v.is_finite()) {
+                    f64::NAN
+                } else {
+                    w.iter().sum::<f64>() / n as f64
+                }
+            })
+            .collect()
+    }
+
+    /// Wilder's RSI worked out here, as Pine defines it: changes, then an
+    /// RMA seeded with the SMA of the first `n` changes.
+    fn rsi_ref(x: &[f64], n: usize) -> Vec<f64> {
+        let ch: Vec<f64> = (0..x.len())
+            .map(|i| if i == 0 { f64::NAN } else { x[i] - x[i - 1] })
+            .collect();
+        let rma = |v: Vec<f64>| -> Vec<f64> {
+            let mut out = vec![f64::NAN; v.len()];
+            let a = 1.0 / n as f64;
+            for i in 0..v.len() {
+                let prev = if i > 0 { out[i - 1] } else { f64::NAN };
+                out[i] = if prev.is_finite() {
+                    a * v[i] + (1.0 - a) * prev
+                } else {
+                    sma_ref(&v[..=i], n).last().copied().unwrap_or(f64::NAN)
+                };
+            }
+            out
+        };
+        let up = rma(ch
+            .iter()
+            .map(|c| if c.is_finite() { c.max(0.0) } else { f64::NAN })
+            .collect());
+        let dn = rma(ch
+            .iter()
+            .map(|c| if c.is_finite() { (-c).max(0.0) } else { f64::NAN })
+            .collect());
+        up.iter()
+            .zip(&dn)
+            .map(|(u, d)| {
+                if !u.is_finite() || !d.is_finite() {
+                    f64::NAN
+                } else if *d == 0.0 {
+                    100.0
+                } else if *u == 0.0 {
+                    0.0
+                } else {
+                    100.0 - 100.0 / (1.0 + u / d)
+                }
+            })
+            .collect()
+    }
+
+    fn close_enough(got: &[f64], want: &[f64], what: &str) -> usize {
+        assert_eq!(got.len(), want.len(), "{what}: lengths");
+        let mut n = 0;
+        for i in 0..got.len() {
+            let (a, b) = (got[i], want[i]);
+            if b.is_finite() {
+                assert!((a - b).abs() < 1e-9, "{what}, bar {i}: {a} vs {b}");
+                n += 1;
+            } else {
+                assert!(!a.is_finite(), "{what}, bar {i}: {a} where na");
+            }
+        }
+        n
+    }
+
+    fn loaded(n: usize) -> Chart {
+        let mut c = chart();
+        c.apply(Event::Bars {
+            chart: 1,
+            bars: bars(n, 0),
+            complete: true,
+        });
+        c
+    }
+
+    fn builtin(c: &mut Chart, id: &str, set: &[(&str, Value)]) -> u64 {
+        let meta = by_id(id).unwrap();
+        let mut inputs = meta.default_inputs();
+        for (k, v) in set {
+            inputs.set(k, v.clone());
+        }
+        c.add_study(meta, &inputs, StudyLook::defaults(meta), None)
+    }
+
+    fn pine(c: &mut Chart, src: &str, set: &[(&str, Value)]) -> u64 {
+        let script = opentern_pine::compile(src, "t.pine", opentern_pine::Env::default()).unwrap();
+        let mut inputs = script.meta().default_inputs();
+        for (k, v) in set {
+            inputs.set(k, v.clone());
+        }
+        let inst = Instance::with_factory(script.meta(), &inputs, script.factory());
+        c.add_instance(inst, StudyLook::defaults(script.meta()), None, true)
+    }
+
+    fn plot(c: &Chart, uid: u64, k: usize) -> Vec<f64> {
+        c.studies.iter().find(|s| s.uid == uid).unwrap().inst.out.plots[k].clone()
+    }
+
+    fn link(uid: u64, plot: usize) -> Value {
+        Value::Text(opentern_series::study::link_key(uid, plot))
+    }
+
+    /// The built-in RSI on the built-in EMA (TradingView's "RSI of an EMA"):
+    /// the RSI's numbers are Wilder's RSI of the EMA's values.
+    #[test]
+    fn a_builtin_reads_another_builtins_plot() {
+        let mut c = loaded(300);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+        let rsi = builtin(&mut c, "rsi", &[("length", Value::Int(14)), ("source", link(ema, 0))]);
+        let want = rsi_ref(&plot(&c, ema, 0), 14);
+        assert!(close_enough(&plot(&c, rsi, 0), &want, "RSI of EMA") > 250);
+        // Not just the RSI of the close.
+        let closes: Vec<f64> = c.bars.iter().map(|b| b.close).collect();
+        let plain = rsi_ref(&closes, 14);
+        assert!((plot(&c, rsi, 0)[200] - plain[200]).abs() > 1e-6);
+        // The legend names what it reads.
+        let s = c.studies.iter().find(|s| s.uid == rsi).unwrap();
+        assert!(c.study_title(s, true).contains("EMA: "), "{}", c.study_title(s, true));
+    }
+
+    /// A Pine script's input.source on a built-in's plot, history included
+    /// (`s[2]`), and a built-in on a Pine script's plot.
+    #[test]
+    fn pine_and_builtins_read_each_other() {
+        let mut c = loaded(200);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(10))]);
+        let script = pine(
+            &mut c,
+            "//@version=6\nindicator(\"Reader\")\ns = input.source(close, \"Src\")\nplot(ta.sma(s, 5), \"Avg\")\nplot(s[2], \"Back\")\nplot(s * 2, \"Double\")",
+            &[("src", link(ema, 0))],
+        );
+        let e = plot(&c, ema, 0);
+        assert!(close_enough(&plot(&c, script, 0), &sma_ref(&e, 5), "ta.sma of the EMA") > 150);
+        let back: Vec<f64> = (0..e.len()).map(|i| if i >= 2 { e[i - 2] } else { f64::NAN }).collect();
+        assert!(close_enough(&plot(&c, script, 1), &back, "s[2]") > 150);
+        // The other way: the built-in SMA over the script's "Double" plot.
+        let sma = builtin(&mut c, "sma", &[("length", Value::Int(7)), ("source", link(script, 2))]);
+        let double = plot(&c, script, 2);
+        assert!(close_enough(&plot(&c, sma, 0), &sma_ref(&double, 7), "SMA of a script plot") > 150);
+    }
+
+    /// The use case from PR #7: a signal script in its own pane, read by
+    /// another script that acts on it. Live ticks keep them in step.
+    #[test]
+    fn a_script_reads_another_scripts_signal_live() {
+        let mut c = loaded(120);
+        let signal = pine(
+            &mut c,
+            "//@version=6\nindicator(\"Signal\")\nplot(ta.crossover(close, ta.sma(close, 10)) ? 1 : 0, \"Buy\")",
+            &[],
+        );
+        let reader = pine(
+            &mut c,
+            "//@version=6\nindicator(\"Labels\", overlay = true)\nsig = input.source(close, \"Signal\")\nplot(sig == 1 ? low : na, \"Mark\")\nplot(ta.cum(sig), \"Count\")",
+            &[("signal", link(signal, 0))],
+        );
+        let check = |c: &Chart| {
+            let sig = plot(c, signal, 0);
+            let mark: Vec<f64> = (0..sig.len())
+                .map(|i| if sig[i] == 1.0 { c.bars[i].low } else { f64::NAN })
+                .collect();
+            close_enough(&plot(c, reader, 0), &mark, "marks on buy bars");
+            let mut total = 0.0;
+            let count: Vec<f64> = sig
+                .iter()
+                .map(|v| {
+                    total += v;
+                    total
+                })
+                .collect();
+            close_enough(&plot(c, reader, 1), &count, "running count");
+            assert!(total > 0.0, "some buys in the sample");
+        };
+        check(&c);
+        // A new bar and a tick on it: the reader follows the signal.
+        let mut b = *c.bars.last().unwrap();
+        b.time += 3_600_000;
+        b.close += 30.0;
+        b.high = b.close + 1.0;
+        b.low = b.open.min(b.close) - 1.0;
+        c.apply(Event::Tick { chart: 1, bar: b });
+        b.close += 5.0;
+        b.high = b.close + 1.0;
+        c.apply(Event::Tick { chart: 1, bar: b });
+        assert_eq!(plot(&c, reader, 0).len(), c.bars.len());
+        check(&c);
+    }
+
+    /// Changing the source's inputs reruns its readers, through a chain.
+    #[test]
+    fn a_change_reaches_every_reader_down_the_chain() {
+        let mut c = loaded(200);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+        let rsi = builtin(&mut c, "rsi", &[("length", Value::Int(14)), ("source", link(ema, 0))]);
+        let sma = builtin(&mut c, "sma", &[("length", Value::Int(5)), ("source", link(rsi, 0))]);
+        let meta = by_id("ema").unwrap();
+        let mut inputs = c.studies.iter().find(|s| s.uid == ema).unwrap().inst.inputs.clone();
+        inputs.set("length", Value::Int(21));
+        c.set_inputs(ema, &inputs);
+        let _ = meta;
+        let r = plot(&c, rsi, 0);
+        close_enough(&r, &rsi_ref(&plot(&c, ema, 0), 14), "RSI after the EMA changed");
+        close_enough(&plot(&c, sma, 0), &sma_ref(&r, 5), "SMA of that RSI");
+        assert_eq!(c.readers_of(ema).len(), 2);
+    }
+
+    /// Links survive a save and load, whatever order the studies come back
+    /// in; removing the source puts its readers back on their default.
+    #[test]
+    fn links_survive_a_restart_and_a_removed_source_lets_go() {
+        let mut c = loaded(150);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+        let rsi = builtin(&mut c, "rsi", &[("source", link(ema, 0))]);
+        let before = plot(&c, rsi, 0);
+        let mut state = c.state();
+        // The reader saved first: it waits for its source's id.
+        state.studies.reverse();
+        let mut back = Chart::from_state(1, state);
+        back.apply(Event::Bars {
+            chart: 1,
+            bars: bars(150, 0),
+            complete: true,
+        });
+        let rsi2 = back.studies.iter().find(|s| s.meta().id == "rsi").unwrap().uid;
+        let ema2 = back.studies.iter().find(|s| s.meta().id == "ema").unwrap().uid;
+        assert_eq!((ema2, rsi2), (ema, rsi), "ids kept");
+        close_enough(&plot(&back, rsi2, 0), &before, "the same RSI after a restart");
+
+        back.remove_study(ema2);
+        let s = back.studies.iter().find(|s| s.uid == rsi2).unwrap();
+        assert_eq!(s.inst.inputs.text("source"), "close", "back on its default");
+        let closes: Vec<f64> = back.bars.iter().map(|b| b.close).collect();
+        close_enough(&plot(&back, rsi2, 0), &rsi_ref(&closes, 14), "RSI of the close again");
+    }
+
+    /// The Source list never offers a loop, and a loop forced in (a hand-made
+    /// layout) doesn't hang: each side just reads nothing.
+    #[test]
+    fn no_loops_offered_and_a_forced_one_is_harmless() {
+        let mut c = loaded(80);
+        let a = builtin(&mut c, "ema", &[]);
+        let b = builtin(&mut c, "rsi", &[("source", link(a, 0))]);
+        let offered = crate::dialogs::link_choices(&c, a);
+        assert!(
+            !offered
+                .iter()
+                .any(|(k, _)| opentern_series::study::parse_link(k).unwrap().0 == b)
+        );
+        assert!(
+            !offered
+                .iter()
+                .any(|(k, _)| opentern_series::study::parse_link(k).unwrap().0 == a)
+        );
+        assert!(
+            crate::dialogs::link_choices(&c, b)
+                .iter()
+                .any(|(k, _)| opentern_series::study::parse_link(k).unwrap().0 == a)
+        );
+        let mut inputs = c.studies.iter().find(|s| s.uid == a).unwrap().inst.inputs.clone();
+        inputs.set("source", link(b, 0));
+        c.set_inputs(a, &inputs);
+        c.apply(Event::Bars {
+            chart: 1,
+            bars: bars(81, 0),
+            complete: true,
+        });
+        assert_eq!(plot(&c, a, 0).len(), 81);
+    }
+
+    // ---- more combinations, each checked against a separate run
+    /// Every built-in with a Source input, reading an EMA, gives exactly what
+    /// it gives when the EMA's values are the bars' close: the link only
+    /// changes what "source" means, nothing else.
+    #[test]
+    fn every_builtin_with_a_source_reads_a_line_exactly() {
+        let mut checked = Vec::new();
+        let mut wrong = Vec::new();
+        for meta in opentern_series::builtins::all() {
+            let srcs: Vec<&str> = meta
+                .inputs
+                .iter()
+                .filter(|i| matches!(i.kind, opentern_series::study::InputKind::Source))
+                .map(|i| i.id)
+                .collect();
+            // These add an ATR of the real bars (high, low and close, as on
+            // TradingView) to their source, so made-up closes change them:
+            // their source-only line is checked instead.
+            let atr = ["kc", "median", "volatility_stop"].contains(&meta.id);
+            if srcs.is_empty() {
+                continue;
+            }
+            for id in &srcs {
+                let mut c = loaded(400);
+                let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+                let x = builtin(&mut c, meta.id, &[(id, link(ema, 0))]);
+                let e = plot(&c, ema, 0);
+                // The same study on bars whose close is the EMA.
+                let fake: Vec<Bar> = c.bars.iter().zip(&e).map(|(b, v)| Bar { close: *v, ..*b }).collect();
+                let mut inputs = meta.default_inputs();
+                inputs.set(id, Value::Text("close".into()));
+                let mut alone = Instance::new(meta, &inputs);
+                alone.recompute(&fake, &c.sessions, c.tf);
+                let got = &c.studies.iter().find(|s| s.uid == x).unwrap().inst.out.plots;
+                let mut ok = true;
+                for (k, want) in alone.out.plots.iter().enumerate() {
+                    // Keltner's and Median's middle lines are the source's alone.
+                    if atr && !(k == 1 && meta.id != "volatility_stop") {
+                        continue;
+                    }
+                    for (i, (a, b)) in got[k].iter().zip(want).enumerate() {
+                        let same = (a.is_nan() && b.is_nan()) || (a - b).abs() <= 1e-9 * b.abs().max(1.0);
+                        if !same {
+                            wrong.push(format!("{} {id} plot {k} bar {i}: {a} vs {b}", meta.id));
+                            ok = false;
+                            break;
+                        }
+                    }
+                }
+                if ok {
+                    checked.push(format!("{}:{id}", meta.id));
+                }
+            }
+        }
+        eprintln!("checked {}: {}", checked.len(), checked.join(" "));
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+        assert!(checked.len() > 20);
+    }
+
+    /// DEMA, as in testing: RSI(14) of DEMA(9) is Wilder's RSI of
+    /// 2·EMA − EMA(EMA), worked out here.
+    #[test]
+    fn rsi_of_a_dema() {
+        let mut c = loaded(300);
+        let dema = builtin(&mut c, "dema", &[("length", Value::Int(9))]);
+        let rsi = builtin(&mut c, "rsi", &[("length", Value::Int(14)), ("source", link(dema, 0))]);
+        let closes: Vec<f64> = c.bars.iter().map(|b| b.close).collect();
+        let ema = |x: &[f64], n: usize| -> Vec<f64> {
+            // Pine's ta.ema: seeded with the SMA of the first n numbers.
+            let a = 2.0 / (n as f64 + 1.0);
+            let mut out = vec![f64::NAN; x.len()];
+            let start = x.iter().position(|v| v.is_finite()).unwrap_or(x.len());
+            for i in start..x.len() {
+                let p = if i > 0 { out[i - 1] } else { f64::NAN };
+                out[i] = if p.is_finite() {
+                    a * x[i] + (1.0 - a) * p
+                } else if i + 1 >= start + n {
+                    x[i + 1 - n..=i].iter().sum::<f64>() / n as f64
+                } else {
+                    f64::NAN
+                };
+            }
+            out
+        };
+        let e1 = ema(&closes, 9);
+        let e2 = ema(&e1, 9);
+        let d: Vec<f64> = e1.iter().zip(&e2).map(|(a, b)| 2.0 * a - b).collect();
+        assert!(close_enough(&plot(&c, dema, 0), &d, "DEMA") > 250);
+        assert!(close_enough(&plot(&c, rsi, 0), &rsi_ref(&d, 14), "RSI of DEMA") > 250);
+    }
+
+    /// A line other than the first (Bollinger's upper band), read by Pine.
+    #[test]
+    fn a_reader_takes_the_line_it_was_given() {
+        let mut c = loaded(250);
+        let bb = builtin(&mut c, "bb", &[]);
+        let names: Vec<&str> = c
+            .studies
+            .iter()
+            .find(|s| s.uid == bb)
+            .unwrap()
+            .meta()
+            .plots
+            .iter()
+            .map(|p| p.title)
+            .collect();
+        let upper = names
+            .iter()
+            .position(|n| n.to_lowercase().contains("upper"))
+            .expect("an upper band");
+        let script = pine(
+            &mut c,
+            "//@version=6\nindicator(\"R\")\ns = input.source(close, \"Src\")\nplot(ta.rsi(s, 14), \"RSI\")\nplot(ta.stdev(s, 10), \"Dev\")",
+            &[("src", link(bb, upper))],
+        );
+        let u = plot(&c, bb, upper);
+        assert!(close_enough(&plot(&c, script, 0), &rsi_ref(&u, 14), "ta.rsi of the upper band") > 200);
+        let dev: Vec<f64> = (0..u.len())
+            .map(|i| {
+                if i + 1 < 10 || u[i + 1 - 10..=i].iter().any(|v| !v.is_finite()) {
+                    return f64::NAN;
+                }
+                let w = &u[i + 1 - 10..=i];
+                let m = w.iter().sum::<f64>() / 10.0;
+                (w.iter().map(|v| (v - m).powi(2)).sum::<f64>() / 10.0).sqrt()
+            })
+            .collect();
+        assert!(close_enough(&plot(&c, script, 1), &dev, "ta.stdev of the upper band") > 200);
+    }
+
+    /// A hidden source still feeds its readers.
+    #[test]
+    fn a_hidden_source_still_feeds() {
+        let mut c = loaded(200);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+        let rsi = builtin(&mut c, "rsi", &[("source", link(ema, 0))]);
+        c.study_mut(ema).unwrap().visible = false;
+        let mut b = *c.bars.last().unwrap();
+        b.time += 3_600_000;
+        c.apply(Event::Tick { chart: 1, bar: b });
+        let e = plot(&c, ema, 0);
+        assert_eq!(e.len(), c.bars.len());
+        close_enough(&plot(&c, rsi, 0), &rsi_ref(&e, 14), "RSI of a hidden EMA");
+    }
+
+    /// Luau and JavaScript scripts as sources: a built-in and a Pine script
+    /// read their plots.
+    #[test]
+    fn luau_and_js_scripts_feed_others() {
+        let langs: [(std::sync::Arc<dyn opentern_script::inproc::Lang>, &str, &str); 2] = [
+            (
+                std::sync::Arc::new(opentern_script::luau::Luau),
+                "t.luau",
+                "indicator(\"L\")\nfunction on_bar(bar)\n  plot((bar.high + bar.low) / 2 + bar.close * 0.01, \"Mid\")\nend\n",
+            ),
+            (
+                std::sync::Arc::new(opentern_script::js::Js { ts: false }),
+                "t.js",
+                "indicator(\"J\");\nfunction on_bar(bar) {\n  plot((bar.high + bar.low) / 2 + bar.close * 0.01, \"Mid\");\n}\n",
+            ),
+        ];
+        for (lang, file, src) in langs {
+            let mut c = loaded(200);
+            let sym = c.symbol.clone();
+            let comp = opentern_script::inproc::compile(lang, src, file, crate::pine_host::syminfo_of(&sym))
+                .unwrap_or_else(|e| panic!("{file}: {e}"));
+            let inst = Instance::with_factory(comp.meta(), &comp.meta().default_inputs(), comp.factory());
+            let s = c.add_instance(inst, StudyLook::defaults(comp.meta()), None, true);
+            let want: Vec<f64> = c.bars.iter().map(|b| (b.high + b.low) / 2.0 + b.close * 0.01).collect();
+            close_enough(&plot(&c, s, 0), &want, file);
+            let sma = builtin(&mut c, "sma", &[("length", Value::Int(6)), ("source", link(s, 0))]);
+            close_enough(&plot(&c, sma, 0), &sma_ref(&want, 6), "SMA of the script");
+            let p = pine(
+                &mut c,
+                "//@version=6\nindicator(\"P\")\ns = input.source(close, \"Src\")\nplot(ta.rsi(s, 14))",
+                &[("src", link(s, 0))],
+            );
+            close_enough(&plot(&c, p, 0), &rsi_ref(&want, 14), "Pine RSI of the script");
+        }
+    }
+
+    /// Luau and JavaScript scripts read another indicator's line: their
+    /// `input.source` returns a name, and `bar[name]` is the line's value.
+    #[test]
+    fn luau_and_js_scripts_read_a_line() {
+        let langs: [(std::sync::Arc<dyn opentern_script::inproc::Lang>, &str, &str); 2] = [
+            (
+                std::sync::Arc::new(opentern_script::luau::Luau),
+                "r.luau",
+                "indicator(\"L\")\nlocal src = input.source(\"Src\", \"close\")\nfunction on_bar(bar)\n  plot(ta.sma(bar[src], 5), \"Avg\")\n  plot(bar[src], \"Raw\")\nend\n",
+            ),
+            (
+                std::sync::Arc::new(opentern_script::js::Js { ts: false }),
+                "r.js",
+                "indicator(\"J\");\nconst src = input.source(\"Src\", \"close\");\nfunction on_bar(bar) {\n  plot(ta.sma(bar[src], 5), \"Avg\");\n  plot(bar[src], \"Raw\");\n}\n",
+            ),
+        ];
+        for (lang, file, src) in langs {
+            let mut c = loaded(200);
+            let ema = builtin(&mut c, "ema", &[("length", Value::Int(9))]);
+            let sym = c.symbol.clone();
+            let comp = opentern_script::inproc::compile(lang, src, file, crate::pine_host::syminfo_of(&sym))
+                .unwrap_or_else(|e| panic!("{file}: {e}"));
+            let mut inputs = comp.meta().default_inputs();
+            inputs.set("src", link(ema, 0));
+            let inst = Instance::with_factory(comp.meta(), &inputs, comp.factory());
+            let s = c.add_instance(inst, StudyLook::defaults(comp.meta()), None, true);
+            let e = plot(&c, ema, 0);
+            assert!(close_enough(&plot(&c, s, 1), &e, file) > 150, "{file}: the line itself");
+            assert!(
+                close_enough(&plot(&c, s, 0), &sma_ref(&e, 5), file) > 150,
+                "{file}: ta.sma of it"
+            );
+            // A change to the EMA reaches the script.
+            let mut ei = c.studies.iter().find(|x| x.uid == ema).unwrap().inst.inputs.clone();
+            ei.set("length", Value::Int(20));
+            c.set_inputs(ema, &ei);
+            close_enough(&plot(&c, s, 1), &plot(&c, ema, 0), file);
+            // And the Source list offers it.
+            assert!(!crate::dialogs::link_choices(&c, s).is_empty(), "{file}: offered");
+        }
+    }
+
+    /// A Pine strategy trading on another indicator's line: it enters and
+    /// leaves on the bars the RSI it reads crosses 50, worked out here.
+    #[test]
+    fn a_strategy_trades_on_a_linked_line() {
+        let mut c = loaded(400);
+        let ema = builtin(&mut c, "ema", &[("length", Value::Int(5))]);
+        let rsi = builtin(&mut c, "rsi", &[("length", Value::Int(10)), ("source", link(ema, 0))]);
+        let st = pine(
+            &mut c,
+            "//@version=6\nstrategy(\"S\")\ns = input.source(close, \"Signal\")\nif ta.crossover(s, 50)\n    strategy.entry(\"L\", strategy.long)\nif ta.crossunder(s, 50)\n    strategy.close(\"L\")\nplot(s)",
+            &[("signal", link(rsi, 0))],
+        );
+        let r = plot(&c, rsi, 0);
+        let up: Vec<usize> = (1..r.len()).filter(|&i| r[i - 1] <= 50.0 && r[i] > 50.0).collect();
+        let down: Vec<usize> = (1..r.len()).filter(|&i| r[i - 1] >= 50.0 && r[i] < 50.0).collect();
+        let s = c.studies.iter().find(|s| s.uid == st).unwrap();
+        let p = s
+            .inst
+            .state()
+            .and_then(|a| a.downcast_ref::<opentern_pine::PineStudy>())
+            .unwrap();
+        assert!(p.error().is_none(), "{:?}", p.error());
+        let trades = &p.broker().unwrap().trades;
+        assert!(trades.len() >= 3, "{} trades", trades.len());
+        for t in trades {
+            // Market orders fill on the next bar's open.
+            assert!(
+                up.contains(&(t.entry_bar - 1)),
+                "entry at {} not after a cross up",
+                t.entry_bar
+            );
+            assert!(
+                down.contains(&(t.exit_bar - 1)),
+                "exit at {} not after a cross down",
+                t.exit_bar
+            );
+            assert_eq!(t.entry_price, c.bars[t.entry_bar].open);
+        }
+    }
+
+    /// Pine → built-in → Pine, three deep, and every step's numbers right.
+    #[test]
+    fn a_mixed_chain_three_deep() {
+        let mut c = loaded(300);
+        let a = pine(
+            &mut c,
+            "//@version=6\nindicator(\"A\")\nplot(close - open, \"Body\")",
+            &[],
+        );
+        let b = builtin(&mut c, "sma", &[("length", Value::Int(4)), ("source", link(a, 0))]);
+        let z = pine(
+            &mut c,
+            "//@version=6\nindicator(\"Z\")\ns = input.source(close, \"Src\")\nvar float hi = na\nhi := na(s) ? hi : math.max(nz(hi, s), s)\nplot(hi, \"Max so far\")",
+            &[("src", link(b, 0))],
+        );
+        let body: Vec<f64> = c.bars.iter().map(|b| b.close - b.open).collect();
+        let avg = sma_ref(&body, 4);
+        close_enough(&plot(&c, b, 0), &avg, "SMA of the body");
+        let mut hi = f64::NAN;
+        let want: Vec<f64> = avg
+            .iter()
+            .map(|v| {
+                if v.is_finite() {
+                    hi = if hi.is_finite() { hi.max(*v) } else { *v };
+                }
+                hi
+            })
+            .collect();
+        close_enough(&plot(&c, z, 0), &want, "running max of it");
     }
 
     #[test]

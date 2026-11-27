@@ -74,6 +74,7 @@ fn id_for(exchange: &str, symbol: &str) -> String {
         _ if symbol.ends_with("=F")
             && let Some(c) = opentern_core::commodities()
                 .into_iter()
+                .chain(opentern_core::futures())
                 .find(|c| ticker(&c.id) == symbol) =>
         {
             c.id
@@ -886,6 +887,8 @@ mod tests {
         assert_eq!(ticker("COMEX:GC1!"), "GC=F");
         assert_eq!(ticker("ICEEUR:BRN1!"), "BZ=F");
         assert_eq!(id_for("CMX", "GC=F"), "COMEX:GC1!");
+        assert_eq!(ticker("CBOT:ZQ1!"), "ZQ=F");
+        assert_eq!(id_for("CBT", "ZQ=F"), "CBOT:ZQ1!");
         assert_eq!(ticker("FX:EURUSD"), "EURUSD=X");
         assert_eq!(id_for("NSI", "RELIANCE.NS"), "NSE:RELIANCE");
         assert_eq!(id_for("NSI", "^NSEI"), "NSE:NIFTY");

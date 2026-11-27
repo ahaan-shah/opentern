@@ -58,6 +58,7 @@ mod side;
 mod snapshot;
 mod sources;
 mod strategy;
+mod sysfonts;
 mod theme;
 mod timezones;
 mod transfer;
@@ -187,8 +188,12 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(icon)
-            .with_title("Opentern")
-            .with_app_id("opentern")
+            .with_title(if opentern_core::dev_copy() {
+                "Opentern Dev"
+            } else {
+                "Opentern"
+            })
+            .with_app_id(opentern_core::app_name())
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([1000.0, 640.0]),
         multisampling: 0,

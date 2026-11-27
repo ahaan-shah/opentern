@@ -253,6 +253,24 @@ pub fn commodities() -> Vec<Symbol> {
     ]
 }
 
+/// Financial futures, as TradingView's continuous front month (`ZQ1!`),
+/// served by Yahoo's front month (`ZQ=F`). Hours like the commodities'.
+pub const FED_FUNDS_FUTURES: &str = "CBOT:ZQ1!";
+
+pub fn futures() -> Vec<Symbol> {
+    vec![Symbol {
+        id: FED_FUNDS_FUTURES.into(),
+        // Priced as 100 minus the month's average rate; CBOT's tick for the
+        // front month is a quarter of a basis point.
+        description: "30-Day Fed Funds Futures".into(),
+        kind: AssetKind::Futures,
+        currency: "USD".into(),
+        tick_size: 0.0025,
+        min_qty: 0.0,
+        timezone: "America/New_York".into(),
+    }]
+}
+
 /// Indices, rates and volatility, served by Yahoo: (our id, Yahoo's
 /// ticker, name, currency, time zone, tick size). Ids follow TradingView's
 /// (`TVC:NI225`, `SP:SPX`, `TVC:US10Y`). Trading hours: `calendar::Market::of`.
@@ -422,6 +440,15 @@ pub fn search_aliases(id: &str) -> &'static [&'static str] {
             "FED RATE",
             "INTEREST RATE",
             "DFF",
+        ],
+        FED_FUNDS_FUTURES => &[
+            "ZQ",
+            "ZQ=F",
+            "ZQ1",
+            "FED FUNDS FUTURES",
+            "FED FUNDS FUTURE",
+            "30-DAY FED FUNDS",
+            "30 DAY FED FUNDS",
         ],
         _ => &[],
     }

@@ -66,7 +66,7 @@ impl Study for Stochastic {
     fn step(&mut self, c: &Ctx, o: &mut Out) {
         let raw = match &mut self.rsi {
             Some((src, rsi)) => {
-                let r = rsi.update(src.of(c.bar));
+                let r = rsi.update(c.src(*src));
                 self.stoch.update(r, r, r)
             }
             None => self.stoch.update(c.bar.close, c.bar.high, c.bar.low),

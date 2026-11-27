@@ -61,7 +61,9 @@ pub fn ta_multi(name: &str) -> bool {
 pub trait Vm: Send {
     /// Runs `on_bar` with the bar's fields (see `host::BAR_NUMS`). VMs
     /// reuse one `bar` table/object, so this allocates nothing per bar.
-    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3]) -> Result<(), ScriptError>;
+    /// `extra` adds fields to `bar`: a linked source's value under the name
+    /// its `input.source` returned (another indicator's line).
+    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3], extra: &[(String, f64)]) -> Result<(), ScriptError>;
     /// The `state` table.
     fn get_state(&mut self) -> Result<Val, ScriptError>;
     fn set_state(&mut self, v: &Val) -> Result<(), ScriptError>;
@@ -80,6 +82,7 @@ fn run_bar(
     vm_ver: &AtomicU64,
     shared: &Shared,
     host: &mut Option<Box<HostState>>,
+    extra: &[(String, f64)],
 ) -> Result<(), ScriptError> {
     let mut vm = vm.lock().unwrap_or_else(|e| e.into_inner());
     let h = host.as_mut().expect("host state");
@@ -89,7 +92,7 @@ fn run_bar(
     }
     let (nums, flags) = h.bar_fields();
     *shared.lock().unwrap_or_else(|e| e.into_inner()) = Phase::Run(host.take().expect("host state"));
-    let r = vm.on_bar(&nums, &flags);
+    let r = vm.on_bar(&nums, &flags, extra);
     let back = std::mem::replace(&mut *shared.lock().unwrap_or_else(|e| e.into_inner()), Phase::Idle);
     let Phase::Run(h) = back else {
         unreachable!("the phase only changes here")
@@ -153,7 +156,7 @@ pub fn compile(lang: Arc<dyn Lang>, src: &str, file: &str, syminfo: SymInfo) -> 
         if let Some(h) = &mut host {
             h.begin(b, i, false, bars.len(), i == 0, tf);
         }
-        run_bar(&vm, &ver, &shared, &mut host)?;
+        run_bar(&vm, &ver, &shared, &mut host, &[])?;
         if let Some(h) = &mut host {
             h.end(b);
         }
@@ -221,6 +224,9 @@ pub struct ScriptStudy {
     host: Option<Box<HostState>>,
     error: Option<ScriptError>,
     levels: Vec<(f64, Option<u32>)>,
+    /// Source inputs set to another indicator's line: (input id, the name
+    /// `input.source` returned for it, which `bar[name]` reads).
+    linked: Vec<(String, String)>,
 }
 
 impl ScriptStudy {
@@ -241,6 +247,16 @@ impl ScriptStudy {
             host,
             error: None,
             levels: Vec::new(),
+            linked: inputs
+                .values
+                .iter()
+                .filter_map(|(id, v)| match v {
+                    opentern_series::study::Value::Text(t) if opentern_series::study::parse_link(t).is_some() => {
+                        Some((id.clone(), t.clone()))
+                    }
+                    _ => None,
+                })
+                .collect(),
         };
         match c.lang.create(&c.src, &c.file, shared.clone(), &c.syminfo) {
             Ok(vm) => s.vm = Some(Arc::new(Mutex::new(vm))),
@@ -276,11 +292,16 @@ impl Study for ScriptStudy {
             return;
         }
         let Some(vm) = self.vm.clone() else { return };
+        let extra: Vec<(String, f64)> = self
+            .linked
+            .iter()
+            .filter_map(|(id, key)| Some((key.clone(), c.link(id, 0)?)))
+            .collect();
         if let Some(h) = &mut self.host {
             h.begin(c.bar, c.index, c.forming, c.count, c.new_session, c.tf);
         }
         let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            run_bar(&vm, &self.vm_ver, &self.shared, &mut self.host)
+            run_bar(&vm, &self.vm_ver, &self.shared, &mut self.host, &extra)
         }));
         let r = r.unwrap_or_else(|_| Err(ScriptError::new(0, "The script crashed.")));
         if let Err(e) = r {

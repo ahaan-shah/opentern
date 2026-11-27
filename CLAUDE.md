@@ -220,9 +220,11 @@ user-facing changes to a fresh `## Unreleased` section at the top of
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
 
-**Testing the app for the maintainer:** build with `cargo build --profile fast`.
-Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It
-helps to drop a few demo scripts in `<data-dir>/scripts/`. Never use their real
+**Testing the app for the maintainer:** run `scripts/dev-install.sh` (fast build,
+installed as "Opentern Dev" in their app launcher, replacing the last one). A binary
+named `opentern-dev` keeps its own workspace and never updates itself
+(`opentern_core::dev_copy`). For your own checks, launch `target/fast/opentern` with a
+throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). Never use their real
 workspace.
 
 **Releasing:** only when asked, and only after the maintainer has tried the build

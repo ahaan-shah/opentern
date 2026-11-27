@@ -3043,7 +3043,7 @@ fn legend(
             let Some(s) = chart.studies.iter().find(|s| s.uid == uid) else {
                 continue;
             };
-            let title = s.title(st.show_study_inputs);
+            let title = chart.study_title(s, st.show_study_inputs);
             let dim = if s.visible { 1.0 } else { 0.45 };
             // A long title (a strategy with many inputs) is cut short so its
             // buttons always fit inside the pane.

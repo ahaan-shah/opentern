@@ -173,6 +173,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   default, the user's settings), no effort flag, and `--append-system-prompt` only
   adds facts (scripts folder, tools, strategies → strategy_report, paper only), never
   reply-style rules (an early "keep answers short" made replies terse; removed).
+  One steer, the maintainer's (Nov 2026): new indicators, strategies and other scripts
+  are written in Pine v6 unless the user's message names another language; edits keep
+  the script's language.
   Claude Code snapshots a chat's system prompt on its first request, so prompt
   changes reach new chats only. Replies render Markdown tables (`md_table`: sized
   to content, squeezed and wrapped in a narrow pane), quotes and rules. The

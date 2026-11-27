@@ -298,13 +298,13 @@ impl App {
                 if placement == Some(meta.placement) {
                     self.chart.replace_instance(uid, inst);
                 } else {
-                    // Overlay ↔ pane needs a new place.
-                    self.chart.remove_study(uid);
+                    // Overlay ↔ pane needs a new place (same id: links stay).
+                    self.chart.lift_study(uid);
                     let (look, pane, visible) = match &restore {
                         Some(r) => (r.look.clone(), Some(r.pane), r.visible),
                         None => (StudyLook::defaults(meta), None, true),
                     };
-                    self.scripts[i].uid = Some(self.chart.add_instance(inst, look, pane, visible));
+                    self.scripts[i].uid = Some(self.chart.add_instance_as(inst, look, pane, visible, uid));
                 }
             }
             None => {
@@ -312,7 +312,9 @@ impl App {
                     Some(r) => (r.look.clone(), Some(r.pane), r.visible),
                     None => (StudyLook::defaults(meta), None, true),
                 };
-                run.uid = Some(self.chart.add_instance(inst, look, pane, visible));
+                // A restored script takes back its saved id (links name it).
+                let want = restore.as_ref().map_or(0, |r| r.uid);
+                run.uid = Some(self.chart.add_instance_as(inst, look, pane, visible, want));
             }
         }
         self.after_pine_run(i);
@@ -346,7 +348,10 @@ impl App {
             None => (None, true),
         };
         let inst = Instance::external(meta, &Default::default());
-        let uid = self.chart.add_instance(inst, StudyLook::defaults(meta), pane, visible);
+        let want = run.restore.as_ref().map_or(0, |r| r.uid);
+        let uid = self
+            .chart
+            .add_instance_as(inst, StudyLook::defaults(meta), pane, visible, want);
         self.scripts[i].uid = Some(uid);
     }
 

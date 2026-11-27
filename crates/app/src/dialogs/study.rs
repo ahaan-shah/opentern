@@ -26,6 +26,33 @@ pub struct StudySettings {
     orig: (Inputs, StudyLook),
     inputs: Inputs,
     look: StudyLook,
+    /// The symbol search open over the dialog, for this input.
+    pub(crate) picking: Option<(&'static str, Box<super::SymbolSearch>)>,
+}
+
+/// The other indicators' plots study `me`'s `Source` inputs can read
+/// ("indicator on indicator"): (link key, name). Never a study that
+/// already reads `me`, directly or through others (that would be a loop).
+pub(crate) fn link_choices(chart: &crate::chart::Chart, me: u64) -> Vec<(String, String)> {
+    if !chart.studies.iter().any(|s| s.uid == me) {
+        return Vec::new();
+    }
+    let readers = chart.readers_of(me);
+    chart
+        .studies
+        .iter()
+        .filter(|s| s.uid != me && !readers.contains(&s.uid))
+        .flat_map(|s| {
+            let meta = s.meta();
+            let name = chart.study_title(s, true);
+            meta.plots.iter().enumerate().map(move |(i, p)| {
+                (
+                    opentern_series::study::link_key(s.uid, i),
+                    format!("{name} · {}", of_study(meta, p.title)),
+                )
+            })
+        })
+        .collect()
 }
 
 pub fn line_style_name(s: LineStyle) -> &'static str {
@@ -49,7 +76,15 @@ impl StudySettings {
             orig: (s.inst.inputs.clone(), s.look.clone()),
             inputs: s.inst.inputs.clone(),
             look: s.look.clone(),
+            picking: None,
         })
+    }
+
+    /// With the symbol search open for `input`.
+    pub fn picking(mut self, input: &'static str) -> StudySettings {
+        self.tab = Tab::Inputs;
+        self.picking = Some((input, Box::new(super::SymbolSearch::for_input())));
+        self
     }
 
     pub fn cancel(&self, app: &mut App) {
@@ -63,6 +98,24 @@ impl StudySettings {
         let Some(meta) = app.chart.studies.iter().find(|s| s.uid == self.uid).map(|s| s.meta()) else {
             return Done::Close;
         };
+        // A symbol input's search, in place of the settings until it's done
+        // (Esc or its X goes back to them).
+        if let Some((id, search)) = &mut self.picking {
+            let back = ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape));
+            let done = search.show(ui, app, t);
+            if let Some(sym) = search.picked.take() {
+                self.inputs.set(id, Value::Text(sym.id.clone()));
+                app.chart.set_inputs(self.uid, &self.inputs);
+                if let Some(s) = app.chart.studies.iter().find(|s| s.uid == self.uid) {
+                    self.inputs = s.inst.inputs.clone();
+                }
+                self.picking = None;
+            } else if back || matches!(done, Done::Close) {
+                self.picking = None;
+            }
+            return Done::Keep;
+        }
+        let links = link_choices(&app.chart, self.uid);
         let mut done = Done::Keep;
         let mut inputs_changed = false;
         let mut look_changed = false;
@@ -81,7 +134,7 @@ impl StudySettings {
             egui::ScrollArea::vertical().max_height(420.0).show(ui, |ui| {
                 ui.set_width(480.0 - 12.0);
                 match self.tab {
-                    Tab::Inputs => inputs_changed = self.inputs_tab(ui, t, meta),
+                    Tab::Inputs => inputs_changed = self.inputs_tab(ui, t, meta, &links),
                     Tab::Style => look_changed = self.style_tab(ui, t, meta),
                     Tab::Visibility => {
                         section(ui, t, tr("Show on intervals"));
@@ -172,8 +225,9 @@ impl StudySettings {
         done
     }
 
-    fn inputs_tab(&mut self, ui: &mut Ui, t: &Theme, meta: &opentern_series::Meta) -> bool {
+    fn inputs_tab(&mut self, ui: &mut Ui, t: &Theme, meta: &opentern_series::Meta, links: &[(String, String)]) -> bool {
         let mut changed = false;
+        let mut pick: Option<&'static str> = None;
         let mut group: Option<&str> = None;
         for spec in &meta.inputs {
             if spec.group != group {
@@ -203,15 +257,37 @@ impl StudySettings {
                     changed |= crate::widgets::checkbox(ui, v, "").changed();
                 }
                 (InputKind::Source, Value::Text(v)) => {
-                    crate::widgets::combo(spec.id).selected_text(tr(v)).show_ui(ui, |ui| {
+                    // A linked source shows the indicator and plot it reads.
+                    let shown = match links.iter().find(|(key, _)| key == v) {
+                        Some((_, name)) => name.clone(),
+                        None if opentern_series::study::parse_link(v).is_some() => "—".to_string(),
+                        None => tr(v).to_string(),
+                    };
+                    crate::widgets::combo(spec.id).selected_text(shown).show_ui(ui, |ui| {
                         for s in Source::ALL {
                             changed |=
                                 crate::widgets::option_value(ui, v, s.name().to_string(), tr(s.name())).changed();
+                        }
+                        for (key, name) in links {
+                            changed |= crate::widgets::option_value(ui, v, key.clone(), name.as_str()).changed();
                         }
                     });
                 }
                 (InputKind::Text, Value::Text(v)) => {
                     changed |= ui.add(crate::widgets::field(v).desired_width(180.0)).changed();
+                }
+                (InputKind::Symbol { .. }, Value::Text(v)) => {
+                    let shown = if v.is_empty() { "—" } else { v.as_str() };
+                    let r = crate::widgets::button(
+                        ui,
+                        crate::widgets::Kind::Secondary,
+                        true,
+                        Some(ph::MAGNIFYING_GLASS),
+                        shown,
+                    );
+                    if r.clicked() {
+                        pick = Some(spec.id);
+                    }
                 }
                 (InputKind::Color, Value::Text(v)) => {
                     let mut c = crate::scripting::parse_color(v);
@@ -234,6 +310,9 @@ impl StudySettings {
                 _ => {}
             });
             self.inputs.set(spec.id, value);
+        }
+        if let Some(id) = pick {
+            self.picking = Some((id, Box::new(super::SymbolSearch::for_input())));
         }
         changed
     }

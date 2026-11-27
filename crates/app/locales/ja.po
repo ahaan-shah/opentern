@@ -5133,6 +5133,10 @@ msgstr "このファイルにはPythonスクリプトが{0}個あります"
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "このファイルは新しいバージョンのOpenternで作られています。Openternを更新するとインポートできます。"
 
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "これは開発用のコピーです。自動では更新されません。"
+
 msgid "This is a library: import it from another script."
 msgstr "これはライブラリです。別のスクリプトからインポートしてください。"
 

@@ -73,6 +73,8 @@ pub struct ScriptRun {
     pub log: String,
     sent_version: u64,
     sent_inputs: Option<Inputs>,
+    /// A fingerprint of the other indicators' lines last sent (Python).
+    sent_links: u64,
     last_run: Option<Instant>,
     in_flight: bool,
     /// The last output (for strategies: the orders).
@@ -270,6 +272,19 @@ fn script_bars(chart: &crate::chart::Chart) -> std::sync::Arc<Vec<opentern_core:
     )
 }
 
+/// Tells linked lines apart cheaply: every value's bits, hashed.
+fn fingerprint(lines: &[(String, std::sync::Arc<Vec<f64>>)]) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    for (k, v) in lines {
+        k.hash(&mut h);
+        for x in v.iter() {
+            x.to_bits().hash(&mut h);
+        }
+    }
+    h.finish()
+}
+
 fn inputs_json(i: &Inputs) -> serde_json::Value {
     let mut m = serde_json::Map::new();
     for (k, v) in &i.values {
@@ -437,6 +452,7 @@ impl App {
             log: String::new(),
             sent_version: u64::MAX,
             sent_inputs: None,
+            sent_links: 0,
             last_run: None,
             in_flight: false,
             output: None,
@@ -529,9 +545,10 @@ impl App {
                                     if placement == Some(m.placement) {
                                         self.chart.replace_instance(uid, inst);
                                     } else {
-                                        self.chart.remove_study(uid);
+                                        self.chart.lift_study(uid);
                                         let look = StudyLook::defaults(m);
-                                        self.scripts[i].uid = Some(self.chart.add_instance(inst, look, None, true));
+                                        self.scripts[i].uid =
+                                            Some(self.chart.add_instance_as(inst, look, None, true, uid));
                                     }
                                 }
                                 None => {
@@ -539,7 +556,8 @@ impl App {
                                         Some(r) => (r.look.clone(), Some(r.pane), r.visible),
                                         None => (StudyLook::defaults(m), None, true),
                                     };
-                                    run.uid = Some(self.chart.add_instance(inst, look, pane, visible));
+                                    let want = restore.as_ref().map_or(0, |r| r.uid);
+                                    run.uid = Some(self.chart.add_instance_as(inst, look, pane, visible, want));
                                 }
                             }
                         }
@@ -559,6 +577,8 @@ impl App {
                             && let Some(s) = self.chart.study_mut(uid)
                         {
                             s.inst.set_output(output, n);
+                            // Studies linked to its plots read the new values.
+                            self.chart.refresh_readers(uid);
                         }
                     }
                     python::Event::Error(m) => {
@@ -581,14 +601,22 @@ impl App {
                 .map(|s| s.inst.inputs.clone())
                 .or_else(|| self.scripts[i].restore.as_ref().map(|r| r.inputs.clone()))
                 .unwrap_or_default();
+            // Lines it reads from other indicators: a change there (their
+            // settings, their own new results) is a new run too.
+            let lines = self.scripts[i]
+                .uid
+                .map(|u| self.chart.linked_lines(u))
+                .unwrap_or_default();
+            let print = fingerprint(&lines);
             let run = &mut self.scripts[i];
             let data_changed = run.sent_version != self.chart.data_version;
-            let inputs_changed = run.sent_inputs.as_ref() != Some(&inputs);
+            let inputs_changed = run.sent_inputs.as_ref() != Some(&inputs) || run.sent_links != print;
             let soon = run.last_run.is_none_or(|t| t.elapsed() > Duration::from_millis(500));
             if n > 0 && run.desc.is_some() && (inputs_changed || (data_changed && soon && !run.in_flight)) {
                 if let Some(r) = run.runner.as_mut() {
-                    r.run(script_bars(&self.chart), inputs_json(&inputs));
+                    r.run(script_bars(&self.chart), inputs_json(&inputs), lines);
                 }
+                run.sent_links = print;
                 run.sent_version = self.chart.data_version;
                 run.sent_inputs = Some(inputs);
                 run.last_run = Some(Instant::now());

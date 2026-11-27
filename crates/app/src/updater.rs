@@ -113,6 +113,14 @@ impl Updater {
         if self.busy() || matches!(self.phase, Phase::Ready(_)) {
             return;
         }
+        // A development copy is replaced by the next dev build, never by a
+        // release.
+        if opentern_core::dev_copy() {
+            if manual {
+                self.phase = Phase::Failed(msg!("This is a development copy: it doesn't update itself.").to_string());
+            }
+            return;
+        }
         self.manual = manual;
         self.started = ctx.input(|i| i.time);
         self.held = None;
