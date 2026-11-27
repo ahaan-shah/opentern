@@ -259,6 +259,9 @@ msgstr "Füge zuerst eine Strategie zum Chart hinzu. Eine Strategie ist ein Skri
 msgid "Add filter"
 msgstr "Filter hinzufügen"
 
+msgid "Add level"
+msgstr "Niveau hinzufügen"
+
 msgid "Add section"
 msgstr "Abschnitt hinzufügen"
 
@@ -2129,6 +2132,10 @@ msgstr "Wie weit der Preis über oder unter seinem 50-Tage-Durchschnitt liegt"
 
 msgid "Hull Moving Average"
 msgstr "Hull Moving Average"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid hat keine {0}-Balken"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4109,6 +4116,9 @@ msgstr "Zurücksetzen"
 msgid "Reset account"
 msgstr "Konto zurücksetzen"
 
+msgid "Reset levels"
+msgstr "Niveaus zurücksetzen"
+
 msgid "Reset settings"
 msgstr "Einstellungen zurücksetzen"
 
@@ -4117,6 +4127,9 @@ msgstr "Setze das Konto zurück, um die Währung zu ändern"
 
 msgid "Reset the chart view"
 msgstr "Chartansicht zurücksetzen"
+
+msgid "Reset to default"
+msgstr "Auf Standard zurücksetzen"
 
 msgid "Respect for the Aged Day"
 msgstr "Tag der Achtung vor dem Alter"
@@ -4292,11 +4305,17 @@ msgstr "Als Standard speichern"
 msgid "Save chart template"
 msgstr "Chartvorlage speichern"
 
+msgid "Save drawing template"
+msgstr "Zeichenvorlage speichern"
+
 msgid "Save indicator template"
 msgstr "Indikatorvorlage speichern"
 
 msgid "Save layout"
 msgstr "Layout speichern"
+
+msgid "Save template as"
+msgstr "Vorlage speichern als"
 
 msgid "Save the results as CSV"
 msgstr "Ergebnisse als CSV speichern"
@@ -4950,6 +4969,9 @@ msgstr "Telegram-Bot-Token"
 msgid "Telegram chat id"
 msgstr "Telegram-Chat-ID"
 
+msgid "Template"
+msgstr "Vorlage"
+
 msgid "Template  {0}"
 msgstr "Vorlage  {0}"
 
@@ -5089,6 +5111,9 @@ msgstr "Denkt nach"
 
 msgid "This device"
 msgstr "Dieses Gerät"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Diese und neue Zeichnungen erhalten wieder den Standardstil"
 
 msgid "This file has a Python script"
 msgstr "Diese Datei enthält ein Python-Skript"

@@ -259,6 +259,9 @@ msgstr "まずチャートにストラテジーを追加してください。ス
 msgid "Add filter"
 msgstr "フィルターを追加"
 
+msgid "Add level"
+msgstr "水準を追加"
+
 msgid "Add section"
 msgstr "セクションを追加"
 
@@ -2129,6 +2132,10 @@ msgstr "価格が50日平均からどれだけ離れているか"
 
 msgid "Hull Moving Average"
 msgstr "ハル移動平均"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquidに{0}足はありません"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4109,6 +4116,9 @@ msgstr "リセット"
 msgid "Reset account"
 msgstr "口座をリセット"
 
+msgid "Reset levels"
+msgstr "水準をリセット"
+
 msgid "Reset settings"
 msgstr "設定をリセット"
 
@@ -4117,6 +4127,9 @@ msgstr "通貨を変えるには口座をリセットしてください"
 
 msgid "Reset the chart view"
 msgstr "チャート表示をリセット"
+
+msgid "Reset to default"
+msgstr "デフォルトに戻す"
 
 msgid "Respect for the Aged Day"
 msgstr "敬老の日"
@@ -4292,11 +4305,17 @@ msgstr "既定として保存"
 msgid "Save chart template"
 msgstr "チャートテンプレートを保存"
 
+msgid "Save drawing template"
+msgstr "描画テンプレートを保存"
+
 msgid "Save indicator template"
 msgstr "インジケーターテンプレートを保存"
 
 msgid "Save layout"
 msgstr "レイアウトを保存"
+
+msgid "Save template as"
+msgstr "テンプレートとして保存"
 
 msgid "Save the results as CSV"
 msgstr "結果をCSVで保存"
@@ -4950,6 +4969,9 @@ msgstr "Telegramボットトークン"
 msgid "Telegram chat id"
 msgstr "TelegramチャットID"
 
+msgid "Template"
+msgstr "テンプレート"
+
 msgid "Template  {0}"
 msgstr "テンプレート  {0}"
 
@@ -5089,6 +5111,9 @@ msgstr "考え中"
 
 msgid "This device"
 msgstr "このデバイス"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "この描画と新しい描画が標準のスタイルに戻ります"
 
 msgid "This file has a Python script"
 msgstr "このファイルにはPythonスクリプトが1個あります"

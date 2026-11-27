@@ -830,6 +830,140 @@ fn perpetuals_list_chart_stream_and_fund() {
     }
 }
 
+/// Hyperliquid perpetuals: the list, daily and minute history, paging
+/// back until its 5000-candle limit, a live bar, funding and the book.
+#[test]
+#[ignore]
+fn hyperliquid_perpetuals() {
+    use opentern_data::provider::{Live, Provider};
+    let now = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+    };
+    let hl = opentern_data::hyperliquid::Hyperliquid::default();
+    let list = hl.perps().unwrap();
+    let btc = list
+        .iter()
+        .find(|s| s.id == "HYPERLIQUID:BTCUSDC.P")
+        .expect("BTC")
+        .clone();
+    let odd: Vec<&str> = list
+        .iter()
+        .filter(|s| s.ticker().starts_with('k'))
+        .map(|s| s.ticker())
+        .take(3)
+        .collect();
+    println!(
+        "{} perpetuals; {} \"{}\" tick {} min qty {}; k-coins {odd:?}",
+        list.len(),
+        btc.id,
+        btc.description,
+        btc.tick_size,
+        btc.min_qty
+    );
+    assert!(list.len() > 50);
+    let day = opentern_core::Timeframe::parse("1D").unwrap();
+    let bars = hl.latest(&btc, day, 400).unwrap();
+    let last = *bars.last().unwrap();
+    println!(
+        "1D: {} bars, last close {} vol {:.0}",
+        bars.len(),
+        last.close,
+        last.volume
+    );
+    assert!(bars.len() >= 300 && last.close > 1000.0);
+    assert!(bars.windows(2).all(|w| w[0].time < w[1].time));
+    let m1 = opentern_core::Timeframe::parse("1m").unwrap();
+    let recent = hl.latest(&btc, m1, 500).unwrap();
+    println!(
+        "1m: {} bars, newest {} ms ago",
+        recent.len(),
+        now() - recent.last().unwrap().time
+    );
+    assert!(recent.len() >= 450);
+    // Back in pages until it runs out.
+    let mut end = recent[0].time;
+    let mut total = recent.len();
+    for _ in 0..10 {
+        let older = hl.before(&btc, m1, end, 1000).unwrap();
+        if older.is_empty() {
+            break;
+        }
+        assert!(older.last().unwrap().time < end);
+        end = older[0].time;
+        total += older.len();
+    }
+    let days = (now() - end) as f64 / 86_400_000.0;
+    println!("1m history: {total} bars, {days:.1} days back");
+    let since = hl.since(&btc, m1, recent[recent.len() - 30].time).unwrap();
+    println!("since: {} bars", since.len());
+    assert!(since.len() >= 29);
+    let mut got = None;
+    let started = std::time::Instant::now();
+    let _ = hl.stream(&btc, m1, &mut |item| {
+        if let Live::Bar(b) = item {
+            got = Some(b.close);
+        }
+        got.is_none() && started.elapsed().as_secs() < 20
+    });
+    println!("stream: {got:?}");
+    assert!(got.is_some(), "no live bar");
+    let (rate, next) = hl.funding(&btc).unwrap();
+    let mins = (next - now()) / 60_000;
+    println!("funding {:+.5}%/h, next in {mins} min", rate * 100.0);
+    assert!(rate.abs() < 0.01 && (0..=60).contains(&mins));
+    let book = opentern_data::depth::book(&btc, last.close, false).unwrap();
+    println!(
+        "book: {} bids, {} asks, best {:?} / {:?}",
+        book.bids.len(),
+        book.asks.len(),
+        book.bids.first(),
+        book.asks.first()
+    );
+    assert!(!book.bids.is_empty() && book.bids[0].0 < book.asks[0].0);
+    // Builder-deployed dexes: gold, silver, Brent, the euro, the S&P 500.
+    let builders: Vec<&Symbol> = list.iter().filter(|s| s.ticker().contains('_')).collect();
+    println!("builder-dex markets: {}", builders.len());
+    for t in [
+        "XYZ_GOLDUSDC.P",
+        "XYZ_SILVERUSDC.P",
+        "XYZ_BRENTOILUSDC.P",
+        "XYZ_EURUSDC.P",
+        "XYZ_SP500USDC.P",
+    ] {
+        let s = builders
+            .iter()
+            .find(|s| s.ticker() == t)
+            .unwrap_or_else(|| panic!("{t} listed"));
+        let bars = hl.latest(s, day, 30).unwrap();
+        let (rate, _) = hl.funding(s).unwrap();
+        println!(
+            "{t} \"{}\" tick {}: {} daily bars, close {}, funding {:+.5}%/h",
+            s.description,
+            s.tick_size,
+            bars.len(),
+            bars.last().unwrap().close,
+            rate * 100.0
+        );
+        assert!(!bars.is_empty());
+    }
+    let gold = builders.iter().find(|s| s.ticker() == "XYZ_GOLDUSDC.P").unwrap();
+    let mut got = None;
+    let started = std::time::Instant::now();
+    let _ = hl.stream(gold, m1, &mut |item| {
+        if let Live::Bar(b) = item {
+            got = Some(b.close);
+        }
+        got.is_none() && started.elapsed().as_secs() < 20
+    });
+    println!("gold stream: {got:?}");
+    assert!(got.is_some(), "no live gold bar");
+    let book = opentern_data::depth::book(gold, 0.0, false).unwrap();
+    assert!(!book.bids.is_empty());
+}
+
 /// Symbol search's row prices: Binance, Yahoo (US, NSE) and forex.
 #[test]
 #[ignore]

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Fib levels you choose.** Select a Fib retracement or trend-based extension and press Levels on its bar: switch each level on or off, change its value or colour, remove it, or type a new one (1.272, -0.27). Reset levels brings back the standard set, and the star keeps your levels for new Fibs. The retracement's levels above 1 (1.618, 2.618…) are there, off to start with.
+- **Hyperliquid perpetuals.** Search for a coin and pick its Hyperliquid perpetual (`HYPERLIQUID:BTCUSDC.P`, named in USDC as on Hyperliquid): chart, live bars, watchlist quotes, the hourly funding rate in the legend and the DOM's order book. The markets of Hyperliquid's builder-deployed dexes are there too (gold, silver, oil, forex, stock indices and stocks): search for `GOLD`, `SP500` or `EURUSD`, or `HYPERLIQUID:` to see only Hyperliquid; they read `XYZ_GOLDUSDC.P`, the dex first. Hyperliquid keeps only its newest 5000 candles per interval, so 1-minute history goes back about 3.5 days (daily goes back to the listing).
+- **Drawing templates.** The Template button on a selected drawing's bar saves its style under a name (two setups for the same Fib, say) and applies a saved one with a click. Reset to default puts the drawing, and new ones of that kind, back to the standard style.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

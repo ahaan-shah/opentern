@@ -259,6 +259,9 @@ msgstr "Adicione primeiro uma estratégia ao gráfico. Uma estratégia é um scr
 msgid "Add filter"
 msgstr "Adicionar filtro"
 
+msgid "Add level"
+msgstr "Adicionar nível"
+
 msgid "Add section"
 msgstr "Adicionar seção"
 
@@ -2129,6 +2132,10 @@ msgstr "A que distância o preço está da média de 50 dias"
 
 msgid "Hull Moving Average"
 msgstr "Média móvel de Hull"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid não tem barras de {0}"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4109,6 +4116,9 @@ msgstr "Redefinir"
 msgid "Reset account"
 msgstr "Redefinir conta"
 
+msgid "Reset levels"
+msgstr "Restaurar níveis"
+
 msgid "Reset settings"
 msgstr "Redefinir configurações"
 
@@ -4117,6 +4127,9 @@ msgstr "Redefina a conta para mudar a moeda"
 
 msgid "Reset the chart view"
 msgstr "Redefinir a visão do gráfico"
+
+msgid "Reset to default"
+msgstr "Restaurar padrão"
 
 msgid "Respect for the Aged Day"
 msgstr "Dia do Respeito aos Idosos"
@@ -4292,11 +4305,17 @@ msgstr "Salvar como padrão"
 msgid "Save chart template"
 msgstr "Salvar modelo de gráfico"
 
+msgid "Save drawing template"
+msgstr "Salvar modelo de desenho"
+
 msgid "Save indicator template"
 msgstr "Salvar modelo de indicadores"
 
 msgid "Save layout"
 msgstr "Salvar layout"
+
+msgid "Save template as"
+msgstr "Salvar modelo como"
 
 msgid "Save the results as CSV"
 msgstr "Salvar os resultados em CSV"
@@ -4950,6 +4969,9 @@ msgstr "Token do bot do Telegram"
 msgid "Telegram chat id"
 msgstr "ID do chat do Telegram"
 
+msgid "Template"
+msgstr "Modelo"
+
 msgid "Template  {0}"
 msgstr "Modelo  {0}"
 
@@ -5089,6 +5111,9 @@ msgstr "Pensando"
 
 msgid "This device"
 msgstr "Este dispositivo"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Este desenho e os novos voltam ao estilo padrão"
 
 msgid "This file has a Python script"
 msgstr "Este arquivo tem um script Python"

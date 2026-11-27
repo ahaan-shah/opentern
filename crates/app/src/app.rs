@@ -382,7 +382,7 @@ impl App {
                 // exchange, a stock elsewhere).
                 let crypto = matches!(
                     id.split(':').next(),
-                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID")
                 );
                 let s = opentern_core::starter_watchlist()
                     .into_iter()
@@ -762,6 +762,36 @@ impl App {
         }
     }
 
+    /// The style a drawing template of this tool saves: the selected
+    /// drawing's, else the one new drawings get.
+    fn drawing_style_now(&self, tool: Tool) -> DrawStyle {
+        self.chart_ui
+            .draw
+            .selected
+            .and_then(|id| self.chart.drawings.iter().find(|d| d.id == id && d.tool == tool))
+            .map(|d| d.style.clone())
+            .or_else(|| self.draw_styles.get(&tool).cloned())
+            .unwrap_or_else(|| DrawStyle::for_tool(tool))
+    }
+
+    /// A saved drawing template's style, if it's still there and readable.
+    pub(crate) fn drawing_template(&self, tool: Tool, name: &str) -> Option<DrawStyle> {
+        let t = self
+            .store
+            .templates(&TemplateKind::Drawing(tool).key())
+            .iter()
+            .find(|t| t.name == name)?;
+        serde_json::from_str(&t.json).ok()
+    }
+
+    /// Back to TradingView's style for this tool: new drawings forget the
+    /// starred style. Named templates are kept.
+    pub(crate) fn reset_drawing_default(&mut self, tool: Tool) {
+        if self.draw_styles.remove(&tool).is_some() {
+            let _ = self.store.delete_template("drawing", &tool.key());
+        }
+    }
+
     pub(crate) fn reload_drawings(&mut self) {
         self.load_drawings();
     }
@@ -984,20 +1014,22 @@ impl App {
                 studies: self.chart.saved_studies(),
                 panes: self.chart.panes.clone(),
             }),
+            // The selected drawing's style, else what new ones would get.
+            TemplateKind::Drawing(tool) => serde_json::to_string(&self.drawing_style_now(tool)),
         };
         if let Ok(j) = json
-            && let Err(e) = self.store.save_template(kind.key(), name, &j)
+            && let Err(e) = self.store.save_template(&kind.key(), name, &j)
         {
             crate::diag::crumb(format!("couldn't save template: {e}"));
         }
     }
 
     pub fn delete_template(&mut self, kind: TemplateKind, name: &str) {
-        let _ = self.store.delete_template(kind.key(), name);
+        let _ = self.store.delete_template(&kind.key(), name);
     }
 
     pub fn set_default_template(&mut self, kind: TemplateKind, name: Option<&str>) {
-        let _ = self.store.set_default_template(kind.key(), name);
+        let _ = self.store.set_default_template(&kind.key(), name);
     }
 
     pub fn apply_indicator_template(&mut self, name: &str) {
