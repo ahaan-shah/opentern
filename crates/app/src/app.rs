@@ -1929,6 +1929,7 @@ impl App {
                 hidden: false,
             };
             tl.style.text_bold = true;
+            tl.style.text_halign = crate::chart::draw::TextHAlign::Right;
             self.chart.drawings.push(tl);
 
             // 2. Rectangle with middle line and text

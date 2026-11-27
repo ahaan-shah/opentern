@@ -985,6 +985,8 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     theme::regular(font_size)
                 };
                 let delta = pts[1] - pts[0];
+                let len = delta.length();
+                let dir = if len > 0.0 { delta / len } else { vec2(1.0, 0.0) };
                 let mut angle = delta.y.atan2(delta.x);
                 if angle > std::f32::consts::FRAC_PI_2 {
                     angle -= std::f32::consts::PI;
@@ -993,19 +995,28 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 }
                 let norm = vec2(-delta.y, delta.x).normalized();
                 let up_norm = if norm.y > 0.0 { -norm } else { norm };
-                let t_factor = match d.style.text_halign {
-                    TextHAlign::Left => 0.15,
-                    TextHAlign::Center => 0.50,
-                    TextHAlign::Right => 0.85,
+
+                let galley = p.layout_no_wrap(d.text.clone(), font, tc);
+                let half_w = galley.size().x / 2.0;
+
+                // Farthest ends of the line (Right sits at the very end, Left at the start).
+                let base_pt = match d.style.text_halign {
+                    TextHAlign::Left => {
+                        let offset_along = (half_w + 10.0).min(len * 0.48);
+                        pts[0] + dir * offset_along
+                    }
+                    TextHAlign::Center => pts[0] + delta * 0.5,
+                    TextHAlign::Right => {
+                        let offset_along = (half_w + 10.0).min(len * 0.48);
+                        pts[1] - dir * offset_along
+                    }
                 };
-                let base_pt = pts[0] + delta * t_factor;
                 let offset = match d.style.text_valign {
                     TextVAlign::Top => up_norm * (font_size * 0.6 + 4.0),
                     TextVAlign::Bottom => -up_norm * (font_size * 0.6 + 4.0),
                     TextVAlign::Inside => vec2(0.0, 0.0),
                 };
                 let pos = base_pt + offset;
-                let galley = p.layout_no_wrap(d.text.clone(), font, tc);
                 if d.style.text_valign == TextVAlign::Inside {
                     let mask_size = galley.size() + vec2(8.0, 4.0);
                     let mask_r = Rect::from_center_size(pos, mask_size);
