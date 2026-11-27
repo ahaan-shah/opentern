@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.8 (2026-11-28)
+
+Hyperliquid's markets, a deeper equity chart in the Strategy Report, Fib levels and drawing templates you choose, the Fed funds rate, indicators on indicators, and strategies that recalculate on order fills.
 
 ### New
 - **The Fed funds rate.** Search "fed funds" or "EFFR" for the US effective federal funds rate, daily since July 2000, from the Federal Reserve Bank of New York. The Fed's target range shows as a band behind it and in the legend ("Target 3.75–4.00%"), and the day's change is in basis points. It's published once a day around 9:00 a.m. New York time, so it has daily, weekly and monthly charts only.

@@ -140,6 +140,9 @@ msgstr "6 个月收益"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python 脚本在你系统自带的 Python 中运行。视代码而定，它可以读取和修改你的文件并访问网络，代理为你编写的代码也一样。只运行你信任的脚本。"
 
+msgid "A deeper equity chart"
+msgstr "更深入的权益图"
+
 msgid "A drawing tool stays picked after each drawing. Esc puts it down."
 msgstr "绘图工具在每次绘制后保持选中。按 Esc 取消。"
 
@@ -329,6 +332,9 @@ msgstr "代理面板"
 
 msgid "Alert"
 msgstr "警报"
+
+msgid "Alert or line from the price scale"
+msgstr "从价格刻度添加警报或水平线"
 
 msgid "Alerts"
 msgstr "警报"
@@ -945,6 +951,9 @@ msgstr "今日涨跌%"
 msgid "Children's Day"
 msgstr "儿童节"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "在 Fib 工具栏上点「价位」选择它的价位，并可把任何绘图的样式存为模板。"
+
 msgid "Choose a scripts folder"
 msgstr "选择脚本文件夹"
 
@@ -1013,6 +1022,9 @@ msgstr "正在清除…"
 
 msgid "Click a bar to start from it"
 msgstr "点击一根 K 线从那里开始"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "点价格刻度旁的 +，即可在该价格添加警报或水平线。"
 
 msgid "Close"
 msgstr "关闭"
@@ -1552,6 +1564,9 @@ msgstr "下降趋势高亮"
 
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
+
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "在策略报告的权益图上拖动，查看一段区间的盈亏、回撤和交易。还支持百分比、对数刻度和自定义颜色。"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
@@ -2148,9 +2163,15 @@ msgstr "价格高于或低于 50 日均线的幅度"
 msgid "Hull Moving Average"
 msgstr "赫尔移动平均线"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
 #, message
 msgid "Hyperliquid has no {0} bars"
 msgstr "Hyperliquid 没有 {0} K 线"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Hyperliquid 的永续合约，以及它的黄金、原油、外汇、指数和股票市场。在品种搜索中输入 HYPERLIQUID: 即可全部查看。"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -5817,6 +5838,9 @@ msgstr "每年"
 
 msgid "Yes, reset"
 msgstr "是，重置"
+
+msgid "Your Fib levels and drawing templates"
+msgstr "自定义 Fib 价位和绘图模板"
 
 msgid "Your address"
 msgstr "你的地址"

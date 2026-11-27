@@ -140,6 +140,9 @@ msgstr ""
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr ""
 
+msgid "A deeper equity chart"
+msgstr ""
+
 msgid "A drawing tool stays picked after each drawing. Esc puts it down."
 msgstr ""
 
@@ -328,6 +331,9 @@ msgid "Agent panel"
 msgstr ""
 
 msgid "Alert"
+msgstr ""
+
+msgid "Alert or line from the price scale"
 msgstr ""
 
 msgid "Alerts"
@@ -945,6 +951,9 @@ msgstr ""
 msgid "Children's Day"
 msgstr ""
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr ""
+
 msgid "Choose a scripts folder"
 msgstr ""
 
@@ -1012,6 +1021,9 @@ msgid "Clearing…"
 msgstr ""
 
 msgid "Click a bar to start from it"
+msgstr ""
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
 msgstr ""
 
 msgid "Close"
@@ -1551,6 +1563,9 @@ msgid "Downtrend Highlighter"
 msgstr ""
 
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
+msgstr ""
+
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
 msgstr ""
 
 msgid "Drag to scale · double-click to fit · right-click for options"
@@ -2148,8 +2163,14 @@ msgstr ""
 msgid "Hull Moving Average"
 msgstr ""
 
+msgid "Hyperliquid"
+msgstr ""
+
 #, message
 msgid "Hyperliquid has no {0} bars"
+msgstr ""
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
 msgstr ""
 
 #, message
@@ -5816,6 +5837,9 @@ msgid "Yearly"
 msgstr ""
 
 msgid "Yes, reset"
+msgstr ""
+
+msgid "Your Fib levels and drawing templates"
 msgstr ""
 
 msgid "Your address"

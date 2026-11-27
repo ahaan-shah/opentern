@@ -140,6 +140,9 @@ msgstr "6M-Rendite"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Ein Python-Skript läuft im Python deines Systems. Je nach Code kann es deine Dateien lesen und ändern und ins Internet gehen, auch Code, den ein Agent für dich schreibt. Führe nur Skripte aus, denen du vertraust."
 
+msgid "A deeper equity chart"
+msgstr "Ein tieferer Kapitalchart"
+
 msgid "A drawing tool stays picked after each drawing. Esc puts it down."
 msgstr "Ein Zeichenwerkzeug bleibt nach jeder Zeichnung gewählt. Esc legt es ab."
 
@@ -329,6 +332,9 @@ msgstr "Agent-Panel"
 
 msgid "Alert"
 msgstr "Alarm"
+
+msgid "Alert or line from the price scale"
+msgstr "Alarm oder Linie von der Preisskala"
 
 msgid "Alerts"
 msgstr "Alarme"
@@ -945,6 +951,9 @@ msgstr "Änd. % heute"
 msgid "Children's Day"
 msgstr "Kindertag"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Wähle die Niveaus eines Fib mit „Niveaus“ in seiner Leiste und speichere den Stil jeder Zeichnung als Vorlage."
+
 msgid "Choose a scripts folder"
 msgstr "Skriptordner wählen"
 
@@ -1013,6 +1022,9 @@ msgstr "Wird geleert…"
 
 msgid "Click a bar to start from it"
 msgstr "Klicke auf einen Balken, um dort zu beginnen"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "Klicke auf das + an der Preisskala, um bei diesem Preis einen Alarm oder eine horizontale Linie hinzuzufügen."
 
 msgid "Close"
 msgstr "Schließen"
@@ -1552,6 +1564,9 @@ msgstr "Abwärtstrend-Hervorhebung"
 
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
+
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "Ziehe über den Kapitalchart im Strategiebericht, um Gewinn, Drawdown und Trades eines Bereichs zu sehen. Dazu Prozent, Log-Skala und eigene Farben."
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Ziehen zum Skalieren · Doppelklick zum Einpassen · Rechtsklick für Optionen"
@@ -2148,9 +2163,15 @@ msgstr "Wie weit der Preis über oder unter seinem 50-Tage-Durchschnitt liegt"
 msgid "Hull Moving Average"
 msgstr "Hull Moving Average"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
 #, message
 msgid "Hyperliquid has no {0} bars"
 msgstr "Hyperliquid hat keine {0}-Balken"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Die Perpetuals von Hyperliquid sowie seine Märkte für Gold, Öl, Devisen, Indizes und Aktien. Gib HYPERLIQUID: in die Symbolsuche ein, um alle zu sehen."
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -5817,6 +5838,9 @@ msgstr "Jährlich"
 
 msgid "Yes, reset"
 msgstr "Ja, zurücksetzen"
+
+msgid "Your Fib levels and drawing templates"
+msgstr "Eigene Fib-Niveaus und Zeichnungsvorlagen"
 
 msgid "Your address"
 msgstr "Deine Adresse"

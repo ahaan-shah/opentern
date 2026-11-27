@@ -32,6 +32,41 @@ pub struct Notes {
 /// and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
+        version: "0.3.8",
+        items: &[
+            Item {
+                icon: ph::COINS,
+                title: nt!("Hyperliquid"),
+                body: nt!(
+                    "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. \
+                   Type HYPERLIQUID: in the symbol search to see them all."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::CHART_LINE_UP,
+                title: nt!("A deeper equity chart"),
+                body: nt!(
+                    "Drag across the Strategy Report's equity chart to see a range's profit, \
+                   drawdown and trades. Percent, log scale and your own colours too."
+                ),
+                image: None,
+            },
+            Item {
+                icon: ph::LIST_NUMBERS,
+                title: nt!("Your Fib levels and drawing templates"),
+                body: nt!("Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."),
+                image: None,
+            },
+            Item {
+                icon: ph::ALARM,
+                title: nt!("Alert or line from the price scale"),
+                body: nt!("Click the + by the price scale to add an alert or a horizontal line at that price."),
+                image: None,
+            },
+        ],
+    },
+    Notes {
         version: "0.3.7",
         items: &[
             Item {

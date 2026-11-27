@@ -8,7 +8,7 @@ or the right note in the same commit. `AGENTS.md` is a symlink to this file. Sib
 project and design reference: `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused
 from it, see `docs/design.md` §3).
 
-**Status (Nov 2026, v0.3.6):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.3.8):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows.
 Read "Resume here" below first.

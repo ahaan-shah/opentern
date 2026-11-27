@@ -140,6 +140,9 @@ msgstr "6か月リターン"
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます。コードによってはファイルの読み書きやインターネット接続ができ、エージェントが書いたコードも同様です。信頼できるものだけを実行してください。"
 
+msgid "A deeper equity chart"
+msgstr "さらに詳しい資産チャート"
+
 msgid "A drawing tool stays picked after each drawing. Esc puts it down."
 msgstr "描画ツールは描いた後も選ばれたままです。Esc で解除します。"
 
@@ -329,6 +332,9 @@ msgstr "エージェントパネル"
 
 msgid "Alert"
 msgstr "アラート"
+
+msgid "Alert or line from the price scale"
+msgstr "価格スケールからアラートや水平線"
 
 msgid "Alerts"
 msgstr "アラート"
@@ -945,6 +951,9 @@ msgstr "本日変化%"
 msgid "Children's Day"
 msgstr "こどもの日"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Fib のバーの「水準」で水準を選び、どの描画のスタイルもテンプレートとして保存できます。"
+
 msgid "Choose a scripts folder"
 msgstr "スクリプトフォルダーを選択"
 
@@ -1013,6 +1022,9 @@ msgstr "消去中…"
 
 msgid "Click a bar to start from it"
 msgstr "開始する足をクリック"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "価格スケール横の + をクリックすると、その価格にアラートや水平線を追加できます。"
 
 msgid "Close"
 msgstr "閉じる"
@@ -1552,6 +1564,9 @@ msgstr "下降トレンドの強調"
 
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
+
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "ストラテジーレポートの資産チャートをドラッグすると、その期間の損益・ドローダウン・取引を表示します。パーセント表示、対数スケール、好きな色にも対応。"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
@@ -2148,9 +2163,15 @@ msgstr "価格が50日平均からどれだけ離れているか"
 msgid "Hull Moving Average"
 msgstr "ハル移動平均"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
 #, message
 msgid "Hyperliquid has no {0} bars"
 msgstr "Hyperliquidに{0}足はありません"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Hyperliquid の無期限先物に加え、金・原油・為替・指数・株式の市場も。銘柄検索で HYPERLIQUID: と入力するとすべて表示されます。"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -5817,6 +5838,9 @@ msgstr "年次"
 
 msgid "Yes, reset"
 msgstr "リセットする"
+
+msgid "Your Fib levels and drawing templates"
+msgstr "Fib の水準と描画テンプレート"
 
 msgid "Your address"
 msgstr "自分のアドレス"
