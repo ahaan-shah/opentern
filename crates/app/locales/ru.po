@@ -256,6 +256,9 @@ msgstr "Активно"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Сначала добавьте стратегию на график. Стратегия — это скрипт, который начинается с strategy(…)."
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Создать оповещение по {ticker} на {0}"
+
 msgid "Add filter"
 msgstr "Добавить фильтр"
 
@@ -1546,6 +1549,9 @@ msgstr "Тяните для масштаба · двойной щелчок — 
 
 msgid "Draw again without picking again"
 msgstr "Рисуйте снова, не выбирая заново"
+
+msgid "Draw horizontal line at {0}"
+msgstr "Провести горизонтальную линию на {0}"
 
 msgid "Draw with replacement"
 msgstr "Выборка с возвращением"

@@ -256,6 +256,9 @@ msgstr ""
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr ""
+
 msgid "Add filter"
 msgstr ""
 
@@ -1545,6 +1548,9 @@ msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr ""
 
 msgid "Draw again without picking again"
+msgstr ""
+
+msgid "Draw horizontal line at {0}"
 msgstr ""
 
 msgid "Draw with replacement"

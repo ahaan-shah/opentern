@@ -40,6 +40,14 @@ pub enum Action {
     PaperCancel(u64),
     /// The × on the position's line.
     PaperClose,
+    /// The "+" beside the crosshair's price label: a menu to add an alert
+    /// or a horizontal line at `price` (`text` as the scale shows it),
+    /// with its top-right corner at the position.
+    PriceMenu {
+        price: f64,
+        text: String,
+        pos: Pos2,
+    },
 }
 
 /// Interaction state that isn't worth saving.
@@ -86,6 +94,14 @@ struct PaneGeo {
     format: Format,
     /// Base value for percent mode (main pane only).
     pct_base: Option<f64>,
+}
+
+/// Where the crosshair's "+" sits: at the pointer's height, against the
+/// price scale inside the main pane.
+fn plus_rect(pane: Rect, y: f32) -> Rect {
+    const S: f32 = 18.0;
+    let y = y.clamp(pane.top() + S / 2.0, pane.bottom() - S / 2.0);
+    Rect::from_min_size(pos2(pane.right() - S - 3.0, y - S / 2.0), vec2(S, S))
 }
 
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
@@ -533,7 +549,44 @@ pub fn show(
         }
     }
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
+    // The "+" at the crosshair's height, by the price scale: it follows the
+    // pointer and wins the press over the plot, like the paper tags.
+    let mut plus: Option<(Rect, bool)> = None;
+    let mut plus_used = false;
+    if interactive
+        && n > 0
+        && !choosing
+        && !tools.tool.is_drawing()
+        && !cui.draw.busy()
+        && cui.paper_drag.is_none()
+        && let (Some(p), Some(g)) = (pointer, geos.first())
+        && g.rect.contains(p)
+        && !plot_resp.dragged()
+    {
+        let r = plus_rect(g.rect, p.y);
+        let resp = ui.interact(r, Id::new(("chart-plus", chart.id)), Sense::click_and_drag());
+        if resp.hovered() {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+        }
+        if resp.clicked() {
+            let tick = if chart.symbol.tick_size > 0.0 {
+                chart.symbol.tick_size
+            } else {
+                0.01
+            };
+            // The crosshair's price (the "+" only moves off it at the pane's edges).
+            let price = (g.y.value(p.y) / tick).round() * tick;
+            actions.push(Action::PriceMenu {
+                price,
+                text: format::price(price, chart.precision()),
+                pos: pos2(r.right(), r.bottom() + 4.0),
+            });
+        }
+        plus_used = resp.hovered() || resp.is_pointer_button_down_on() || resp.clicked();
+        plus = Some((r, resp.hovered()));
+    }
     let drawing_used = !paper_used
+        && !plus_used
         && interactive
         && n > 0
         && !choosing
@@ -551,7 +604,7 @@ pub fn show(
     if (tools.tool.is_drawing() || tools.tool == super::draw::Tool::Measure) && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
-    if plot_resp.dragged() && !drawing_used && !paper_used {
+    if plot_resp.dragged() && !drawing_used && !paper_used && !plus_used {
         let d = plot_resp.drag_delta();
         chart.view.right -= (d.x / chart.view.bar_w) as f64;
         // Dragging vertically pans the price too, which ends autoscale.
@@ -1240,6 +1293,22 @@ pub fn show(
                 vec2(scale_w - 2.0, tag_h),
             );
             paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+            if let Some((r, hover)) = plus {
+                let fill = if hover {
+                    pal.label_bg
+                } else {
+                    motion::lerp_color(pal.bg, pal.label_bg, 0.12)
+                };
+                let ink = if hover { Color32::WHITE } else { pal.text2 };
+                painter.rect(
+                    r,
+                    CornerRadius::same(3),
+                    fill,
+                    Stroke::new(1.0, if hover { pal.label_bg } else { pal.border }),
+                    egui::StrokeKind::Inside,
+                );
+                painter.text(r.center(), Align2::CENTER_CENTER, ph::PLUS, theme::regular(12.0), ink);
+            }
             if geos.first().is_some_and(|m| m.rect == g.rect) {
                 for (ci, col, y) in &owns {
                     let c = &chart.compares[*ci];

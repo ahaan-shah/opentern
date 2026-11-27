@@ -256,6 +256,9 @@ msgstr "启用"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "在 {0} 为 {ticker} 创建警报"
+
 msgid "Add filter"
 msgstr "添加筛选"
 
@@ -1546,6 +1549,9 @@ msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 
 msgid "Draw again without picking again"
 msgstr "无需重新选择即可再画"
+
+msgid "Draw horizontal line at {0}"
+msgstr "在 {0} 画水平线"
 
 msgid "Draw with replacement"
 msgstr "有放回抽样"

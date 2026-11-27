@@ -256,6 +256,9 @@ msgstr "Active"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Ajoutez d'abord une stratégie au graphique. Une stratégie est un script qui commence par strategy(…)."
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Créer une alerte sur {ticker} à {0}"
+
 msgid "Add filter"
 msgstr "Ajouter un filtre"
 
@@ -1546,6 +1549,9 @@ msgstr "Glisser pour mettre à l'échelle · double-clic pour ajuster · clic dr
 
 msgid "Draw again without picking again"
 msgstr "Redessiner sans rechoisir"
+
+msgid "Draw horizontal line at {0}"
+msgstr "Tracer une ligne horizontale à {0}"
 
 msgid "Draw with replacement"
 msgstr "Tirage avec remise"

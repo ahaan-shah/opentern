@@ -256,6 +256,9 @@ msgstr "有効"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "{ticker} の {0} にアラートを作成"
+
 msgid "Add filter"
 msgstr "フィルターを追加"
 
@@ -1546,6 +1549,9 @@ msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · �
 
 msgid "Draw again without picking again"
 msgstr "選び直さずにもう一度描く"
+
+msgid "Draw horizontal line at {0}"
+msgstr "{0} に水平線を引く"
 
 msgid "Draw with replacement"
 msgstr "復元抽出"
