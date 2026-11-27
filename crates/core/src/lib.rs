@@ -35,7 +35,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Whether this is a development copy: the binary is named
 /// `opentern-dev` (what `scripts/dev-install.sh` installs). It keeps its own
-/// workspace and config, has its own window class, and never updates itself
+/// workspace, config and keychain entries, has its own window class, and
+/// never updates itself
 /// (an update would put the release over it).
 pub fn dev_copy() -> bool {
     static DEV: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
