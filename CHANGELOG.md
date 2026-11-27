@@ -19,6 +19,7 @@
 - **Easier to hit:** indicator names and their buttons on the chart are a little larger.
 - **Date ranges (1D to All) no longer jump:** the chart shows the chosen range from the first bars on, instead of showing them at the old zoom for a moment and then snapping.
 - **Top bar icons** are the size of the drawing toolbar's, and undo and redo look like its buttons.
+- **A tidier Script Editor explorer:** rounded rows like the watchlist's, headings in plain case, folders whose arrows turn as they open, a rename box that lines up with the name, and a script you drag follows the pointer to the folder it lands in.
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
 
 ## 0.3.7 (2026-11-26)

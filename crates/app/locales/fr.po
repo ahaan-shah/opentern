@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "INDICATEURS INTÉGRÉS"
-
 msgid "Background"
 msgstr "Arrière-plan"
 
@@ -696,6 +693,9 @@ msgstr "Pinceau"
 
 msgid "Buddha's Birthday"
 msgstr "Anniversaire de Bouddha"
+
+msgid "Built-in indicators"
+msgstr "Indicateurs intégrés"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Code intégré, en lecture seule. Faites-en une copie pour le modifier et l'exécuter."
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "EXPLORATEUR"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "Expirée"
 
 msgid "Expires"
 msgstr "Expire"
+
+msgid "Explorer"
+msgstr "Explorateur"
 
 msgid "Exponential"
 msgstr "Exponentielle"
@@ -3352,9 +3352,6 @@ msgstr "Le carnet d'ordres des perpétuels OKX compte des contrats, il n'est don
 msgid "OPEN LAYOUT"
 msgstr "OUVRIR UNE DISPOSITION"
 
-msgid "OUTLINE"
-msgstr "PLAN"
-
 msgid "OUTPUT"
 msgstr "SORTIE"
 
@@ -3541,6 +3538,9 @@ msgstr "P&L hors échantillon"
 
 msgid "Out-of-sample bars"
 msgstr "Barres hors échantillon"
+
+msgid "Outline"
+msgstr "Plan"
 
 msgid "Output"
 msgstr "Sortie"
@@ -4231,9 +4231,6 @@ msgstr "ENREGISTRÉS"
 
 msgid "SCALE"
 msgstr "ÉCHELLE"
-
-msgid "SCRIPTS"
-msgstr "SCRIPTS"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP : prix de toutes les bourses américaines, pas seulement IEX"

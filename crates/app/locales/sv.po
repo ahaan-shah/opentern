@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "INBYGGDA INDIKATORER"
-
 msgid "Background"
 msgstr "Bakgrund"
 
@@ -696,6 +693,9 @@ msgstr "Pensel"
 
 msgid "Buddha's Birthday"
 msgstr "Buddhas födelsedag"
+
+msgid "Built-in indicators"
+msgstr "Inbyggda indikatorer"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Inbyggd källkod, skrivskyddad. Gör en kopia för att ändra och köra den."
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "UTFORSKARE"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "Utgånget"
 
 msgid "Expires"
 msgstr "Upphör"
+
+msgid "Explorer"
+msgstr "Utforskare"
 
 msgid "Exponential"
 msgstr "Exponentiell"
@@ -3352,9 +3352,6 @@ msgstr "Orderboken för OKX-perpetuals räknar kontrakt, så den visas inte. Bin
 msgid "OPEN LAYOUT"
 msgstr "ÖPPNA LAYOUT"
 
-msgid "OUTLINE"
-msgstr "DISPOSITION"
-
 msgid "OUTPUT"
 msgstr "UTDATA"
 
@@ -3541,6 +3538,9 @@ msgstr "Resultat utanför urvalet"
 
 msgid "Out-of-sample bars"
 msgstr "Staplar utanför urvalet"
+
+msgid "Outline"
+msgstr "Disposition"
 
 msgid "Output"
 msgstr "Utdata"
@@ -4231,9 +4231,6 @@ msgstr "SPARADE"
 
 msgid "SCALE"
 msgstr "SKALA"
-
-msgid "SCRIPTS"
-msgstr "SKRIPT"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: priser från alla USA-börser, inte bara IEX"

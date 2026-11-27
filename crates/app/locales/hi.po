@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "अंतर्निहित इंडिकेटर"
-
 msgid "Background"
 msgstr "पृष्ठभूमि"
 
@@ -696,6 +693,9 @@ msgstr "ब्रश"
 
 msgid "Buddha's Birthday"
 msgstr "बुद्ध जयंती"
+
+msgid "Built-in indicators"
+msgstr "अंतर्निहित इंडिकेटर"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "अंतर्निहित स्रोत, केवल पढ़ने योग्य। बदलने और चलाने के लिए प्रति बनाएँ।"
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "एक्सप्लोरर"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "समाप्त"
 
 msgid "Expires"
 msgstr "समाप्ति"
+
+msgid "Explorer"
+msgstr "एक्सप्लोरर"
 
 msgid "Exponential"
 msgstr "एक्सपोनेंशियल"
@@ -3352,9 +3352,6 @@ msgstr "OKX की परपेचुअल ऑर्डर बुक कॉन�
 msgid "OPEN LAYOUT"
 msgstr "लेआउट खोलें"
 
-msgid "OUTLINE"
-msgstr "रूपरेखा"
-
 msgid "OUTPUT"
 msgstr "आउटपुट"
 
@@ -3541,6 +3538,9 @@ msgstr "आउट-ऑफ़-सैंपल लाभ-हानि"
 
 msgid "Out-of-sample bars"
 msgstr "आउट-ऑफ़-सैंपल बार"
+
+msgid "Outline"
+msgstr "रूपरेखा"
 
 msgid "Output"
 msgstr "आउटपुट"
@@ -4231,9 +4231,6 @@ msgstr "सहेजे हुए"
 
 msgid "SCALE"
 msgstr "स्केल"
-
-msgid "SCRIPTS"
-msgstr "स्क्रिप्ट"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: केवल IEX नहीं, सभी अमेरिकी एक्सचेंजों के भाव"

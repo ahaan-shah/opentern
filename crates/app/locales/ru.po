@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "ВСТРОЕННЫЕ ИНДИКАТОРЫ"
-
 msgid "Background"
 msgstr "Фон"
 
@@ -696,6 +693,9 @@ msgstr "Кисть"
 
 msgid "Buddha's Birthday"
 msgstr "День рождения Будды"
+
+msgid "Built-in indicators"
+msgstr "Встроенные индикаторы"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Встроенный код, только чтение. Сделайте копию, чтобы изменить и запустить его."
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "ПРОВОДНИК"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "Истекло"
 
 msgid "Expires"
 msgstr "Истекает"
+
+msgid "Explorer"
+msgstr "Проводник"
 
 msgid "Exponential"
 msgstr "Экспоненциальная"
@@ -3352,9 +3352,6 @@ msgstr "Стакан бессрочных контрактов OKX считае�
 msgid "OPEN LAYOUT"
 msgstr "ОТКРЫТЬ МАКЕТ"
 
-msgid "OUTLINE"
-msgstr "СТРУКТУРА"
-
 msgid "OUTPUT"
 msgstr "ВЫВОД"
 
@@ -3541,6 +3538,9 @@ msgstr "P&L вне выборки"
 
 msgid "Out-of-sample bars"
 msgstr "Баров вне выборки"
+
+msgid "Outline"
+msgstr "Структура"
 
 msgid "Output"
 msgstr "Вывод"
@@ -4231,9 +4231,6 @@ msgstr "СОХРАНЁННЫЕ"
 
 msgid "SCALE"
 msgstr "ШКАЛА"
-
-msgid "SCRIPTS"
-msgstr "СКРИПТЫ"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: цены со всех бирж США, а не только IEX"

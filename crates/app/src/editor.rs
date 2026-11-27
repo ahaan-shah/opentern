@@ -45,7 +45,7 @@ pub struct Editor {
     filter: String,
     show_builtins: bool,
     /// (file, new name) while a file is being renamed in the explorer.
-    renaming: Option<(String, String)>,
+    pub(crate) renaming: Option<(String, String)>,
     /// A file whose Delete was pressed once (press again to delete).
     deleting: Option<String>,
     explorer_w: f32,
@@ -1067,27 +1067,27 @@ impl App {
         let mut order: Vec<(String, bool)> = Vec::new();
         let tree_focus = self.editor.tree_focus;
         let cursor = self.editor.cursor.clone();
-        let head = Rect::from_min_size(full.min, vec2(full.width(), 36.0));
+        let head = Rect::from_min_size(full.min, vec2(full.width(), 40.0));
         ui.painter().text(
             pos2(head.left() + 16.0, head.center().y),
             Align2::LEFT_CENTER,
-            // Four buttons of 24 beside it.
+            // Four buttons of 26 beside it.
             crate::format::elide_to(
                 ui.painter(),
-                tr("EXPLORER"),
-                &theme::medium(11.0),
-                head.width() - 16.0 - 112.0,
+                tr("Explorer"),
+                &theme::semibold(13.0),
+                head.width() - 16.0 - 120.0,
             ),
-            theme::medium(11.0),
-            c.dim,
+            theme::semibold(13.0),
+            c.text,
         );
         let mut bar = ui.new_child(
             egui::UiBuilder::new()
-                .max_rect(head.shrink2(vec2(8.0, 5.0)))
+                .max_rect(head.shrink2(vec2(8.0, 7.0)))
                 .layout(egui::Layout::right_to_left(egui::Align::Center)),
         );
         bar.spacing_mut().item_spacing.x = 0.0;
-        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "", false, 24.0);
+        let more = w::tool_button(&mut bar, t, ph::DOTS_THREE, "", false, 26.0);
         egui::Popup::menu(&more).show(|ui| {
             ui.set_width(220.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -1112,15 +1112,15 @@ impl App {
             }
         });
         let find = self.editor.filtering;
-        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "", find, 24.0).clicked() {
+        if w::tool_button(&mut bar, t, ph::MAGNIFYING_GLASS, "", find, 26.0).clicked() {
             self.editor.filtering = !find;
             self.editor.filter.clear();
         }
-        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, tr("New folder"), false, 24.0).clicked() {
+        if w::tool_button(&mut bar, t, ph::FOLDER_PLUS, tr("New folder"), false, 26.0).clicked() {
             let dir = self.editor.new_dir.clone();
             self.new_folder(&dir);
         }
-        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, tr("New script"), false, 24.0);
+        let add = w::tool_button(&mut bar, t, ph::FILE_PLUS, tr("New script"), false, 26.0);
         egui::Popup::menu(&add).show(|ui| {
             ui.set_width(210.0);
             ui.spacing_mut().item_spacing.y = 1.0;
@@ -1147,9 +1147,9 @@ impl App {
         // The outline sits at the bottom, the files above it.
         let outline_items = self.editor.doc().map(|d| outline(&d.text, d.lang)).unwrap_or_default();
         let outline_h = if self.editor.outline_open {
-            (24.0 + 22.0 * outline_items.len().max(1) as f32).min(full.height() * 0.4)
+            (HEAD + ROW * outline_items.len().max(1) as f32 + 6.0).min(full.height() * 0.4)
         } else {
-            24.0
+            HEAD
         };
         let files_rect = Rect::from_min_max(pos2(full.left(), y), pos2(full.right(), full.bottom() - outline_h));
         let outline_rect = Rect::from_min_max(pos2(full.left(), files_rect.bottom()), full.max);
@@ -1169,7 +1169,7 @@ impl App {
                 // scripts as a flat list of paths.
                 let dirs = self.script_dirs();
                 let root_open = self.editor.scripts_open || !q.is_empty();
-                let head = folder_row(ui, t, tr("SCRIPTS"), root_open, files.len());
+                let head = folder_row(ui, t, tr("Scripts"), root_open, files.len());
                 if head.clicked() {
                     self.editor.scripts_open = !self.editor.scripts_open;
                     self.editor.new_dir.clear();
@@ -1208,8 +1208,9 @@ impl App {
                             && *from == path
                         {
                             // In the row's own place and height: its icon, then
-                            // the name in a slim box (as VS Code's).
-                            let (rowr, _) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::hover());
+                            // the name in a box whose text sits where the name
+                            // does (as VS Code's).
+                            let (rowr, _) = ui.allocate_exact_size(vec2(ui.available_width(), ROW), Sense::hover());
                             let x0 = rowr.left() + 14.0 + (depth + 1) as f32 * 14.0;
                             let is_dir = matches!(row, Node::Dir { .. });
                             let (glyph, col) = if is_dir {
@@ -1224,24 +1225,35 @@ impl App {
                                 theme::regular(14.0),
                                 col,
                             );
+                            let pad = 5.0;
                             let boxr = Rect::from_min_max(
-                                pos2(x0 + 16.0, rowr.top() + 1.0),
-                                pos2(rowr.right() - 8.0, rowr.bottom() - 1.0),
+                                pos2(x0 + 20.0 - pad, rowr.top() + 2.0),
+                                pos2(pill(rowr).right(), rowr.bottom() - 2.0),
                             );
                             ui.painter().rect(
                                 boxr,
-                                CornerRadius::same(4),
+                                CornerRadius::same(6),
                                 t.field(),
-                                egui::Stroke::new(1.0, t.accent),
+                                egui::Stroke::new(1.0, motion::with_alpha(t.accent, 0.55)),
                                 egui::StrokeKind::Inside,
                             );
                             ui.scope_builder(egui::UiBuilder::new().max_rect(boxr), |ui| {
+                                let font = theme::regular(13.0);
+                                let text_h = ui.fonts_mut(|f| f.row_height(&font));
+                                // egui leaves out a frameless field's margin: the
+                                // frame carries it, so the text lands on the name.
+                                let my = ((boxr.height() - text_h) / 2.0).max(0.0);
                                 let r = ui.add(
                                     egui::TextEdit::singleline(to)
-                                        .frame(egui::Frame::NONE)
-                                        .desired_width(boxr.width() - 10.0)
-                                        .font(theme::regular(13.0))
-                                        .margin(vec2(5.0, 3.0)),
+                                        .frame(egui::Frame::NONE.inner_margin(egui::Margin {
+                                            left: pad as i8,
+                                            right: pad as i8,
+                                            top: my.floor() as i8,
+                                            bottom: my.ceil() as i8,
+                                        }))
+                                        .desired_width(boxr.width() - 2.0 * pad)
+                                        .text_color(code_colors(t).text)
+                                        .font(font),
                                 );
                                 if !r.has_focus() && !r.lost_focus() {
                                     r.request_focus();
@@ -1286,7 +1298,8 @@ impl App {
                                 // Filtered: the path, so same names in two folders read apart.
                                 let label = if q.is_empty() { base_name(&f) } else { f.as_str() };
                                 order.push((f.clone(), false));
-                                let resp = file_row(ui, t, lang, label, selected, on_chart, dirty, depth + 1);
+                                let lifted = egui::DragAndDrop::payload::<String>(ui.ctx()).is_some_and(|d| *d == f);
+                                let resp = file_row(ui, t, lang, label, selected, on_chart, dirty, depth + 1, lifted);
                                 if tree_focus && cursor.as_deref() == Some(f.as_str()) {
                                     focus_ring(ui, t, resp.rect);
                                 }
@@ -1344,20 +1357,51 @@ impl App {
                     .filter(|(_, n)| q.is_empty() || n.to_lowercase().contains(&q))
                     .collect();
                 let open_list = self.editor.show_builtins || !q.is_empty();
-                if folder_row(ui, t, tr("BUILT-IN INDICATORS"), open_list, list.len()).clicked() {
+                if folder_row(ui, t, tr("Built-in indicators"), open_list, list.len()).clicked() {
                     self.editor.show_builtins = !self.editor.show_builtins;
                 }
                 if open_list {
                     for (id, name) in list {
                         let key = format!("builtin:{id}");
                         let selected = active_key.as_deref() == Some(key.as_str());
-                        if file_row(ui, t, Lang::Pine, name, selected, false, false, 1).clicked() {
+                        if file_row(ui, t, Lang::Pine, name, selected, false, false, 1, false).clicked() {
                             open = Some(key);
                         }
                     }
                 }
                 ui.add_space(8.0);
             });
+
+        // A script being dragged follows the pointer as a small chip.
+        if let Some(f) = egui::DragAndDrop::payload::<String>(ui.ctx())
+            && files.contains(&*f)
+            && let Some(at) = ui.ctx().pointer_hover_pos()
+        {
+            let p = ui
+                .ctx()
+                .layer_painter(egui::LayerId::new(egui::Order::Tooltip, Id::new("explorer-drag")));
+            let font = theme::regular(13.0);
+            let name = base_name(&f).to_string();
+            let g = p.layout_no_wrap(name, font, c.text);
+            let (icon, col) = file_icon(Lang::of(&f).unwrap_or(Lang::Pine));
+            let r = Rect::from_min_size(at + vec2(14.0, 6.0), vec2(g.size().x + 40.0, ROW));
+            p.rect(
+                r.expand(1.0),
+                CornerRadius::same(7),
+                t.popup(),
+                Stroke::new(1.0, t.border),
+                egui::StrokeKind::Inside,
+            );
+            p.text(
+                pos2(r.left() + 16.0, r.center().y),
+                Align2::CENTER_CENTER,
+                icon,
+                theme::regular(14.0),
+                col,
+            );
+            p.galley(pos2(r.left() + 30.0, r.center().y - g.size().y / 2.0), g, c.text);
+            ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+        }
 
         // Outline: what's defined in the open file; a click goes there.
         ui.painter().hline(
@@ -1371,7 +1415,7 @@ impl App {
         if folder_row(
             &mut child,
             t,
-            tr("OUTLINE"),
+            tr("Outline"),
             self.editor.outline_open,
             outline_items.len(),
         )
@@ -1397,10 +1441,13 @@ impl App {
                         });
                     }
                     for (line, name, kind) in &outline_items {
-                        let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 22.0), Sense::click());
+                        let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), ROW), Sense::click());
                         let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
-                        ui.painter()
-                            .rect_filled(r, CornerRadius::ZERO, motion::with_alpha(t.hover_wash(), hover));
+                        ui.painter().rect_filled(
+                            pill(r),
+                            CornerRadius::same(6),
+                            motion::with_alpha(t.hover_wash(), hover),
+                        );
                         let (icon, col) = match kind {
                             Outline::Function => (ph::CUBE, c.keyword),
                             Outline::Input => (ph::SLIDERS_HORIZONTAL, c.ns),
@@ -2503,60 +2550,75 @@ const MINIMAP_W: f32 = 84.0;
 const CODE_SIZE: f32 = 13.5;
 
 /// A folder line in the explorer: caret, NAME, count. Clicking folds it.
+/// The explorer's row height, and its section headings'.
+const ROW: f32 = 28.0;
+const HEAD: f32 = 30.0;
+
+/// A row's highlight: inset from the panel's edges and rounded, like the
+/// watchlist's.
+fn pill(r: Rect) -> Rect {
+    Rect::from_min_max(
+        pos2(r.left() + 6.0, r.top() + 1.0),
+        pos2(r.right() - 6.0, r.bottom() - 1.0),
+    )
+}
+
+/// A chevron that turns from right (closed) to down (open) as `open`
+/// eases from 0 to 1.
+fn chevron(p: &egui::Painter, c: egui::Pos2, open: f32, color: Color32) {
+    let a = open * std::f32::consts::FRAC_PI_2;
+    let rot = |x: f32, y: f32| c + vec2(x * a.cos() - y * a.sin(), x * a.sin() + y * a.cos());
+    p.line(
+        vec![rot(-1.8, -3.6), rot(1.8, 0.0), rot(-1.8, 3.6)],
+        Stroke::new(1.4, color),
+    );
+}
+
+/// A section heading (Scripts, Built-in indicators, Outline): chevron,
+/// title, how many it holds.
 fn folder_row(ui: &mut Ui, t: &Theme, title: &str, open: bool, count: usize) -> egui::Response {
     let c = code_colors(t);
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), HEAD), Sense::click());
     let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
-    ui.painter()
-        .rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.6 * hover));
+    let turn = motion::toggle(ui.ctx(), resp.id.with("open"), open, motion::MICRO);
     let p = ui.painter();
-    let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
-    p.text(
-        pos2(r.left() + 14.0, r.center().y),
-        Align2::CENTER_CENTER,
-        caret,
-        theme::regular(11.0),
-        c.text2,
+    p.rect_filled(
+        pill(r),
+        CornerRadius::same(6),
+        motion::with_alpha(t.hover_wash(), hover),
     );
+    chevron(p, pos2(r.left() + 18.0, r.center().y), turn, c.dim);
     p.text(
-        pos2(r.left() + 26.0, r.center().y),
+        pos2(r.left() + 30.0, r.center().y),
         Align2::LEFT_CENTER,
-        crate::format::elide_to(p, title, &theme::semibold(11.0), r.width() - 26.0 - 46.0),
-        theme::semibold(11.0),
-        c.text2,
+        crate::format::elide_to(p, title, &theme::semibold(12.5), r.width() - 30.0 - 46.0),
+        theme::semibold(12.5),
+        motion::lerp_color(c.text2, c.text, hover),
     );
     p.text(
-        pos2(r.right() - 12.0, r.center().y),
+        pos2(r.right() - 16.0, r.center().y),
         Align2::RIGHT_CENTER,
         count.to_string(),
-        theme::regular(10.5),
+        theme::regular(11.0),
         c.dim,
     );
     resp.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
 
-/// A folder in the explorer's tree: caret, folder icon, name, how many
+/// A folder in the explorer's tree: chevron, folder icon, name, how many
 /// scripts are in it. `picked`: new scripts go here.
 fn dir_row(ui: &mut Ui, t: &Theme, name: &str, open: bool, depth: usize, count: usize, picked: bool) -> egui::Response {
     let c = code_colors(t);
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click());
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), ROW), Sense::click());
+    let dragging = egui::DragAndDrop::has_any_payload(ui.ctx());
+    let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r) && !dragging);
+    let turn = motion::toggle(ui.ctx(), resp.id.with("open"), open, motion::MICRO);
     let p = ui.painter();
-    if picked {
-        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash());
-    } else {
-        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
-        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7 * hover));
-    }
+    let wash = if picked { 1.0 } else { hover };
+    p.rect_filled(pill(r), CornerRadius::same(6), motion::with_alpha(t.hover_wash(), wash));
     let y = r.center().y;
     let x0 = r.left() + 14.0 + depth as f32 * 14.0;
-    let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
-    p.text(
-        pos2(x0 - 10.0, y),
-        Align2::CENTER_CENTER,
-        caret,
-        theme::regular(10.0),
-        c.dim,
-    );
+    chevron(p, pos2(x0 - 9.0, y), turn, c.dim);
     let icon = if open { ph::FOLDER_OPEN } else { ph::FOLDER_SIMPLE };
     let col = Color32::from_rgb(0xE0, 0xA8, 0x4E);
     p.text(
@@ -2567,14 +2629,20 @@ fn dir_row(ui: &mut Ui, t: &Theme, name: &str, open: bool, depth: usize, count: 
         col,
     );
     let font = theme::regular(13.0);
-    let shown = crate::format::elide_to(p, name, &font, r.right() - 34.0 - (x0 + 20.0));
-    p.text(pos2(x0 + 20.0, y), Align2::LEFT_CENTER, shown, font, c.text2);
+    let shown = crate::format::elide_to(p, name, &font, r.right() - 38.0 - (x0 + 20.0));
+    p.text(
+        pos2(x0 + 20.0, y),
+        Align2::LEFT_CENTER,
+        shown,
+        font,
+        motion::lerp_color(c.text2, c.text, hover),
+    );
     if count > 0 {
         p.text(
-            pos2(r.right() - 12.0, y),
+            pos2(r.right() - 16.0, y),
             Align2::RIGHT_CENTER,
             count.to_string(),
-            theme::regular(10.5),
+            theme::regular(11.0),
             c.dim,
         );
     }
@@ -2584,11 +2652,16 @@ fn dir_row(ui: &mut Ui, t: &Theme, name: &str, open: bool, depth: usize, count: 
 /// A folder row that takes a dragged script: it lights up while one hovers
 /// and moves it there on drop.
 fn drop_target(ui: &Ui, t: &Theme, resp: &egui::Response, dir: &str, action: &mut Option<(u8, String)>) {
-    if resp.dnd_hover_payload::<String>().is_some() {
+    let over = resp.dnd_hover_payload::<String>().is_some();
+    let k = motion::toggle(ui.ctx(), resp.id.with("drop"), over, motion::MICRO);
+    if k > 0.0 {
+        let r = pill(resp.rect);
+        ui.painter()
+            .rect_filled(r, CornerRadius::same(6), motion::with_alpha(t.accent_soft(), k));
         ui.painter().rect_stroke(
-            resp.rect.shrink(1.0),
-            CornerRadius::same(4),
-            Stroke::new(1.5, t.accent),
+            r,
+            CornerRadius::same(6),
+            Stroke::new(1.0, motion::with_alpha(t.accent, 0.7 * k)),
             egui::StrokeKind::Inside,
         );
     }
@@ -2637,9 +2710,9 @@ fn folder_menu(ui: &mut Ui, t: &Theme, dir: &str, action: &mut Option<(u8, Strin
 /// The keyboard cursor's outline on an explorer row.
 fn focus_ring(ui: &Ui, t: &Theme, r: Rect) {
     ui.painter().rect_stroke(
-        r.shrink(0.5),
-        CornerRadius::ZERO,
-        egui::Stroke::new(1.0, crate::motion::with_alpha(t.accent, 0.7)),
+        pill(r),
+        CornerRadius::same(6),
+        egui::Stroke::new(1.0, crate::motion::with_alpha(t.accent, 0.6)),
         egui::StrokeKind::Inside,
     );
 }
@@ -2654,15 +2727,26 @@ fn file_row(
     on_chart: bool,
     dirty: bool,
     depth: usize,
+    lifted: bool,
 ) -> egui::Response {
     let c = code_colors(t);
-    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 24.0), Sense::click_and_drag());
+    let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), ROW), Sense::click_and_drag());
+    let dragging = egui::DragAndDrop::has_any_payload(ui.ctx());
+    let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r) && !dragging);
     let p = ui.painter();
+    let bg = pill(r);
+    p.rect_filled(bg, CornerRadius::same(6), motion::with_alpha(t.hover_wash(), hover));
     if selected {
-        p.rect_filled(r, CornerRadius::ZERO, t.accent_soft());
-    } else {
-        let hover = motion::hover_if(&resp, ui.rect_contains_pointer(r));
-        p.rect_filled(r, CornerRadius::ZERO, t.hover_wash().gamma_multiply(0.7 * hover));
+        p.rect_filled(bg, CornerRadius::same(6), t.accent_soft());
+    }
+    // The row being dragged, as the watchlist marks it.
+    if lifted {
+        p.rect_stroke(
+            bg,
+            CornerRadius::same(6),
+            Stroke::new(1.0, t.accent.gamma_multiply(0.6)),
+            egui::StrokeKind::Inside,
+        );
     }
     let y = r.center().y;
     let x0 = r.left() + 14.0 + depth as f32 * 14.0;
@@ -2675,19 +2759,23 @@ fn file_row(
         col,
     );
     let font = theme::regular(13.0);
-    let right_pad = if on_chart || dirty { 26.0 } else { 8.0 };
+    let right_pad = if on_chart || dirty { 30.0 } else { 12.0 };
     let shown = crate::format::elide_to(p, name, &font, r.right() - right_pad - (x0 + 20.0));
     p.text(
         pos2(x0 + 20.0, y),
         Align2::LEFT_CENTER,
         shown,
         font,
-        if selected { c.text } else { c.text2 },
+        if selected {
+            c.text
+        } else {
+            motion::lerp_color(c.text2, c.text, hover)
+        },
     );
     if dirty {
-        p.circle_filled(pos2(r.right() - 14.0, y), 3.5, c.text2);
+        p.circle_filled(pos2(r.right() - 18.0, y), 3.5, c.text2);
     } else if on_chart {
-        p.circle_filled(pos2(r.right() - 14.0, y), 3.0, t.pos);
+        p.circle_filled(pos2(r.right() - 18.0, y), 3.0, t.pos);
     }
     let resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     if on_chart {

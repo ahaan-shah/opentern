@@ -602,6 +602,11 @@ impl App {
                     s.kind = k;
                     self.set_chart_style(s);
                 }
+            } else if part == "rename" {
+                // The Script Editor's explorer renaming its first script.
+                if let Some(f) = self.script_files().into_iter().find(|f| !f.contains('/')) {
+                    self.editor.renaming = Some((f.clone(), f));
+                }
             } else if let Some(tab) = part.strip_prefix("tab:") {
                 self.layout.tab = crate::shell::Tab::ALL
                     .into_iter()

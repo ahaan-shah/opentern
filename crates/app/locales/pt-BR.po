@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "INDICADORES INTEGRADOS"
-
 msgid "Background"
 msgstr "Fundo"
 
@@ -696,6 +693,9 @@ msgstr "Pincel"
 
 msgid "Buddha's Birthday"
 msgstr "Aniversário de Buda"
+
+msgid "Built-in indicators"
+msgstr "Indicadores integrados"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Código integrado, somente leitura. Faça uma cópia para alterar e rodar."
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "EXPLORADOR"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "Expirado"
 
 msgid "Expires"
 msgstr "Expira"
+
+msgid "Explorer"
+msgstr "Explorador"
 
 msgid "Exponential"
 msgstr "Exponencial"
@@ -3352,9 +3352,6 @@ msgstr "O livro de ofertas dos perpétuos da OKX conta contratos, por isso não 
 msgid "OPEN LAYOUT"
 msgstr "ABRIR LAYOUT"
 
-msgid "OUTLINE"
-msgstr "ESTRUTURA"
-
 msgid "OUTPUT"
 msgstr "SAÍDA"
 
@@ -3541,6 +3538,9 @@ msgstr "L&P fora da amostra"
 
 msgid "Out-of-sample bars"
 msgstr "Barras fora da amostra"
+
+msgid "Outline"
+msgstr "Estrutura"
 
 msgid "Output"
 msgstr "Saída"
@@ -4231,9 +4231,6 @@ msgstr "SALVOS"
 
 msgid "SCALE"
 msgstr "ESCALA"
-
-msgid "SCRIPTS"
-msgstr "SCRIPTS"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: preços de todas as bolsas dos EUA, não só IEX"

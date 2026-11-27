@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr ""
-
 msgid "Background"
 msgstr ""
 
@@ -695,6 +692,9 @@ msgid "Brush"
 msgstr ""
 
 msgid "Buddha's Birthday"
+msgstr ""
+
+msgid "Built-in indicators"
 msgstr ""
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr ""
-
 msgid "EXT"
 msgstr ""
 
@@ -1777,6 +1774,9 @@ msgid "Expired"
 msgstr ""
 
 msgid "Expires"
+msgstr ""
+
+msgid "Explorer"
 msgstr ""
 
 msgid "Exponential"
@@ -3352,9 +3352,6 @@ msgstr ""
 msgid "OPEN LAYOUT"
 msgstr ""
 
-msgid "OUTLINE"
-msgstr ""
-
 msgid "OUTPUT"
 msgstr ""
 
@@ -3540,6 +3537,9 @@ msgid "Out-of-sample P&L"
 msgstr ""
 
 msgid "Out-of-sample bars"
+msgstr ""
+
+msgid "Outline"
 msgstr ""
 
 msgid "Output"
@@ -4230,9 +4230,6 @@ msgid "SAVED"
 msgstr ""
 
 msgid "SCALE"
-msgstr ""
-
-msgid "SCRIPTS"
 msgstr ""
 
 msgid "SIP: prices from all US exchanges, not just IEX"

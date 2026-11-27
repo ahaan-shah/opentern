@@ -557,9 +557,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "内置指标"
-
 msgid "Background"
 msgstr "背景"
 
@@ -696,6 +693,9 @@ msgstr "画笔"
 
 msgid "Buddha's Birthday"
 msgstr "佛诞"
+
+msgid "Built-in indicators"
+msgstr "内置指标"
 
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "内置源码，只读。创建副本后可修改和运行。"
@@ -1610,9 +1610,6 @@ msgstr ""
 msgid "EV/EBITDA"
 msgstr ""
 
-msgid "EXPLORER"
-msgstr "资源管理器"
-
 msgid "EXT"
 msgstr ""
 
@@ -1778,6 +1775,9 @@ msgstr "已过期"
 
 msgid "Expires"
 msgstr "到期"
+
+msgid "Explorer"
+msgstr "资源管理器"
 
 msgid "Exponential"
 msgstr "指数"
@@ -3352,9 +3352,6 @@ msgstr "OKX 永续合约的订单簿以张数计，因此不显示。Binance 和
 msgid "OPEN LAYOUT"
 msgstr "打开布局"
 
-msgid "OUTLINE"
-msgstr "大纲"
-
 msgid "OUTPUT"
 msgstr "输出"
 
@@ -3541,6 +3538,9 @@ msgstr "样本外盈亏"
 
 msgid "Out-of-sample bars"
 msgstr "样本外 K 线数"
+
+msgid "Outline"
+msgstr "大纲"
 
 msgid "Output"
 msgstr "输出"
@@ -4231,9 +4231,6 @@ msgstr "已保存"
 
 msgid "SCALE"
 msgstr "刻度"
-
-msgid "SCRIPTS"
-msgstr "脚本"
 
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP：来自全美交易所的价格，不只是 IEX"
