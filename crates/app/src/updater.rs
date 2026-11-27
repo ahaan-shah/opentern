@@ -224,6 +224,8 @@ impl Updater {
         }
         let mut cmd = std::process::Command::new(exe);
         cmd.args(std::env::args_os().skip(1));
+        // Waits for this window to let go of the workspace.
+        cmd.env(crate::instance::RELAUNCH, "1");
         if self.relaunch_only {
             // A screenshot's instructions are for the run that got them.
             cmd.env_remove("OPENTERN_STILL");

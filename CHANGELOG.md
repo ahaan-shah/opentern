@@ -12,6 +12,8 @@
 - **Your own scripts in the Indicators dialog.** "My scripts" lists the indicators and strategies in your scripts folder, by their titles; search finds them too, and they can be starred.
 
 ### Changed
+- **One Opentern at a time.** Opening Opentern while it's already open brings the open window forward instead of starting a second copy, so settings and layouts are never saved over each other.
+- **The Windows installer looks like the others:** `install.ps1` shows the green logo, a progress bar and ticks in Windows Terminal and PowerShell's console, and plain lines anywhere else.
 - **The agent writes Pine.** Asked for an indicator or a strategy, Claude or Codex writes it in Pine Script unless you ask for another language, and keeps a script's own language when changing it.
 - **Drawing tools simply stay picked.** Draw as many as you like with a tool until you pick another, the cursor, or press Esc. The "Stay in drawing mode" button is gone.
 - **Replay controls** match the favorite drawings toolbar: the same rounded bar, icon buttons with their names in tooltips, and dividers.

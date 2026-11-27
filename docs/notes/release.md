@@ -54,7 +54,11 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - **`install.sh`**: curl with `--connect-timeout 10 --retry 4 --speed-limit
   1024 --speed-time 30`; a download or unpack that can't be saved in
   `$TMPDIR` (a full `/tmp`, or a per-user quota) moves to the cache folder;
-  curl's exit codes are said in words. **`install.ps1`**: 60 s per request,
+  curl's exit codes are said in words. **`install.ps1`**: the same logo, bar
+  and ticks when `$Host.UI.SupportsVirtualTerminal` (ASCII source: the logo's
+  characters come from `[char]` codes, since 5.1 reads a saved copy in the
+  code page; never write `` `e `` before a word, it's ESC in PowerShell 7);
+  plain lines and a thrown error otherwise. 30 s timeouts per request,
   four tries, `%LOCALAPPDATA%` when the temp folder is full, `SHA256SUMS`
   required. CI's `installers` job runs both for real on every push (Linux with
   a 1 MB temp folder).

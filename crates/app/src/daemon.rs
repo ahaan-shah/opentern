@@ -68,25 +68,6 @@ pub fn take_app_lock(dir: &Path) -> Option<File> {
     Some(f)
 }
 
-/// Applies a staged import once nothing else is using the workspace: the
-/// closing app lets go within moments, and the background process hands
-/// over. If another window keeps it open, the import waits for a later start.
-pub fn apply_pending_import(dir: &Path) {
-    let start = Instant::now();
-    loop {
-        if let Some(lock) = take_app_lock(dir) {
-            opentern_core::transfer::apply_pending(dir);
-            drop(lock);
-            return;
-        }
-        if start.elapsed() > Duration::from_secs(10) {
-            crate::diag::note("IMPORT", "another window has the workspace open; the import waits");
-            return;
-        }
-        std::thread::sleep(Duration::from_millis(100));
-    }
-}
-
 /// Starts the background process for `dir` (the app is closing).
 pub fn spawn(dir: &Path, demo: bool) {
     let Ok(exe) = std::env::current_exe() else { return };

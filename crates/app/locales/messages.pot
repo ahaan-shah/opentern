@@ -3464,6 +3464,9 @@ msgstr ""
 msgid "Opentern in your language"
 msgstr ""
 
+msgid "Opentern is already open."
+msgstr ""
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr ""
 

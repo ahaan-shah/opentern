@@ -150,7 +150,7 @@ impl App {
             .unwrap_or_default();
         // Before the alerts load: a background process watching them
         // hands over first.
-        let lock = crate::daemon::take_app_lock(store.dir());
+        let lock = crate::instance::take_lock().or_else(|| crate::daemon::take_app_lock(store.dir()));
         let mut app = App::with_context(&cc.egui_ctx, layout, store, demo);
         app.app_lock = lock;
         app
@@ -1638,6 +1638,13 @@ impl eframe::App for App {
             }
         }
         self.last_frame = Some(Instant::now());
+        // Opened again while open: come forward instead.
+        if crate::instance::poll(ui.ctx()) {
+            let ctx = ui.ctx();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
         crate::diag::frame_begin();
         // Crash shield: a bug in one frame must never take the app down.
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.frame(ui)));

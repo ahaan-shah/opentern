@@ -16,6 +16,7 @@ name = "opentern"
 path = "src/main.rs"
 
 [dependencies]
+getrandom = "0.3.4"
 eframe = { version = "0.36.2", default-features = false, features = ["glow", "default_fonts", "wayland", "x11", "persistence"] }
 egui = "0.36.2"
 egui-phosphor = { version = "0.14.0", features = ["regular", "fill"] }

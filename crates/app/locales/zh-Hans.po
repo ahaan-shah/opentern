@@ -3464,6 +3464,9 @@ msgstr "Opentern 导出文件"
 msgid "Opentern in your language"
 msgstr "Opentern 支持您的语言"
 
+msgid "Opentern is already open."
+msgstr "Opentern 已经打开。"
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern 已在另一个窗口打开。请关闭后再导入。"
 

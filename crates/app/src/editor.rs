@@ -1300,7 +1300,8 @@ impl App {
                                 order.push((f.clone(), false));
                                 let lifted = egui::DragAndDrop::payload::<String>(ui.ctx()).is_some_and(|d| *d == f);
                                 let resp = file_row(ui, t, lang, label, selected, on_chart, dirty, depth + 1, lifted);
-                                if tree_focus && cursor.as_deref() == Some(f.as_str()) {
+                                // The open script's fill already marks it.
+                                if tree_focus && !selected && cursor.as_deref() == Some(f.as_str()) {
                                     focus_ring(ui, t, resp.rect);
                                 }
                                 if resp.drag_started() {

@@ -37,7 +37,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   hence `rust-version` 1.89), the daemon `alerts.lock`; the daemon checks
   `app.lock` every ~200 ms and exits when the app opens (the app waits up
   to 1.5 s for it before loading alerts); it also exits when no alert is
-  active. The app spawns it on exit (own process group / detached) when
+  active. **One window per workspace** (`instance.rs`, Nov 2026): `main`
+  takes `app.lock` before opening the window; a second launch finds it held,
+  reads the port and token the first wrote to `<workspace>/instance`, asks it
+  over loopback to come forward and quits. A restart (update, staged import)
+  sets `OPENTERN_RELAUNCH` so the new process waits up to 15 s for the lock
+  instead. The app spawns it on exit (own process group / detached) when
   `alerts_background` isn't "off" and an alert is active; `alerts_at_login`
   writes an XDG autostart file / LaunchAgent plist / HKCU Run value
   (macOS and Windows untested). `alerts_fired_away` counts fires for the
