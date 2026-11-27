@@ -9,7 +9,6 @@ use crate::chart::draw::{DrawStyle, Drawing, PositionParams, TextHAlign, TextVAl
 use crate::i18n::{tr, trf};
 use crate::theme::Theme;
 use egui::{Align, CornerRadius, Layout, Response, Ui, vec2};
-use opentern_series::study::LineStyle;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Tab {
@@ -108,18 +107,35 @@ impl DrawingSettings {
 
             // Bottom actions: Template menu, Cancel, OK.
             ui.horizontal(|ui| {
+                let tpl_kind = format!("drawing:{}", self.drawing.tool.id());
+                let tpl_list = app.store.templates(&tpl_kind).to_vec();
                 crate::widgets::combo("draw-template")
-                    .width(100.0)
+                    .width(110.0)
                     .selected_text(tr("Template"))
                     .show_ui(ui, |ui| {
-                        if ui
-                            .button(tr("Apply defaults"))
-                            .on_hover_text(tr("Reset style to defaults"))
-                            .clicked()
-                        {
+                        if ui.button(tr("Save Drawing Template As...")).clicked() {
+                            app.modal = Some(crate::dialogs::Modal::SaveTemplate {
+                                kind: crate::dialogs::TemplateKind::Drawing(self.drawing.tool.id().to_string()),
+                                name: String::new(),
+                            });
+                            ui.close();
+                        }
+                        if ui.button(tr("Apply Default Drawing Template")).clicked() {
                             self.drawing.style = DrawStyle::for_tool(self.drawing.tool);
                             changed = true;
                             ui.close();
+                        }
+                        if !tpl_list.is_empty() {
+                            crate::widgets::menu_rule(ui, t);
+                            for tpl in &tpl_list {
+                                if ui.button(&tpl.name).clicked() {
+                                    if let Ok(st) = serde_json::from_str::<DrawStyle>(&tpl.json) {
+                                        self.drawing.style = st;
+                                        changed = true;
+                                    }
+                                    ui.close();
+                                }
+                            }
                         }
                     });
 
@@ -317,30 +333,21 @@ fn show_inputs_tab(ui: &mut Ui, t: &Theme, d: &mut Drawing, app: &App) -> bool {
 fn show_style_tab(ui: &mut Ui, t: &Theme, d: &mut Drawing) -> bool {
     let mut changed = false;
 
-    // Line / border settings.
-    form_row(ui, t, tr("Line"), |ui| {
-        changed |= color_button(ui, t, &mut d.style.color);
-        crate::widgets::combo("draw-style-w")
-            .width(60.0)
-            .selected_text(trf!("{}px", d.style.width))
-            .show_ui(ui, |ui| {
-                for w in 1..=4u8 {
-                    changed |= crate::widgets::option_value(ui, &mut d.style.width, w, trf!("{w}px")).changed();
-                }
-            });
-        let line_name = |s: LineStyle| match s {
-            LineStyle::Solid => tr("Solid"),
-            LineStyle::Dashed => tr("Dashed"),
-            LineStyle::Dotted => tr("Dotted"),
-        };
-        crate::widgets::combo("draw-style-l")
-            .width(80.0)
-            .selected_text(line_name(d.style.line))
-            .show_ui(ui, |ui| {
-                for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
-                    changed |= crate::widgets::option_value(ui, &mut d.style.line, s, line_name(s)).changed();
-                }
-            });
+    // Line / border settings matching Image #33.
+    let line_label = if d.tool == Tool::Rectangle {
+        tr("Border")
+    } else {
+        tr("Line")
+    };
+    form_row(ui, t, line_label, |ui| {
+        changed |= crate::dialogs::color::line_style_button(
+            ui,
+            t,
+            &mut d.style.color,
+            &mut d.style.width,
+            &mut d.style.line,
+            tr("Border / line style"),
+        );
     });
 
     // Fills for shapes.
@@ -409,13 +416,23 @@ fn show_style_tab(ui: &mut Ui, t: &Theme, d: &mut Drawing) -> bool {
                 });
         });
 
-        // Middle line toggle for Rectangle.
+        // Middle line toggle for Rectangle matching Image #33.
         form_row(ui, t, tr("Middle line"), |ui| {
             changed |= crate::widgets::checkbox(ui, &mut d.style.middle_line, "").changed();
             if d.style.middle_line {
                 let mut ml_color = d.style.middle_line_color.unwrap_or(d.style.color);
-                if color_button(ui, t, &mut ml_color) {
+                let mut ml_width = 1u8;
+                let mut ml_style = d.style.middle_line_style;
+                if crate::dialogs::color::line_style_button(
+                    ui,
+                    t,
+                    &mut ml_color,
+                    &mut ml_width,
+                    &mut ml_style,
+                    tr("Middle line style"),
+                ) {
                     d.style.middle_line_color = Some(ml_color);
+                    d.style.middle_line_style = ml_style;
                     changed = true;
                 }
             }

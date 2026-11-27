@@ -65,6 +65,8 @@ pub struct ChartUi {
     pub paper_drag: Option<(u64, f64)>,
     /// An alert line being dragged: (alert id, price under the pointer).
     pub alert_drag: Option<(i64, f64)>,
+    /// Floating drawing properties toolbar position (movable).
+    pub drawbar_pos: Option<Pos2>,
 }
 
 impl Default for ChartUi {
@@ -80,6 +82,7 @@ impl Default for ChartUi {
             season: Default::default(),
             paper_drag: None,
             alert_drag: None,
+            drawbar_pos: None,
         }
     }
 }

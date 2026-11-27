@@ -21,6 +21,7 @@ pub struct Tools<'a> {
 pub struct DrawUi {
     pub selected: Option<u64>,
     pub multi_selected: Vec<u64>,
+    pub box_select: Option<(Pos2, Pos2)>,
     pub hovered: Option<u64>,
     pub open_settings: Option<u64>,
     placing: Option<Drawing>,
@@ -60,6 +61,7 @@ impl DrawUi {
         if self.placing.take().is_none() {
             self.selected = None;
             self.multi_selected.clear();
+            self.box_select = None;
         }
         self.zoom_from = None;
     }
@@ -325,6 +327,38 @@ pub fn handle(
             du.multi_selected.clear();
         }
     }
+    // Ctrl + drag starts marquee box multi-selection (Image #35).
+    if ctrl
+        && resp.drag_started()
+        && let Some(p) = origin
+    {
+        du.box_select = Some((p, press.unwrap_or(p)));
+    }
+    if let Some((from, ref mut to)) = du.box_select {
+        if let Some(p) = press {
+            *to = p;
+        }
+        if resp.drag_stopped() {
+            let sel_rect = Rect::from_two_pos(from, *to);
+            if sel_rect.width() > 3.0 || sel_rect.height() > 3.0 {
+                for d in &chart.drawings {
+                    let pts: Vec<Pos2> = d.pts.iter().map(|a| g.pos(*a)).collect();
+                    let hit = match d.tool {
+                        Tool::Rectangle if pts.len() >= 2 => sel_rect.intersects(Rect::from_two_pos(pts[0], pts[1])),
+                        _ => pts.iter().any(|pt| sel_rect.contains(*pt)),
+                    };
+                    if hit && !du.multi_selected.contains(&d.id) {
+                        du.multi_selected.push(d.id);
+                    }
+                }
+                if !du.multi_selected.is_empty() && du.selected.is_none() {
+                    du.selected = du.multi_selected.last().copied();
+                }
+            }
+            du.box_select = None;
+        }
+        return true;
+    }
     if resp.drag_started()
         && let Some(p) = origin
         && let Some((id, part, locked)) = hit_at(p)
@@ -413,6 +447,21 @@ pub fn paint(
             r,
             egui::CornerRadius::ZERO,
             egui::Color32::from_rgba_unmultiplied(41, 98, 255, 30),
+        );
+    }
+    // Marquee / box multi-selection (Image #35).
+    if let Some((a, b)) = du.box_select {
+        let r = Rect::from_two_pos(a, b);
+        p.rect_filled(
+            r,
+            egui::CornerRadius::ZERO,
+            egui::Color32::from_rgba_unmultiplied(41, 98, 255, 35),
+        );
+        p.rect_stroke(
+            r,
+            egui::CornerRadius::ZERO,
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(41, 98, 255)),
+            egui::StrokeKind::Inside,
         );
     }
 }

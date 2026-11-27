@@ -428,6 +428,9 @@ msgstr "Aplicou um resultado do laboratório"
 msgid "Applied to the chart."
 msgstr "Aplicado ao gráfico."
 
+msgid "Apply Default Drawing Template"
+msgstr "Aplicar modelo de desenho padrão"
+
 msgid "Apply a lab result"
 msgstr "Aplicar um resultado do laboratório"
 
@@ -692,6 +695,12 @@ msgstr "Bandas de Bollinger"
 
 msgid "Bollinger Bands %B"
 msgstr "Bandas de Bollinger %B"
+
+msgid "Border"
+msgstr "Borda"
+
+msgid "Border / line style"
+msgstr "Estilo de borda / linha"
 
 msgid "Borders"
 msgstr "Bordas"
@@ -2506,6 +2515,9 @@ msgstr "Quebra de linha"
 msgid "Line color"
 msgstr "Cor da linha"
 
+msgid "Line style"
+msgstr "Estilo de linha"
+
 msgid "Line width"
 msgstr "Espessura da linha"
 
@@ -2956,6 +2968,9 @@ msgstr "Período do RCI médio"
 
 msgid "Middle line"
 msgstr "Linha média"
+
+msgid "Middle line style"
+msgstr "Estilo da linha média"
 
 msgid "Millions, billions"
 msgstr "Milhões, bilhões"
@@ -4193,9 +4208,6 @@ msgstr "Redefinir visualização do gráfico"
 msgid "Reset settings"
 msgstr "Redefinir configurações"
 
-msgid "Reset style to defaults"
-msgstr "Restaurar estilo padrão"
-
 msgid "Reset the account to change its currency"
 msgstr "Redefina a conta para mudar a moeda"
 
@@ -4361,6 +4373,9 @@ msgstr "sábado"
 msgid "Save"
 msgstr "Salvar"
 
+msgid "Save Drawing Template As..."
+msgstr "Salvar modelo de desenho como..."
+
 msgid "Save a snapshot"
 msgstr "Salvar uma captura"
 
@@ -4378,6 +4393,9 @@ msgstr "Salvar como padrão"
 
 msgid "Save chart template"
 msgstr "Salvar modelo de gráfico"
+
+msgid "Save drawing template"
+msgstr "Salvar modelo de desenho"
 
 msgid "Save indicator template"
 msgstr "Salvar modelo de indicadores"
@@ -5185,6 +5203,9 @@ msgstr "Não há livro de ofertas gratuito para este mercado. A profundidade fun
 
 msgid "There's no image or file on the clipboard."
 msgstr "Não há imagem nem arquivo na área de transferência."
+
+msgid "Thickness"
+msgstr "Espessura"
 
 msgid "Thinking"
 msgstr "Pensando"

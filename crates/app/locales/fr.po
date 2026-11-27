@@ -428,6 +428,9 @@ msgstr "Résultat du labo appliqué"
 msgid "Applied to the chart."
 msgstr "Appliqué au graphique."
 
+msgid "Apply Default Drawing Template"
+msgstr "Appliquer le modèle de dessin par défaut"
+
 msgid "Apply a lab result"
 msgstr "Appliquer un résultat du labo"
 
@@ -692,6 +695,12 @@ msgstr "Bandes de Bollinger"
 
 msgid "Bollinger Bands %B"
 msgstr "Bandes de Bollinger %B"
+
+msgid "Border"
+msgstr "Bordure"
+
+msgid "Border / line style"
+msgstr "Style de bordure / ligne"
 
 msgid "Borders"
 msgstr "Bordures"
@@ -2506,6 +2515,9 @@ msgstr "Rupture de ligne"
 msgid "Line color"
 msgstr "Couleur de ligne"
 
+msgid "Line style"
+msgstr "Style de ligne"
+
 msgid "Line width"
 msgstr "Épaisseur de ligne"
 
@@ -2956,6 +2968,9 @@ msgstr "Longueur du RCI moyen"
 
 msgid "Middle line"
 msgstr "Ligne médiane"
+
+msgid "Middle line style"
+msgstr "Style de ligne médiane"
 
 msgid "Millions, billions"
 msgstr "Millions, milliards"
@@ -4193,9 +4208,6 @@ msgstr "Réinitialiser la vue du graphique"
 msgid "Reset settings"
 msgstr "Réinitialiser les paramètres"
 
-msgid "Reset style to defaults"
-msgstr "Réinitialiser le style"
-
 msgid "Reset the account to change its currency"
 msgstr "Réinitialisez le compte pour changer sa devise"
 
@@ -4361,6 +4373,9 @@ msgstr "samedi"
 msgid "Save"
 msgstr "Enregistrer"
 
+msgid "Save Drawing Template As..."
+msgstr "Enregistrer le modèle de dessin sous..."
+
 msgid "Save a snapshot"
 msgstr "Enregistrer une capture"
 
@@ -4378,6 +4393,9 @@ msgstr "Enregistrer par défaut"
 
 msgid "Save chart template"
 msgstr "Enregistrer le modèle de graphique"
+
+msgid "Save drawing template"
+msgstr "Enregistrer le modèle de dessin"
 
 msgid "Save indicator template"
 msgstr "Enregistrer le modèle d'indicateurs"
@@ -5185,6 +5203,9 @@ msgstr "Pas de carnet d'ordres gratuit pour ce marché. La profondeur fonctionne
 
 msgid "There's no image or file on the clipboard."
 msgstr "Aucune image ni fichier dans le presse-papiers."
+
+msgid "Thickness"
+msgstr "Épaisseur"
 
 msgid "Thinking"
 msgstr "Réflexion"

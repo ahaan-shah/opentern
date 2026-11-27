@@ -6,8 +6,9 @@ use crate::chart::draw::Tool;
 use crate::dialogs::color::color_button_with_tip;
 use crate::i18n::{tr, trf};
 use crate::icons::ph;
+use crate::motion;
 use crate::theme;
-use egui::{CornerRadius, Margin, Stroke, vec2};
+use egui::{Align2, CornerRadius, CursorIcon, Id, Margin, Rect, Sense, Stroke, pos2, vec2};
 use opentern_series::study::LineStyle;
 
 impl App {
@@ -108,15 +109,26 @@ impl App {
             return;
         };
         let t = self.t();
-        let anchor = self.chart_ui.main_rect.center_top() + vec2(0.0, 44.0);
+        let default_anchor = self.chart_ui.main_rect.center_top() + vec2(0.0, 44.0);
+        let mut bar_pos = self.chart_ui.drawbar_pos.unwrap_or(default_anchor);
+        let min_x = self.chart_ui.main_rect.left() + 8.0;
+        let max_x = (self.chart_ui.main_rect.right() - 260.0).max(min_x);
+        let min_y = self.chart_ui.main_rect.top() + 8.0;
+        let max_y = (self.chart_ui.main_rect.bottom() - 50.0).max(min_y);
+        bar_pos.x = bar_pos.x.clamp(min_x, max_x);
+        bar_pos.y = bar_pos.y.clamp(min_y, max_y);
+
         let mut edit = d.clone();
         let mut delete = false;
         let mut save_default = false;
         let mut open_settings = false;
+        let mut save_template_dialog = false;
+        let mut pos_changed = false;
+
         egui::Area::new(egui::Id::new("drawing-bar"))
             .order(egui::Order::Foreground)
             .pivot(egui::Align2::CENTER_TOP)
-            .fixed_pos(anchor)
+            .fixed_pos(bar_pos)
             .show(ctx, |ui| {
                 egui::Frame::new()
                     .fill(t.elevated)
@@ -131,6 +143,112 @@ impl App {
                     })
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
+                            // Movable drag handle.
+                            let (grip_r, grip_resp) = ui.allocate_exact_size(vec2(10.0, 24.0), Sense::drag());
+                            let grip_hover = motion::hover(&grip_resp);
+                            ui.painter().text(
+                                grip_r.center(),
+                                Align2::CENTER_CENTER,
+                                ph::DOTS_SIX_VERTICAL,
+                                theme::regular(14.0),
+                                motion::lerp_color(t.text3, t.text, grip_hover),
+                            );
+                            let is_dragged = grip_resp.dragged();
+                            let delta = grip_resp.drag_delta();
+                            let _grip_resp = grip_resp
+                                .on_hover_cursor(if is_dragged {
+                                    CursorIcon::Grabbing
+                                } else {
+                                    CursorIcon::Grab
+                                })
+                                .on_hover_text(tr("Drag to move"));
+                            if is_dragged {
+                                bar_pos += delta;
+                                pos_changed = true;
+                            }
+
+                            // Templates menu button (Image #34).
+                            let tpl_resp =
+                                crate::widgets::tool_button(ui, &t, ph::SQUARES_FOUR, tr("Templates"), false, 26.0);
+                            let tpl_kind = format!("drawing:{}", d.tool.id());
+                            let tpl_list = self.store.templates(&tpl_kind).to_vec();
+                            egui::Popup::menu(&tpl_resp).show(|ui| {
+                                ui.set_width(220.0);
+                                ui.spacing_mut().item_spacing.y = 1.0;
+                                if crate::widgets::menu_item(
+                                    ui,
+                                    &t,
+                                    Some(ph::FLOPPY_DISK),
+                                    tr("Save Drawing Template As..."),
+                                    "",
+                                    false,
+                                )
+                                .clicked()
+                                {
+                                    save_template_dialog = true;
+                                    ui.close();
+                                }
+                                if crate::widgets::menu_item(
+                                    ui,
+                                    &t,
+                                    Some(ph::ARROWS_COUNTER_CLOCKWISE),
+                                    tr("Apply Default Drawing Template"),
+                                    "",
+                                    false,
+                                )
+                                .clicked()
+                                {
+                                    edit.style = crate::chart::draw::DrawStyle::for_tool(d.tool);
+                                    ui.close();
+                                }
+                                if !tpl_list.is_empty() {
+                                    crate::widgets::menu_rule(ui, &t);
+                                    for tpl in &tpl_list {
+                                        let (r, resp) =
+                                            ui.allocate_exact_size(vec2(ui.available_width(), 28.0), Sense::click());
+                                        let hover = motion::hover(&resp);
+                                        if hover > 0.0 {
+                                            ui.painter().rect_filled(
+                                                r,
+                                                CornerRadius::same(6),
+                                                motion::with_alpha(t.hover_wash(), hover),
+                                            );
+                                        }
+                                        ui.painter().text(
+                                            pos2(r.left() + 10.0, r.center().y),
+                                            Align2::LEFT_CENTER,
+                                            &tpl.name,
+                                            theme::regular(13.0),
+                                            t.text,
+                                        );
+                                        let del_r = Rect::from_center_size(
+                                            pos2(r.right() - 14.0, r.center().y),
+                                            vec2(16.0, 16.0),
+                                        );
+                                        ui.painter().text(
+                                            del_r.center(),
+                                            Align2::CENTER_CENTER,
+                                            ph::TRASH,
+                                            theme::regular(12.0),
+                                            t.text3,
+                                        );
+                                        if ui
+                                            .interact(del_r, Id::new(("del-tpl", &tpl.name)), Sense::click())
+                                            .clicked()
+                                        {
+                                            let _ = self.store.delete_template(&tpl_kind, &tpl.name);
+                                        } else if resp.clicked() {
+                                            if let Ok(st) =
+                                                serde_json::from_str::<crate::chart::draw::DrawStyle>(&tpl.json)
+                                            {
+                                                edit.style = st;
+                                            }
+                                            ui.close();
+                                        }
+                                    }
+                                }
+                            });
+
                             ui.label(
                                 egui::RichText::new(tr(d.tool.name()))
                                     .font(theme::medium(12.5))
@@ -260,8 +378,18 @@ impl App {
                         });
                     });
             });
+        if pos_changed {
+            self.chart_ui.drawbar_pos = Some(bar_pos);
+        }
         if delete {
             self.delete_selected_drawing();
+            return;
+        }
+        if save_template_dialog {
+            self.modal = Some(crate::dialogs::Modal::SaveTemplate {
+                kind: crate::dialogs::TemplateKind::Drawing(d.tool.id().to_string()),
+                name: String::new(),
+            });
             return;
         }
         if open_settings {

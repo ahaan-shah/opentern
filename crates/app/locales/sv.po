@@ -428,6 +428,9 @@ msgstr "Använde ett labbresultat"
 msgid "Applied to the chart."
 msgstr "Använt i diagrammet."
 
+msgid "Apply Default Drawing Template"
+msgstr "Använd standardritmall"
+
 msgid "Apply a lab result"
 msgstr "Använd ett labbresultat"
 
@@ -692,6 +695,12 @@ msgstr "Bollingerband"
 
 msgid "Bollinger Bands %B"
 msgstr "Bollingerband %B"
+
+msgid "Border"
+msgstr "Kant"
+
+msgid "Border / line style"
+msgstr "Kant- / linjestil"
 
 msgid "Borders"
 msgstr "Kanter"
@@ -2506,6 +2515,9 @@ msgstr "Linjebrott"
 msgid "Line color"
 msgstr "Linjefärg"
 
+msgid "Line style"
+msgstr "Linjestil"
+
 msgid "Line width"
 msgstr "Linjebredd"
 
@@ -2956,6 +2968,9 @@ msgstr "Längd på mellan-RCI"
 
 msgid "Middle line"
 msgstr "Mittlinje"
+
+msgid "Middle line style"
+msgstr "Mittlinjestil"
 
 msgid "Millions, billions"
 msgstr "Miljoner, miljarder"
@@ -4193,9 +4208,6 @@ msgstr "Återställ diagramvy"
 msgid "Reset settings"
 msgstr "Återställ inställningar"
 
-msgid "Reset style to defaults"
-msgstr "Återställ stil till standard"
-
 msgid "Reset the account to change its currency"
 msgstr "Återställ kontot för att byta valuta"
 
@@ -4361,6 +4373,9 @@ msgstr "lördag"
 msgid "Save"
 msgstr "Spara"
 
+msgid "Save Drawing Template As..."
+msgstr "Spara ritmall som..."
+
 msgid "Save a snapshot"
 msgstr "Spara en ögonblicksbild"
 
@@ -4378,6 +4393,9 @@ msgstr "Spara som standard"
 
 msgid "Save chart template"
 msgstr "Spara diagrammall"
+
+msgid "Save drawing template"
+msgstr "Spara ritmall"
 
 msgid "Save indicator template"
 msgstr "Spara indikatormall"
@@ -5185,6 +5203,9 @@ msgstr "Det finns ingen gratis orderbok för den här marknaden. Marknadsdjupet 
 
 msgid "There's no image or file on the clipboard."
 msgstr "Ingen bild eller fil i urklipp."
+
+msgid "Thickness"
+msgstr "Tjocklek"
 
 msgid "Thinking"
 msgstr "Tänker"

@@ -428,6 +428,9 @@ msgstr "लैब का परिणाम लागू किया"
 msgid "Applied to the chart."
 msgstr "चार्ट पर लागू किया गया।"
 
+msgid "Apply Default Drawing Template"
+msgstr "डिफ़ॉल्ट रेखाचित्र टेम्पलेट लागू करें"
+
 msgid "Apply a lab result"
 msgstr "लैब का परिणाम लागू करें"
 
@@ -692,6 +695,12 @@ msgstr "बोलिंजर बैंड"
 
 msgid "Bollinger Bands %B"
 msgstr "बोलिंजर बैंड %B"
+
+msgid "Border"
+msgstr "किनारा"
+
+msgid "Border / line style"
+msgstr "किनारा / रेखा शैली"
 
 msgid "Borders"
 msgstr "किनारे"
@@ -2506,6 +2515,9 @@ msgstr "लाइन ब्रेक"
 msgid "Line color"
 msgstr "रेखा का रंग"
 
+msgid "Line style"
+msgstr "रेखा शैली"
+
 msgid "Line width"
 msgstr "रेखा की मोटाई"
 
@@ -2956,6 +2968,9 @@ msgstr "मध्य RCI लंबाई"
 
 msgid "Middle line"
 msgstr "मध्य रेखा"
+
+msgid "Middle line style"
+msgstr "मध्य रेखा शैली"
 
 msgid "Millions, billions"
 msgstr "मिलियन, बिलियन"
@@ -4193,9 +4208,6 @@ msgstr "चार्ट दृश्य रीसेट करें"
 msgid "Reset settings"
 msgstr "सेटिंग्स रीसेट करें"
 
-msgid "Reset style to defaults"
-msgstr "डिफ़ॉल्ट शैली पर रीसेट करें"
-
 msgid "Reset the account to change its currency"
 msgstr "मुद्रा बदलने के लिए खाता रीसेट करें"
 
@@ -4361,6 +4373,9 @@ msgstr "शनिवार"
 msgid "Save"
 msgstr "सहेजें"
 
+msgid "Save Drawing Template As..."
+msgstr "रेखाचित्र टेम्पलेट इस रूप में सहेजें..."
+
 msgid "Save a snapshot"
 msgstr "स्नैपशॉट सहेजें"
 
@@ -4378,6 +4393,9 @@ msgstr "डिफ़ॉल्ट के रूप में सहेजें"
 
 msgid "Save chart template"
 msgstr "चार्ट टेम्पलेट सहेजें"
+
+msgid "Save drawing template"
+msgstr "रेखाचित्र टेम्पलेट सहेजें"
 
 msgid "Save indicator template"
 msgstr "इंडिकेटर टेम्पलेट सहेजें"
@@ -5185,6 +5203,9 @@ msgstr "इस बाज़ार की मुफ़्त ऑर्डर ब�
 
 msgid "There's no image or file on the clipboard."
 msgstr "क्लिपबोर्ड पर चित्र या फ़ाइल नहीं है।"
+
+msgid "Thickness"
+msgstr "मोटाई"
 
 msgid "Thinking"
 msgstr "सोच रहा है"

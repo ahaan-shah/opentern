@@ -428,6 +428,9 @@ msgstr "ラボの結果を適用しました"
 msgid "Applied to the chart."
 msgstr "チャートに適用しました。"
 
+msgid "Apply Default Drawing Template"
+msgstr "デフォルトの描画テンプレートを適用"
+
 msgid "Apply a lab result"
 msgstr "ラボの結果を適用"
 
@@ -692,6 +695,12 @@ msgstr "ボリンジャーバンド"
 
 msgid "Bollinger Bands %B"
 msgstr "ボリンジャーバンド %B"
+
+msgid "Border"
+msgstr "枠線"
+
+msgid "Border / line style"
+msgstr "枠線 / ラインスタイル"
 
 msgid "Borders"
 msgstr "枠線"
@@ -2506,6 +2515,9 @@ msgstr "新値足"
 msgid "Line color"
 msgstr "線の色"
 
+msgid "Line style"
+msgstr "ラインスタイル"
+
 msgid "Line width"
 msgstr "線の太さ"
 
@@ -2956,6 +2968,9 @@ msgstr "中期RCIの期間"
 
 msgid "Middle line"
 msgstr "中間ライン"
+
+msgid "Middle line style"
+msgstr "中間ラインのスタイル"
 
 msgid "Millions, billions"
 msgstr "百万、十億"
@@ -4193,9 +4208,6 @@ msgstr "チャート表示をリセット"
 msgid "Reset settings"
 msgstr "設定をリセット"
 
-msgid "Reset style to defaults"
-msgstr "スタイルをデフォルトに戻す"
-
 msgid "Reset the account to change its currency"
 msgstr "通貨を変えるには口座をリセットしてください"
 
@@ -4361,6 +4373,9 @@ msgstr "土曜日"
 msgid "Save"
 msgstr "保存"
 
+msgid "Save Drawing Template As..."
+msgstr "描画テンプレートを保存..."
+
 msgid "Save a snapshot"
 msgstr "スナップショットを保存"
 
@@ -4378,6 +4393,9 @@ msgstr "既定として保存"
 
 msgid "Save chart template"
 msgstr "チャートテンプレートを保存"
+
+msgid "Save drawing template"
+msgstr "描画テンプレートを保存"
 
 msgid "Save indicator template"
 msgstr "インジケーターテンプレートを保存"
@@ -5185,6 +5203,9 @@ msgstr "この市場には無料の板情報がありません。板は暗号資
 
 msgid "There's no image or file on the clipboard."
 msgstr "クリップボードに画像もファイルもありません。"
+
+msgid "Thickness"
+msgstr "太さ"
 
 msgid "Thinking"
 msgstr "考え中"

@@ -428,6 +428,9 @@ msgstr ""
 msgid "Applied to the chart."
 msgstr ""
 
+msgid "Apply Default Drawing Template"
+msgstr ""
+
 msgid "Apply a lab result"
 msgstr ""
 
@@ -691,6 +694,12 @@ msgid "Bollinger Bands"
 msgstr ""
 
 msgid "Bollinger Bands %B"
+msgstr ""
+
+msgid "Border"
+msgstr ""
+
+msgid "Border / line style"
 msgstr ""
 
 msgid "Borders"
@@ -2506,6 +2515,9 @@ msgstr ""
 msgid "Line color"
 msgstr ""
 
+msgid "Line style"
+msgstr ""
+
 msgid "Line width"
 msgstr ""
 
@@ -2955,6 +2967,9 @@ msgid "Middle RCI Length"
 msgstr ""
 
 msgid "Middle line"
+msgstr ""
+
+msgid "Middle line style"
 msgstr ""
 
 msgid "Millions, billions"
@@ -4193,9 +4208,6 @@ msgstr ""
 msgid "Reset settings"
 msgstr ""
 
-msgid "Reset style to defaults"
-msgstr ""
-
 msgid "Reset the account to change its currency"
 msgstr ""
 
@@ -4361,6 +4373,9 @@ msgstr ""
 msgid "Save"
 msgstr ""
 
+msgid "Save Drawing Template As..."
+msgstr ""
+
 msgid "Save a snapshot"
 msgstr ""
 
@@ -4377,6 +4392,9 @@ msgid "Save as default"
 msgstr ""
 
 msgid "Save chart template"
+msgstr ""
+
+msgid "Save drawing template"
 msgstr ""
 
 msgid "Save indicator template"
@@ -5184,6 +5202,9 @@ msgid "There's no free order book for this market. The DOM works for crypto exch
 msgstr ""
 
 msgid "There's no image or file on the clipboard."
+msgstr ""
+
+msgid "Thickness"
 msgstr ""
 
 msgid "Thinking"

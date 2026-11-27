@@ -50,17 +50,19 @@ pub enum Modal {
     PythonNotice,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TemplateKind {
     Chart,
     Indicators,
+    Drawing(String),
 }
 
 impl TemplateKind {
-    pub fn key(self) -> &'static str {
+    pub fn key(&self) -> String {
         match self {
-            TemplateKind::Chart => "chart",
-            TemplateKind::Indicators => "indicators",
+            TemplateKind::Chart => "chart".into(),
+            TemplateKind::Indicators => "indicators".into(),
+            TemplateKind::Drawing(id) => format!("drawing:{id}"),
         }
     }
 }
@@ -176,7 +178,7 @@ impl App {
                     Modal::Study(s) => s.show(ui, self, &t),
                     Modal::Drawing(d) => d.show(ui, self, &t),
                     Modal::ChartSettings(s) => s.show(ui, self, &t),
-                    Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
+                    Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, kind.clone(), name),
                     Modal::Interval(text) => interval(ui, self, &t, text),
                     Modal::Alert(f) => f.show(ui, self, &t),
                     Modal::Providers(p) => p.show(ui, self, &t),
@@ -237,9 +239,10 @@ impl App {
 }
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
-    let title = match kind {
+    let title = match &kind {
         TemplateKind::Chart => tr("Save chart template"),
         TemplateKind::Indicators => tr("Save indicator template"),
+        TemplateKind::Drawing(_) => tr("Save drawing template"),
     };
     let mut done = Done::Keep;
     if frame(ui, t, title, 380.0, |ui| {
@@ -268,7 +271,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         if !r.has_focus() && name.is_empty() {
             r.request_focus();
         }
-        let exists = app.store.templates(kind.key()).iter().any(|x| x.name == name.trim());
+        let exists = app.store.templates(&kind.key()).iter().any(|x| x.name == name.trim());
         if exists {
             ui.label(
                 egui::RichText::new(trf!(

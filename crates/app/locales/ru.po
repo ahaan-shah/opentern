@@ -428,6 +428,9 @@ msgstr "Применён результат лаборатории"
 msgid "Applied to the chart."
 msgstr "Применено к графику."
 
+msgid "Apply Default Drawing Template"
+msgstr "Применить шаблон рисования по умолчанию"
+
 msgid "Apply a lab result"
 msgstr "Применить результат лаборатории"
 
@@ -692,6 +695,12 @@ msgstr "Полосы Боллинджера"
 
 msgid "Bollinger Bands %B"
 msgstr "Полосы Боллинджера %B"
+
+msgid "Border"
+msgstr "Граница"
+
+msgid "Border / line style"
+msgstr "Стиль границы / линии"
 
 msgid "Borders"
 msgstr "Границы"
@@ -2506,6 +2515,9 @@ msgstr "Линейный прорыв"
 msgid "Line color"
 msgstr "Цвет линии"
 
+msgid "Line style"
+msgstr "Стиль линии"
+
 msgid "Line width"
 msgstr "Толщина линии"
 
@@ -2956,6 +2968,9 @@ msgstr "Длина среднего RCI"
 
 msgid "Middle line"
 msgstr "Средняя линия"
+
+msgid "Middle line style"
+msgstr "Стиль средней линии"
 
 msgid "Millions, billions"
 msgstr "Миллионы, миллиарды"
@@ -4193,9 +4208,6 @@ msgstr "Сбросить вид графика"
 msgid "Reset settings"
 msgstr "Сбросить настройки"
 
-msgid "Reset style to defaults"
-msgstr "Сбросить стиль по умолчанию"
-
 msgid "Reset the account to change its currency"
 msgstr "Чтобы сменить валюту, сбросьте счёт"
 
@@ -4361,6 +4373,9 @@ msgstr "суббота"
 msgid "Save"
 msgstr "Сохранить"
 
+msgid "Save Drawing Template As..."
+msgstr "Сохранить шаблон рисования как..."
+
 msgid "Save a snapshot"
 msgstr "Сохранить снимок"
 
@@ -4378,6 +4393,9 @@ msgstr "Сделать по умолчанию"
 
 msgid "Save chart template"
 msgstr "Сохранить шаблон графика"
+
+msgid "Save drawing template"
+msgstr "Сохранить шаблон рисования"
 
 msgid "Save indicator template"
 msgstr "Сохранить шаблон индикаторов"
@@ -5185,6 +5203,9 @@ msgstr "Для этого рынка нет бесплатного стакан�
 
 msgid "There's no image or file on the clipboard."
 msgstr "В буфере обмена нет изображения или файла."
+
+msgid "Thickness"
+msgstr "Толщина"
 
 msgid "Thinking"
 msgstr "Думает"

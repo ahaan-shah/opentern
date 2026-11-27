@@ -1120,27 +1120,39 @@ impl App {
     }
 
     pub fn save_template(&mut self, kind: TemplateKind, name: &str) {
-        let json = match kind {
-            TemplateKind::Chart => serde_json::to_string(&self.chart.style),
+        let json = match &kind {
+            TemplateKind::Chart => serde_json::to_string(&self.chart.style).ok(),
             TemplateKind::Indicators => serde_json::to_string(&StudyTemplate {
                 version: 1,
                 studies: self.chart.saved_studies(),
                 panes: self.chart.panes.clone(),
-            }),
+            })
+            .ok(),
+            TemplateKind::Drawing(_) => {
+                let id = match self.chart_ui.draw.selected {
+                    Some(id) => id,
+                    None => return,
+                };
+                let d = match self.chart.drawings.iter().find(|d| d.id == id) {
+                    Some(d) => d,
+                    None => return,
+                };
+                serde_json::to_string(&d.style).ok()
+            }
         };
-        if let Ok(j) = json
-            && let Err(e) = self.store.save_template(kind.key(), name, &j)
+        if let Some(j) = json
+            && let Err(e) = self.store.save_template(&kind.key(), name, &j)
         {
             crate::diag::crumb(format!("couldn't save template: {e}"));
         }
     }
 
     pub fn delete_template(&mut self, kind: TemplateKind, name: &str) {
-        let _ = self.store.delete_template(kind.key(), name);
+        let _ = self.store.delete_template(&kind.key(), name);
     }
 
     pub fn set_default_template(&mut self, kind: TemplateKind, name: Option<&str>) {
-        let _ = self.store.set_default_template(kind.key(), name);
+        let _ = self.store.set_default_template(&kind.key(), name);
     }
 
     pub fn apply_indicator_template(&mut self, name: &str) {
