@@ -2,8 +2,8 @@
 //! money or percent, on a linear or log scale. Its legend turns each line on
 //! and off; dragging across it zooms to that range (the wheel zooms too, a
 //! double-click goes back), and a click shows that bar on the price chart.
-//! The worst close-to-close drawdown's fall is shaded, and while zoomed a row gives
-//! the range's P&L, drawdown and trades.
+//! The worst close-to-close drawdown is a deeper shade in the drawdown strip,
+//! and while zoomed a row gives the range's P&L, drawdown and trades.
 //!
 //! Buy & hold is the whole capital at the first bar's open, as the report's
 //! Buy & hold return; drawdown runs from the bar-close equity's peak, as the
@@ -615,11 +615,6 @@ pub fn show(
                 if v == 0.0 { t.text2 } else { t.text3 },
             );
         }
-        // The worst drawdown's fall, from its peak to its low.
-        if let Some(w) = c.worst {
-            let band = Rect::from_x_y_ranges(xs(w.peak as f64)..=xs(w.low as f64), main.y_range());
-            pc.rect_filled(band, CornerRadius::ZERO, crate::motion::with_alpha(colors[2], 0.06));
-        }
         let base_y = a.y(0.0);
         pc.hline(main.x_range(), base_y, zero);
         if hold_on {
@@ -672,6 +667,17 @@ pub fn show(
                 }
             }
             flush(&mut run);
+            // The worst drawdown, from its peak until it was made up, in a
+            // deeper shade of the drawdown's colour.
+            if let Some(w) = c.worst {
+                let end = w.recovered.unwrap_or(n - 1);
+                let pts: Vec<Pos2> = (w.peak.max(first)..=end.min(last))
+                    .filter_map(|i| Some(pos2(xs(i as f64), a.y(value(c, 2, i, scale)?))))
+                    .collect();
+                if pts.len() > 1 {
+                    pc.add(fill_to(&pts, top_y, crate::motion::with_alpha(colors[2], 0.38)));
+                }
+            }
             p.text(
                 pos2(body.right() + 8.0, a.y(low)),
                 Align2::LEFT_CENTER,

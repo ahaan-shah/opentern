@@ -37,7 +37,8 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   double-click or the magnifier shows all (`equity::View`, in `Strategies`, for the
   app's run, reset for another strategy). While zoomed a row gives the range's net
   profit, Max equity drawdown and trades closed in it. A click scrolls the price
-  chart to that bar (`App::show_bar`). The tooltip lists the lines, the worst
+  chart to that bar (`App::show_bar`). The worst drawdown, peak to recovery, is a
+  deeper shade of the drawdown colour in its strip. The tooltip lists the lines, the worst
   drawdown when inside it, and up to three trades that closed on the bar. Colours
   are in Strategy settings, the same for every strategy (`report_colors`).
 - Chart: `Chart::marks` (fills as arrows with "Long +1" labels, dashed entry→exit links,
