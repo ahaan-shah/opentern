@@ -24,6 +24,9 @@
 - **A tidier Script Editor explorer:** rounded rows like the watchlist's, headings in plain case, folders whose arrows turn as they open, a rename box that lines up with the name, and a script you drag follows the pointer to the folder it lands in.
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
 
+### Fixed
+- Pine strategies with `calc_on_order_fills=true` recalculate after fills and can place orders for the remaining path of the simulated bar.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

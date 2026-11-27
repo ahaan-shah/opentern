@@ -334,6 +334,8 @@ pub(crate) struct TypeDef {
     pub fields: Vec<String>,
     /// Declared types, where written.
     pub ftypes: Vec<Option<String>>,
+    /// Fields that keep their value between order-fill recalculations.
+    pub varip_fields: Vec<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1357,18 +1359,23 @@ impl Cx {
             }
             Stmt::Type { name, fields, line } => {
                 self.line = *line;
-                for (_, d, _) in fields {
-                    if let Some(e) = d {
+                for field in fields {
+                    if let Some(e) = &field.default {
                         self.expr(e)?;
                     }
                 }
                 self.types.push(TypeDef {
                     name: name.clone(),
-                    fields: fields.iter().map(|f| f.0.clone()).collect(),
-                    ftypes: fields.iter().map(|f| f.2.clone()).collect(),
+                    fields: fields.iter().map(|field| field.name.clone()).collect(),
+                    ftypes: fields.iter().map(|field| field.ty.clone()).collect(),
+                    varip_fields: fields
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, field)| field.varip.then_some(i))
+                        .collect(),
                 });
                 self.type_defaults
-                    .push(fields.iter().map(|f| f.1.clone().map(Rc::new)).collect());
+                    .push(fields.iter().map(|field| field.default.clone().map(Rc::new)).collect());
                 Ok(None)
             }
             Stmt::Enum { name, members, line } => {

@@ -333,7 +333,7 @@ impl Parser {
                     pos: 0,
                     line: f.line,
                 };
-                fc.eat_word("varip");
+                let varip = fc.eat_word("varip");
                 let ty = try_type(&mut fc);
                 let fname = fc.ident("a field name")?;
                 let default = if fc.eat_op("=") {
@@ -344,7 +344,12 @@ impl Parser {
                 if !fc.done() {
                     return Err(fc.err("Expected one field per line: float x or float x = 0."));
                 }
-                fields.push((fname, default, ty));
+                fields.push(TypeField {
+                    name: fname,
+                    default,
+                    ty,
+                    varip,
+                });
             }
             return Ok(Stmt::Type { name, fields, line: ln });
         }
@@ -1060,7 +1065,7 @@ mod tests {
              Point p = Point.new(1.0, 2)\np.x := 3\na = array.new<float>(0)\nm = map.new<string, float>()\n\
              for [i, v] in a\n    p.shift(v)\nfor v in a\n    x = v\nv = a.get(0).x\nexport f(series float s) => s",
         );
-        assert!(matches!(&b[0], Stmt::Type { fields, .. } if fields.len() == 2 && fields[0].1.is_some()));
+        assert!(matches!(&b[0], Stmt::Type { fields, .. } if fields.len() == 2 && fields[0].default.is_some()));
         assert!(matches!(&b[1], Stmt::Func { method: true, params, .. } if params[0].2.as_deref() == Some("Point")));
         assert!(matches!(&b[2], Stmt::Decl { ty: Some(t), .. } if t == "Point"));
         assert!(matches!(&b[3], Stmt::Assign { name, .. } if name == "p.x"));

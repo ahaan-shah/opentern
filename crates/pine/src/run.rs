@@ -26,6 +26,8 @@ use std::sync::Arc;
 
 /// The most loop iterations allowed on one bar.
 const MAX_OPS: u64 = 5_000_000;
+/// Bound chains of orders that cause further intrabar recalculations.
+const MAX_FILL_EXECUTIONS: usize = 10_000;
 /// A colour that draws nothing (alpha 0; never 0, which means "palette").
 pub(crate) const INVISIBLE: u32 = 0xFFFF_FF00;
 
@@ -145,6 +147,25 @@ impl Frame {
         for (k, c) in self.calls.iter_mut().enumerate() {
             if let Some(c) = c {
                 c.commit(&funcs[l.calls[k] as usize].layout, funcs, bar);
+            }
+        }
+    }
+
+    fn retain_varip(&mut self, previous: &Frame, l: &Layout, funcs: &[Func], roots: &mut Vec<u32>) {
+        for &slot in &l.varips {
+            let i = slot as usize;
+            self.v[i] = previous.v[i].clone();
+            self.inited[i] = previous.inited[i];
+            if let V::Ref(id) = self.v[i] {
+                roots.push(id);
+            }
+        }
+        for (site, prior) in previous.calls.iter().enumerate() {
+            if let Some(prior) = prior {
+                let layout = &funcs[l.calls[site] as usize].layout;
+                self.calls[site]
+                    .get_or_insert_with(|| Box::new(Frame::new(layout)))
+                    .retain_varip(prior, layout, funcs, roots);
             }
         }
     }
@@ -1487,14 +1508,8 @@ impl PineStudy {
                 prog.env.mincontract(),
             )));
         }
-        // Better said than silently different.
-        for (prop, what) in [
-            ("calc_on_order_fills", "recalculating after order fills"),
-            ("use_bar_magnifier", "the bar magnifier"),
-        ] {
-            if prog.props.get(prop).and_then(|v| v.as_bool()) == Some(true) {
-                g.log(format!("Note: this strategy uses {prop}. Opentern doesn't simulate {what}, so results can differ from TradingView's."));
-            }
+        if prog.props.get("use_bar_magnifier").and_then(|v| v.as_bool()) == Some(true) {
+            g.log("Note: this strategy uses use_bar_magnifier. Opentern doesn't simulate the bar magnifier, so results can differ from TradingView's.".into());
         }
         g.out = OutBuf {
             vals: vec![f64::NAN; prog.plots.len()],
@@ -1720,14 +1735,38 @@ impl PineStudy {
         if day != g.day.0 {
             g.day = (day, b.time);
         }
-        g.out.reset();
-        g.pending_alerts.clear();
-        if let Some(br) = &mut g.broker {
-            if new_session {
-                br.new_day();
-            }
-            br.open_bar(index, &b);
+        if new_session && let Some(br) = &mut g.broker {
+            br.new_day();
         }
+        let result = if g.broker.as_ref().is_some_and(|br| br.props.calc_on_order_fills) {
+            self.fill_bar(index, &b)
+        } else {
+            if let Some(br) = &mut g.broker {
+                br.open_bar(index, &b);
+            }
+            self.execute().map(|()| {
+                if let Some(br) = &mut self.g.broker {
+                    br.close_bar(&b);
+                }
+            })
+        };
+        if let Err(e) = result {
+            let msg = match e {
+                Stop::Err(m) => m,
+                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
+            };
+            return Err(Error::at(self.g.line as usize, msg));
+        }
+        self.root.commit(&self.prog.layout, &self.prog.funcs, self.g.bar_no);
+        if self.g.heap.wants_gc() {
+            self.collect();
+        }
+        Ok(())
+    }
+
+    fn execute(&mut self) -> R<()> {
+        self.g.out.reset();
+        self.g.pending_alerts.clear();
         let prog = &*self.prog;
         let mut x = X {
             p: prog,
@@ -1735,26 +1774,54 @@ impl PineStudy {
             srcs: &self.srcs,
             g: &mut self.g,
         };
-        if let Err(e) = x.exec(&prog.root, &mut self.root, None) {
-            let msg = match e {
-                Stop::Err(m) => m,
-                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
-            };
-            return Err(Error::at(self.g.line as usize, msg));
-        }
+        x.exec(&prog.root, &mut self.root, None)?;
         // Their text can name any plot, so it's written last.
         for (i, alert) in std::mem::take(&mut self.g.pending_alerts) {
             let message = natives::alert_placeholders(&self.g, &prog.alertconditions[i].message, &prog.plots);
             self.g.alerts.push(Alert { message, ..alert });
         }
-        if let Some(br) = &mut self.g.broker {
-            br.close_bar(&b);
-        }
-        self.root.commit(&prog.layout, &prog.funcs, self.g.bar_no);
-        if self.g.heap.wants_gc() {
-            self.collect();
-        }
         Ok(())
+    }
+
+    fn fill_bar(&mut self, index: usize, bar: &Bar) -> R<()> {
+        self.g.broker.as_mut().unwrap().begin_fill_bar(index, bar);
+        self.g.heap.begin_recalculations();
+        let committed = self.root.clone();
+        let heap = self.g.heap.clone();
+        let mut executions = 0;
+
+        // Restore the last committed Pine state while keeping the broker,
+        // logs, alerts and intrabar-persistent values from the current bar.
+        let mut calculate = |study: &mut PineStudy| -> R<()> {
+            if executions == MAX_FILL_EXECUTIONS {
+                return Err(Stop::Err("Too many order fill recalculations on one bar.".into()));
+            }
+            if executions != 0 {
+                let mut root = committed.clone();
+                let mut refs = Vec::new();
+                root.retain_varip(&study.root, &study.prog.layout, &study.prog.funcs, &mut refs);
+                study.root = root;
+                study.g.heap = heap.rollback(&study.g.heap, &study.prog.types, refs);
+            }
+            executions += 1;
+            study.execute()
+        };
+
+        let result = (|| {
+            while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
+                calculate(self)?;
+            }
+            // Keep the ordinary closing calculation after the path's last callback.
+            calculate(self)?;
+            self.g.broker.as_mut().unwrap().begin_close_fills();
+            while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
+                calculate(self)?;
+            }
+            self.g.broker.as_mut().unwrap().finish_fill_bar(bar);
+            Ok(())
+        })();
+        self.g.heap.end_recalculations();
+        result
     }
 
     fn collect(&mut self) {
