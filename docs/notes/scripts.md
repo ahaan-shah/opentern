@@ -148,6 +148,10 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   original batch is then dispatched once with the prepared study instances.
   Changes to chart data, replay or the Pine study configuration invalidate
   the work before publication.
+- Restored Pine studies can find history already on the chart. Their
+  entries keep the saved settings while the same worker prepares their
+  first evaluation. This commits before the next data batch so the normal
+  script poll can observe the initial state and request its feeds.
 - A feed bar counts as finished when its period has ended by the chart bar's
   close; lookahead/gaps/forming-bar repaint follow the same rules as HTF bars.
 - `run::period_end` + `calendar::last_close_in`: daily-and-longer periods of

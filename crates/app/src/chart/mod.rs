@@ -642,6 +642,7 @@ impl Chart {
                 visible: s.visible,
                 pane: s.pane,
             })
+            .chain(self.pending_scripts.iter().cloned())
             .collect()
     }
 

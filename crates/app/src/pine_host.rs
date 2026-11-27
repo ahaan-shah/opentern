@@ -280,7 +280,19 @@ impl App {
                 .unwrap_or_default(),
             (None, None) => meta.default_inputs(),
         };
-        let inst = Instance::with_factory(meta, &inputs, script.factory());
+        let factory = script.factory();
+        let was_deferred = run
+            .uid
+            .is_some_and(|uid| self.chart.studies.iter().any(|s| s.uid == uid && s.inst.is_deferred()));
+        let defer = lang == Lang::Pine && (was_deferred || (restore.is_some() && !self.chart.bars.is_empty()));
+        let inst = if defer {
+            // Give the entry its final UID and saved settings without a
+            // live VM. Until the worker publishes it, this instance only
+            // sizes empty output, including on user edits to the chart.
+            Instance::deferred(meta, &inputs, factory)
+        } else {
+            Instance::with_factory(meta, &inputs, factory)
+        };
         let run = &mut self.scripts[i];
         run.pine = match script {
             Compiled::Pine(p) => Some(p),
@@ -315,6 +327,9 @@ impl App {
             }
         }
         self.after_pine_run(i);
+        if defer {
+            self.egui_ctx.request_repaint();
+        }
     }
 
     /// A script that has never compiled still gets a legend row (named

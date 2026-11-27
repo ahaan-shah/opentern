@@ -28,12 +28,18 @@ struct ChartSpec {
 }
 
 impl ChartSpec {
-    fn new(chart: &Chart, scripts: &[crate::scripting::ScriptRun]) -> Self {
+    fn new(chart: &Chart, scripts: &[crate::scripting::ScriptRun], restoring: bool) -> Self {
         let studies = chart
             .studies
             .iter()
             .filter_map(|s| {
-                s.inst.state()?.downcast_ref::<PineStudy>()?;
+                if restoring {
+                    if !s.inst.is_deferred() {
+                        return None;
+                    }
+                } else {
+                    s.inst.state()?.downcast_ref::<PineStudy>()?;
+                }
                 Some(StudySpec {
                     uid: s.uid,
                     meta: s.meta(),
@@ -85,15 +91,19 @@ struct Preview {
     spec: ChartSpec,
 }
 
+fn recompute_study(chart: &Chart, s: &StudySpec) -> Instance {
+    let mut inst = Instance::with_factory(s.meta, &s.inputs, s.factory.clone());
+    chart.recompute_instance(&mut inst);
+    inst
+}
+
 fn recompute(chart: &Chart, spec: &ChartSpec, feed_only: bool, out: &mut PreparedStudies) {
     if chart.bars.is_empty() {
         return;
     }
     for s in &spec.studies {
         if !feed_only || s.feed_rerun {
-            let mut inst = Instance::with_factory(s.meta, &s.inputs, s.factory.clone());
-            chart.recompute_instance(&mut inst);
-            out.insert((chart.id, s.uid), inst);
+            out.insert((chart.id, s.uid), recompute_study(chart, s));
         }
     }
 }
@@ -111,7 +121,60 @@ struct Finished {
 
 pub(super) struct PendingBatch {
     events: Arc<Vec<Event>>,
-    ready: mpsc::Receiver<std::thread::Result<Finished>>,
+    ready: Worker<Finished>,
+}
+
+type Worker<T> = mpsc::Receiver<std::thread::Result<T>>;
+
+pub(super) struct Restored {
+    specs: Vec<ChartSpec>,
+    studies: PreparedStudies,
+}
+
+pub(super) type PendingRestore = Worker<Restored>;
+
+fn spawn<T: Send + 'static>(ctx: egui::Context, work: impl FnOnce() -> T + Send + 'static) -> Worker<T> {
+    let (tx, ready) = mpsc::channel();
+    let wake = ctx.clone();
+    let run = std::thread::Builder::new()
+        .name("pine-history".into())
+        .stack_size(32 << 20)
+        .spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
+            let delay = result.is_err();
+            if tx.send(result).is_ok() {
+                if delay {
+                    wake.request_repaint_after(Duration::from_millis(250));
+                } else {
+                    wake.request_repaint();
+                }
+            }
+        });
+    if let Err(e) = run {
+        crate::diag::crumb(format!("couldn't start Pine history worker: {e}"));
+        ctx.request_repaint_after(Duration::from_millis(250));
+    }
+    ready
+}
+
+fn prepare_restore(charts: Vec<Preview>, feeds: &Feeds) -> Restored {
+    let studies = opentern_pine::with_feed_snapshot(feeds, |_| {
+        let mut ready = PreparedStudies::new();
+        for p in &charts {
+            for s in &p.spec.studies {
+                ready.insert((p.chart.id, s.uid), recompute_study(&p.chart, s));
+            }
+        }
+        ready
+    });
+    Restored {
+        specs: charts.into_iter().map(|p| p.spec).collect(),
+        studies,
+    }
+}
+
+fn same_specs(current: &[ChartSpec], done: &[ChartSpec]) -> bool {
+    current.len() == done.len() && current.iter().zip(done).all(|(a, b)| a.matches(b))
 }
 
 fn preview_series(e: &Event) -> Option<Event> {
@@ -192,21 +255,87 @@ impl App {
             .chain(self.slots.iter().flatten().map(|s| (&s.chart, s.scripts.as_slice())))
     }
 
-    fn history_specs(&self) -> Vec<ChartSpec> {
+    fn history_specs(&self, restoring: bool) -> Vec<ChartSpec> {
         let mut specs: Vec<_> = self
             .history_charts()
-            .map(|(chart, scripts)| ChartSpec::new(chart, scripts))
+            .map(|(chart, scripts)| ChartSpec::new(chart, scripts, restoring))
             .filter(|s| !s.studies.is_empty())
             .collect();
         specs.sort_unstable_by_key(|s| s.id);
         specs
     }
 
+    fn history_previews(&self, specs: Vec<ChartSpec>) -> Vec<Preview> {
+        specs
+            .into_iter()
+            .map(|spec| {
+                let (chart, _) = self
+                    .history_charts()
+                    .find(|(c, _)| c.id == spec.id)
+                    .expect("chart in snapshot");
+                Preview {
+                    chart: chart.history_preview(),
+                    spec,
+                }
+            })
+            .collect()
+    }
+
+    fn restores_pending(&self) -> bool {
+        self.history_charts()
+            .any(|(chart, _)| chart.studies.iter().any(|s| s.inst.is_deferred()))
+    }
+
     pub(crate) fn history_pending(&self) -> bool {
-        self.history_batch.is_some()
+        self.history_batch.is_some() || self.history_restore.is_some() || self.restores_pending()
+    }
+
+    /// Restore the studies on the last published bars before committing or
+    /// polling another hub batch. Their initial state, including wanted
+    /// feeds, then reaches the normal script poll before new market events.
+    fn poll_history_restore(&mut self) -> bool {
+        let worker = self.history_restore.take();
+        if !self.restores_pending() {
+            return false;
+        }
+        if let Some(worker) = worker {
+            match worker.try_recv() {
+                Err(mpsc::TryRecvError::Empty) => {
+                    self.history_restore = Some(worker);
+                    return true;
+                }
+                Ok(Ok(mut done)) if same_specs(&self.history_specs(true), &done.specs) => {
+                    self.each_chart(|a| {
+                        let mut changed = false;
+                        for s in &mut a.chart.studies {
+                            if let Some(inst) = done.studies.remove(&(a.chart.id, s.uid)) {
+                                s.inst = inst;
+                                changed = true;
+                            }
+                        }
+                        if changed {
+                            a.chart.touch();
+                        }
+                    });
+                    self.egui_ctx.request_repaint();
+                    return true;
+                }
+                Ok(Ok(_)) => {}
+                Ok(Err(_)) | Err(mpsc::TryRecvError::Disconnected) => {
+                    crate::diag::crumb("Pine history worker failed; retrying study restore");
+                }
+            }
+        }
+        let charts = self.history_previews(self.history_specs(true));
+        let feeds = self.feeds.clone();
+        self.history_restore = Some(spawn(self.egui_ctx.clone(), move || prepare_restore(charts, &feeds)));
+        true
     }
 
     pub(super) fn poll_history_batch(&mut self, poll: impl FnOnce(&Hub) -> Vec<Event>) {
+        if self.poll_history_restore() {
+            return;
+        }
         let events = if let Some(batch) = self.history_batch.take() {
             match batch.ready.try_recv() {
                 Err(mpsc::TryRecvError::Empty) => {
@@ -214,8 +343,8 @@ impl App {
                     return;
                 }
                 Ok(Ok(done)) => {
-                    let current = self.history_specs();
-                    if current.len() == done.specs.len() && current.iter().zip(&done.specs).all(|(a, b)| a.matches(b)) {
+                    let current = self.history_specs(false);
+                    if same_specs(&current, &done.specs) {
                         let events = Arc::try_unwrap(batch.events).ok().expect("worker released the batch");
                         self.dispatch_events(events.into_iter().zip(done.prepared));
                         // New hub events may have woken frames while the batch was pending.
@@ -266,45 +395,15 @@ impl App {
             return;
         }
 
-        let charts: Vec<_> = self
-            .history_specs()
-            .into_iter()
-            .map(|spec| {
-                let (chart, _) = self
-                    .history_charts()
-                    .find(|(c, _)| c.id == spec.id)
-                    .expect("chart in snapshot");
-                Preview {
-                    chart: chart.history_preview(),
-                    spec,
-                }
-            })
-            .collect();
-        let (tx, ready) = mpsc::channel();
+        let charts = self.history_previews(self.history_specs(false));
         let worker_events = events.clone();
-        let ctx = self.egui_ctx.clone();
         let feeds = self.feeds.clone();
         let demo = self.demo;
-        let run = std::thread::Builder::new()
-            .name("pine-history".into())
-            .stack_size(32 << 20)
-            .spawn(move || {
-                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    prepare(&worker_events, charts, feed_keys, &feeds, demo)
-                }));
-                drop(worker_events);
-                let delay = result.is_err();
-                let _ = tx.send(result);
-                if delay {
-                    ctx.request_repaint_after(Duration::from_millis(250));
-                } else {
-                    ctx.request_repaint();
-                }
-            });
-        if let Err(e) = run {
-            crate::diag::crumb(format!("couldn't start Pine history worker: {e}"));
-            self.egui_ctx.request_repaint_after(Duration::from_millis(250));
-        }
+        let ready = spawn(self.egui_ctx.clone(), move || {
+            let finished = prepare(&worker_events, charts, feed_keys, &feeds, demo);
+            drop(worker_events);
+            finished
+        });
         self.history_batch = Some(PendingBatch { events, ready });
     }
 }
@@ -337,6 +436,7 @@ if bar_index % 11 == 5 and strategy.position_size > 0
 plot(weighted + nz(other) + n)
 plot(seen)
 plot(strategy.position_size)
+hline(n)
 if barstate.islast
     log.info(str.tostring(seen))
 "#;
@@ -490,6 +590,10 @@ if barstate.islast
         assert_eq!(c.changed, e.changed);
         assert_eq!(c.complete, e.complete);
         assert_eq!(c.status, e.status);
+        compare_study(c, e);
+    }
+
+    fn compare_study(c: &Chart, e: &Chart) {
         assert_eq!(plots(c), plots(e));
         for forming in [false, true] {
             let actual = crate::strategy::closed_broker(&c.studies[0].inst, &c.bars, forming).unwrap();
@@ -515,6 +619,132 @@ if barstate.islast
         assert_eq!(state(c).logs(), state(e).logs());
         assert_eq!(state(c).wanted(), state(e).wanted());
         assert_eq!(state(c).error(), state(e).error());
+    }
+
+    #[test]
+    fn a_four_chart_grid_restores_pine_on_the_worker_when_history_arrives_first() {
+        let mut d = setup("restore-four-with-cached-history", false);
+        let a = &mut d.app;
+        let main = &mut a.chart.studies[0];
+        main.visible = false;
+        main.look.plots[0].width = 4;
+        let file = a.scripts[0].pine.as_ref().unwrap().clone();
+        let saved = a.chart.saved_studies().remove(0);
+        a.set_grid(Grid::Four);
+        let ids: Vec<_> = a.slots.iter().flatten().map(|s| s.chart.id).collect();
+        assert_eq!(ids.len(), 3);
+        // Cache hits can reach poll_data before poll_other_charts starts
+        // the saved scripts. Exercise this order through the hub dispatch.
+        a.poll_history_batch(|_| ids.iter().map(|&id| history(id, 0, 5_000)).collect());
+        for slot in a.slots.iter().flatten() {
+            assert_eq!(slot.chart.bars.len(), 5_000);
+            assert!(slot.chart.studies.is_empty());
+            assert_eq!(slot.chart.saved_studies()[0].id, saved.id);
+        }
+        a.poll_other_charts();
+
+        let (call, called) = mpsc::channel();
+        let (release, wait) = mpsc::channel();
+        let gate = Arc::new(Mutex::new(Some(wait)));
+        for slot in a.slots.iter_mut().flatten() {
+            let c = &mut slot.chart;
+            let s = &mut c.studies[0];
+            assert!(s.inst.is_deferred());
+            assert!(s.inst.latest_state().is_none());
+            assert!(!s.visible);
+            assert_eq!(s.look.plots[0].width, 4);
+            let (id, factory, call, gate) = (c.id, s.inst.factory().unwrap(), call.clone(), gate.clone());
+            let traced: Factory = Arc::new(move |inputs| {
+                let t = std::thread::current();
+                if t.name() == Some("pine-history") {
+                    call.send((id, t.id())).unwrap();
+                    if let Some(wait) = gate.lock().unwrap().take() {
+                        wait.recv_timeout(Duration::from_secs(15)).unwrap();
+                    }
+                }
+                factory(inputs)
+            });
+            s.inst = Instance::deferred(s.meta(), &s.inst.inputs, traced);
+        }
+
+        a.poll_history_batch(|_| panic!("restore must precede the next hub batch"));
+        let (first, worker) = called.recv_timeout(Duration::from_secs(10)).unwrap();
+        assert_ne!(worker, std::thread::current().id());
+        // Edit a restored input while its old snapshot is still in use.
+        // Slot activation also changes where a prepared chart lives.
+        a.activate(2);
+        let edited_chart = a.chart.id;
+        let uid = a.chart.studies[0].uid;
+        let mut edited = saved.inputs.clone();
+        edited.set("length", Value::Int(8));
+        a.chart.set_inputs(uid, &edited);
+        a.poll_history_batch(|_| panic!("market events cannot pass an unfinished restore"));
+        assert!(a.chart.studies[0].inst.latest_state().is_none());
+        assert!(
+            a.slots
+                .iter()
+                .flatten()
+                .filter(|s| ids.contains(&s.chart.id))
+                .all(|s| { s.chart.studies[0].inst.latest_state().is_none() && s.chart.bars.len() == 5_000 })
+        );
+        release.send(()).unwrap();
+        complete(a);
+        let calls = std::iter::once((first, worker))
+            .chain(called.try_iter())
+            .collect::<Vec<_>>();
+        for id in &ids {
+            // Each worker build calls the factory twice (construction and
+            // recompute). The stale job and its retry both cover the grid.
+            assert_eq!(calls.iter().filter(|(seen, _)| seen == id).count(), 4);
+        }
+        assert!(calls.iter().all(|(_, worker)| *worker != std::thread::current().id()));
+
+        let ticks = |chart| {
+            [
+                Event::Tick {
+                    chart,
+                    bar: bar(4_999, 1.0),
+                },
+                Event::Tick {
+                    chart,
+                    bar: bar(4_999, 2.0),
+                },
+                Event::Tick {
+                    chart,
+                    bar: bar(5_000, 3.0),
+                },
+            ]
+        };
+        a.poll_history_batch(|_| ids.iter().flat_map(|&id| ticks(id)).collect());
+        assert!(!a.history_pending());
+        a.each_chart(|a| {
+            let c = &a.chart;
+            if !ids.contains(&c.id) {
+                return;
+            }
+            let mut expected = Chart::new(c.id, c.symbol.clone(), c.tf);
+            expected.apply(history(c.id, 0, 5_000));
+            let inst = Instance::with_factory(file.meta(), &saved.inputs, file.factory());
+            let uid = expected.add_instance(inst, saved.look.clone(), Some(saved.pane), saved.visible);
+            if c.id == edited_chart {
+                expected.set_inputs(uid, &edited);
+            }
+            for e in ticks(c.id) {
+                expected.apply(e);
+            }
+            let actual = &c.studies[0];
+            let want = &expected.studies[0];
+            assert!(!actual.inst.is_deferred());
+            assert_eq!(c.bars, expected.bars);
+            assert_eq!(actual.visible, want.visible);
+            assert_eq!(actual.pane, want.pane);
+            assert!(same_inputs(&actual.inst.inputs, &want.inst.inputs));
+            assert_eq!(
+                serde_json::to_value(&actual.look).unwrap(),
+                serde_json::to_value(&want.look).unwrap()
+            );
+            compare_study(c, &expected);
+        });
     }
 
     #[test]

@@ -656,6 +656,16 @@ impl Instance {
         Instance::make(meta, inputs, None, true)
     }
 
+    /// Holds a factory and settings while initial history is prepared
+    /// elsewhere. Like an external study, it doesn't step on chart updates.
+    pub fn deferred(meta: &'static Meta, inputs: &Inputs, factory: Factory) -> Instance {
+        Instance::make(meta, inputs, Some(factory), true)
+    }
+
+    pub fn is_deferred(&self) -> bool {
+        self.external && self.factory.is_some()
+    }
+
     fn make(meta: &'static Meta, inputs: &Inputs, factory: Option<Factory>, external: bool) -> Instance {
         let inputs = inputs.normalized(meta);
         let committed = match (&factory, external) {
@@ -709,6 +719,9 @@ impl Instance {
 
     /// See [`Study::levels`].
     pub fn levels(&self) -> Vec<(f64, Option<u32>)> {
+        if let (true, Some(factory)) = (self.external, &self.factory) {
+            return factory(&self.inputs).levels();
+        }
         self.committed.levels()
     }
 
