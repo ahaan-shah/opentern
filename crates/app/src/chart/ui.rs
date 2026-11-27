@@ -5,7 +5,7 @@
 use super::paint::{self, XMap, YMap, band_quad, polyline, rect_mesh, snap, styled_hline, styled_vline};
 use super::scale;
 use super::style::{Palette, SeriesKind, c32};
-use super::{Chart, CompareMode, StudyView};
+use super::{Chart, CompareMode, PaneScale, StudyView};
 use crate::format;
 use crate::i18n::{date, tr, trf, trm};
 use crate::icons::ph;
@@ -86,6 +86,19 @@ struct PaneGeo {
     format: Format,
     /// Base value for percent mode (main pane only).
     pct_base: Option<f64>,
+}
+
+fn zoom_price(scale: &mut PaneScale, log: bool, factor: f64) {
+    let (lo, hi) = if log {
+        (scale.lo.ln(), scale.hi.ln())
+    } else {
+        (scale.lo, scale.hi)
+    };
+    let mid = (lo + hi) / 2.0;
+    let half = (hi - lo) / 2.0 * factor;
+    let (lo, hi) = (mid - half, mid + half);
+    scale.auto = false;
+    (scale.lo, scale.hi) = if log { (lo.exp(), hi.exp()) } else { (lo, hi) };
 }
 
 fn value_format(chart: &Chart, f: Format) -> impl Fn(f64) -> String {
@@ -591,7 +604,13 @@ pub fn show(
             chart.view.right -= (scroll.x / chart.view.bar_w) as f64;
         }
     }
-    // Price scale: drag to zoom a pane's range, double-click for auto.
+    let wheel = if interactive {
+        ui.input(|i| i.smooth_scroll_delta.y)
+    } else {
+        0.0
+    };
+    let price_wheel = (wheel != 0.0).then(|| (-f64::from(wheel) * 0.003).exp());
+    // Price scale: wheel or drag to zoom a pane's range, double-click for auto.
     let scale_resp = ui.interact(
         scale_col,
         Id::new(("chart-scale", chart.id)),
@@ -605,20 +624,13 @@ pub fn show(
     if scale_resp.dragged()
         && let Some(k) = cui.scale_drag
     {
-        let dy = scale_resp.drag_delta().y;
-        let g = &geos[k];
-        let pane = &mut chart.panes[k];
-        let f = (dy as f64 * 0.006).exp();
-        let (tlo, thi) = if g.y.log {
-            (pane.scale.lo.ln(), pane.scale.hi.ln())
-        } else {
-            (pane.scale.lo, pane.scale.hi)
-        };
-        let mid = (tlo + thi) / 2.0;
-        let half = (thi - tlo) / 2.0 * f;
-        let (nlo, nhi) = (mid - half, mid + half);
-        pane.scale.auto = false;
-        (pane.scale.lo, pane.scale.hi) = if g.y.log { (nlo.exp(), nhi.exp()) } else { (nlo, nhi) };
+        let f = (f64::from(scale_resp.drag_delta().y) * 0.006).exp();
+        zoom_price(&mut chart.panes[k].scale, geos[k].y.log, f);
+    } else if scale_resp.hovered()
+        && let Some(f) = price_wheel
+        && let Some(k) = pointer.and_then(|p| geos.iter().position(|g| g.rect.y_range().contains(p.y)))
+    {
+        zoom_price(&mut chart.panes[k].scale, geos[k].y.log, f);
     }
     if scale_resp.drag_stopped() {
         cui.scale_drag = None;
@@ -631,7 +643,7 @@ pub fn show(
         chart.panes[k].scale.auto = true;
     }
     let scale_resp = scale_resp.on_hover_cursor(egui::CursorIcon::ResizeVertical);
-    // Own scales: drag to zoom, double-click to fit, right-click for options.
+    // Own scales: zoom independently, double-click to fit, right-click for options.
     for (ci, col, y) in owns.iter_mut() {
         let resp = ui.interact(
             *col,
@@ -639,21 +651,15 @@ pub fn show(
             sense(Sense::click_and_drag()),
         );
         let sc = &mut chart.compares[*ci].scale;
-        if resp.dragged() {
-            let f = (resp.drag_delta().y as f64 * 0.006).exp();
-            let (tl, th) = if y.log {
-                (sc.lo.ln(), sc.hi.ln())
-            } else {
-                (sc.lo, sc.hi)
-            };
-            let mid = (tl + th) / 2.0;
-            let half = (th - tl) / 2.0 * f;
-            sc.auto = false;
-            (sc.lo, sc.hi) = if y.log {
-                ((mid - half).exp(), (mid + half).exp())
-            } else {
-                (mid - half, mid + half)
-            };
+        let factor = if resp.dragged() {
+            Some((f64::from(resp.drag_delta().y) * 0.006).exp())
+        } else if resp.hovered() {
+            price_wheel
+        } else {
+            None
+        };
+        if let Some(f) = factor {
+            zoom_price(sc, y.log, f);
             (y.lo, y.hi) = (sc.lo, sc.hi);
         }
         if resp.double_clicked() {
@@ -732,15 +738,27 @@ pub fn show(
             }
         }
     }
-    // Time axis: drag to zoom, keeping the right edge.
+    // Time axis: wheel or drag to zoom, keeping the right edge.
     let time_resp = ui.interact(
         time_axis,
         Id::new(("chart-time", chart.id)),
         sense(Sense::click_and_drag()),
     );
-    if time_resp.dragged() {
+    let time_zoom = if time_resp.dragged() {
         let dx = time_resp.drag_delta().x;
-        chart.view.bar_w = (chart.view.bar_w * (dx * 0.006).exp()).clamp(0.4, 80.0);
+        let dx = if time_resp.dragged_by(egui::PointerButton::Primary) {
+            -dx
+        } else {
+            dx
+        };
+        Some(dx * 0.006)
+    } else if time_resp.hovered() && wheel != 0.0 {
+        Some(wheel * 0.003)
+    } else {
+        None
+    };
+    if let Some(step) = time_zoom {
+        chart.view.bar_w = (chart.view.bar_w * step.exp()).clamp(0.4, 80.0);
     }
     if time_resp.double_clicked() {
         chart.reset_view();

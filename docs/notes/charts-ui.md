@@ -17,6 +17,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Shortcuts: Alt+T/H/V/F (trend, horizontal, vertical, Fib), Delete, Esc, Ctrl+Z/Y.
 
 ## Phase 11 (done): power features
+- Wheel on a price scale zooms its range around the midpoint. Wheel on the
+  time scale zooms horizontally around the right edge. A left-button drag to
+  the right on the time scale zooms out.
 - **Chart types** (`chart/transform.rs`, `draw_series`): bars, candles, hollow,
   columns, line, line with markers, step, area, baseline (level % of pane height),
   high-low, Heikin Ashi, Renko, Line Break, Kagi, Point & figure. HA, Renko, Line
