@@ -256,6 +256,9 @@ msgstr "Активно"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Сначала добавьте стратегию на график. Стратегия — это скрипт, который начинается с strategy(…)."
 
+msgid "Add alert on {0} at {1}"
+msgstr "Добавить оповещение на {0} по {1}"
+
 msgid "Add alert on {0} at {1}..."
 msgstr "Добавить оповещение на {0} по {1}..."
 
@@ -1585,6 +1588,12 @@ msgstr "Потяните для перемещения"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
+
+msgid "Draw horizontal line at {0}"
+msgstr "Нарисовать горизонтальную линию по {0}"
+
+msgid "Draw horizontal ray at {0}"
+msgstr "Нарисовать горизонтальный луч по {0}"
 
 msgid "Draw with replacement"
 msgstr "Выборка с возвращением"

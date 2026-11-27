@@ -984,16 +984,37 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 } else {
                     theme::regular(font_size)
                 };
-                let base_pt = match d.style.text_halign {
-                    TextHAlign::Left => pts[0] + (pts[1] - pts[0]) * 0.15,
-                    TextHAlign::Center => pos2((pts[0].x + pts[1].x) / 2.0, (pts[0].y + pts[1].y) / 2.0),
-                    TextHAlign::Right => pts[0] + (pts[1] - pts[0]) * 0.85,
+                let delta = pts[1] - pts[0];
+                let mut angle = delta.y.atan2(delta.x);
+                if angle > std::f32::consts::FRAC_PI_2 {
+                    angle -= std::f32::consts::PI;
+                } else if angle < -std::f32::consts::FRAC_PI_2 {
+                    angle += std::f32::consts::PI;
+                }
+                let norm = vec2(-delta.y, delta.x).normalized();
+                let up_norm = if norm.y > 0.0 { -norm } else { norm };
+                let t_factor = match d.style.text_halign {
+                    TextHAlign::Left => 0.15,
+                    TextHAlign::Center => 0.50,
+                    TextHAlign::Right => 0.85,
                 };
-                let (offset, align) = match d.style.text_valign {
-                    TextVAlign::Bottom => (vec2(0.0, 6.0), Align2::CENTER_TOP),
-                    _ => (vec2(0.0, -6.0), Align2::CENTER_BOTTOM),
+                let base_pt = pts[0] + delta * t_factor;
+                let offset = match d.style.text_valign {
+                    TextVAlign::Top => up_norm * (font_size * 0.6 + 4.0),
+                    TextVAlign::Bottom => -up_norm * (font_size * 0.6 + 4.0),
+                    TextVAlign::Inside => vec2(0.0, 0.0),
                 };
-                p.text(base_pt + offset, align, &d.text, font, tc);
+                let pos = base_pt + offset;
+                let galley = p.layout_no_wrap(d.text.clone(), font, tc);
+                if d.style.text_valign == TextVAlign::Inside {
+                    let mask_size = galley.size() + vec2(8.0, 4.0);
+                    let mask_r = Rect::from_center_size(pos, mask_size);
+                    p.rect_filled(mask_r, CornerRadius::same(3), bg);
+                }
+                let half = galley.size() / 2.0;
+                let rot = egui::emath::Rot2::from_angle(angle);
+                let text_pos = pos - rot * half;
+                p.add(egui::epaint::TextShape::new(text_pos, galley, tc).with_angle(angle));
             }
         }
         HorizontalLine | HorizontalRay if !pts.is_empty() => {

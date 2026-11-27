@@ -34,6 +34,7 @@ pub enum Action {
     CompareMenu(usize, Pos2),
     MoreHistory,
     ChartMenu(Pos2, f64),
+    CrosshairPlusMenu(Pos2, f64),
     DeleteAlert(i64),
     EditAlert(i64),
     MoveAlert(i64, f64),
@@ -1403,6 +1404,41 @@ pub fn show(
                 vec2(scale_w - 2.0, tag_h),
             );
             paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+
+            // Crosshair plus (+) button on the priceline (Image #36).
+            if interactive && geos.first().is_some_and(|m| m.rect == g.rect) {
+                let plus_r = Rect::from_center_size(pos2(scale_col.left() - 8.0, snap(p.y, ppp)), vec2(16.0, 16.0));
+                let plus_resp = ui.interact(plus_r, Id::new("crosshair-plus-btn"), Sense::click());
+                let hov = plus_resp.hovered();
+                painter.circle_filled(
+                    plus_r.center(),
+                    7.0,
+                    if hov {
+                        Color32::from_rgb(40, 40, 40)
+                    } else {
+                        Color32::from_rgb(20, 20, 20)
+                    },
+                );
+                painter.circle_stroke(
+                    plus_r.center(),
+                    7.0,
+                    Stroke::new(1.0, if hov { t.accent } else { Color32::WHITE }),
+                );
+                let st = Stroke::new(1.2, Color32::WHITE);
+                let c = plus_r.center();
+                painter.line_segment([c + vec2(-3.5, 0.0), c + vec2(3.5, 0.0)], st);
+                painter.line_segment([c + vec2(0.0, -3.5), c + vec2(0.0, 3.5)], st);
+                if hov {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if plus_resp.clicked() {
+                    actions.push(Action::CrosshairPlusMenu(
+                        pos2(scale_col.left() - 10.0, snap(p.y, ppp)),
+                        v,
+                    ));
+                }
+            }
+
             if geos.first().is_some_and(|m| m.rect == g.rect) {
                 for (ci, col, y) in &owns {
                     let c = &chart.compares[*ci];

@@ -256,6 +256,9 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
+msgid "Add alert on {0} at {1}"
+msgstr "{0} पर {1} पर अलर्ट जोड़ें"
+
 msgid "Add alert on {0} at {1}..."
 msgstr "{0} पर {1} पर अलर्ट जोड़ें..."
 
@@ -1585,6 +1588,12 @@ msgstr "स्थान बदलने के लिए खींचें"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
+
+msgid "Draw horizontal line at {0}"
+msgstr "{0} पर क्षैतिज रेखा खींचें"
+
+msgid "Draw horizontal ray at {0}"
+msgstr "{0} पर क्षैतिज किरण खींचें"
 
 msgid "Draw with replacement"
 msgstr "वापसी के साथ चयन"

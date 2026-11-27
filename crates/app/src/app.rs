@@ -66,6 +66,7 @@ pub struct App {
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
     pub chart_menu: Option<(egui::Pos2, f64)>,
+    pub plus_menu: Option<(egui::Pos2, f64)>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -272,6 +273,7 @@ impl App {
             study_menu: None,
             compare_menu: None,
             chart_menu: None,
+            plus_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -1181,6 +1183,9 @@ impl App {
                 Action::ChartMenu(pos, price) => {
                     self.chart_menu = Some((pos, price));
                 }
+                Action::CrosshairPlusMenu(pos, price) => {
+                    self.plus_menu = Some((pos, price));
+                }
                 Action::DeleteAlert(id) => {
                     self.delete_alert(id);
                 }
@@ -1367,6 +1372,108 @@ impl App {
             self.modal = Some(crate::dialogs::Modal::ChartSettings(
                 crate::dialogs::ChartSettings::new(self),
             ));
+        }
+    }
+
+    /// Menu opened by clicking the (+) button on the crosshair priceline (Images #36 & #37).
+    fn plus_menu(&mut self, ctx: &egui::Context) {
+        let Some((pos, price)) = self.plus_menu else { return };
+        let t = self.t();
+        let mut close = false;
+        let mut add_alert = false;
+        let mut draw_hline = false;
+        let mut draw_hray = false;
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let prec = self.chart.precision();
+        let price_str = format::price(price, prec);
+
+        let area = egui::Area::new(egui::Id::new("crosshair-plus-popover"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .pivot(egui::Align2::RIGHT_TOP)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_width(260.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+
+                    let alert_label = trf!("Add alert on {} at {}", sym_ticker, price_str);
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert_label, shortcut!("Alt A"), false).clicked() {
+                        add_alert = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    let hline_label = trf!("Draw horizontal line at {}", price_str);
+                    if w::menu_item(ui, &t, Some(ph::MINUS), &hline_label, shortcut!("Alt H"), false).clicked() {
+                        draw_hline = true;
+                        close = true;
+                    }
+
+                    let hray_label = trf!("Draw horizontal ray at {}", price_str);
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROW_RIGHT),
+                        &hray_label,
+                        shortcut!("Alt Shift H"),
+                        false,
+                    )
+                    .clicked()
+                    {
+                        draw_hray = true;
+                        close = true;
+                    }
+                });
+            });
+
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.plus_menu = None;
+        }
+        if add_alert {
+            self.open_alert_dialog_at(price);
+        }
+        if draw_hline {
+            let id = self.chart.next_drawing_id();
+            let d = crate::chart::draw::Drawing {
+                id,
+                tool: Tool::HorizontalLine,
+                pts: vec![crate::chart::draw::Anchor { t: 0, p: price }],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalLine),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.push_undo();
+            self.chart.drawings.push(d);
+            self.chart.drawings_changed += 1;
+            self.chart_ui.draw.selected = Some(id);
+        }
+        if draw_hray {
+            let id = self.chart.next_drawing_id();
+            let start_t = self
+                .chart_ui
+                .hover_time
+                .or_else(|| self.chart.bars.last().map(|b| b.time))
+                .unwrap_or(0);
+            let d = crate::chart::draw::Drawing {
+                id,
+                tool: Tool::HorizontalRay,
+                pts: vec![crate::chart::draw::Anchor { t: start_t, p: price }],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalRay),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.push_undo();
+            self.chart.drawings.push(d);
+            self.chart.drawings_changed += 1;
+            self.chart_ui.draw.selected = Some(id);
         }
     }
 
@@ -1936,6 +2043,7 @@ impl App {
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
         self.chart_menu(&ctx);
+        self.plus_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1967,6 +2075,7 @@ impl App {
         self.study_menu = None;
         self.compare_menu = None;
         self.chart_menu = None;
+        self.plus_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

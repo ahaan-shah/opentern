@@ -256,6 +256,9 @@ msgstr "启用"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
 
+msgid "Add alert on {0} at {1}"
+msgstr "在 {0} 的 {1} 添加警报"
+
 msgid "Add alert on {0} at {1}..."
 msgstr "在 {0} 的 {1} 添加警报..."
 
@@ -1585,6 +1588,12 @@ msgstr "拖动以移动"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
+
+msgid "Draw horizontal line at {0}"
+msgstr "在 {0} 绘制水平线"
+
+msgid "Draw horizontal ray at {0}"
+msgstr "在 {0} 绘制水平射线"
 
 msgid "Draw with replacement"
 msgstr "有放回抽样"

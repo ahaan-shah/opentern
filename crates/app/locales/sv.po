@@ -256,6 +256,9 @@ msgstr "Aktivt"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
 
+msgid "Add alert on {0} at {1}"
+msgstr "Lägg till larm på {0} vid {1}"
+
 msgid "Add alert on {0} at {1}..."
 msgstr "Lägg till larm på {0} vid {1}..."
 
@@ -1585,6 +1588,12 @@ msgstr "Dra för att flytta"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
+
+msgid "Draw horizontal line at {0}"
+msgstr "Rita horisontell linje vid {0}"
+
+msgid "Draw horizontal ray at {0}"
+msgstr "Rita horisontell stråle vid {0}"
 
 msgid "Draw with replacement"
 msgstr "Dragning med återläggning"

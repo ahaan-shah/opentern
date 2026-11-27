@@ -256,6 +256,9 @@ msgstr "Ativo"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Adicione primeiro uma estratégia ao gráfico. Uma estratégia é um script que começa com strategy(…)."
 
+msgid "Add alert on {0} at {1}"
+msgstr "Adicionar alerta em {0} a {1}"
+
 msgid "Add alert on {0} at {1}..."
 msgstr "Adicionar alerta em {0} a {1}..."
 
@@ -1585,6 +1588,12 @@ msgstr "Arraste para mover"
 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arraste para escalar · clique duplo para ajustar · clique direito para opções"
+
+msgid "Draw horizontal line at {0}"
+msgstr "Desenhar linha horizontal em {0}"
+
+msgid "Draw horizontal ray at {0}"
+msgstr "Desenhar semirreta horizontal em {0}"
 
 msgid "Draw with replacement"
 msgstr "Sorteio com reposição"
