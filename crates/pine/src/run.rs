@@ -151,6 +151,41 @@ impl Frame {
         }
     }
 
+    /// A copy without the histories, which change only when a bar is
+    /// committed, so a recalculation can take them back from the frame.
+    fn snapshot(&self) -> Frame {
+        Frame {
+            v: self.v.clone(),
+            hist: Vec::new(),
+            touched: self.touched.clone(),
+            inited: self.inited.clone(),
+            st: self.st.clone(),
+            calls: self
+                .calls
+                .iter()
+                .map(|c| c.as_ref().map(|c| Box::new(c.snapshot())))
+                .collect(),
+            secs: self.secs.clone(),
+        }
+    }
+
+    /// Moves the histories of `from`, the same frame later in the bar, into
+    /// a [`Frame::snapshot`].
+    fn take_hist(&mut self, from: &mut Frame, l: &Layout, funcs: &[Func]) {
+        self.hist = std::mem::take(&mut from.hist);
+        for (site, c) in self.calls.iter_mut().enumerate() {
+            if let Some(c) = c {
+                let layout = &funcs[l.calls[site] as usize].layout;
+                match from.calls.get_mut(site).and_then(|f| f.as_deref_mut()) {
+                    Some(f) => c.take_hist(f, layout, funcs),
+                    // A frame never goes away during a bar; if one did, its
+                    // histories had nothing committed.
+                    None => c.take_hist(&mut Frame::new(layout), layout, funcs),
+                }
+            }
+        }
+    }
+
     fn retain_varip(&mut self, previous: &Frame, l: &Layout, funcs: &[Func], roots: &mut Vec<u32>) {
         for &slot in &l.varips {
             let i = slot as usize;
@@ -1784,24 +1819,43 @@ impl PineStudy {
     }
 
     fn fill_bar(&mut self, index: usize, bar: &Bar) -> R<()> {
-        self.g.broker.as_mut().unwrap().begin_fill_bar(index, bar);
+        let broker = self.g.broker.as_mut().unwrap();
+        broker.begin_fill_bar(index, bar);
+        // Whether a fill can follow the closing calculation, which would
+        // run the script again.
+        let close_fills = broker.props.process_orders_on_close || self.prog.fills_at_close;
         self.g.heap.begin_recalculations();
-        let committed = self.root.clone();
-        let heap = self.g.heap.clone();
+        // The last committed Pine state, saved only on a bar the script can
+        // run on more than once: copying it is most of the cost.
+        let mut committed: Option<(Frame, Heap)> = None;
         let mut executions = 0;
 
         // Restore the last committed Pine state while keeping the broker,
         // logs, alerts and intrabar-persistent values from the current bar.
-        let mut calculate = |study: &mut PineStudy| -> R<()> {
+        // `again`: another calculation can follow this one.
+        let mut calculate = |study: &mut PineStudy, again: bool| -> R<()> {
             if executions == MAX_FILL_EXECUTIONS {
                 return Err(Stop::Err("Too many order fill recalculations on one bar.".into()));
             }
-            if executions != 0 {
-                let mut root = committed.clone();
-                let mut refs = Vec::new();
-                root.retain_varip(&study.root, &study.prog.layout, &study.prog.funcs, &mut refs);
-                study.root = root;
-                study.g.heap = heap.rollback(&study.g.heap, &study.prog.types, refs);
+            match &committed {
+                Some((frame, heap)) if executions != 0 => {
+                    let (layout, funcs) = (&study.prog.layout, &study.prog.funcs);
+                    let mut root = frame.clone();
+                    root.take_hist(&mut study.root, layout, funcs);
+                    let mut refs = Vec::new();
+                    root.retain_varip(&study.root, layout, funcs, &mut refs);
+                    study.root = root;
+                    study.g.heap = heap.rollback(std::mem::take(&mut study.g.heap), &study.prog.types, refs);
+                }
+                None if executions != 0 => {
+                    // `close_fills` rules this out; never carry on from a
+                    // calculation that should have been undone.
+                    return Err(Stop::Err(
+                        "Opentern couldn't recalculate this bar after an order fill.".into(),
+                    ));
+                }
+                None if again => committed = Some((study.root.snapshot(), study.g.heap.clone())),
+                _ => {}
             }
             executions += 1;
             study.execute()
@@ -1809,13 +1863,13 @@ impl PineStudy {
 
         let result = (|| {
             while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
-                calculate(self)?;
+                calculate(self, true)?;
             }
             // Keep the ordinary closing calculation after the path's last callback.
-            calculate(self)?;
+            calculate(self, close_fills)?;
             self.g.broker.as_mut().unwrap().begin_close_fills();
             while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
-                calculate(self)?;
+                calculate(self, true)?;
             }
             self.g.broker.as_mut().unwrap().finish_fill_bar(bar);
             Ok(())

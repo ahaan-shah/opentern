@@ -165,9 +165,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   `PineStudy::drawings` maps `xloc.bar_time` back. Never use `bar.time` for dates.
 - Windows with a series length replay their inputs (`ta::replay`); built-ins with
   a `length` are marked `.window()`.
-- Not simulated: `calc_on_order_fills`, `use_bar_magnifier` (both say so in the
-  script's log), `request.*` other than `security` and `ticker.*` other than
-  Heikin Ashi (plain errors).
+- Not simulated: `use_bar_magnifier` (says so in the script's log), `request.*` other than `security` and `ticker.*` other than
+  Heikin Ashi (plain errors). `calc_on_order_fills` is simulated
+  (`docs/notes/strategies.md`).
 - `survey` (ignored, `PINE_DIR`, `PINE_ON=us|nse`) runs a folder of other people's
   scripts: 1,231 of 1,302 from public GitHub repos ran or loaded (Nov 2026); the rest
   are mostly invalid, use Renko, or import libraries they don't come with.

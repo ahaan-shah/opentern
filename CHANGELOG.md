@@ -10,6 +10,7 @@
 - **Text in any language shows.** Characters the app's fonts don't have (Chinese, Japanese, Korean, Arabic, Hebrew, Thai, the Indian scripts and more, in your scripts and names) are drawn with your computer's own fonts, without making the app any bigger.
 - **30-Day Fed Funds Futures** (`CBOT:ZQ1!`): search "ZQ" or "fed funds futures". Prices are 100 minus the month's expected average rate, delayed 10 minutes.
 - **Your own scripts in the Indicators dialog.** "My scripts" lists the indicators and strategies in your scripts folder, by their titles; search finds them too, and they can be starred.
+- **Strategies can recalculate on order fills.** A Pine strategy with `calc_on_order_fills = true` runs again right after each fill, as on TradingView, so it can place orders for the rest of the same bar (a take-profit right after an entry, say). Thanks to the author of pull request #8.
 
 ### Changed
 - **One Opentern at a time.** Opening Opentern while it's already open brings the open window forward instead of starting a second copy, so settings and layouts are never saved over each other.
@@ -23,9 +24,6 @@
 - **Top bar icons** are the size of the drawing toolbar's, and undo and redo look like its buttons.
 - **A tidier Script Editor explorer:** rounded rows like the watchlist's, headings in plain case, folders whose arrows turn as they open, a rename box that lines up with the name, and a script you drag follows the pointer to the folder it lands in.
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
-
-### Fixed
-- Pine strategies with `calc_on_order_fills=true` recalculate after fills and can place orders for the remaining path of the simulated bar.
 
 ## 0.3.7 (2026-11-26)
 

@@ -153,7 +153,9 @@ pub(crate) enum DrawKind {
 
 #[derive(Clone, Debug)]
 pub(crate) struct Heap {
-    objs: Vec<Option<Obj>>,
+    /// Shared, so copying the table for a recalculation copies pointers
+    /// and an object is copied only when one copy changes.
+    objs: Vec<Option<Arc<Obj>>>,
     free: Vec<u32>,
     /// Deleted drawings some variable may still hold: their places aren't
     /// used again until nothing does, or the old handle would reach the
@@ -166,7 +168,14 @@ pub(crate) struct Heap {
     /// `max_labels_count` etc.
     pub limits: [usize; 6],
     recalculating: bool,
+    /// Objects made on this bar while it's recalculated after order fills.
+    born: HashSet<u32>,
     new_udts: HashMap<u32, Vec<V>>,
+    /// Places changed since the bar began, so a rollback restores only those.
+    changed: Vec<u32>,
+    changed_mark: Vec<bool>,
+    /// `free` below this length is as it was when the bar began.
+    free_low: usize,
 }
 
 impl Default for Heap {
@@ -180,7 +189,11 @@ impl Default for Heap {
             drawn: Default::default(),
             limits: [50, 50, 50, 40, 50, 50],
             recalculating: false,
+            born: HashSet::new(),
             new_udts: HashMap::new(),
+            changed: Vec::new(),
+            changed_mark: Vec::new(),
+            free_low: 0,
         }
     }
 }
@@ -200,20 +213,37 @@ impl Heap {
     pub fn alloc(&mut self, o: Obj) -> u32 {
         self.allocated += 1;
         if self.recalculating {
-            let id = self.objs.len() as u32;
-            if let Obj::Udt { fields, .. } = &o {
-                self.new_udts.insert(id, fields.clone());
+            // Places freed on this bar aren't in `free` until it ends, so a
+            // handle a rolled-back execution let go of can't reach a new object.
+            let fields = match &o {
+                Obj::Udt { fields, .. } => Some(fields.clone()),
+                _ => None,
+            };
+            let id = match self.free.pop() {
+                Some(i) => {
+                    self.free_low = self.free_low.min(self.free.len());
+                    self.objs[i as usize] = Some(Arc::new(o));
+                    i
+                }
+                None => {
+                    self.objs.push(Some(Arc::new(o)));
+                    (self.objs.len() - 1) as u32
+                }
+            };
+            self.born.insert(id);
+            self.mark(id);
+            if let Some(fields) = fields {
+                self.new_udts.insert(id, fields);
             }
-            self.objs.push(Some(o));
             return id;
         }
         match self.free.pop() {
             Some(i) => {
-                self.objs[i as usize] = Some(o);
+                self.objs[i as usize] = Some(Arc::new(o));
                 i
             }
             None => {
-                self.objs.push(Some(o));
+                self.objs.push(Some(Arc::new(o)));
                 (self.objs.len() - 1) as u32
             }
         }
@@ -228,6 +258,7 @@ impl Heap {
             if let Some(old) = self.drawn[k].pop_front() {
                 self.objs[old as usize] = None;
                 self.dead.push(old);
+                self.mark(old);
             }
         }
         id
@@ -239,11 +270,12 @@ impl Heap {
             self.drawn[k].remove(p);
             self.objs[id as usize] = None;
             self.dead.push(id);
+            self.mark(id);
         }
     }
 
     pub fn get(&self, r: u32) -> Option<&Obj> {
-        self.objs.get(r as usize).and_then(|o| o.as_ref())
+        self.objs.get(r as usize).and_then(|o| o.as_deref())
     }
 
     /// An array's items, or a slice's.
@@ -273,104 +305,229 @@ impl Heap {
     }
 
     pub fn get_mut(&mut self, r: u32) -> Option<&mut Obj> {
-        self.objs.get_mut(r as usize).and_then(|o| o.as_mut())
+        if self.recalculating && self.get(r).is_some() {
+            self.mark(r);
+        }
+        self.objs
+            .get_mut(r as usize)
+            .and_then(|o| o.as_mut())
+            .map(Arc::make_mut)
+    }
+
+    /// Notes a place changed while the bar is recalculated.
+    fn mark(&mut self, id: u32) {
+        if !self.recalculating {
+            return;
+        }
+        let i = id as usize;
+        if i >= self.changed_mark.len() {
+            self.changed_mark.resize(i + 1, false);
+        }
+        if !self.changed_mark[i] {
+            self.changed_mark[i] = true;
+            self.changed.push(id);
+        }
+    }
+
+    fn clear_changed(&mut self) {
+        for id in self.changed.drain(..) {
+            self.changed_mark[id as usize] = false;
+        }
     }
 
     pub fn begin_recalculations(&mut self) {
         self.recalculating = true;
+        self.free_low = self.free.len();
+        self.clear_changed();
     }
 
     pub fn end_recalculations(&mut self) {
         self.recalculating = false;
+        self.born.clear();
         self.new_udts.clear();
+        self.clear_changed();
     }
 
     /// Restores committed objects and drawings and carries over only
     /// objects referenced from intrabar-persistent slots or fields.
-    pub fn rollback(&self, previous: &Heap, types: &[crate::compile::TypeDef], mut roots: Vec<u32>) -> Heap {
-        let mut next = self.clone();
-        // Keep allocation IDs unique across the bar, including for deleted handles.
-        next.objs.resize_with(previous.objs.len(), || None);
-        let mut deleted: HashSet<_> = previous.dead.iter().copied().collect();
+    /// `self` is the heap as the bar began; `previous` is the heap the last
+    /// execution left, whose table is reused: only the places it changed
+    /// are put back.
+    pub fn rollback(&self, mut previous: Heap, types: &[crate::compile::TypeDef], mut roots: Vec<u32>) -> Heap {
+        let base = self.objs.len();
+        let born = std::mem::take(&mut previous.born);
+        let new_udts = std::mem::take(&mut previous.new_udts);
+        let prior_drawn = std::mem::take(&mut previous.drawn);
+        // Drawings deleted on this bar: `dead` only grows during a bar.
+        let mut deleted: HashSet<u32> = previous.dead[self.dead.len().min(previous.dead.len())..]
+            .iter()
+            .copied()
+            .collect();
+        // What the last execution left in each place it changed. Every other
+        // place holds what it held when the bar began.
+        let changed = std::mem::take(&mut previous.changed);
+        let mut before: HashMap<u32, Option<Arc<Obj>>> = HashMap::with_capacity(changed.len());
+        let mut next = previous;
+        for &id in &changed {
+            let i = id as usize;
+            next.changed_mark[i] = false;
+            let committed = if i < base { self.objs[i].clone() } else { None };
+            before.insert(id, std::mem::replace(&mut next.objs[i], committed));
+        }
+        // During a bar `free` changes near its end and `dead` only grows.
+        let low = next.free_low.min(self.free.len());
+        next.free.truncate(low);
+        next.free.extend_from_slice(&self.free[low..]);
+        next.free_low = self.free.len();
+        next.dead.truncate(self.dead.len());
+        next.drawn = self.drawn.clone();
+        next.allocated = self.allocated;
+        next.live_after_gc = self.live_after_gc;
+        next.limits = self.limits;
+        next.recalculating = self.recalculating;
+        let prev = |next: &Heap, id: u32| -> Option<Arc<Obj>> {
+            match before.get(&id) {
+                Some(o) => o.clone(),
+                None => next.objs.get(id as usize).cloned().flatten(),
+            }
+        };
+
         // Committed UDTs can contain varip fields even without a varip
         // reference to the object itself.
-        for (i, obj) in self.objs.iter().enumerate() {
-            if let Some(Obj::Udt { ty, .. }) = obj
-                && types.get(*ty as usize).is_some_and(|t| !t.varip_fields.is_empty())
-            {
-                next.retain_udt_fields(previous, types, i as u32, &mut roots);
+        let mut touched = Vec::new();
+        if types.iter().any(|t| !t.varip_fields.is_empty()) {
+            for (i, obj) in self.objs.iter().enumerate() {
+                if let Some(Obj::Udt { ty, .. }) = obj.as_deref()
+                    && types.get(*ty as usize).is_some_and(|t| !t.varip_fields.is_empty())
+                {
+                    let id = i as u32;
+                    let p = prev(&next, id);
+                    next.retain_udt_fields(p.as_deref(), types, id, &mut roots);
+                    touched.push(id);
+                }
             }
         }
 
         let mut kept = HashSet::new();
         while let Some(id) = roots.pop() {
-            if !kept.insert(id) || id as usize >= previous.objs.len() {
+            if !kept.insert(id) || id as usize >= next.objs.len() {
                 continue;
             }
             let i = id as usize;
-            match &previous.objs[i] {
+            let p = prev(&next, id);
+            match p.as_deref() {
                 Some(Obj::Udt { ty, .. }) if types.get(*ty as usize).is_some() => {
                     if next.objs[i].is_none() {
-                        let fields = previous.new_udts[&id].clone();
+                        let fields = new_udts[&id].clone();
                         next.new_udts.insert(id, fields.clone());
-                        next.objs[i] = Some(Obj::Udt { ty: *ty, fields });
+                        next.objs[i] = Some(Arc::new(Obj::Udt { ty: *ty, fields }));
                     }
-                    next.retain_udt_fields(previous, types, id, &mut roots);
-                    if i >= self.objs.len()
+                    next.retain_udt_fields(p.as_deref(), types, id, &mut roots);
+                    if born.contains(&id)
                         && let Some(obj) = &next.objs[i]
                     {
                         // A new retained object can also refer to objects
                         // allocated by its constructor on this bar.
                         let mut refs = Vec::new();
                         obj.refs(&mut refs);
-                        roots.extend(refs.into_iter().filter(|id| *id as usize >= self.objs.len()));
+                        roots.extend(refs.into_iter().filter(|id| born.contains(id)));
                     }
                 }
                 obj => {
-                    next.objs[i] = obj.clone();
                     if let Some(obj) = obj {
                         obj.refs(&mut roots);
                     }
+                    next.objs[i] = p.clone();
                 }
             }
         }
 
-        for ((drawn, prior), limit) in next.drawn.iter_mut().zip(&previous.drawn).zip(next.limits) {
+        let mut trimmed = Vec::new();
+        for ((drawn, prior), limit) in next.drawn.iter_mut().zip(&prior_drawn).zip(next.limits) {
             drawn.retain(|id| next.objs[*id as usize].is_some());
             drawn.extend(
                 prior
                     .iter()
                     .copied()
-                    .filter(|id| kept.contains(id) && *id as usize >= self.objs.len()),
+                    .filter(|id| kept.contains(id) && born.contains(id)),
             );
             while drawn.len() > limit {
                 let id = drawn.pop_front().unwrap();
                 next.objs[id as usize] = None;
                 deleted.insert(id);
+                trimmed.push(id);
             }
         }
-        // Keep recycled IDs out of the allocator during this bar. Free
-        // slots are used again after the closing execution.
-        for (i, obj) in next.objs.iter().enumerate() {
-            if i >= self.objs.len() && obj.is_some() {
+        // An object made on this bar that wasn't kept frees its place, which
+        // the next execution can use again. A place that was free when the
+        // bar began is in `free` already, so one kept or deleted leaves it.
+        // Only these places can differ from the committed heap: made on this
+        // bar, past its end, reached from a varip, or trimmed just now.
+        let mut ids: Vec<u32> = born
+            .iter()
+            .copied()
+            .chain(base as u32..next.objs.len() as u32)
+            .collect();
+        ids.extend(kept.iter().copied().filter(|id| (*id as usize) < base));
+        ids.extend(trimmed.iter().copied());
+        ids.sort_unstable();
+        ids.dedup();
+        let mut taken = HashSet::new();
+        for id in ids {
+            let i = id as usize;
+            let Some(obj) = next.objs.get(i) else { continue };
+            let new = born.contains(&id);
+            let was_free = i < base && self.objs[i].is_none();
+            if new && obj.is_some() {
                 next.allocated += 1;
+                next.born.insert(id);
+                if was_free {
+                    taken.insert(id);
+                }
             }
-            if obj.is_none() && (i >= self.objs.len() || self.objs[i].is_some()) {
-                let id = i as u32;
+            if obj.is_none() && (new || i >= base || self.objs[i].is_some()) {
                 if deleted.contains(&id) {
                     next.dead.push(id);
-                } else {
+                    if new {
+                        // Still this bar's, so later rollbacks keep it dead.
+                        next.born.insert(id);
+                        if was_free {
+                            taken.insert(id);
+                        }
+                    }
+                } else if !(new && was_free) {
                     next.free.push(id);
                 }
+            }
+        }
+        // Places taken were popped from the end of `free`, so they're near it.
+        let mut left = taken.len();
+        let mut k = next.free.len();
+        while left > 0 && k > 0 {
+            k -= 1;
+            if taken.contains(&next.free[k]) {
+                next.free.remove(k);
+                next.free_low = next.free_low.min(k);
+                left -= 1;
+            }
+        }
+        // What can now differ from the committed heap, for the next rollback.
+        for id in kept.into_iter().chain(touched).chain(trimmed) {
+            if (id as usize) < next.objs.len() {
+                next.mark(id);
             }
         }
         next
     }
 
-    fn retain_udt_fields(&mut self, previous: &Heap, types: &[crate::compile::TypeDef], id: u32, roots: &mut Vec<u32>) {
-        if let (Some(Obj::Udt { ty, fields }), Some(Obj::Udt { fields: current, .. })) =
-            (self.get_mut(id), previous.get(id))
-        {
+    fn retain_udt_fields(
+        &mut self,
+        previous: Option<&Obj>,
+        types: &[crate::compile::TypeDef],
+        id: u32,
+        roots: &mut Vec<u32>,
+    ) {
+        if let (Some(Obj::Udt { ty, fields }), Some(Obj::Udt { fields: current, .. })) = (self.get_mut(id), previous) {
             for &field in &types[*ty as usize].varip_fields {
                 fields[field] = current[field].clone();
                 if let V::Ref(id) = &fields[field] {
@@ -495,6 +652,43 @@ impl Heap {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recalculated_bars_reuse_free_places() {
+        // Each bar makes an object, is recalculated once after a fill and
+        // keeps the second execution's object. The table must stay small.
+        let mut h = Heap::default();
+        for _ in 0..20_000 {
+            h.begin_recalculations();
+            let committed = h.clone();
+            h.alloc(Obj::Array(vec![V::Int(1)]));
+            h = committed.rollback(std::mem::take(&mut h), &[], Vec::new());
+            h.alloc(Obj::Array(vec![V::Int(2)]));
+            h.end_recalculations();
+            if h.wants_gc() {
+                h.gc(&mut std::iter::empty());
+            }
+        }
+        assert!(h.objs.len() < 10_000, "{} places", h.objs.len());
+    }
+
+    #[test]
+    fn rollback_drops_new_objects_and_keeps_varip_ones() {
+        let mut h = Heap::default();
+        let old = h.alloc(Obj::Array(vec![V::Int(1)]));
+        h.begin_recalculations();
+        let committed = h.clone();
+        if let Some(Obj::Array(a)) = h.get_mut(old) {
+            a.push(V::Int(2));
+        }
+        let lost = h.alloc(Obj::Array(vec![]));
+        let kept = h.alloc(Obj::Array(vec![V::Int(3)]));
+        let h = committed.rollback(h, &[], vec![kept]);
+        let ints = |r| h.items(r).map(|a| a.iter().map(|v| v.i()).collect::<Vec<_>>());
+        assert_eq!(ints(old), Some(vec![Some(1)]));
+        assert!(h.get(lost).is_none());
+        assert_eq!(ints(kept), Some(vec![Some(3)]));
+    }
 
     #[test]
     fn gc_keeps_reachable_and_drawings() {

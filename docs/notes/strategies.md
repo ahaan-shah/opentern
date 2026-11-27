@@ -14,6 +14,14 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   runs after the path's callbacks. Rollback keeps the broker and `varip`
   state, and each bar commits history and equity once. TradingView cases
   awaiting external confirmation are listed in `crates/pine/tests/oracles/order_fills/`.
+  Cost: the committed state is saved only on a bar that can run more than
+  once (a fill on the path, or `process_orders_on_close`, `immediately` or
+  `strategy.risk.*`, which `Program::fills_at_close` finds at compile time).
+  The saved frame leaves out the histories (they change only at commit), heap
+  objects are `Arc`s copied on write, and a rollback puts back only the places
+  marked changed. Recalculations reuse places free when the bar began; before
+  that the object table grew every bar (a label strategy took 23 s on 20,000
+  bars).
 - `app/src/strategy.rs`: strategy runs are rebuilt only when `data_version`, `changed` or
   a Python result (`ScriptRun::out_seq`) changes; Python strategies replay their
   `intents` through a broker. Strategy Report tab: Overview (KPI cards, compact on short

@@ -412,6 +412,10 @@ pub(crate) struct Program {
     pub timeframe_gaps: bool,
     /// It makes requests.
     pub requests: bool,
+    /// It can make orders fill at the close without
+    /// `process_orders_on_close`: `strategy.close(…, immediately)` or
+    /// `strategy.risk.*`.
+    pub fills_at_close: bool,
     /// Request bodies compiled last (see [`Body::Late`]).
     pub late: Vec<SecBody>,
 }
@@ -684,6 +688,7 @@ struct Cx {
     timeframe: Option<String>,
     timeframe_gaps: bool,
     requests: bool,
+    fills_at_close: bool,
     /// Enums: members and their titles (a member's value is its title).
     enums: HashMap<String, Vec<(String, String)>>,
     /// While compiling an imported library: its alias, so its own names
@@ -751,6 +756,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         timeframe: None,
         timeframe_gaps: true,
         requests: false,
+        fills_at_close: false,
         enums: HashMap::new(),
         lib_prefix: None,
         importing: Vec::new(),
@@ -796,6 +802,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         timeframe: cx.timeframe,
         timeframe_gaps: cx.timeframe_gaps,
         requests: cx.requests,
+        fills_at_close: cx.fills_at_close,
         late,
     })
 }
@@ -2290,6 +2297,16 @@ impl Cx {
     }
 
     fn nat(&mut self, f: &'static NatDef, mut args: Vec<E>) -> E {
+        let immediately = match f.name {
+            "strategy.close" => args.get(5),
+            "strategy.close_all" => args.get(2),
+            _ => None,
+        };
+        if f.name.starts_with("strategy.risk.")
+            || immediately.is_some_and(|a| !matches!(a, E::K(V::Na | V::Bool(false))))
+        {
+            self.fills_at_close = true;
+        }
         // A window whose length can change from bar to bar keeps the values
         // a longer one will need.
         if f.window

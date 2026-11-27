@@ -8,6 +8,7 @@
 //!    [`Broker::submit`] (it can read the position meanwhile).
 //! 3. [`Broker::close_bar`] fills market orders at the close when
 //!    `process_orders_on_close` is set, and records equity.
+//!
 //! Pine strategies with `calc_on_order_fills` use a resumable intrabar path
 //! and recalculate between groups of fills.
 
