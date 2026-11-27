@@ -68,6 +68,9 @@ pub struct ChartUi {
     pub season: super::profile::SeasonCache,
     /// A paper order being dragged: (order, price under the pointer).
     pub paper_drag: Option<(u64, f64)>,
+    /// The price the "+" menu is open at: its crosshair line stays while
+    /// the menu is up (the chart takes no pointer then).
+    pub pinned_price: Option<f64>,
 }
 
 impl Default for ChartUi {
@@ -82,6 +85,7 @@ impl Default for ChartUi {
             hover_time: None,
             season: Default::default(),
             paper_drag: None,
+            pinned_price: None,
         }
     }
 }
@@ -1282,6 +1286,32 @@ pub fn show(
         }
     }
 
+    // The "+" menu's price: its dashed line and price tag stay while the
+    // menu is open.
+    if pointer.is_none_or(|p| !plot_all.contains(p))
+        && let (Some(v), Some(g)) = (cui.pinned_price, geos.first())
+    {
+        let y = snap(g.y.y(v), ppp);
+        if g.rect.y_range().contains(y) {
+            styled_hline(
+                &painter,
+                g.rect.left(),
+                g.rect.right(),
+                y,
+                Stroke::new(1.0, pal.crosshair),
+                chart.style.crosshair_style,
+            );
+            let text = match g.pct_base {
+                Some(base) if base > 0.0 => format::signed_pct((v / base - 1.0) * 100.0),
+                _ => value_format(chart, g.format)(v),
+            };
+            let r = Rect::from_min_size(
+                pos2(scale_col.left() + 1.0, y - tag_h / 2.0),
+                vec2(scale_w - 2.0, tag_h),
+            );
+            paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+        }
+    }
     // ---- crosshair
     let hover_idx = pointer.filter(|p| plot_all.contains(*p)).map(|p| x.index(p.x).round());
     if let (Some(p), Some(hi)) = (pointer, hover_idx) {

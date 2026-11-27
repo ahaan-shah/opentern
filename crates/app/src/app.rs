@@ -1115,6 +1115,12 @@ impl App {
 
     /// The "+" menu: an alert or a horizontal line at the crosshair's price.
     fn price_menu(&mut self, ctx: &egui::Context) {
+        // Its price stays marked on the chart while it's open.
+        self.chart_ui.pinned_price = self
+            .price_menu
+            .as_ref()
+            .filter(|m| m.chart == self.chart.id)
+            .map(|m| m.price);
         let Some(m) = self.price_menu.clone() else { return };
         if m.chart != self.chart.id {
             self.price_menu = None;

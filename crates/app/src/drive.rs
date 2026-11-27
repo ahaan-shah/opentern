@@ -355,6 +355,9 @@ mod tests {
         };
         assert!(m.price > 0.0);
         assert!(d.app.chart.drawings.is_empty(), "the click doesn't reach the plot");
+        // Its price stays marked on the chart while the menu is up.
+        d.frame(vec![]);
+        assert_eq!(d.app.chart_ui.pinned_price, Some(m.price));
         assert_eq!(d.app.chart.view.right, view, "nor pans it");
         // Draw a horizontal line at that price.
         let item = d
@@ -374,6 +377,8 @@ mod tests {
         d.key(Key::Escape, Modifiers::NONE);
         assert!(d.app.price_menu.is_none());
         assert!(d.app.modal.is_none());
+        d.frame(vec![]);
+        assert_eq!(d.app.chart_ui.pinned_price, None, "gone with the menu");
         // An alert at the price: the dialog opens with it filled in.
         d.click(plus);
         let m = d.app.price_menu.clone().expect("menu again");
