@@ -972,6 +972,31 @@ fn methods_pick_by_type() {
 }
 
 #[test]
+fn native_methods_preserve_receiver_dispatch_and_argument_order() {
+    assert_eq!(
+        last(
+            r#"
+type Row
+    array<int> items
+method get(Row this, int i) => this.items.get(i)
+a = array.from(2, 3, 5)
+indices = array.from(2, 7)
+a.set(value = indices.pop(), index = indices.pop())
+s = a.slice(1, 3)
+s.set(0, 11)
+row = Row.new(a)
+m = map.new<int, int>()
+m.put(0, 13)
+p = chart.point.from_index(bar_index, 0)
+p.price := s.get(-1)
+plot(row.get(1) * 10000 + m.get(0) * 100 + p.price)
+"#,
+        ),
+        111307.0
+    );
+}
+
+#[test]
 fn overloads_pick_by_type() {
     assert_eq!(
         last(

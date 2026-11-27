@@ -701,12 +701,13 @@ impl X<'_> {
             }
             E::Method {
                 name,
+                native,
                 recv,
                 args,
                 names,
                 user,
                 hint,
-            } => self.eval_method(name, recv, args, names, (user, hint.as_deref()), f, root)?,
+            } => self.eval_method((name, native), recv, args, names, (user, hint.as_deref()), f, root)?,
             E::Security(sec) => natives::security(self, sec, f, root)?,
             E::Loop(s) => self.stmt(s, f, root)?,
             e => return self.eval(e, f, root),
@@ -751,7 +752,7 @@ impl X<'_> {
     #[allow(clippy::too_many_arguments)]
     fn eval_method(
         &mut self,
-        name: &str,
+        dispatch: (&str, &natives::NativeMethods),
         recv: &E,
         args: &[E],
         names: &[Option<Arc<str>>],
@@ -765,7 +766,7 @@ impl X<'_> {
         for a in args {
             vals.push(self.eval(a, f, root)?);
         }
-        self.method(name, vals, names, user, f, root)
+        self.method(dispatch, vals, names, user, f, root)
     }
 }
 
@@ -806,19 +807,15 @@ impl X<'_> {
 
     /// The position of field `name` in an object of user type `ty`.
     pub fn field_index(&self, ty: u16, name: &str) -> R<usize> {
-        let names: Vec<&str> = if ty == CHART_POINT {
-            CHART_POINT_FIELDS.to_vec()
+        let index = if ty == CHART_POINT {
+            CHART_POINT_FIELDS.iter().position(|&f| f == name)
         } else {
             self.p
                 .types
                 .get(ty as usize)
-                .map(|t| t.fields.iter().map(|s| s.as_str()).collect())
-                .unwrap_or_default()
+                .and_then(|t| t.fields.iter().position(|f| f == name))
         };
-        names
-            .iter()
-            .position(|f| *f == name)
-            .ok_or_else(|| Stop::Err(format!("This object has no field called \"{name}\".")))
+        index.ok_or_else(|| Stop::Err(format!("This object has no field called \"{name}\".")))
     }
 
     pub fn get_field(&self, o: &V, name: &str) -> R<V> {
@@ -864,13 +861,14 @@ impl X<'_> {
 
     fn method(
         &mut self,
-        name: &str,
-        vals: Args,
+        dispatch: (&str, &natives::NativeMethods),
+        mut vals: Args,
         names: &[Option<Arc<str>>],
         user: (&[MethodCand], Option<&str>),
         f: &mut Frame,
         root: Option<&Frame>,
     ) -> R<V> {
+        let (name, native) = dispatch;
         // The receiver's type: a user type id, or a built-in family.
         let (tid, family) = match &vals[0] {
             V::Ref(r) => match self.g.heap.get(*r) {
@@ -919,12 +917,7 @@ impl X<'_> {
         }
         if family.is_empty() {
             // A drawing that isn't there: nothing happens, as in Pine.
-            const DRAWINGS: [&str; 6] = ["label", "line", "box", "table", "linefill", "polyline"];
-            if matches!(vals[0], V::Na)
-                && DRAWINGS
-                    .iter()
-                    .any(|d| natives::lookup(&format!("{d}.{name}")).is_some())
-            {
+            if matches!(vals[0], V::Na) && native.accepts_na {
                 return Ok(V::Na);
             }
             if matches!(vals[0], V::Na) {
@@ -932,21 +925,24 @@ impl X<'_> {
             }
             return Err(Stop::Err(format!("No method called {name}() for this value.")));
         }
-        let full = format!("{family}.{name}");
-        match natives::lookup(&full) {
-            Some(def) if self.g.quiet && def.effect => {
-                let _ = def;
-                Ok(V::Na)
-            }
+        match native.for_family(family) {
+            Some(def) if self.g.quiet && def.effect => Ok(V::Na),
             Some(def) if !def.state => {
-                let vals = if def.params == ["*"] {
-                    vals
-                } else {
-                    order_args(&full, def.params, vals, names)?
-                        .into_iter()
-                        .map(Option::unwrap_or_default)
-                        .collect()
-                };
+                if def.params != ["*"] {
+                    if names.iter().all(Option::is_none) {
+                        // Positional arguments are already in order. The receiver
+                        // is present, and omitted parameters must still read as na.
+                        debug_assert_eq!(vals.len(), names.len() + 1);
+                        if vals.len() < def.params.len() {
+                            vals.resize(def.params.len(), V::Na);
+                        }
+                    } else {
+                        vals = order_args(def.name, def.params, vals, names)?
+                            .into_iter()
+                            .map(Option::unwrap_or_default)
+                            .collect();
+                    }
+                }
                 let mut none = None;
                 Ok(natives::call(def, self.g, &vals, &mut none)?)
             }

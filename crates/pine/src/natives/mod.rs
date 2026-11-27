@@ -191,6 +191,38 @@ pub(crate) fn lookup(name: &str) -> Option<&'static NatDef> {
         .get(name)
 }
 
+/// Built-in candidates for one method name. The receiver still determines
+/// which family is used, after user-method overload resolution.
+#[derive(Clone, Debug)]
+pub(crate) struct NativeMethods {
+    defs: Box<[(&'static str, &'static NatDef)]>,
+    pub accepts_na: bool,
+}
+
+impl NativeMethods {
+    pub fn new(name: &str) -> Self {
+        const DRAWINGS: [&str; 6] = ["label", "line", "box", "table", "linefill", "polyline"];
+        let mut defs = Vec::new();
+        for family in ["array", "map", "matrix", "str", "color", "math"]
+            .into_iter()
+            .chain(DRAWINGS)
+        {
+            if let Some(def) = lookup(&format!("{family}.{name}")) {
+                defs.push((family, def));
+            }
+        }
+        let accepts_na = defs.iter().any(|(family, _)| DRAWINGS.contains(family));
+        Self {
+            defs: defs.into_boxed_slice(),
+            accepts_na,
+        }
+    }
+
+    pub fn for_family(&self, family: &str) -> Option<&'static NatDef> {
+        self.defs.iter().find(|(key, _)| *key == family).map(|(_, def)| *def)
+    }
+}
+
 /// Every built-in name (for the editor's completions).
 #[allow(dead_code)]
 pub fn names() -> Vec<&'static str> {

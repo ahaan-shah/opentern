@@ -151,6 +151,7 @@ pub(crate) enum E {
     /// built-in families (`array.*`, `map.*`, …) or user methods.
     Method {
         name: Arc<str>,
+        native: natives::NativeMethods,
         recv: Box<E>,
         args: Vec<E>,
         /// Argument names (`None` when positional), bound at run time to
@@ -2702,6 +2703,7 @@ impl Cx {
         }
         Ok(E::Method {
             name: Arc::from(m),
+            native: natives::NativeMethods::new(m),
             recv: Box::new(r),
             args: argv,
             names,
