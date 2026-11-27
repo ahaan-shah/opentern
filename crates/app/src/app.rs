@@ -6,7 +6,7 @@ use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
 use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
-use crate::i18n::{msg, nt, tr};
+use crate::i18n::{msg, nt, tr, trf};
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
 use crate::updater::{Phase, Updater};
@@ -21,6 +21,17 @@ use std::time::{Duration, Instant};
 const RECENTS_KEY: &str = "recent_symbols";
 /// How many recent symbols are kept.
 const RECENTS_MAX: usize = 40;
+
+/// The "+" menu by the price scale, open on chart `chart`.
+#[derive(Clone, Debug)]
+pub struct PriceMenu {
+    pub chart: u64,
+    pub price: f64,
+    /// The price as the scale shows it.
+    pub text: String,
+    /// Where the menu's top-right corner goes.
+    pub pos: egui::Pos2,
+}
 
 pub struct App {
     pub store: Store,
@@ -64,6 +75,8 @@ pub struct App {
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
+    /// The menu from the "+" by the price scale.
+    pub price_menu: Option<PriceMenu>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -249,6 +262,7 @@ impl App {
             layout_name,
             study_menu: None,
             compare_menu: None,
+            price_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -388,7 +402,7 @@ impl App {
                 // exchange, a stock elsewhere).
                 let crypto = matches!(
                     id.split(':').next(),
-                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID")
                 );
                 let s = opentern_core::starter_watchlist()
                     .into_iter()
@@ -774,6 +788,36 @@ impl App {
         }
     }
 
+    /// The style a drawing template of this tool saves: the selected
+    /// drawing's, else the one new drawings get.
+    fn drawing_style_now(&self, tool: Tool) -> DrawStyle {
+        self.chart_ui
+            .draw
+            .selected
+            .and_then(|id| self.chart.drawings.iter().find(|d| d.id == id && d.tool == tool))
+            .map(|d| d.style.clone())
+            .or_else(|| self.draw_styles.get(&tool).cloned())
+            .unwrap_or_else(|| DrawStyle::for_tool(tool))
+    }
+
+    /// A saved drawing template's style, if it's still there and readable.
+    pub(crate) fn drawing_template(&self, tool: Tool, name: &str) -> Option<DrawStyle> {
+        let t = self
+            .store
+            .templates(&TemplateKind::Drawing(tool).key())
+            .iter()
+            .find(|t| t.name == name)?;
+        serde_json::from_str(&t.json).ok()
+    }
+
+    /// Back to TradingView's style for this tool: new drawings forget the
+    /// starred style. Named templates are kept.
+    pub(crate) fn reset_drawing_default(&mut self, tool: Tool) {
+        if self.draw_styles.remove(&tool).is_some() {
+            let _ = self.store.delete_template("drawing", &tool.key());
+        }
+    }
+
     pub(crate) fn reload_drawings(&mut self) {
         self.load_drawings();
     }
@@ -996,20 +1040,22 @@ impl App {
                 studies: self.chart.saved_studies(),
                 panes: self.chart.panes.clone(),
             }),
+            // The selected drawing's style, else what new ones would get.
+            TemplateKind::Drawing(tool) => serde_json::to_string(&self.drawing_style_now(tool)),
         };
         if let Ok(j) = json
-            && let Err(e) = self.store.save_template(kind.key(), name, &j)
+            && let Err(e) = self.store.save_template(&kind.key(), name, &j)
         {
             crate::diag::crumb(format!("couldn't save template: {e}"));
         }
     }
 
     pub fn delete_template(&mut self, kind: TemplateKind, name: &str) {
-        let _ = self.store.delete_template(kind.key(), name);
+        let _ = self.store.delete_template(&kind.key(), name);
     }
 
     pub fn set_default_template(&mut self, kind: TemplateKind, name: Option<&str>) {
-        let _ = self.store.set_default_template(kind.key(), name);
+        let _ = self.store.set_default_template(&kind.key(), name);
     }
 
     pub fn apply_indicator_template(&mut self, name: &str) {
@@ -1044,8 +1090,84 @@ impl App {
                     let id = self.chart.symbol.id.clone();
                     self.paper_close(&id);
                 }
+                Action::PriceMenu { price, text, pos } => {
+                    self.price_menu = Some(PriceMenu {
+                        chart: self.chart.id,
+                        price,
+                        text,
+                        pos,
+                    })
+                }
             }
         }
+    }
+
+    /// The "+" menu: an alert or a horizontal line at the crosshair's price.
+    fn price_menu(&mut self, ctx: &egui::Context) {
+        let Some(m) = self.price_menu.clone() else { return };
+        if m.chart != self.chart.id {
+            self.price_menu = None;
+            return;
+        }
+        let t = self.t();
+        let ticker = self.chart.symbol.ticker().to_string();
+        let mut close = false;
+        let area = egui::Area::new(egui::Id::new("price-menu"))
+            .order(egui::Order::Foreground)
+            .pivot(egui::Align2::RIGHT_TOP)
+            .fixed_pos(m.pos)
+            .constrain(true)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_min_width(240.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+                    let alert = trf!("Add alert on {ticker} at {}", m.text);
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert, "", false).clicked() {
+                        self.open_alert_at(m.price);
+                        close = true;
+                    }
+                    let line = trf!("Draw horizontal line at {}", m.text);
+                    if w::menu_item(ui, &t, Some(ph::MINUS), &line, "", false).clicked() {
+                        self.add_horizontal_line(m.price);
+                        close = true;
+                    }
+                });
+            });
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.price_menu = None;
+        }
+    }
+
+    /// A horizontal line at `price` on the active chart, in the style new
+    /// ones get, selected (as if drawn with the tool).
+    fn add_horizontal_line(&mut self, price: f64) {
+        let tool = Tool::HorizontalLine;
+        let Some(t) = self.chart.bars.last().map(|b| b.time) else {
+            return;
+        };
+        let style = self
+            .draw_styles
+            .get(&tool)
+            .cloned()
+            .unwrap_or_else(|| DrawStyle::for_tool(tool));
+        let id = self.chart.next_drawing_id();
+        self.chart.push_undo();
+        self.chart.drawings.push(Drawing {
+            id,
+            tool,
+            pts: vec![crate::chart::draw::Anchor { t, p: price }],
+            style,
+            text: String::new(),
+            locked: false,
+            hidden: false,
+        });
+        self.chart.drawings_changed += 1;
+        self.chart_ui.draw.selected = Some(id);
     }
 
     /// A compared symbol's options: where it goes, hide, remove.
@@ -1558,6 +1680,7 @@ impl App {
         self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
+        self.price_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1588,6 +1711,7 @@ impl App {
         self.modal = None;
         self.study_menu = None;
         self.compare_menu = None;
+        self.price_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

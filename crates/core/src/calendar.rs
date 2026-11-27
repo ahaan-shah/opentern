@@ -169,7 +169,7 @@ impl Market {
             // Commodity futures trade nearly round the clock, Sunday evening
             // to Friday evening New York, like forex.
             "COMEX" | "NYMEX" | "CBOT" | "CME" | "ICEUS" | "ICEEUR" => Market::Forex,
-            "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => Market::Crypto,
+            "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID" => Market::Crypto,
             _ => match kind {
                 AssetKind::Crypto => Market::Crypto,
                 AssetKind::Forex => Market::Forex,

@@ -259,8 +259,14 @@ msgstr "Aktivt"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Skapa larm för {ticker} vid {0}"
+
 msgid "Add filter"
 msgstr "Lägg till filter"
+
+msgid "Add level"
+msgstr "Lägg till nivå"
 
 msgid "Add section"
 msgstr "Lägg till avsnitt"
@@ -1553,6 +1559,9 @@ msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka fö
 msgid "Draw again without picking again"
 msgstr "Rita igen utan att välja om"
 
+msgid "Draw horizontal line at {0}"
+msgstr "Rita horisontell linje vid {0}"
+
 msgid "Draw with replacement"
 msgstr "Dragning med återläggning"
 
@@ -2138,6 +2147,10 @@ msgstr "Hur långt priset är över eller under sitt 50-dagarsmedelvärde"
 
 msgid "Hull Moving Average"
 msgstr "Hull-medelvärde"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid har inga {0}-staplar"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4133,6 +4146,9 @@ msgstr "Återställ"
 msgid "Reset account"
 msgstr "Återställ konto"
 
+msgid "Reset levels"
+msgstr "Återställ nivåer"
+
 msgid "Reset settings"
 msgstr "Återställ inställningar"
 
@@ -4141,6 +4157,9 @@ msgstr "Återställ kontot för att byta valuta"
 
 msgid "Reset the chart view"
 msgstr "Återställ diagramvyn"
+
+msgid "Reset to default"
+msgstr "Återställ till standard"
 
 msgid "Respect for the Aged Day"
 msgstr "De äldres dag"
@@ -4313,11 +4332,17 @@ msgstr "Spara som standard"
 msgid "Save chart template"
 msgstr "Spara diagrammall"
 
+msgid "Save drawing template"
+msgstr "Spara ritmall"
+
 msgid "Save indicator template"
 msgstr "Spara indikatormall"
 
 msgid "Save layout"
 msgstr "Spara layout"
+
+msgid "Save template as"
+msgstr "Spara mall som"
 
 msgid "Save the results as CSV"
 msgstr "Spara resultaten som CSV"
@@ -4980,6 +5005,9 @@ msgstr "Telegram-botens token"
 msgid "Telegram chat id"
 msgstr "Telegram-chatt-id"
 
+msgid "Template"
+msgstr "Mall"
+
 msgid "Template  {0}"
 msgstr "Mall  {0}"
 
@@ -5131,6 +5159,9 @@ msgstr "Tänker"
 
 msgid "This device"
 msgstr "Den här enheten"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Den här och nya ritningar får standardstilen igen"
 
 msgid "This file has a Python script"
 msgstr "Filen innehåller ett Python-skript"

@@ -40,6 +40,11 @@ pub struct Measure {
 }
 
 impl DrawUi {
+    /// A drawing is being placed or dragged, or a measure is under way.
+    pub fn busy(&self) -> bool {
+        self.placing.is_some() || self.drag.is_some() || self.measure.is_some_and(|m| !m.done)
+    }
+
     pub fn measure(&self) -> Option<Measure> {
         self.measure
     }

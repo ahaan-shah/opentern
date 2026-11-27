@@ -698,6 +698,7 @@ pub(crate) fn provider_for(sym: &Symbol, demo: bool) -> Arc<dyn Provider> {
         "OKX" => Arc::new(crate::okx::Okx::default()),
         "COINBASE" => Arc::new(crate::coinbase::Coinbase::default()),
         "KRAKEN" => Arc::new(crate::kraken::Kraken::default()),
+        "HYPERLIQUID" => Arc::new(crate::hyperliquid::Hyperliquid::default()),
         "OANDA" => match &c.oanda {
             Some((token, account, live)) => Arc::new(crate::oanda::Oanda::new(token, account, *live)),
             None => Arc::new(Missing(
@@ -769,13 +770,14 @@ fn funding(sym: &Symbol, demo: bool) -> crate::provider::Result<(f64, i64)> {
         "BINANCE" => Binance::perp().funding(sym),
         "BYBIT" => crate::bybit::Bybit::perp().funding(sym),
         "OKX" => crate::okx::Okx::default().funding(sym),
+        "HYPERLIQUID" => crate::hyperliquid::Hyperliquid::default().funding(sym),
         _ => Err(crate::provider::Error::Bad("No funding rate for this symbol.".into())),
     }
 }
 
 /// When the exchanges' symbol lists were last fetched. Renamed when the
-/// lists gain a source (v2: perpetuals), so they're fetched again at once.
-const LISTS_AT: &str = "symbol_lists_at_v2";
+/// lists gain a source (v2: perpetuals; v3: Hyperliquid; v4: its USDC names; v5: its builder dexes), so they're fetched again at once.
+const LISTS_AT: &str = "symbol_lists_at_v5";
 
 /// Swaps delisted pairs for their successors, saying so once each.
 fn carry_on(dir: &std::path::Path, demo: bool, symbols: Vec<Symbol>, out: &Out) -> Vec<Symbol> {
@@ -816,7 +818,7 @@ pub fn delayed_minutes(sym: &Symbol) -> Option<u32> {
 fn yahoo_routed(sym: &Symbol) -> bool {
     let c = creds().read().unwrap_or_else(|e| e.into_inner());
     match sym.exchange() {
-        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "OANDA" | "IBKR" | "NYFED" => false,
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID" | "OANDA" | "IBKR" | "NYFED" => false,
         "NASDAQ" | "NYSE" | "AMEX" => c.alpaca.is_none(),
         "NSE" | "BSE" => c.upstox.is_none(),
         _ => true,
@@ -827,7 +829,7 @@ fn yahoo_routed(sym: &Symbol) -> bool {
 /// take many connections, so each watched pair gets its own (Binance's
 /// pairs share one combined stream instead).
 fn streams_quotes(sym: &Symbol) -> bool {
-    matches!(sym.exchange(), "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+    matches!(sym.exchange(), "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID")
         || (sym.exchange() == "BINANCE" && crate::binance::is_perp(sym))
 }
 
@@ -1010,6 +1012,7 @@ fn exchange_rank(ex: &str) -> u32 {
         "BYBIT" => 3,
         "OKX" => 4,
         "KRAKEN" => 5,
+        "HYPERLIQUID" => 6,
         _ => 9,
     }
 }
@@ -1684,7 +1687,15 @@ fn quote_worker(symbols: Vec<Symbol>, demo: bool, cmds: Receiver<Cmd>, out: Out)
 /// crypto pair whose base asset is the query ("ETH" → ETHUSDT) ranks just
 /// after an exact ticker, with USDT pairs first.
 fn rank(s: &Symbol, q: &str) -> Option<u32> {
-    let t = s.ticker().to_uppercase();
+    let full = s.ticker().to_uppercase();
+    let mut t = full.clone();
+    // A Hyperliquid builder dex's market ranks by its own name: "GOLD"
+    // finds XYZ_GOLDUSDC.P as it finds GOLDUSDT.
+    if s.exchange() == "HYPERLIQUID"
+        && let Some((_, rest)) = t.split_once('_')
+    {
+        t = rest.to_string();
+    }
     let d = s.description.to_uppercase();
     if t == q {
         return Some(0);
@@ -1707,6 +1718,8 @@ fn rank(s: &Symbol, q: &str) -> Option<u32> {
     }
     let score = if t.starts_with(q) {
         20 + (t.len() - q.len()) as u32
+    } else if full != t && full.starts_with(q) {
+        20 + (full.len() - q.len()) as u32
     } else if let Some(r) = coin_name_rank(s, &d, q) {
         r
     } else if d.starts_with(q) {
@@ -1906,7 +1919,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
         let refreshing = refreshing.clone();
         let _ = std::thread::Builder::new().name("symbol-lists".into()).spawn(move || {
             if let Ok(c) = Cache::open(&dir) {
-                let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 8] = [
+                let lists: [(&str, crate::provider::Result<Vec<Symbol>>); 9] = [
                     ("binance", Binance::default().symbols()),
                     ("bybit", crate::bybit::Bybit::default().symbols()),
                     ("okx", crate::okx::Okx::default().symbols()),
@@ -1915,6 +1928,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                     ("binance_perp", Binance::perp().perps()),
                     ("bybit_perp", crate::bybit::Bybit::perp().perps()),
                     ("okx_perp", crate::okx::Okx::default().perps()),
+                    ("hyperliquid_perp", crate::hyperliquid::Hyperliquid::default().perps()),
                 ];
                 let mut any = false;
                 for (source, list) in lists {
@@ -2299,6 +2313,26 @@ mod tests {
         let mut stock = coin("NASDAQ:NEWC");
         stock.kind = opentern_core::AssetKind::Stock;
         assert_eq!(coin_lookups("NEWC", &[&stock]), vec!["NEWCUSDT".to_string()]);
+    }
+
+    /// Hyperliquid's builder-dex markets are found by the asset's name,
+    /// by the forex pair as people type it, and by their full ticker.
+    #[test]
+    fn search_finds_hyperliquid_builder_markets() {
+        let mk = |id: &str, d: &str| Symbol {
+            description: d.into(),
+            ..Symbol::bare(id)
+        };
+        let gold = mk("HYPERLIQUID:XYZ_GOLDUSDC.P", "GOLD / USDC Perpetual (XYZ)");
+        let eur = mk("HYPERLIQUID:XYZ_EURUSDC.P", "EUR / USDC Perpetual (XYZ)");
+        let sp = mk("HYPERLIQUID:XYZ_SP500USDC.P", "SP500 / USDC Perpetual (XYZ)");
+        let crude = mk("HYPERLIQUID:XYZ_BRENTOILUSDC.P", "BRENTOIL / USDC Perpetual (XYZ)");
+        assert!(rank(&gold, "GOLD").unwrap() < 30, "a prefix match");
+        assert!(rank(&sp, "SP500").unwrap() < 30);
+        assert!(rank(&crude, "BRENT").unwrap() < 30);
+        assert!(rank(&eur, "EURUSD").unwrap() < 30);
+        assert!(rank(&gold, "XYZ_GOLD").unwrap() < 30);
+        assert_eq!(rank(&gold, "SILVER"), None);
     }
 
     #[test]

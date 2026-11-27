@@ -10,6 +10,21 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - Select, move (body or handles), Delete, Esc, undo/redo (Ctrl+Z/Y, top bar buttons),
   floating toolbar (colours, width, style, text, extend, labels, lock, "use this style
   for new drawings" → templates kind `drawing`, name = `Tool::key()`).
+- **Fib levels** (retracement and extension) are `DrawStyle::levels` (value, colour, on);
+  empty means `FibLevel::standard(tool)`, so older drawings and the standard set store
+  nothing. Edited in the bar's Levels panel (`drawbar.rs`, an `Area` under the bar, not a
+  popup: egui keeps one popup open and each level's colour picker is one).
+- **Drawing templates** (the bar's Template menu): named `DrawStyle`s per tool in
+  `templates`, kind `drawing:<Tool::key()>` (`TemplateKind::Drawing`), apart from the
+  starred style (kind `drawing`). Reset to default sets `DrawStyle::for_tool` and drops
+  the starred style; named ones stay. Export and import carry them with no extra code.
+- **The "+" by the price scale** (`plus_rect` in `chart/ui.rs`): at the pointer's height,
+  inside the main pane against the scale; it takes the press like the paper tags (no
+  drawing, no pan) and is hidden while a drawing tool is picked, a drawing is being
+  placed or dragged, or replay is choosing. Click → `Action::PriceMenu` →
+  `App::price_menu` (an `Area`, like the compare menu): "Add alert on X at P"
+  (`open_alert_at`; Alt+A still starts from the last price) or "Draw horizontal line
+  at P" (`add_horizontal_line`, the starred style, selected). P is rounded to the tick.
 - Drawings are saved **per symbol** (table `drawings`), not per layout.
 - Named layouts (top bar menu: save, rename, copy, new, open, delete; autosaved;
   `layout_id` in settings). Several watchlists (create/rename/delete/switch, add via

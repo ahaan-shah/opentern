@@ -342,6 +342,52 @@ mod tests {
     }
 
     #[test]
+    fn the_plus_by_the_price_scale_adds_a_line_or_an_alert() {
+        let mut d = Driver::new("price-plus");
+        let main = d.app.chart_ui.main_rect;
+        assert!(main.width() > 100.0, "chart laid out");
+        // The "+" sits against the price scale at the pointer's height.
+        let plus = pos2(main.right() - 12.0, main.center().y);
+        let view = d.app.chart.view.right;
+        d.click(plus);
+        let Some(m) = d.app.price_menu.clone() else { panic!("the menu opens") };
+        assert!(m.price > 0.0);
+        assert!(d.app.chart.drawings.is_empty(), "the click doesn't reach the plot");
+        assert_eq!(d.app.chart.view.right, view, "nor pans it");
+        // Draw a horizontal line at that price.
+        let item = d
+            .text_rect(&format!("Draw horizontal line at {}", m.text))
+            .expect("line item");
+        d.click(item.center());
+        assert!(d.app.price_menu.is_none(), "closed");
+        assert_eq!(d.app.chart.drawings.len(), 1);
+        let line = &d.app.chart.drawings[0];
+        assert_eq!(line.tool, Tool::HorizontalLine);
+        assert_eq!(line.pts[0].p, m.price);
+        assert_eq!(d.app.chart_ui.draw.selected, Some(line.id), "selected, as if drawn");
+        d.key(Key::Escape, Modifiers::NONE);
+        // Esc closes the menu without doing anything.
+        d.click(plus);
+        assert!(d.app.price_menu.is_some());
+        d.key(Key::Escape, Modifiers::NONE);
+        assert!(d.app.price_menu.is_none());
+        assert!(d.app.modal.is_none());
+        // An alert at the price: the dialog opens with it filled in.
+        d.click(plus);
+        let m = d.app.price_menu.clone().expect("menu again");
+        let ticker = d.app.chart.symbol.ticker().to_string();
+        let item = d
+            .text_rect(&format!("Add alert on {ticker} at {}", m.text))
+            .expect("alert item");
+        d.click(item.center());
+        match &d.app.modal {
+            Some(crate::dialogs::Modal::Alert(f)) => assert_eq!(f.value, m.price),
+            _ => panic!("the alert dialog opens"),
+        }
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
     fn one_click_tools_and_drawings_persist_per_symbol() {
         let mut d = Driver::new("persist");
         for tool in [Tool::HorizontalLine, Tool::LongPosition, Tool::Text, Tool::VerticalLine] {

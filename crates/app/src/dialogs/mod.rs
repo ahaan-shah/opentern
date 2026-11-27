@@ -55,13 +55,17 @@ pub enum Modal {
 pub enum TemplateKind {
     Chart,
     Indicators,
+    /// A drawing tool's named styles. Kept apart from the plain `drawing`
+    /// kind, which holds each tool's style for new drawings (the star).
+    Drawing(crate::chart::draw::Tool),
 }
 
 impl TemplateKind {
-    pub fn key(self) -> &'static str {
+    pub fn key(self) -> String {
         match self {
-            TemplateKind::Chart => "chart",
-            TemplateKind::Indicators => "indicators",
+            TemplateKind::Chart => "chart".into(),
+            TemplateKind::Indicators => "indicators".into(),
+            TemplateKind::Drawing(tool) => format!("drawing:{}", tool.key()),
         }
     }
 }
@@ -248,6 +252,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
     let title = match kind {
         TemplateKind::Chart => tr("Save chart template"),
         TemplateKind::Indicators => tr("Save indicator template"),
+        TemplateKind::Drawing(_) => tr("Save drawing template"),
     };
     let mut done = Done::Keep;
     if frame(ui, t, title, 380.0, |ui| {
@@ -276,7 +281,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         if !r.has_focus() && name.is_empty() {
             r.request_focus();
         }
-        let exists = app.store.templates(kind.key()).iter().any(|x| x.name == name.trim());
+        let exists = app.store.templates(&kind.key()).iter().any(|x| x.name == name.trim());
         if exists {
             ui.label(
                 egui::RichText::new(trf!(

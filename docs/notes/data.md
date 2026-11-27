@@ -162,6 +162,28 @@ every data change (scripts re-run on it).
   per-pair streams. `Request::Funding` → legend "Funding +0.0034% 3h 11m"
   (`App::poll_funding`, once a minute). Perpetuals never get a spot
   `successor`. Not yet: open interest.
+- **Hyperliquid perpetuals** (`hyperliquid.rs`, Nov 2026; verified live by
+  `live::hyperliquid_perpetuals`): everything is a POST of JSON to
+  `api.hyperliquid.xyz/info` (`provider::post_json`): `candleSnapshot`
+  (by start/end time; asked in pages of 4000, under the 5000 a reply holds),
+  `metaAndAssetCtxs` (the list, list source `hyperliquid_perp`, and funding:
+  hourly, paid on the hour), `l2Book` (the DOM, 20 levels a side). Live bars
+  from `wss://api.hyperliquid.xyz/ws` (`candle` subscription, `{"method":"ping"}`
+  every 30 s: it drops a connection quiet for a minute). Ids are
+  `HYPERLIQUID:<coin>USDC.P` (USDC, as Hyperliquid's app names them) with the coin's own case (`kPEPE` is 1000 PEPE).
+  **Only the newest 5000 candles of each interval exist** (1m ≈ 3.5 days);
+  paging back stops there. Tick size isn't published: five significant
+  figures, at most `6 - szDecimals` decimals, whole numbers always
+  (`tick_size`, from the mark price when the list is fetched).
+- **Hyperliquid builder dexes (HIP-3)**: `perpDexs` names them (xyz, para, io,
+  km…); each dex's `metaAndAssetCtxs` takes `"dex"` and names its markets
+  `xyz:GOLD`. Ids put the dex before an underscore, `HYPERLIQUID:XYZ_GOLDUSDC.P`
+  (a hyphen would read as a formula's minus), quoted in the dex's collateral
+  (`collateralToken`, a `spotMeta` token index: USDC, USDH, USDE, USDT0).
+  Candles, the stream and `l2Book` take `xyz:GOLD` as the coin; funding asks
+  that dex. Search ranks them by the name after the underscore. The same asset
+  can be on several dexes (NVDA on xyz and io). Kind is `Crypto` (they trade
+  around the clock). Spot is still left out.
 - **Delisted pairs:** Binance keeps listing pairs it stopped (status
   BREAK, e.g. XMRUSDT): `ticker/price` and `24hr` still return the last
   trade from years ago, klines end then, and a `tradingDay` batch with any

@@ -105,7 +105,28 @@ fn fetch_json(agent: &ureq::Agent, url: &str, limit: Option<Duration>) -> std::r
     if let Some(d) = limit {
         req = req.config().timeout_global(Some(d)).build();
     }
-    let mut resp = req.call().map_err(|e| match e {
+    read_json(req.call())
+}
+
+/// A POST of a JSON body, for APIs that take their query that way
+/// (Hyperliquid's `/info`). Errors read as `get_json`'s do.
+pub(crate) fn post_json(agent: &ureq::Agent, url: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
+    let resp = agent
+        .post(url)
+        .header("Content-Type", "application/json")
+        .send(body.to_string());
+    read_json(resp).map_err(|f| match f {
+        Fail::Status(c) => Error::Bad(format!("The data service answered with an error ({c}).")),
+        Fail::Slow | Fail::Connect => Error::Offline,
+        Fail::Other(m) => Error::Bad(m),
+    })
+}
+
+/// A reply's body as JSON, or why there's none.
+fn read_json(
+    resp: std::result::Result<ureq::http::Response<ureq::Body>, ureq::Error>,
+) -> std::result::Result<serde_json::Value, Fail> {
+    let mut resp = resp.map_err(|e| match e {
         ureq::Error::StatusCode(c) => Fail::Status(c),
         ureq::Error::Timeout(_) | ureq::Error::BodyStalled => Fail::Slow,
         ureq::Error::Io(_)

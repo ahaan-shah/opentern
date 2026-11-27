@@ -259,8 +259,14 @@ msgstr "Активно"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Сначала добавьте стратегию на график. Стратегия — это скрипт, который начинается с strategy(…)."
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Создать оповещение по {ticker} на {0}"
+
 msgid "Add filter"
 msgstr "Добавить фильтр"
+
+msgid "Add level"
+msgstr "Добавить уровень"
 
 msgid "Add section"
 msgstr "Добавить раздел"
@@ -1553,6 +1559,9 @@ msgstr "Тяните для масштаба · двойной щелчок — 
 msgid "Draw again without picking again"
 msgstr "Рисуйте снова, не выбирая заново"
 
+msgid "Draw horizontal line at {0}"
+msgstr "Провести горизонтальную линию на {0}"
+
 msgid "Draw with replacement"
 msgstr "Выборка с возвращением"
 
@@ -2138,6 +2147,10 @@ msgstr "Насколько цена выше или ниже 50-дневной �
 
 msgid "Hull Moving Average"
 msgstr "Скользящая средняя Хала"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "У Hyperliquid нет баров {0}"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4133,6 +4146,9 @@ msgstr "Сбросить"
 msgid "Reset account"
 msgstr "Сбросить счёт"
 
+msgid "Reset levels"
+msgstr "Сбросить уровни"
+
 msgid "Reset settings"
 msgstr "Сбросить настройки"
 
@@ -4141,6 +4157,9 @@ msgstr "Чтобы сменить валюту, сбросьте счёт"
 
 msgid "Reset the chart view"
 msgstr "Сбросить вид графика"
+
+msgid "Reset to default"
+msgstr "Сбросить по умолчанию"
 
 msgid "Respect for the Aged Day"
 msgstr "День почитания пожилых"
@@ -4313,11 +4332,17 @@ msgstr "Сделать по умолчанию"
 msgid "Save chart template"
 msgstr "Сохранить шаблон графика"
 
+msgid "Save drawing template"
+msgstr "Сохранить шаблон рисунка"
+
 msgid "Save indicator template"
 msgstr "Сохранить шаблон индикаторов"
 
 msgid "Save layout"
 msgstr "Сохранить макет"
+
+msgid "Save template as"
+msgstr "Сохранить шаблон как"
 
 msgid "Save the results as CSV"
 msgstr "Сохранить результаты в CSV"
@@ -4980,6 +5005,9 @@ msgstr "Токен бота Telegram"
 msgid "Telegram chat id"
 msgstr "ID чата Telegram"
 
+msgid "Template"
+msgstr "Шаблон"
+
 msgid "Template  {0}"
 msgstr "Шаблон  {0}"
 
@@ -5131,6 +5159,9 @@ msgstr "Думает"
 
 msgid "This device"
 msgstr "Это устройство"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Этот и новые рисунки вернутся к стандартному стилю"
 
 msgid "This file has a Python script"
 msgstr "В этом файле есть скрипт Python"

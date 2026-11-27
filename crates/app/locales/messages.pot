@@ -259,7 +259,13 @@ msgstr ""
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr ""
+
 msgid "Add filter"
+msgstr ""
+
+msgid "Add level"
 msgstr ""
 
 msgid "Add section"
@@ -1553,6 +1559,9 @@ msgstr ""
 msgid "Draw again without picking again"
 msgstr ""
 
+msgid "Draw horizontal line at {0}"
+msgstr ""
+
 msgid "Draw with replacement"
 msgstr ""
 
@@ -2137,6 +2146,10 @@ msgid "How far the price is above or below its 50-day average"
 msgstr ""
 
 msgid "Hull Moving Average"
+msgstr ""
+
+#, message
+msgid "Hyperliquid has no {0} bars"
 msgstr ""
 
 #, message
@@ -4133,6 +4146,9 @@ msgstr ""
 msgid "Reset account"
 msgstr ""
 
+msgid "Reset levels"
+msgstr ""
+
 msgid "Reset settings"
 msgstr ""
 
@@ -4140,6 +4156,9 @@ msgid "Reset the account to change its currency"
 msgstr ""
 
 msgid "Reset the chart view"
+msgstr ""
+
+msgid "Reset to default"
 msgstr ""
 
 msgid "Respect for the Aged Day"
@@ -4313,10 +4332,16 @@ msgstr ""
 msgid "Save chart template"
 msgstr ""
 
+msgid "Save drawing template"
+msgstr ""
+
 msgid "Save indicator template"
 msgstr ""
 
 msgid "Save layout"
+msgstr ""
+
+msgid "Save template as"
 msgstr ""
 
 msgid "Save the results as CSV"
@@ -4980,6 +5005,9 @@ msgstr ""
 msgid "Telegram chat id"
 msgstr ""
 
+msgid "Template"
+msgstr ""
+
 msgid "Template  {0}"
 msgstr ""
 
@@ -5130,6 +5158,9 @@ msgid "Thinking"
 msgstr ""
 
 msgid "This device"
+msgstr ""
+
+msgid "This drawing and new ones go back to the standard style"
 msgstr ""
 
 msgid "This file has a Python script"

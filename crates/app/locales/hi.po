@@ -259,8 +259,14 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "{ticker} पर {0} का अलर्ट बनाएँ"
+
 msgid "Add filter"
 msgstr "फ़िल्टर जोड़ें"
+
+msgid "Add level"
+msgstr "स्तर जोड़ें"
 
 msgid "Add section"
 msgstr "सेक्शन जोड़ें"
@@ -1553,6 +1559,9 @@ msgstr "स्केल के लिए खींचें · फ़िट क�
 msgid "Draw again without picking again"
 msgstr "दोबारा चुने बिना फिर से ड्रॉ करें"
 
+msgid "Draw horizontal line at {0}"
+msgstr "{0} पर क्षैतिज रेखा खींचें"
+
 msgid "Draw with replacement"
 msgstr "वापसी के साथ चयन"
 
@@ -2138,6 +2147,10 @@ msgstr "भाव अपने 50-दिन औसत से कितना ऊ
 
 msgid "Hull Moving Average"
 msgstr "हल मूविंग एवरेज"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid के पास {0} बार नहीं हैं"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4133,6 +4146,9 @@ msgstr "रीसेट"
 msgid "Reset account"
 msgstr "खाता रीसेट करें"
 
+msgid "Reset levels"
+msgstr "स्तर रीसेट करें"
+
 msgid "Reset settings"
 msgstr "सेटिंग्स रीसेट करें"
 
@@ -4141,6 +4157,9 @@ msgstr "मुद्रा बदलने के लिए खाता री�
 
 msgid "Reset the chart view"
 msgstr "चार्ट दृश्य रीसेट करें"
+
+msgid "Reset to default"
+msgstr "डिफ़ॉल्ट पर रीसेट करें"
 
 msgid "Respect for the Aged Day"
 msgstr "वृद्ध सम्मान दिवस"
@@ -4313,11 +4332,17 @@ msgstr "डिफ़ॉल्ट के रूप में सहेजें"
 msgid "Save chart template"
 msgstr "चार्ट टेम्पलेट सहेजें"
 
+msgid "Save drawing template"
+msgstr "ड्रॉइंग टेम्पलेट सहेजें"
+
 msgid "Save indicator template"
 msgstr "इंडिकेटर टेम्पलेट सहेजें"
 
 msgid "Save layout"
 msgstr "लेआउट सहेजें"
+
+msgid "Save template as"
+msgstr "टेम्पलेट इस नाम से सहेजें"
 
 msgid "Save the results as CSV"
 msgstr "परिणाम CSV में सहेजें"
@@ -4980,6 +5005,9 @@ msgstr "Telegram बॉट टोकन"
 msgid "Telegram chat id"
 msgstr "Telegram चैट आईडी"
 
+msgid "Template"
+msgstr "टेम्पलेट"
+
 msgid "Template  {0}"
 msgstr "टेम्पलेट  {0}"
 
@@ -5131,6 +5159,9 @@ msgstr "सोच रहा है"
 
 msgid "This device"
 msgstr "यह डिवाइस"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "यह और नई ड्रॉइंग मानक शैली पर लौट आएँगी"
 
 msgid "This file has a Python script"
 msgstr "इस फ़ाइल में एक Python स्क्रिप्ट है"

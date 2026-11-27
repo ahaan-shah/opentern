@@ -67,6 +67,28 @@ mod tests {
             },
         );
         json_target(
+            "hyperliquid candles",
+            json!([{"t":1700000000000i64,"T":1700003599999i64,"s":"BTC","i":"1h","o":"1","c":"2","h":"3","l":"0.5","v":"7","n":4}]),
+            |v| {
+                let _ = crate::hyperliquid::parse_candles(v);
+            },
+        );
+        json_target(
+            "hyperliquid ws",
+            json!({"channel":"candle","data":{"t":1700000000000i64,"o":"1","c":"2","h":"3","l":"0.5","v":"7"}}),
+            |v| {
+                let _ = crate::hyperliquid::parse_ws(v);
+            },
+        );
+        json_target(
+            "hyperliquid meta",
+            json!([{"universe":[{"name":"BTC","szDecimals":5}]},[{"funding":"0.0000125","markPx":"97000"}]]),
+            |v| {
+                let _ = crate::hyperliquid::parse_perps(v, "USDC");
+                let _ = crate::hyperliquid::parse_funding(v, "BTC");
+            },
+        );
+        json_target(
             "okx candles",
             json!({"code":"0","msg":"","data":[["1700003600000","2","4","1","3","20","0","0","1"]]}),
             |v| {

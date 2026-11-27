@@ -259,8 +259,14 @@ msgstr "启用"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "在 {0} 为 {ticker} 创建警报"
+
 msgid "Add filter"
 msgstr "添加筛选"
+
+msgid "Add level"
+msgstr "添加价位"
 
 msgid "Add section"
 msgstr "添加分组"
@@ -1553,6 +1559,9 @@ msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 msgid "Draw again without picking again"
 msgstr "无需重新选择即可再画"
 
+msgid "Draw horizontal line at {0}"
+msgstr "在 {0} 画水平线"
+
 msgid "Draw with replacement"
 msgstr "有放回抽样"
 
@@ -2138,6 +2147,10 @@ msgstr "价格高于或低于 50 日均线的幅度"
 
 msgid "Hull Moving Average"
 msgstr "赫尔移动平均线"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid 没有 {0} K 线"
 
 #, message
 msgid "IBKR doesn't know {0}."
@@ -4133,6 +4146,9 @@ msgstr "重置"
 msgid "Reset account"
 msgstr "重置账户"
 
+msgid "Reset levels"
+msgstr "重置价位"
+
 msgid "Reset settings"
 msgstr "重置设置"
 
@@ -4141,6 +4157,9 @@ msgstr "重置账户才能更改货币"
 
 msgid "Reset the chart view"
 msgstr "重置图表视图"
+
+msgid "Reset to default"
+msgstr "恢复默认"
 
 msgid "Respect for the Aged Day"
 msgstr "敬老日"
@@ -4313,11 +4332,17 @@ msgstr "保存为默认"
 msgid "Save chart template"
 msgstr "保存图表模板"
 
+msgid "Save drawing template"
+msgstr "保存绘图模板"
+
 msgid "Save indicator template"
 msgstr "保存指标模板"
 
 msgid "Save layout"
 msgstr "保存布局"
+
+msgid "Save template as"
+msgstr "将模板另存为"
 
 msgid "Save the results as CSV"
 msgstr "将结果保存为 CSV"
@@ -4980,6 +5005,9 @@ msgstr "Telegram 机器人令牌"
 msgid "Telegram chat id"
 msgstr "Telegram 聊天 ID"
 
+msgid "Template"
+msgstr "模板"
+
 msgid "Template  {0}"
 msgstr "模板  {0}"
 
@@ -5131,6 +5159,9 @@ msgstr "思考中"
 
 msgid "This device"
 msgstr "此设备"
+
+msgid "This drawing and new ones go back to the standard style"
+msgstr "此绘图和新绘图恢复为标准样式"
 
 msgid "This file has a Python script"
 msgstr "此文件含有一个 Python 脚本"

@@ -210,6 +210,7 @@ impl App {
                     "COINBASE" => "Coinbase",
                     "BYBIT" => "Bybit",
                     "KRAKEN" => "Kraken",
+                    "HYPERLIQUID" => "Hyperliquid",
                     e => e,
                 };
                 (e.to_string(), s.description.clone())
