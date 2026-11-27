@@ -180,8 +180,8 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   own `--data-dir`), never "an opentern window that isn't the user's pid".
 
 ## What's new card (0.2.0)
-`whatsnew.rs`, from Magpie's: `RELEASES` (newest first, 2–4 plain points,
-optional PNG). Opens as `Modal::WhatsNew` on the first launch of a newer
+`whatsnew.rs`, from Magpie's: `RELEASES` (newest first; plain points, up to 4 for a
+small release and more for a big one, biggest and most useful first; optional PNG). Opens as `Modal::WhatsNew` on the first launch of a newer
 version (settings key `seen_version`, or the updater's
 `OPENTERN_UPDATED_FROM`); a workspace onboarded before 0.2.0 sees 0.2.0's;
 new, demo, still and headless runs start as seen. Settings → About →

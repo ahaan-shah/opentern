@@ -28,8 +28,9 @@ pub struct Notes {
     pub items: &'static [Item],
 }
 
-/// Newest first. Keep each to 2–4 points in everyday words: what changed
-/// and why it helps, not how it works.
+/// Newest first. A small release gets up to 4 points, a big one more (the
+/// card scrolls); biggest and most useful first. Everyday words: what
+/// changed and why it helps, not how it works.
 pub const RELEASES: &[Notes] = &[
     Notes {
         version: "0.3.8",

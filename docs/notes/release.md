@@ -93,7 +93,10 @@ must match `install.sh` / `install.ps1` and the README.
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
 2. **What's new notes**: an entry for the version at the top of
-   `whatsnew::RELEASES` (a test fails without it). Then the
+   `whatsnew::RELEASES` (a test fails without it). A small release gets up
+   to 4 points; a big one gets more, one for each headline feature (the
+   maintainer, Nov 2026: 0.3.8's four left out Indicators on indicators and
+   the Fed funds rate). Order them by how big and useful each is. Then the
    `CHANGELOG.md` entry (`## X.Y.Z (date)`; if there's a `## Unreleased`
    section, rename it and check it covers everything since the last tag): a short plain summary, then New /
    Changed / Fixed / Removed, each item leading with a bold user-facing result.
