@@ -241,6 +241,9 @@ msgstr "口座ID"
 msgid "Account settings"
 msgstr "口座設定"
 
+msgid "Account size"
+msgstr ""
+
 msgid "Account size required"
 msgstr "必要口座資金"
 
@@ -256,11 +259,20 @@ msgstr "有効"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
 
+msgid "Add alert on {0} at {1}"
+msgstr ""
+
+msgid "Add alert on {0} at {1}..."
+msgstr ""
+
 msgid "Add filter"
 msgstr "フィルターを追加"
 
 msgid "Add section"
 msgstr "セクションを追加"
+
+msgid "Add text"
+msgstr ""
 
 msgid "Add to chart"
 msgstr "チャートに追加"
@@ -321,6 +333,9 @@ msgstr "エージェントパネル"
 msgid "Alert"
 msgstr "アラート"
 
+msgid "Alert created"
+msgstr ""
+
 msgid "Alerts"
 msgstr "アラート"
 
@@ -374,6 +389,9 @@ msgstr "Alpaca · 米国株"
 msgid "Also used by {0}"
 msgstr "{0}でも使用中"
 
+msgid "Always show stats"
+msgstr ""
+
 msgid "Americas"
 msgstr "南北アメリカ"
 
@@ -418,6 +436,9 @@ msgstr "ラボの結果を適用しました"
 
 msgid "Applied to the chart."
 msgstr "チャートに適用しました。"
+
+msgid "Apply Default Drawing Template"
+msgstr ""
 
 msgid "Apply a lab result"
 msgstr "ラボの結果を適用"
@@ -563,6 +584,9 @@ msgstr "内蔵インジケーター"
 msgid "Background"
 msgstr "背景"
 
+msgid "Background color"
+msgstr ""
+
 msgid "Backtest's max drawdown"
 msgstr "バックテストの最大ドローダウン"
 
@@ -678,8 +702,17 @@ msgstr "ボリンジャーバンド"
 msgid "Bollinger Bands %B"
 msgstr "ボリンジャーバンド %B"
 
+msgid "Border"
+msgstr ""
+
+msgid "Border / line style"
+msgstr ""
+
 msgid "Borders"
 msgstr "枠線"
+
+msgid "Bottom"
+msgstr ""
 
 #, message
 msgid "Bought {qty} {sym} at {price}"
@@ -788,6 +821,9 @@ msgstr "現金"
 
 msgid "Categories"
 msgstr "カテゴリー"
+
+msgid "Center"
+msgstr ""
 
 msgid "Centered"
 msgstr "中央"
@@ -1067,6 +1103,9 @@ msgstr "商品"
 msgid "Commodity Channel Index"
 msgstr "商品チャネル指数 (CCI)"
 
+msgid "Compact stats"
+msgstr ""
+
 msgid "Compare"
 msgstr "比較"
 
@@ -1115,6 +1154,9 @@ msgstr "転換線"
 msgid "Conversion Line Length"
 msgstr "転換線の期間"
 
+msgid "Coordinates"
+msgstr ""
+
 #, message
 msgid "Copied to {name}."
 msgstr "{name}にコピーしました。"
@@ -1127,6 +1169,9 @@ msgstr "コピー"
 
 msgid "Copy image"
 msgstr "画像をコピー"
+
+msgid "Copy price {0}"
+msgstr ""
 
 msgid "Corpus Christi"
 msgstr "聖体の祝日"
@@ -1399,6 +1444,9 @@ msgstr "{min}分遅延"
 msgid "Delete"
 msgstr "削除"
 
+msgid "Delete all alerts"
+msgstr ""
+
 msgid "Delete folder (if empty)"
 msgstr "フォルダーを削除 (空の場合)"
 
@@ -1489,6 +1537,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr ""
+
 msgid "Donchian Channels"
 msgstr "ドンチャンチャネル"
 
@@ -1538,11 +1589,20 @@ msgstr "下降トレンドの強調"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr ""
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
 msgid "Draw again without picking again"
 msgstr "選び直さずにもう一度描く"
+
+msgid "Draw horizontal line at {0}"
+msgstr ""
+
+msgid "Draw horizontal ray at {0}"
+msgstr ""
 
 msgid "Draw with replacement"
 msgstr "復元抽出"
@@ -1706,6 +1766,9 @@ msgstr "もう一方のデバイスでこのコードを入力"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "企業価値 ÷ 直近12か月のEBITDA。指数では合計EV ÷ 合計EBITDA"
 
+msgid "Entry price"
+msgstr ""
+
 msgid "Entry {side}"
 msgstr "{side} 仕掛け"
 
@@ -1791,8 +1854,17 @@ msgstr "{when} エクスポート · Opentern {0}"
 msgid "Exporting"
 msgstr "エクスポート中"
 
+msgid "Extend"
+msgstr ""
+
+msgid "Extend both"
+msgstr ""
+
 msgid "Extend left"
 msgstr "左に延長"
+
+msgid "Extend lines"
+msgstr ""
 
 msgid "Extend lines left"
 msgstr "線を左に延長"
@@ -2046,6 +2118,9 @@ msgstr "非表示"
 msgid "Hide"
 msgstr "隠す"
 
+msgid "Hide / show"
+msgstr ""
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "1D以上でVWAPを隠す"
 
@@ -2237,6 +2312,9 @@ msgstr "入力"
 msgid "Inputs"
 msgstr "入力"
 
+msgid "Inside"
+msgstr ""
+
 msgid "Install {0}"
 msgstr "{0}をインストール"
 
@@ -2337,6 +2415,9 @@ msgstr "開天節"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Krakenに{0}足はありません"
+
+msgid "LEVELS"
+msgstr ""
 
 msgid "Labels on price scale"
 msgstr "価格スケール上のラベル"
@@ -2452,6 +2533,9 @@ msgstr "新値足"
 msgid "Line color"
 msgstr "線の色"
 
+msgid "Line style"
+msgstr ""
+
 msgid "Line width"
 msgstr "線の太さ"
 
@@ -2519,6 +2603,9 @@ msgstr "読み込み中…"
 
 msgid "Local"
 msgstr "ローカル"
+
+msgid "Lock / unlock"
+msgstr ""
 
 msgid "Lock all drawings"
 msgstr "すべての描画をロック"
@@ -2605,6 +2692,9 @@ msgstr "連敗 (ワースト5%)"
 
 msgid "Losing trades"
 msgstr "負けトレード"
+
+msgid "Lot size"
+msgstr ""
 
 msgid "Low"
 msgstr "低"
@@ -2887,6 +2977,12 @@ msgstr "中期RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期RCIの期間"
+
+msgid "Middle line"
+msgstr ""
+
+msgid "Middle line style"
+msgstr ""
 
 msgid "Millions, billions"
 msgstr "百万、十億"
@@ -3343,6 +3439,9 @@ msgstr "アウトライン"
 msgid "OUTPUT"
 msgstr "出力"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "オブジェクトツリーとデータウィンドウ"
 
@@ -3560,6 +3659,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "問題"
 
+msgid "PROFIT LEVEL"
+msgstr ""
+
 msgid "PVT"
 msgstr ""
 
@@ -3759,9 +3861,6 @@ msgstr "時間外価格ライン"
 msgid "Precision"
 msgstr "精度"
 
-msgid "Press Enter for {0}"
-msgstr "Enterで{0}に変更"
-
 msgid "Press keys"
 msgstr "キーを押してください"
 
@@ -3860,6 +3959,9 @@ msgstr "数量"
 
 msgid "Quantity"
 msgstr "数量"
+
+msgid "Quantity precision"
+msgstr ""
 
 msgid "Quarter"
 msgstr "四半期"
@@ -4109,6 +4211,9 @@ msgstr "リセット"
 msgid "Reset account"
 msgstr "口座をリセット"
 
+msgid "Reset chart view"
+msgstr ""
+
 msgid "Reset settings"
 msgstr "設定をリセット"
 
@@ -4175,11 +4280,11 @@ msgstr "右の足数"
 msgid "Rises and falls"
 msgstr "上昇と下落"
 
+msgid "Risk"
+msgstr ""
+
 msgid "Risk/performance ratios"
 msgstr "リスク/パフォーマンス比率"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "リスクリワード比: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "破産とみなすドローダウン"
@@ -4262,6 +4367,9 @@ msgstr ""
 msgid "SMTP server"
 msgstr "SMTPサーバー"
 
+msgid "STOP LEVEL"
+msgstr ""
+
 msgid "Same % scale"
 msgstr "同じ%スケール"
 
@@ -4273,6 +4381,9 @@ msgstr "土曜日"
 
 msgid "Save"
 msgstr "保存"
+
+msgid "Save Drawing Template As..."
+msgstr ""
 
 msgid "Save a snapshot"
 msgstr "スナップショットを保存"
@@ -4291,6 +4402,9 @@ msgstr "既定として保存"
 
 msgid "Save chart template"
 msgstr "チャートテンプレートを保存"
+
+msgid "Save drawing template"
+msgstr ""
 
 msgid "Save indicator template"
 msgstr "インジケーターテンプレートを保存"
@@ -4459,6 +4573,9 @@ msgstr "設定"
 msgid "Settings → Export and import → Import → Receive"
 msgstr "設定 → エクスポートとインポート → インポート → 受信"
 
+msgid "Settings..."
+msgstr ""
+
 msgid "Shanghai"
 msgstr "上海"
 
@@ -4521,6 +4638,9 @@ msgstr "上部バーに表示"
 
 msgid "Show labels"
 msgstr "ラベルを表示"
+
+msgid "Show on chart"
+msgstr ""
 
 msgid "Show on intervals"
 msgstr "表示する時間足"
@@ -4774,6 +4894,9 @@ msgstr "ロングのストップ"
 msgid "Stop Short"
 msgstr "ショートのストップ"
 
+msgid "Stop color"
+msgstr ""
+
 msgid "Stop limit"
 msgstr "ストップリミット"
 
@@ -4785,9 +4908,6 @@ msgstr "逆指値価格"
 
 msgid "Stop using as default"
 msgstr "既定から外す"
-
-msgid "Stop: {0} ({1})"
-msgstr "ストップ: {0} ({1})"
 
 msgid "Stopped"
 msgstr "停止中"
@@ -4923,8 +5043,8 @@ msgstr "名前を変える前に、そのスクリプトをチャートから外
 msgid "Take profit"
 msgstr "テイクプロフィット"
 
-msgid "Target: {0} ({1})"
-msgstr "目標: {0} ({1})"
+msgid "Target color"
+msgstr ""
 
 msgid "Teachers' Day"
 msgstr "教師の日"
@@ -4950,6 +5070,9 @@ msgstr "Telegramボットトークン"
 msgid "Telegram chat id"
 msgstr "TelegramチャットID"
 
+msgid "Template"
+msgstr ""
+
 msgid "Template  {0}"
 msgstr "テンプレート  {0}"
 
@@ -4958,6 +5081,15 @@ msgstr "テンプレート"
 
 msgid "Text"
 msgstr "テキスト"
+
+msgid "Text alignment"
+msgstr ""
+
+msgid "Text color"
+msgstr ""
+
+msgid "Text style"
+msgstr ""
 
 msgid "Thanksgiving"
 msgstr "感謝祭"
@@ -5084,6 +5216,9 @@ msgstr "この市場には無料の板情報がありません。板は暗号資
 msgid "There's no image or file on the clipboard."
 msgstr "クリップボードに画像もファイルもありません。"
 
+msgid "Thickness"
+msgstr ""
+
 msgid "Thinking"
 msgstr "考え中"
 
@@ -5129,6 +5264,9 @@ msgstr "変化させる入力にチェックを入れてください。"
 msgid "Ticked members of {0}"
 msgstr "{0}の構成銘柄を選択しました"
 
+msgid "Ticks"
+msgstr ""
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "タイルは通常取引の値です。カーソルを合わせると時間外価格を表示します。"
 
@@ -5170,6 +5308,9 @@ msgstr "誤ったコードが多すぎます。最初からやり直してくだ
 
 msgid "Took a picture of the chart"
 msgstr "チャートの画像を撮りました"
+
+msgid "Top"
+msgstr ""
 
 msgid "Top 150"
 msgstr "上位150"
@@ -5275,6 +5416,9 @@ msgstr "数字を入力"
 
 msgid "Type anywhere"
 msgstr "どこでも入力"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr ""
 
 msgid "UO"
 msgstr ""
@@ -5856,6 +6000,9 @@ msgstr ""
 msgid "open"
 msgstr "始値"
 
+msgid "price, bar"
+msgstr ""
+
 msgid "sell"
 msgstr "売り"
 
@@ -5917,6 +6064,9 @@ msgstr "{0}  追加する銘柄を検索"
 msgid "{0}  insert"
 msgstr "{0}  挿入"
 
+msgid "{0} ({1}% opacity)"
+msgstr ""
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars}本、{time}"
 
@@ -5946,6 +6096,12 @@ msgstr "{0} コピー"
 
 msgid "{0} days"
 msgstr "{0}日"
+
+msgid "{0} decimals"
+msgstr ""
+
+msgid "{0} drawings selected"
+msgstr ""
 
 msgid "{0} h {1} min"
 msgstr "{0}時間{1}分"

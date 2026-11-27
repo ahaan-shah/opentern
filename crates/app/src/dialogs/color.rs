@@ -7,8 +7,9 @@ use crate::chart::style::c32;
 use crate::i18n::{tr, trf};
 use crate::motion;
 use crate::theme::{self, Theme};
-use egui::{Color32, CornerRadius, Id, Sense, Stroke, Ui, vec2};
+use egui::{Color32, CornerRadius, Id, Sense, Stroke, Ui, pos2, vec2};
 use opentern_series::Rgba;
+use opentern_series::study::LineStyle;
 
 const GREYS: [u32; 10] = [
     0xFFFFFF, 0xD1D4DC, 0xB2B5BE, 0x9598A1, 0x787B86, 0x5D606B, 0x434651, 0x2A2E39, 0x131722, 0x000000,
@@ -65,6 +66,11 @@ fn swatch(ui: &Ui, t: &Theme, r: egui::Rect, color: Rgba, radius: u8) {
 /// A colour swatch button that opens the picker. Returns true when the
 /// colour changed.
 pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
+    color_button_with_tip(ui, t, color, "")
+}
+
+/// A colour swatch button with a custom hover tooltip.
+pub fn color_button_with_tip(ui: &mut Ui, t: &Theme, color: &mut Rgba, tip: &str) -> bool {
     let (rect, resp) = ui.allocate_exact_size(vec2(26.0, 26.0), Sense::click());
     let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
     let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
@@ -81,14 +87,196 @@ pub fn color_button(ui: &mut Ui, t: &Theme, color: &mut Rgba) -> bool {
     }
     let mut resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
     let a = c32(*color).a();
-    if a < 255 && !open {
-        resp = resp.on_hover_text(trf!("{}% opacity", (a as f32 / 2.55).round()));
+    if !open {
+        if !tip.is_empty() {
+            if a < 255 {
+                resp = resp.on_hover_text(trf!("{} ({}% opacity)", tip, (a as f32 / 2.55).round()));
+            } else {
+                resp = resp.on_hover_text(tip);
+            }
+        } else if a < 255 {
+            resp = resp.on_hover_text(trf!("{}% opacity", (a as f32 / 2.55).round()));
+        }
     }
     let mut changed = false;
     egui::Popup::from_toggle_button_response(&resp)
         .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
         .show(|ui| {
             changed = picker(ui, t, color);
+        });
+    changed
+}
+
+/// A combined button showing color swatch, line width, and line style,
+/// opening TradingView's integrated color + thickness + line style popover (Image #33).
+pub fn line_style_button(
+    ui: &mut Ui,
+    t: &Theme,
+    color: &mut Rgba,
+    width: &mut u8,
+    style: &mut LineStyle,
+    tip: &str,
+) -> bool {
+    let size = vec2(58.0, 26.0);
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+    let open = egui::Popup::is_id_open(ui.ctx(), egui::Popup::default_response_id(&resp));
+
+    // Draw the button: color swatch on left, line sample on right
+    if ui.is_rect_visible(rect) {
+        let p = ui.painter();
+        p.rect_filled(rect, CornerRadius::same(6), t.field());
+        let border_c = if open {
+            t.accent
+        } else if hov > 0.0 {
+            t.text2
+        } else {
+            t.border
+        };
+        p.rect_stroke(
+            rect,
+            CornerRadius::same(6),
+            Stroke::new(1.0, border_c),
+            egui::StrokeKind::Inside,
+        );
+
+        let swatch_r = egui::Rect::from_min_size(pos2(rect.left() + 4.0, rect.top() + 3.0), vec2(20.0, 20.0));
+        swatch(ui, t, swatch_r, *color, 4);
+
+        let line_x0 = rect.left() + 28.0;
+        let line_x1 = rect.right() - 6.0;
+        let line_y = rect.center().y;
+        let stroke_c = c32(*color);
+        let stroke_w = (*width as f32).clamp(1.0, 4.0);
+        match *style {
+            LineStyle::Solid => {
+                p.hline(line_x0..=line_x1, line_y, Stroke::new(stroke_w, stroke_c));
+            }
+            LineStyle::Dashed => {
+                p.extend(egui::Shape::dashed_line(
+                    &[pos2(line_x0, line_y), pos2(line_x1, line_y)],
+                    Stroke::new(stroke_w, stroke_c),
+                    4.0,
+                    3.0,
+                ));
+            }
+            LineStyle::Dotted => {
+                p.extend(egui::Shape::dotted_line(
+                    &[pos2(line_x0, line_y), pos2(line_x1, line_y)],
+                    stroke_c,
+                    3.0,
+                    stroke_w * 0.6,
+                ));
+            }
+        }
+    }
+
+    let mut resp = resp.on_hover_cursor(egui::CursorIcon::PointingHand);
+    if !tip.is_empty() && !open {
+        resp = resp.on_hover_text(tip);
+    }
+
+    let mut changed = false;
+    egui::Popup::from_toggle_button_response(&resp)
+        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+        .show(|ui| {
+            changed |= picker(ui, t, color);
+
+            // Thickness section matching Image #33
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(tr("Thickness"))
+                    .font(theme::regular(12.0))
+                    .color(t.text2),
+            );
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 0.0);
+                for w in 1..=4u8 {
+                    let sel = *width == w;
+                    let (r, btn_resp) = ui.allocate_exact_size(vec2(50.0, 24.0), Sense::click());
+                    let hover = motion::hover(&btn_resp);
+                    let bg = if sel {
+                        t.accent_soft()
+                    } else if hover > 0.0 {
+                        t.hover_wash()
+                    } else {
+                        Color32::TRANSPARENT
+                    };
+                    ui.painter().rect_filled(r, CornerRadius::same(4), bg);
+                    ui.painter().rect_stroke(
+                        r,
+                        CornerRadius::same(4),
+                        Stroke::new(1.0, if sel { t.accent } else { t.border }),
+                        egui::StrokeKind::Inside,
+                    );
+                    let line_c = if sel { t.accent } else { t.text };
+                    ui.painter()
+                        .hline(r.x_range().shrink(8.0), r.center().y, Stroke::new(w as f32, line_c));
+                    if btn_resp.clicked() {
+                        *width = w;
+                        changed = true;
+                    }
+                }
+            });
+
+            // Line style section matching Image #33
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new(tr("Line style"))
+                    .font(theme::regular(12.0))
+                    .color(t.text2),
+            );
+            ui.add_space(2.0);
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing = vec2(4.0, 0.0);
+                for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
+                    let sel = *style == s;
+                    let (r, btn_resp) = ui.allocate_exact_size(vec2(68.0, 24.0), Sense::click());
+                    let hover = motion::hover(&btn_resp);
+                    let bg = if sel {
+                        t.accent_soft()
+                    } else if hover > 0.0 {
+                        t.hover_wash()
+                    } else {
+                        Color32::TRANSPARENT
+                    };
+                    ui.painter().rect_filled(r, CornerRadius::same(4), bg);
+                    ui.painter().rect_stroke(
+                        r,
+                        CornerRadius::same(4),
+                        Stroke::new(1.0, if sel { t.accent } else { t.border }),
+                        egui::StrokeKind::Inside,
+                    );
+                    let line_c = if sel { t.accent } else { t.text };
+                    match s {
+                        LineStyle::Solid => {
+                            ui.painter()
+                                .hline(r.x_range().shrink(8.0), r.center().y, Stroke::new(1.5, line_c));
+                        }
+                        LineStyle::Dashed => {
+                            ui.painter().extend(egui::Shape::dashed_line(
+                                &[pos2(r.left() + 8.0, r.center().y), pos2(r.right() - 8.0, r.center().y)],
+                                Stroke::new(1.5, line_c),
+                                5.0,
+                                3.0,
+                            ));
+                        }
+                        LineStyle::Dotted => {
+                            ui.painter().extend(egui::Shape::dotted_line(
+                                &[pos2(r.left() + 8.0, r.center().y), pos2(r.right() - 8.0, r.center().y)],
+                                line_c,
+                                3.0,
+                                1.0,
+                            ));
+                        }
+                    }
+                    if btn_resp.clicked() {
+                        *style = s;
+                        changed = true;
+                    }
+                }
+            });
         });
     changed
 }

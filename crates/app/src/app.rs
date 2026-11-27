@@ -6,7 +6,8 @@ use crate::chart::style::ChartStyle;
 use crate::chart::ui::{Action, ChartUi};
 use crate::chart::{Chart, StudyDefault, StudyLook, StudyTemplate};
 use crate::dialogs::{Modal, TemplateKind};
-use crate::i18n::{msg, nt, tr};
+use crate::format;
+use crate::i18n::{msg, nt, tr, trf};
 use crate::shell::{Arrangement, Tab};
 use crate::theme::{self, Theme, ThemeState};
 use crate::updater::{Phase, Updater};
@@ -64,6 +65,8 @@ pub struct App {
     pub layout_name: String,
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
+    pub chart_menu: Option<(egui::Pos2, f64)>,
+    pub plus_menu: Option<(egui::Pos2, f64)>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -108,6 +111,9 @@ pub struct App {
     pub(crate) favbar: crate::favbar::FavBar,
     /// The keyboard shortcuts in use (Settings → Keyboard shortcuts).
     pub(crate) keys: crate::keys::Keymap,
+    /// `OPENTERN_STILL=snap`: take a chart snapshot once bars are in.
+    still_snap: bool,
+    still_demo_drawings: bool,
     pub egui_ctx: egui::Context,
     pub logos: crate::logos::Logos,
     /// Folders picked in Settings → General (`None` = inside the
@@ -243,6 +249,8 @@ impl App {
             layout_name,
             study_menu: None,
             compare_menu: None,
+            chart_menu: None,
+            plus_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -270,6 +278,8 @@ impl App {
             still_claude: None,
             favbar: Default::default(),
             keys,
+            still_snap: false,
+            still_demo_drawings: false,
             logos,
             folders,
             python_notice: None,
@@ -581,6 +591,10 @@ impl App {
             } else if part == "favbar" || part == "favbar:vertical" {
                 self.layout.fav_toolbar = true;
                 self.layout.fav_toolbar_vertical = part == "favbar:vertical";
+            } else if part == "snap" {
+                self.still_snap = true;
+            } else if part == "demo-drawings" {
+                self.still_demo_drawings = true;
             } else if part == "replay:play" {
                 self.still_replay = true;
             } else if part == "replay" {
@@ -614,6 +628,7 @@ impl App {
             w if w.starts_with("search:") => Some(Modal::Symbol(crate::dialogs::SymbolSearch::new(
                 &w["search:".len()..].to_uppercase(),
             ))),
+            w if w.starts_with("interval:") => Some(Modal::Interval(w["interval:".len()..].to_string())),
             "python-notice" => Some(Modal::PythonNotice),
             "paper-account" => {
                 self.open_paper_account(true);
@@ -681,6 +696,44 @@ impl App {
         for i in 0..self.chart.compares.len() {
             self.open_compare(i);
         }
+        self.sync_chart_alerts();
+    }
+
+    /// Syncs active alerts for the current symbol to the chart for rendering.
+    pub fn sync_chart_alerts(&mut self) {
+        let prec = self.chart.precision();
+        let sym_id = self.chart.symbol.id.clone();
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let now = crate::alerts::now_ms();
+        let mut list = Vec::new();
+        for (alert, _) in &self.alerts.list {
+            if !alert.active {
+                continue;
+            }
+            let matches_sym =
+                alert.symbol == sym_id || alert.symbol == sym_ticker || alert.symbol.ends_with(&sym_ticker);
+            if !matches_sym {
+                continue;
+            }
+            let price = match &alert.condition {
+                opentern_engine::alerts::Condition::Price { value, .. } => Some(*value),
+                opentern_engine::alerts::Condition::Line { .. } => alert.condition.line_price(now),
+                _ => None,
+            };
+            if let Some(p) = price {
+                let label = if alert.name.is_empty() {
+                    format!("{} Crossing {}", sym_ticker, crate::format::price(p, prec))
+                } else {
+                    alert.name.clone()
+                };
+                list.push(crate::alerts::ChartAlert {
+                    id: alert.id,
+                    price: p,
+                    label,
+                });
+            }
+        }
+        self.chart.alerts = list;
     }
 
     pub fn toggle_dark(&mut self, ctx: &egui::Context) {
@@ -870,9 +923,15 @@ impl App {
     }
 
     pub fn delete_selected_drawing(&mut self) {
-        if let Some(id) = self.chart_ui.draw.selected.take() {
+        let mut ids = std::mem::take(&mut self.chart_ui.draw.multi_selected);
+        if let Some(id) = self.chart_ui.draw.selected.take()
+            && !ids.contains(&id)
+        {
+            ids.push(id);
+        }
+        if !ids.is_empty() {
             self.chart.push_undo();
-            self.chart.drawings.retain(|d| d.id != id);
+            self.chart.drawings.retain(|d| !ids.contains(&d.id));
             self.chart.drawings_changed += 1;
         }
     }
@@ -977,27 +1036,39 @@ impl App {
     }
 
     pub fn save_template(&mut self, kind: TemplateKind, name: &str) {
-        let json = match kind {
-            TemplateKind::Chart => serde_json::to_string(&self.chart.style),
+        let json = match &kind {
+            TemplateKind::Chart => serde_json::to_string(&self.chart.style).ok(),
             TemplateKind::Indicators => serde_json::to_string(&StudyTemplate {
                 version: 1,
                 studies: self.chart.saved_studies(),
                 panes: self.chart.panes.clone(),
-            }),
+            })
+            .ok(),
+            TemplateKind::Drawing(_) => {
+                let id = match self.chart_ui.draw.selected {
+                    Some(id) => id,
+                    None => return,
+                };
+                let d = match self.chart.drawings.iter().find(|d| d.id == id) {
+                    Some(d) => d,
+                    None => return,
+                };
+                serde_json::to_string(&d.style).ok()
+            }
         };
-        if let Ok(j) = json
-            && let Err(e) = self.store.save_template(kind.key(), name, &j)
+        if let Some(j) = json
+            && let Err(e) = self.store.save_template(&kind.key(), name, &j)
         {
             crate::diag::crumb(format!("couldn't save template: {e}"));
         }
     }
 
     pub fn delete_template(&mut self, kind: TemplateKind, name: &str) {
-        let _ = self.store.delete_template(kind.key(), name);
+        let _ = self.store.delete_template(&kind.key(), name);
     }
 
     pub fn set_default_template(&mut self, kind: TemplateKind, name: Option<&str>) {
-        let _ = self.store.set_default_template(kind.key(), name);
+        let _ = self.store.set_default_template(&kind.key(), name);
     }
 
     pub fn apply_indicator_template(&mut self, name: &str) {
@@ -1023,9 +1094,21 @@ impl App {
                 Action::CompareMenu(i, pos) => self.compare_menu = Some((i, pos)),
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
                 Action::RemoveCompare(i) => self.remove_compare(i),
-                Action::ChartSettings => {
-                    self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)))
+                Action::ChartMenu(pos, price) => {
+                    self.chart_menu = Some((pos, price));
                 }
+                Action::CrosshairPlusMenu(pos, price) => {
+                    self.plus_menu = Some((pos, price));
+                }
+                Action::DeleteAlert(id) => {
+                    self.delete_alert(id);
+                }
+                Action::EditAlert(id) => {
+                    if let Some((a, _)) = self.alerts.list.iter().find(|(x, _)| x.id == id).cloned() {
+                        self.open_alert_dialog(Some(a));
+                    }
+                }
+                Action::MoveAlert(id, price) => self.move_alert(id, price),
                 Action::PaperMove(id, price) => self.paper_move(id, price),
                 Action::PaperCancel(id) => self.paper_cancel(id),
                 Action::PaperClose => {
@@ -1089,6 +1172,222 @@ impl App {
             && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
         if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.compare_menu = None;
+        }
+    }
+
+    /// Right-click context menu on the chart canvas, matching TradingView.
+    fn chart_menu(&mut self, ctx: &egui::Context) {
+        let Some((pos, price)) = self.chart_menu else { return };
+        let t = self.t();
+        let mut close = false;
+        let mut open_settings = false;
+        let mut reset_view = false;
+        let mut copy_price = false;
+        let mut add_alert = false;
+        let mut open_object_tree = false;
+        let mut remove_drawings = false;
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let prec = self.chart.precision();
+        let price_str = format::price(price, prec);
+
+        let area = egui::Area::new(egui::Id::new("chart-context-menu"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_width(330.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROWS_COUNTER_CLOCKWISE),
+                        tr("Reset chart view"),
+                        shortcut!("Alt R"),
+                        false,
+                    )
+                    .clicked()
+                    {
+                        reset_view = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::COPY), &trf!("Copy price {}", price_str), "", false).clicked() {
+                        copy_price = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    let alert_label = trf!("Add alert on {} at {}...", sym_ticker, price_str);
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert_label, shortcut!("Alt A"), false).clicked() {
+                        add_alert = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::STACK), tr("Object tree"), "", false).clicked() {
+                        open_object_tree = true;
+                        close = true;
+                    }
+
+                    if !self.chart.drawings.is_empty() {
+                        w::menu_rule(ui, &t);
+                        let n = self.chart.drawings.len();
+                        let label = if n == 1 {
+                            tr("Remove 1 drawing").to_string()
+                        } else {
+                            trf!("Remove {n} drawings")
+                        };
+                        if w::menu_item(ui, &t, Some(ph::PENCIL_SIMPLE_SLASH), &label, "", false).clicked() {
+                            remove_drawings = true;
+                            close = true;
+                        }
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    if w::menu_item(ui, &t, Some(ph::GEAR), tr("Settings..."), "", false).clicked() {
+                        open_settings = true;
+                        close = true;
+                    }
+                });
+            });
+
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.chart_menu = None;
+        }
+        if reset_view {
+            self.chart.reset_view();
+        }
+        if copy_price {
+            ctx.copy_text(price_str);
+        }
+        if add_alert {
+            self.open_alert_dialog_at(price);
+        }
+        if open_object_tree {
+            self.layout.widget = Some(crate::shell::Widget::ObjectTree);
+        }
+        if remove_drawings {
+            self.chart.push_undo();
+            self.chart.drawings.clear();
+            self.chart.drawings_changed += 1;
+        }
+        if open_settings {
+            self.modal = Some(crate::dialogs::Modal::ChartSettings(
+                crate::dialogs::ChartSettings::new(self),
+            ));
+        }
+    }
+
+    /// Menu opened by clicking the (+) button on the crosshair priceline (Images #36 & #37).
+    fn plus_menu(&mut self, ctx: &egui::Context) {
+        let Some((pos, price)) = self.plus_menu else { return };
+        let t = self.t();
+        let mut close = false;
+        let mut add_alert = false;
+        let mut draw_hline = false;
+        let mut draw_hray = false;
+        let sym_ticker = self.chart.symbol.ticker().to_string();
+        let prec = self.chart.precision();
+        let price_str = format::price(price, prec);
+
+        let area = egui::Area::new(egui::Id::new("crosshair-plus-popover"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .pivot(egui::Align2::RIGHT_TOP)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    ui.set_width(260.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+
+                    let alert_label = trf!("Add alert on {} at {}", sym_ticker, price_str);
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert_label, shortcut!("Alt A"), false).clicked() {
+                        add_alert = true;
+                        close = true;
+                    }
+
+                    w::menu_rule(ui, &t);
+
+                    let hline_label = trf!("Draw horizontal line at {}", price_str);
+                    if w::menu_item(ui, &t, Some(ph::MINUS), &hline_label, shortcut!("Alt H"), false).clicked() {
+                        draw_hline = true;
+                        close = true;
+                    }
+
+                    let hray_label = trf!("Draw horizontal ray at {}", price_str);
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROW_RIGHT),
+                        &hray_label,
+                        shortcut!("Alt Shift H"),
+                        false,
+                    )
+                    .clicked()
+                    {
+                        draw_hray = true;
+                        close = true;
+                    }
+                });
+            });
+
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.plus_menu = None;
+        }
+        if add_alert {
+            self.open_alert_dialog_at(price);
+        }
+        if draw_hline {
+            let id = self.chart.next_drawing_id();
+            let d = crate::chart::draw::Drawing {
+                id,
+                tool: Tool::HorizontalLine,
+                pts: vec![crate::chart::draw::Anchor { t: 0, p: price }],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalLine),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.push_undo();
+            self.chart.drawings.push(d);
+            self.chart.drawings_changed += 1;
+            self.chart_ui.draw.selected = Some(id);
+        }
+        if draw_hray {
+            let id = self.chart.next_drawing_id();
+            let start_t = self
+                .chart_ui
+                .hover_time
+                .or_else(|| self.chart.bars.last().map(|b| b.time))
+                .unwrap_or(0);
+            let d = crate::chart::draw::Drawing {
+                id,
+                tool: Tool::HorizontalRay,
+                pts: vec![crate::chart::draw::Anchor { t: start_t, p: price }],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalRay),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.push_undo();
+            self.chart.drawings.push(d);
+            self.chart.drawings_changed += 1;
+            self.chart_ui.draw.selected = Some(id);
         }
     }
 
@@ -1480,6 +1779,77 @@ impl App {
                 crate::chart::draw::Anchor { t: b.time, p: b.high },
             );
         }
+        if self.still_demo_drawings && self.chart.bars.len() > 80 {
+            self.still_demo_drawings = false;
+            let n = self.chart.bars.len();
+            let b0 = &self.chart.bars[n - 60];
+            let b1 = &self.chart.bars[n - 30];
+            let b2 = &self.chart.bars[n - 8];
+
+            // 1. Trendline with text
+            let mut tl = crate::chart::draw::Drawing {
+                id: 101,
+                tool: Tool::TrendLine,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: b0.time, p: b0.low },
+                    crate::chart::draw::Anchor { t: b1.time, p: b1.low },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::TrendLine),
+                text: "Key Trendline".into(),
+                locked: false,
+                hidden: false,
+            };
+            tl.style.text_bold = true;
+            tl.style.text_halign = crate::chart::draw::TextHAlign::Right;
+            self.chart.drawings.push(tl);
+
+            // 2. Rectangle with middle line and text
+            let mut rect = crate::chart::draw::Drawing {
+                id: 102,
+                tool: Tool::Rectangle,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: b1.time, p: b0.high },
+                    crate::chart::draw::Anchor { t: b2.time, p: b1.low },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::Rectangle),
+                text: "Demand Zone".into(),
+                locked: false,
+                hidden: false,
+            };
+            rect.style.middle_line = true;
+            rect.style.text_bold = true;
+            self.chart.drawings.push(rect);
+
+            // 3. Long Position
+            let lp = crate::chart::draw::Drawing {
+                id: 103,
+                tool: Tool::LongPosition,
+                pts: vec![
+                    crate::chart::draw::Anchor {
+                        t: b1.time,
+                        p: b1.close,
+                    },
+                    crate::chart::draw::Anchor {
+                        t: b2.time,
+                        p: b1.close + (b0.high - b0.low) * 1.5,
+                    },
+                    crate::chart::draw::Anchor {
+                        t: b2.time,
+                        p: b1.close - (b0.high - b0.low) * 0.5,
+                    },
+                ],
+                style: crate::chart::draw::DrawStyle::for_tool(Tool::LongPosition),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            };
+            self.chart.drawings.push(lp);
+            self.chart.drawings_changed += 1;
+        }
+        if self.still_snap && self.chart.bars.len() > 80 {
+            self.still_snap = false;
+            self.take_snapshot(crate::snapshot::Snap::Save);
+        }
         let was_prompt = self.updater.prompt();
         if let Some(note) = self.updater.poll(&ctx) {
             let (title, body) = match note {
@@ -1518,7 +1888,12 @@ impl App {
         self.poll_claude();
         self.poll_overview(&ctx);
         self.shortcuts(&ctx);
+        self.sync_chart_alerts();
         self.shell(ui);
+        if let Some(id) = self.chart_ui.draw.open_settings.take() {
+            self.modal =
+                crate::dialogs::DrawingSettings::new(self, id).map(|s| crate::dialogs::Modal::Drawing(Box::new(s)));
+        }
         self.drawing_bar(&ctx);
         self.favorite_toolbar(&ctx);
         self.modal(&ctx);
@@ -1539,6 +1914,8 @@ impl App {
         self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
+        self.chart_menu(&ctx);
+        self.plus_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1569,6 +1946,8 @@ impl App {
         self.modal = None;
         self.study_menu = None;
         self.compare_menu = None;
+        self.chart_menu = None;
+        self.plus_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

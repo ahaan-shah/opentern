@@ -241,6 +241,9 @@ msgstr "खाता आईडी"
 msgid "Account settings"
 msgstr "खाता सेटिंग्स"
 
+msgid "Account size"
+msgstr ""
+
 msgid "Account size required"
 msgstr "आवश्यक खाता आकार"
 
@@ -256,11 +259,20 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
+msgid "Add alert on {0} at {1}"
+msgstr ""
+
+msgid "Add alert on {0} at {1}..."
+msgstr ""
+
 msgid "Add filter"
 msgstr "फ़िल्टर जोड़ें"
 
 msgid "Add section"
 msgstr "सेक्शन जोड़ें"
+
+msgid "Add text"
+msgstr ""
 
 msgid "Add to chart"
 msgstr "चार्ट पर जोड़ें"
@@ -321,6 +333,9 @@ msgstr "एजेंट पैनल"
 msgid "Alert"
 msgstr "अलर्ट"
 
+msgid "Alert created"
+msgstr ""
+
 msgid "Alerts"
 msgstr "अलर्ट"
 
@@ -374,6 +389,9 @@ msgstr "Alpaca · अमेरिकी शेयर"
 msgid "Also used by {0}"
 msgstr "{0} भी इसका उपयोग करता है"
 
+msgid "Always show stats"
+msgstr ""
+
 msgid "Americas"
 msgstr "अमेरिका"
 
@@ -418,6 +436,9 @@ msgstr "लैब का परिणाम लागू किया"
 
 msgid "Applied to the chart."
 msgstr "चार्ट पर लागू किया गया।"
+
+msgid "Apply Default Drawing Template"
+msgstr ""
 
 msgid "Apply a lab result"
 msgstr "लैब का परिणाम लागू करें"
@@ -563,6 +584,9 @@ msgstr "अंतर्निहित इंडिकेटर"
 msgid "Background"
 msgstr "पृष्ठभूमि"
 
+msgid "Background color"
+msgstr ""
+
 msgid "Backtest's max drawdown"
 msgstr "बैकटेस्ट का अधिकतम ड्रॉडाउन"
 
@@ -678,8 +702,17 @@ msgstr "बोलिंजर बैंड"
 msgid "Bollinger Bands %B"
 msgstr "बोलिंजर बैंड %B"
 
+msgid "Border"
+msgstr ""
+
+msgid "Border / line style"
+msgstr ""
+
 msgid "Borders"
 msgstr "किनारे"
+
+msgid "Bottom"
+msgstr ""
 
 #, message
 msgid "Bought {qty} {sym} at {price}"
@@ -788,6 +821,9 @@ msgstr "नकद"
 
 msgid "Categories"
 msgstr "श्रेणियाँ"
+
+msgid "Center"
+msgstr ""
 
 msgid "Centered"
 msgstr "केंद्रित"
@@ -1067,6 +1103,9 @@ msgstr "कमोडिटी"
 msgid "Commodity Channel Index"
 msgstr "कमोडिटी चैनल इंडेक्स (CCI)"
 
+msgid "Compact stats"
+msgstr ""
+
 msgid "Compare"
 msgstr "तुलना"
 
@@ -1115,6 +1154,9 @@ msgstr "कन्वर्ज़न लाइन"
 msgid "Conversion Line Length"
 msgstr "कन्वर्ज़न लाइन लंबाई"
 
+msgid "Coordinates"
+msgstr ""
+
 #, message
 msgid "Copied to {name}."
 msgstr "{name} में कॉपी हुआ।"
@@ -1127,6 +1169,9 @@ msgstr "कॉपी करें"
 
 msgid "Copy image"
 msgstr "चित्र कॉपी करें"
+
+msgid "Copy price {0}"
+msgstr ""
 
 msgid "Corpus Christi"
 msgstr "कॉर्पस क्रिस्टी"
@@ -1399,6 +1444,9 @@ msgstr "{min} मिनट की देरी"
 msgid "Delete"
 msgstr "हटाएँ"
 
+msgid "Delete all alerts"
+msgstr ""
+
 msgid "Delete folder (if empty)"
 msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
 
@@ -1489,6 +1537,9 @@ msgstr "दिवाली बलिप्रतिपदा"
 msgid "Diwali Laxmi Pujan"
 msgstr "दिवाली लक्ष्मी पूजन"
 
+msgid "Don't extend"
+msgstr ""
+
 msgid "Donchian Channels"
 msgstr "डोनचियन चैनल"
 
@@ -1538,11 +1589,20 @@ msgstr "डाउनट्रेंड हाइलाइटर"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr "डॉ. बाबासाहेब आंबेडकर जयंती"
 
+msgid "Drag to move"
+msgstr ""
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
 msgid "Draw again without picking again"
 msgstr "दोबारा चुने बिना फिर से ड्रॉ करें"
+
+msgid "Draw horizontal line at {0}"
+msgstr ""
+
+msgid "Draw horizontal ray at {0}"
+msgstr ""
 
 msgid "Draw with replacement"
 msgstr "वापसी के साथ चयन"
@@ -1706,6 +1766,9 @@ msgstr "यह कोड दूसरे डिवाइस पर डाले�
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "पिछले बारह महीनों के EBITDA पर उद्यम मूल्य। सूचकांक के लिए: कुल EV बटा कुल EBITDA"
 
+msgid "Entry price"
+msgstr ""
+
 msgid "Entry {side}"
 msgstr "प्रवेश {side}"
 
@@ -1791,8 +1854,17 @@ msgstr "{when} को निर्यात · Opentern {0}"
 msgid "Exporting"
 msgstr "निर्यात हो रहा है"
 
+msgid "Extend"
+msgstr ""
+
+msgid "Extend both"
+msgstr ""
+
 msgid "Extend left"
 msgstr "बाएँ बढ़ाएँ"
+
+msgid "Extend lines"
+msgstr ""
 
 msgid "Extend lines left"
 msgstr "रेखाएँ बाएँ बढ़ाएँ"
@@ -2046,6 +2118,9 @@ msgstr "छिपा हुआ"
 msgid "Hide"
 msgstr "छिपाएँ"
 
+msgid "Hide / show"
+msgstr ""
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "1D या ऊपर VWAP छिपाएँ"
 
@@ -2237,6 +2312,9 @@ msgstr "इनपुट"
 msgid "Inputs"
 msgstr "इनपुट"
 
+msgid "Inside"
+msgstr ""
+
 msgid "Install {0}"
 msgstr "{0} इंस्टॉल करें"
 
@@ -2337,6 +2415,9 @@ msgstr "कोरिया स्थापना दिवस"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken के पास {0} बार नहीं हैं"
+
+msgid "LEVELS"
+msgstr ""
 
 msgid "Labels on price scale"
 msgstr "भाव स्केल पर लेबल"
@@ -2452,6 +2533,9 @@ msgstr "लाइन ब्रेक"
 msgid "Line color"
 msgstr "रेखा का रंग"
 
+msgid "Line style"
+msgstr ""
+
 msgid "Line width"
 msgstr "रेखा की मोटाई"
 
@@ -2519,6 +2603,9 @@ msgstr "लोड हो रहा है…"
 
 msgid "Local"
 msgstr "स्थानीय"
+
+msgid "Lock / unlock"
+msgstr ""
 
 msgid "Lock all drawings"
 msgstr "सभी ड्रॉइंग लॉक करें"
@@ -2605,6 +2692,9 @@ msgstr "लगातार हानि, सबसे खराब 5%"
 
 msgid "Losing trades"
 msgstr "हानि वाले ट्रेड"
+
+msgid "Lot size"
+msgstr ""
 
 msgid "Low"
 msgstr "कम"
@@ -2887,6 +2977,12 @@ msgstr "मध्य RCI"
 
 msgid "Middle RCI Length"
 msgstr "मध्य RCI लंबाई"
+
+msgid "Middle line"
+msgstr ""
+
+msgid "Middle line style"
+msgstr ""
 
 msgid "Millions, billions"
 msgstr "मिलियन, बिलियन"
@@ -3343,6 +3439,9 @@ msgstr "रूपरेखा"
 msgid "OUTPUT"
 msgstr "आउटपुट"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "ऑब्जेक्ट ट्री और डेटा विंडो"
 
@@ -3560,6 +3659,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "समस्याएँ"
 
+msgid "PROFIT LEVEL"
+msgstr ""
+
 msgid "PVT"
 msgstr ""
 
@@ -3759,9 +3861,6 @@ msgstr "बाज़ार से पहले/बाद भाव रेखा"
 msgid "Precision"
 msgstr "परिशुद्धता"
 
-msgid "Press Enter for {0}"
-msgstr "{0} के लिए Enter दबाएँ"
-
 msgid "Press keys"
 msgstr "कुंजियाँ दबाएँ"
 
@@ -3860,6 +3959,9 @@ msgstr "मात्रा"
 
 msgid "Quantity"
 msgstr "मात्रा"
+
+msgid "Quantity precision"
+msgstr ""
 
 msgid "Quarter"
 msgstr "तिमाही"
@@ -4109,6 +4211,9 @@ msgstr "रीसेट"
 msgid "Reset account"
 msgstr "खाता रीसेट करें"
 
+msgid "Reset chart view"
+msgstr ""
+
 msgid "Reset settings"
 msgstr "सेटिंग्स रीसेट करें"
 
@@ -4175,11 +4280,11 @@ msgstr "दाएँ बार"
 msgid "Rises and falls"
 msgstr "उतार-चढ़ाव"
 
+msgid "Risk"
+msgstr ""
+
 msgid "Risk/performance ratios"
 msgstr "जोखिम/प्रदर्शन अनुपात"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "जोखिम/लाभ अनुपात: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "इस ड्रॉडाउन पर बर्बादी"
@@ -4262,6 +4367,9 @@ msgstr ""
 msgid "SMTP server"
 msgstr "SMTP सर्वर"
 
+msgid "STOP LEVEL"
+msgstr ""
+
 msgid "Same % scale"
 msgstr "समान % स्केल"
 
@@ -4273,6 +4381,9 @@ msgstr "शनिवार"
 
 msgid "Save"
 msgstr "सहेजें"
+
+msgid "Save Drawing Template As..."
+msgstr ""
 
 msgid "Save a snapshot"
 msgstr "स्नैपशॉट सहेजें"
@@ -4291,6 +4402,9 @@ msgstr "डिफ़ॉल्ट के रूप में सहेजें"
 
 msgid "Save chart template"
 msgstr "चार्ट टेम्पलेट सहेजें"
+
+msgid "Save drawing template"
+msgstr ""
 
 msgid "Save indicator template"
 msgstr "इंडिकेटर टेम्पलेट सहेजें"
@@ -4459,6 +4573,9 @@ msgstr "सेटिंग्स"
 msgid "Settings → Export and import → Import → Receive"
 msgstr "सेटिंग्स → निर्यात और आयात → आयात → प्राप्त करें"
 
+msgid "Settings..."
+msgstr ""
+
 msgid "Shanghai"
 msgstr "शंघाई"
 
@@ -4521,6 +4638,9 @@ msgstr "ऊपरी बार में दिखाएँ"
 
 msgid "Show labels"
 msgstr "लेबल दिखाएँ"
+
+msgid "Show on chart"
+msgstr ""
 
 msgid "Show on intervals"
 msgstr "इन अंतरालों पर दिखाएँ"
@@ -4774,6 +4894,9 @@ msgstr "लॉन्ग स्टॉप"
 msgid "Stop Short"
 msgstr "शॉर्ट स्टॉप"
 
+msgid "Stop color"
+msgstr ""
+
 msgid "Stop limit"
 msgstr "स्टॉप लिमिट"
 
@@ -4785,9 +4908,6 @@ msgstr "स्टॉप भाव"
 
 msgid "Stop using as default"
 msgstr "डिफ़ॉल्ट से हटाएँ"
-
-msgid "Stop: {0} ({1})"
-msgstr "स्टॉप: {0} ({1})"
 
 msgid "Stopped"
 msgstr "रुका हुआ"
@@ -4923,8 +5043,8 @@ msgstr "नाम बदलने से पहले इसकी स्क्�
 msgid "Take profit"
 msgstr "टेक प्रॉफ़िट"
 
-msgid "Target: {0} ({1})"
-msgstr "लक्ष्य: {0} ({1})"
+msgid "Target color"
+msgstr ""
 
 msgid "Teachers' Day"
 msgstr "शिक्षक दिवस"
@@ -4950,6 +5070,9 @@ msgstr "Telegram बॉट टोकन"
 msgid "Telegram chat id"
 msgstr "Telegram चैट आईडी"
 
+msgid "Template"
+msgstr ""
+
 msgid "Template  {0}"
 msgstr "टेम्पलेट  {0}"
 
@@ -4958,6 +5081,15 @@ msgstr "टेम्पलेट"
 
 msgid "Text"
 msgstr "टेक्स्ट"
+
+msgid "Text alignment"
+msgstr ""
+
+msgid "Text color"
+msgstr ""
+
+msgid "Text style"
+msgstr ""
 
 msgid "Thanksgiving"
 msgstr "थैंक्सगिविंग"
@@ -5084,6 +5216,9 @@ msgstr "इस बाज़ार की मुफ़्त ऑर्डर ब�
 msgid "There's no image or file on the clipboard."
 msgstr "क्लिपबोर्ड पर चित्र या फ़ाइल नहीं है।"
 
+msgid "Thickness"
+msgstr ""
+
 msgid "Thinking"
 msgstr "सोच रहा है"
 
@@ -5129,6 +5264,9 @@ msgstr "बदलने वाले इनपुट चुनें।"
 msgid "Ticked members of {0}"
 msgstr "{0} के सदस्य चुने"
 
+msgid "Ticks"
+msgstr ""
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "टाइल नियमित सत्र दिखाती हैं। विस्तारित घंटों का भाव देखने के लिए ऊपर ले जाएँ।"
 
@@ -5170,6 +5308,9 @@ msgstr "बहुत अधिक गलत कोड। फिर से शु
 
 msgid "Took a picture of the chart"
 msgstr "चार्ट का चित्र लिया"
+
+msgid "Top"
+msgstr ""
 
 msgid "Top 150"
 msgstr "शीर्ष 150"
@@ -5275,6 +5416,9 @@ msgstr "संख्या टाइप करें"
 
 msgid "Type anywhere"
 msgstr "कहीं भी टाइप करें"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr ""
 
 msgid "UO"
 msgstr ""
@@ -5856,6 +6000,9 @@ msgstr ""
 msgid "open"
 msgstr "खुला"
 
+msgid "price, bar"
+msgstr ""
+
 msgid "sell"
 msgstr "बिक्री"
 
@@ -5917,6 +6064,9 @@ msgstr "{0}  जोड़ने के लिए सिंबल खोजें
 msgid "{0}  insert"
 msgstr "{0}  डालें"
 
+msgid "{0} ({1}% opacity)"
+msgstr ""
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} बार, {time}"
 
@@ -5946,6 +6096,12 @@ msgstr "{0} प्रति"
 
 msgid "{0} days"
 msgstr "{0} दिन"
+
+msgid "{0} decimals"
+msgstr ""
+
+msgid "{0} drawings selected"
+msgstr ""
 
 msgid "{0} h {1} min"
 msgstr "{0} घं {1} मि"

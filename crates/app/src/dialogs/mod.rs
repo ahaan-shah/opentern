@@ -18,6 +18,8 @@ use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, vec2};
 
 pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
+pub mod drawing;
+pub use drawing::DrawingSettings;
 pub use indicators::Indicators;
 pub use study::StudySettings;
 pub use symbol::SymbolSearch;
@@ -26,6 +28,7 @@ pub enum Modal {
     Symbol(SymbolSearch),
     Indicators(Indicators),
     Study(StudySettings),
+    Drawing(Box<DrawingSettings>),
     ChartSettings(ChartSettings),
     SaveTemplate {
         kind: TemplateKind,
@@ -47,17 +50,19 @@ pub enum Modal {
     PythonNotice,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TemplateKind {
     Chart,
     Indicators,
+    Drawing(String),
 }
 
 impl TemplateKind {
-    pub fn key(self) -> &'static str {
+    pub fn key(&self) -> String {
         match self {
-            TemplateKind::Chart => "chart",
-            TemplateKind::Indicators => "indicators",
+            TemplateKind::Chart => "chart".into(),
+            TemplateKind::Indicators => "indicators".into(),
+            TemplateKind::Drawing(id) => format!("drawing:{id}"),
         }
     }
 }
@@ -171,8 +176,9 @@ impl App {
                     Modal::Symbol(s) => s.show(ui, self, &t),
                     Modal::Indicators(s) => s.show(ui, self, &t),
                     Modal::Study(s) => s.show(ui, self, &t),
+                    Modal::Drawing(d) => d.show(ui, self, &t),
                     Modal::ChartSettings(s) => s.show(ui, self, &t),
-                    Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, *kind, name),
+                    Modal::SaveTemplate { kind, name } => save_template(ui, self, &t, kind.clone(), name),
                     Modal::Interval(text) => interval(ui, self, &t, text),
                     Modal::Alert(f) => f.show(ui, self, &t),
                     Modal::Providers(p) => p.show(ui, self, &t),
@@ -213,10 +219,14 @@ impl App {
             return;
         }
         if resp.should_close() {
-            // Esc or a click outside: settings dialogs cancel their preview.
+            // Esc or a click outside: study/chart settings cancel preview,
+            // while drawing settings keep user edits on canvas click.
             match &mut modal {
                 Modal::Study(s) => s.cancel(self),
                 Modal::ChartSettings(s) => s.cancel(self),
+                Modal::Drawing(_) => {
+                    self.chart.push_undo();
+                }
                 _ => {}
             }
             return;
@@ -229,9 +239,10 @@ impl App {
 }
 
 fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name: &mut String) -> Done {
-    let title = match kind {
+    let title = match &kind {
         TemplateKind::Chart => tr("Save chart template"),
         TemplateKind::Indicators => tr("Save indicator template"),
+        TemplateKind::Drawing(_) => tr("Save drawing template"),
     };
     let mut done = Done::Keep;
     if frame(ui, t, title, 380.0, |ui| {
@@ -260,7 +271,7 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
         if !r.has_focus() && name.is_empty() {
             r.request_focus();
         }
-        let exists = app.store.templates(kind.key()).iter().any(|x| x.name == name.trim());
+        let exists = app.store.templates(&kind.key()).iter().any(|x| x.name == name.trim());
         if exists {
             ui.label(
                 egui::RichText::new(trf!(
@@ -301,11 +312,35 @@ fn save_template(ui: &mut Ui, app: &mut App, t: &Theme, kind: TemplateKind, name
 
 fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
     let mut done = Done::Keep;
-    if frame(ui, t, tr("Change interval"), 300.0, |ui| {
+    let up = text.to_uppercase();
+    if *text != up {
+        *text = up;
+    }
+    ui.set_width(220.0);
+    ui.vertical_centered(|ui| {
+        ui.horizontal(|ui| {
+            ui.add_space((ui.available_width() - 146.0).max(0.0) / 2.0);
+            ui.label(
+                egui::RichText::new(tr("Change interval"))
+                    .font(theme::semibold(16.0))
+                    .color(t.text),
+            );
+            ui.add_space(4.0);
+            let info = ui.label(
+                egui::RichText::new(crate::icons::ph::INFO)
+                    .font(theme::regular(14.0))
+                    .color(t.text3),
+            );
+            info.on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(tr("Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."));
+        });
+        ui.add_space(8.0);
         let r = ui.add(
-            crate::widgets::field(text)
-                .font(theme::regular(15.0))
-                .desired_width(f32::INFINITY),
+            egui::TextEdit::singleline(text)
+                .font(theme::medium(18.0))
+                .horizontal_align(Align::Center)
+                .desired_width(180.0)
+                .margin(egui::Margin::symmetric(10, 8)),
         );
         if !r.has_focus() {
             r.request_focus();
@@ -315,22 +350,72 @@ fn interval(ui: &mut Ui, app: &mut App, t: &Theme, text: &mut String) -> Done {
                 state.store(ui.ctx(), r.id);
             }
         }
-        let parsed = opentern_core::Timeframe::parse(text);
+        ui.add_space(6.0);
+        let parsed = parse_interval_input(text);
         let hint = match parsed {
-            Some(tf) => trf!("Press Enter for {}", tf.label()),
+            Some(tf) => interval_long_name(tf),
             None => tr("Like 15, 4h, D, W or 3M").into(),
         };
-        ui.label(egui::RichText::new(hint).color(t.text3));
-        if ui.input(|i| i.key_pressed(egui::Key::Enter))
-            && let Some(tf) = parsed
-        {
-            app.set_interval_synced(tf);
-            done = Done::Close;
-        }
-    }) {
+        ui.label(egui::RichText::new(hint).font(theme::regular(13.0)).color(t.text3));
+    });
+    if ui.input(|i| i.key_pressed(egui::Key::Enter))
+        && let Some(tf) = parse_interval_input(text)
+    {
+        app.set_interval_synced(tf);
+        done = Done::Close;
+    }
+    if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
         done = Done::Close;
     }
     done
+}
+
+fn parse_interval_input(text: &str) -> Option<opentern_core::Timeframe> {
+    use opentern_core::{Timeframe, Unit};
+    let clean = text.trim();
+    if clean.is_empty() {
+        return None;
+    }
+    // If ending with M or m: TradingView treats it as MONTHS! E.g. "1M", "1m" -> 1 Month.
+    if clean.ends_with('M') || clean.ends_with('m') {
+        let num_str = clean[..clean.len() - 1].trim();
+        let n = if num_str.is_empty() {
+            1
+        } else {
+            num_str.parse::<u32>().ok()?
+        };
+        return Some(Timeframe {
+            unit: Unit::Month,
+            count: n,
+        });
+    }
+    // If only numbers entered: TradingView treats it as minutes (e.g. "5" -> 5 minutes, "1" -> 1 minute).
+    if let Ok(n) = clean.parse::<u32>() {
+        return Some(Timeframe {
+            unit: Unit::Minute,
+            count: n,
+        });
+    }
+    Timeframe::parse(clean)
+}
+
+fn interval_long_name(tf: opentern_core::Timeframe) -> String {
+    use opentern_core::Unit;
+    let n = tf.count;
+    match (tf.unit, n) {
+        (Unit::Second, 1) => tr("1 second").into(),
+        (Unit::Second, _) => trf!("{n} seconds"),
+        (Unit::Minute, 1) => tr("1 minute").into(),
+        (Unit::Minute, _) => trf!("{n} minutes"),
+        (Unit::Hour, 1) => tr("1 hour").into(),
+        (Unit::Hour, _) => trf!("{n} hours"),
+        (Unit::Day, 1) => tr("1 day").into(),
+        (Unit::Day, _) => trf!("{n} days"),
+        (Unit::Week, 1) => tr("1 week").into(),
+        (Unit::Week, _) => trf!("{n} weeks"),
+        (Unit::Month, 1) => tr("1 month").into(),
+        (Unit::Month, _) => trf!("{n} months"),
+    }
 }
 
 /// A labelled row in a settings form: label on the left, control on the

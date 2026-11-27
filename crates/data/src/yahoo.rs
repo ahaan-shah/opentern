@@ -534,7 +534,11 @@ impl Yahoo {
                         .to_string(),
                     kind: kind(qt),
                     currency: String::new(),
-                    tick_size: 0.01,
+                    tick_size: if kind(qt) == AssetKind::Forex {
+                        if symbol.ends_with("JPY=X") { 0.001 } else { 0.00001 }
+                    } else {
+                        0.01
+                    },
                     min_qty: 0.0,
                     timezone: tz.into(),
                     id,

@@ -28,6 +28,14 @@ pub const EMAIL_PORT: &str = "email_smtp_port";
 pub const EMAIL_USER: &str = "email_smtp_user";
 pub const EMAIL_TO: &str = "email_to";
 
+/// An active alert shown on the chart canvas and price scale.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChartAlert {
+    pub id: i64,
+    pub price: f64,
+    pub label: String,
+}
+
 /// Where an alert's email goes.
 #[derive(Clone, Debug)]
 pub struct EmailTo {
@@ -487,6 +495,26 @@ impl App {
             crate::diag::crumb(format!("couldn't delete an alert: {e}"));
         }
         self.alerts.list.retain(|(a, _)| a.id != id);
+        self.sync_chart_alerts();
+    }
+
+    pub(crate) fn delete_all_alerts(&mut self) {
+        for (a, _) in &self.alerts.list {
+            let _ = self.store.delete_alert(a.id);
+        }
+        self.alerts.list.clear();
+        self.sync_chart_alerts();
+    }
+
+    pub(crate) fn move_alert(&mut self, id: i64, price: f64) {
+        if let Some((a, _)) = self.alerts.list.iter_mut().find(|(x, _)| x.id == id) {
+            if let opentern_engine::alerts::Condition::Price { value, .. } = &mut a.condition {
+                *value = price;
+            }
+            let updated = a.clone();
+            self.save_alert(updated);
+        }
+        self.sync_chart_alerts();
     }
 
     /// Whether the active chart can answer for this alert itself: its
@@ -696,6 +724,7 @@ impl App {
 
     /// The Alerts widget: every alert, its state, and what it does.
     pub(crate) fn alerts_widget(&mut self, ui: &mut Ui, t: &Theme) {
+        let mut delete_all = false;
         ui.horizontal(|ui| {
             ui.label(egui::RichText::new(tr("Alerts")).font(theme::semibold(14.0)));
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -704,8 +733,18 @@ impl App {
                 {
                     self.open_alert_dialog(None);
                 }
+                if !self.alerts.list.is_empty()
+                    && crate::widgets::tool_button(ui, t, crate::icons::ph::TRASH, tr("Delete all alerts"), false, 26.0)
+                        .clicked()
+                {
+                    delete_all = true;
+                }
             });
         });
+        if delete_all {
+            self.delete_all_alerts();
+            return;
+        }
         ui.add_space(6.0);
         if self.alerts.list.is_empty() {
             crate::widgets::empty_state(ui, t, crate::icons::ph::ALARM, tr("No alerts yet"));

@@ -149,13 +149,35 @@ fn utc() -> String {
 impl Symbol {
     /// A symbol known only by its id, until its details load.
     pub fn bare(id: &str) -> Symbol {
-        let crypto = id.starts_with("BINANCE:");
+        let crypto = id.starts_with("BINANCE:")
+            || id.starts_with("BYBIT:")
+            || id.starts_with("OKX:")
+            || id.starts_with("COINBASE:")
+            || id.starts_with("KRAKEN:");
+        let ticker = id.split_once(':').map(|(_, t)| t).unwrap_or(id);
+        let forex = id.starts_with("FX:") || id.starts_with("OANDA:") || is_forex_ticker(ticker);
+        let kind = if crypto {
+            AssetKind::Crypto
+        } else if forex {
+            AssetKind::Forex
+        } else {
+            AssetKind::Stock
+        };
+        let tick_size = if forex {
+            if ticker.ends_with("JPY") || ticker.ends_with("JPY=X") || ticker.ends_with("_JPY") {
+                0.001
+            } else {
+                0.00001
+            }
+        } else {
+            0.01
+        };
         Symbol {
             id: id.to_string(),
             description: String::new(),
-            kind: if crypto { AssetKind::Crypto } else { AssetKind::Stock },
+            kind,
             currency: String::new(),
-            tick_size: 0.01,
+            tick_size,
             min_qty: 0.0,
             timezone: utc(),
         }
@@ -169,8 +191,14 @@ impl Symbol {
         self.id.split_once(':').map(|(_, t)| t).unwrap_or(&self.id)
     }
 
-    /// Decimal places implied by the tick size (0.01 → 2).
+    /// Decimal places implied by the tick size (0.01 → 2, Forex → 5, JPY → 3).
     pub fn precision(&self) -> usize {
+        if self.kind == AssetKind::Forex || is_forex_ticker(self.ticker()) {
+            if self.ticker().ends_with("JPY") || self.ticker().contains("JPY") {
+                return 3;
+            }
+            return 5;
+        }
         let mut p = 0;
         let mut t = self.tick_size;
         while p < 10 && (t - t.round()).abs() > 1e-9 {
@@ -179,6 +207,16 @@ impl Symbol {
         }
         p
     }
+}
+
+/// True if `t` looks like a standard 6-character forex currency pair.
+pub fn is_forex_ticker(t: &str) -> bool {
+    let clean = t.replace(['_', '=', 'X', '-'], "");
+    if clean.len() == 6 {
+        let major = ["EUR", "USD", "GBP", "JPY", "AUD", "CAD", "CHF", "NZD"];
+        return major.iter().any(|c| clean.starts_with(c)) && major.iter().any(|c| clean.ends_with(c));
+    }
+    false
 }
 
 /// The watchlist a brand-new workspace starts with: liquid, public symbols

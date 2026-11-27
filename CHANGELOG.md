@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Upgraded drawing tools and Settings dialogs.** Drawing tools now match TradingView's feature depth:
+  - **Drawing Settings modal**: Double-clicking any drawing or clicking the gear icon on the floating toolbar opens a full settings dialog with Style, Text, Coordinates, Inputs, and Visibility tabs, live chart preview, and template presets.
+  - **Trendline, Ray, and Extended lines**: Added inline text labels with custom text color, font sizes, and exact coordinate editing.
+  - **Rectangle / Box**: 8 draggable handles (4 corners + 4 edge midpoints for single-dimension resizing), dashed middle line with customizable style/color, extend left/right options, and multi-line text with vertical (Inside/Top/Bottom) and horizontal (Left/Center/Right) alignments.
+  - **Fibonacci Retracement**: 26 fully customizable levels with individual level checkboxes, custom ratios, colors, optional trendline, line extensions, and background opacity shading.
+  - **Long and Short Position tools**: Comprehensive position sizing engine supporting account size, currency, lot size, cash or percent risk, leverage, target/stop ticks and prices, and chart tags showing Target, Stop, Amount, Qty, and Risk/Reward ratio.
+- **Active alerts on chart**: Active alerts now render on the chart canvas as dashed amber lines with an alert badge on the price scale, draggable to adjust price levels, and an interactive hover pill displaying the alert label and a quick-delete trash button, matching TradingView.
+- **Compact Change interval popover**: Redesigned as a floating popover card over the chart with an info icon, keyboard shortcut guidance tooltip, and live interval name resolution (e.g., "1 minute", "4 hours").
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

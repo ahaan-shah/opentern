@@ -33,7 +33,11 @@ pub enum Action {
     /// on its legend row or price scale).
     CompareMenu(usize, Pos2),
     MoreHistory,
-    ChartSettings,
+    ChartMenu(Pos2, f64),
+    CrosshairPlusMenu(Pos2, f64),
+    DeleteAlert(i64),
+    EditAlert(i64),
+    MoveAlert(i64, f64),
     RemoveCompare(usize),
     /// Chart trading: a paper order's line was dragged to a new price.
     PaperMove(u64, f64),
@@ -60,6 +64,10 @@ pub struct ChartUi {
     pub season: super::profile::SeasonCache,
     /// A paper order being dragged: (order, price under the pointer).
     pub paper_drag: Option<(u64, f64)>,
+    /// An alert line being dragged: (alert id, price under the pointer).
+    pub alert_drag: Option<(i64, f64)>,
+    /// Floating drawing properties toolbar position (movable).
+    pub drawbar_pos: Option<Pos2>,
 }
 
 impl Default for ChartUi {
@@ -74,6 +82,8 @@ impl Default for ChartUi {
             hover_time: None,
             season: Default::default(),
             paper_drag: None,
+            alert_drag: None,
+            drawbar_pos: None,
         }
     }
 }
@@ -532,8 +542,68 @@ pub fn show(
             }
         }
     }
+    // Active alert dragging on the chart.
+    let mut alert_used = false;
+    if interactive && let Some(g) = geos.first() {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        for alert in &chart.alerts {
+            let price = match cui.alert_drag {
+                Some((id, p)) if id == alert.id => p,
+                _ => alert.price,
+            };
+            let yy = g.y.y(price);
+            if yy < g.rect.top() || yy > g.rect.bottom() {
+                continue;
+            }
+            let pill_w = (alert.label.chars().count() as f32 * 7.5 + 38.0).max(60.0);
+            let pill_r = Rect::from_center_size(pos2(g.rect.center().x, yy), vec2(pill_w, 22.0));
+            let trash_r = Rect::from_min_max(pos2(pill_r.right() - 24.0, pill_r.top()), pill_r.max);
+            let pill_body_r = Rect::from_min_max(pill_r.min, pos2(trash_r.left(), pill_r.bottom()));
+
+            let del_resp = ui.interact(trash_r, Id::new(("del-alert", alert.id)), Sense::click());
+            let over_trash = del_resp.hovered() || pointer.is_some_and(|p| trash_r.contains(p));
+            if over_trash {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                alert_used = true;
+                if del_resp.clicked() {
+                    actions.push(Action::DeleteAlert(alert.id));
+                }
+                continue;
+            }
+
+            let line_r = Rect::from_min_max(pos2(g.rect.left(), yy - 8.0), pos2(g.rect.right(), yy + 8.0));
+            let t = ui.interact(
+                line_r,
+                Id::new(("alert-drag", chart.id, alert.id)),
+                Sense::click_and_drag(),
+            );
+            if t.hovered() || t.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                alert_used = true;
+            }
+            if t.dragged()
+                && let Some(p) = t.interact_pointer_pos()
+            {
+                let v = (g.y.value(p.y) / tick).round() * tick;
+                cui.alert_drag = Some((alert.id, v));
+            }
+            if t.drag_stopped()
+                && let Some((id, v)) = cui.alert_drag.take()
+            {
+                actions.push(Action::MoveAlert(id, v));
+            }
+            if t.clicked() && pointer.is_some_and(|p| pill_body_r.contains(p)) {
+                actions.push(Action::EditAlert(alert.id));
+            }
+        }
+    }
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
     let drawing_used = !paper_used
+        && !alert_used
         && interactive
         && n > 0
         && !choosing
@@ -551,7 +621,7 @@ pub fn show(
     if (tools.tool.is_drawing() || tools.tool == super::draw::Tool::Measure) && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
-    if plot_resp.dragged() && !drawing_used && !paper_used {
+    if plot_resp.dragged() && !drawing_used && !paper_used && !alert_used {
         let d = plot_resp.drag_delta();
         chart.view.right -= (d.x / chart.view.bar_w) as f64;
         // Dragging vertically pans the price too, which ends autoscale.
@@ -569,8 +639,11 @@ pub fn show(
             pane.scale.hi = hi;
         }
     }
-    if plot_resp.secondary_clicked() {
-        actions.push(Action::ChartSettings);
+    if plot_resp.secondary_clicked()
+        && let Some(p) = plot_resp.interact_pointer_pos()
+    {
+        let price = geos.first().map(|g| g.y.value(p.y)).unwrap_or(0.0);
+        actions.push(Action::ChartMenu(p, price));
     }
     if plot_resp.hovered() && interactive {
         let (scroll, zoom) = ui.input(|i| (i.smooth_scroll_delta, i.zoom_delta()));
@@ -608,7 +681,7 @@ pub fn show(
         let dy = scale_resp.drag_delta().y;
         let g = &geos[k];
         let pane = &mut chart.panes[k];
-        let f = (dy as f64 * 0.006).exp();
+        let f = (dy as f64 * 0.0018).exp();
         let (tlo, thi) = if g.y.log {
             (pane.scale.lo.ln(), pane.scale.hi.ln())
         } else {
@@ -619,6 +692,27 @@ pub fn show(
         let (nlo, nhi) = (mid - half, mid + half);
         pane.scale.auto = false;
         (pane.scale.lo, pane.scale.hi) = if g.y.log { (nlo.exp(), nhi.exp()) } else { (nlo, nhi) };
+    }
+    if scale_resp.hovered() && interactive {
+        let scroll = ui.input(|i| i.smooth_scroll_delta);
+        if scroll.y != 0.0
+            && let Some(p) = pointer
+            && let Some(k) = geos.iter().position(|g| p.y >= g.rect.top() && p.y <= g.rect.bottom())
+        {
+            let g = &geos[k];
+            let pane = &mut chart.panes[k];
+            let f = (-scroll.y as f64 * 0.0012).exp();
+            let (tlo, thi) = if g.y.log {
+                (pane.scale.lo.ln(), pane.scale.hi.ln())
+            } else {
+                (pane.scale.lo, pane.scale.hi)
+            };
+            let mid = (tlo + thi) / 2.0;
+            let half = (thi - tlo) / 2.0 * f;
+            let (nlo, nhi) = (mid - half, mid + half);
+            pane.scale.auto = false;
+            (pane.scale.lo, pane.scale.hi) = if g.y.log { (nlo.exp(), nhi.exp()) } else { (nlo, nhi) };
+        }
     }
     if scale_resp.drag_stopped() {
         cui.scale_drag = None;
@@ -640,7 +734,7 @@ pub fn show(
         );
         let sc = &mut chart.compares[*ci].scale;
         if resp.dragged() {
-            let f = (resp.drag_delta().y as f64 * 0.006).exp();
+            let f = (resp.drag_delta().y as f64 * 0.0018).exp();
             let (tl, th) = if y.log {
                 (sc.lo.ln(), sc.hi.ln())
             } else {
@@ -813,7 +907,7 @@ pub fn show(
                 let (vals, step) = if g.y.log {
                     log_ticks(g.y.lo, g.y.hi, g.rect.height())
                 } else {
-                    scale::price_ticks(g.y.lo, g.y.hi, g.rect.height(), 48.0)
+                    scale::price_ticks(g.y.lo, g.y.hi, g.rect.height(), 34.0)
                 };
                 let d = format::decimals_for(step, 0);
                 vals.into_iter()
@@ -822,7 +916,7 @@ pub fn show(
                         let v = if v.abs() < step * 1e-6 { 0.0 } else { v };
                         let s = match g.format {
                             Format::Volume => format::compact_for(v, &chart.symbol),
-                            Format::Price => format::price(v, d.max(chart.precision().min(d))),
+                            Format::Price => format::price(v, d.max(chart.precision())),
                             Format::Fixed(_) => format::price(v, d),
                         };
                         (v, if s.is_empty() { fmt(v) } else { s })
@@ -958,12 +1052,24 @@ pub fn show(
         for (v, label) in list {
             let yy = g.y.y(*v);
             if yy > g.rect.top() + 6.0 && yy < g.rect.bottom() - 6.0 {
+                let is_major = if *v != 0.0 {
+                    let mag = 10f64.powi(v.abs().log10().floor() as i32);
+                    let rem = (v / (mag * 0.01)).round();
+                    (v - rem * (mag * 0.01)).abs() < 1e-6
+                } else {
+                    false
+                };
+                let font = if is_major {
+                    theme::semibold(chart.style.scale_font as f32)
+                } else {
+                    scale_font.clone()
+                };
                 painter.text(
                     pos2(scale_col.left() + 8.0, yy),
                     Align2::LEFT_CENTER,
                     label,
-                    scale_font.clone(),
-                    pal.scale_text,
+                    font,
+                    if is_major { t.text } else { pal.scale_text },
                 );
             }
         }
@@ -1016,6 +1122,76 @@ pub fn show(
     for (k, g) in geos.iter().enumerate() {
         let pane_id = chart.panes[k].id;
         let mut tags: Vec<(f32, String, Color32, Option<String>)> = Vec::new();
+        if k == 0 {
+            let line_col = if t.dark {
+                Color32::from_gray(180)
+            } else {
+                Color32::from_rgb(40, 40, 40)
+            };
+            let black_badge_col = Color32::from_rgb(20, 20, 20);
+            for alert in &chart.alerts {
+                let price = match cui.alert_drag {
+                    Some((id, p)) if id == alert.id => p,
+                    _ => alert.price,
+                };
+                let yy = g.y.y(price);
+                if yy >= g.rect.top() && yy <= g.rect.bottom() {
+                    styled_hline(
+                        &clip_painter(g.rect),
+                        g.rect.left(),
+                        g.rect.right(),
+                        snap(yy, ppp),
+                        Stroke::new(1.0, line_col),
+                        opentern_series::study::LineStyle::Dashed,
+                    );
+                    tags.push((yy, format::price(price, prec), black_badge_col, None));
+                    let near = pointer.is_some_and(|p| (p.y - yy).abs() < 12.0 && g.rect.contains(p))
+                        || cui.alert_drag.is_some_and(|(id, _)| id == alert.id);
+                    if near {
+                        let handle_pos = pos2(g.rect.right() - 8.0, snap(yy, ppp));
+                        painter.circle_filled(handle_pos, 4.0, t.bg);
+                        painter.circle_stroke(handle_pos, 4.0, Stroke::new(1.5, line_col));
+
+                        let text_g = painter.layout_no_wrap(alert.label.clone(), theme::medium(11.5), Color32::WHITE);
+                        let pill_w = text_g.size().x + 36.0;
+                        let pill_r = Rect::from_center_size(pos2(g.rect.center().x, yy), vec2(pill_w, 22.0));
+                        painter.rect_filled(pill_r, CornerRadius::same(5), Color32::from_black_alpha(220));
+                        painter.rect_stroke(
+                            pill_r,
+                            CornerRadius::same(5),
+                            Stroke::new(1.0, line_col),
+                            egui::StrokeKind::Inside,
+                        );
+                        painter.galley(
+                            pos2(pill_r.left() + 8.0, pill_r.center().y - text_g.size().y / 2.0),
+                            text_g,
+                            Color32::WHITE,
+                        );
+                        let trash_r = Rect::from_min_max(pos2(pill_r.right() - 24.0, pill_r.top()), pill_r.max);
+                        let trash_hov = pointer.is_some_and(|p| trash_r.contains(p));
+                        painter.text(
+                            trash_r.center(),
+                            Align2::CENTER_CENTER,
+                            ph::TRASH,
+                            theme::regular(13.0),
+                            if trash_hov { t.neg } else { Color32::WHITE },
+                        );
+                    } else {
+                        let tip = pos2(g.rect.right() - 1.0, snap(yy, ppp));
+                        let arrow_size = 5.0;
+                        painter.add(egui::Shape::convex_polygon(
+                            vec![
+                                tip,
+                                tip + vec2(-arrow_size, -arrow_size * 0.7),
+                                tip + vec2(-arrow_size, arrow_size * 0.7),
+                            ],
+                            line_col,
+                            Stroke::NONE,
+                        ));
+                    }
+                }
+            }
+        }
         if k == 0
             && let Some(b) = chart.bars.last()
         {
@@ -1240,6 +1416,41 @@ pub fn show(
                 vec2(scale_w - 2.0, tag_h),
             );
             paint::scale_tag(&painter, r, &text, pal.label_bg, scale_font.clone());
+
+            // Crosshair plus (+) button on the priceline (Image #36).
+            if interactive && geos.first().is_some_and(|m| m.rect == g.rect) {
+                let plus_r = Rect::from_center_size(pos2(scale_col.left() - 8.0, snap(p.y, ppp)), vec2(16.0, 16.0));
+                let plus_resp = ui.interact(plus_r, Id::new("crosshair-plus-btn"), Sense::click());
+                let hov = plus_resp.hovered();
+                painter.circle_filled(
+                    plus_r.center(),
+                    7.0,
+                    if hov {
+                        Color32::from_rgb(40, 40, 40)
+                    } else {
+                        Color32::from_rgb(20, 20, 20)
+                    },
+                );
+                painter.circle_stroke(
+                    plus_r.center(),
+                    7.0,
+                    Stroke::new(1.0, if hov { t.accent } else { Color32::WHITE }),
+                );
+                let st = Stroke::new(1.2, Color32::WHITE);
+                let c = plus_r.center();
+                painter.line_segment([c + vec2(-3.5, 0.0), c + vec2(3.5, 0.0)], st);
+                painter.line_segment([c + vec2(0.0, -3.5), c + vec2(0.0, 3.5)], st);
+                if hov {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+                if plus_resp.clicked() {
+                    actions.push(Action::CrosshairPlusMenu(
+                        pos2(scale_col.left() - 10.0, snap(p.y, ppp)),
+                        v,
+                    ));
+                }
+            }
+
             if geos.first().is_some_and(|m| m.rect == g.rect) {
                 for (ci, col, y) in &owns {
                     let c = &chart.compares[*ci];

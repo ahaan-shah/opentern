@@ -241,6 +241,9 @@ msgstr "ID de cuenta"
 msgid "Account settings"
 msgstr "Ajustes de la cuenta"
 
+msgid "Account size"
+msgstr ""
+
 msgid "Account size required"
 msgstr "Tamaño de cuenta necesario"
 
@@ -256,11 +259,20 @@ msgstr "Activa"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Añade primero una estrategia al gráfico. Una estrategia es un script que empieza con strategy(…)."
 
+msgid "Add alert on {0} at {1}"
+msgstr ""
+
+msgid "Add alert on {0} at {1}..."
+msgstr ""
+
 msgid "Add filter"
 msgstr "Añadir filtro"
 
 msgid "Add section"
 msgstr "Añadir sección"
+
+msgid "Add text"
+msgstr ""
 
 msgid "Add to chart"
 msgstr "Añadir al gráfico"
@@ -321,6 +333,9 @@ msgstr "Panel del agente"
 msgid "Alert"
 msgstr "Alerta"
 
+msgid "Alert created"
+msgstr ""
+
 msgid "Alerts"
 msgstr "Alertas"
 
@@ -374,6 +389,9 @@ msgstr "Alpaca · acciones de EE. UU."
 msgid "Also used by {0}"
 msgstr "También lo usa {0}"
 
+msgid "Always show stats"
+msgstr ""
+
 msgid "Americas"
 msgstr "América"
 
@@ -418,6 +436,9 @@ msgstr "Aplicó un resultado del laboratorio"
 
 msgid "Applied to the chart."
 msgstr "Aplicado al gráfico."
+
+msgid "Apply Default Drawing Template"
+msgstr ""
 
 msgid "Apply a lab result"
 msgstr "Aplicar un resultado del laboratorio"
@@ -563,6 +584,9 @@ msgstr "INDICADORES INTEGRADOS"
 msgid "Background"
 msgstr "Fondo"
 
+msgid "Background color"
+msgstr ""
+
 msgid "Backtest's max drawdown"
 msgstr "Drawdown máximo del backtest"
 
@@ -678,8 +702,17 @@ msgstr "Bandas de Bollinger"
 msgid "Bollinger Bands %B"
 msgstr "Bandas de Bollinger %B"
 
+msgid "Border"
+msgstr ""
+
+msgid "Border / line style"
+msgstr ""
+
 msgid "Borders"
 msgstr "Bordes"
+
+msgid "Bottom"
+msgstr ""
 
 #, message
 msgid "Bought {qty} {sym} at {price}"
@@ -788,6 +821,9 @@ msgstr "Efectivo"
 
 msgid "Categories"
 msgstr "Categorías"
+
+msgid "Center"
+msgstr ""
 
 msgid "Centered"
 msgstr "Centrado"
@@ -1067,6 +1103,9 @@ msgstr "Materias primas"
 msgid "Commodity Channel Index"
 msgstr "Índice de canal de materias primas (CCI)"
 
+msgid "Compact stats"
+msgstr ""
+
 msgid "Compare"
 msgstr "Comparar"
 
@@ -1115,6 +1154,9 @@ msgstr "Línea de conversión"
 msgid "Conversion Line Length"
 msgstr "Longitud de la línea de conversión"
 
+msgid "Coordinates"
+msgstr ""
+
 #, message
 msgid "Copied to {name}."
 msgstr "Copiado en {name}."
@@ -1127,6 +1169,9 @@ msgstr "Copiar"
 
 msgid "Copy image"
 msgstr "Copiar imagen"
+
+msgid "Copy price {0}"
+msgstr ""
 
 msgid "Corpus Christi"
 msgstr "Corpus Christi"
@@ -1399,6 +1444,9 @@ msgstr "Retraso de {min} min"
 msgid "Delete"
 msgstr "Eliminar"
 
+msgid "Delete all alerts"
+msgstr ""
+
 msgid "Delete folder (if empty)"
 msgstr "Eliminar carpeta (si está vacía)"
 
@@ -1489,6 +1537,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr ""
+
 msgid "Donchian Channels"
 msgstr "Canales de Donchian"
 
@@ -1538,11 +1589,20 @@ msgstr "Resaltador de tendencia bajista"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr ""
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arrastra para escalar · doble clic para ajustar · clic derecho para opciones"
 
 msgid "Draw again without picking again"
 msgstr "Dibuja otra vez sin volver a elegir"
+
+msgid "Draw horizontal line at {0}"
+msgstr ""
+
+msgid "Draw horizontal ray at {0}"
+msgstr ""
 
 msgid "Draw with replacement"
 msgstr "Extracción con reemplazo"
@@ -1706,6 +1766,9 @@ msgstr "Introduce este código en tu otro dispositivo"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "Valor de empresa entre el EBITDA de los últimos doce meses. Para el índice: EV total entre EBITDA total"
 
+msgid "Entry price"
+msgstr ""
+
 msgid "Entry {side}"
 msgstr "Entrada {side}"
 
@@ -1791,8 +1854,17 @@ msgstr "Exportado {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "Exportando"
 
+msgid "Extend"
+msgstr ""
+
+msgid "Extend both"
+msgstr ""
+
 msgid "Extend left"
 msgstr "Extender a la izquierda"
+
+msgid "Extend lines"
+msgstr ""
 
 msgid "Extend lines left"
 msgstr "Extender líneas a la izquierda"
@@ -2046,6 +2118,9 @@ msgstr "Oculto"
 msgid "Hide"
 msgstr "Ocultar"
 
+msgid "Hide / show"
+msgstr ""
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "Ocultar VWAP en 1D o superior"
 
@@ -2237,6 +2312,9 @@ msgstr "Entrada"
 msgid "Inputs"
 msgstr "Parámetros"
 
+msgid "Inside"
+msgstr ""
+
 msgid "Install {0}"
 msgstr "Instalar {0}"
 
@@ -2337,6 +2415,9 @@ msgstr "Día de la Fundación de Corea"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken no tiene barras de {0}"
+
+msgid "LEVELS"
+msgstr ""
 
 msgid "Labels on price scale"
 msgstr "Etiquetas en la escala de precios"
@@ -2452,6 +2533,9 @@ msgstr "Ruptura de línea"
 msgid "Line color"
 msgstr "Color de línea"
 
+msgid "Line style"
+msgstr ""
+
 msgid "Line width"
 msgstr "Grosor de línea"
 
@@ -2519,6 +2603,9 @@ msgstr "Cargando…"
 
 msgid "Local"
 msgstr "Local"
+
+msgid "Lock / unlock"
+msgstr ""
 
 msgid "Lock all drawings"
 msgstr "Bloquear todos los dibujos"
@@ -2605,6 +2692,9 @@ msgstr "Racha perdedora, peor 5 %"
 
 msgid "Losing trades"
 msgstr "Operaciones perdedoras"
+
+msgid "Lot size"
+msgstr ""
 
 msgid "Low"
 msgstr "Bajo"
@@ -2887,6 +2977,12 @@ msgstr "RCI medio"
 
 msgid "Middle RCI Length"
 msgstr "Longitud del RCI medio"
+
+msgid "Middle line"
+msgstr ""
+
+msgid "Middle line style"
+msgstr ""
 
 msgid "Millions, billions"
 msgstr "Millones, miles de millones"
@@ -3343,6 +3439,9 @@ msgstr "ESQUEMA"
 msgid "OUTPUT"
 msgstr "SALIDA"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "Árbol de objetos y ventana de datos"
 
@@ -3560,6 +3659,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "PROBLEMAS"
 
+msgid "PROFIT LEVEL"
+msgstr ""
+
 msgid "PVT"
 msgstr ""
 
@@ -3759,9 +3861,6 @@ msgstr "Línea de precio pre/posmercado"
 msgid "Precision"
 msgstr "Precisión"
 
-msgid "Press Enter for {0}"
-msgstr "Pulsa Intro para {0}"
-
 msgid "Press keys"
 msgstr "Pulsa las teclas"
 
@@ -3860,6 +3959,9 @@ msgstr "Cant."
 
 msgid "Quantity"
 msgstr "Cantidad"
+
+msgid "Quantity precision"
+msgstr ""
 
 msgid "Quarter"
 msgstr "Trimestre"
@@ -4109,6 +4211,9 @@ msgstr "Restablecer"
 msgid "Reset account"
 msgstr "Restablecer cuenta"
 
+msgid "Reset chart view"
+msgstr ""
+
 msgid "Reset settings"
 msgstr "Restablecer ajustes"
 
@@ -4175,11 +4280,11 @@ msgstr "Barras a la derecha"
 msgid "Rises and falls"
 msgstr "Subidas y bajadas"
 
+msgid "Risk"
+msgstr ""
+
 msgid "Risk/performance ratios"
 msgstr "Ratios de riesgo/rendimiento"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "Ratio riesgo/beneficio: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruina con drawdown"
@@ -4262,6 +4367,9 @@ msgstr ""
 msgid "SMTP server"
 msgstr "Servidor SMTP"
 
+msgid "STOP LEVEL"
+msgstr ""
+
 msgid "Same % scale"
 msgstr "Misma escala %"
 
@@ -4273,6 +4381,9 @@ msgstr "sábado"
 
 msgid "Save"
 msgstr "Guardar"
+
+msgid "Save Drawing Template As..."
+msgstr ""
 
 msgid "Save a snapshot"
 msgstr "Guardar una captura"
@@ -4291,6 +4402,9 @@ msgstr "Guardar como predeterminado"
 
 msgid "Save chart template"
 msgstr "Guardar plantilla de gráfico"
+
+msgid "Save drawing template"
+msgstr ""
 
 msgid "Save indicator template"
 msgstr "Guardar plantilla de indicadores"
@@ -4459,6 +4573,9 @@ msgstr "Ajustes"
 msgid "Settings → Export and import → Import → Receive"
 msgstr "Ajustes → Exportar e importar → Importar → Recibir"
 
+msgid "Settings..."
+msgstr ""
+
 msgid "Shanghai"
 msgstr "Shanghái"
 
@@ -4521,6 +4638,9 @@ msgstr "Mostrar en la barra superior"
 
 msgid "Show labels"
 msgstr "Mostrar etiquetas"
+
+msgid "Show on chart"
+msgstr ""
 
 msgid "Show on intervals"
 msgstr "Mostrar en intervalos"
@@ -4774,6 +4894,9 @@ msgstr "Stop largo"
 msgid "Stop Short"
 msgstr "Stop corto"
 
+msgid "Stop color"
+msgstr ""
+
 msgid "Stop limit"
 msgstr "Stop límite"
 
@@ -4785,9 +4908,6 @@ msgstr "Precio de stop"
 
 msgid "Stop using as default"
 msgstr "Dejar de usar como predeterminado"
-
-msgid "Stop: {0} ({1})"
-msgstr "Stop: {0} ({1})"
 
 msgid "Stopped"
 msgstr "Detenida"
@@ -4923,8 +5043,8 @@ msgstr "Quita sus scripts del gráfico antes de cambiarle el nombre."
 msgid "Take profit"
 msgstr "Toma de beneficios"
 
-msgid "Target: {0} ({1})"
-msgstr "Objetivo: {0} ({1})"
+msgid "Target color"
+msgstr ""
 
 msgid "Teachers' Day"
 msgstr "Día del Maestro"
@@ -4950,6 +5070,9 @@ msgstr "Token del bot de Telegram"
 msgid "Telegram chat id"
 msgstr "ID de chat de Telegram"
 
+msgid "Template"
+msgstr ""
+
 msgid "Template  {0}"
 msgstr "Plantilla  {0}"
 
@@ -4958,6 +5081,15 @@ msgstr "Plantillas"
 
 msgid "Text"
 msgstr "Texto"
+
+msgid "Text alignment"
+msgstr ""
+
+msgid "Text color"
+msgstr ""
+
+msgid "Text style"
+msgstr ""
 
 msgid "Thanksgiving"
 msgstr "Acción de Gracias"
@@ -5084,6 +5216,9 @@ msgstr "No hay libro de órdenes gratuito para este mercado. La profundidad func
 msgid "There's no image or file on the clipboard."
 msgstr "No hay imagen ni archivo en el portapapeles."
 
+msgid "Thickness"
+msgstr ""
+
 msgid "Thinking"
 msgstr "Pensando"
 
@@ -5129,6 +5264,9 @@ msgstr "Marca los parámetros a variar."
 msgid "Ticked members of {0}"
 msgstr "Marcó miembros de {0}"
 
+msgid "Ticks"
+msgstr ""
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "Los bloques muestran la sesión normal. Pasa el cursor por uno para ver su precio fuera de horario."
 
@@ -5170,6 +5308,9 @@ msgstr "Demasiados códigos incorrectos. Empieza de nuevo."
 
 msgid "Took a picture of the chart"
 msgstr "Hizo una captura del gráfico"
+
+msgid "Top"
+msgstr ""
 
 msgid "Top 150"
 msgstr "Top 150"
@@ -5275,6 +5416,9 @@ msgstr "Escribe un número"
 
 msgid "Type anywhere"
 msgstr "Escribe en cualquier sitio"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr ""
 
 msgid "UO"
 msgstr ""
@@ -5856,6 +6000,9 @@ msgstr ""
 msgid "open"
 msgstr "apertura"
 
+msgid "price, bar"
+msgstr ""
+
 msgid "sell"
 msgstr "venta"
 
@@ -5917,6 +6064,9 @@ msgstr "{0}  Buscar símbolos para añadir"
 msgid "{0}  insert"
 msgstr "{0}  insertar"
 
+msgid "{0} ({1}% opacity)"
+msgstr ""
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} barras, {time}"
 
@@ -5946,6 +6096,12 @@ msgstr "{0} copia"
 
 msgid "{0} days"
 msgstr "{0} días"
+
+msgid "{0} decimals"
+msgstr ""
+
+msgid "{0} drawings selected"
+msgstr ""
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"

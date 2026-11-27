@@ -241,6 +241,9 @@ msgstr "Konto-ID"
 msgid "Account settings"
 msgstr "Kontoinställningar"
 
+msgid "Account size"
+msgstr ""
+
 msgid "Account size required"
 msgstr "Nödvändig kontostorlek"
 
@@ -256,11 +259,20 @@ msgstr "Aktivt"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
 
+msgid "Add alert on {0} at {1}"
+msgstr ""
+
+msgid "Add alert on {0} at {1}..."
+msgstr ""
+
 msgid "Add filter"
 msgstr "Lägg till filter"
 
 msgid "Add section"
 msgstr "Lägg till avsnitt"
+
+msgid "Add text"
+msgstr ""
 
 msgid "Add to chart"
 msgstr "Lägg till i diagrammet"
@@ -321,6 +333,9 @@ msgstr "Agentpanel"
 msgid "Alert"
 msgstr "Larm"
 
+msgid "Alert created"
+msgstr ""
+
 msgid "Alerts"
 msgstr "Larm"
 
@@ -374,6 +389,9 @@ msgstr "Alpaca · amerikanska aktier"
 msgid "Also used by {0}"
 msgstr "Används också av {0}"
 
+msgid "Always show stats"
+msgstr ""
+
 msgid "Americas"
 msgstr "Amerika"
 
@@ -418,6 +436,9 @@ msgstr "Använde ett labbresultat"
 
 msgid "Applied to the chart."
 msgstr "Använt i diagrammet."
+
+msgid "Apply Default Drawing Template"
+msgstr ""
 
 msgid "Apply a lab result"
 msgstr "Använd ett labbresultat"
@@ -563,6 +584,9 @@ msgstr "INBYGGDA INDIKATORER"
 msgid "Background"
 msgstr "Bakgrund"
 
+msgid "Background color"
+msgstr ""
+
 msgid "Backtest's max drawdown"
 msgstr "Backtestets största nedgång"
 
@@ -678,8 +702,17 @@ msgstr "Bollingerband"
 msgid "Bollinger Bands %B"
 msgstr "Bollingerband %B"
 
+msgid "Border"
+msgstr ""
+
+msgid "Border / line style"
+msgstr ""
+
 msgid "Borders"
 msgstr "Kanter"
+
+msgid "Bottom"
+msgstr ""
 
 #, message
 msgid "Bought {qty} {sym} at {price}"
@@ -788,6 +821,9 @@ msgstr "Kontanter"
 
 msgid "Categories"
 msgstr "Kategorier"
+
+msgid "Center"
+msgstr ""
 
 msgid "Centered"
 msgstr "Centrerad"
@@ -1067,6 +1103,9 @@ msgstr "Råvaror"
 msgid "Commodity Channel Index"
 msgstr "Råvarukanalindex (CCI)"
 
+msgid "Compact stats"
+msgstr ""
+
 msgid "Compare"
 msgstr "Jämför"
 
@@ -1115,6 +1154,9 @@ msgstr "Konverteringslinje"
 msgid "Conversion Line Length"
 msgstr "Konverteringslinjens längd"
 
+msgid "Coordinates"
+msgstr ""
+
 #, message
 msgid "Copied to {name}."
 msgstr "Kopierat till {name}."
@@ -1127,6 +1169,9 @@ msgstr "Kopiera"
 
 msgid "Copy image"
 msgstr "Kopiera bild"
+
+msgid "Copy price {0}"
+msgstr ""
 
 msgid "Corpus Christi"
 msgstr "Kristi lekamens fest"
@@ -1399,6 +1444,9 @@ msgstr "{min} min fördröjt"
 msgid "Delete"
 msgstr "Ta bort"
 
+msgid "Delete all alerts"
+msgstr ""
+
 msgid "Delete folder (if empty)"
 msgstr "Ta bort mappen (om den är tom)"
 
@@ -1489,6 +1537,9 @@ msgstr ""
 msgid "Diwali Laxmi Pujan"
 msgstr ""
 
+msgid "Don't extend"
+msgstr ""
+
 msgid "Donchian Channels"
 msgstr "Donchiankanaler"
 
@@ -1538,11 +1589,20 @@ msgstr "Markering av nedåttrend"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag to move"
+msgstr ""
+
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
 
 msgid "Draw again without picking again"
 msgstr "Rita igen utan att välja om"
+
+msgid "Draw horizontal line at {0}"
+msgstr ""
+
+msgid "Draw horizontal ray at {0}"
+msgstr ""
 
 msgid "Draw with replacement"
 msgstr "Dragning med återläggning"
@@ -1706,6 +1766,9 @@ msgstr "Ange den här koden på din andra enhet"
 msgid "Enterprise value over trailing EBITDA. For the index: total EV over total EBITDA"
 msgstr "Företagsvärde genom EBITDA för tolv månader. För indexet: totalt EV genom totalt EBITDA"
 
+msgid "Entry price"
+msgstr ""
+
 msgid "Entry {side}"
 msgstr "Ingång {side}"
 
@@ -1791,8 +1854,17 @@ msgstr "Exporterad {when} · Opentern {0}"
 msgid "Exporting"
 msgstr "Exporterar"
 
+msgid "Extend"
+msgstr ""
+
+msgid "Extend both"
+msgstr ""
+
 msgid "Extend left"
 msgstr "Förläng åt vänster"
+
+msgid "Extend lines"
+msgstr ""
 
 msgid "Extend lines left"
 msgstr "Förläng linjer åt vänster"
@@ -2046,6 +2118,9 @@ msgstr "Dold"
 msgid "Hide"
 msgstr "Dölj"
 
+msgid "Hide / show"
+msgstr ""
+
 msgid "Hide VWAP on 1D or Above"
 msgstr "Dölj VWAP på 1D eller högre"
 
@@ -2237,6 +2312,9 @@ msgstr "Indata"
 msgid "Inputs"
 msgstr "Indata"
 
+msgid "Inside"
+msgstr ""
+
 msgid "Install {0}"
 msgstr "Installera {0}"
 
@@ -2337,6 +2415,9 @@ msgstr "Koreas grundande"
 #, message
 msgid "Kraken has no {0} bars"
 msgstr "Kraken har inga {0}-staplar"
+
+msgid "LEVELS"
+msgstr ""
 
 msgid "Labels on price scale"
 msgstr "Etiketter på prisskalan"
@@ -2452,6 +2533,9 @@ msgstr "Linjebrott"
 msgid "Line color"
 msgstr "Linjefärg"
 
+msgid "Line style"
+msgstr ""
+
 msgid "Line width"
 msgstr "Linjebredd"
 
@@ -2519,6 +2603,9 @@ msgstr "Laddar…"
 
 msgid "Local"
 msgstr "Lokal"
+
+msgid "Lock / unlock"
+msgstr ""
 
 msgid "Lock all drawings"
 msgstr "Lås alla ritningar"
@@ -2605,6 +2692,9 @@ msgstr "Förlustsvit, sämsta 5 %"
 
 msgid "Losing trades"
 msgstr "Förlustaffärer"
+
+msgid "Lot size"
+msgstr ""
 
 msgid "Low"
 msgstr "Låg"
@@ -2887,6 +2977,12 @@ msgstr "Mellan-RCI"
 
 msgid "Middle RCI Length"
 msgstr "Längd på mellan-RCI"
+
+msgid "Middle line"
+msgstr ""
+
+msgid "Middle line style"
+msgstr ""
 
 msgid "Millions, billions"
 msgstr "Miljoner, miljarder"
@@ -3343,6 +3439,9 @@ msgstr "DISPOSITION"
 msgid "OUTPUT"
 msgstr "UTDATA"
 
+msgid "Object tree"
+msgstr ""
+
 msgid "Object tree and data window"
 msgstr "Objektträd och datafönster"
 
@@ -3560,6 +3659,9 @@ msgstr ""
 msgid "PROBLEMS"
 msgstr "PROBLEM"
 
+msgid "PROFIT LEVEL"
+msgstr ""
+
 msgid "PVT"
 msgstr ""
 
@@ -3759,9 +3861,6 @@ msgstr "Prislinje för för-/efterhandel"
 msgid "Precision"
 msgstr "Precision"
 
-msgid "Press Enter for {0}"
-msgstr "Tryck på Retur för {0}"
-
 msgid "Press keys"
 msgstr "Tryck på tangenterna"
 
@@ -3860,6 +3959,9 @@ msgstr "Antal"
 
 msgid "Quantity"
 msgstr "Kvantitet"
+
+msgid "Quantity precision"
+msgstr ""
 
 msgid "Quarter"
 msgstr "Kvartal"
@@ -4109,6 +4211,9 @@ msgstr "Återställ"
 msgid "Reset account"
 msgstr "Återställ konto"
 
+msgid "Reset chart view"
+msgstr ""
+
 msgid "Reset settings"
 msgstr "Återställ inställningar"
 
@@ -4175,11 +4280,11 @@ msgstr "Staplar till höger"
 msgid "Rises and falls"
 msgstr "Upp- och nedgångar"
 
+msgid "Risk"
+msgstr ""
+
 msgid "Risk/performance ratios"
 msgstr "Risk- och resultatmått"
-
-msgid "Risk/reward ratio: {rr}"
-msgstr "Risk/vinst-kvot: {rr}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruin vid nedgång"
@@ -4262,6 +4367,9 @@ msgstr ""
 msgid "SMTP server"
 msgstr "SMTP-server"
 
+msgid "STOP LEVEL"
+msgstr ""
+
 msgid "Same % scale"
 msgstr "Samma %-skala"
 
@@ -4273,6 +4381,9 @@ msgstr "lördag"
 
 msgid "Save"
 msgstr "Spara"
+
+msgid "Save Drawing Template As..."
+msgstr ""
 
 msgid "Save a snapshot"
 msgstr "Spara en ögonblicksbild"
@@ -4291,6 +4402,9 @@ msgstr "Spara som standard"
 
 msgid "Save chart template"
 msgstr "Spara diagrammall"
+
+msgid "Save drawing template"
+msgstr ""
 
 msgid "Save indicator template"
 msgstr "Spara indikatormall"
@@ -4459,6 +4573,9 @@ msgstr "Inställningar"
 msgid "Settings → Export and import → Import → Receive"
 msgstr "Inställningar → Exportera och importera → Importera → Ta emot"
 
+msgid "Settings..."
+msgstr ""
+
 msgid "Shanghai"
 msgstr ""
 
@@ -4521,6 +4638,9 @@ msgstr "Visa i översta fältet"
 
 msgid "Show labels"
 msgstr "Visa etiketter"
+
+msgid "Show on chart"
+msgstr ""
 
 msgid "Show on intervals"
 msgstr "Visa på intervall"
@@ -4774,6 +4894,9 @@ msgstr "Stopp lång"
 msgid "Stop Short"
 msgstr "Stopp kort"
 
+msgid "Stop color"
+msgstr ""
+
 msgid "Stop limit"
 msgstr "Stopplimit"
 
@@ -4785,9 +4908,6 @@ msgstr "Stoppris"
 
 msgid "Stop using as default"
 msgstr "Sluta använda som standard"
-
-msgid "Stop: {0} ({1})"
-msgstr "Stopp: {0} ({1})"
 
 msgid "Stopped"
 msgstr "Stoppat"
@@ -4923,8 +5043,8 @@ msgstr "Ta bort dess skript från diagrammet innan du byter namn."
 msgid "Take profit"
 msgstr "Ta hem vinst"
 
-msgid "Target: {0} ({1})"
-msgstr "Mål: {0} ({1})"
+msgid "Target color"
+msgstr ""
 
 msgid "Teachers' Day"
 msgstr "Lärarnas dag"
@@ -4950,6 +5070,9 @@ msgstr "Telegram-botens token"
 msgid "Telegram chat id"
 msgstr "Telegram-chatt-id"
 
+msgid "Template"
+msgstr ""
+
 msgid "Template  {0}"
 msgstr "Mall  {0}"
 
@@ -4958,6 +5081,15 @@ msgstr "Mallar"
 
 msgid "Text"
 msgstr "Text"
+
+msgid "Text alignment"
+msgstr ""
+
+msgid "Text color"
+msgstr ""
+
+msgid "Text style"
+msgstr ""
 
 msgid "Thanksgiving"
 msgstr ""
@@ -5084,6 +5216,9 @@ msgstr "Det finns ingen gratis orderbok för den här marknaden. Marknadsdjupet 
 msgid "There's no image or file on the clipboard."
 msgstr "Ingen bild eller fil i urklipp."
 
+msgid "Thickness"
+msgstr ""
+
 msgid "Thinking"
 msgstr "Tänker"
 
@@ -5129,6 +5264,9 @@ msgstr "Markera indata att variera."
 msgid "Ticked members of {0}"
 msgstr "Markerade medlemmar i {0}"
 
+msgid "Ticks"
+msgstr ""
+
 msgid "Tiles show the regular session. Hover one for its extended-hours price."
 msgstr "Rutorna visar den ordinarie handeln. Håll pekaren över en för priset utanför ordinarie tider."
 
@@ -5170,6 +5308,9 @@ msgstr "För många felaktiga koder. Börja om."
 
 msgid "Took a picture of the chart"
 msgstr "Tog en bild av diagrammet"
+
+msgid "Top"
+msgstr ""
 
 msgid "Top 150"
 msgstr "Topp 150"
@@ -5275,6 +5416,9 @@ msgstr "Skriv ett tal"
 
 msgid "Type anywhere"
 msgstr "Skriv var som helst"
+
+msgid "Type the interval number for minute charts (i.e. 5 if it's going to be a five minute chart). Or number plus letter for other intervals: S for 1 second chart, H (Hourly), D (Daily), W (Weekly), M (Monthly)."
+msgstr ""
 
 msgid "UO"
 msgstr ""
@@ -5856,6 +6000,9 @@ msgstr ""
 msgid "open"
 msgstr "öppning"
 
+msgid "price, bar"
+msgstr ""
+
 msgid "sell"
 msgstr "sälj"
 
@@ -5917,6 +6064,9 @@ msgstr "{0}  Sök symboler att lägga till"
 msgid "{0}  insert"
 msgstr "{0}  infoga"
 
+msgid "{0} ({1}% opacity)"
+msgstr ""
+
 msgid "{0} ({1})\n{bars} bars, {time}"
 msgstr "{0} ({1})\n{bars} staplar, {time}"
 
@@ -5946,6 +6096,12 @@ msgstr "{0} kopia"
 
 msgid "{0} days"
 msgstr "{0} dagar"
+
+msgid "{0} decimals"
+msgstr ""
+
+msgid "{0} drawings selected"
+msgstr ""
 
 msgid "{0} h {1} min"
 msgstr "{0} h {1} min"

@@ -20,7 +20,10 @@ pub struct Tools<'a> {
 #[derive(Default)]
 pub struct DrawUi {
     pub selected: Option<u64>,
+    pub multi_selected: Vec<u64>,
+    pub box_select: Option<(Pos2, Pos2)>,
     pub hovered: Option<u64>,
+    pub open_settings: Option<u64>,
     placing: Option<Drawing>,
     clicks: usize,
     drag: Option<(u64, Part, Anchor)>,
@@ -57,6 +60,8 @@ impl DrawUi {
         }
         if self.placing.take().is_none() {
             self.selected = None;
+            self.multi_selected.clear();
+            self.box_select = None;
         }
         self.zoom_from = None;
     }
@@ -295,8 +300,64 @@ pub fn handle(
         }
         return resp.dragged();
     }
+    let ctrl = ui.input(|i| i.modifiers.command || i.modifiers.ctrl);
     if resp.clicked() {
-        du.selected = press.and_then(hit_at).map(|h| h.0);
+        if let Some((id, _, _)) = press.and_then(hit_at) {
+            if ctrl {
+                if let Some(pos) = du.multi_selected.iter().position(|&x| x == id) {
+                    du.multi_selected.remove(pos);
+                    if du.selected == Some(id) {
+                        du.selected = du.multi_selected.last().copied();
+                    }
+                } else {
+                    if let Some(prev) = du.selected
+                        && !du.multi_selected.contains(&prev)
+                    {
+                        du.multi_selected.push(prev);
+                    }
+                    du.multi_selected.push(id);
+                    du.selected = Some(id);
+                }
+            } else {
+                du.selected = Some(id);
+                du.multi_selected.clear();
+            }
+        } else if !ctrl {
+            du.selected = None;
+            du.multi_selected.clear();
+        }
+    }
+    // Ctrl + drag starts marquee box multi-selection (Image #35).
+    if ctrl
+        && resp.drag_started()
+        && let Some(p) = origin
+    {
+        du.box_select = Some((p, press.unwrap_or(p)));
+    }
+    if let Some((from, ref mut to)) = du.box_select {
+        if let Some(p) = press {
+            *to = p;
+        }
+        if resp.drag_stopped() {
+            let sel_rect = Rect::from_two_pos(from, *to);
+            if sel_rect.width() > 3.0 || sel_rect.height() > 3.0 {
+                for d in &chart.drawings {
+                    let pts: Vec<Pos2> = d.pts.iter().map(|a| g.pos(*a)).collect();
+                    let hit = match d.tool {
+                        Tool::Rectangle if pts.len() >= 2 => sel_rect.intersects(Rect::from_two_pos(pts[0], pts[1])),
+                        _ => pts.iter().any(|pt| sel_rect.contains(*pt)),
+                    };
+                    if hit && !du.multi_selected.contains(&d.id) {
+                        du.multi_selected.push(d.id);
+                    }
+                }
+                if !du.multi_selected.is_empty() && du.selected.is_none() {
+                    du.selected = du.multi_selected.last().copied();
+                }
+            }
+            du.box_select = None;
+        }
+        return true;
     }
     if resp.drag_started()
         && let Some(p) = origin
@@ -373,7 +434,7 @@ pub fn paint(
     let p = painter.with_clip_rect(rect);
     if !tools.hide_all {
         for d in &chart.drawings {
-            let sel = du.selected == Some(d.id) || du.hovered == Some(d.id);
+            let sel = du.selected == Some(d.id) || du.multi_selected.contains(&d.id) || du.hovered == Some(d.id);
             draw::paint(&p, d, &g, sel, bg);
         }
     }
@@ -386,6 +447,21 @@ pub fn paint(
             r,
             egui::CornerRadius::ZERO,
             egui::Color32::from_rgba_unmultiplied(41, 98, 255, 30),
+        );
+    }
+    // Marquee / box multi-selection (Image #35).
+    if let Some((a, b)) = du.box_select {
+        let r = Rect::from_two_pos(a, b);
+        p.rect_filled(
+            r,
+            egui::CornerRadius::ZERO,
+            egui::Color32::from_rgba_unmultiplied(41, 98, 255, 35),
+        );
+        p.rect_stroke(
+            r,
+            egui::CornerRadius::ZERO,
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(41, 98, 255)),
+            egui::StrokeKind::Inside,
         );
     }
 }

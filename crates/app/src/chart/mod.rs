@@ -268,6 +268,8 @@ pub struct Chart {
     pub marks: Option<std::sync::Arc<TradeMarks>>,
     /// The paper account's position and working orders on this symbol.
     pub paper: Vec<PaperLine>,
+    /// Active alerts on this chart's symbol, drawn as horizontal lines.
+    pub alerts: Vec<crate::alerts::ChartAlert>,
     /// Dividends and splits (stocks), and whether prices are adjusted for
     /// dividends (TradingView's ADJ). `raw` keeps the unadjusted bars.
     pub corporate: Option<opentern_data::yahoo::Corporate>,
@@ -385,6 +387,7 @@ impl Chart {
             sym_tz,
             marks: None,
             paper: Vec::new(),
+            alerts: Vec::new(),
             corporate: None,
             extended: None,
             funding: None,
