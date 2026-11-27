@@ -313,13 +313,13 @@ mod tests {
         d.click(d.at(0.3, 0.5));
         d.click(d.at(0.6, 0.3));
         assert_eq!(d.app.chart.drawings.len(), 1, "placed");
-        assert_eq!(d.app.layout.tool, Tool::TrendLine, "the tool stays for the next one");
-        // A second, then Esc puts the tool down.
+        assert_eq!(d.app.layout.tool, Tool::Cross, "placement returns to the cursor");
+        // Pick it again to place another.
+        d.pick(Tool::TrendLine);
         d.click(d.at(0.3, 0.7));
         d.click(d.at(0.6, 0.8));
-        assert_eq!(d.app.chart.drawings.len(), 2, "a second without picking it again");
-        d.key(Key::Escape, Modifiers::NONE);
-        assert_eq!(d.app.layout.tool, Tool::Cross, "Esc: back to the cross");
+        assert_eq!(d.app.chart.drawings.len(), 2, "a second after picking it again");
+        assert_eq!(d.app.layout.tool, Tool::Cross);
         d.app.chart.drawings.truncate(1);
         let before = d.app.chart.drawings[0].clone();
         assert_ne!(before.pts[0], before.pts[1]);
@@ -742,15 +742,11 @@ mod tests {
         assert_eq!(d.app.layout.tool, Tool::Cross, "zooming is one go, as on TradingView");
     }
 
-    /// With "Stay in drawing mode" off, a placed drawing puts the tool
-    /// down (TradingView's way).
     #[test]
-    fn back_to_the_cursor_when_asked() {
+    fn one_click_drawing_returns_to_the_cursor() {
         let mut d = Driver::new("back-to-cursor");
-        d.app.layout.back_to_cursor = true;
-        d.pick(Tool::TrendLine);
+        d.pick(Tool::HorizontalLine);
         d.click(d.at(0.3, 0.5));
-        d.click(d.at(0.6, 0.3));
         assert_eq!(d.app.chart.drawings.len(), 1);
         assert_eq!(d.app.layout.tool, Tool::Cross);
     }

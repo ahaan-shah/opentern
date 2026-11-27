@@ -12,6 +12,9 @@
 - **Active alerts on chart**: Active alerts now render on the chart canvas as dashed amber lines with an alert badge on the price scale, draggable to adjust price levels, and an interactive hover pill displaying the alert label and a quick-delete trash button, matching TradingView.
 - **Compact Change interval popover**: Redesigned as a floating popover card over the chart with an info icon, keyboard shortcut guidance tooltip, and live interval name resolution (e.g., "1 minute", "4 hours").
 
+### Changed
+- **Drawing tools return to the cursor after each drawing.** Pick the tool again to place another.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

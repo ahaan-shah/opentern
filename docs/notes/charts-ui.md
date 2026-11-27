@@ -218,9 +218,8 @@ What's new reopens it. Still: `whatsnew`.
   star (`tool_menu_row`); the list stays open while starring.
 - `widgets::filled_star` draws Phosphor's filled star (the `fill` font variant,
   `theme::filled`), which lines up with the outline `ph::STAR`.
-- Drawing tools stay picked after a drawing (`Arrangement::back_to_cursor`, off by
-  default; it replaced `stay_drawing` so saved layouts don't keep the old way). Zoom
-  is one go whatever the setting.
+- Drawing tools return to the cursor after each drawing; pick a tool again to place
+  another. Zoom also returns to the cursor after use.
 - Both floating bars ask `App::charts_on_screen` before drawing.
 - Menu rows (`widgets::menu_row_tinted`) lay out the hint first and shorten the label
   with "…" to fit; `menu_row_width` sizes a menu to its rows (the tool flyouts do).

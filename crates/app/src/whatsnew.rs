@@ -49,12 +49,6 @@ pub const RELEASES: &[Notes] = &[
                 body: nt!("Change any shortcut in Settings → Keyboard shortcuts: press the pencil, then the keys."),
                 image: None,
             },
-            Item {
-                icon: ph::PENCIL_SIMPLE,
-                title: nt!("Draw again without picking again"),
-                body: nt!("A drawing tool stays picked after each drawing. Esc puts it down."),
-                image: None,
-            },
         ],
     },
     Notes {
