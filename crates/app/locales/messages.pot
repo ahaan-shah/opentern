@@ -89,6 +89,9 @@ msgstr ""
 msgid "1 month"
 msgstr ""
 
+msgid "1 more trade"
+msgstr ""
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr ""
 
@@ -2538,6 +2541,9 @@ msgstr ""
 msgid "Log scale"
 msgstr ""
 
+msgid "Log scale needs equity above zero"
+msgstr ""
+
 msgid "London"
 msgstr ""
 
@@ -4522,6 +4528,9 @@ msgstr ""
 msgid "Show Pearson's R"
 msgstr ""
 
+msgid "Show all (double-click)"
+msgstr ""
+
 msgid "Show favorite drawings toolbar"
 msgstr ""
 
@@ -5232,6 +5241,9 @@ msgstr ""
 msgid "Trade #"
 msgstr ""
 
+msgid "Trade {0} · {1}"
+msgstr ""
+
 msgid "Trades"
 msgstr ""
 
@@ -5918,9 +5930,6 @@ msgstr ""
 msgid "your other device"
 msgstr ""
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr ""
-
 msgid "{0}\nNo new price for {1}"
 msgstr ""
 
@@ -5999,6 +6008,9 @@ msgid "{0} isn't installed"
 msgstr ""
 
 msgid "{0} min"
+msgstr ""
+
+msgid "{0} more trades"
 msgstr ""
 
 msgid "{0} per contract"

@@ -89,6 +89,9 @@ msgstr "1 минута"
 msgid "1 month"
 msgstr "1 месяц"
 
+msgid "1 more trade"
+msgstr "Ещё 1 сделка"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "В 1 скрипте есть несохранённые изменения. Сохраните его, чтобы включить их."
 
@@ -2538,6 +2541,9 @@ msgstr "Лог"
 msgid "Log scale"
 msgstr "Логарифмическая шкала"
 
+msgid "Log scale needs equity above zero"
+msgstr "Для логарифмической шкалы капитал должен быть выше нуля"
+
 msgid "London"
 msgstr "Лондон"
 
@@ -4522,6 +4528,9 @@ msgstr "Показывать POC"
 msgid "Show Pearson's R"
 msgstr "Показывать R Пирсона"
 
+msgid "Show all (double-click)"
+msgstr "Показать всё (двойной щелчок)"
+
 msgid "Show favorite drawings toolbar"
 msgstr "Показать панель избранных инструментов"
 
@@ -5232,6 +5241,9 @@ msgstr "Всего сделок"
 msgid "Trade #"
 msgstr "Сделка №"
 
+msgid "Trade {0} · {1}"
+msgstr "Сделка {0} · {1}"
+
 msgid "Trades"
 msgstr "Сделки"
 
@@ -5918,9 +5930,6 @@ msgstr "к SMA 50 %"
 msgid "your other device"
 msgstr "другое устройство"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nКапитал  {1}\nКупить и держать  {2}\nПросадка  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\nНовой цены нет {1}"
 
@@ -6000,6 +6009,9 @@ msgstr "{0} не установлен"
 
 msgid "{0} min"
 msgstr "{0} мин"
+
+msgid "{0} more trades"
+msgstr "Ещё сделок: {0}"
 
 msgid "{0} per contract"
 msgstr "{0} за контракт"

@@ -89,6 +89,9 @@ msgstr "1 मिनट"
 msgid "1 month"
 msgstr "1 महीना"
 
+msgid "1 more trade"
+msgstr "1 और ट्रेड"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 स्क्रिप्ट में बिना सहेजे बदलाव हैं। शामिल करने के लिए सहेजें।"
 
@@ -2538,6 +2541,9 @@ msgstr "लॉग"
 msgid "Log scale"
 msgstr "लॉग स्केल"
 
+msgid "Log scale needs equity above zero"
+msgstr "लॉग स्केल के लिए इक्विटी शून्य से ऊपर होनी चाहिए"
+
 msgid "London"
 msgstr "लंदन"
 
@@ -4522,6 +4528,9 @@ msgstr "POC दिखाएँ"
 msgid "Show Pearson's R"
 msgstr "पियर्सन R दिखाएँ"
 
+msgid "Show all (double-click)"
+msgstr "सब दिखाएँ (डबल-क्लिक)"
+
 msgid "Show favorite drawings toolbar"
 msgstr "पसंदीदा ड्रॉइंग टूलबार दिखाएँ"
 
@@ -5232,6 +5241,9 @@ msgstr "कुल ट्रेड"
 msgid "Trade #"
 msgstr "ट्रेड सं."
 
+msgid "Trade {0} · {1}"
+msgstr "ट्रेड {0} · {1}"
+
 msgid "Trades"
 msgstr "ट्रेड"
 
@@ -5918,9 +5930,6 @@ msgstr "SMA 50 से %"
 msgid "your other device"
 msgstr "आपका दूसरा डिवाइस"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nइक्विटी  {1}\nखरीदें और रखें  {2}\nड्रॉडाउन  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\n{1} से नया भाव नहीं"
 
@@ -6000,6 +6009,9 @@ msgstr "{0} इंस्टॉल नहीं है"
 
 msgid "{0} min"
 msgstr "{0} मिनट"
+
+msgid "{0} more trades"
+msgstr "{0} और ट्रेड"
 
 msgid "{0} per contract"
 msgstr "{0} प्रति कॉन्ट्रैक्ट"

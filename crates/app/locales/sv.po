@@ -89,6 +89,9 @@ msgstr "1 minut"
 msgid "1 month"
 msgstr "1 månad"
 
+msgid "1 more trade"
+msgstr "1 affär till"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 skript har osparade ändringar. Spara det för att ta med dem."
 
@@ -2538,6 +2541,9 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Logskala"
 
+msgid "Log scale needs equity above zero"
+msgstr "Logskala kräver kapital över noll"
+
 msgid "London"
 msgstr ""
 
@@ -4522,6 +4528,9 @@ msgstr "Visa POC"
 msgid "Show Pearson's R"
 msgstr "Visa Pearsons R"
 
+msgid "Show all (double-click)"
+msgstr "Visa allt (dubbelklick)"
+
 msgid "Show favorite drawings toolbar"
 msgstr "Visa favoritverktygsfältet"
 
@@ -5232,6 +5241,9 @@ msgstr "Totalt antal affärer"
 msgid "Trade #"
 msgstr "Affär nr"
 
+msgid "Trade {0} · {1}"
+msgstr "Affär {0} · {1}"
+
 msgid "Trades"
 msgstr "Affärer"
 
@@ -5918,9 +5930,6 @@ msgstr "mot SMA 50 %"
 msgid "your other device"
 msgstr "din andra enhet"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nKapital  {1}\nKöp och behåll  {2}\nNedgång  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\nInget nytt pris på {1}"
 
@@ -6000,6 +6009,9 @@ msgstr "{0} är inte installerat"
 
 msgid "{0} min"
 msgstr "{0} min"
+
+msgid "{0} more trades"
+msgstr "{0} affärer till"
 
 msgid "{0} per contract"
 msgstr "{0} per kontrakt"

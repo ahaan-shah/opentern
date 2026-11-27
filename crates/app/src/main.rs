@@ -28,6 +28,7 @@ mod dialogs;
 mod dom;
 mod drawbar;
 mod editor;
+mod equity;
 mod favbar;
 mod feeds;
 mod format;

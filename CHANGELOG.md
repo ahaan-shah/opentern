@@ -24,7 +24,7 @@
 - **Top bar icons** are the size of the drawing toolbar's, and undo and redo look like its buttons.
 - **A tidier Script Editor explorer:** rounded rows like the watchlist's, headings in plain case, folders whose arrows turn as they open, a rename box that lines up with the name, and a script you drag follows the pointer to the folder it lands in.
 - **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
-- **The Strategy Report's equity chart** starts at the first trade, shows money or percent, and its legend turns Equity, Buy & hold and Drawdown on and off. Thanks to the author of pull request #9.
+- **A deeper equity chart in the Strategy Report.** Its legend turns Equity, Buy & hold and Drawdown on and off; it shows money or percent, on a linear or log scale, with dates along the bottom. Drag across it to zoom into a range and see that range's profit, drawdown and trades; double-click to see everything again. Click it to show that day on the price chart. The worst drawdown is shaded, the tooltip lists the trades that closed on a bar, and the three lines' colours are in Strategy settings. Buy & hold now matches the report's Buy & hold return. Thanks to the author of pull request #9.
 
 ## 0.3.7 (2026-11-26)
 

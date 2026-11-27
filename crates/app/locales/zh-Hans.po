@@ -89,6 +89,9 @@ msgstr "1 分钟"
 msgid "1 month"
 msgstr "1 个月"
 
+msgid "1 more trade"
+msgstr "另有 1 笔交易"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 个脚本有未保存的更改。保存后才会包含在内。"
 
@@ -2538,6 +2541,9 @@ msgstr "对数"
 msgid "Log scale"
 msgstr "对数刻度"
 
+msgid "Log scale needs equity above zero"
+msgstr "对数刻度需要权益大于零"
+
 msgid "London"
 msgstr "伦敦"
 
@@ -4522,6 +4528,9 @@ msgstr "显示 POC"
 msgid "Show Pearson's R"
 msgstr "显示皮尔逊 R"
 
+msgid "Show all (double-click)"
+msgstr "显示全部（双击）"
+
 msgid "Show favorite drawings toolbar"
 msgstr "显示常用绘图工具栏"
 
@@ -5232,6 +5241,9 @@ msgstr "交易总数"
 msgid "Trade #"
 msgstr "交易编号"
 
+msgid "Trade {0} · {1}"
+msgstr "交易 {0} · {1}"
+
 msgid "Trades"
 msgstr "交易"
 
@@ -5918,9 +5930,6 @@ msgstr "较 SMA 50 %"
 msgid "your other device"
 msgstr "另一台设备"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\n权益  {1}\n买入并持有  {2}\n回撤  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\n已有 {1} 没有新价格"
 
@@ -6000,6 +6009,9 @@ msgstr "{0} 未安装"
 
 msgid "{0} min"
 msgstr "{0} 分钟"
+
+msgid "{0} more trades"
+msgstr "另有 {0} 笔交易"
 
 msgid "{0} per contract"
 msgstr "每张合约 {0}"

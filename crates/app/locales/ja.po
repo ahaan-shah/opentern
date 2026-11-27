@@ -89,6 +89,9 @@ msgstr "1分"
 msgid "1 month"
 msgstr "1か月"
 
+msgid "1 more trade"
+msgstr "他 1 件のトレード"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1個のスクリプトに未保存の変更があります。含めるには保存してください。"
 
@@ -2538,6 +2541,9 @@ msgstr "対数"
 msgid "Log scale"
 msgstr "対数スケール"
 
+msgid "Log scale needs equity above zero"
+msgstr "対数スケールには資産がゼロより上である必要があります"
+
 msgid "London"
 msgstr "ロンドン"
 
@@ -4522,6 +4528,9 @@ msgstr "POCを表示"
 msgid "Show Pearson's R"
 msgstr "ピアソンのRを表示"
 
+msgid "Show all (double-click)"
+msgstr "すべて表示（ダブルクリック）"
+
 msgid "Show favorite drawings toolbar"
 msgstr "お気に入り描画ツールバーを表示"
 
@@ -5232,6 +5241,9 @@ msgstr "総トレード数"
 msgid "Trade #"
 msgstr "トレード番号"
 
+msgid "Trade {0} · {1}"
+msgstr "トレード {0} · {1}"
+
 msgid "Trades"
 msgstr "トレード"
 
@@ -5918,9 +5930,6 @@ msgstr "対 SMA 50 %"
 msgid "your other device"
 msgstr "もう一方のデバイス"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\n資産  {1}\nバイ&ホールド  {2}\nドローダウン  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\n{1}間、新しい価格がありません"
 
@@ -6000,6 +6009,9 @@ msgstr "{0}はインストールされていません"
 
 msgid "{0} min"
 msgstr "{0}分"
+
+msgid "{0} more trades"
+msgstr "他 {0} 件のトレード"
 
 msgid "{0} per contract"
 msgstr "1枚あたり {0}"

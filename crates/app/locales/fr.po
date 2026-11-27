@@ -89,6 +89,9 @@ msgstr "1 minute"
 msgid "1 month"
 msgstr "1 mois"
 
+msgid "1 more trade"
+msgstr "1 transaction de plus"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 script a des modifications non enregistrées. Enregistrez-le pour les inclure."
 
@@ -2538,6 +2541,9 @@ msgstr "Log"
 msgid "Log scale"
 msgstr "Échelle logarithmique"
 
+msgid "Log scale needs equity above zero"
+msgstr "L'échelle logarithmique demande un capital au-dessus de zéro"
+
 msgid "London"
 msgstr "Londres"
 
@@ -4522,6 +4528,9 @@ msgstr "Afficher le POC"
 msgid "Show Pearson's R"
 msgstr "Afficher le R de Pearson"
 
+msgid "Show all (double-click)"
+msgstr "Tout afficher (double-clic)"
+
 msgid "Show favorite drawings toolbar"
 msgstr "Afficher la barre d'outils favoris"
 
@@ -5232,6 +5241,9 @@ msgstr "Total des transactions"
 msgid "Trade #"
 msgstr "Transaction n°"
 
+msgid "Trade {0} · {1}"
+msgstr "Transaction {0} · {1}"
+
 msgid "Trades"
 msgstr "Transactions"
 
@@ -5918,9 +5930,6 @@ msgstr "vs SMA 50 %"
 msgid "your other device"
 msgstr "votre autre appareil"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nCapital  {1}\nAcheter et conserver  {2}\nDrawdown  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\nPas de nouveau prix depuis {1}"
 
@@ -6000,6 +6009,9 @@ msgstr "{0} n'est pas installé"
 
 msgid "{0} min"
 msgstr "{0} min"
+
+msgid "{0} more trades"
+msgstr "{0} transactions de plus"
 
 msgid "{0} per contract"
 msgstr "{0} par contrat"
