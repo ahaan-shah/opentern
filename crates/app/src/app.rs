@@ -13,7 +13,7 @@ use crate::updater::{Phase, Updater};
 use opentern_core::{Settings, Store, Symbol, Timeframe};
 use opentern_data::{Event, Hub, Request};
 use opentern_series::Meta;
-use opentern_series::study::Inputs;
+use opentern_series::study::{Inputs, LineStyle};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -77,6 +77,8 @@ pub struct App {
     pub compare_menu: Option<(usize, egui::Pos2)>,
     /// The menu from the "+" by the price scale.
     pub price_menu: Option<PriceMenu>,
+    /// A right-clicked alert line's menu: (chart, alert, where).
+    pub alert_menu: Option<(u64, i64, egui::Pos2)>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -111,6 +113,10 @@ pub struct App {
     pub(crate) still_menu: Option<String>,
     /// `OPENTERN_STILL=measure`: show a measure once bars are in.
     still_measure: bool,
+    /// `OPENTERN_STILL=text` (or `text:select|several|panel`): sample
+    /// drawings with text; `alert-lines`: two price alerts as lines.
+    still_text: Option<String>,
+    still_alert_lines: bool,
     /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
     /// (with its Levels panel open) once bars are in.
     still_fib: Option<bool>,
@@ -268,6 +274,7 @@ impl App {
             study_menu: None,
             compare_menu: None,
             price_menu: None,
+            alert_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -290,6 +297,8 @@ impl App {
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
             still_measure: false,
+            still_text: None,
+            still_alert_lines: false,
             still_fib: None,
             still_price_menu: false,
             still_replay: false,
@@ -490,6 +499,10 @@ impl App {
                 self.still_menu = Some(m.to_string());
             } else if part == "light" {
                 // Handled in `new` (needs the egui context).
+            } else if part == "text" || part.starts_with("text:") {
+                self.still_text = Some(part.trim_start_matches("text").trim_start_matches(':').to_string());
+            } else if part == "alert-lines" {
+                self.still_alert_lines = true;
             } else if part == "note" {
                 // A sample notification, for screenshots of the widget.
                 self.notify(
@@ -497,7 +510,6 @@ impl App {
                     "BTCUSDT",
                     "BTCUSDT — Price crossing 81650",
                     None,
-                    false,
                 );
             } else if let Some(what) = part.strip_prefix("transfer:") {
                 self.transfer_still(what);
@@ -936,10 +948,13 @@ impl App {
         }
     }
 
+    /// Deletes every selected drawing (one undo brings them all back).
     pub fn delete_selected_drawing(&mut self) {
-        if let Some(id) = self.chart_ui.draw.selected.take() {
+        let ids = self.chart_ui.draw.all_selected();
+        self.chart_ui.draw.select(None);
+        if !ids.is_empty() {
             self.chart.push_undo();
-            self.chart.drawings.retain(|d| d.id != id);
+            self.chart.drawings.retain(|d| !ids.contains(&d.id));
             self.chart.drawings_changed += 1;
         }
     }
@@ -1101,6 +1116,8 @@ impl App {
                     let id = self.chart.symbol.id.clone();
                     self.paper_close(&id);
                 }
+                Action::AlertMenu(id, pos) => self.alert_menu = Some((self.chart.id, id, pos)),
+                Action::MoveAlert(id, price) => self.move_alert(id, price),
                 Action::PriceMenu { price, text, pos } => {
                     self.price_menu = Some(PriceMenu {
                         chart: self.chart.id,
@@ -1161,6 +1178,182 @@ impl App {
             && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
         if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.price_menu = None;
+        }
+    }
+
+    /// An alert line's menu: edit or delete the alert, and the look of
+    /// every alert line (colour, width, style; saved with the chart).
+    fn alert_line_menu(&mut self, ctx: &egui::Context) {
+        let Some((chart, id, pos)) = self.alert_menu else {
+            return;
+        };
+        let alert = self
+            .alerts
+            .list
+            .iter()
+            .find(|(a, _)| a.id == id)
+            .map(|(a, _)| a.clone());
+        let (Some(alert), true) = (alert, chart == self.chart.id) else {
+            self.alert_menu = None;
+            return;
+        };
+        let t = self.t();
+        let mut style = self.chart.style.clone();
+        let (mut close, mut edit, mut delete) = (false, false, false);
+        let area = egui::Area::new(egui::Id::new("alert-line-menu"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos)
+            .constrain(true)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+                    ui.set_width(220.0);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if w::menu_item(ui, &t, Some(ph::PENCIL_SIMPLE), tr("Edit alert"), "", false).clicked() {
+                        edit = true;
+                    }
+                    if w::menu_item(ui, &t, Some(ph::TRASH), tr("Delete alert"), "", false).clicked() {
+                        delete = true;
+                    }
+                    w::menu_rule(ui, &t);
+                    ui.add_space(4.0);
+                    // The look, in a row as on the drawing bar (no lists here:
+                    // the colour picker is this menu's one popup).
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
+                        ui.add_space(6.0);
+                        crate::dialogs::color::color_button(ui, &t, &mut style.alert_color);
+                        w::vdivider(ui, &t);
+                        for (s, glyph, tip) in [
+                            (LineStyle::Solid, ph::MINUS, tr("Solid")),
+                            (LineStyle::Dashed, ph::DOTS_THREE, tr("Dashed")),
+                            (LineStyle::Dotted, ph::DOTS_SIX, tr("Dotted")),
+                        ] {
+                            if w::tool_button(ui, &t, glyph, tip, style.alert_style == s, 28.0).clicked() {
+                                style.alert_style = s;
+                            }
+                        }
+                        w::vdivider(ui, &t);
+                        let width = trf!("{}px", style.alert_width);
+                        if w::tool_button(ui, &t, &width, tr("Line width"), false, 36.0).clicked() {
+                            style.alert_width = style.alert_width % 4 + 1;
+                        }
+                    });
+                    ui.add_space(4.0);
+                });
+            });
+        if style != self.chart.style {
+            self.chart.style = style;
+        }
+        if edit {
+            self.open_alert_dialog(Some(alert));
+            close = true;
+        } else if delete {
+            self.delete_alert(id);
+            close = true;
+        }
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered())
+            && !egui::Popup::is_any_open(ctx);
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.alert_menu = None;
+        }
+    }
+
+    /// Screenshot samples, once bars are in: drawings with text, alerts as
+    /// lines.
+    fn still_samples(&mut self) {
+        use crate::chart::draw::{Along, Anchor, Side, TextAt};
+        if let Some(mode) = self.still_text.take() {
+            let n = self.chart.bars.len();
+            let b = |k: usize| &self.chart.bars[n - k];
+            let (lo, hi) = (b(70).low, b(10).high);
+            let mk = |tool: Tool, pts: Vec<Anchor>, text: &str| Drawing {
+                id: 0,
+                tool,
+                pts,
+                style: DrawStyle::for_tool(tool),
+                text: text.into(),
+                locked: false,
+                hidden: false,
+            };
+            let mut list = vec![
+                mk(
+                    Tool::TrendLine,
+                    vec![Anchor { t: b(70).time, p: lo }, Anchor { t: b(20).time, p: hi }],
+                    "Support",
+                ),
+                mk(Tool::HorizontalLine, vec![Anchor { t: b(5).time, p: hi }], "Resistance"),
+                mk(Tool::VerticalLine, vec![Anchor { t: b(40).time, p: lo }], "FOMC"),
+                mk(
+                    Tool::Rectangle,
+                    vec![
+                        Anchor {
+                            t: b(60).time,
+                            p: lo + (hi - lo) * 0.3,
+                        },
+                        Anchor { t: b(45).time, p: lo },
+                    ],
+                    "Demand",
+                ),
+                mk(
+                    Tool::Text,
+                    vec![Anchor {
+                        t: b(35).time,
+                        p: lo + (hi - lo) * 0.45,
+                    }],
+                    "Breakout",
+                ),
+            ];
+            list[2].style.text_at = Some(TextAt {
+                along: Along::End,
+                side: Side::On,
+            });
+            list[3].style.text_at = Some(TextAt {
+                along: Along::Middle,
+                side: Side::On,
+            });
+            list[4].style.font = 22;
+            list[4].style.bold = true;
+            list[4].style.angle = -28.0;
+            for mut d in list {
+                d.id = self.chart.next_drawing_id();
+                self.chart.drawings.push(d);
+            }
+            self.chart.drawings_changed += 1;
+            let ids: Vec<u64> = self.chart.drawings.iter().map(|d| d.id).collect();
+            match mode.as_str() {
+                "select" => self.chart_ui.draw.select(ids.last().copied()),
+                "several" => {
+                    self.chart_ui.draw.select(Some(ids[0]));
+                    self.chart_ui.draw.also = ids[1..3].to_vec();
+                }
+                "panel" => {
+                    self.chart_ui.draw.select(Some(ids[0]));
+                    self.egui_ctx
+                        .data_mut(|m| m.insert_temp(egui::Id::new("drawing-text-open"), ids[0]));
+                }
+                _ => {}
+            }
+        }
+        if std::mem::take(&mut self.still_alert_lines) {
+            use opentern_engine::alerts::{Alert, Condition, Op};
+            self.chart.style.alert_lines = true;
+            let last = self.chart.bars.last().map_or(0.0, |b| b.close);
+            for (name, k) in [("", 1.04), ("Take profit", 0.95)] {
+                self.save_alert(Alert {
+                    name: name.into(),
+                    symbol: self.chart.symbol.id.clone(),
+                    condition: Condition::Price {
+                        op: Op::Crossing,
+                        value: (last * k).round(),
+                    },
+                    active: true,
+                    ..Alert::default()
+                });
+            }
         }
     }
 
@@ -1670,6 +1863,9 @@ impl App {
                 ctx.data_mut(|m| m.insert_temp(egui::Id::new("fib-levels-open"), id));
             }
         }
+        if self.chart.bars.len() > 80 {
+            self.still_samples();
+        }
         if self.still_measure && self.chart.bars.len() > 80 {
             self.still_measure = false;
             let n = self.chart.bars.len();
@@ -1685,17 +1881,11 @@ impl App {
                 Ok(m) => (nt!("Update installed"), m),
                 Err(m) => (nt!("Update failed"), m),
             };
-            self.notify(crate::icons::ph::ARROW_CIRCLE_UP, title, &body, None, false);
+            self.notify(crate::icons::ph::ARROW_CIRCLE_UP, title, &body, None);
         }
         if !was_prompt && let crate::updater::Phase::Available(r) = &self.updater.phase {
             let body = msg!("Opentern {} is ready to install from the rail.", r.version);
-            self.notify(
-                crate::icons::ph::ARROW_CIRCLE_UP,
-                nt!("Update available"),
-                &body,
-                None,
-                false,
-            );
+            self.notify(crate::icons::ph::ARROW_CIRCLE_UP, nt!("Update available"), &body, None);
         }
         self.updater.launch_check(&ctx, self.store.settings().check_updates);
         self.poll_data();
@@ -1704,6 +1894,7 @@ impl App {
         self.refresh_strategies();
         self.poll_paper();
         self.poll_funding();
+        self.alert_lines();
         self.poll_other_charts();
         self.poll_screener();
         // An index whose weights are being built again (after an edit or
@@ -1733,12 +1924,12 @@ impl App {
                 });
             self.still_colors = Some((custom, c));
         }
-        self.alert_toasts(&ctx);
         self.note_toasts(&ctx);
         self.poll_snapshot(&ctx);
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
         self.price_menu(&ctx);
+        self.alert_line_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1755,6 +1946,7 @@ impl App {
                 a.poll_scripts();
                 a.refresh_strategies();
                 a.paper_lines();
+                a.alert_lines();
                 a.save_drawings(false);
             });
         }
@@ -1770,6 +1962,7 @@ impl App {
         self.study_menu = None;
         self.compare_menu = None;
         self.price_menu = None;
+        self.alert_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

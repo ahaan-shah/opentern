@@ -232,6 +232,9 @@ msgstr ""
 msgid "About {0}"
 msgstr ""
 
+msgid "Above"
+msgstr ""
+
 msgid "Absolute"
 msgstr ""
 
@@ -331,6 +334,9 @@ msgid "Agent panel"
 msgstr ""
 
 msgid "Alert"
+msgstr ""
+
+msgid "Alert lines"
 msgstr ""
 
 msgid "Alert or line from the price scale"
@@ -656,6 +662,9 @@ msgstr ""
 msgid "Begin"
 msgstr ""
 
+msgid "Below"
+msgstr ""
+
 msgid "Berchtold's Day"
 msgstr ""
 
@@ -679,6 +688,9 @@ msgid "Body"
 msgstr ""
 
 msgid "Body Middle"
+msgstr ""
+
+msgid "Bold"
 msgstr ""
 
 msgid "Bollinger BandWidth"
@@ -1363,9 +1375,6 @@ msgstr ""
 msgid "Custom: 7m, 3h, 2D"
 msgstr ""
 
-msgid "DATA WINDOW"
-msgstr ""
-
 msgid "DAYS"
 msgstr ""
 
@@ -1385,6 +1394,9 @@ msgid "Data modification"
 msgstr ""
 
 msgid "Data providers"
+msgstr ""
+
+msgid "Data window"
 msgstr ""
 
 msgid "Date"
@@ -1424,6 +1436,9 @@ msgid "Delayed {min} min"
 msgstr ""
 
 msgid "Delete"
+msgstr ""
+
+msgid "Delete alert"
 msgstr ""
 
 msgid "Delete folder (if empty)"
@@ -2283,6 +2298,9 @@ msgstr ""
 msgid "Inputs"
 msgstr ""
 
+msgid "Inside"
+msgstr ""
+
 msgid "Install {0}"
 msgstr ""
 
@@ -2564,6 +2582,9 @@ msgid "Loading…"
 msgstr ""
 
 msgid "Local"
+msgstr ""
+
+msgid "Lock"
 msgstr ""
 
 msgid "Lock all drawings"
@@ -2935,6 +2956,9 @@ msgid "Middle RCI"
 msgstr ""
 
 msgid "Middle RCI Length"
+msgstr ""
+
+msgid "Middle|text"
 msgstr ""
 
 msgid "Millions, billions"
@@ -3378,9 +3402,6 @@ msgstr ""
 msgid "OANDA · forex and CFDs"
 msgstr ""
 
-msgid "OBJECT TREE"
-msgstr ""
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr ""
@@ -3393,6 +3414,9 @@ msgid "OPEN LAYOUT"
 msgstr ""
 
 msgid "OUTPUT"
+msgstr ""
+
+msgid "Object tree"
 msgstr ""
 
 msgid "Object tree and data window"
@@ -3426,6 +3450,9 @@ msgid "On Balance Volume"
 msgstr ""
 
 msgid "On the chart"
+msgstr ""
+
+msgid "On the line"
 msgstr ""
 
 msgid "OnBalanceVolume"
@@ -4593,6 +4620,9 @@ msgid "Show labels"
 msgstr ""
 
 msgid "Show on intervals"
+msgstr ""
+
+msgid "Show or hide"
 msgstr ""
 
 msgid "Show prices"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr ""
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

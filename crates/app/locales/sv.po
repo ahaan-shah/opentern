@@ -232,6 +232,9 @@ msgstr "Om"
 msgid "About {0}"
 msgstr "Om {0}"
 
+msgid "Above"
+msgstr "Ovanför"
+
 msgid "Absolute"
 msgstr "Absolut"
 
@@ -332,6 +335,9 @@ msgstr "Agentpanel"
 
 msgid "Alert"
 msgstr "Larm"
+
+msgid "Alert lines"
+msgstr "Larmlinjer"
 
 msgid "Alert or line from the price scale"
 msgstr "Larm eller linje från prisskalan"
@@ -656,6 +662,9 @@ msgstr "Bayesiansk"
 msgid "Begin"
 msgstr "Börja"
 
+msgid "Below"
+msgstr "Nedanför"
+
 msgid "Berchtold's Day"
 msgstr "Berchtoldsdagen"
 
@@ -680,6 +689,9 @@ msgstr "Kropp"
 
 msgid "Body Middle"
 msgstr "Kroppens mitt"
+
+msgid "Bold"
+msgstr "Fet"
 
 msgid "Bollinger BandWidth"
 msgstr "Bollingerbandens bredd"
@@ -1363,9 +1375,6 @@ msgstr "Egna index"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "Eget: 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "DATAFÖNSTER"
-
 msgid "DAYS"
 msgstr "DAGAR"
 
@@ -1386,6 +1395,9 @@ msgstr "Datajustering"
 
 msgid "Data providers"
 msgstr "Dataleverantörer"
+
+msgid "Data window"
+msgstr "Datafönster"
 
 msgid "Date"
 msgstr "Datum"
@@ -1425,6 +1437,9 @@ msgstr "{min} min fördröjt"
 
 msgid "Delete"
 msgstr "Ta bort"
+
+msgid "Delete alert"
+msgstr "Ta bort larm"
 
 msgid "Delete folder (if empty)"
 msgstr "Ta bort mappen (om den är tom)"
@@ -2283,6 +2298,9 @@ msgstr "Indata"
 msgid "Inputs"
 msgstr "Indata"
 
+msgid "Inside"
+msgstr "Inuti"
+
 msgid "Install {0}"
 msgstr "Installera {0}"
 
@@ -2565,6 +2583,9 @@ msgstr "Laddar…"
 
 msgid "Local"
 msgstr "Lokal"
+
+msgid "Lock"
+msgstr "Lås"
 
 msgid "Lock all drawings"
 msgstr "Lås alla ritningar"
@@ -2936,6 +2957,9 @@ msgstr "Mellan-RCI"
 
 msgid "Middle RCI Length"
 msgstr "Längd på mellan-RCI"
+
+msgid "Middle|text"
+msgstr "Mitten"
 
 msgid "Millions, billions"
 msgstr "Miljoner, miljarder"
@@ -3378,9 +3402,6 @@ msgstr "OANDA nekade token. Kontrollera den i Inställningar → Dataleverantör
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · valuta och CFD"
 
-msgid "OBJECT TREE"
-msgstr "OBJEKTTRÄD"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKX har inga {0}-staplar"
@@ -3394,6 +3415,9 @@ msgstr "ÖPPNA LAYOUT"
 
 msgid "OUTPUT"
 msgstr "UTDATA"
+
+msgid "Object tree"
+msgstr "Objektträd"
 
 msgid "Object tree and data window"
 msgstr "Objektträd och datafönster"
@@ -3427,6 +3451,9 @@ msgstr "On Balance-volym"
 
 msgid "On the chart"
 msgstr "I diagrammet"
+
+msgid "On the line"
+msgstr "På linjen"
 
 msgid "OnBalanceVolume"
 msgstr "On Balance-volym"
@@ -4594,6 +4621,9 @@ msgstr "Visa etiketter"
 
 msgid "Show on intervals"
 msgstr "Visa på intervall"
+
+msgid "Show or hide"
+msgstr "Visa eller dölj"
 
 msgid "Show prices"
 msgstr "Visa priser"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "{w} fönster × {p} körningar på diagrammets {n} staplar."
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

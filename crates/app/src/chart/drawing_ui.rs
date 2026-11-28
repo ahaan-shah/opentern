@@ -20,6 +20,13 @@ pub struct Tools<'a> {
 #[derive(Default)]
 pub struct DrawUi {
     pub selected: Option<u64>,
+    /// More drawings picked with Ctrl (Cmd on a Mac) or a box, besides
+    /// `selected`: they move and are deleted together.
+    pub also: Vec<u64>,
+    /// Ctrl+drag on an empty spot: the box being drawn (from, to).
+    boxing: Option<(Pos2, Pos2)>,
+    /// The drag moves every selected drawing.
+    group_drag: bool,
     pub hovered: Option<u64>,
     placing: Option<Drawing>,
     clicks: usize,
@@ -42,7 +49,7 @@ pub struct Measure {
 impl DrawUi {
     /// A drawing is being placed or dragged, or a measure is under way.
     pub fn busy(&self) -> bool {
-        self.placing.is_some() || self.drag.is_some() || self.measure.is_some_and(|m| !m.done)
+        self.placing.is_some() || self.drag.is_some() || self.boxing.is_some() || self.measure.is_some_and(|m| !m.done)
     }
 
     pub fn measure(&self) -> Option<Measure> {
@@ -60,9 +67,51 @@ impl DrawUi {
             return;
         }
         if self.placing.take().is_none() {
-            self.selected = None;
+            self.select(None);
         }
         self.zoom_from = None;
+        self.boxing = None;
+    }
+
+    /// Selects just this drawing (or nothing).
+    pub fn select(&mut self, id: Option<u64>) {
+        self.selected = id;
+        self.also.clear();
+    }
+
+    /// Every selected drawing.
+    pub fn all_selected(&self) -> Vec<u64> {
+        self.selected.into_iter().chain(self.also.iter().copied()).collect()
+    }
+
+    pub fn is_selected(&self, id: u64) -> bool {
+        self.selected == Some(id) || self.also.contains(&id)
+    }
+
+    /// Ctrl+click: adds the drawing to the selection, or takes it out.
+    fn toggle(&mut self, id: u64) {
+        if self.selected == Some(id) {
+            self.selected = self.also.pop();
+        } else if let Some(k) = self.also.iter().position(|&x| x == id) {
+            self.also.remove(k);
+        } else {
+            if let Some(prev) = self.selected {
+                self.also.push(prev);
+            }
+            self.selected = Some(id);
+        }
+    }
+
+    /// Adds drawings to the selection (the box).
+    fn add(&mut self, ids: impl IntoIterator<Item = u64>) {
+        for id in ids {
+            if !self.is_selected(id) {
+                if let Some(prev) = self.selected {
+                    self.also.push(prev);
+                }
+                self.selected = Some(id);
+            }
+        }
     }
 }
 
@@ -299,8 +348,43 @@ pub fn handle(
         }
         return resp.dragged();
     }
+    // Ctrl (Cmd on a Mac) adds to the selection: a click on a drawing, or
+    // a box dragged from an empty spot.
+    let ctrl = ui.input(|i| i.modifiers.command);
     if resp.clicked() {
-        du.selected = press.and_then(hit_at).map(|h| h.0);
+        match press.and_then(hit_at).map(|h| h.0) {
+            Some(id) if ctrl => du.toggle(id),
+            hit if !ctrl => du.select(hit),
+            _ => {}
+        }
+    }
+    if ctrl
+        && resp.drag_started()
+        && let Some(p) = origin
+        && hit_at(p).is_none()
+    {
+        du.boxing = Some((p, p));
+    }
+    if let Some((from, _)) = du.boxing {
+        if let Some(p) = press {
+            du.boxing = Some((from, p));
+        }
+        if resp.drag_stopped() {
+            let area = Rect::from_two_pos(from, du.boxing.map_or(from, |b| b.1));
+            let inside: Vec<u64> = chart
+                .drawings
+                .iter()
+                .filter(|d| !d.hidden && !tools.hide_all)
+                .filter(|d| {
+                    d.pts.iter().any(|a| area.contains(g.pos(*a)))
+                        || draw::handle_points(d, &g).into_iter().any(|q| area.contains(q))
+                })
+                .map(|d| d.id)
+                .collect();
+            du.add(inside);
+            du.boxing = None;
+        }
+        return true;
     }
     if resp.drag_started()
         && let Some(p) = origin
@@ -310,7 +394,11 @@ pub fn handle(
     {
         let from = g.anchor(p);
         chart.push_undo();
-        du.selected = Some(id);
+        // Dragging one of several selected drawings by its body moves them all.
+        du.group_drag = part == Part::Body && du.is_selected(id) && !du.also.is_empty();
+        if !du.group_drag {
+            du.select(Some(id));
+        }
         du.drag = Some((id, part, from));
     }
     if let Some((id, part, from)) = du.drag {
@@ -319,14 +407,18 @@ pub fn handle(
         {
             // Whole drawings move freely; points snap with the magnet.
             let to = anchor_at_raw(chart, x, y, rect, p, tools.magnet && part != Part::Body);
-            let tm = draw::TimeMap {
-                bars: &chart.bars,
-                step: chart.tf.millis().unwrap_or(30 * 86_400_000),
-                x,
-            };
+            let movers = if du.group_drag { du.all_selected() } else { vec![id] };
             let mut list = std::mem::take(&mut chart.drawings);
-            if let Some(d) = list.iter_mut().find(|d| d.id == id) {
-                draw::drag(d, part, from, to, &tm);
+            {
+                let g = geo(chart, x, y, rect);
+                let snaps = draw::line_angles(&list, &g);
+                for d in list.iter_mut().filter(|d| movers.contains(&d.id) && !d.locked) {
+                    match part {
+                        // The Text tool sizes and turns by its handles.
+                        Part::Point(k @ 1..) if d.tool == Tool::Text => draw::drag_text(d, k, p, &g, &snaps),
+                        _ => draw::drag(d, part, from, to, &g.tm),
+                    }
+                }
             }
             chart.drawings = list;
             chart.drawings_changed += 1;
@@ -334,6 +426,7 @@ pub fn handle(
         }
         if resp.drag_stopped() {
             du.drag = None;
+            du.group_drag = false;
         }
         return true;
     }
@@ -353,7 +446,7 @@ fn anchor_at_raw(chart: &Chart, x: XMap, y: YMap, rect: Rect, p: Pos2, magnet: b
 fn finish(chart: &mut Chart, du: &mut DrawUi) {
     if let Some(d) = du.placing.take() {
         chart.push_undo();
-        du.selected = Some(d.id);
+        du.select(Some(d.id));
         chart.drawings.push(d);
         chart.drawings_changed += 1;
         du.finished = true;
@@ -377,12 +470,23 @@ pub fn paint(
     let p = painter.with_clip_rect(rect);
     if !tools.hide_all {
         for d in &chart.drawings {
-            let sel = du.selected == Some(d.id) || du.hovered == Some(d.id);
+            let sel = du.is_selected(d.id) || du.hovered == Some(d.id);
             draw::paint(&p, d, &g, sel, bg);
         }
     }
     if let Some(d) = &du.placing {
         draw::paint(&p, d, &g, true, bg);
+    }
+    if let Some((a, b)) = du.boxing {
+        let r = Rect::from_two_pos(a, b);
+        let blue = egui::Color32::from_rgb(41, 98, 255);
+        p.rect_filled(r, egui::CornerRadius::ZERO, blue.gamma_multiply(0.12));
+        p.rect_stroke(
+            r,
+            egui::CornerRadius::ZERO,
+            egui::Stroke::new(1.0, blue.gamma_multiply(0.7)),
+            egui::StrokeKind::Inside,
+        );
     }
     if let (Some(a), Some(b)) = (du.zoom_from, painter.ctx().pointer_hover_pos()) {
         let r = Rect::from_two_pos(egui::pos2(a.x, rect.top()), egui::pos2(b.x, rect.bottom()));

@@ -3,10 +3,10 @@
 //! the favourite drawings toolbar (`favbar.rs`) and keeps out of its way.
 
 use crate::app::App;
-use crate::chart::draw::{DrawStyle, FIB_LEVELS, FibLevel, Tool};
+use crate::chart::draw::{Along, DrawStyle, FIB_LEVELS, FibLevel, Side, TextAt, Tool};
 use crate::dialogs::color::color_button;
 use crate::dialogs::{Modal, TemplateKind};
-use crate::i18n::{tr, trf};
+use crate::i18n::{tr, trc, trf};
 use crate::icons::ph;
 use crate::theme;
 use crate::widgets as w;
@@ -18,10 +18,14 @@ impl App {
     pub(crate) fn drawing_bar(&mut self, ctx: &egui::Context) {
         let Some(id) = self.chart_ui.draw.selected else { return };
         let Some(d) = self.chart.drawings.iter().find(|d| d.id == id).cloned() else {
-            self.chart_ui.draw.selected = None;
+            self.chart_ui.draw.select(None);
             return;
         };
         if !self.charts_on_screen(ctx) {
+            return;
+        }
+        if !self.chart_ui.draw.also.is_empty() {
+            self.several_bar(ctx);
             return;
         }
         let t = self.t();
@@ -35,6 +39,11 @@ impl App {
         let levels_key = egui::Id::new("fib-levels-open");
         let mut levels_open = fib && ctx.data(|m| m.get_temp::<u64>(levels_key)) == Some(id);
         let mut levels_x = anchor.x;
+        // The Text panel (lines and boxes), the same way.
+        let text_key = egui::Id::new("drawing-text-open");
+        let carries = d.tool.carries_text();
+        let mut text_open = carries && ctx.data(|m| m.get_temp::<u64>(text_key)) == Some(id);
+        let mut text_x = anchor.x;
         let templates: Vec<String> = self
             .store
             .templates(&TemplateKind::Drawing(d.tool).key())
@@ -80,27 +89,19 @@ impl App {
                             if fills {
                                 color_button(ui, &t, &mut edit.style.fill);
                             }
-                            crate::widgets::combo("draw-width")
-                                .width(50.0)
-                                .selected_text(trf!("{}px", edit.style.width))
-                                .show_ui(ui, |ui| {
-                                    for w in 1..=4u8 {
-                                        crate::widgets::option_value(ui, &mut edit.style.width, w, trf!("{w}px"));
-                                    }
-                                });
-                            let name = |s: LineStyle| match s {
-                                LineStyle::Solid => tr("Solid"),
-                                LineStyle::Dashed => tr("Dashed"),
-                                LineStyle::Dotted => tr("Dotted"),
+                            // Toggles and buttons as in the drawing toolbar.
+                            let toggle = |ui: &mut egui::Ui, on: &mut bool, glyph: &str, tip: &str| {
+                                if w::tool_button(ui, &t, glyph, tip, *on, BTN).clicked() {
+                                    *on = !*on;
+                                }
                             };
-                            crate::widgets::combo("draw-line")
-                                .width(70.0)
-                                .selected_text(name(edit.style.line))
-                                .show_ui(ui, |ui| {
-                                    for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
-                                        crate::widgets::option_value(ui, &mut edit.style.line, s, name(s));
-                                    }
-                                });
+                            if d.tool == Tool::Text {
+                                // Text has no line: its size and weight instead.
+                                text_size(ui, &mut edit.style.font);
+                                toggle(ui, &mut edit.style.bold, ph::TEXT_B, tr("Bold"));
+                            } else {
+                                width_and_line(ui, &mut edit.style);
+                            }
                             if matches!(d.tool, Tool::Text | Tool::ArrowUp | Tool::ArrowDown) {
                                 ui.add(
                                     crate::widgets::field(&mut edit.text)
@@ -108,12 +109,21 @@ impl App {
                                         .desired_width(140.0),
                                 );
                             }
-                            // Toggles and buttons as in the drawing toolbar.
-                            let toggle = |ui: &mut egui::Ui, on: &mut bool, glyph: &str, tip: &str| {
-                                if w::tool_button(ui, &t, glyph, tip, *on, BTN).clicked() {
-                                    *on = !*on;
+                            if carries {
+                                let r = w::tool_button(
+                                    ui,
+                                    &t,
+                                    ph::TEXT_T,
+                                    tr("Text"),
+                                    text_open || !edit.text.is_empty(),
+                                    BTN,
+                                );
+                                if r.clicked() {
+                                    text_open = !text_open;
+                                    levels_open = false;
                                 }
-                            };
+                                text_x = r.rect.left();
+                            }
                             if matches!(d.tool, Tool::TrendLine | Tool::Arrow) {
                                 toggle(ui, &mut edit.style.extend_left, ph::ARROW_LINE_LEFT, tr("Extend left"));
                                 toggle(
@@ -133,6 +143,7 @@ impl App {
                                 let r = w::tool_button(ui, &t, ph::LIST_NUMBERS, tr("Levels"), levels_open, BTN);
                                 if r.clicked() {
                                     levels_open = !levels_open;
+                                    text_open = false;
                                 }
                                 levels_x = r.rect.left();
                             }
@@ -152,8 +163,9 @@ impl App {
                             let r = w::tool_button(ui, &t, ph::PALETTE, tr("Template"), false, BTN);
                             self.still_open(ui, &r, "drawing-template");
                             if r.clicked() {
-                                // The menu would sit over the levels panel.
+                                // The menu would sit over the panels.
                                 levels_open = false;
+                                text_open = false;
                             }
                             egui::Popup::menu(&r)
                                 .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
@@ -187,6 +199,13 @@ impl App {
             fib_levels_panel(ctx, &t, at, d.tool, &mut edit.style);
         } else {
             ctx.data_mut(|m| m.remove_temp::<u64>(levels_key));
+        }
+        if text_open {
+            ctx.data_mut(|m| m.insert_temp(text_key, id));
+            let at = Pos2::new(text_x, bar.response.rect.bottom() + 6.0);
+            text_panel(ctx, &t, at, d.tool, &mut edit);
+        } else {
+            ctx.data_mut(|m| m.remove_temp::<u64>(text_key));
         }
         if delete {
             self.delete_selected_drawing();
@@ -223,6 +242,185 @@ impl App {
             self.edit_drawing(id, |x| *x = edit);
         }
     }
+}
+
+impl App {
+    /// The bar while several drawings are selected: how many, one colour
+    /// for all, lock and delete.
+    fn several_bar(&mut self, ctx: &egui::Context) {
+        let t = self.t();
+        let ids = self.chart_ui.draw.all_selected();
+        let picked: Vec<_> = self.chart.drawings.iter().filter(|d| ids.contains(&d.id)).collect();
+        let Some(first) = picked.first() else { return };
+        let mut color = first.style.color;
+        let mut locked = picked.iter().all(|d| d.locked);
+        let n = picked.len();
+        let (was_color, was_locked) = (color, locked);
+        let mut delete = false;
+        egui::Area::new(egui::Id::new("drawing-bar"))
+            .order(egui::Order::Foreground)
+            .pivot(egui::Align2::CENTER_TOP)
+            .fixed_pos(self.drawing_bar_anchor(ctx))
+            .show(ctx, |ui| {
+                bar_frame(ui, &t, |ui| {
+                    ui.label(
+                        egui::RichText::new(trf!("{n} drawings"))
+                            .font(theme::medium(12.5))
+                            .color(t.text2),
+                    );
+                    w::vdivider(ui, &t);
+                    color_button(ui, &t, &mut color);
+                    w::vdivider(ui, &t);
+                    let lock = if locked { ph::LOCK_SIMPLE } else { ph::LOCK_SIMPLE_OPEN };
+                    if w::tool_button(ui, &t, lock, tr("Lock"), locked, BTN).clicked() {
+                        locked = !locked;
+                    }
+                    if w::tool_button(ui, &t, ph::TRASH, tr("Remove (Delete)"), false, BTN).clicked() {
+                        delete = true;
+                    }
+                });
+            });
+        if delete {
+            self.delete_selected_drawing();
+            return;
+        }
+        if color != was_color || locked != was_locked {
+            self.chart.push_undo();
+            for d in self.chart.drawings.iter_mut().filter(|d| ids.contains(&d.id)) {
+                if color != was_color {
+                    // The fill keeps its own see-through amount.
+                    let alpha = d.style.fill.a() as u32;
+                    d.style.color = color;
+                    d.style.fill = Rgba((color.0 & 0xFFFF_FF00) | alpha);
+                }
+                d.locked = locked;
+            }
+            self.chart.drawings_changed += 1;
+        }
+    }
+}
+
+/// The floating bars' surface (`favbar.rs`): the popups' fill, edge and
+/// shadow, the same height.
+fn bar_frame(ui: &mut egui::Ui, t: &theme::Theme, add: impl FnOnce(&mut egui::Ui)) {
+    egui::Frame::new()
+        .fill(t.popup())
+        .stroke(Stroke::new(1.0, t.edge()))
+        .corner_radius(CornerRadius::same(12))
+        .inner_margin(Margin::symmetric(6, 5))
+        .shadow(ui.visuals().popup_shadow)
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.set_min_height(BTN);
+                ui.add_space(6.0);
+                add(ui);
+            });
+        });
+}
+
+/// A line's width and style.
+fn width_and_line(ui: &mut egui::Ui, style: &mut DrawStyle) {
+    w::combo("draw-width")
+        .width(50.0)
+        .selected_text(trf!("{}px", style.width))
+        .show_ui(ui, |ui| {
+            for x in 1..=4u8 {
+                w::option_value(ui, &mut style.width, x, trf!("{x}px"));
+            }
+        });
+    let name = |s: LineStyle| match s {
+        LineStyle::Solid => tr("Solid"),
+        LineStyle::Dashed => tr("Dashed"),
+        LineStyle::Dotted => tr("Dotted"),
+    };
+    w::combo("draw-line")
+        .width(70.0)
+        .selected_text(name(style.line))
+        .show_ui(ui, |ui| {
+            for s in [LineStyle::Solid, LineStyle::Dashed, LineStyle::Dotted] {
+                w::option_value(ui, &mut style.line, s, name(s));
+            }
+        });
+}
+
+/// The text's size, as TradingView offers them.
+const TEXT_SIZES: [u8; 11] = [10, 11, 12, 14, 16, 20, 24, 28, 32, 40, 56];
+
+fn text_size(ui: &mut egui::Ui, font: &mut u8) {
+    w::combo("draw-text-size")
+        .width(54.0)
+        .selected_text(font.to_string())
+        .show_ui(ui, |ui| {
+            // Sized by the handle in between: the list still shows it.
+            let mut sizes = TEXT_SIZES.to_vec();
+            if !sizes.contains(font) {
+                sizes.push(*font);
+                sizes.sort();
+            }
+            for s in sizes {
+                w::option_value(ui, font, s, s.to_string());
+            }
+        });
+}
+
+/// The Text panel under the bar for lines and boxes: the text, its size
+/// and weight, and where it sits.
+fn text_panel(ctx: &egui::Context, t: &theme::Theme, at: Pos2, tool: Tool, d: &mut crate::chart::draw::Drawing) {
+    egui::Area::new(egui::Id::new("drawing-text"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(at)
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .fill(t.popup())
+                .stroke(Stroke::new(1.0, t.edge()))
+                .corner_radius(CornerRadius::same(12))
+                .inner_margin(Margin::same(10))
+                .shadow(ui.visuals().popup_shadow)
+                .show(ui, |ui| {
+                    ui.spacing_mut().item_spacing = vec2(4.0, 8.0);
+                    let field = ui.add(w::field(&mut d.text).hint_text(tr("Text")).desired_width(236.0));
+                    if ui.memory(|m| m.focused().is_none()) && d.text.is_empty() {
+                        field.request_focus();
+                    }
+                    let style = &mut d.style;
+                    let mut place = style.text_at(tool);
+                    ui.horizontal(|ui| {
+                        text_size(ui, &mut style.font);
+                        if w::tool_button(ui, t, ph::TEXT_B, tr("Bold"), style.bold, 28.0).clicked() {
+                            style.bold = !style.bold;
+                        }
+                        w::vdivider(ui, t);
+                        for (along, glyph, tip) in [
+                            (Along::Start, ph::TEXT_ALIGN_LEFT, tr("Left")),
+                            (Along::Middle, ph::TEXT_ALIGN_CENTER, trc("text", "Middle")),
+                            (Along::End, ph::TEXT_ALIGN_RIGHT, tr("Right")),
+                        ] {
+                            if w::tool_button(ui, t, glyph, tip, place.along == along, 28.0).clicked() {
+                                place.along = along;
+                            }
+                        }
+                        w::vdivider(ui, t);
+                        let inside = if tool == Tool::Rectangle {
+                            tr("Inside")
+                        } else {
+                            tr("On the line")
+                        };
+                        for (side, glyph, tip) in [
+                            (Side::Above, ph::ALIGN_TOP, tr("Above")),
+                            (Side::On, ph::ALIGN_CENTER_VERTICAL, inside),
+                            (Side::Below, ph::ALIGN_BOTTOM, tr("Below")),
+                        ] {
+                            if w::tool_button(ui, t, glyph, tip, place.side == side, 28.0).clicked() {
+                                place.side = side;
+                            }
+                        }
+                    });
+                    if place != style.text_at(tool) {
+                        style.text_at = (place != TextAt::usual(tool)).then_some(place);
+                    }
+                });
+        });
 }
 
 /// Its buttons' side, as on the favourite drawings toolbar.

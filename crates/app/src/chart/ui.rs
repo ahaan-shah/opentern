@@ -48,6 +48,10 @@ pub enum Action {
         text: String,
         pos: Pos2,
     },
+    /// An alert line was right-clicked: its menu at the position.
+    AlertMenu(i64, Pos2),
+    /// An alert line was dragged to a new price.
+    MoveAlert(i64, f64),
 }
 
 /// Interaction state that isn't worth saving.
@@ -71,6 +75,8 @@ pub struct ChartUi {
     /// The price the "+" menu is open at: its crosshair line stays while
     /// the menu is up (the chart takes no pointer then).
     pub pinned_price: Option<f64>,
+    /// An alert line being dragged: (alert, price under the pointer).
+    pub alert_drag: Option<(i64, f64)>,
 }
 
 impl Default for ChartUi {
@@ -86,6 +92,7 @@ impl Default for ChartUi {
             season: Default::default(),
             paper_drag: None,
             pinned_price: None,
+            alert_drag: None,
         }
     }
 }
@@ -565,6 +572,53 @@ pub fn show(
             }
         }
     }
+    // Alert lines: drag one to move its alert; a right-click opens its
+    // menu. Only with the cross, so drawing over one still works.
+    let mut alert_used = false;
+    if interactive
+        && !paper_used
+        && !tools.tool.is_drawing()
+        && !cui.draw.busy()
+        && let Some(g) = geos.first()
+    {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        for a in &chart.alerts {
+            let price = match cui.alert_drag {
+                Some((id, v)) if id == a.id => v,
+                _ => a.price,
+            };
+            let yy = g.y.y(price);
+            if yy < g.rect.top() || yy > g.rect.bottom() {
+                continue;
+            }
+            let band = Rect::from_x_y_ranges(g.rect.x_range(), yy - 4.0..=yy + 4.0);
+            let r = ui.interact(band, Id::new(("alert-line", chart.id, a.id)), Sense::click_and_drag());
+            if r.hovered() || r.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+                alert_used = true;
+            }
+            if r.dragged()
+                && let Some(p) = r.interact_pointer_pos()
+            {
+                cui.alert_drag = Some((a.id, (g.y.value(p.y) / tick).round() * tick));
+            }
+            if r.drag_stopped()
+                && let Some((id, v)) = cui.alert_drag.take()
+            {
+                actions.push(Action::MoveAlert(id, v));
+            }
+            if r.secondary_clicked()
+                && let Some(p) = r.interact_pointer_pos()
+            {
+                actions.push(Action::AlertMenu(a.id, p));
+                alert_used = true;
+            }
+        }
+    }
     let choosing = chart.replay.as_ref().is_some_and(|r| r.selecting);
     // The "+" at the crosshair's height, by the price scale: it follows the
     // pointer and wins the press over the plot, like the paper tags.
@@ -576,6 +630,7 @@ pub fn show(
         && !tools.tool.is_drawing()
         && !cui.draw.busy()
         && cui.paper_drag.is_none()
+        && cui.alert_drag.is_none()
         && let (Some(p), Some(g)) = (pointer, geos.first())
         && g.rect.contains(p)
         && !plot_resp.dragged()
@@ -603,6 +658,7 @@ pub fn show(
         plus = Some((r, motion::hover(&resp)));
     }
     let drawing_used = !paper_used
+        && !alert_used
         && !plus_used
         && interactive
         && n > 0
@@ -621,7 +677,7 @@ pub fn show(
     if (tools.tool.is_drawing() || tools.tool == super::draw::Tool::Measure) && interactive {
         ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
     }
-    if plot_resp.dragged() && !drawing_used && !paper_used && !plus_used {
+    if plot_resp.dragged() && !drawing_used && !paper_used && !plus_used && !alert_used {
         let d = plot_resp.drag_delta();
         chart.view.right -= (d.x / chart.view.bar_w) as f64;
         // Dragging vertically pans the price too, which ends autoscale.
@@ -639,7 +695,7 @@ pub fn show(
             pane.scale.hi = hi;
         }
     }
-    if plot_resp.secondary_clicked() {
+    if plot_resp.secondary_clicked() && !alert_used {
         actions.push(Action::ChartSettings);
     }
     if plot_resp.hovered() && interactive {
@@ -1114,6 +1170,41 @@ pub fn show(
                         .flatten()
                         .map(|len| format::countdown(b.time + len - jiff::Timestamp::now().as_millisecond()));
                 tags.push((yy, text, col, countdown));
+            }
+            // Alert lines, under the other labels' lines.
+            let a_col = c32(chart.style.alert_color);
+            for a in &chart.alerts {
+                let price = match cui.alert_drag {
+                    Some((id, v)) if id == a.id => v,
+                    _ => a.price,
+                };
+                let yy = g.y.y(price);
+                if yy < g.rect.top() || yy > g.rect.bottom() {
+                    continue;
+                }
+                styled_hline(
+                    &clip_painter(g.rect),
+                    g.rect.left(),
+                    g.rect.right(),
+                    snap(yy, ppp),
+                    Stroke::new(chart.style.alert_width.max(1) as f32, a_col),
+                    chart.style.alert_style,
+                );
+                tags.push((yy, format::price(price, prec), a_col, None));
+                // Its name at the left while the pointer is on it, as the
+                // paper orders' tags.
+                let near = pointer.is_some_and(|p| g.rect.contains(p) && (p.y - yy).abs() <= 5.0)
+                    || cui.alert_drag.is_some_and(|(id, _)| id == a.id);
+                if near {
+                    let text = format!("{}  {}", ph::ALARM, a.label);
+                    let gal = painter.layout_no_wrap(text, theme::medium(11.5), paint::text_on(a_col));
+                    let r = Rect::from_min_size(
+                        pos2(g.rect.left() + 8.0, yy - gal.size().y / 2.0 - 3.0),
+                        gal.size() + vec2(14.0, 6.0),
+                    );
+                    painter.rect_filled(r, CornerRadius::same(4), a_col);
+                    painter.galley(r.min + vec2(7.0, 3.0), gal, paint::text_on(a_col));
+                }
             }
             // The pre-market or after-hours price, unless those bars show.
             if let Some(e) = chart.extended_now().filter(|_| !chart.shows_ext()) {

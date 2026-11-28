@@ -232,6 +232,9 @@ msgstr "このアプリについて"
 msgid "About {0}"
 msgstr "{0}について"
 
+msgid "Above"
+msgstr "上"
+
 msgid "Absolute"
 msgstr "絶対値"
 
@@ -332,6 +335,9 @@ msgstr "エージェントパネル"
 
 msgid "Alert"
 msgstr "アラート"
+
+msgid "Alert lines"
+msgstr "アラートライン"
 
 msgid "Alert or line from the price scale"
 msgstr "価格スケールからアラートや水平線"
@@ -656,6 +662,9 @@ msgstr "ベイズ"
 msgid "Begin"
 msgstr "始める"
 
+msgid "Below"
+msgstr "下"
+
 msgid "Berchtold's Day"
 msgstr "ベルヒトルトの日"
 
@@ -680,6 +689,9 @@ msgstr "実体"
 
 msgid "Body Middle"
 msgstr "実体の中央"
+
+msgid "Bold"
+msgstr "太字"
 
 msgid "Bollinger BandWidth"
 msgstr "ボリンジャーバンド幅"
@@ -1363,9 +1375,6 @@ msgstr "カスタム指数"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "カスタム: 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "データウィンドウ"
-
 msgid "DAYS"
 msgstr "日"
 
@@ -1386,6 +1395,9 @@ msgstr "データの調整"
 
 msgid "Data providers"
 msgstr "データプロバイダー"
+
+msgid "Data window"
+msgstr "データウィンドウ"
 
 msgid "Date"
 msgstr "日付"
@@ -1425,6 +1437,9 @@ msgstr "{min}分遅延"
 
 msgid "Delete"
 msgstr "削除"
+
+msgid "Delete alert"
+msgstr "アラートを削除"
 
 msgid "Delete folder (if empty)"
 msgstr "フォルダーを削除 (空の場合)"
@@ -2283,6 +2298,9 @@ msgstr "入力"
 msgid "Inputs"
 msgstr "入力"
 
+msgid "Inside"
+msgstr "内側"
+
 msgid "Install {0}"
 msgstr "{0}をインストール"
 
@@ -2565,6 +2583,9 @@ msgstr "読み込み中…"
 
 msgid "Local"
 msgstr "ローカル"
+
+msgid "Lock"
+msgstr "ロック"
 
 msgid "Lock all drawings"
 msgstr "すべての描画をロック"
@@ -2936,6 +2957,9 @@ msgstr "中期RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期RCIの期間"
+
+msgid "Middle|text"
+msgstr "中央"
 
 msgid "Millions, billions"
 msgstr "百万、十億"
@@ -3378,9 +3402,6 @@ msgstr "OANDAがトークンを拒否しました。設定 → データプロ�
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · FXとCFD"
 
-msgid "OBJECT TREE"
-msgstr "オブジェクトツリー"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKXに{0}足はありません"
@@ -3394,6 +3415,9 @@ msgstr "レイアウトを開く"
 
 msgid "OUTPUT"
 msgstr "出力"
+
+msgid "Object tree"
+msgstr "オブジェクトツリー"
 
 msgid "Object tree and data window"
 msgstr "オブジェクトツリーとデータウィンドウ"
@@ -3427,6 +3451,9 @@ msgstr "オンバランスボリューム"
 
 msgid "On the chart"
 msgstr "チャート上"
+
+msgid "On the line"
+msgstr "線上"
 
 msgid "OnBalanceVolume"
 msgstr "オンバランスボリューム"
@@ -4594,6 +4621,9 @@ msgstr "ラベルを表示"
 
 msgid "Show on intervals"
 msgstr "表示する時間足"
+
+msgid "Show or hide"
+msgstr "表示/非表示"
 
 msgid "Show prices"
 msgstr "価格を表示"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "チャートの{n}本で、{w}期間 × {p}回。"
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

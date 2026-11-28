@@ -458,6 +458,7 @@ fn scales_tab(ui: &mut Ui, t: &Theme, s: &mut ChartStyle) -> bool {
         (&mut s.ext_price_label, tr("Pre/post market price label")),
         (&mut s.ext_price_line, tr("Pre/post market price line")),
         (&mut s.study_labels, tr("Indicator value labels")),
+        (&mut s.alert_lines, tr("Alert lines")),
     ] {
         changed |= crate::widgets::checkbox(ui, v, label).changed();
     }

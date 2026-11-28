@@ -951,8 +951,8 @@ impl App {
                 let before = self.chart.drawings.len();
                 self.chart.drawings.retain(|d| !ids.contains(&d.id));
                 self.chart.drawings_changed += 1;
-                if self.chart_ui.draw.selected.is_some_and(|s| ids.contains(&s)) {
-                    self.chart_ui.draw.selected = None;
+                if self.chart_ui.draw.all_selected().iter().any(|s| ids.contains(s)) {
+                    self.chart_ui.draw.select(None);
                 }
                 text(format!("Removed {}.", before - self.chart.drawings.len()))
             }
@@ -961,7 +961,7 @@ impl App {
                 self.chart.push_undo();
                 self.chart.drawings.clear();
                 self.chart.drawings_changed += 1;
-                self.chart_ui.draw.selected = None;
+                self.chart_ui.draw.select(None);
                 text(format!(
                     "Removed all {n} drawings on this symbol (Ctrl+Z brings them back)."
                 ))

@@ -172,6 +172,12 @@ pub struct ChartStyle {
     pub ext_price_line: bool,
     pub study_labels: bool,
     pub high_low_labels: bool,
+    /// Active price alerts on the chart as lines (drag one to move it;
+    /// right-click for its look, shared by all of them).
+    pub alert_lines: bool,
+    pub alert_color: Rgba,
+    pub alert_width: u8,
+    pub alert_style: LineStyle,
     // Canvas
     pub background: Option<Rgba>,
     /// A vertical gradient: `background` at the top to `background2` at
@@ -232,6 +238,10 @@ impl Default for ChartStyle {
             ext_price_line: true,
             study_labels: true,
             high_low_labels: false,
+            alert_lines: false,
+            alert_color: Rgba::hex(0xFF9800),
+            alert_width: 1,
+            alert_style: LineStyle::Dashed,
             background: None,
             gradient: false,
             background2: None,

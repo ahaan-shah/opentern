@@ -232,6 +232,9 @@ msgstr "关于"
 msgid "About {0}"
 msgstr "关于 {0}"
 
+msgid "Above"
+msgstr "上方"
+
 msgid "Absolute"
 msgstr "绝对值"
 
@@ -332,6 +335,9 @@ msgstr "代理面板"
 
 msgid "Alert"
 msgstr "警报"
+
+msgid "Alert lines"
+msgstr "警报线"
 
 msgid "Alert or line from the price scale"
 msgstr "从价格刻度添加警报或水平线"
@@ -656,6 +662,9 @@ msgstr "贝叶斯"
 msgid "Begin"
 msgstr "开始"
 
+msgid "Below"
+msgstr "下方"
+
 msgid "Berchtold's Day"
 msgstr "贝希托尔德日"
 
@@ -680,6 +689,9 @@ msgstr "实体"
 
 msgid "Body Middle"
 msgstr "实体中点"
+
+msgid "Bold"
+msgstr "粗体"
 
 msgid "Bollinger BandWidth"
 msgstr "布林带宽度"
@@ -1363,9 +1375,6 @@ msgstr "自定义指数"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "自定义：7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "数据窗口"
-
 msgid "DAYS"
 msgstr "天"
 
@@ -1386,6 +1395,9 @@ msgstr "数据调整"
 
 msgid "Data providers"
 msgstr "数据提供商"
+
+msgid "Data window"
+msgstr "数据窗口"
 
 msgid "Date"
 msgstr "日期"
@@ -1425,6 +1437,9 @@ msgstr "延迟 {min} 分钟"
 
 msgid "Delete"
 msgstr "删除"
+
+msgid "Delete alert"
+msgstr "删除警报"
 
 msgid "Delete folder (if empty)"
 msgstr "删除文件夹（如为空）"
@@ -2283,6 +2298,9 @@ msgstr "输入"
 msgid "Inputs"
 msgstr "参数"
 
+msgid "Inside"
+msgstr "内部"
+
 msgid "Install {0}"
 msgstr "安装 {0}"
 
@@ -2565,6 +2583,9 @@ msgstr "加载中…"
 
 msgid "Local"
 msgstr "本地"
+
+msgid "Lock"
+msgstr "锁定"
 
 msgid "Lock all drawings"
 msgstr "锁定所有绘图"
@@ -2936,6 +2957,9 @@ msgstr "中期 RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期 RCI 长度"
+
+msgid "Middle|text"
+msgstr "中间"
 
 msgid "Millions, billions"
 msgstr "百万、十亿"
@@ -3378,9 +3402,6 @@ msgstr "OANDA 拒绝了令牌。请在 设置 → 数据提供商 中检查。"
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · 外汇与差价合约"
 
-msgid "OBJECT TREE"
-msgstr "对象树"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKX 没有 {0} K 线"
@@ -3394,6 +3415,9 @@ msgstr "打开布局"
 
 msgid "OUTPUT"
 msgstr "输出"
+
+msgid "Object tree"
+msgstr "对象树"
 
 msgid "Object tree and data window"
 msgstr "对象树与数据窗口"
@@ -3427,6 +3451,9 @@ msgstr "能量潮 (OBV)"
 
 msgid "On the chart"
 msgstr "在图表上"
+
+msgid "On the line"
+msgstr "线上"
 
 msgid "OnBalanceVolume"
 msgstr "能量潮 (OBV)"
@@ -4594,6 +4621,9 @@ msgstr "显示标签"
 
 msgid "Show on intervals"
 msgstr "显示的周期"
+
+msgid "Show or hide"
+msgstr "显示或隐藏"
 
 msgid "Show prices"
 msgstr "显示价格"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "在图表的 {n} 根 K 线上，{w} 个窗口 × {p} 次运行。"
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

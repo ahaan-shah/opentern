@@ -425,7 +425,6 @@ impl App {
                 nt!("Python script not started"),
                 &msg!("{file} was imported. To run it, open it in the Script Editor and press Run."),
                 None,
-                true,
             );
         }
         let path = self.scripts_dir().join(file);

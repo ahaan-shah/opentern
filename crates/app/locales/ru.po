@@ -232,6 +232,9 @@ msgstr "О программе"
 msgid "About {0}"
 msgstr "О {0}"
 
+msgid "Above"
+msgstr "Над линией"
+
 msgid "Absolute"
 msgstr "Абсолютное"
 
@@ -332,6 +335,9 @@ msgstr "Панель агента"
 
 msgid "Alert"
 msgstr "Оповещение"
+
+msgid "Alert lines"
+msgstr "Линии оповещений"
 
 msgid "Alert or line from the price scale"
 msgstr "Оповещение или линия от ценовой шкалы"
@@ -656,6 +662,9 @@ msgstr "Байесовский"
 msgid "Begin"
 msgstr "Начать"
 
+msgid "Below"
+msgstr "Под линией"
+
 msgid "Berchtold's Day"
 msgstr "День Берхтольда"
 
@@ -680,6 +689,9 @@ msgstr "Тело"
 
 msgid "Body Middle"
 msgstr "Середина тела"
+
+msgid "Bold"
+msgstr "Жирный"
 
 msgid "Bollinger BandWidth"
 msgstr "Ширина полос Боллинджера"
@@ -1363,9 +1375,6 @@ msgstr "Свои индексы"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "Свой: 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "ОКНО ДАННЫХ"
-
 msgid "DAYS"
 msgstr "ДНИ"
 
@@ -1386,6 +1395,9 @@ msgstr "Изменение данных"
 
 msgid "Data providers"
 msgstr "Поставщики данных"
+
+msgid "Data window"
+msgstr "Окно данных"
 
 msgid "Date"
 msgstr "Дата"
@@ -1425,6 +1437,9 @@ msgstr "Задержка {min} мин"
 
 msgid "Delete"
 msgstr "Удалить"
+
+msgid "Delete alert"
+msgstr "Удалить оповещение"
 
 msgid "Delete folder (if empty)"
 msgstr "Удалить папку (если пуста)"
@@ -2283,6 +2298,9 @@ msgstr "Ввод"
 msgid "Inputs"
 msgstr "Параметры"
 
+msgid "Inside"
+msgstr "Внутри"
+
 msgid "Install {0}"
 msgstr "Установить {0}"
 
@@ -2565,6 +2583,9 @@ msgstr "Загрузка…"
 
 msgid "Local"
 msgstr "Местное"
+
+msgid "Lock"
+msgstr "Закрепить"
 
 msgid "Lock all drawings"
 msgstr "Закрепить все рисунки"
@@ -2936,6 +2957,9 @@ msgstr "Средний RCI"
 
 msgid "Middle RCI Length"
 msgstr "Длина среднего RCI"
+
+msgid "Middle|text"
+msgstr "Посередине"
 
 msgid "Millions, billions"
 msgstr "Миллионы, миллиарды"
@@ -3378,9 +3402,6 @@ msgstr "OANDA отклонила токен. Проверьте его в Нас
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · форекс и CFD"
 
-msgid "OBJECT TREE"
-msgstr "ДЕРЕВО ОБЪЕКТОВ"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "У OKX нет баров {0}"
@@ -3394,6 +3415,9 @@ msgstr "ОТКРЫТЬ МАКЕТ"
 
 msgid "OUTPUT"
 msgstr "ВЫВОД"
+
+msgid "Object tree"
+msgstr "Дерево объектов"
 
 msgid "Object tree and data window"
 msgstr "Дерево объектов и окно данных"
@@ -3427,6 +3451,9 @@ msgstr "Балансовый объём"
 
 msgid "On the chart"
 msgstr "На графике"
+
+msgid "On the line"
+msgstr "На линии"
 
 msgid "OnBalanceVolume"
 msgstr "Балансовый объём"
@@ -4594,6 +4621,9 @@ msgstr "Показывать метки"
 
 msgid "Show on intervals"
 msgstr "Показывать на интервалах"
+
+msgid "Show or hide"
+msgstr "Показать или скрыть"
 
 msgid "Show prices"
 msgstr "Показывать цены"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "Окон: {w} × прогонов: {p}, баров на графике: {n}."
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

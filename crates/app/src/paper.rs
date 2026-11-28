@@ -265,13 +265,7 @@ impl App {
         }
         for n in notes {
             self.paper.status = n.clone();
-            self.notify(
-                crate::icons::ph::WALLET,
-                nt!("Paper trading"),
-                &n,
-                None,
-                n.contains("Margin call"),
-            );
+            self.notify(crate::icons::ph::WALLET, nt!("Paper trading"), &n, None);
             changed = true;
         }
         if changed {

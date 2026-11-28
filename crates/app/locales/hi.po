@@ -232,6 +232,9 @@ msgstr "परिचय"
 msgid "About {0}"
 msgstr "{0} के बारे में"
 
+msgid "Above"
+msgstr "ऊपर"
+
 msgid "Absolute"
 msgstr "निरपेक्ष"
 
@@ -332,6 +335,9 @@ msgstr "एजेंट पैनल"
 
 msgid "Alert"
 msgstr "अलर्ट"
+
+msgid "Alert lines"
+msgstr "अलर्ट रेखाएँ"
 
 msgid "Alert or line from the price scale"
 msgstr "प्राइस स्केल से अलर्ट या रेखा"
@@ -656,6 +662,9 @@ msgstr "बेज़ियन"
 msgid "Begin"
 msgstr "शुरू करें"
 
+msgid "Below"
+msgstr "नीचे"
+
 msgid "Berchtold's Day"
 msgstr "बेर्श्टोल्ड दिवस"
 
@@ -680,6 +689,9 @@ msgstr "बॉडी"
 
 msgid "Body Middle"
 msgstr "बॉडी का मध्य"
+
+msgid "Bold"
+msgstr "बोल्ड"
 
 msgid "Bollinger BandWidth"
 msgstr "बोलिंजर बैंड चौड़ाई"
@@ -1363,9 +1375,6 @@ msgstr "कस्टम सूचकांक"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "कस्टम: 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "डेटा विंडो"
-
 msgid "DAYS"
 msgstr "दिन"
 
@@ -1386,6 +1395,9 @@ msgstr "डेटा संशोधन"
 
 msgid "Data providers"
 msgstr "डेटा प्रदाता"
+
+msgid "Data window"
+msgstr "डेटा विंडो"
 
 msgid "Date"
 msgstr "तारीख"
@@ -1425,6 +1437,9 @@ msgstr "{min} मिनट की देरी"
 
 msgid "Delete"
 msgstr "हटाएँ"
+
+msgid "Delete alert"
+msgstr "अलर्ट हटाएँ"
 
 msgid "Delete folder (if empty)"
 msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
@@ -2283,6 +2298,9 @@ msgstr "इनपुट"
 msgid "Inputs"
 msgstr "इनपुट"
 
+msgid "Inside"
+msgstr "अंदर"
+
 msgid "Install {0}"
 msgstr "{0} इंस्टॉल करें"
 
@@ -2565,6 +2583,9 @@ msgstr "लोड हो रहा है…"
 
 msgid "Local"
 msgstr "स्थानीय"
+
+msgid "Lock"
+msgstr "लॉक करें"
 
 msgid "Lock all drawings"
 msgstr "सभी ड्रॉइंग लॉक करें"
@@ -2936,6 +2957,9 @@ msgstr "मध्य RCI"
 
 msgid "Middle RCI Length"
 msgstr "मध्य RCI लंबाई"
+
+msgid "Middle|text"
+msgstr "मध्य"
 
 msgid "Millions, billions"
 msgstr "मिलियन, बिलियन"
@@ -3378,9 +3402,6 @@ msgstr "OANDA ने टोकन अस्वीकार किया। स�
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · फ़ॉरेक्स और CFD"
 
-msgid "OBJECT TREE"
-msgstr "ऑब्जेक्ट ट्री"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKX के पास {0} बार नहीं हैं"
@@ -3394,6 +3415,9 @@ msgstr "लेआउट खोलें"
 
 msgid "OUTPUT"
 msgstr "आउटपुट"
+
+msgid "Object tree"
+msgstr "ऑब्जेक्ट ट्री"
 
 msgid "Object tree and data window"
 msgstr "ऑब्जेक्ट ट्री और डेटा विंडो"
@@ -3427,6 +3451,9 @@ msgstr "ऑन बैलेंस वॉल्यूम"
 
 msgid "On the chart"
 msgstr "चार्ट पर"
+
+msgid "On the line"
+msgstr "रेखा पर"
 
 msgid "OnBalanceVolume"
 msgstr "ऑन बैलेंस वॉल्यूम"
@@ -4594,6 +4621,9 @@ msgstr "लेबल दिखाएँ"
 
 msgid "Show on intervals"
 msgstr "इन अंतरालों पर दिखाएँ"
+
+msgid "Show or hide"
+msgstr "दिखाएँ या छिपाएँ"
 
 msgid "Show prices"
 msgstr "भाव दिखाएँ"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "चार्ट के {n} बार पर {w} विंडो × {p} रन।"
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

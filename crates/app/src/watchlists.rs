@@ -221,7 +221,6 @@ impl App {
                 &msg!("{fe} no longer trades {fd}"),
                 &msg!("Showing {te}'s {td} instead."),
                 None,
-                true,
             );
         }
     }

@@ -232,6 +232,9 @@ msgstr "À propos"
 msgid "About {0}"
 msgstr "À propos de {0}"
 
+msgid "Above"
+msgstr "Au-dessus"
+
 msgid "Absolute"
 msgstr "Absolu"
 
@@ -332,6 +335,9 @@ msgstr "Panneau de l'agent"
 
 msgid "Alert"
 msgstr "Alerte"
+
+msgid "Alert lines"
+msgstr "Lignes d'alerte"
 
 msgid "Alert or line from the price scale"
 msgstr "Alerte ou ligne depuis l'échelle de prix"
@@ -656,6 +662,9 @@ msgstr "Bayésienne"
 msgid "Begin"
 msgstr "Commencer"
 
+msgid "Below"
+msgstr "En dessous"
+
 msgid "Berchtold's Day"
 msgstr "Jour de Berchtold"
 
@@ -680,6 +689,9 @@ msgstr "Corps"
 
 msgid "Body Middle"
 msgstr "Milieu du corps"
+
+msgid "Bold"
+msgstr "Gras"
 
 msgid "Bollinger BandWidth"
 msgstr "Largeur des bandes de Bollinger"
@@ -1363,9 +1375,6 @@ msgstr "Indices personnalisés"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "Personnalisé : 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "FENÊTRE DE DONNÉES"
-
 msgid "DAYS"
 msgstr "JOURS"
 
@@ -1386,6 +1395,9 @@ msgstr "Modification des données"
 
 msgid "Data providers"
 msgstr "Fournisseurs de données"
+
+msgid "Data window"
+msgstr "Fenêtre de données"
 
 msgid "Date"
 msgstr "Date"
@@ -1425,6 +1437,9 @@ msgstr "Différé de {min} min"
 
 msgid "Delete"
 msgstr "Supprimer"
+
+msgid "Delete alert"
+msgstr "Supprimer l'alerte"
 
 msgid "Delete folder (if empty)"
 msgstr "Supprimer le dossier (s'il est vide)"
@@ -2283,6 +2298,9 @@ msgstr "Entrée"
 msgid "Inputs"
 msgstr "Paramètres"
 
+msgid "Inside"
+msgstr "À l'intérieur"
+
 msgid "Install {0}"
 msgstr "Installer {0}"
 
@@ -2565,6 +2583,9 @@ msgstr "Chargement…"
 
 msgid "Local"
 msgstr "Local"
+
+msgid "Lock"
+msgstr "Verrouiller"
 
 msgid "Lock all drawings"
 msgstr "Verrouiller tous les dessins"
@@ -2936,6 +2957,9 @@ msgstr "RCI moyen"
 
 msgid "Middle RCI Length"
 msgstr "Longueur du RCI moyen"
+
+msgid "Middle|text"
+msgstr "Milieu"
 
 msgid "Millions, billions"
 msgstr "Millions, milliards"
@@ -3378,9 +3402,6 @@ msgstr "OANDA a refusé le jeton. Vérifiez-le dans Paramètres → Fournisseurs
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · forex et CFD"
 
-msgid "OBJECT TREE"
-msgstr "ARBRE DES OBJETS"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKX n'a pas de barres {0}"
@@ -3394,6 +3415,9 @@ msgstr "OUVRIR UNE DISPOSITION"
 
 msgid "OUTPUT"
 msgstr "SORTIE"
+
+msgid "Object tree"
+msgstr "Arborescence des objets"
 
 msgid "Object tree and data window"
 msgstr "Arbre des objets et fenêtre de données"
@@ -3427,6 +3451,9 @@ msgstr "On Balance Volume"
 
 msgid "On the chart"
 msgstr "Sur le graphique"
+
+msgid "On the line"
+msgstr "Sur la ligne"
 
 msgid "OnBalanceVolume"
 msgstr "On Balance Volume"
@@ -4594,6 +4621,9 @@ msgstr "Afficher les étiquettes"
 
 msgid "Show on intervals"
 msgstr "Afficher sur les intervalles"
+
+msgid "Show or hide"
+msgstr "Afficher ou masquer"
 
 msgid "Show prices"
 msgstr "Afficher les prix"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "{w} fenêtres × {p} essais sur les {n} barres du graphique."
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

@@ -280,6 +280,10 @@ pub struct Chart {
     pub marks: Option<std::sync::Arc<TradeMarks>>,
     /// The paper account's position and working orders on this symbol.
     pub paper: Vec<PaperLine>,
+    /// Active price alerts on this symbol, when Alert lines are on.
+    pub alerts: Vec<AlertLine>,
+    /// What `alerts` was built from (`App::alert_lines`).
+    pub alerts_sig: u64,
     /// Dividends and splits (stocks), and whether prices are adjusted for
     /// dividends (TradingView's ADJ). `raw` keeps the unadjusted bars.
     pub corporate: Option<opentern_data::yahoo::Corporate>,
@@ -302,6 +306,15 @@ pub struct Chart {
     pub compares: Vec<Compare>,
     /// Bar replay, while it's on (see `replay.rs`).
     pub replay: Option<replay::Replay>,
+}
+
+/// An active price alert drawn on the chart.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AlertLine {
+    pub id: i64,
+    pub price: f64,
+    /// Its name, or what it watches ("Price crossing 70000").
+    pub label: String,
 }
 
 #[derive(Clone, Debug)]
@@ -402,6 +415,8 @@ impl Chart {
             sym_tz,
             marks: None,
             paper: Vec::new(),
+            alerts: Vec::new(),
+            alerts_sig: 0,
             corporate: None,
             extended: None,
             funding: None,

@@ -16,6 +16,9 @@ pub struct Driver {
     pub dir: std::path::PathBuf,
     /// The window's size (1400 × 900 unless a test sets another).
     pub screen: egui::Vec2,
+    /// Keys held down for the next frames (Ctrl to add to a selection).
+    pub mods: Modifiers,
+    sent_mods: Modifiers,
 }
 
 impl Driver {
@@ -40,6 +43,8 @@ impl Driver {
             pointer: pos2(10.0, 10.0),
             dir,
             screen: vec2(1400.0, 900.0),
+            mods: Modifiers::NONE,
+            sent_mods: Modifiers::NONE,
         };
         d.wait(|a| !a.chart.bars.is_empty());
         d
@@ -50,9 +55,16 @@ impl Driver {
         let raw = RawInput {
             screen_rect: Some(Rect::from_min_size(Pos2::ZERO, self.screen)),
             time: Some(self.time),
-            events,
+            // Held keys come as an event (egui keeps them from it), sent
+            // when `mods` changes, so a test's own event still counts.
+            events: (self.mods != self.sent_mods)
+                .then_some(Event::ModifiersChanged(self.mods))
+                .into_iter()
+                .chain(events)
+                .collect(),
             ..Default::default()
         };
+        self.sent_mods = self.mods;
         let app = &mut self.app;
         let mut out = self.ctx.run_ui(raw, |ui| app.frame(ui));
         out.textures_delta.clear();
@@ -226,6 +238,19 @@ impl Driver {
         }
     }
 
+    pub fn right_click(&mut self, p: Pos2) {
+        self.move_to(p);
+        for pressed in [true, false] {
+            self.frame(vec![Event::PointerButton {
+                pos: p,
+                button: PointerButton::Secondary,
+                pressed,
+                modifiers: self.mods,
+            }]);
+        }
+        self.frame(vec![]);
+    }
+
     pub fn click(&mut self, p: Pos2) {
         self.move_to(p);
         self.frame(vec![Self::button(p, true)]);
@@ -391,6 +416,117 @@ mod tests {
             Some(crate::dialogs::Modal::Alert(f)) => assert_eq!(f.value, m.price),
             _ => panic!("the alert dialog opens"),
         }
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// Ctrl+click and a Ctrl+drag box pick several drawings; they move
+    /// together and go together (one undo brings them back).
+    #[test]
+    fn several_drawings_select_move_and_delete_together() {
+        use crate::i18n::trf;
+        let mut d = Driver::new("multi-select");
+        d.pick(Tool::HorizontalLine);
+        for y in [0.3, 0.5, 0.7] {
+            d.click(d.at(0.3, y));
+        }
+        d.key(Key::Escape, Modifiers::NONE);
+        d.pick(Tool::Cross);
+        let ids: Vec<u64> = d.app.chart.drawings.iter().map(|x| x.id).collect();
+        assert_eq!(ids.len(), 3);
+        let price = |d: &Driver, id: u64| d.app.chart.drawings.iter().find(|x| x.id == id).unwrap().pts[0].p;
+
+        d.click(d.at(0.2, 0.3));
+        assert_eq!(d.app.chart_ui.draw.all_selected(), vec![ids[0]]);
+        d.mods = Modifiers::COMMAND;
+        d.click(d.at(0.2, 0.5));
+        d.mods = Modifiers::NONE;
+        let mut sel = d.app.chart_ui.draw.all_selected();
+        sel.sort();
+        assert_eq!(sel, vec![ids[0], ids[1]], "Ctrl adds");
+        assert!(d.text_rect(&trf!("{} drawings", 2)).is_some(), "the bar counts them");
+
+        // Dragging one moves both; the third stays.
+        let before: Vec<f64> = ids.iter().map(|&i| price(&d, i)).collect();
+        d.drag(d.at(0.2, 0.5), d.at(0.2, 0.6));
+        let after: Vec<f64> = ids.iter().map(|&i| price(&d, i)).collect();
+        assert!(after[0] < before[0] && after[1] < before[1], "both moved down");
+        assert!(
+            ((before[0] - after[0]) - (before[1] - after[1])).abs() < 1e-6,
+            "by the same amount"
+        );
+        assert_eq!(after[2], before[2], "the other one stays");
+
+        // Delete takes both; Ctrl+Z brings them back.
+        d.key(Key::Delete, Modifiers::NONE);
+        assert_eq!(d.app.chart.drawings.len(), 1);
+        d.key(Key::Z, Modifiers::COMMAND);
+        assert_eq!(d.app.chart.drawings.len(), 3);
+
+        // A Ctrl+drag box from an empty spot picks everything it touches
+        // (a horizontal line's handle is mid-chart).
+        d.key(Key::Escape, Modifiers::NONE);
+        d.mods = Modifiers::COMMAND;
+        d.drag(d.at(0.4, 0.2), d.at(0.6, 0.9));
+        d.mods = Modifiers::NONE;
+        assert_eq!(d.app.chart_ui.draw.all_selected().len(), 3, "boxed");
+        d.key(Key::Escape, Modifiers::NONE);
+        assert!(d.app.chart_ui.draw.all_selected().is_empty());
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// Alert lines are off until switched on; then a price alert shows as
+    /// a line that drags to a new price and right-clicks to its menu.
+    #[test]
+    fn alert_lines_show_move_and_open_their_menu() {
+        use crate::i18n::tr;
+        use opentern_engine::alerts::{Alert, Condition, Op};
+        let mut d = Driver::new("alert-lines");
+        let main = d.app.chart_ui.main_rect;
+        let g_price = |d: &Driver, y: f32| {
+            let r = d.app.chart_ui.main_rect;
+            let s = &d.app.chart.panes[0].scale;
+            s.hi - (y - r.top()) as f64 / r.height() as f64 * (s.hi - s.lo)
+        };
+        let at = g_price(&d, main.center().y);
+        d.app.save_alert(Alert {
+            symbol: d.app.chart.symbol.id.clone(),
+            condition: Condition::Price {
+                op: Op::Crossing,
+                value: at,
+            },
+            active: true,
+            ..Alert::default()
+        });
+        d.frame(vec![]);
+        assert!(d.app.chart.alerts.is_empty(), "off by default");
+        d.app.chart.style.alert_lines = true;
+        d.frame(vec![]);
+        assert_eq!(d.app.chart.alerts.len(), 1);
+        let id = d.app.chart.alerts[0].id;
+        let y = d.app.chart_ui.main_rect.top()
+            + ((d.app.chart.panes[0].scale.hi - at) / (d.app.chart.panes[0].scale.hi - d.app.chart.panes[0].scale.lo))
+                as f32
+                * d.app.chart_ui.main_rect.height();
+        let x = main.left() + main.width() * 0.3;
+        d.drag(pos2(x, y), pos2(x, y + 60.0));
+        let moved = match &d.app.alerts.list.iter().find(|(a, _)| a.id == id).unwrap().0.condition {
+            Condition::Price { value, .. } => *value,
+            _ => unreachable!(),
+        };
+        assert!(moved < at, "dragged down to a lower price: {moved} vs {at}");
+        d.frame(vec![]);
+        assert_eq!(d.app.chart.alerts[0].price, moved, "the line follows");
+        assert!(d.app.chart.drawings.is_empty(), "no drawing from the drag");
+
+        let y2 = y + 60.0;
+        d.right_click(pos2(x, y2));
+        assert!(d.app.alert_menu.is_some(), "its menu");
+        assert!(d.app.modal.is_none(), "not Chart settings");
+        let del = d.text_rect(tr("Delete alert")).expect("Delete alert").center();
+        d.click(del);
+        assert!(d.app.alerts.list.is_empty(), "deleted");
+        d.frame(vec![]);
+        assert!(d.app.chart.alerts.is_empty());
         assert_eq!(d.app.panics, 0);
     }
 
@@ -1442,7 +1578,8 @@ mod tests {
         assert_eq!(d.app.alerts.log[0].name, "Above");
         assert!(!d.app.alerts.list[0].0.active, "only once: off after firing");
         assert!(d.app.alerts.list[1].0.active);
-        assert_eq!(d.app.alerts.toasts.len(), 1);
+        assert_eq!(d.app.notes.list.len(), 1, "a notification");
+        assert_eq!(d.app.notes.list[0].title, "Above");
         assert_eq!(d.app.store.alert_log(10).len(), 1);
         // Alt+A opens the dialog (real keyboards also send the letter as
         // text, which must not start a symbol search).

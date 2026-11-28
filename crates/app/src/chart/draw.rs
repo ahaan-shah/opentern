@@ -9,7 +9,7 @@ use crate::i18n::{nt, tr, trf};
 use crate::icons::ph;
 use crate::theme;
 use egui::epaint::{PathShape, PathStroke};
-use egui::{Align2, Color32, CornerRadius, Painter, Pos2, Rect, Shape, Stroke, pos2, vec2};
+use egui::{Align2, Color32, CornerRadius, FontId, Painter, Pos2, Rect, Shape, Stroke, Vec2, pos2, vec2};
 use opentern_core::Bar;
 use opentern_series::Rgba;
 use opentern_series::study::LineStyle;
@@ -361,6 +361,48 @@ pub struct DrawStyle {
     /// An empty list is a Fib whose levels were all removed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub levels: Option<Vec<FibLevel>>,
+    /// Bold text (the Text tool, and the text on lines and boxes).
+    pub bold: bool,
+    /// The Text tool's turn on screen, in degrees (clockwise).
+    pub angle: f32,
+    /// Where a line's or a box's text sits; none is the tool's usual place.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_at: Option<TextAt>,
+}
+
+/// Where the text on a line or a box sits: along it (left, middle,
+/// right) and to its side (above, on it or inside, below).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextAt {
+    pub along: Along,
+    pub side: Side,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Along {
+    Start,
+    Middle,
+    End,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Side {
+    Above,
+    On,
+    Below,
+}
+
+impl TextAt {
+    /// Where the tool puts its text until it's moved.
+    pub fn usual(tool: Tool) -> TextAt {
+        use Tool::*;
+        let (along, side) = match tool {
+            HorizontalLine | HorizontalRay | CrossLine => (Along::End, Side::Above),
+            Rectangle => (Along::Start, Side::Above),
+            _ => (Along::Middle, Side::Above),
+        };
+        TextAt { along, side }
+    }
 }
 
 /// One level of a Fib retracement or extension.
@@ -405,7 +447,47 @@ impl Default for DrawStyle {
             font: 14,
             labels: true,
             levels: None,
+            bold: false,
+            angle: 0.0,
+            text_at: None,
         }
+    }
+}
+
+impl DrawStyle {
+    /// Where this drawing's text sits.
+    pub fn text_at(&self, tool: Tool) -> TextAt {
+        self.text_at.unwrap_or_else(|| TextAt::usual(tool))
+    }
+
+    fn text_font(&self) -> FontId {
+        let size = self.font.max(6) as f32;
+        if self.bold {
+            theme::semibold(size)
+        } else {
+            theme::medium(size)
+        }
+    }
+}
+
+impl Tool {
+    /// Tools whose text runs along them or sits on their box, placed from
+    /// the drawing bar's Text panel.
+    pub fn carries_text(self) -> bool {
+        use Tool::*;
+        matches!(
+            self,
+            TrendLine
+                | Ray
+                | ExtendedLine
+                | Arrow
+                | HorizontalLine
+                | HorizontalRay
+                | VerticalLine
+                | CrossLine
+                | ParallelChannel
+                | Rectangle
+        )
     }
 }
 
@@ -660,6 +742,237 @@ fn label(p: &Painter, at: Pos2, align: Align2, text: &str, fg: Color32, bg: Colo
     p.galley(r.min + vec2(6.0, 3.0), g, fg);
 }
 
+thread_local! {
+    /// Text sizes as last laid out, by (text, size, bold): hit-testing and
+    /// handles have no painter to measure with.
+    static TEXT_SIZES: std::cell::RefCell<std::collections::HashMap<(String, u8, bool), Vec2>> =
+        Default::default();
+}
+
+/// Lays out a drawing's text and remembers its size.
+fn layout_text(p: &Painter, text: &str, style: &DrawStyle, color: Color32) -> std::sync::Arc<egui::Galley> {
+    let galley = p.layout_no_wrap(text.to_string(), style.text_font(), color);
+    TEXT_SIZES.with(|m| {
+        let mut m = m.borrow_mut();
+        if m.len() > 512 {
+            m.clear();
+        }
+        m.insert((text.to_string(), style.font, style.bold), galley.size());
+    });
+    galley
+}
+
+/// A drawing text's size as last drawn, or a guess before that.
+fn text_size(text: &str, style: &DrawStyle) -> Vec2 {
+    TEXT_SIZES
+        .with(|m| m.borrow().get(&(text.to_string(), style.font, style.bold)).copied())
+        .unwrap_or_else(|| {
+            let f = style.font.max(6) as f32;
+            vec2(text.chars().count().max(1) as f32 * f * 0.6, f * 1.25)
+        })
+}
+
+/// What the Text tool shows (a placeholder until something is typed).
+fn shown_text(d: &Drawing) -> &str {
+    if d.text.is_empty() { tr("Text") } else { d.text.as_str() }
+}
+
+/// The Text tool's box: its anchor is the bottom-left corner, and it turns
+/// about it. `to_screen` maps a point of the box (x right, y down from the
+/// anchor) onto the chart.
+struct TextBox {
+    anchor: Pos2,
+    size: Vec2,
+    rot: egui::emath::Rot2,
+}
+
+/// How far the turning handle sits above the text.
+const TURN_GAP: f32 = 16.0;
+
+impl TextBox {
+    fn of(d: &Drawing, g: &Geo) -> Option<TextBox> {
+        let a = d.pts.first()?;
+        Some(TextBox {
+            anchor: g.pos(*a),
+            size: text_size(shown_text(d), &d.style),
+            rot: egui::emath::Rot2::from_angle(d.style.angle.to_radians()),
+        })
+    }
+
+    fn to_screen(&self, local: Vec2) -> Pos2 {
+        self.anchor + self.rot * local
+    }
+
+    fn contains(&self, p: Pos2, slack: f32) -> bool {
+        let l = self.rot.inverse() * (p - self.anchor);
+        l.x >= -slack && l.x <= self.size.x + slack && l.y >= -self.size.y - slack && l.y <= slack
+    }
+
+    /// The handles: the anchor (moves it), the right end of the baseline
+    /// (sizes the text) and the knob above it (turns it).
+    fn handles(&self) -> [Pos2; 3] {
+        [
+            self.anchor,
+            self.to_screen(vec2(self.size.x, 0.0)),
+            self.to_screen(vec2(self.size.x / 2.0, -self.size.y - TURN_GAP)),
+        ]
+    }
+}
+
+/// A Text drawing's handle dragged to `p`: 1 sizes the text, 2 turns it
+/// (snapping to level, upright, 45° and the angles in `snaps`, in degrees).
+pub fn drag_text(d: &mut Drawing, k: usize, p: Pos2, g: &Geo, snaps: &[f32]) {
+    let Some(b) = TextBox::of(d, g) else { return };
+    let v = p - b.anchor;
+    match k {
+        1 => {
+            // The text's width grows with its size, so the size follows how
+            // far along the baseline the handle is pulled.
+            let per_size = b.size.x / d.style.font.max(6) as f32;
+            let along = (b.rot.inverse() * v).x;
+            if per_size > 0.0 {
+                d.style.font = (along / per_size).round().clamp(8.0, 120.0) as u8;
+            }
+        }
+        2 => {
+            let knob = vec2(b.size.x / 2.0, -b.size.y - TURN_GAP);
+            let mut deg = (v.y.atan2(v.x) - knob.y.atan2(knob.x)).to_degrees();
+            deg = (deg + 540.0).rem_euclid(360.0) - 180.0;
+            let fixed = [0.0, 45.0, 90.0, 135.0, 180.0, -45.0, -90.0, -135.0, -180.0];
+            let near = fixed
+                .iter()
+                .chain(snaps)
+                .map(|&s| (s, ((deg - s + 540.0).rem_euclid(360.0) - 180.0).abs()))
+                .filter(|&(_, off)| off <= 3.0)
+                .min_by(|a, b| a.1.total_cmp(&b.1));
+            if let Some((s, _)) = near {
+                deg = s;
+            }
+            if deg <= -180.0 {
+                deg += 360.0;
+            }
+            d.style.angle = deg;
+        }
+        _ => {}
+    }
+}
+
+/// The on-screen angles (degrees, both ways) of the chart's straight
+/// lines, for the Text tool to snap to while it turns.
+pub fn line_angles(drawings: &[Drawing], g: &Geo) -> Vec<f32> {
+    use Tool::*;
+    drawings
+        .iter()
+        .filter(|d| !d.hidden && matches!(d.tool, TrendLine | Ray | ExtendedLine | Arrow | ParallelChannel))
+        .filter(|d| d.pts.len() >= 2)
+        .flat_map(|d| {
+            let v = g.pos(d.pts[1]) - g.pos(d.pts[0]);
+            let a = v.y.atan2(v.x).to_degrees();
+            let back = if a > 0.0 { a - 180.0 } else { a + 180.0 };
+            [a, back]
+        })
+        .collect()
+}
+
+/// The room a horizontal line's price label takes at the right edge.
+fn price_label_room(d: &Drawing, g: &Geo) -> f32 {
+    if d.style.labels && matches!(d.tool, Tool::HorizontalLine | Tool::HorizontalRay) {
+        format::price(d.pts[0].p, g.decimals).chars().count() as f32 * 7.5 + 20.0
+    } else {
+        0.0
+    }
+}
+
+/// Where a line's or a box's text goes: its centre on screen, its turn
+/// (radians, so it reads along the line) and whether it sits on the line
+/// itself (it then gets a backing so the line doesn't run through it).
+fn carried_text(d: &Drawing, g: &Geo, size: Vec2) -> Option<(Pos2, f32, bool)> {
+    use Tool::*;
+    let pts: Vec<Pos2> = d.pts.iter().map(|a| g.pos(*a)).collect();
+    let r = g.rect;
+    let at = d.style.text_at(d.tool);
+    if d.tool == Rectangle {
+        let rect = Rect::from_two_pos(*pts.first()?, *pts.get(1)?);
+        let inset = if at.side == Side::On { 6.0 } else { 0.0 };
+        let x = match at.along {
+            Along::Start => rect.left() + inset + size.x / 2.0,
+            Along::Middle => rect.center().x,
+            Along::End => rect.right() - inset - size.x / 2.0,
+        };
+        let y = match at.side {
+            Side::Above => rect.top() - 4.0 - size.y / 2.0,
+            Side::On => rect.center().y,
+            Side::Below => rect.bottom() + 4.0 + size.y / 2.0,
+        };
+        return Some((pos2(x, y), 0.0, false));
+    }
+    let first = *pts.first()?;
+    let (mut a, mut b) = match d.tool {
+        HorizontalLine | CrossLine => (
+            pos2(r.left(), first.y),
+            pos2(r.right() - price_label_room(d, g), first.y),
+        ),
+        HorizontalRay => (first, pos2(r.right() - price_label_room(d, g), first.y)),
+        // Read from the bottom up, as TradingView does.
+        VerticalLine => (pos2(first.x, r.bottom()), pos2(first.x, r.top())),
+        _ => (first, *pts.get(1)?),
+    };
+    if b.x < a.x {
+        std::mem::swap(&mut a, &mut b);
+    }
+    let len = (b - a).length();
+    if len < 1.0 {
+        return None;
+    }
+    let dir = (b - a) / len;
+    let up = vec2(dir.y, -dir.x);
+    let pad = 8.0;
+    let room = len >= size.x + 2.0 * pad;
+    let centre = match at.along {
+        Along::Start if room => a + dir * (size.x / 2.0 + pad),
+        Along::End if room => b - dir * (size.x / 2.0 + pad),
+        _ => a + (b - a) / 2.0,
+    };
+    let off = size.y / 2.0 + 3.0 + d.style.width as f32 / 2.0;
+    let centre = match at.side {
+        Side::Above => centre + up * off,
+        Side::On => centre,
+        Side::Below => centre - up * off,
+    };
+    Some((centre, dir.y.atan2(dir.x), at.side == Side::On))
+}
+
+/// Paints a line's or a box's text where `carried_text` puts it.
+fn paint_carried_text(p: &Painter, d: &Drawing, g: &Geo, color: Color32, bg: Color32) {
+    let galley = layout_text(p, &d.text, &d.style, color);
+    let size = galley.size();
+    let Some((centre, angle, on_line)) = carried_text(d, g, size) else {
+        return;
+    };
+    let rot = egui::emath::Rot2::from_angle(angle);
+    if on_line {
+        let h = size / 2.0 + vec2(4.0, 2.0);
+        let corners = [vec2(-h.x, -h.y), vec2(h.x, -h.y), vec2(h.x, h.y), vec2(-h.x, h.y)]
+            .map(|c| centre + rot * c)
+            .to_vec();
+        p.add(Shape::convex_polygon(corners, bg, Stroke::NONE));
+    }
+    let top_left = centre - rot * (size / 2.0);
+    p.add(egui::epaint::TextShape::new(top_left, galley, color).with_angle(angle));
+}
+
+/// Whether `p` is on a line's or a box's text.
+fn on_carried_text(d: &Drawing, g: &Geo, p: Pos2) -> bool {
+    if d.text.is_empty() || !d.tool.carries_text() {
+        return false;
+    }
+    let size = text_size(&d.text, &d.style);
+    carried_text(d, g, size).is_some_and(|(centre, angle, _)| {
+        let l = egui::emath::Rot2::from_angle(angle).inverse() * (p - centre);
+        l.x.abs() <= size.x / 2.0 + 3.0 && l.y.abs() <= size.y / 2.0 + 3.0
+    })
+}
+
 /// Long/short position geometry: entry, target and stop prices and the
 /// x span.
 fn position_parts(d: &Drawing, g: &Geo) -> Option<(f32, f32, f64, f64, f64)> {
@@ -834,16 +1147,6 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             p.rect_filled(rect, CornerRadius::ZERO, fill);
             if d.tool == Rectangle {
                 p.rect_stroke(rect, CornerRadius::ZERO, s, egui::StrokeKind::Middle);
-                // A label above the box (the agent marks patterns this way).
-                if !d.text.is_empty() {
-                    p.text(
-                        rect.left_top() + vec2(0.0, -4.0),
-                        Align2::LEFT_BOTTOM,
-                        &d.text,
-                        theme::medium(d.style.font as f32 * 0.9),
-                        s.color,
-                    );
-                }
             } else {
                 measure(p, d, g, pts[0], pts[1], s);
             }
@@ -961,13 +1264,29 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             }
         }
         Text if !pts.is_empty() => {
-            let text = if d.text.is_empty() { tr("Text") } else { d.text.as_str() };
-            p.text(
-                pts[0],
-                Align2::LEFT_BOTTOM,
-                text,
-                theme::medium(d.style.font as f32),
-                s.color,
+            let color = c32(d.style.color);
+            let galley = layout_text(p, shown_text(d), &d.style, color);
+            let b = TextBox {
+                anchor: pts[0],
+                size: galley.size(),
+                rot: egui::emath::Rot2::from_angle(d.style.angle.to_radians()),
+            };
+            if sel {
+                // Its box, and the stalk up to the turning knob.
+                let edge = Stroke::new(1.0, color.gamma_multiply(0.5));
+                let corners = [
+                    vec2(0.0, 0.0),
+                    vec2(b.size.x, 0.0),
+                    vec2(b.size.x, -b.size.y),
+                    vec2(0.0, -b.size.y),
+                ]
+                .map(|c| b.to_screen(c));
+                p.add(Shape::closed_line(corners.to_vec(), edge));
+                p.line_segment([b.to_screen(vec2(b.size.x / 2.0, -b.size.y)), b.handles()[2]], edge);
+            }
+            p.add(
+                egui::epaint::TextShape::new(b.to_screen(vec2(0.0, -b.size.y)), galley, color)
+                    .with_angle(d.style.angle.to_radians()),
             );
         }
         ArrowUp | ArrowDown if !pts.is_empty() => {
@@ -1007,17 +1326,21 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             }
         }
     }
-    // Other tools' labels: above a horizontal line at the right, else
-    // above the first point.
-    if !d.text.is_empty()
-        && !matches!(d.tool, Text | ArrowUp | ArrowDown | Rectangle)
+    // Lines and boxes carry their text where the drawing bar puts it;
+    // other tools' sits above their first point.
+    if !d.text.is_empty() && d.tool.carries_text() {
+        paint_carried_text(p, d, g, c32(d.style.color), bg);
+    } else if !d.text.is_empty()
+        && !matches!(d.tool, Text | ArrowUp | ArrowDown)
         && let Some(&first) = pts.first()
     {
-        let (at, align) = match d.tool {
-            HorizontalLine | HorizontalRay => (pos2(r.right() - 6.0, first.y - 3.0), Align2::RIGHT_BOTTOM),
-            _ => (first + vec2(0.0, -4.0), Align2::LEFT_BOTTOM),
-        };
-        p.text(at, align, &d.text, theme::medium(d.style.font as f32 * 0.9), s.color);
+        p.text(
+            first + vec2(0.0, -4.0),
+            Align2::LEFT_BOTTOM,
+            &d.text,
+            theme::medium(d.style.font as f32 * 0.9),
+            s.color,
+        );
     }
     if sel {
         for (i, q) in handle_points(d, g).into_iter().enumerate() {
@@ -1218,6 +1541,7 @@ pub fn handle_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
             let off = g.pos(d.pts[2]).y - a.y;
             vec![a, b, pos2((a.x + b.x) / 2.0, (a.y + b.y) / 2.0 + off)]
         }
+        Tool::Text => TextBox::of(d, g).map(|b| b.handles().to_vec()).unwrap_or_default(),
         Tool::LongPosition | Tool::ShortPosition if d.pts.len() >= 3 => {
             let x0 = g.tm.x(d.pts[0].t);
             let x1 = g.tm.x(d.pts[1].t);
@@ -1243,6 +1567,9 @@ pub fn hit(d: &Drawing, g: &Geo, p: Pos2) -> Option<Part> {
         if h.distance(p) <= NEAR + 1.0 {
             return Some(Part::Point(i));
         }
+    }
+    if on_carried_text(d, g, p) {
+        return Some(Part::Body);
     }
     let pts: Vec<Pos2> = d.pts.iter().map(|a| g.pos(*a)).collect();
     let r = g.rect;
@@ -1298,14 +1625,7 @@ pub fn hit(d: &Drawing, g: &Geo, p: Pos2) -> Option<Part> {
             );
             p.x >= x0 && p.x <= x1 && p.y >= lo && p.y <= hi
         }),
-        Text if !pts.is_empty() => {
-            let w = (d.text.chars().count().max(4) as f32) * d.style.font as f32 * 0.6;
-            Rect::from_min_size(
-                pts[0] - vec2(0.0, d.style.font as f32 + 4.0),
-                vec2(w, d.style.font as f32 + 6.0),
-            )
-            .contains(p)
-        }
+        Text => TextBox::of(d, g).is_some_and(|b| b.contains(p, 3.0)),
         ArrowUp | ArrowDown if !pts.is_empty() => pts[0].distance(p) <= 16.0,
         AnchoredVwap => vwap_points(d, g).windows(2).any(|w| near_seg(w[0], w[1])),
         FixedRangeVolumeProfile | AnchoredVolumeProfile => range_profile(d, g).is_some_and(|(prof, x0, x1)| {
@@ -1649,5 +1969,117 @@ mod tests {
         assert!(shown_levels(&d).is_empty());
         let back: Drawing = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
         assert!(shown_levels(&back).is_empty());
+    }
+
+    fn text_at(tool: Tool, pts: Vec<Anchor>, text: &str) -> Drawing {
+        Drawing {
+            id: 1,
+            tool,
+            pts,
+            style: DrawStyle::for_tool(tool),
+            text: text.into(),
+            locked: false,
+            hidden: false,
+        }
+    }
+
+    /// The Text tool's handles: the right end of its baseline sizes it,
+    /// the knob above turns it (snapping to level and to a trend line's
+    /// slope); a turned text is hit where it's drawn.
+    #[test]
+    fn text_sizes_turns_and_is_hit_where_drawn() {
+        let b = bars();
+        let g = geo(&b);
+        let mut d = text_at(
+            Tool::Text,
+            vec![Anchor {
+                t: 2 * 3_600_000,
+                p: 5.0,
+            }],
+            "Breakout",
+        );
+        let tb = TextBox::of(&d, &g).unwrap();
+        let [anchor, size_h, turn_h] = tb.handles();
+        assert_eq!(anchor, g.pos(d.pts[0]));
+        assert_eq!(hit(&d, &g, size_h), Some(Part::Point(1)));
+        assert_eq!(hit(&d, &g, turn_h), Some(Part::Point(2)));
+
+        // Twice as far along the baseline: twice the size.
+        let font = d.style.font as f32;
+        drag_text(&mut d, 1, anchor + (size_h - anchor) * 2.0, &g, &[]);
+        assert!((d.style.font as f32 - font * 2.0).abs() <= 1.0, "{}", d.style.font);
+
+        // The knob straight above the anchor's right: turned -90° would put
+        // it left; a nudge off level snaps back to 0.
+        let tb = TextBox::of(&d, &g).unwrap();
+        drag_text(&mut d, 2, tb.handles()[2] + vec2(2.0, 0.0), &g, &[]);
+        assert_eq!(d.style.angle, 0.0, "snaps level");
+        // Near a line's slope, it takes the slope.
+        let knob = tb.handles()[2] - tb.anchor;
+        let turn = |deg: f32| tb.anchor + egui::emath::Rot2::from_angle(deg.to_radians()) * knob;
+        drag_text(&mut d, 2, turn(-28.5), &g, &[-30.0]);
+        assert_eq!(d.style.angle, -30.0, "snaps to the line");
+        drag_text(&mut d, 2, turn(-20.0), &g, &[-30.0]);
+        assert!((d.style.angle + 20.0).abs() < 0.01, "free between: {}", d.style.angle);
+
+        // Turned, its box turns with it.
+        let tb = TextBox::of(&d, &g).unwrap();
+        let mid = tb.to_screen(vec2(tb.size.x * 0.8, -tb.size.y / 2.0));
+        assert_eq!(hit(&d, &g, mid), Some(Part::Body));
+        let level = tb.anchor + vec2(tb.size.x * 0.8, -tb.size.y / 2.0);
+        assert_eq!(hit(&d, &g, level), None, "not where it would be level");
+    }
+
+    /// A trend line's text runs along it, above by default, and selects
+    /// the line when clicked; old drawings load with the usual place.
+    #[test]
+    fn line_text_runs_along_the_line() {
+        let b = bars();
+        let g = geo(&b);
+        let mut d = text_at(
+            Tool::TrendLine,
+            vec![
+                Anchor { t: 3_600_000, p: 2.0 },
+                Anchor {
+                    t: 8 * 3_600_000,
+                    p: 8.0,
+                },
+            ],
+            "Support",
+        );
+        let size = text_size(&d.text, &d.style);
+        let (a, z) = (g.pos(d.pts[0]), g.pos(d.pts[1]));
+        let (centre, angle, on) = carried_text(&d, &g, size).unwrap();
+        let slope = (z - a).y.atan2((z - a).x);
+        assert!((angle - slope).abs() < 1e-4, "along the line");
+        assert!(!on);
+        let mid = a + (z - a) / 2.0;
+        assert!(centre.y < mid.y, "above it");
+        assert_eq!(hit(&d, &g, centre), Some(Part::Body));
+
+        d.style.text_at = Some(TextAt {
+            along: Along::End,
+            side: Side::On,
+        });
+        let (centre, _, on) = carried_text(&d, &g, size).unwrap();
+        assert!(on, "on the line gets a backing");
+        assert!(centre.distance(z) < centre.distance(a), "by the end");
+        assert!(dist_to_segment(centre, a, z) < 0.5);
+
+        // A vertical line reads upward.
+        let v = text_at(
+            Tool::VerticalLine,
+            vec![Anchor {
+                t: 3 * 3_600_000,
+                p: 5.0,
+            }],
+            "FOMC",
+        );
+        let (_, angle, _) = carried_text(&v, &g, size).unwrap();
+        assert!((angle + std::f32::consts::FRAC_PI_2).abs() < 1e-4);
+
+        let old: DrawStyle = serde_json::from_str(r#"{"color":0,"width":1}"#).unwrap();
+        assert_eq!(old.text_at(Tool::HorizontalLine), TextAt::usual(Tool::HorizontalLine));
+        assert!(!old.bold && old.angle == 0.0);
     }
 }

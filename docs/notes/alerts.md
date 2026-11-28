@@ -11,7 +11,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   triples; price alerts work for any symbol with a price (chart or quotes), plot alerts
   need the study on the chart; line alerts follow their drawing; script alerts
   (`alert()`, `alertcondition`) fire only for alerts newer than when they were armed
-  (deduped by bar time and message). Fired → log, toast (top right, 8 s), and a
+  (deduped by bar time and message). Fired → log, a notification (its card pops up; `notes.rs`), and a
   delivery thread: desktop notification + sound (`notify-rust`), webhook (JSON or text
   body; logs only the host), Telegram (bot token in the OS keychain via `keyring`,
   service `opentern`; chat id in settings `telegram_chat_id`). Nothing is sent when
@@ -67,3 +67,11 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   module is in `git stash` ("shelved: trade journal"); its glue (tab, App
   field, `Snap::Journal`, notes' trade link) was removed. Don't bring it
   back unless asked.
+- **Alert lines** (Nov 2026, off by default: `ChartStyle::alert_lines`, with
+  `alert_color`/`alert_width`/`alert_style` shared by all): `App::alert_lines` puts the
+  chart's active `Condition::Price` alerts on `Chart::alerts` (rebuilt only when a hash
+  of what they show changes; every grid chart via `poll_other_charts`). `chart/ui.rs`
+  draws them under the scale tags with their price tag and, near the pointer, a name
+  pill at the left; with the cross a line drags (`Action::MoveAlert` →
+  `App::move_alert`) and right-clicks (`Action::AlertMenu` → `alert_line_menu`: edit,
+  delete, colour, style, width).

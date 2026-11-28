@@ -16,7 +16,6 @@ use opentern_core::Timeframe;
 use opentern_engine::alerts::{Alert, Condition, Freq, Watch};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::time::Instant;
 
 pub const TELEGRAM_TOKEN: &str = "telegram-bot-token";
 pub const TELEGRAM_CHAT: &str = "telegram_chat_id";
@@ -92,7 +91,6 @@ pub struct Delivery {
 pub struct Alerts {
     pub list: Vec<(Alert, Watch)>,
     pub log: Vec<Fired>,
-    pub toasts: Vec<(Fired, Instant)>,
     /// Last values fed per alert (only new values are fed).
     fed: HashMap<i64, (f64, f64, i64)>,
     /// Script alerts already seen, per alert: (bar time, message).
@@ -199,7 +197,6 @@ impl Alerts {
         Alerts {
             list,
             log,
-            toasts: Vec::new(),
             fed: HashMap::new(),
             seen: HashMap::new(),
             tx,
@@ -482,6 +479,54 @@ impl App {
         }
     }
 
+    /// The active chart's price alerts as lines, when Alert lines are on.
+    /// Rebuilt only when something they show changes.
+    pub(crate) fn alert_lines(&mut self) {
+        use std::hash::{Hash, Hasher};
+        let on = self.chart.style.alert_lines;
+        let price_alerts = || {
+            self.alerts.list.iter().filter_map(|(a, _)| match a.condition {
+                Condition::Price { value, .. } if on && a.active && a.symbol == self.chart.symbol.id => {
+                    Some((a, value))
+                }
+                _ => None,
+            })
+        };
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        for (a, value) in price_alerts() {
+            (a.id, value.to_bits(), &a.name, &a.condition.summary()).hash(&mut h);
+        }
+        let sig = h.finish();
+        if sig == self.chart.alerts_sig {
+            return;
+        }
+        let lines = price_alerts()
+            .map(|(a, value)| crate::chart::AlertLine {
+                id: a.id,
+                price: value,
+                label: if a.name.is_empty() {
+                    condition(&a.condition)
+                } else {
+                    a.name.clone()
+                },
+            })
+            .collect();
+        self.chart.alerts = lines;
+        self.chart.alerts_sig = sig;
+    }
+
+    /// An alert line dragged to `price`: the alert watches that price now.
+    pub(crate) fn move_alert(&mut self, id: i64, price: f64) {
+        let Some((a, _)) = self.alerts.list.iter().find(|(a, _)| a.id == id) else {
+            return;
+        };
+        let mut a = a.clone();
+        if let Condition::Price { value, .. } = &mut a.condition {
+            *value = price;
+            self.save_alert(a);
+        }
+    }
+
     pub(crate) fn delete_alert(&mut self, id: i64) {
         if let Err(e) = self.store.delete_alert(id) {
             crate::diag::crumb(format!("couldn't delete an alert: {e}"));
@@ -590,11 +635,6 @@ impl App {
         for (i, msg) in fire {
             self.fire_alert(i, msg);
         }
-        self.alerts.toasts.retain(|(_, t)| t.elapsed().as_secs_f32() < 8.0);
-        if !self.alerts.toasts.is_empty() {
-            self.egui_ctx
-                .request_repaint_after(std::time::Duration::from_millis(500));
-        }
     }
 
     fn fire_alert(&mut self, i: usize, script_message: String) {
@@ -604,9 +644,8 @@ impl App {
             .or_else(|| self.alerts.watcher.price(&symbol))
             .unwrap_or(f64::NAN);
         let f = self.alerts.fire(&mut self.store, i, price, script_message);
-        self.alerts.toasts.push((f.clone(), Instant::now()));
         let body = shown(&f.symbol, &f.message);
-        self.notify(crate::icons::ph::ALARM, &f.name, &body, None, false);
+        self.notify(crate::icons::ph::ALARM, &f.name, &body, None);
         self.egui_ctx.request_repaint();
     }
 
@@ -623,7 +662,7 @@ impl App {
         } else {
             msg!("{n} alerts fired while Opentern was closed")
         };
-        self.notify(crate::icons::ph::ALARM, &title, "", None, true);
+        self.notify(crate::icons::ph::ALARM, &title, "", None);
     }
 
     /// The window is closing: alerts carry on in the background process
@@ -642,56 +681,6 @@ impl App {
     /// The email settings, if they're filled in.
     pub(crate) fn email_to(&self) -> Option<EmailTo> {
         email_to(&self.store)
-    }
-
-    /// Toasts for fired alerts, top right over the chart.
-    pub(crate) fn alert_toasts(&mut self, ctx: &egui::Context) {
-        if self.alerts.toasts.is_empty() {
-            return;
-        }
-        let t = self.t();
-        let screen = ctx.content_rect();
-        let mut y = screen.top() + 56.0;
-        let mut dismiss = None;
-        for (k, (f, born)) in self.alerts.toasts.iter().enumerate().rev().take(4) {
-            let age = born.elapsed().as_secs_f32();
-            let alpha = ((8.0 - age) / 0.6).clamp(0.0, 1.0);
-            let w = 300.0;
-            egui::Area::new(egui::Id::new(("toast", k, f.time)))
-                .fixed_pos(pos2(screen.right() - w - 60.0, y))
-                .order(egui::Order::Foreground)
-                .show(ctx, |ui| {
-                    ui.set_opacity(alpha);
-                    let r = egui::Frame::new()
-                        .fill(t.elevated)
-                        .stroke(Stroke::new(1.0, t.border))
-                        .corner_radius(CornerRadius::same(10))
-                        .inner_margin(egui::Margin::symmetric(14, 10))
-                        .show(ui, |ui| {
-                            ui.set_width(w - 28.0);
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    egui::RichText::new(crate::icons::ph::ALARM)
-                                        .font(theme::regular(15.0))
-                                        .color(t.accent),
-                                );
-                                ui.label(egui::RichText::new(&f.name).font(theme::semibold(13.0)));
-                            });
-                            ui.label(
-                                egui::RichText::new(shown(&f.symbol, &f.message))
-                                    .color(t.text2)
-                                    .size(12.5),
-                            );
-                        });
-                    if r.response.interact(Sense::click()).clicked() {
-                        dismiss = Some(k);
-                    }
-                    y += r.response.rect.height() + 8.0;
-                });
-        }
-        if let Some(k) = dismiss {
-            self.alerts.toasts.remove(k);
-        }
     }
 
     /// The Alerts widget: every alert, its state, and what it does.
@@ -716,15 +705,18 @@ impl App {
         let mut toggle = None;
         let now = now_ms();
         egui::ScrollArea::vertical().id_salt("alerts-list").show(ui, |ui| {
+            // Rounded rows that light up under the pointer, as the
+            // watchlist's; no rules between them.
+            ui.spacing_mut().item_spacing.y = 2.0;
             for (a, _) in self.alerts.list.iter().rev() {
-                let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 56.0), Sense::click());
+                let (r, resp) = ui.allocate_exact_size(vec2(ui.available_width(), 70.0), Sense::click());
                 let p = ui.painter();
                 // Pointer inside, not `hovered()`: the buttons would steal it.
                 let inside = ui.rect_contains_pointer(r);
                 let hover = crate::motion::hover_if(&resp, inside);
                 p.rect_filled(
                     r,
-                    CornerRadius::same(6),
+                    CornerRadius::same(8),
                     crate::motion::with_alpha(t.hover_wash(), hover),
                 );
                 let (state, c) = if a.expired(now) {
@@ -736,35 +728,32 @@ impl App {
                 } else {
                     (tr("Stopped"), t.text3)
                 };
-                p.circle_filled(pos2(r.left() + 10.0, r.top() + 15.0), 4.0, c);
+                // Name, what it watches, then its state: each line its own
+                // step down, with room above and below.
+                let (y1, y2, y3) = (r.top() + 19.0, r.top() + 38.0, r.top() + 55.0);
+                p.circle_filled(pos2(r.left() + 13.0, y1), 3.5, c);
                 let name = if a.name.is_empty() {
                     a.symbol.rsplit(':').next().unwrap_or(&a.symbol).to_string()
                 } else {
                     a.name.clone()
                 };
-                p.text(
-                    pos2(r.left() + 22.0, r.top() + 15.0),
-                    Align2::LEFT_CENTER,
-                    name,
-                    theme::medium(13.0),
-                    t.text,
-                );
-                p.text(
-                    pos2(r.left() + 22.0, r.top() + 33.0),
-                    Align2::LEFT_CENTER,
-                    condition(&a.condition),
-                    theme::regular(12.0),
-                    t.text2,
-                );
+                // Clear of the buttons that show on hover.
+                let room = r.width() - 28.0 - if inside { 84.0 } else { 8.0 };
+                let font = theme::medium(13.5);
+                let name = crate::format::elide_to(p, &name, &font, room);
+                p.text(pos2(r.left() + 26.0, y1), Align2::LEFT_CENTER, name, font, t.text);
+                let font = theme::regular(12.5);
+                let what = crate::format::elide_to(p, &condition(&a.condition), &font, r.width() - 34.0);
+                p.text(pos2(r.left() + 26.0, y2), Align2::LEFT_CENTER, what, font, t.text2);
                 let (line, c) = match self.alerts.watcher.error(a.id) {
                     Some(e) if a.active => (trm(e).into_owned(), t.warn),
                     _ => (trf!("{state} · {} · fired {}×", tr(a.freq.name()), a.fired), t.text3),
                 };
                 p.text(
-                    pos2(r.left() + 22.0, r.top() + 48.0),
+                    pos2(r.left() + 26.0, y3),
                     Align2::LEFT_CENTER,
                     line,
-                    theme::regular(11.0),
+                    theme::regular(11.5),
                     c,
                 );
                 if inside {
@@ -782,8 +771,8 @@ impl App {
                             0,
                         ),
                     ] {
-                        let br = egui::Rect::from_min_size(pos2(x - 24.0, r.top() + 4.0), vec2(24.0, 24.0));
-                        x -= 26.0;
+                        let br = egui::Rect::from_center_size(pos2(x - 13.0, y1), vec2(26.0, 26.0));
+                        x -= 28.0;
                         let b = ui.interact(br, ui.id().with((a.id, what)), Sense::click());
                         let col = crate::motion::with_alpha(
                             crate::motion::lerp_color(t.text2, t.text, crate::motion::hover(&b)),
@@ -803,8 +792,6 @@ impl App {
                 if resp.double_clicked() {
                     edit = Some(a.id);
                 }
-                ui.painter()
-                    .hline(r.x_range(), r.bottom(), Stroke::new(1.0, t.border.gamma_multiply(0.5)));
             }
         });
         if let Some(id) = toggle

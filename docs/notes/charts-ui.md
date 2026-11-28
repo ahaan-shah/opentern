@@ -14,6 +14,25 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   empty means `FibLevel::standard(tool)`, so older drawings and the standard set store
   nothing. Edited in the bar's Levels panel (`drawbar.rs`, an `Area` under the bar, not a
   popup: egui keeps one popup open and each level's colour picker is one).
+- **Text tool** (Nov 2026, from PR #11's ideas): `DrawStyle::font` is its size,
+  `bold`, `angle` (degrees on screen). `TextBox` in `draw.rs` is the box (anchor =
+  bottom-left, turned about it); handles: anchor (moves), the baseline's right end
+  (`drag_text` 1: size from how far along the baseline), the knob `TURN_GAP` above
+  (2: turns, snapping to 0/45/90… and `line_angles`, the trend lines' slopes, within
+  3°). Text sizes for hit-tests come from `TEXT_SIZES` (a thread-local of the last
+  layouts; a guess before the first paint).
+- **Text on lines and boxes** (`Tool::carries_text`): `DrawStyle::text_at`
+  (`TextAt { along: Start|Middle|End, side: Above|On|Below }`; none = `TextAt::usual`,
+  so old drawings keep their place). `carried_text` places it along the anchors' segment
+  (vertical lines bottom-up; horizontal lines stop short of their price label), turned
+  to the line; On gets a backing. Rectangles: Above/On(inside)/Below × left/middle/right.
+  Edited in the bar's Text panel (an `Area`, like Levels). Clicking the text hits the
+  drawing (`on_carried_text`).
+- **Several selected** (`DrawUi::also` besides `selected`; `select`, `all_selected`,
+  `is_selected`): Ctrl/Cmd+click toggles, Ctrl+drag from an empty spot draws a box
+  (`boxing`) that adds what it touches. Dragging a selected body moves all
+  (`group_drag`); `App::delete_selected_drawing` removes all with one undo. The bar
+  becomes `several_bar` (count, one colour, lock, delete).
 - **Drawing templates** (the bar's Template menu): named `DrawStyle`s per tool in
   `templates`, kind `drawing:<Tool::key()>` (`TemplateKind::Drawing`), apart from the
   starred style (kind `drawing`). Reset to default sets `DrawStyle::for_tool` and drops
@@ -82,7 +101,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   ask again 15 s after a failure (`side::RETRY`).
   Calendar (NYSE/NSE holidays and early closes as date tiles with pills, the
   symbol's dividends and splits by year), Notifications
-  (alerts, snapshots, updates; dot on the rail when unread). Hub requests
+  (alerts, snapshots, updates; dot on the rail when unread). Every `App::notify`
+  also pops up a card (`notes::card`) at the charts' top right, left of the price
+  scale, for 6 s: the dialogs' border and green sheen (`dialogs::border_stroke`,
+  `sheen`), icon disc, title, text, × on hover; held while pointed at. Side panel
+  lists (Alerts, Object tree, Notifications) use the watchlist's rounded hover rows,
+  no rules between rows, plain-case headings (`objects::heading`, `object_row`). Hub requests
   `Hotlist` and `News` (`data/src/feeds.rs`).
 - Stills: `OPENTERN_STILL` also takes `kind:<chart type>`, `grid:<Grid>`,
   `compare:<ticker>`, `tf:<interval>`, `symbol:<id>` (e.g. `NSE:INFY`), `replay`, `screen`, `widget:<name>`.

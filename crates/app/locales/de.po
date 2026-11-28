@@ -232,6 +232,9 @@ msgstr "Über"
 msgid "About {0}"
 msgstr "Über {0}"
 
+msgid "Above"
+msgstr "Darüber"
+
 msgid "Absolute"
 msgstr "Absolut"
 
@@ -332,6 +335,9 @@ msgstr "Agent-Panel"
 
 msgid "Alert"
 msgstr "Alarm"
+
+msgid "Alert lines"
+msgstr "Alarmlinien"
 
 msgid "Alert or line from the price scale"
 msgstr "Alarm oder Linie von der Preisskala"
@@ -656,6 +662,9 @@ msgstr "Bayessch"
 msgid "Begin"
 msgstr "Los geht's"
 
+msgid "Below"
+msgstr "Darunter"
+
 msgid "Berchtold's Day"
 msgstr "Berchtoldstag"
 
@@ -680,6 +689,9 @@ msgstr "Körper"
 
 msgid "Body Middle"
 msgstr "Körpermitte"
+
+msgid "Bold"
+msgstr "Fett"
 
 msgid "Bollinger BandWidth"
 msgstr "Bollinger BandWidth"
@@ -1363,9 +1375,6 @@ msgstr "Eigene Indizes"
 msgid "Custom: 7m, 3h, 2D"
 msgstr "Eigenes: 7m, 3h, 2D"
 
-msgid "DATA WINDOW"
-msgstr "DATENFENSTER"
-
 msgid "DAYS"
 msgstr "TAGE"
 
@@ -1386,6 +1395,9 @@ msgstr "Datenanpassung"
 
 msgid "Data providers"
 msgstr "Datenanbieter"
+
+msgid "Data window"
+msgstr "Datenfenster"
 
 msgid "Date"
 msgstr "Datum"
@@ -1425,6 +1437,9 @@ msgstr "{min} Min. verzögert"
 
 msgid "Delete"
 msgstr "Löschen"
+
+msgid "Delete alert"
+msgstr "Alarm löschen"
 
 msgid "Delete folder (if empty)"
 msgstr "Ordner löschen (falls leer)"
@@ -2283,6 +2298,9 @@ msgstr "Eingabe"
 msgid "Inputs"
 msgstr "Eingaben"
 
+msgid "Inside"
+msgstr "Innen"
+
 msgid "Install {0}"
 msgstr "{0} installieren"
 
@@ -2565,6 +2583,9 @@ msgstr "Wird geladen…"
 
 msgid "Local"
 msgstr "Lokal"
+
+msgid "Lock"
+msgstr "Sperren"
 
 msgid "Lock all drawings"
 msgstr "Alle Zeichnungen sperren"
@@ -2936,6 +2957,9 @@ msgstr "Mittlerer RCI"
 
 msgid "Middle RCI Length"
 msgstr "Länge des mittleren RCI"
+
+msgid "Middle|text"
+msgstr "Mitte"
 
 msgid "Millions, billions"
 msgstr "Millionen, Milliarden"
@@ -3378,9 +3402,6 @@ msgstr "OANDA hat das Token abgelehnt. Prüfe es unter Einstellungen → Datenan
 msgid "OANDA · forex and CFDs"
 msgstr "OANDA · Forex und CFDs"
 
-msgid "OBJECT TREE"
-msgstr "OBJEKTBAUM"
-
 #, message
 msgid "OKX has no {0} bars"
 msgstr "OKX hat keine {0}-Balken"
@@ -3394,6 +3415,9 @@ msgstr "LAYOUT ÖFFNEN"
 
 msgid "OUTPUT"
 msgstr "AUSGABE"
+
+msgid "Object tree"
+msgstr "Objektbaum"
 
 msgid "Object tree and data window"
 msgstr "Objektbaum und Datenfenster"
@@ -3427,6 +3451,9 @@ msgstr "On-Balance-Volumen"
 
 msgid "On the chart"
 msgstr "Auf dem Chart"
+
+msgid "On the line"
+msgstr "Auf der Linie"
 
 msgid "OnBalanceVolume"
 msgstr "On-Balance-Volumen"
@@ -4594,6 +4621,9 @@ msgstr "Labels anzeigen"
 
 msgid "Show on intervals"
 msgstr "Auf Intervallen anzeigen"
+
+msgid "Show or hide"
+msgstr "Ein- oder ausblenden"
 
 msgid "Show prices"
 msgstr "Preise anzeigen"
@@ -6303,4 +6333,7 @@ msgid "{w} windows × {p} runs on the chart's {n} bars."
 msgstr "{w} Fenster × {p} Läufe auf den {n} Balken des Charts."
 
 msgid "{w}px"
+msgstr ""
+
+msgid "{x}px"
 msgstr ""

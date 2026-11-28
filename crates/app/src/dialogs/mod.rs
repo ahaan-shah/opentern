@@ -104,7 +104,7 @@ const MARGIN: i8 = 22;
 
 /// The border of the big dialogs: firmer than menus', since they stand
 /// alone mid-screen.
-fn border_stroke(t: &Theme) -> egui::Stroke {
+pub(crate) fn border_stroke(t: &Theme) -> egui::Stroke {
     egui::Stroke::new(1.5, t.edge().lerp_to_gamma(t.text, if t.dark { 0.10 } else { 0.06 }))
 }
 

@@ -1191,9 +1191,8 @@ impl App {
                 nt!("Import finished"),
                 nt!("What was here is saved in the backups folder."),
                 backups,
-                true,
             ),
-            Some(e) => self.notify(ph::WARNING, nt!("Couldn't import"), &e, backups, true),
+            Some(e) => self.notify(ph::WARNING, nt!("Couldn't import"), &e, backups),
         }
     }
 
