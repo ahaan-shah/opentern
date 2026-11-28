@@ -3219,6 +3219,9 @@ msgstr "Чистая прибыль ÷ макс. просадка"
 msgid "Never"
 msgstr "Никогда"
 
+msgid "New"
+msgstr "Новая"
+
 msgid "New Moon"
 msgstr "Новолуние"
 
@@ -3839,6 +3842,9 @@ msgstr "Результаты"
 
 msgid "Periods"
 msgstr "Периоды"
+
+msgid "Pick a symbol"
+msgstr "Выберите символ"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "CCI Вуди"
 
 msgid "Working"
 msgstr "Работает"
-
-msgid "Workspace"
-msgstr "Рабочая область"
 
 msgid "Workspace 1"
 msgstr "Рабочая область 1"

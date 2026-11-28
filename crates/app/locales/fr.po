@@ -3219,6 +3219,9 @@ msgstr "Profit net ÷ drawdown max."
 msgid "Never"
 msgstr "Jamais"
 
+msgid "New"
+msgstr "Nouveau"
+
 msgid "New Moon"
 msgstr "Nouvelle lune"
 
@@ -3839,6 +3842,9 @@ msgstr "Performance"
 
 msgid "Periods"
 msgstr "Périodes"
+
+msgid "Pick a symbol"
+msgstr "Choisissez un symbole"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "CCI de Woodie"
 
 msgid "Working"
 msgstr "Au travail"
-
-msgid "Workspace"
-msgstr "Espace"
 
 msgid "Workspace 1"
 msgstr "Espace 1"

@@ -3219,6 +3219,9 @@ msgstr ""
 msgid "Never"
 msgstr ""
 
+msgid "New"
+msgstr ""
+
 msgid "New Moon"
 msgstr ""
 
@@ -3838,6 +3841,9 @@ msgid "Performance"
 msgstr ""
 
 msgid "Periods"
+msgstr ""
+
+msgid "Pick a symbol"
 msgstr ""
 
 #, message
@@ -5905,9 +5911,6 @@ msgid "Woodies CCI"
 msgstr ""
 
 msgid "Working"
-msgstr ""
-
-msgid "Workspace"
 msgstr ""
 
 msgid "Workspace 1"

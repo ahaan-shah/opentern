@@ -251,6 +251,8 @@ pub struct Chart {
     pub panes: Vec<Pane>,
     pub style: ChartStyle,
     pub view: View,
+    /// A saved view to put back once the bars are in.
+    pub pending_view: Option<SavedView>,
     pub log: bool,
     pub percent: bool,
     next_uid: u64,
@@ -389,6 +391,19 @@ pub struct ChartState {
     pub compares: Vec<SavedCompare>,
     #[serde(default)]
     pub percent: bool,
+    /// Where it was scrolled and zoomed, so it comes back as it was left.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view: Option<SavedView>,
+}
+
+/// A chart's scroll and zoom as saved: the bar width and the time at the
+/// right edge (none: following the newest bar). A time, not a bar index,
+/// so new bars that came in meanwhile don't move it.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct SavedView {
+    pub bar_w: f32,
+    #[serde(default)]
+    pub right_time: Option<i64>,
 }
 
 /// An indicator template: the studies and how the panes were split.
@@ -444,6 +459,7 @@ impl Chart {
             }],
             style: ChartStyle::default(),
             view: View::default(),
+            pending_view: None,
             log: false,
             percent: false,
             next_uid: 1,
@@ -496,6 +512,7 @@ impl Chart {
         if !s.panes.is_empty() && s.panes[0].id == 0 {
             c.panes = s.panes;
         }
+        c.pending_view = s.view;
         for k in 0..c.compares.len() {
             let p = c.compares[k].pane;
             if c.compares[k].mode == CompareMode::Pane && (p == 0 || !c.panes.iter().any(|x| x.id == p)) {
@@ -572,7 +589,37 @@ impl Chart {
                     visible: c.visible,
                 })
                 .collect(),
+            view: self.saved_view(),
         }
+    }
+
+    /// The view to save: none until the bars are in (then a pending one
+    /// still stands), following when it shows the newest bar.
+    fn saved_view(&self) -> Option<SavedView> {
+        if self.bars.is_empty() {
+            return self.pending_view;
+        }
+        let right_time = (!self.following()).then(|| self.time_at(self.view.right)).flatten();
+        Some(SavedView {
+            bar_w: self.view.bar_w,
+            right_time,
+        })
+    }
+
+    /// The time at a fractional bar index (past the ends by the interval).
+    fn time_at(&self, i: f64) -> Option<i64> {
+        let n = self.bars.len();
+        let step = self.tf.millis()? as f64;
+        let last = (n - 1) as f64;
+        Some(if i <= 0.0 {
+            self.bars[0].time + (i * step) as i64
+        } else if i >= last {
+            self.bars[n - 1].time + ((i - last) * step) as i64
+        } else {
+            let k = i.floor() as usize;
+            let (a, b) = (self.bars[k].time, self.bars[k + 1].time);
+            a + ((b - a) as f64 * (i - k as f64)) as i64
+        })
     }
 
     pub fn owns_compare(&self, session: u64) -> bool {
@@ -718,6 +765,8 @@ impl Chart {
         self.tf = tf;
         self.bars.clear();
         self.raw.clear();
+        // Another symbol or interval starts at the newest bar.
+        self.pending_view = None;
         self.corporate = None;
         self.sessions.clear();
         self.status = Status::Loading;
@@ -1319,7 +1368,16 @@ impl Chart {
         self.asked_more = false;
         self.sessions = sessions(&self.bars, self.tf, &self.sym_tz);
         self.recompute_all();
-        if was_empty || following {
+        let saved = if was_empty { self.pending_view.take() } else { None };
+        if let Some(v) = saved {
+            // Back as it was left: its zoom, and the same time at the right
+            // edge (or the newest bar, if it was following).
+            self.view.bar_w = v.bar_w.clamp(0.4, 80.0);
+            self.view.right = match (v.right_time, self.tf.millis()) {
+                (Some(t), Some(step)) => crate::multi::index_at(&self.bars, step, t),
+                _ => self.last_index() + RIGHT_MARGIN,
+            };
+        } else if was_empty || following {
             self.view.right = self.last_index() + RIGHT_MARGIN;
         } else {
             self.view.right += shift;

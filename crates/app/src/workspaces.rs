@@ -16,7 +16,7 @@ use egui::{Align2, CornerRadius, Sense, Stroke, Ui, pos2, vec2};
 use serde::{Deserialize, Serialize};
 
 /// The row's height.
-pub const BAR_H: f32 = 34.0;
+pub const BAR_H: f32 = 38.0;
 
 /// How many closed workspaces Ctrl+Shift+T can bring back.
 const KEEP_CLOSED: usize = 10;
@@ -173,16 +173,21 @@ impl App {
         }
     }
 
-    /// Ctrl+T: a new workspace after this one, on the active chart's symbol
-    /// and interval (with its indicators), one chart.
+    /// Ctrl+T: a new workspace after this one: a blank chart (on the
+    /// active chart's interval, with volume) and symbol search open to
+    /// fill it.
     pub fn new_workspace(&mut self) {
+        let mut c = crate::chart::Chart::new(0, opentern_core::Symbol::bare(""), self.chart.tf);
+        if let Some(v) = opentern_series::builtins::by_id("volume") {
+            c.add_study(v, &v.default_inputs(), crate::chart::StudyLook::defaults(v), None);
+        }
         let layout = LayoutState {
             version: 2,
             grid: Grid::One,
             sync: Default::default(),
             active: 0,
             cells: None,
-            charts: vec![self.chart.state()],
+            charts: vec![c.state()],
         };
         self.insert_workspace(
             self.ws.current + 1,
@@ -191,6 +196,7 @@ impl App {
                 saved: Some(layout),
             },
         );
+        self.modal = Some(crate::dialogs::Modal::Symbol(crate::dialogs::SymbolSearch::new("")));
     }
 
     /// A copy of workspace `i` (all its charts), right after it.
@@ -261,6 +267,13 @@ impl App {
         }
     }
 
+    /// Opens the name field on workspace `i`'s pill.
+    pub fn start_rename(&mut self, i: usize) {
+        if i < self.ws.list.len() {
+            self.ws.renaming = Some((i, self.ws_title(i)));
+        }
+    }
+
     /// Names workspace `i`; an empty name goes back to its symbol.
     pub fn rename_workspace(&mut self, i: usize, name: &str) {
         if let Some(w) = self.ws.list.get_mut(i) {
@@ -313,7 +326,8 @@ impl App {
         }
         self.ws_main(i)
             .map(|m| m.0)
-            .unwrap_or_else(|| tr("Workspace").to_string())
+            .filter(|t| !t.is_empty())
+            .unwrap_or_else(|| tr("New").to_string())
     }
 
     /// The row above the top bar.
@@ -327,140 +341,184 @@ impl App {
         let mut drop = None;
         let pointer = ui.ctx().pointer_interact_pos();
         let mut centres = Vec::with_capacity(n);
-        ui.horizontal_centered(|ui| {
-            ui.spacing_mut().item_spacing.x = 4.0;
-            for i in 0..n {
-                let title = self.ws_title(i);
-                let on = i == self.ws.current;
-                // Renaming: a field in the pill's place.
-                if let Some((k, text)) = self.ws.renaming.as_mut()
-                    && *k == i
-                {
-                    let r = ui.add(
-                        egui::TextEdit::singleline(text)
-                            .font(theme::medium(12.5))
-                            .margin(vec2(8.0, 3.0))
-                            .desired_width(140.0),
-                    );
-                    if !r.has_focus() && !r.lost_focus() {
-                        r.request_focus();
+        // The app's buttons at the right (laid out first, so the pills only
+        // get what's left), the pills from the left.
+        let compact = ui.available_width() < 1240.0;
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            self.app_buttons(ui, t, compact);
+            w::vdivider(ui, t);
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));
+                ui.spacing_mut().item_spacing.x = 4.0;
+                for i in 0..n {
+                    let title = self.ws_title(i);
+                    let on = i == self.ws.current;
+                    // Renaming: a field in the pill's place.
+                    if let Some((k, text)) = self.ws.renaming.as_mut()
+                        && *k == i
+                    {
+                        // The pill as it looks when shown, with a ring while
+                        // it's being edited, and the name editable in place.
+                        let font = theme::medium(12.5);
+                        let tw = ui
+                            .painter()
+                            .layout_no_wrap(text.clone(), font.clone(), t.text)
+                            .size()
+                            .x
+                            .max(48.0);
+                        let (pr, _) = ui.allocate_exact_size(vec2(tw + 41.0, 24.0), Sense::hover());
+                        let p = ui.painter();
+                        p.rect_filled(pr, CornerRadius::same(7), t.accent_soft());
+                        p.rect_stroke(
+                            pr,
+                            CornerRadius::same(7),
+                            Stroke::new(1.0, t.accent.gamma_multiply(0.7)),
+                            egui::StrokeKind::Inside,
+                        );
+                        let k = egui::Rect::from_min_size(pos2(pr.left() + 4.0, pr.center().y - 8.5), vec2(17.0, 17.0));
+                        p.rect_filled(k, CornerRadius::same(5), t.accent);
+                        p.text(
+                            k.center(),
+                            Align2::CENTER_CENTER,
+                            (i + 1).to_string(),
+                            theme::semibold(10.5),
+                            t.on_accent,
+                        );
+                        // One text line tall, centred in the pill like the names.
+                        let line = ui.fonts_mut(|f| f.row_height(&font));
+                        let field = egui::Rect::from_min_max(
+                            pos2(k.right() + 7.0, pr.center().y - line / 2.0),
+                            pos2(pr.right() - 6.0, pr.center().y + line / 2.0),
+                        );
+                        let r = ui.put(
+                            field,
+                            egui::TextEdit::singleline(text)
+                                .font(font)
+                                .frame(egui::Frame::NONE)
+                                .margin(vec2(0.0, 0.0))
+                                .text_color(t.accent)
+                                .desired_width(field.width()),
+                        );
+                        if !r.has_focus() && !r.lost_focus() {
+                            r.request_focus();
+                        }
+                        let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
+                        if esc {
+                            self.ws.renaming = None;
+                        } else if r.lost_focus() {
+                            rename = Some((i, text.clone()));
+                        }
+                        centres.push(pr.center().x);
+                        continue;
                     }
-                    let esc = ui.input(|i| i.key_pressed(egui::Key::Escape));
-                    if esc {
-                        self.ws.renaming = None;
-                    } else if r.lost_focus() {
-                        rename = Some((i, text.clone()));
-                    }
-                    centres.push(r.rect.center().x);
-                    continue;
-                }
-                let font = if on { theme::medium(12.5) } else { theme::regular(12.5) };
-                let text_w = ui
-                    .painter()
-                    .layout_no_wrap(title.clone(), font.clone(), t.text)
-                    .size()
-                    .x;
-                let (r, resp) = ui.allocate_exact_size(vec2(text_w + 35.0, 24.0), Sense::click_and_drag());
-                centres.push(r.center().x);
-                let hover = crate::motion::hover(&resp);
-                let p = ui.painter();
-                // The shown one stands out; the others stay quiet.
-                if on {
-                    p.rect_filled(r, CornerRadius::same(7), t.accent_soft());
-                } else {
-                    p.rect_filled(
-                        r,
-                        CornerRadius::same(7),
-                        crate::motion::with_alpha(t.hover_wash(), hover),
-                    );
-                }
-                let k = egui::Rect::from_min_size(pos2(r.left() + 4.0, r.center().y - 8.5), vec2(17.0, 17.0));
-                let (kbg, kfg) = if on {
-                    (t.accent, t.on_accent)
-                } else {
-                    (t.hover_wash(), t.text3)
-                };
-                p.rect_filled(k, CornerRadius::same(5), kbg);
-                p.text(
-                    k.center(),
-                    Align2::CENTER_CENTER,
-                    (i + 1).to_string(),
-                    theme::semibold(10.5),
-                    kfg,
-                );
-                let fg = if on {
-                    t.accent
-                } else {
-                    crate::motion::lerp_color(t.text3, t.text2, hover)
-                };
-                p.text(
-                    pos2(k.right() + 7.0, r.center().y),
-                    Align2::LEFT_CENTER,
-                    &title,
-                    font,
-                    fg,
-                );
-                // Dragging it shows where it would go.
-                if resp.dragged() {
-                    self.ws.dragging = Some(i);
-                }
-                if resp.drag_stopped()
-                    && let Some(from) = self.ws.dragging.take()
-                    && let Some(x) = pointer
-                {
-                    drop = Some((from, x.x));
-                }
-                let tip = {
-                    let main = self.ws_main(i).map(|(s, tf)| format!("{s} · {tf}")).unwrap_or_default();
-                    let key = if i < 9 {
-                        self.keys.label(Action::Workspace(i as u8 + 1))
+                    let font = if on { theme::medium(12.5) } else { theme::regular(12.5) };
+                    let text_w = ui
+                        .painter()
+                        .layout_no_wrap(title.clone(), font.clone(), t.text)
+                        .size()
+                        .x;
+                    let (r, resp) = ui.allocate_exact_size(vec2(text_w + 35.0, 24.0), Sense::click_and_drag());
+                    centres.push(r.center().x);
+                    let hover = crate::motion::hover(&resp);
+                    let p = ui.painter();
+                    // The shown one stands out; the others stay quiet.
+                    if on {
+                        p.rect_filled(r, CornerRadius::same(7), t.accent_soft());
                     } else {
-                        String::new()
+                        p.rect_filled(
+                            r,
+                            CornerRadius::same(7),
+                            crate::motion::with_alpha(t.hover_wash(), hover),
+                        );
+                    }
+                    let k = egui::Rect::from_min_size(pos2(r.left() + 4.0, r.center().y - 8.5), vec2(17.0, 17.0));
+                    let (kbg, kfg) = if on {
+                        (t.accent, t.on_accent)
+                    } else {
+                        (t.hover_wash(), t.text3)
                     };
-                    if key.is_empty() { main } else { format!("{main}  {key}") }
-                };
-                let resp = if self.ws.dragging.is_none() {
-                    resp.on_hover_text(tip)
-                } else {
-                    resp
-                };
-                if resp.clicked() {
-                    switch = Some(i);
-                }
-                if resp.double_clicked() {
-                    self.ws.renaming = Some((i, title.clone()));
-                }
-                if resp.middle_clicked() && n > 1 {
-                    close = Some(i);
-                }
-                egui::Popup::context_menu(&resp).show(|ui| {
-                    ui.set_width(200.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
-                    if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), tr("Rename"), "", false).clicked() {
+                    p.rect_filled(k, CornerRadius::same(5), kbg);
+                    p.text(
+                        k.center(),
+                        Align2::CENTER_CENTER,
+                        (i + 1).to_string(),
+                        theme::semibold(10.5),
+                        kfg,
+                    );
+                    let fg = if on {
+                        t.accent
+                    } else {
+                        crate::motion::lerp_color(t.text3, t.text2, hover)
+                    };
+                    p.text(
+                        pos2(k.right() + 7.0, r.center().y),
+                        Align2::LEFT_CENTER,
+                        &title,
+                        font,
+                        fg,
+                    );
+                    // Dragging it shows where it would go.
+                    if resp.dragged() {
+                        self.ws.dragging = Some(i);
+                    }
+                    if resp.drag_stopped()
+                        && let Some(from) = self.ws.dragging.take()
+                        && let Some(x) = pointer
+                    {
+                        drop = Some((from, x.x));
+                    }
+                    let tip = {
+                        let main = self.ws_main(i).map(|(s, tf)| format!("{s} · {tf}")).unwrap_or_default();
+                        let key = if i < 9 {
+                            self.keys.label(Action::Workspace(i as u8 + 1))
+                        } else {
+                            String::new()
+                        };
+                        if key.is_empty() { main } else { format!("{main}  {key}") }
+                    };
+                    let resp = if self.ws.dragging.is_none() {
+                        resp.on_hover_text(tip)
+                    } else {
+                        resp
+                    };
+                    if resp.clicked() {
+                        switch = Some(i);
+                    }
+                    if resp.double_clicked() {
                         self.ws.renaming = Some((i, title.clone()));
-                        ui.close();
                     }
-                    if w::menu_item(ui, t, Some(ph::COPY), tr("Duplicate"), "", false).clicked() {
-                        duplicate = Some(i);
-                        ui.close();
-                    }
-                    w::menu_rule(ui, t);
-                    let key = self.keys.label(Action::CloseWorkspace);
-                    let hint = if on { key.as_str() } else { "" };
-                    if w::menu_row(ui, t, Some(ph::X), tr("Close"), hint, false, n > 1).clicked() {
+                    if resp.middle_clicked() && n > 1 {
                         close = Some(i);
-                        ui.close();
                     }
-                    if w::menu_row(ui, t, Some(ph::X_SQUARE), tr("Close others"), "", false, n > 1).clicked() {
-                        close_others = Some(i);
-                        ui.close();
-                    }
-                });
-            }
-            let tip = self.keys.tip(tr("New workspace"), Action::NewWorkspace);
-            if w::tool_button(ui, t, ph::PLUS, &tip, false, 24.0).clicked() {
-                self.new_workspace();
-            }
+                    egui::Popup::context_menu(&resp).show(|ui| {
+                        ui.set_width(200.0);
+                        ui.spacing_mut().item_spacing.y = 1.0;
+                        if w::menu_item(ui, t, Some(ph::PENCIL_SIMPLE), tr("Rename"), "", false).clicked() {
+                            self.ws.renaming = Some((i, title.clone()));
+                            ui.close();
+                        }
+                        if w::menu_item(ui, t, Some(ph::COPY), tr("Duplicate"), "", false).clicked() {
+                            duplicate = Some(i);
+                            ui.close();
+                        }
+                        w::menu_rule(ui, t);
+                        let key = self.keys.label(Action::CloseWorkspace);
+                        let hint = if on { key.as_str() } else { "" };
+                        if w::menu_row(ui, t, Some(ph::X), tr("Close"), hint, false, n > 1).clicked() {
+                            close = Some(i);
+                            ui.close();
+                        }
+                        if w::menu_row(ui, t, Some(ph::X_SQUARE), tr("Close others"), "", false, n > 1).clicked() {
+                            close_others = Some(i);
+                            ui.close();
+                        }
+                    });
+                }
+                let tip = self.keys.tip(tr("New workspace"), Action::NewWorkspace);
+                if w::tool_button(ui, t, ph::PLUS, &tip, false, 24.0).clicked() {
+                    self.new_workspace();
+                }
+            });
         });
         // Where a dragged pill would land: a short accent bar in the gap.
         if let (Some(from), Some(p)) = (self.ws.dragging, pointer) {

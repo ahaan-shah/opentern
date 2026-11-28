@@ -18,7 +18,7 @@ use egui::{Align, Align2, CornerRadius, Id, Layout, Margin, Rect, Sense, Stroke,
 use opentern_core::{Timeframe, Unit};
 use serde::{Deserialize, Serialize};
 
-pub const TOP_H: f32 = 44.0;
+pub const TOP_H: f32 = 36.0;
 pub const TOOLBAR_W: f32 = 48.0;
 pub const RAIL_W: f32 = 46.0;
 pub const RANGE_H: f32 = 32.0;
@@ -31,7 +31,7 @@ const CHART_MIN: f32 = 180.0;
 
 /// The bottom panel's tallest content height for a window this tall.
 fn panel_max_h(window_h: f32) -> f32 {
-    (window_h - TOP_H - RANGE_H - TABS_H - GAP - CHART_MIN).max(140.0)
+    (window_h - crate::workspaces::BAR_H - TOP_H - RANGE_H - TABS_H - GAP - CHART_MIN).max(140.0)
 }
 const CARD_R: f32 = 9.0;
 
@@ -265,7 +265,7 @@ impl App {
         );
         let most = panel_max_h(ui.ctx().content_rect().height());
         let panel_h = if full {
-            (ui.ctx().content_rect().height() - TOP_H - TABS_H - GAP).max(140.0)
+            (ui.ctx().content_rect().height() - crate::workspaces::BAR_H - TOP_H - TABS_H - GAP).max(140.0)
         } else if self.layout.panel_max {
             most
         } else {
@@ -359,6 +359,75 @@ impl App {
 
     // ------------------------------------------------------------ top bar
 
+    /// The app's own buttons, at the right of the workspaces row: the
+    /// market overview, the multi-chart grid, the layout menu, full screen,
+    /// snapshot and Settings. Laid out right to left.
+    pub(crate) fn app_buttons(&mut self, ui: &mut Ui, t: &Theme, compact: bool) {
+        ui.spacing_mut().item_spacing.x = 2.0;
+        let open = self.settings.is_some();
+        if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "", open).clicked() {
+            if open {
+                self.settings = None;
+            } else {
+                self.open_settings(crate::settings::Cat::General);
+            }
+        }
+        let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", tr("Take a snapshot (Alt+S)"), false);
+        egui::Popup::menu(&snap).show(|ui| {
+            ui.set_width(220.0);
+            ui.spacing_mut().item_spacing.y = 1.0;
+            if w::menu_item(ui, t, Some(ph::DOWNLOAD_SIMPLE), tr("Download image"), "", false).clicked() {
+                self.take_snapshot(crate::snapshot::Snap::Save);
+                ui.close();
+            }
+            if w::menu_item(ui, t, Some(ph::COPY), tr("Copy image"), "", false).clicked() {
+                self.take_snapshot(crate::snapshot::Snap::Copy);
+                ui.close();
+            }
+            if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), tr("Open snapshots folder"), "", false).clicked() {
+                let dir = self.snapshots_dir();
+                let _ = std::fs::create_dir_all(&dir);
+                crate::app::open_path(&dir.join("."));
+                ui.close();
+            }
+        });
+        let full = ui.ctx().input(|i| i.viewport().fullscreen.unwrap_or(false));
+        let glyph = if full { ph::CORNERS_IN } else { ph::CORNERS_OUT };
+        if w::bar_button(ui, t, Some(glyph), "", tr("Fullscreen mode (Shift F)"), full).clicked() {
+            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
+        }
+        w::vdivider(ui, t);
+        // The layout's name with a caret, as on TradingView; a folder
+        // icon when the bar is short of room.
+        let name = elide(&self.layout_name, 18);
+        let resp = if compact {
+            w::bar_button(ui, t, Some(ph::FOLDER_SIMPLE), "", tr("Layouts"), false)
+        } else {
+            w::bar_button(
+                ui,
+                t,
+                None,
+                &format!("{name}  {}", ph::CARET_DOWN),
+                tr("Layouts"),
+                false,
+            )
+        };
+        self.still_open(ui, &resp, "layout");
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| self.layout_menu(ui, t));
+        let resp = w::bar_button(ui, t, Some(ph::LAYOUT), "", tr("Select layout"), self.chart_count() > 1);
+        egui::Popup::menu(&resp)
+            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+            .show(|ui| self.grid_menu(ui, t));
+        let ov = self.overview_open();
+        let resp = crate::overview::button(ui, t, ov, &self.keys);
+        self.overview.drawn.borrow_mut().button = Some(resp.rect);
+        if resp.clicked() {
+            self.set_overview(!ov);
+        }
+    }
+
     fn top_bar(&mut self, ui: &mut Ui, t: &Theme) {
         // Narrow windows drop the labels next to icons first.
         let compact = ui.available_width() < 1240.0;
@@ -367,69 +436,6 @@ impl App {
         // take the space that's left and never runs underneath it.
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 2.0;
-            let open = self.settings.is_some();
-            if w::bar_button(ui, t, Some(ph::GEAR_SIX), "", "", open).clicked() {
-                if open {
-                    self.settings = None;
-                } else {
-                    self.open_settings(crate::settings::Cat::General);
-                }
-            }
-            let snap = w::bar_button(ui, t, Some(ph::CAMERA), "", tr("Take a snapshot (Alt+S)"), false);
-            egui::Popup::menu(&snap).show(|ui| {
-                ui.set_width(220.0);
-                ui.spacing_mut().item_spacing.y = 1.0;
-                if w::menu_item(ui, t, Some(ph::DOWNLOAD_SIMPLE), tr("Download image"), "", false).clicked() {
-                    self.take_snapshot(crate::snapshot::Snap::Save);
-                    ui.close();
-                }
-                if w::menu_item(ui, t, Some(ph::COPY), tr("Copy image"), "", false).clicked() {
-                    self.take_snapshot(crate::snapshot::Snap::Copy);
-                    ui.close();
-                }
-                if w::menu_item(ui, t, Some(ph::FOLDER_OPEN), tr("Open snapshots folder"), "", false).clicked() {
-                    let dir = self.snapshots_dir();
-                    let _ = std::fs::create_dir_all(&dir);
-                    crate::app::open_path(&dir.join("."));
-                    ui.close();
-                }
-            });
-            let full = ui.ctx().input(|i| i.viewport().fullscreen.unwrap_or(false));
-            let glyph = if full { ph::CORNERS_IN } else { ph::CORNERS_OUT };
-            if w::bar_button(ui, t, Some(glyph), "", tr("Fullscreen mode (Shift F)"), full).clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Fullscreen(!full));
-            }
-            w::vdivider(ui, t);
-            // The layout's name with a caret, as on TradingView; a folder
-            // icon when the bar is short of room.
-            let name = elide(&self.layout_name, 18);
-            let resp = if compact {
-                w::bar_button(ui, t, Some(ph::FOLDER_SIMPLE), "", tr("Layouts"), false)
-            } else {
-                w::bar_button(
-                    ui,
-                    t,
-                    None,
-                    &format!("{name}  {}", ph::CARET_DOWN),
-                    tr("Layouts"),
-                    false,
-                )
-            };
-            self.still_open(ui, &resp, "layout");
-            egui::Popup::menu(&resp)
-                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                .show(|ui| self.layout_menu(ui, t));
-            let resp = w::bar_button(ui, t, Some(ph::LAYOUT), "", tr("Select layout"), self.chart_count() > 1);
-            egui::Popup::menu(&resp)
-                .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                .show(|ui| self.grid_menu(ui, t));
-            let ov = self.overview_open();
-            let resp = crate::overview::button(ui, t, ov, &self.keys);
-            self.overview.drawn.borrow_mut().button = Some(resp.rect);
-            if resp.clicked() {
-                self.set_overview(!ov);
-            }
-            w::vdivider(ui, t);
 
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
                 ui.set_clip_rect(ui.max_rect().intersect(ui.clip_rect()));

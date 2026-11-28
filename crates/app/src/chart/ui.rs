@@ -1028,7 +1028,27 @@ pub fn show(
     }
 
     // ---- watermark
+    let blank = chart.symbol.id.is_empty();
+    if blank && let Some(g) = geos.first() {
+        // A new workspace's chart, before a symbol is picked.
+        let c = g.rect.center();
+        painter.text(
+            c - vec2(0.0, 14.0),
+            Align2::CENTER_CENTER,
+            ph::MAGNIFYING_GLASS,
+            theme::regular(26.0),
+            t.text3,
+        );
+        painter.text(
+            c + vec2(0.0, 16.0),
+            Align2::CENTER_CENTER,
+            tr("Pick a symbol"),
+            theme::medium(13.5),
+            t.text3,
+        );
+    }
     if chart.style.watermark
+        && !blank
         && let Some(g) = geos.first()
     {
         painter.text(
@@ -1613,7 +1633,9 @@ pub fn show(
         .map(|i| i as usize)
         .or(n.checked_sub(1));
     cui.hover_index = legend_idx;
-    legend(ui, chart, &geos, legend_idx, &pal, t, &mut actions, tools.logos);
+    if !chart.symbol.id.is_empty() {
+        legend(ui, chart, &geos, legend_idx, &pal, t, &mut actions, tools.logos);
+    }
     if let Some(g) = geos.first() {
         super::drawing_ui::paint_measure(&painter, chart, &cui.draw, x, g.y, g.rect);
     }

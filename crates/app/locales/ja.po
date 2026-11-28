@@ -3219,6 +3219,9 @@ msgstr "純利益 ÷ 最大ドローダウン"
 msgid "Never"
 msgstr "なし"
 
+msgid "New"
+msgstr "新規"
+
 msgid "New Moon"
 msgstr "新月"
 
@@ -3839,6 +3842,9 @@ msgstr "パフォーマンス"
 
 msgid "Periods"
 msgstr "期間数"
+
+msgid "Pick a symbol"
+msgstr "シンボルを選択"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "ウッディーズCCI"
 
 msgid "Working"
 msgstr "作業中"
-
-msgid "Workspace"
-msgstr "ワークスペース"
 
 msgid "Workspace 1"
 msgstr "ワークスペース 1"

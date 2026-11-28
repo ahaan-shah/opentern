@@ -126,7 +126,7 @@ pub struct App {
     /// `chart-menu`: the chart's right-click menu, once bars are in.
     still_chart_menu: bool,
     /// `workspaces`: three more workspaces in the row (one renamed).
-    still_workspaces: bool,
+    still_workspaces: Option<String>,
     /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
     /// (with its Levels panel open) once bars are in.
     still_fib: Option<bool>,
@@ -319,7 +319,7 @@ impl App {
             still_alert_lines: false,
             still_alert_menu: false,
             still_chart_menu: false,
-            still_workspaces: false,
+            still_workspaces: None,
             still_fib: None,
             still_tool: None,
             still_price_menu: false,
@@ -525,8 +525,8 @@ impl App {
                 // Handled in `new` (needs the egui context).
             } else if part == "text" || part.starts_with("text:") {
                 self.still_text = Some(part.trim_start_matches("text").trim_start_matches(':').to_string());
-            } else if part == "workspaces" {
-                self.still_workspaces = true;
+            } else if let Some(mode) = part.strip_prefix("workspaces") {
+                self.still_workspaces = Some(mode.trim_start_matches(':').to_string());
             } else if part == "chart-menu" {
                 self.still_chart_menu = true;
             } else if part == "alert-lines" || part == "alert-lines:menu" {
@@ -741,6 +741,13 @@ impl App {
     /// (Re)opens the chart's data. Each opening gets a new session id, so
     /// late events from the previous symbol or interval are ignored.
     fn open_chart(&mut self) {
+        // A new workspace's blank chart: nothing to load until a symbol is
+        // picked.
+        if self.chart.symbol.id.is_empty() {
+            self.hub.send(Request::Close { chart: self.chart.id });
+            self.chart.status = opentern_data::hub::Status::Live;
+            return;
+        }
         self.chart.extended = self.extended.get(&self.chart.symbol.id).copied();
         let sym = &self.chart.symbol;
         if crate::watchlists::has_extended_hours(sym) {
@@ -942,7 +949,7 @@ impl App {
     }
 
     pub(crate) fn save_drawings(&mut self, force: bool) {
-        if self.chart.drawings_changed == self.drawings_saved {
+        if self.chart.drawings_changed == self.drawings_saved || self.chart.symbol.id.is_empty() {
             return;
         }
         // While a drawing is being dragged, wait for the drop.
@@ -1572,7 +1579,7 @@ impl App {
                 _ => {}
             }
         }
-        if std::mem::take(&mut self.still_workspaces) {
+        if let Some(mode) = self.still_workspaces.take() {
             let starter = opentern_core::starter_watchlist();
             let pick = |t: &str| starter.iter().find(|s| s.ticker() == t).cloned();
             for (ticker, name) in [("ETHUSDT", None), ("NIFTY", None), ("AAPL", Some("Swing ideas"))] {
@@ -1590,6 +1597,11 @@ impl App {
                         charts: vec![st],
                     }),
                 });
+            }
+            match mode.as_str() {
+                "rename" => self.start_rename(0),
+                "new" => self.new_workspace(),
+                _ => {}
             }
         }
         if self.still_chart_menu

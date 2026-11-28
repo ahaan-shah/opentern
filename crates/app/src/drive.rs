@@ -2541,6 +2541,7 @@ mod formula_tests {
 
     #[test]
     fn workspaces_switch_keep_their_own_charts_and_come_back() {
+        use crate::i18n::tr;
         use crate::multi::Grid;
         let mut d = Driver::new("workspaces");
         let ctrl = Modifiers::COMMAND;
@@ -2551,9 +2552,19 @@ mod formula_tests {
         let btc_id = d.app.chart.symbol.id.clone();
         assert_eq!(d.app.ws.list.len(), 1);
 
-        // Ctrl+T: a new one on the same symbol, shown; it gets ETH and a grid.
+        // Zoomed and scrolled back: kept through switching.
+        d.app.chart.view.bar_w = 3.0;
+        d.app.chart.view.right -= 200.0;
+        let right = d.app.chart.view.right;
+
+        // Ctrl+T: a new, blank one, shown, with symbol search open; it gets
+        // ETH and a grid.
         d.key(Key::T, ctrl);
         assert_eq!((d.app.ws.list.len(), d.app.ws.current), (2, 1));
+        assert!(d.app.chart.symbol.id.is_empty(), "blank until a symbol is picked");
+        assert!(matches!(d.app.modal, Some(crate::dialogs::Modal::Symbol(_))));
+        assert_eq!(d.app.ws_title(1), tr("New"));
+        d.app.modal = None;
         d.app.open_symbol(eth.clone());
         d.wait(|a| !a.chart.bars.is_empty());
         d.app.set_grid(Grid::TwoCols);
@@ -2565,6 +2576,12 @@ mod formula_tests {
         assert_eq!(d.app.ws.current, 0);
         assert_eq!(d.app.chart.symbol.id, btc_id);
         assert_eq!(d.app.chart_count(), 1);
+        d.wait(|a| !a.chart.bars.is_empty());
+        assert_eq!(d.app.chart.view.bar_w, 3.0, "its zoom");
+        assert!(
+            (d.app.chart.view.right - right).abs() < 1.0,
+            "and where it was scrolled"
+        );
         d.key(Key::Tab, ctrl);
         assert_eq!(d.app.ws.current, 1);
         assert_eq!(d.app.chart.symbol.id, eth.id);
@@ -2609,6 +2626,7 @@ mod formula_tests {
         let mut d = Driver::new("workspace-pills");
         d.app.new_workspace();
         d.app.new_workspace();
+        d.app.modal = None;
         d.app.rename_workspace(1, "Two");
         d.app.rename_workspace(2, "Three");
         d.frame(vec![]);

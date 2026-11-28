@@ -3219,6 +3219,9 @@ msgstr "净利润 ÷ 最大回撤"
 msgid "Never"
 msgstr "永不"
 
+msgid "New"
+msgstr "新建"
+
 msgid "New Moon"
 msgstr "新月"
 
@@ -3839,6 +3842,9 @@ msgstr "表现"
 
 msgid "Periods"
 msgstr "周期数"
+
+msgid "Pick a symbol"
+msgstr "选择一个代码"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "伍迪 CCI"
 
 msgid "Working"
 msgstr "工作中"
-
-msgid "Workspace"
-msgstr "工作区"
 
 msgid "Workspace 1"
 msgstr "工作区 1"

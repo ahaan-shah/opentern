@@ -96,7 +96,14 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   Rename, Duplicate, Close, Close others. Keys (`keys::Action::WORKSPACES`, all
   changeable): Ctrl+Tab / Ctrl+Shift+Tab, Alt+1…9, Ctrl+T (new, on the active
   chart's symbol, interval and indicators), Ctrl+W (never the last), Ctrl+Shift+T
-  (the last 10 closed, this run only). `Chord::usable` now allows Tab, Enter and
+  (the last 10 closed, this run only). A new workspace is a blank chart
+  (`Symbol::bare("")`: `open_chart` loads nothing, no legend or watermark, a "Pick a
+  symbol" empty state) with symbol search open. The row also holds the app's buttons
+  (`shell::app_buttons`: overview, grid, layout menu, full screen, snapshot,
+  Settings), laid out first at its right; `TOP_H` went 44 → 36. Charts keep their
+  scroll and zoom: `ChartState::view` (`SavedView { bar_w, right_time }`, none time
+  = following) goes into `Chart::pending_view` and is put back on the first bars
+  (`replace_bars`); a symbol or interval change drops it. `Chord::usable` now allows Tab, Enter and
   the arrows with Ctrl or Alt. Still: `workspaces`. The agent acts on the shown one.
 - **Multi-chart** (`multi.rs`): 15 grids for 1–8 charts; sync symbol, interval,
   crosshair (default on), time, date range. **The active chart lives in

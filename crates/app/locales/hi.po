@@ -3219,6 +3219,9 @@ msgstr "शुद्ध लाभ ÷ अधिकतम ड्रॉडाउन
 msgid "Never"
 msgstr "कभी नहीं"
 
+msgid "New"
+msgstr "नया"
+
 msgid "New Moon"
 msgstr "अमावस्या"
 
@@ -3839,6 +3842,9 @@ msgstr "प्रदर्शन"
 
 msgid "Periods"
 msgstr "अवधियाँ"
+
+msgid "Pick a symbol"
+msgstr "सिंबल चुनें"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "वुडीज़ CCI"
 
 msgid "Working"
 msgstr "काम कर रहा है"
-
-msgid "Workspace"
-msgstr "वर्कस्पेस"
 
 msgid "Workspace 1"
 msgstr "वर्कस्पेस 1"

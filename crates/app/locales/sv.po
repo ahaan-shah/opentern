@@ -3219,6 +3219,9 @@ msgstr "Nettovinst ÷ största nedgång"
 msgid "Never"
 msgstr "Aldrig"
 
+msgid "New"
+msgstr "Ny"
+
 msgid "New Moon"
 msgstr "Nymåne"
 
@@ -3839,6 +3842,9 @@ msgstr "Utveckling"
 
 msgid "Periods"
 msgstr "Perioder"
+
+msgid "Pick a symbol"
+msgstr "Välj en symbol"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "Woodies CCI"
 
 msgid "Working"
 msgstr "Arbetar"
-
-msgid "Workspace"
-msgstr "Arbetsyta"
 
 msgid "Workspace 1"
 msgstr "Arbetsyta 1"

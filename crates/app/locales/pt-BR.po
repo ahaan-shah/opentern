@@ -3219,6 +3219,9 @@ msgstr "Lucro líquido ÷ drawdown máximo"
 msgid "Never"
 msgstr "Nunca"
 
+msgid "New"
+msgstr "Novo"
+
 msgid "New Moon"
 msgstr "Lua nova"
 
@@ -3839,6 +3842,9 @@ msgstr "Desempenho"
 
 msgid "Periods"
 msgstr "Períodos"
+
+msgid "Pick a symbol"
+msgstr "Escolha um símbolo"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -5906,9 +5912,6 @@ msgstr "CCI de Woodie"
 
 msgid "Working"
 msgstr "Trabalhando"
-
-msgid "Workspace"
-msgstr "Espaço"
 
 msgid "Workspace 1"
 msgstr "Espaço 1"
