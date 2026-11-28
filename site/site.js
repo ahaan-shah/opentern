@@ -38,7 +38,8 @@ document.querySelector(".mode").addEventListener("click", () => {
 
 // Tour: a sidebar of pages, crossfading between screenshots.
 const captions = [
-  "Charts laid out the way TradingView has them, with its built-in indicators, drawing tools and logos for every coin and company.",
+  "Charts laid out the way TradingView has them, with its built-in indicators and logos for every coin and company. Each workspace up top keeps its own.",
+  "Text along your lines, zones, alert lines you drag, and your favourite tools on a bar of their own.",
   "A whole market as a heatmap: the S&P 500, the NIFTY 500 or the top 150 coins, by sector, over a day, a week, a month, six months or a year.",
   "Write Pine Script, Python, Luau, JavaScript or TypeScript. Save, and the chart reloads.",
   "TradingView’s Strategy Report, with the same tabs, metrics and trade list.",

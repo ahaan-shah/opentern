@@ -7,9 +7,22 @@
 <meta name="description" content="TradingView-style charts, TradingView's built-in indicators, Pine Script-compatible scripting, backtests that match TradingView's Strategy Report, and paper trading, in a native app for Linux, macOS and Windows. Free and open source.">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#14181F">
+<link rel="canonical" href="https://ahaan-shah.github.io/opentern/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Opentern">
+<meta property="og:url" content="https://ahaan-shah.github.io/opentern/">
 <meta property="og:title" content="Opentern">
-<meta property="og:description" content="A fast, local-first market analysis terminal for Linux, macOS and Windows.">
-<meta property="og:image" content="https://ahaan-shah.github.io/opentern/media/home-dark.webp">
+<meta property="og:description" content="TradingView-style charts, Pine Script and backtests in a fast native app for Linux, macOS and Windows. Free and open source.">
+<meta property="og:image" content="https://ahaan-shah.github.io/opentern/media/card.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Opentern: your markets, on your machine. A BTCUSDT chart with indicators and a strategy.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Opentern">
+<meta name="twitter:description" content="TradingView-style charts, Pine Script and backtests in a fast native app. Free and open source.">
+<meta name="twitter:image" content="https://ahaan-shah.github.io/opentern/media/card.png">
+<meta name="twitter:image:alt" content="Opentern: your markets, on your machine. A BTCUSDT chart with indicators and a strategy.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/Figtree-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/PlusJakartaSans-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
@@ -49,8 +62,8 @@
   </div>
   <p class="platforms">Free and open source · Linux, macOS and Windows</p>
   <figure class="shot hero-shot reveal">
-    <img class="only-light" src="media/home-light.webp" alt="Opentern in Opentern Light: a BTCUSDT chart with Bollinger Bands, RSI, a moving-average strategy and the watchlist" width="1880" height="1175">
-    <img class="only-dark" src="media/home-dark.webp" alt="Opentern in Tern Dark: a BTCUSDT chart with Bollinger Bands, RSI, a moving-average strategy and the watchlist" width="1880" height="1175">
+    <img class="only-light" src="media/home-light.webp" alt="Opentern in Opentern Light: a BTCUSDT chart with Bollinger Bands, RSI and a moving-average strategy, four workspaces in the row above" width="1880" height="1175">
+    <img class="only-dark" src="media/home-dark.webp" alt="Opentern in Tern Dark: a BTCUSDT chart with Bollinger Bands, RSI and a moving-average strategy, four workspaces in the row above" width="1880" height="1175">
   </figure>
 </section>
 
@@ -66,20 +79,22 @@
   <div class="tour-body reveal">
     <div class="tabs" role="tablist" aria-label="Pages">
       <button role="tab" aria-selected="false" data-i="0">Charts</button>
-      <button role="tab" aria-selected="false" data-i="1">Market overview</button>
-      <button role="tab" aria-selected="false" data-i="2">Script Editor</button>
-      <button role="tab" aria-selected="false" data-i="3">Strategy Report</button>
-      <button role="tab" aria-selected="false" data-i="4">Strategy Lab</button>
-      <button role="tab" aria-selected="false" data-i="5">Agent</button>
-      <button role="tab" aria-selected="false" data-i="6">Multi-chart</button>
-      <button role="tab" aria-selected="false" data-i="7">Screener</button>
-      <button role="tab" aria-selected="false" data-i="8">Indices</button>
-      <button role="tab" aria-selected="false" data-i="9">Seasonality</button>
-      <button role="tab" aria-selected="false" data-i="10">Settings</button>
+      <button role="tab" aria-selected="false" data-i="1">Drawings</button>
+      <button role="tab" aria-selected="false" data-i="2">Market overview</button>
+      <button role="tab" aria-selected="false" data-i="3">Script Editor</button>
+      <button role="tab" aria-selected="false" data-i="4">Strategy Report</button>
+      <button role="tab" aria-selected="false" data-i="5">Strategy Lab</button>
+      <button role="tab" aria-selected="false" data-i="6">Agent</button>
+      <button role="tab" aria-selected="false" data-i="7">Multi-chart</button>
+      <button role="tab" aria-selected="false" data-i="8">Screener</button>
+      <button role="tab" aria-selected="false" data-i="9">Indices</button>
+      <button role="tab" aria-selected="false" data-i="10">Seasonality</button>
+      <button role="tab" aria-selected="false" data-i="11">Settings</button>
     </div>
     <div class="stage">
       <div class="frames shot">
-        <img class="on" src="media/home-dark.webp" alt="A chart with indicators, a strategy and the watchlist" width="1880" height="1175">
+        <img class="on" src="media/home-dark.webp" alt="A chart with indicators and a strategy, and a row of workspaces" width="1880" height="1175">
+        <img src="media/drawings.webp" alt="Drawings with text along a trend line, a demand zone, alert lines and the favourite drawings toolbar" width="1880" height="1175" loading="lazy">
         <img src="media/overview.webp" alt="The market overview: the S&amp;P 500 as a heatmap, grouped by sector" width="1880" height="1175" loading="lazy">
         <img src="media/editor.webp" alt="The Script Editor with a Pine strategy" width="1880" height="1175" loading="lazy">
         <img src="media/report.webp" alt="The Strategy Report's overview" width="1880" height="1175" loading="lazy">
@@ -88,7 +103,7 @@
         <img src="media/multi.webp" alt="Four charts in one layout" width="1880" height="1175" loading="lazy">
         <img src="media/screener.webp" alt="The screener" width="1880" height="1175" loading="lazy">
         <img src="media/indices.webp" alt="A custom Nifty Auto index: its own numbers, then every member's" width="1880" height="1175" loading="lazy">
-        <img src="media/seasonality.webp" alt="Ten years of monthly returns for RELIANCE" width="1880" height="1175" loading="lazy">
+        <img src="media/seasonality.webp" alt="Twelve years of monthly returns for RELIANCE" width="1880" height="1175" loading="lazy">
         <img src="media/settings.webp" alt="Settings, with the themes" width="1880" height="1175" loading="lazy">
       </div>
       <p class="caption" aria-live="polite"></p>
@@ -126,7 +141,7 @@
 
 <section id="markets" class="solo">
   <h2 class="reveal">Every market, <em>at a glance</em></h2>
-  <p class="sub reveal">Heatmaps of the S&amp;P 500, the NIFTY 500 and the top 150 coins, from today back to a year. Indices and rates from around the world, perpetual futures with their funding, and holiday calendars for fifteen exchanges. Search shows each symbol’s price before you open it.</p>
+  <p class="sub reveal">Heatmaps of the S&amp;P 500, the NIFTY 500 and the top 150 coins, from today back to a year. Indices and rates from around the world, perpetual futures from the big exchanges and Hyperliquid with their funding, the Fed funds rate, and holiday calendars for fifteen exchanges. Search shows each symbol’s price before you open it.</p>
   <figure class="shot solo-shot reveal"><img src="media/overview.webp" alt="The market overview: the S&amp;P 500 as a heatmap, grouped by sector and coloured by the day's change" width="1880" height="1175" loading="lazy"></figure>
 </section>
 
@@ -136,6 +151,15 @@
   <div class="pair-grid reveal">
     <figure class="shot"><img src="media/report.webp" alt="The Strategy Report" width="1880" height="1175" loading="lazy"></figure>
     <figure class="shot"><img src="media/lab.webp" alt="The Strategy Lab's optimizer heatmap" width="1880" height="1175" loading="lazy"></figure>
+  </div>
+</section>
+
+<section id="drawings" class="pair">
+  <h2 class="reveal">Plan the trade, <em>on the chart</em></h2>
+  <p class="sub reveal">Long and Short positions work out the size from your account and risk. Choose your own Fib levels, write along your lines, and drag alerts into place. Each workspace keeps its own charts, a Ctrl+Tab away.</p>
+  <div class="pair-grid reveal">
+    <figure class="shot"><img src="media/position.webp" alt="A Long position sizing the trade from a 10,000 account and 1% risk" width="1880" height="1175" loading="lazy"></figure>
+    <figure class="shot"><img src="media/fib.webp" alt="A Fib retracement with its Levels panel open" width="1880" height="1175" loading="lazy"></figure>
   </div>
 </section>
 

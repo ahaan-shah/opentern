@@ -66,19 +66,29 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   once the app grew (0.3.5's first tag).
 
 ## Website
-**Screenshots (refreshed 24 Nov 2026):** demo data in a seed workspace
-(`scripts/ma_cross.pine`, an MA Cross 12/30 strategy; five NSE sector indices
-written into settings `custom_indices`), a fresh copy per shot, the window
-floated to 1080x675 on ws10 and grabbed with `grim -T` (see
-`CLAUDE.local.md`), then `magick -resize 1880x1175 -quality 86` to WebP.
-Stills: home `script:ma_cross.pine,add:bb,add:rsi` (+`light`, or
-`theme:<name>` for the theme deck), `tab:script`, `tab:strategy r`,
-`lab:heatmap`, `grid:Four`, `screen`, `tab:indices,max,widget:none`,
-`symbol:NSE:RELIANCE,tf:1D,tab:seasonality,max,widget:none`,
-`settings:general,scroll:196` (past Folders, whose paths would show),
-`overview`, and the agent with `agent:claude,claude-model:sonnet,claude:<msg>`
-plus `OPENTERN_CLAUDE` pointed at a throwaway stand-in CLI that replays one
+**Screenshots (refreshed 28 Nov 2026):** demo data in a seed workspace
+(`scripts/ma_cross.pine`, an MA Cross strategy with Fast/Slow inputs so the
+Lab has something to vary; five NSE sector indices written into settings
+`custom_indices`; no saved layout, or studies double up), a fresh copy per
+shot, `~/.local/bin/opentern-dev` floated to **1280x800** on ws10 (its window
+class is `opentern-dev`) and grabbed with `grim -T` (see `CLAUDE.local.md`),
+then `magick -resize 1880x1175 -quality 86` to WebP. **Every shot has
+`widget:none`** (the side panel closed; the maintainer, Nov 2026) except the
+agent's. Stills: home `script:ma_cross.pine,add:bb,add:rsi,workspaces`
+(+`light`, or `theme:<name>` for the theme deck), `tab:script`,
+`tab:strategy r,max`, `lab:heatmap,max`, `grid:Four`, `screen,max`,
+`tab:indices,max`, `symbol:NSE:RELIANCE,tf:1D,tab:seasonality,max,season-years:12`,
+`settings:general,scroll:300` (the themes; never show the Folders rows, their
+paths would leak), `overview`, `text,favbar,alert-lines`, `position:sizing`,
+`fib:levels`, and the agent with
+`widget-w:400,agent:claude,claude-model:sonnet,claude:<msg>` plus
+`OPENTERN_CLAUDE` pointed at a throwaway stand-in CLI that replays one
 scripted turn (like `claude/fake_claude.py`; keep it out of the repo).
+**Link previews:** `site/media/card.png` (1200x630 PNG; X won't show a WebP
+card) is the `og:image`/`twitter:image` with `twitter:card =
+summary_large_image`. It's rendered from a small HTML page (site fonts, Tern
+Dark colours, the home shot) with `chromium --headless --window-size=1200,630
+--screenshot`; remake it when the home shot changes.
 `site/` (static: `index.html`, `style.css`, `site.js`, fonts, `media/`) in
 Spotsie's style and Opentern's theme colours, published by `pages.yml` to
 https://ahaan-shah.github.io/opentern/ on pushes touching `site/`. Install lines

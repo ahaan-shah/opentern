@@ -14,7 +14,7 @@ telemetry. Your data stays on your computer.
 
 [Website](https://ahaan-shah.github.io/opentern/) · [Install](#install) · [Features](#features) · [Scripting](#scripting) · [Keyboard](#keyboard) · [Your data](#your-data) · [Building](#building-from-source)
 
-<img src="site/media/home-dark.webp" alt="Opentern's chart with Bollinger Bands, RSI, a strategy and the watchlist" width="900">
+<img src="site/media/home-dark.webp" alt="Opentern's chart with Bollinger Bands, RSI and a strategy, with a row of workspaces" width="900">
 
 </div>
 
@@ -103,7 +103,7 @@ agent stay beside it.
 **Seasonality.** See how the chart's symbol did in every month of every year,
 with a slider to pick the years and a count of rises and falls per month.
 
-<img src="site/media/seasonality.webp" alt="Ten years of monthly returns for RELIANCE" width="900">
+<img src="site/media/seasonality.webp" alt="Twelve years of monthly returns for RELIANCE" width="900">
 
 **Paper trading.** Several simulated accounts with market, limit, stop,
 stop-limit, trailing and bracket orders. Trade from the chart by dragging an
