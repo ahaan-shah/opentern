@@ -102,19 +102,300 @@ impl Grid {
 
     /// The cells laid out in `r`, a pixel apart.
     pub fn cells(self, r: Rect) -> Vec<Rect> {
-        self.unit_cells()
-            .into_iter()
-            .map(|[x0, y0, x1, y1]| {
-                let px = |f: f32| (r.left() + r.width() * f).round();
-                let py = |f: f32| (r.top() + r.height() * f).round();
-                let inset = |f: f32, a: f32| if f > 0.0 && f < 1.0 { a } else { 0.0 };
-                Rect::from_min_max(
-                    pos2(px(x0) + inset(x0, 0.5), py(y0) + inset(y0, 0.5)),
-                    pos2(px(x1) - inset(x1, 0.5), py(y1) - inset(y1, 0.5)),
-                )
-            })
-            .collect()
+        cells_in(r, &self.unit_cells())
     }
+}
+
+const MIN_CHART_WIDTH: f32 = 120.0;
+const MIN_CHART_HEIGHT: f32 = 100.0;
+const DIVIDER_HIT_SIZE: f32 = 10.0;
+const EDGE_EPSILON: f32 = 0.0001;
+
+/// Shared chart-cell geometry. Custom cell bounds are normalized to the
+/// chart area; maximize only changes the rectangles returned for painting.
+#[derive(Clone, Debug, Default)]
+pub struct GridGeometry {
+    cells: Option<Vec<[f32; 4]>>,
+    pub maximized: Option<usize>,
+    dragging: bool,
+}
+
+impl GridGeometry {
+    fn unit_cells(&self, grid: Grid, count: usize) -> Vec<[f32; 4]> {
+        self.cells
+            .as_ref()
+            .filter(|cells| valid_cells(cells, count))
+            .cloned()
+            .unwrap_or_else(|| grid.unit_cells())
+    }
+
+    pub(crate) fn rects(&self, grid: Grid, area: Rect, count: usize) -> Vec<Rect> {
+        let mut rects = cells_in(area, &self.unit_cells(grid, count));
+        if let Some(maximized) = self.maximized.filter(|i| *i < rects.len()) {
+            for (i, rect) in rects.iter_mut().enumerate() {
+                *rect = if i == maximized { area } else { Rect::NOTHING };
+            }
+        }
+        rects
+    }
+
+    fn restore_cells(&mut self, cells: Option<Vec<[f32; 4]>>, grid: Grid) {
+        self.cells = cells.filter(|cells| valid_cells(cells, grid.count()));
+        self.maximized = None;
+        self.dragging = false;
+    }
+
+    fn saved_cells(&self, grid: Grid, count: usize) -> Option<Vec<[f32; 4]>> {
+        self.cells
+            .as_ref()
+            .filter(|cells| valid_cells(cells, count) && **cells != grid.unit_cells())
+            .cloned()
+    }
+
+    /// Registers the chart-grid splitters and applies any drag this frame.
+    /// Returns true while a splitter is hovered or handling a drag.
+    fn drag_dividers(&mut self, ui: &mut Ui, t: &Theme, grid: Grid, area: Rect, count: usize) -> bool {
+        if self.maximized.is_some() {
+            self.dragging = false;
+            return false;
+        }
+        let cells = self.unit_cells(grid, count);
+        let dividers = dividers(&cells);
+        let pointer = ui.ctx().pointer_hover_pos();
+        let pressed = ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Primary));
+        let released = ui.input(|i| i.pointer.button_released(egui::PointerButton::Primary));
+        let down = ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary));
+        let mut over = false;
+        let mut on_divider = false;
+        for (i, divider) in dividers.into_iter().enumerate() {
+            let rect = divider.rect(area);
+            let hit = pointer.is_some_and(|p| rect.contains(p));
+            over |= hit;
+            on_divider |= hit;
+            let delta = ui
+                .push_id(i, |ui| {
+                    crate::widgets::drag_handle(ui, t, rect, "chart-grid-divider", divider.axis == Axis::Vertical)
+                })
+                .inner;
+            if delta != 0.0 && self.resize(divider, delta, area, &cells) {
+                ui.ctx().request_repaint();
+            }
+        }
+        let was_dragging = self.dragging;
+        if pressed && on_divider {
+            self.dragging = true;
+        }
+        if released || !down {
+            self.dragging = false;
+        }
+        over || self.dragging || was_dragging && (!down || released)
+    }
+
+    fn resize(&mut self, divider: Divider, delta: f32, area: Rect, preset: &[[f32; 4]]) -> bool {
+        let extent = match divider.axis {
+            Axis::Vertical => area.width(),
+            Axis::Horizontal => area.height(),
+        };
+        if extent <= 0.0 || !delta.is_finite() {
+            return false;
+        }
+        let min = match divider.axis {
+            Axis::Vertical => (MIN_CHART_WIDTH + 1.0) / extent,
+            Axis::Horizontal => (MIN_CHART_HEIGHT + 1.0) / extent,
+        };
+        let mut low = f32::NEG_INFINITY;
+        let mut high = f32::INFINITY;
+        let cells = self.cells.get_or_insert_with(|| preset.to_vec());
+        for cell in cells.iter() {
+            let (start, end) = match divider.axis {
+                Axis::Vertical => (cell[0], cell[2]),
+                Axis::Horizontal => (cell[1], cell[3]),
+            };
+            let width = end - start;
+            if (end - divider.at).abs() <= EDGE_EPSILON {
+                low = low.max(-(width - min));
+            }
+            if (start - divider.at).abs() <= EDGE_EPSILON {
+                high = high.min(width - min);
+            }
+        }
+        if low > high {
+            return false;
+        }
+        let shift = (delta / extent).clamp(low, high);
+        if shift.abs() <= f32::EPSILON {
+            return false;
+        }
+        for cell in cells.iter_mut() {
+            match divider.axis {
+                Axis::Vertical => {
+                    if (cell[0] - divider.at).abs() <= EDGE_EPSILON {
+                        cell[0] += shift;
+                    }
+                    if (cell[2] - divider.at).abs() <= EDGE_EPSILON {
+                        cell[2] += shift;
+                    }
+                }
+                Axis::Horizontal => {
+                    if (cell[1] - divider.at).abs() <= EDGE_EPSILON {
+                        cell[1] += shift;
+                    }
+                    if (cell[3] - divider.at).abs() <= EDGE_EPSILON {
+                        cell[3] += shift;
+                    }
+                }
+            }
+        }
+        true
+    }
+}
+
+fn cells_in(area: Rect, cells: &[[f32; 4]]) -> Vec<Rect> {
+    cells
+        .iter()
+        .map(|[x0, y0, x1, y1]| {
+            let px = |f: f32| (area.left() + area.width() * f).round();
+            let py = |f: f32| (area.top() + area.height() * f).round();
+            let inset = |f: f32, a: f32| if f > 0.0 && f < 1.0 { a } else { 0.0 };
+            Rect::from_min_max(
+                pos2(px(*x0) + inset(*x0, 0.5), py(*y0) + inset(*y0, 0.5)),
+                pos2(px(*x1) - inset(*x1, 0.5), py(*y1) - inset(*y1, 0.5)),
+            )
+        })
+        .collect()
+}
+
+fn valid_cells(cells: &[[f32; 4]], count: usize) -> bool {
+    if cells.len() != count {
+        return false;
+    }
+    let mut area = 0.0;
+    for (i, cell) in cells.iter().enumerate() {
+        let [x0, y0, x1, y1] = *cell;
+        if !cell.iter().all(|v| v.is_finite())
+            || x0 < 0.0
+            || y0 < 0.0
+            || x1 > 1.0
+            || y1 > 1.0
+            || x1 - x0 <= EDGE_EPSILON
+            || y1 - y0 <= EDGE_EPSILON
+        {
+            return false;
+        }
+        area += (x1 - x0) * (y1 - y0);
+        for other in cells.iter().skip(i + 1) {
+            let overlap_x = x1.min(other[2]) - x0.max(other[0]);
+            let overlap_y = y1.min(other[3]) - y0.max(other[1]);
+            if overlap_x > EDGE_EPSILON && overlap_y > EDGE_EPSILON {
+                return false;
+            }
+        }
+    }
+    (area - 1.0).abs() <= 0.001
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Axis {
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Clone, Copy)]
+struct Divider {
+    axis: Axis,
+    at: f32,
+    start: f32,
+    end: f32,
+}
+
+impl Divider {
+    fn rect(self, area: Rect) -> Rect {
+        let half = DIVIDER_HIT_SIZE / 2.0;
+        match self.axis {
+            Axis::Vertical => Rect::from_min_max(
+                pos2(
+                    area.left() + area.width() * self.at - half,
+                    area.top() + area.height() * self.start,
+                ),
+                pos2(
+                    area.left() + area.width() * self.at + half,
+                    area.top() + area.height() * self.end,
+                ),
+            ),
+            Axis::Horizontal => Rect::from_min_max(
+                pos2(
+                    area.left() + area.width() * self.start,
+                    area.top() + area.height() * self.at - half,
+                ),
+                pos2(
+                    area.left() + area.width() * self.end,
+                    area.top() + area.height() * self.at + half,
+                ),
+            ),
+        }
+    }
+}
+
+fn dividers(cells: &[[f32; 4]]) -> Vec<Divider> {
+    let mut dividers = Vec::new();
+    for (i, a) in cells.iter().enumerate() {
+        for b in cells.iter().skip(i + 1) {
+            let overlap_y = a[3].min(b[3]) - a[1].max(b[1]);
+            if overlap_y > EDGE_EPSILON {
+                if (a[2] - b[0]).abs() <= EDGE_EPSILON {
+                    dividers.push(Divider {
+                        axis: Axis::Vertical,
+                        at: a[2],
+                        start: a[1].max(b[1]),
+                        end: a[3].min(b[3]),
+                    });
+                } else if (b[2] - a[0]).abs() <= EDGE_EPSILON {
+                    dividers.push(Divider {
+                        axis: Axis::Vertical,
+                        at: b[2],
+                        start: a[1].max(b[1]),
+                        end: a[3].min(b[3]),
+                    });
+                }
+            }
+            let overlap_x = a[2].min(b[2]) - a[0].max(b[0]);
+            if overlap_x > EDGE_EPSILON {
+                if (a[3] - b[1]).abs() <= EDGE_EPSILON {
+                    dividers.push(Divider {
+                        axis: Axis::Horizontal,
+                        at: a[3],
+                        start: a[0].max(b[0]),
+                        end: a[2].min(b[2]),
+                    });
+                } else if (b[3] - a[1]).abs() <= EDGE_EPSILON {
+                    dividers.push(Divider {
+                        axis: Axis::Horizontal,
+                        at: b[3],
+                        start: a[0].max(b[0]),
+                        end: a[2].min(b[2]),
+                    });
+                }
+            }
+        }
+    }
+    dividers.sort_by(|a, b| {
+        let axis = (a.axis == Axis::Horizontal).cmp(&(b.axis == Axis::Horizontal));
+        axis.then_with(|| a.at.total_cmp(&b.at))
+            .then_with(|| a.start.total_cmp(&b.start))
+    });
+    let mut merged: Vec<Divider> = Vec::new();
+    for divider in dividers {
+        if let Some(last) = merged.last_mut()
+            && last.axis == divider.axis
+            && (last.at - divider.at).abs() <= EDGE_EPSILON
+            && divider.start <= last.end + EDGE_EPSILON
+        {
+            last.end = last.end.max(divider.end);
+        } else {
+            merged.push(divider);
+        }
+    }
+    merged
 }
 
 /// What's kept in step between the charts of a layout.
@@ -150,6 +431,8 @@ pub struct LayoutState {
     pub sync: Sync,
     #[serde(default)]
     pub active: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cells: Option<Vec<[f32; 4]>>,
     pub charts: Vec<ChartState>,
 }
 
@@ -167,6 +450,7 @@ impl LayoutState {
             grid: Grid::One,
             sync: Sync::default(),
             active: 0,
+            cells: None,
             charts: vec![c],
         })
     }
@@ -198,10 +482,13 @@ impl Slot {
 pub struct Multi {
     pub grid: Grid,
     pub sync: Sync,
+    pub geometry: GridGeometry,
     /// The time under the pointer on whichever chart it's over.
     pub cross_time: Option<i64>,
-    /// The (right-edge time, visible span) last pushed to the others.
-    last_view: Option<(i64, i64)>,
+    /// The chart and press origin of an Alt+primary-click in progress.
+    alt_press: Option<(usize, egui::Pos2)>,
+    /// The leader, visible range and plot widths last pushed to the others.
+    last_view: Option<(usize, i64, i64, Vec<u32>)>,
     /// Bumped on grid and sync changes (they're saved with the layout).
     pub changed: u64,
 }
@@ -255,6 +542,10 @@ impl App {
         self.swap_slot(&mut s);
         self.slots[self.active] = Some(s);
         self.active = i;
+        if self.multi.geometry.maximized.is_some() {
+            self.multi.geometry.maximized = Some(i);
+        }
+        self.multi.last_view = None;
         self.multi.changed += 1;
     }
 
@@ -279,6 +570,7 @@ impl App {
             grid: self.multi.grid,
             sync: self.multi.sync,
             active: self.active,
+            cells: self.multi.geometry.saved_cells(self.multi.grid, self.chart_count()),
             charts,
         }
     }
@@ -307,6 +599,7 @@ impl App {
         let active = l.active.min(n - 1);
         self.multi.grid = l.grid;
         self.multi.sync = l.sync;
+        self.multi.geometry.restore_cells(l.cells, l.grid);
         self.multi.last_view = None;
         self.slots = charts
             .into_iter()
@@ -361,6 +654,10 @@ impl App {
             });
         }
         self.multi.grid = g;
+        self.multi.geometry.cells = None;
+        self.multi.geometry.maximized = None;
+        self.multi.geometry.dragging = false;
+        self.multi.alt_press = None;
         self.multi.last_view = None;
         self.multi.changed += 1;
     }
@@ -395,18 +692,50 @@ impl App {
         let n = self.chart_count();
         if n <= 1 {
             self.multi.cross_time = None;
-            self.chart_cell(ui, t, full, 0);
+            self.chart_cell(ui, t, full, 0, true);
             return;
         }
-        let cells = self.multi.grid.cells(full);
+        let cells = self.multi.geometry.rects(self.multi.grid, full, n);
         ui.painter().rect_filled(full, CornerRadius::ZERO, t.border);
         let pointer = ui.ctx().pointer_hover_pos();
         let pressed = ui.input(|i| i.pointer.any_pressed());
+        let geometry_before = self.multi.geometry.cells.clone();
+        let divider_hovered = self.multi.geometry.drag_dividers(ui, t, self.multi.grid, full, n);
+        if self.multi.geometry.cells != geometry_before {
+            self.multi.changed += 1;
+            self.multi.last_view = None;
+        }
         // Which chart the pointer is over, for the crosshair and the press.
-        let over = pointer.and_then(|p| cells.iter().position(|c| c.contains(p)));
+        let over = pointer.and_then(|p| cells.iter().position(|c| c.is_positive() && c.contains(p)));
+        let primary_pressed = ui.input(|i| i.pointer.button_pressed(egui::PointerButton::Primary));
+        let primary_released = ui.input(|i| i.pointer.button_released(egui::PointerButton::Primary));
+        let primary_down = ui.input(|i| i.pointer.button_down(egui::PointerButton::Primary));
+        let alt = ui.input(|i| i.modifiers.alt && !i.modifiers.ctrl && !i.modifiers.command && !i.modifiers.shift);
+        if primary_pressed && alt && !divider_hovered && self.modal.is_none() && !egui::Popup::is_any_open(ui.ctx()) {
+            self.multi.alt_press = over.zip(ui.input(|i| i.pointer.press_origin()));
+        }
+        let mut alt_click = false;
+        if primary_released {
+            if let Some((start, origin)) = self.multi.alt_press.take() {
+                let release = ui.ctx().pointer_interact_pos();
+                if over == Some(start)
+                    && alt
+                    && release.is_some_and(|p| p.distance(origin) <= 6.0)
+                    && self.modal.is_none()
+                    && !egui::Popup::is_any_open(ui.ctx())
+                {
+                    self.toggle_maximized(start);
+                    alt_click = true;
+                }
+            }
+        } else if !primary_down {
+            self.multi.alt_press = None;
+        }
+        let alt_gesture = self.multi.alt_press.is_some() || alt_click;
         if pressed
             && let Some(i) = over
             && i != self.active
+            && !divider_hovered
             && self.modal.is_none()
             && !egui::Popup::is_any_open(ui.ctx())
         {
@@ -414,6 +743,9 @@ impl App {
         }
         let mut cross = None;
         for (i, cell) in cells.iter().enumerate() {
+            if !cell.is_positive() {
+                continue;
+            }
             let sync_t = if self.multi.sync.crosshair && over != Some(i) {
                 self.multi.cross_time
             } else {
@@ -422,7 +754,7 @@ impl App {
             let hover_t = self
                 .with_slot(i, |a| {
                     a.chart_ui.sync_cross = sync_t;
-                    a.chart_cell(ui, t, *cell, i);
+                    a.chart_cell(ui, t, *cell, i, !divider_hovered && !alt_gesture);
                     a.chart_ui.hover_time
                 })
                 .flatten();
@@ -435,7 +767,7 @@ impl App {
             ui.ctx().request_repaint();
         }
         // The active chart's outline.
-        if let Some(r) = cells.get(self.active) {
+        if let Some(r) = cells.get(self.active).filter(|r| r.is_positive()) {
             ui.painter().rect_stroke(
                 *r,
                 CornerRadius::ZERO,
@@ -446,10 +778,10 @@ impl App {
         self.sync_views(over.unwrap_or(self.active));
     }
 
-    fn chart_cell(&mut self, ui: &mut Ui, t: &Theme, rect: Rect, _i: usize) {
+    fn chart_cell(&mut self, ui: &mut Ui, t: &Theme, rect: Rect, _i: usize, interactive: bool) {
         let mut child = ui.new_child(egui::UiBuilder::new().max_rect(rect));
         child.set_clip_rect(rect.intersect(ui.clip_rect()));
-        self.chart_area_in(&mut child, t);
+        self.chart_area_in(&mut child, t, interactive);
     }
 
     /// Time and date-range sync: the chart being worked on leads.
@@ -458,13 +790,20 @@ impl App {
         if !(s.time || s.date_range) {
             return;
         }
-        let Some((right_t, span_t)) = self.with_slot(lead, |a| view_times(&a.chart)).flatten() else {
+        let Some((right_t, span_t)) = self
+            .with_slot(lead, |a| view_times(&a.chart, a.chart_ui.main_rect.width()))
+            .flatten()
+        else {
             return;
         };
-        if self.multi.last_view == Some((right_t, span_t)) {
+        let widths: Vec<u32> = (0..self.chart_count())
+            .filter_map(|i| self.with_slot(i, |a| a.chart_ui.main_rect.width().max(0.0).to_bits()))
+            .collect();
+        let view = (lead, right_t, span_t, widths);
+        if self.multi.last_view.as_ref() == Some(&view) {
             return;
         }
-        self.multi.last_view = Some((right_t, span_t));
+        self.multi.last_view = Some(view);
         for i in 0..self.chart_count() {
             if i == lead {
                 continue;
@@ -485,6 +824,28 @@ impl App {
                 c.view.right = right;
             });
         }
+    }
+
+    pub(crate) fn move_active(&mut self, direction: isize) {
+        let count = self.chart_count();
+        if count <= 1 {
+            return;
+        }
+        let next = (self.active as isize + direction).rem_euclid(count as isize) as usize;
+        self.activate(next);
+    }
+
+    pub(crate) fn toggle_maximized(&mut self, i: usize) {
+        if self.chart_count() <= 1 || i >= self.chart_count() {
+            return;
+        }
+        self.activate(i);
+        self.multi.geometry.maximized = if self.multi.geometry.maximized == Some(i) {
+            None
+        } else {
+            Some(i)
+        };
+        self.multi.last_view = None;
     }
 
     /// The "Select layout" menu: grid choices drawn as little diagrams and
@@ -554,7 +915,7 @@ impl App {
 }
 
 /// The chart's right-edge time and visible time span.
-fn view_times(c: &Chart) -> Option<(i64, i64)> {
+fn view_times(c: &Chart, plot_width: f32) -> Option<(i64, i64)> {
     let step = c.tf.millis()?;
     if c.bars.is_empty() {
         return None;
@@ -573,8 +934,7 @@ fn view_times(c: &Chart) -> Option<(i64, i64)> {
             a + ((b - a) as f64 * f) as i64
         }
     };
-    let width = 800.0f64;
-    let bars = width / c.view.bar_w as f64;
+    let bars = plot_width.max(100.0) as f64 / c.view.bar_w as f64;
     let right = t_at(c.view.right);
     Some((right, right - t_at(c.view.right - bars)))
 }
@@ -621,6 +981,91 @@ mod tests {
     }
 
     #[test]
+    fn divider_resizing_preserves_tiling_and_minimum_dimensions() {
+        let area = Rect::from_min_size(pos2(0.0, 0.0), vec2(400.0, 300.0));
+        let preset = Grid::BigLeftTwo.unit_cells();
+        let vertical = dividers(&preset)
+            .into_iter()
+            .find(|d| d.axis == Axis::Vertical)
+            .unwrap();
+        let mut geometry = GridGeometry::default();
+        assert!(geometry.resize(vertical, 1000.0, area, &preset));
+        let cells = geometry.unit_cells(Grid::BigLeftTwo, 3);
+        assert!(valid_cells(&cells, 3));
+        let rects = cells_in(area, &cells);
+        assert!(rects.iter().all(|r| r.width() >= MIN_CHART_WIDTH - 1.0));
+
+        let horizontal = dividers(&cells)
+            .into_iter()
+            .find(|d| d.axis == Axis::Horizontal)
+            .unwrap();
+        assert!(geometry.resize(horizontal, 1000.0, area, &preset));
+        let rects = cells_in(area, &geometry.unit_cells(Grid::BigLeftTwo, 3));
+        assert!(rects.iter().all(|r| r.height() >= MIN_CHART_HEIGHT - 1.0));
+        assert!(valid_cells(&geometry.unit_cells(Grid::BigLeftTwo, 3), 3));
+    }
+
+    #[test]
+    fn maximize_changes_only_visible_rectangles() {
+        let area = Rect::from_min_size(pos2(0.0, 0.0), vec2(1200.0, 800.0));
+        let mut geometry = GridGeometry::default();
+        let original = geometry.rects(Grid::BigLeftTwo, area, 3);
+        geometry.maximized = Some(2);
+        let maximized = geometry.rects(Grid::BigLeftTwo, area, 3);
+        assert_eq!(maximized.len(), original.len());
+        assert_eq!(maximized[2], area);
+        assert!(maximized[..2].iter().all(|r| !r.is_positive()));
+        geometry.maximized = None;
+        assert_eq!(geometry.rects(Grid::BigLeftTwo, area, 3), original);
+    }
+
+    #[test]
+    fn date_range_uses_plot_width() {
+        let symbol = opentern_core::starter_watchlist().remove(0);
+        let mut chart = Chart::new(1, symbol, opentern_core::Timeframe::parse("1h").unwrap());
+        let step = chart.tf.millis().unwrap();
+        chart.bars = (0..100)
+            .map(|i| opentern_core::Bar {
+                time: i * step,
+                open: 1.0,
+                high: 1.0,
+                low: 1.0,
+                close: 1.0,
+                volume: 1.0,
+            })
+            .collect();
+        chart.view.right = 99.0;
+        chart.view.bar_w = 10.0;
+        let (_, narrow_span) = view_times(&chart, 200.0).unwrap();
+        let (_, wide_span) = view_times(&chart, 600.0).unwrap();
+        assert!(wide_span > narrow_span);
+        assert_eq!(wide_span, narrow_span * 3);
+    }
+
+    #[test]
+    fn date_range_sync_invalidates_after_plot_resize() {
+        let mut d = crate::drive::Driver::new("date-range-resize");
+        d.app.set_grid(Grid::BigLeftTwo);
+        d.wait(|a| a.slots.iter().flatten().all(|s| !s.chart.bars.is_empty()));
+        d.app.multi.sync.date_range = true;
+        d.frame(vec![]);
+        d.app.sync_views(0);
+        let before = d.app.with_slot(1, |a| a.chart.view.bar_w).unwrap();
+
+        let area = d.app.grid_rect;
+        let preset = Grid::BigLeftTwo.unit_cells();
+        let divider = dividers(&preset)
+            .into_iter()
+            .find(|divider| divider.axis == Axis::Vertical)
+            .unwrap();
+        assert!(d.app.multi.geometry.resize(divider, 80.0, area, &preset));
+        d.frame(vec![]);
+        d.app.sync_views(0);
+        let after = d.app.with_slot(1, |a| a.chart.view.bar_w).unwrap();
+        assert_ne!(after, before, "target chart range must follow the resized plot");
+    }
+
+    #[test]
     fn old_single_chart_layouts_still_load() {
         let sym = opentern_core::starter_watchlist().remove(0);
         let c = Chart::new(1, sym, opentern_core::Timeframe::parse("1h").unwrap());
@@ -628,5 +1073,17 @@ mod tests {
         let l = LayoutState::parse(&old).unwrap();
         assert_eq!(l.charts.len(), 1);
         assert_eq!(l.grid, Grid::One);
+
+        let legacy_grid = serde_json::json!({
+            "version": 2,
+            "grid": "TwoCols",
+            "charts": [c.state(), c.state()]
+        });
+        let mut l = LayoutState::parse(&legacy_grid.to_string()).unwrap();
+        assert_eq!(l.grid, Grid::TwoCols);
+        assert!(l.cells.is_none());
+        l.cells = Some(vec![[0.0, 0.0, 0.4, 1.0], [0.4, 0.0, 1.0, 1.0]]);
+        let saved = serde_json::to_string(&l).unwrap();
+        assert_eq!(LayoutState::parse(&saved).unwrap().cells, l.cells);
     }
 }

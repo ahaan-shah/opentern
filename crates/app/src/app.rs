@@ -1751,6 +1751,30 @@ impl App {
         for e in events {
             match e {
                 egui::Event::Text(_) if chord => {}
+                egui::Event::Key {
+                    key: egui::Key::Enter,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.ctrl && !modifiers.command && !modifiers.shift => {
+                    self.toggle_maximized(self.active);
+                }
+                egui::Event::Key {
+                    key: egui::Key::ArrowLeft,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.ctrl && !modifiers.command && !modifiers.shift => {
+                    self.move_active(-1);
+                }
+                egui::Event::Key {
+                    key: egui::Key::ArrowRight,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && !modifiers.ctrl && !modifiers.command && !modifiers.shift => {
+                    self.move_active(1);
+                }
                 egui::Event::Text(s) if asking && matches!(s.as_str(), "1" | "2" | "3") => {}
                 egui::Event::Text(s) if s == "/" => {
                     let has = !self.store.favorites("indicator").is_empty();

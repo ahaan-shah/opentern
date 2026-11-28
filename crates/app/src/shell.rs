@@ -1368,8 +1368,9 @@ impl App {
     // ------------------------------------------------------------- chart
 
     /// One chart in `ui`'s rect (the active one, or a slot swapped in).
-    pub(crate) fn chart_area_in(&mut self, ui: &mut Ui, t: &Theme) {
-        let interactive = self.modal.is_none()
+    pub(crate) fn chart_area_in(&mut self, ui: &mut Ui, t: &Theme, allow_interaction: bool) {
+        let interactive = allow_interaction
+            && self.modal.is_none()
             && self.study_menu.is_none()
             && self.compare_menu.is_none()
             && self.chart_menu.is_none()

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### New
+- **Resizable multi-chart layouts.** Drag grid dividers to resize cells; use Alt+Left/Right to switch charts, and Alt+Enter or Alt+click to maximize and restore without recreating charts.
 - **Upgraded drawing tools and Settings dialogs.** Drawing tools now match TradingView's feature depth:
   - **Drawing Settings modal**: Double-clicking any drawing or clicking the gear icon on the floating toolbar opens a full settings dialog with Style, Text, Coordinates, Inputs, and Visibility tabs, live chart preview, and template presets.
   - **Trendline, Ray, and Extended lines**: Added inline text labels with custom text color, font sizes, and exact coordinate editing.

@@ -218,11 +218,15 @@ impl Driver {
     }
 
     fn button(p: Pos2, pressed: bool) -> Event {
+        Self::button_with_modifiers(p, pressed, Modifiers::NONE)
+    }
+
+    fn button_with_modifiers(p: Pos2, pressed: bool, modifiers: Modifiers) -> Event {
         Event::PointerButton {
             pos: p,
             button: PointerButton::Primary,
             pressed,
-            modifiers: Modifiers::NONE,
+            modifiers,
         }
     }
 
@@ -230,6 +234,18 @@ impl Driver {
         self.move_to(p);
         self.frame(vec![Self::button(p, true)]);
         self.frame(vec![Self::button(p, false)]);
+        self.frame(vec![]);
+    }
+
+    pub fn click_with_modifiers(&mut self, p: Pos2, modifiers: Modifiers) {
+        self.pointer = p;
+        self.frame(vec![Event::PointerMoved(p)]);
+        self.frame(vec![
+            Event::ModifiersChanged(modifiers),
+            Self::button_with_modifiers(p, true, modifiers),
+        ]);
+        self.frame(vec![Self::button_with_modifiers(p, false, modifiers)]);
+        self.frame(vec![Event::ModifiersChanged(Modifiers::NONE)]);
         self.frame(vec![]);
     }
 
@@ -480,6 +496,64 @@ mod tests {
         assert!(again.app.multi.sync.symbol);
         assert_eq!(again.app.chart.symbol.id, eth.id);
         assert_eq!(again.app.panics, 0);
+    }
+
+    #[test]
+    fn multi_chart_keyboard_and_alt_click_maximize_preserve_charts() {
+        use crate::multi::Grid;
+        let mut d = Driver::new("multi-maximize");
+        d.app.set_grid(Grid::Four);
+        d.wait(|a| a.slots.iter().flatten().all(|s| !s.chart.bars.is_empty()));
+        d.key(Key::ArrowRight, Modifiers::ALT);
+        assert_eq!(d.app.active, 1);
+        d.key(Key::Enter, Modifiers::ALT);
+        assert_eq!(d.app.multi.geometry.maximized, Some(1));
+        assert_eq!(d.app.chart_count(), 4);
+        d.key(Key::ArrowRight, Modifiers::ALT);
+        assert_eq!(d.app.active, 2);
+        assert_eq!(d.app.multi.geometry.maximized, Some(2));
+        d.key(Key::Enter, Modifiers::ALT);
+        assert_eq!(d.app.multi.geometry.maximized, None);
+
+        let area = d.app.grid_rect;
+        let cell = d.app.multi.geometry.rects(Grid::Four, area, 4)[3];
+        d.app.pick_tool(Tool::HorizontalLine);
+        d.click_with_modifiers(cell.center(), Modifiers::ALT);
+        assert_eq!(d.app.active, 3);
+        assert_eq!(d.app.multi.geometry.maximized, Some(3));
+        assert!(d.app.chart.drawings.is_empty(), "Alt+click must not place a drawing");
+        let maximized = d.app.multi.geometry.rects(Grid::Four, area, 4)[3];
+        assert_eq!(maximized, area);
+        d.click_with_modifiers(maximized.center(), Modifiers::ALT);
+        assert_eq!(d.app.multi.geometry.maximized, None);
+        assert_eq!(d.app.chart_count(), 4);
+    }
+
+    #[test]
+    fn chart_grid_divider_drag_respects_minimum_widths() {
+        use crate::multi::Grid;
+        let mut d = Driver::new("multi-divider");
+        d.app.set_grid(Grid::TwoCols);
+        d.wait(|a| a.slots.iter().flatten().all(|s| !s.chart.bars.is_empty()));
+        let area = d.app.grid_rect;
+        let before = d.app.multi.geometry.rects(Grid::TwoCols, area, 2);
+        let active = d.app.active;
+        let start = pos2(area.center().x, area.center().y);
+        let end = pos2(area.left() + 15.0, area.center().y);
+        d.drag(start, end);
+        d.frame(vec![]);
+        let after = d.app.multi.geometry.rects(Grid::TwoCols, area, 2);
+        assert!(after[0].width() < before[0].width() - 100.0, "{before:?} -> {after:?}");
+        assert!(after.iter().all(|r| r.width() >= 120.0), "{after:?}");
+        assert_eq!(d.app.active, active, "divider drags must not activate a chart");
+
+        let saved_cells = d.app.layout_state().cells;
+        assert!(saved_cells.is_some());
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let again = Driver::open(dir);
+        assert_eq!(again.app.layout_state().cells, saved_cells);
     }
 
     #[test]

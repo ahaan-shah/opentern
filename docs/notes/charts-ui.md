@@ -45,8 +45,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   `App::chart`; the others in `App::slots`, swapped into place by `with_slot`**
   (panic-safe), so every "the chart" code path works per chart. Each slot has its own
   `ChartUi`, scripts and strategy runs; inactive charts poll scripts, strategies and
-  paper lines each frame. Pressing a cell activates it. Layout JSON is now
+  paper lines each frame. Pressing a cell activates it; Alt+Left/Right navigates charts.
+  Drag the grid dividers to resize cells (minimum 120×100); Alt+Enter or Alt+click
+  maximizes/restores a chart without rebuilding slots. Layout JSON stores optional
+  normalized custom cell bounds in addition to
   `LayoutState { grid, sync, active, charts }` (old single-chart JSON still loads).
+  Date-range sync uses each chart's plot width and recalculates when plot widths change.
   Session ids come from `chart::new_session_id()` (global). Drawings saved on one
   chart reload on other charts with the same symbol. Alerts still evaluate against
   the active chart's studies only.
