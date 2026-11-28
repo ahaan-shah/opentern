@@ -221,7 +221,10 @@ user-facing changes to a fresh `## Unreleased` section at the top of
   against the circular); add 2027's when announced.
 
 **Testing the app for the maintainer:** run `scripts/dev-install.sh` (fast build,
-installed as "Opentern Dev" in their app launcher, replacing the last one). A binary
+installed as "Opentern Dev" in their app launcher, replacing the last one). **Every
+time you open Opentern Dev for them, end your message with a short, simple list of
+what to look for** (each new or changed thing since they last checked, one line
+each, where to find it), as the maintainer asked (Nov 2026). A binary
 named `opentern-dev` keeps its own workspace and never updates itself
 (`opentern_core::dev_copy`). For your own checks, launch `target/fast/opentern` with a
 throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). Never use their real
