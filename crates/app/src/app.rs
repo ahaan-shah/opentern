@@ -1157,6 +1157,9 @@ impl App {
                     self.paper_close(&id);
                 }
                 Action::AlertMenu(id, pos) => self.alert_menu = Some((self.chart.id, id, pos)),
+                Action::PickSymbol => {
+                    self.modal = Some(Modal::Symbol(crate::dialogs::SymbolSearch::new("")));
+                }
                 Action::ChartMenu { pos, price } => self.chart_menu = Some((self.chart.id, pos, price)),
                 Action::MoveAlert(id, price) => self.move_alert(id, price),
                 Action::PriceMenu { price, text, pos } => {
@@ -1598,9 +1601,31 @@ impl App {
                     }),
                 });
             }
+            if mode == "many" {
+                // A row too long for the window: it scrolls.
+                for _ in 0..9 {
+                    let st = self.chart.state();
+                    self.ws.list.push(crate::workspaces::Ws {
+                        name: None,
+                        saved: Some(crate::multi::LayoutState {
+                            version: 2,
+                            grid: crate::multi::Grid::One,
+                            sync: Default::default(),
+                            active: 0,
+                            cells: None,
+                            charts: vec![st],
+                        }),
+                    });
+                }
+                self.switch_workspace(self.ws.list.len() - 1);
+            }
             match mode.as_str() {
                 "rename" => self.start_rename(0),
                 "new" => self.new_workspace(),
+                "blank" => {
+                    self.new_workspace();
+                    self.modal = None;
+                }
                 _ => {}
             }
         }

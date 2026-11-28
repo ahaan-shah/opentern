@@ -47,6 +47,8 @@ pub enum Action {
         text: String,
         pos: Pos2,
     },
+    /// A blank chart's "Pick a symbol" button.
+    PickSymbol,
     /// The chart was right-clicked: its menu at `pos`, with the price there
     /// (on the main pane; none on a lower one).
     ChartMenu {
@@ -1029,23 +1031,9 @@ pub fn show(
 
     // ---- watermark
     let blank = chart.symbol.id.is_empty();
-    if blank && let Some(g) = geos.first() {
-        // A new workspace's chart, before a symbol is picked.
-        let c = g.rect.center();
-        painter.text(
-            c - vec2(0.0, 14.0),
-            Align2::CENTER_CENTER,
-            ph::MAGNIFYING_GLASS,
-            theme::regular(26.0),
-            t.text3,
-        );
-        painter.text(
-            c + vec2(0.0, 16.0),
-            Align2::CENTER_CENTER,
-            tr("Pick a symbol"),
-            theme::medium(13.5),
-            t.text3,
-        );
+    if blank {
+        // A new workspace's chart: no prices, so no scale numbers either.
+        pane_ticks.iter_mut().for_each(Vec::clear);
     }
     if chart.style.watermark
         && !blank
@@ -1641,7 +1629,28 @@ pub fn show(
     }
 
     // ---- states with nothing to draw yet
-    if n == 0
+    if chart.symbol.id.is_empty()
+        && let Some(g) = geos.first()
+    {
+        // A new workspace's chart, before a symbol is picked: one button.
+        let font = theme::medium(13.5);
+        let label = format!("{}  {}", ph::MAGNIFYING_GLASS, tr("Pick a symbol"));
+        let gal = painter.layout_no_wrap(label, font, t.text);
+        let r = Rect::from_center_size(g.rect.center(), gal.size() + vec2(32.0, 18.0));
+        let resp = ui.interact(r, Id::new(("chart-pick", chart.id)), Sense::click());
+        let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
+        painter.rect_filled(r, CornerRadius::same(10), motion::lerp_color(t.elevated, t.hover, hov));
+        painter.rect_stroke(
+            r,
+            CornerRadius::same(10),
+            Stroke::new(1.0, t.border),
+            egui::StrokeKind::Inside,
+        );
+        painter.galley(r.center() - gal.size() / 2.0, gal, t.text);
+        if resp.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+            actions.push(Action::PickSymbol);
+        }
+    } else if n == 0
         && let Some(g) = geos.first()
     {
         let msg = match &chart.status {

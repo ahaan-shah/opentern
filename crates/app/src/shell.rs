@@ -18,7 +18,7 @@ use egui::{Align, Align2, CornerRadius, Id, Layout, Margin, Rect, Sense, Stroke,
 use opentern_core::{Timeframe, Unit};
 use serde::{Deserialize, Serialize};
 
-pub const TOP_H: f32 = 36.0;
+pub const TOP_H: f32 = 32.0;
 pub const TOOLBAR_W: f32 = 48.0;
 pub const RAIL_W: f32 = 46.0;
 pub const RANGE_H: f32 = 32.0;

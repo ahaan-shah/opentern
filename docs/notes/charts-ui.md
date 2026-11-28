@@ -103,7 +103,15 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   Settings), laid out first at its right; `TOP_H` went 44 → 36. Charts keep their
   scroll and zoom: `ChartState::view` (`SavedView { bar_w, right_time }`, none time
   = following) goes into `Chart::pending_view` and is put back on the first bars
-  (`replace_bars`); a symbol or interval change drops it. `Chord::usable` now allows Tab, Enter and
+  (`replace_bars`); a symbol or interval change drops it. A blank chart shows only a "Pick a
+  symbol" button (`Action::PickSymbol`; no legend, watermark, scale numbers or
+  "Loading…"). New workspaces take workspace 1's main chart's `ChartStyle`. The pills
+  scroll sideways when they don't fit (hidden bar, the wheel scrolls them), and
+  `Workspaces::reveal` keeps the shown one (and "+") in sight after a switch.
+  Rows: `BAR_H` 34, `TOP_H` 32. Speed: `many_workspaces_stay_smooth` (ignored; set
+  `OPENTERN_PERF_IMPORT` to an export) imports into a scratch folder, puts a custom
+  index in each of ten workspaces and checks a frame costs the same as with one
+  (Nov 2026: 0.86 ms with 1, 0.73 ms with 11; a switch ~28 ms, slowest 54 ms). `Chord::usable` now allows Tab, Enter and
   the arrows with Ctrl or Alt. Still: `workspaces`. The agent acts on the shown one.
 - **Multi-chart** (`multi.rs`): 15 grids for 1–8 charts; sync symbol, interval,
   crosshair (default on), time, date range. **The active chart lives in

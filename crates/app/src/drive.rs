@@ -2557,6 +2557,9 @@ mod formula_tests {
         d.app.chart.view.right -= 200.0;
         let right = d.app.chart.view.right;
 
+        // Workspace 1's look carries to new ones.
+        d.app.chart.style.show_grid_vert = false;
+        let look = d.app.chart.style.clone();
         // Ctrl+T: a new, blank one, shown, with symbol search open; it gets
         // ETH and a grid.
         d.key(Key::T, ctrl);
@@ -2564,6 +2567,7 @@ mod formula_tests {
         assert!(d.app.chart.symbol.id.is_empty(), "blank until a symbol is picked");
         assert!(matches!(d.app.modal, Some(crate::dialogs::Modal::Symbol(_))));
         assert_eq!(d.app.ws_title(1), tr("New"));
+        assert_eq!(d.app.chart.style, look, "workspace 1's chart settings");
         d.app.modal = None;
         d.app.open_symbol(eth.clone());
         d.wait(|a| !a.chart.bars.is_empty());
@@ -2676,6 +2680,78 @@ mod formula_tests {
         d.click(at);
         assert_eq!(d.app.ws.list.len(), 1);
         assert_eq!(d.app.ws_title(0), "Swing");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    /// Ten or more workspaces must stay smooth: only the shown one draws or
+    /// streams. Opt-in, with an export to load (`OPENTERN_PERF_IMPORT=<file>`):
+    /// its layouts, indices and scripts go into a scratch folder (never alerts,
+    /// which could send webhooks, or paper accounts), then each of ten
+    /// workspaces gets one of its custom indices.
+    #[test]
+    #[ignore]
+    fn many_workspaces_stay_smooth() {
+        use opentern_core::transfer::{Item, Mode, apply};
+        use std::time::Instant;
+        let Ok(file) = std::env::var("OPENTERN_PERF_IMPORT") else {
+            eprintln!("set OPENTERN_PERF_IMPORT to an export file");
+            return;
+        };
+        let dir = std::env::temp_dir().join(format!("opentern-drive-perf-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let items: Vec<Item> = Item::ALL
+            .into_iter()
+            .filter(|i| !matches!(i, Item::Alerts | Item::Paper))
+            .collect();
+        apply(&dir, std::path::Path::new(&file), &items, Mode::Replace).expect("import");
+        let mut d = Driver::open(dir);
+        // A frame with the pointer moving over the chart (crosshair, legend).
+        let per_frame = |d: &mut Driver| {
+            let n = 120;
+            let t = Instant::now();
+            for k in 0..n {
+                let p = d.at(0.3 + 0.4 * (k % 20) as f32 / 20.0, 0.5);
+                d.frame(vec![Event::PointerMoved(p)]);
+            }
+            t.elapsed() / n
+        };
+        per_frame(&mut d);
+        let one = per_frame(&mut d);
+        let indices: Vec<_> = d.app.indices.symbols().into_iter().take(10).collect();
+        assert!(!indices.is_empty(), "the export has custom indices");
+        let mut opened = Vec::new();
+        for s in &indices {
+            let t = Instant::now();
+            d.app.new_workspace();
+            d.app.modal = None;
+            d.app.open_symbol(s.clone());
+            d.wait(|a| !a.chart.bars.is_empty());
+            opened.push(t.elapsed());
+        }
+        per_frame(&mut d);
+        let many = per_frame(&mut d);
+        // Hidden ones hold only their saved state: one live layout.
+        let live = d.app.ws.list.iter().filter(|w| w.saved.is_none()).count();
+        assert_eq!(live, 1);
+        let mut switches = Vec::new();
+        for i in 0..d.app.ws.list.len() {
+            let t = Instant::now();
+            d.app.switch_workspace(i);
+            d.wait(|a| !a.chart.bars.is_empty() || a.chart.symbol.id.is_empty());
+            switches.push(t.elapsed());
+        }
+        let slowest = switches.iter().max().unwrap();
+        let avg = switches.iter().sum::<std::time::Duration>() / switches.len() as u32;
+        eprintln!(
+            "PERF workspaces {} | frame with 1: {one:?}, with {}: {many:?} | open each: {opened:?} | switch avg {avg:?}, slowest {slowest:?}",
+            d.app.ws.list.len(),
+            d.app.ws.list.len()
+        );
+        assert!(
+            many.as_secs_f64() < one.as_secs_f64() * 1.5 + 0.002,
+            "a frame costs the same with many workspaces: {one:?} vs {many:?}"
+        );
         assert_eq!(d.app.panics, 0);
     }
 
