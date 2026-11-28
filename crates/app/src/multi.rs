@@ -102,19 +102,103 @@ impl Grid {
 
     /// The cells laid out in `r`, a pixel apart.
     pub fn cells(self, r: Rect) -> Vec<Rect> {
-        self.unit_cells()
-            .into_iter()
-            .map(|[x0, y0, x1, y1]| {
-                let px = |f: f32| (r.left() + r.width() * f).round();
-                let py = |f: f32| (r.top() + r.height() * f).round();
-                let inset = |f: f32, a: f32| if f > 0.0 && f < 1.0 { a } else { 0.0 };
-                Rect::from_min_max(
-                    pos2(px(x0) + inset(x0, 0.5), py(y0) + inset(y0, 0.5)),
-                    pos2(px(x1) - inset(x1, 0.5), py(y1) - inset(y1, 0.5)),
-                )
-            })
-            .collect()
+        cells_in(&self.unit_cells(), r)
     }
+}
+
+/// Unit cells (x0, y0, x1, y1) laid out in `r`, a pixel apart.
+fn cells_in(unit: &[[f32; 4]], r: Rect) -> Vec<Rect> {
+    unit.iter()
+        .map(|&[x0, y0, x1, y1]| {
+            let px = |f: f32| (r.left() + r.width() * f).round();
+            let py = |f: f32| (r.top() + r.height() * f).round();
+            let inset = |f: f32, a: f32| if f > 0.0 && f < 1.0 { a } else { 0.0 };
+            Rect::from_min_max(
+                pos2(px(x0) + inset(x0, 0.5), py(y0) + inset(y0, 0.5)),
+                pos2(px(x1) - inset(x1, 0.5), py(y1) - inset(y1, 0.5)),
+            )
+        })
+        .collect()
+}
+
+/// The smallest a chart gets when its neighbours are dragged into it:
+/// room for its price scale and a plot (across), its legend, a plot and
+/// the time axis (down).
+const MIN_W: f32 = 260.0;
+const MIN_H: f32 = 180.0;
+
+/// An edge between charts: on the x axis (`vertical`, a line top to
+/// bottom) or the y axis, at fraction `at`. Dragging it moves every cell
+/// edge there, so the grid stays tiled.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Divider {
+    vertical: bool,
+    at: f32,
+}
+
+/// The dividers of a tiling, each with the pieces of edge it's made of (as
+/// fractions along the other axis).
+fn dividers(cells: &[[f32; 4]]) -> Vec<(Divider, Vec<(f32, f32)>)> {
+    let near = |a: f32, b: f32| (a - b).abs() < 1e-4;
+    let mut out: Vec<(Divider, Vec<(f32, f32)>)> = Vec::new();
+    for &[x0, y0, x1, y1] in cells {
+        // Each cell's right and bottom edges, when inside the area.
+        for (vertical, at, span) in [(true, x1, (y0, y1)), (false, y1, (x0, x1))] {
+            if at >= 1.0 - 1e-4 {
+                continue;
+            }
+            match out.iter_mut().find(|(d, _)| d.vertical == vertical && near(d.at, at)) {
+                Some((_, spans)) => spans.push(span),
+                None => out.push((Divider { vertical, at }, vec![span])),
+            }
+        }
+    }
+    out
+}
+
+/// Moves divider `d` to `to` (a fraction), as far as the cells on both
+/// sides keep `min` (a fraction too). False when it can't move.
+fn move_divider(cells: &mut [[f32; 4]], d: Divider, to: f32, min: f32) -> bool {
+    let near = |a: f32, b: f32| (a - b).abs() < 1e-4;
+    let (lo_i, hi_i) = if d.vertical { (0, 2) } else { (1, 3) };
+    // The room: the cells ending at it can shrink to `min`, as can the ones
+    // starting there.
+    let mut lo = 0.0f32;
+    let mut hi = 1.0f32;
+    for c in cells.iter() {
+        if near(c[hi_i], d.at) {
+            lo = lo.max(c[lo_i] + min);
+        }
+        if near(c[lo_i], d.at) {
+            hi = hi.min(c[hi_i] - min);
+        }
+    }
+    if lo > hi {
+        return false;
+    }
+    let to = to.clamp(lo, hi);
+    if near(to, d.at) {
+        return false;
+    }
+    for c in cells.iter_mut() {
+        if near(c[hi_i], d.at) {
+            c[hi_i] = to;
+        }
+        if near(c[lo_i], d.at) {
+            c[lo_i] = to;
+        }
+    }
+    true
+}
+
+/// Whether saved cells still fit `n` charts: inside the area, none
+/// empty, adding up to all of it.
+fn cells_fit(cells: &[[f32; 4]], n: usize) -> bool {
+    cells.len() == n
+        && cells
+            .iter()
+            .all(|c| c.iter().all(|v| v.is_finite() && (-1e-4..=1.0 + 1e-4).contains(v)) && c[2] > c[0] && c[3] > c[1])
+        && (cells.iter().map(|c| (c[2] - c[0]) * (c[3] - c[1])).sum::<f32>() - 1.0).abs() < 1e-3
 }
 
 /// What's kept in step between the charts of a layout.
@@ -150,6 +234,9 @@ pub struct LayoutState {
     pub sync: Sync,
     #[serde(default)]
     pub active: usize,
+    /// The cells as dragged (fractions of the area); none = the grid's own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cells: Option<Vec<[f32; 4]>>,
     pub charts: Vec<ChartState>,
 }
 
@@ -167,6 +254,7 @@ impl LayoutState {
             grid: Grid::One,
             sync: Sync::default(),
             active: 0,
+            cells: None,
             charts: vec![c],
         })
     }
@@ -198,10 +286,17 @@ impl Slot {
 pub struct Multi {
     pub grid: Grid,
     pub sync: Sync,
+    /// The cells as dragged (fractions of the area); none = the grid's own.
+    pub cells: Option<Vec<[f32; 4]>>,
+    /// The chart shown alone (Alt+Enter), the others kept as they are.
+    pub maximized: Option<usize>,
+    /// The divider being dragged.
+    dragging: Option<Divider>,
     /// The time under the pointer on whichever chart it's over.
     pub cross_time: Option<i64>,
-    /// The (right-edge time, visible span) last pushed to the others.
-    last_view: Option<(i64, i64)>,
+    /// What was last pushed to the others: the leader, its (right-edge
+    /// time, visible span) and every chart's plot width (a resize re-syncs).
+    last_view: Option<(usize, i64, i64, Vec<u32>)>,
     /// Bumped on grid and sync changes (they're saved with the layout).
     pub changed: u64,
 }
@@ -255,7 +350,42 @@ impl App {
         self.swap_slot(&mut s);
         self.slots[self.active] = Some(s);
         self.active = i;
+        if self.multi.maximized.is_some() {
+            self.multi.maximized = Some(i);
+        }
+        self.multi.last_view = None;
         self.multi.changed += 1;
+    }
+
+    /// Alt+Left/Right: the chart before or after the active one, round the
+    /// grid.
+    pub fn step_active(&mut self, forward: bool) {
+        let n = self.chart_count();
+        if n > 1 {
+            self.activate((self.active + if forward { 1 } else { n - 1 }) % n);
+        }
+    }
+
+    /// Alt+Enter: the active chart alone in the chart area, or back to the
+    /// grid.
+    pub fn toggle_maximized(&mut self) {
+        if self.chart_count() > 1 {
+            self.multi.maximized = match self.multi.maximized {
+                Some(_) => None,
+                None => Some(self.active),
+            };
+            self.multi.last_view = None;
+        }
+    }
+
+    /// The cells as fractions of the chart area: as dragged, or the grid's.
+    fn unit_cells(&self) -> Vec<[f32; 4]> {
+        let n = self.chart_count();
+        self.multi
+            .cells
+            .clone()
+            .filter(|c| cells_fit(c, n))
+            .unwrap_or_else(|| self.multi.grid.unit_cells())
     }
 
     /// Bumps on any change worth saving in the layout.
@@ -279,6 +409,7 @@ impl App {
             grid: self.multi.grid,
             sync: self.multi.sync,
             active: self.active,
+            cells: self.multi.cells.clone().filter(|c| cells_fit(c, self.chart_count())),
             charts,
         }
     }
@@ -307,6 +438,9 @@ impl App {
         let active = l.active.min(n - 1);
         self.multi.grid = l.grid;
         self.multi.sync = l.sync;
+        self.multi.cells = l.cells.filter(|c| cells_fit(c, n));
+        self.multi.maximized = None;
+        self.multi.dragging = None;
         self.multi.last_view = None;
         self.slots = charts
             .into_iter()
@@ -361,6 +495,9 @@ impl App {
             });
         }
         self.multi.grid = g;
+        self.multi.cells = None;
+        self.multi.maximized = None;
+        self.multi.dragging = None;
         self.multi.last_view = None;
         self.multi.changed += 1;
     }
@@ -398,12 +535,46 @@ impl App {
             self.chart_cell(ui, t, full, 0);
             return;
         }
-        let cells = self.multi.grid.cells(full);
+        let unit = self.unit_cells();
+        // One chart alone (Alt+Enter): the others aren't painted, but keep
+        // their place for when it goes back.
+        let cells: Vec<Rect> = match self.multi.maximized.filter(|m| *m < n) {
+            Some(m) => (0..n).map(|i| if i == m { full } else { Rect::NOTHING }).collect(),
+            None => cells_in(&unit, full),
+        };
         ui.painter().rect_filled(full, CornerRadius::ZERO, t.border);
         let pointer = ui.ctx().pointer_hover_pos();
         let pressed = ui.input(|i| i.pointer.any_pressed());
+        // The edges between charts, a few pixels either side.
+        let edges = if self.multi.maximized.is_some() {
+            Vec::new()
+        } else {
+            dividers(&unit)
+        };
+        let edge_rect = |d: &Divider, (a, b): (f32, f32)| {
+            if d.vertical {
+                let x = (full.left() + full.width() * d.at).round();
+                Rect::from_x_y_ranges(
+                    x - 4.0..=x + 4.0,
+                    full.top() + full.height() * a..=full.top() + full.height() * b,
+                )
+            } else {
+                let y = (full.top() + full.height() * d.at).round();
+                Rect::from_x_y_ranges(
+                    full.left() + full.width() * a..=full.left() + full.width() * b,
+                    y - 4.0..=y + 4.0,
+                )
+            }
+        };
+        let on_edge = pointer.is_some_and(|p| {
+            edges
+                .iter()
+                .any(|(d, spans)| spans.iter().any(|s| edge_rect(d, *s).contains(p)))
+        });
         // Which chart the pointer is over, for the crosshair and the press.
-        let over = pointer.and_then(|p| cells.iter().position(|c| c.contains(p)));
+        let over = pointer
+            .filter(|_| !on_edge && self.multi.dragging.is_none())
+            .and_then(|p| cells.iter().position(|c| c.contains(p)));
         if pressed
             && let Some(i) = over
             && i != self.active
@@ -414,6 +585,9 @@ impl App {
         }
         let mut cross = None;
         for (i, cell) in cells.iter().enumerate() {
+            if !cell.is_positive() {
+                continue;
+            }
             let sync_t = if self.multi.sync.crosshair && over != Some(i) {
                 self.multi.cross_time
             } else {
@@ -434,14 +608,75 @@ impl App {
             self.multi.cross_time = cross;
             ui.ctx().request_repaint();
         }
-        // The active chart's outline.
-        if let Some(r) = cells.get(self.active) {
+        // The active chart's outline (none when it's shown alone).
+        if let Some(r) = cells.get(self.active).filter(|_| self.multi.maximized.is_none()) {
             ui.painter().rect_stroke(
                 *r,
                 CornerRadius::ZERO,
                 Stroke::new(1.5, t.accent),
                 egui::StrokeKind::Inside,
             );
+        }
+        // Drag an edge to resize the charts on both sides. Made after the
+        // charts, so the edge wins the press.
+        // As fractions of the area (a grid with no room for them can't be
+        // dragged at all).
+        let min_x = MIN_W / full.width().max(1.0);
+        let min_y = MIN_H / full.height().max(1.0);
+        for (k, (d, spans)) in edges.iter().enumerate() {
+            let mut lit = self.multi.dragging == Some(*d);
+            for (j, span) in spans.iter().enumerate() {
+                let r = edge_rect(d, *span);
+                let resp = ui.interact(r, ui.id().with(("chart-edge", k, j)), Sense::drag());
+                lit |= resp.hovered();
+                if resp.hovered() || resp.dragged() {
+                    ui.ctx().set_cursor_icon(if d.vertical {
+                        egui::CursorIcon::ResizeHorizontal
+                    } else {
+                        egui::CursorIcon::ResizeVertical
+                    });
+                }
+                if resp.drag_started() {
+                    self.multi.dragging = Some(*d);
+                }
+                if resp.dragged()
+                    && let Some(p) = resp.interact_pointer_pos()
+                {
+                    let to = if d.vertical {
+                        (p.x - full.left()) / full.width()
+                    } else {
+                        (p.y - full.top()) / full.height()
+                    };
+                    let mut cells = unit.clone();
+                    if move_divider(&mut cells, *d, to, if d.vertical { min_x } else { min_y }) {
+                        // It moved: keep it lit at its new place.
+                        let at = dividers(&cells)
+                            .into_iter()
+                            .map(|(nd, _)| nd)
+                            .filter(|nd| nd.vertical == d.vertical)
+                            .min_by(|a, b| (a.at - to).abs().total_cmp(&(b.at - to).abs()));
+                        self.multi.dragging = at;
+                        self.multi.cells = Some(cells);
+                        self.multi.changed += 1;
+                        ui.ctx().request_repaint();
+                    }
+                }
+                if resp.drag_stopped() {
+                    self.multi.dragging = None;
+                }
+            }
+            if lit {
+                for span in spans {
+                    let r = edge_rect(d, *span);
+                    let c = r.center();
+                    let line = Stroke::new(2.0, t.accent.gamma_multiply(0.75));
+                    if d.vertical {
+                        ui.painter().vline(c.x, r.y_range(), line);
+                    } else {
+                        ui.painter().hline(r.x_range(), c.y, line);
+                    }
+                }
+            }
         }
         self.sync_views(over.unwrap_or(self.active));
     }
@@ -458,13 +693,22 @@ impl App {
         if !(s.time || s.date_range) {
             return;
         }
-        let Some((right_t, span_t)) = self.with_slot(lead, |a| view_times(&a.chart)).flatten() else {
+        let Some((right_t, span_t)) = self
+            .with_slot(lead, |a| view_times(&a.chart, a.chart_ui.main_rect.width()))
+            .flatten()
+        else {
             return;
         };
-        if self.multi.last_view == Some((right_t, span_t)) {
+        // Every chart's plot width: when one changes (a divider dragged, the
+        // window resized), the date range is pushed again.
+        let widths: Vec<u32> = (0..self.chart_count())
+            .map(|i| self.with_slot(i, |a| a.chart_ui.main_rect.width() as u32).unwrap_or(0))
+            .collect();
+        let now = (lead, right_t, span_t, widths);
+        if self.multi.last_view.as_ref() == Some(&now) {
             return;
         }
-        self.multi.last_view = Some((right_t, span_t));
+        self.multi.last_view = Some(now);
         for i in 0..self.chart_count() {
             if i == lead {
                 continue;
@@ -526,6 +770,36 @@ impl App {
                 }
             });
         }
+        if self.chart_count() > 1 {
+            crate::widgets::menu_rule(ui, t);
+            let alone = self.multi.maximized.is_some();
+            let (icon, label) = if alone {
+                (ph::ARROWS_IN, tr("Show all charts"))
+            } else {
+                (ph::ARROWS_OUT, tr("Maximize this chart"))
+            };
+            let hint = crate::keys::Chord::parse("Alt Enter")
+                .map(|c| c.label())
+                .unwrap_or_default();
+            if crate::widgets::menu_item(ui, t, Some(icon), label, &hint, false).clicked() {
+                self.toggle_maximized();
+            }
+            if self.multi.cells.is_some()
+                && crate::widgets::menu_item(
+                    ui,
+                    t,
+                    Some(ph::ARROW_COUNTER_CLOCKWISE),
+                    tr("Reset chart sizes"),
+                    "",
+                    false,
+                )
+                .clicked()
+            {
+                self.multi.cells = None;
+                self.multi.last_view = None;
+                self.multi.changed += 1;
+            }
+        }
         crate::widgets::menu_rule(ui, t);
         crate::widgets::menu_heading(ui, t, tr("KEEP IN SYNC"));
         let mut s = self.multi.sync;
@@ -553,8 +827,9 @@ impl App {
     }
 }
 
-/// The chart's right-edge time and visible time span.
-fn view_times(c: &Chart) -> Option<(i64, i64)> {
+/// The chart's right-edge time and the time span across its plot, `width`
+/// pixels wide (its own, so the others show the same dates).
+fn view_times(c: &Chart, width: f32) -> Option<(i64, i64)> {
     let step = c.tf.millis()?;
     if c.bars.is_empty() {
         return None;
@@ -573,7 +848,7 @@ fn view_times(c: &Chart) -> Option<(i64, i64)> {
             a + ((b - a) as f64 * f) as i64
         }
     };
-    let width = 800.0f64;
+    let width = if width > 1.0 { width as f64 } else { 800.0 };
     let bars = width / c.view.bar_w as f64;
     let right = t_at(c.view.right);
     Some((right, right - t_at(c.view.right - bars)))
@@ -604,6 +879,31 @@ pub fn index_at(bars: &[opentern_core::Bar], step: i64, t: i64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dividers_move_and_keep_the_grid_tiled() {
+        let mut cells = Grid::Four.unit_cells();
+        let ds = dividers(&cells);
+        assert_eq!(ds.len(), 2, "one across, one down: {ds:?}");
+        let down = ds.iter().find(|(d, _)| d.vertical).unwrap().0;
+        assert!(move_divider(&mut cells, down, 0.7, 0.1));
+        assert!(cells_fit(&cells, 4));
+        assert_eq!(cells[0][2], 0.7);
+        assert_eq!(cells[3][0], 0.7, "both rows move together");
+        let down = Divider {
+            vertical: true,
+            at: 0.7,
+        };
+        assert!(move_divider(&mut cells, down, 0.99, 0.1));
+        assert!(
+            (cells[1][2] - cells[1][0] - 0.1).abs() < 1e-4,
+            "stops at the smallest size"
+        );
+        assert!(!cells_fit(&cells[..3], 4));
+        let mut bad = cells.clone();
+        bad[0][2] = 0.2;
+        assert!(!cells_fit(&bad, 4), "a gap");
+    }
 
     #[test]
     fn grids_have_their_counts_and_fill_the_area() {

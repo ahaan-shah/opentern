@@ -6,6 +6,9 @@
 - **Text you can size and turn.** Select a text and drag the handle at the end of its line to make it bigger or smaller, or the knob above it to turn it; it snaps level, upright and to the slope of the trend lines on the chart, so a label can sit along one. Its bar has the size and Bold.
 - **Text on lines and boxes.** Trend lines, rays, extended lines, arrows, horizontal and vertical lines, channels and rectangles take text from the T button on their bar: it runs along the line (a vertical line's reads upward) and sits at the left, middle or right, above, on or below it (inside a rectangle). Click the text to pick the drawing. Ideas from pull request #11, thanks to its author.
 - **Alert lines.** Chart settings → Scales and lines → Alert lines shows your active price alerts as lines, with their price on the scale and their name when you point at one. Drag a line or its price tag to move its alert; right-click either to edit or delete the alert, or change the lines' colour, width and style. Off to start with. From pull request #11's idea.
+- **Drawing settings.** Settings → Drawings sets the look every tool's new drawings start with (colour, fill, width, line, text size), with a sample of each, and what happens after a drawing: keep the tool, or go back to the cursor. From pull request #11's idea.
+- **Resize, switch and maximize charts.** In a multi-chart layout, drag the edge between charts to resize them (kept with the layout; the layout menu resets them). Alt+Left and Alt+Right move between charts, and Alt+Enter shows the active chart alone and back. From pull request #11's idea.
+- **Delete all alerts** from the bin beside "+" in the Alerts panel (it asks once first).
 - **Several drawings at once.** Ctrl+click drawings (Cmd on a Mac) to pick more than one, or hold Ctrl and drag a box from an empty spot. Drag any of them to move them all; Delete removes them all (Ctrl+Z brings them back), and their bar sets one colour or locks them. From pull request #11's idea.
 
 ### Changed
@@ -14,6 +17,9 @@
 - **Calmer side panels.** Alerts, the Object tree and data window, and Notifications have rounded rows that light up under the pointer, as the watchlist's, with more room between lines and no rules between rows. The Object tree's buttons show on hover (hidden and locked ones stay shown), drawings show their text, and its headings are in plain case.
 
 ### Fixed
+- **The watchlist no longer flashes an old price** when you open a symbol: it showed the chart's cached last close for a moment, until fresh prices came in.
+- **Currency pairs show all their decimals.** Pairs found by search or typed (EURGBP, GBPJPY, OANDA's) had 2 decimals; now 5, or 3 for yen pairs, as brokers quote them. Pairs saved before are fixed when they load.
+- **Date range sync matches the dates** on charts of different widths, and again after a resize (it assumed an 800-pixel chart). Thanks to pull request #11 for finding it.
 - **Hyperliquid prices keep the right decimals as they move.** Hyperliquid's price step depends on the price (five significant figures), so a coin that crosses 1, 10 or 1,000 (or BTC below 10,000) now shows and takes one decimal more or less right away, on the chart, in watchlists and in the DOM.
 
 ## 0.3.8 (2026-11-28)

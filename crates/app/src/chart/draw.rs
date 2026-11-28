@@ -460,7 +460,7 @@ impl DrawStyle {
         self.text_at.unwrap_or_else(|| TextAt::usual(tool))
     }
 
-    fn text_font(&self) -> FontId {
+    pub(crate) fn text_font(&self) -> FontId {
         let size = self.font.max(6) as f32;
         if self.bold {
             theme::semibold(size)
@@ -1358,7 +1358,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
 }
 
 /// One of a selected drawing's handles: a small white dot in a ring of the
-/// drawing's colour, lifted by a soft shadow, a little bigger with a halo
+/// drawing's colour, a little bigger with a halo
 /// under the pointer. The text's turning knob carries a turn arrow.
 fn paint_handle(p: &Painter, q: Pos2, color: Color32, knob: bool, hover: bool) {
     // A very light colour would vanish around the white dot.
@@ -1368,11 +1368,10 @@ fn paint_handle(p: &Painter, q: Pos2, color: Color32, knob: bool, hover: bool) {
     } else {
         color.to_opaque()
     };
-    let rad = if knob { 8.0 } else { 4.5 } + if hover { 1.0 } else { 0.0 };
+    let rad = if knob { 8.5 } else { 5.5 } + if hover { 1.0 } else { 0.0 };
     if hover {
         p.circle_filled(q, rad + 4.0, ring.gamma_multiply(0.22));
     }
-    p.circle_filled(q + vec2(0.0, 1.0), rad + 1.5, Color32::from_black_alpha(60));
     p.circle_filled(q, rad, ring);
     if knob {
         // Filled in the ring's colour with a white turn arrow on top.
@@ -1384,7 +1383,7 @@ fn paint_handle(p: &Painter, q: Pos2, color: Color32, knob: bool, hover: bool) {
             Color32::WHITE,
         );
     } else {
-        p.circle_filled(q, rad - 1.75, Color32::WHITE);
+        p.circle_filled(q, rad - 2.0, Color32::WHITE);
     }
 }
 

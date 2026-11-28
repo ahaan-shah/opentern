@@ -9,7 +9,13 @@ reconnecting with backoff; `More` loads older history (cache first). Events come
 a channel and wake the UI. **Each (re)open gets a new chart id** (`App::open_chart`);
 events for old ids are dropped. Studies update incrementally: `Instance::update` steps
 closed bars once and recomputes the forming bar on a clone. `Chart::data_version` bumps on
-every data change (scripts re-run on it).
+every data change (scripts re-run on it). A chart's last close is copied into the
+watchlist's quotes (`App::poll_data`) **only once the chart is `Status::Live`**: before
+that it shows the cache, whose last close is old (it flashed in the watchlist on open).
+**Currency pairs quote to a tenth of a pip:** `opentern_core::forex_tick` (5 decimals,
+3 for yen pairs) for pairs from Yahoo search, `Symbol::bare("FX:…")` and OANDA; the
+symbol cache lowers a saved pair's cent step on load, and `precision()` never shows
+a pair with fewer.
 
 ## Phase 9 (done): providers, calendars, dividends
 - New adapters in `opentern-data`, one file each, all on the `Provider` trait:

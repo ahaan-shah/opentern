@@ -5,7 +5,7 @@
 pub mod draw;
 pub mod drawing_ui;
 use crate::i18n::{msg, nt};
-mod paint;
+pub(crate) mod paint;
 pub mod profile;
 pub mod replay;
 pub mod scale;

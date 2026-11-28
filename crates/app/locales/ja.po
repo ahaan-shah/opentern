@@ -318,6 +318,9 @@ msgstr "配当で価格を調整"
 msgid "After"
 msgstr "指定日まで"
 
+msgid "After drawing"
+msgstr "描画後"
+
 msgid "After hours"
 msgstr "時間外"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "カーソルに戻る"
 
 msgid "Background"
 msgstr "背景"
@@ -1429,6 +1435,9 @@ msgstr "奥行きのあるレイヤー、細い境界線、より鮮やかな緑
 msgid "Default"
 msgstr "既定"
 
+msgid "Default look"
+msgstr "既定の見た目"
+
 msgid "Defaults  {0}"
 msgstr "既定  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "削除"
 
 msgid "Delete alert"
 msgstr "アラートを削除"
+
+msgid "Delete all"
+msgstr "すべて削除"
+
+msgid "Delete all alerts"
+msgstr "すべてのアラートを削除"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "すべてのアラートを削除します。元に戻せません。"
 
 msgid "Delete folder (if empty)"
 msgstr "フォルダーを削除 (空の場合)"
@@ -1586,6 +1604,9 @@ msgstr "ストラテジーレポートの資産チャートをドラッグする
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "別のツールを選ぶか Esc を押すまで、同じツールで続けて描けます。"
+
 msgid "Draw again without picking again"
 msgstr "選び直さずにもう一度描く"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "描画は1回ずつ。次はツールを選び直します。"
 
 msgid "Each symbol's own"
 msgstr "各銘柄の通貨"
@@ -2371,6 +2395,9 @@ msgstr "アラートの監視を続ける"
 msgid "Keep checking, even after a restart"
 msgstr "再起動後も監視を続ける"
 
+msgid "Keep the tool"
+msgstr "ツールを保持"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "既存のものを残し、同名のものを更新します。先にバックアップを保存します。"
 
@@ -2897,6 +2924,9 @@ msgstr "最大化する指標"
 
 msgid "Maximize panel"
 msgstr "パネルを最大化"
+
+msgid "Maximize this chart"
+msgstr "このチャートを最大化"
 
 msgid "May"
 msgstr "5月"
@@ -4194,6 +4224,12 @@ msgstr "リセット"
 msgid "Reset account"
 msgstr "口座をリセット"
 
+msgid "Reset all"
+msgstr "すべてリセット"
+
+msgid "Reset chart sizes"
+msgstr "チャートのサイズをリセット"
+
 msgid "Reset levels"
 msgstr "水準をリセット"
 
@@ -4603,6 +4639,9 @@ msgstr "ピアソンのRを表示"
 
 msgid "Show all (double-click)"
 msgstr "すべて表示（ダブルクリック）"
+
+msgid "Show all charts"
+msgstr "すべてのチャートを表示"
 
 msgid "Show favorite drawings toolbar"
 msgstr "お気に入り描画ツールバーを表示"

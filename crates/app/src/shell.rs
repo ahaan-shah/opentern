@@ -1391,9 +1391,13 @@ impl App {
         };
         let actions = crate::chart::ui::show(ui, &mut self.chart, &mut self.chart_ui, t, interactive, &tools);
         let finished = self.chart_ui.draw.finished;
-        // A drawing tool stays picked until another is (or Esc); zooming
-        // is one go, as on TradingView.
-        if finished && self.layout.tool == Tool::Zoom {
+        // A drawing tool stays picked until another is (or Esc), unless
+        // Settings → Drawings says back to the cursor; zooming is always one
+        // go, as on TradingView.
+        if finished
+            && (self.layout.tool == Tool::Zoom
+                || (self.back_to_cursor && self.layout.tool.is_drawing() && self.layout.tool != Tool::Brush))
+        {
             self.layout.tool = Tool::Cross;
         }
         self.chart_actions(actions);

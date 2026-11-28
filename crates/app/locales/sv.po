@@ -318,6 +318,9 @@ msgstr "Justera priser för utdelningar"
 msgid "After"
 msgstr "Efter"
 
+msgid "After drawing"
+msgstr "Efter ritning"
+
 msgid "After hours"
 msgstr "Efterhandel"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "Tillbaka till markören"
 
 msgid "Background"
 msgstr "Bakgrund"
@@ -1429,6 +1435,9 @@ msgstr "Djupare lager, tunna kanter, en friskare grön, och dialoger, menyer och
 msgid "Default"
 msgstr "Standard"
 
+msgid "Default look"
+msgstr "Standardutseende"
+
 msgid "Defaults  {0}"
 msgstr "Standard  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "Ta bort"
 
 msgid "Delete alert"
 msgstr "Ta bort larm"
+
+msgid "Delete all"
+msgstr "Ta bort alla"
+
+msgid "Delete all alerts"
+msgstr "Ta bort alla larm"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "Tar bort alla larm. Det går inte att ångra."
 
 msgid "Delete folder (if empty)"
 msgstr "Ta bort mappen (om den är tom)"
@@ -1586,6 +1604,9 @@ msgstr "Dra över kapitaldiagrammet i Strategirapporten för att se ett interval
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Dra för att skala · dubbelklicka för att passa in · högerklicka för alternativ"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "Rita igen med samma verktyg tills du väljer ett annat eller trycker Esc."
+
 msgid "Draw again without picking again"
 msgstr "Rita igen utan att välja om"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "En ritning i taget; välj verktyget igen för nästa."
 
 msgid "Each symbol's own"
 msgstr "Varje symbols egen"
@@ -2371,6 +2395,9 @@ msgstr "Fortsätt bevaka larm"
 msgid "Keep checking, even after a restart"
 msgstr "Fortsätt bevaka, även efter omstart"
 
+msgid "Keep the tool"
+msgstr "Behåll verktyget"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "Behåller det som finns och uppdaterar allt med samma namn. En säkerhetskopia sparas först."
 
@@ -2897,6 +2924,9 @@ msgstr "Maximera"
 
 msgid "Maximize panel"
 msgstr "Maximera panelen"
+
+msgid "Maximize this chart"
+msgstr "Maximera diagrammet"
 
 msgid "May"
 msgstr "maj"
@@ -4194,6 +4224,12 @@ msgstr "Återställ"
 msgid "Reset account"
 msgstr "Återställ konto"
 
+msgid "Reset all"
+msgstr "Återställ alla"
+
+msgid "Reset chart sizes"
+msgstr "Återställ diagramstorlekar"
+
 msgid "Reset levels"
 msgstr "Återställ nivåer"
 
@@ -4603,6 +4639,9 @@ msgstr "Visa Pearsons R"
 
 msgid "Show all (double-click)"
 msgstr "Visa allt (dubbelklick)"
+
+msgid "Show all charts"
+msgstr "Visa alla diagram"
 
 msgid "Show favorite drawings toolbar"
 msgstr "Visa favoritverktygsfältet"

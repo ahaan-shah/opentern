@@ -318,6 +318,9 @@ msgstr ""
 msgid "After"
 msgstr ""
 
+msgid "After drawing"
+msgstr ""
+
 msgid "After hours"
 msgstr ""
 
@@ -576,6 +579,9 @@ msgid "BBPower"
 msgstr ""
 
 msgid "BOP"
+msgstr ""
+
+msgid "Back to the cursor"
 msgstr ""
 
 msgid "Background"
@@ -1429,6 +1435,9 @@ msgstr ""
 msgid "Default"
 msgstr ""
 
+msgid "Default look"
+msgstr ""
+
 msgid "Defaults  {0}"
 msgstr ""
 
@@ -1439,6 +1448,15 @@ msgid "Delete"
 msgstr ""
 
 msgid "Delete alert"
+msgstr ""
+
+msgid "Delete all"
+msgstr ""
+
+msgid "Delete all alerts"
+msgstr ""
+
+msgid "Delete every alert. This can't be undone."
 msgstr ""
 
 msgid "Delete folder (if empty)"
@@ -1586,6 +1604,9 @@ msgstr ""
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr ""
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr ""
+
 msgid "Draw again without picking again"
 msgstr ""
 
@@ -1653,6 +1674,9 @@ msgid "EV/EBITDA"
 msgstr ""
 
 msgid "EXT"
+msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
 msgstr ""
 
 msgid "Each symbol's own"
@@ -2371,6 +2395,9 @@ msgstr ""
 msgid "Keep checking, even after a restart"
 msgstr ""
 
+msgid "Keep the tool"
+msgstr ""
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr ""
 
@@ -2896,6 +2923,9 @@ msgid "Maximize"
 msgstr ""
 
 msgid "Maximize panel"
+msgstr ""
+
+msgid "Maximize this chart"
 msgstr ""
 
 msgid "May"
@@ -4194,6 +4224,12 @@ msgstr ""
 msgid "Reset account"
 msgstr ""
 
+msgid "Reset all"
+msgstr ""
+
+msgid "Reset chart sizes"
+msgstr ""
+
 msgid "Reset levels"
 msgstr ""
 
@@ -4602,6 +4638,9 @@ msgid "Show Pearson's R"
 msgstr ""
 
 msgid "Show all (double-click)"
+msgstr ""
+
+msgid "Show all charts"
 msgstr ""
 
 msgid "Show favorite drawings toolbar"

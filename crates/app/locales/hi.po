@@ -318,6 +318,9 @@ msgstr "लाभांश के अनुसार भाव समायो�
 msgid "After"
 msgstr "इसके बाद"
 
+msgid "After drawing"
+msgstr "ड्रॉ करने के बाद"
+
 msgid "After hours"
 msgstr "बाज़ार के बाद"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "कर्सर पर वापस"
 
 msgid "Background"
 msgstr "पृष्ठभूमि"
@@ -1429,6 +1435,9 @@ msgstr "गहरी परतें, बारीक किनारे, ता
 msgid "Default"
 msgstr "डिफ़ॉल्ट"
 
+msgid "Default look"
+msgstr "डिफ़ॉल्ट रूप"
+
 msgid "Defaults  {0}"
 msgstr "डिफ़ॉल्ट  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "हटाएँ"
 
 msgid "Delete alert"
 msgstr "अलर्ट हटाएँ"
+
+msgid "Delete all"
+msgstr "सभी हटाएँ"
+
+msgid "Delete all alerts"
+msgstr "सभी अलर्ट हटाएँ"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "हर अलर्ट हटाता है। इसे वापस नहीं लिया जा सकता।"
 
 msgid "Delete folder (if empty)"
 msgstr "फ़ोल्डर हटाएँ (अगर खाली हो)"
@@ -1586,6 +1604,9 @@ msgstr "किसी अवधि का मुनाफ़ा, ड्रॉड�
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "जब तक आप दूसरा टूल न चुनें या Esc न दबाएँ, उसी टूल से फिर ड्रॉ करें।"
+
 msgid "Draw again without picking again"
 msgstr "दोबारा चुने बिना फिर से ड्रॉ करें"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "हर ड्रॉइंग एक बार में; अगली के लिए टूल फिर चुनें।"
 
 msgid "Each symbol's own"
 msgstr "हर सिंबल की अपनी"
@@ -2371,6 +2395,9 @@ msgstr "अलर्ट जाँचते रहें"
 msgid "Keep checking, even after a restart"
 msgstr "जाँचते रहें, रीस्टार्ट के बाद भी"
 
+msgid "Keep the tool"
+msgstr "टूल बना रहे"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "मौजूद चीज़ें रखता है और समान नाम वाली अपडेट करता है। पहले बैकअप सहेजा जाता है।"
 
@@ -2897,6 +2924,9 @@ msgstr "अधिकतम करें"
 
 msgid "Maximize panel"
 msgstr "पैनल बड़ा करें"
+
+msgid "Maximize this chart"
+msgstr "इस चार्ट को बड़ा करें"
 
 msgid "May"
 msgstr "मई"
@@ -4194,6 +4224,12 @@ msgstr "रीसेट"
 msgid "Reset account"
 msgstr "खाता रीसेट करें"
 
+msgid "Reset all"
+msgstr "सभी रीसेट करें"
+
+msgid "Reset chart sizes"
+msgstr "चार्ट के आकार रीसेट करें"
+
 msgid "Reset levels"
 msgstr "स्तर रीसेट करें"
 
@@ -4603,6 +4639,9 @@ msgstr "पियर्सन R दिखाएँ"
 
 msgid "Show all (double-click)"
 msgstr "सब दिखाएँ (डबल-क्लिक)"
+
+msgid "Show all charts"
+msgstr "सभी चार्ट दिखाएँ"
 
 msgid "Show favorite drawings toolbar"
 msgstr "पसंदीदा ड्रॉइंग टूलबार दिखाएँ"

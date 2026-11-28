@@ -318,6 +318,9 @@ msgstr "按股息调整价格"
 msgid "After"
 msgstr "到期日"
 
+msgid "After drawing"
+msgstr "绘制之后"
+
 msgid "After hours"
 msgstr "盘后"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "回到光标"
 
 msgid "Background"
 msgstr "背景"
@@ -1429,6 +1435,9 @@ msgstr "更分明的层次、纤细的边框、更清新的绿色，对话框、
 msgid "Default"
 msgstr "默认"
 
+msgid "Default look"
+msgstr "默认外观"
+
 msgid "Defaults  {0}"
 msgstr "默认  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "删除"
 
 msgid "Delete alert"
 msgstr "删除警报"
+
+msgid "Delete all"
+msgstr "全部删除"
+
+msgid "Delete all alerts"
+msgstr "删除所有警报"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "删除所有警报，无法撤销。"
 
 msgid "Delete folder (if empty)"
 msgstr "删除文件夹（如为空）"
@@ -1586,6 +1604,9 @@ msgstr "在策略报告的权益图上拖动，查看一段区间的盈亏、回
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "拖动缩放 · 双击适应 · 右键查看选项"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "继续使用同一工具绘制，直到选择其他工具或按 Esc。"
+
 msgid "Draw again without picking again"
 msgstr "无需重新选择即可再画"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "每次只画一个；下一个请重新选择工具。"
 
 msgid "Each symbol's own"
 msgstr "各品种自身货币"
@@ -2371,6 +2395,9 @@ msgstr "继续检查警报"
 msgid "Keep checking, even after a restart"
 msgstr "继续检查，重启后也不停"
 
+msgid "Keep the tool"
+msgstr "保留工具"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "保留现有内容并更新同名项目。会先保存备份。"
 
@@ -2897,6 +2924,9 @@ msgstr "最大化目标"
 
 msgid "Maximize panel"
 msgstr "最大化面板"
+
+msgid "Maximize this chart"
+msgstr "最大化此图表"
 
 msgid "May"
 msgstr "5月"
@@ -4194,6 +4224,12 @@ msgstr "重置"
 msgid "Reset account"
 msgstr "重置账户"
 
+msgid "Reset all"
+msgstr "全部重置"
+
+msgid "Reset chart sizes"
+msgstr "重置图表大小"
+
 msgid "Reset levels"
 msgstr "重置价位"
 
@@ -4603,6 +4639,9 @@ msgstr "显示皮尔逊 R"
 
 msgid "Show all (double-click)"
 msgstr "显示全部（双击）"
+
+msgid "Show all charts"
+msgstr "显示所有图表"
 
 msgid "Show favorite drawings toolbar"
 msgstr "显示常用绘图工具栏"

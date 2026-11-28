@@ -318,6 +318,9 @@ msgstr "Корректировать цены на дивиденды"
 msgid "After"
 msgstr "После"
 
+msgid "After drawing"
+msgstr "После рисования"
+
 msgid "After hours"
 msgstr "После закрытия"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "Вернуться к курсору"
 
 msgid "Background"
 msgstr "Фон"
@@ -1429,6 +1435,9 @@ msgstr "Более глубокие слои, тонкие границы, св�
 msgid "Default"
 msgstr "По умолчанию"
 
+msgid "Default look"
+msgstr "Вид по умолчанию"
+
 msgid "Defaults  {0}"
 msgstr "Умолчания  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "Удалить"
 
 msgid "Delete alert"
 msgstr "Удалить оповещение"
+
+msgid "Delete all"
+msgstr "Удалить все"
+
+msgid "Delete all alerts"
+msgstr "Удалить все оповещения"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "Удаляет все оповещения. Это нельзя отменить."
 
 msgid "Delete folder (if empty)"
 msgstr "Удалить папку (если пуста)"
@@ -1586,6 +1604,9 @@ msgstr "Проведите по графику капитала в отчёте 
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "Рисуйте тем же инструментом, пока не выберете другой или не нажмёте Esc."
+
 msgid "Draw again without picking again"
 msgstr "Рисуйте снова, не выбирая заново"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "Один рисунок за раз; для следующего выберите инструмент снова."
 
 msgid "Each symbol's own"
 msgstr "Своя у каждого символа"
@@ -2371,6 +2395,9 @@ msgstr "Продолжать проверять оповещения"
 msgid "Keep checking, even after a restart"
 msgstr "Продолжать, даже после перезагрузки"
 
+msgid "Keep the tool"
+msgstr "Оставить инструмент"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "Сохраняет имеющееся и обновляет всё с тем же именем. Сначала создаётся резервная копия."
 
@@ -2897,6 +2924,9 @@ msgstr "Максимизировать"
 
 msgid "Maximize panel"
 msgstr "Развернуть панель"
+
+msgid "Maximize this chart"
+msgstr "Развернуть этот график"
 
 msgid "May"
 msgstr "май"
@@ -4194,6 +4224,12 @@ msgstr "Сбросить"
 msgid "Reset account"
 msgstr "Сбросить счёт"
 
+msgid "Reset all"
+msgstr "Сбросить все"
+
+msgid "Reset chart sizes"
+msgstr "Сбросить размеры графиков"
+
 msgid "Reset levels"
 msgstr "Сбросить уровни"
 
@@ -4603,6 +4639,9 @@ msgstr "Показывать R Пирсона"
 
 msgid "Show all (double-click)"
 msgstr "Показать всё (двойной щелчок)"
+
+msgid "Show all charts"
+msgstr "Показать все графики"
 
 msgid "Show favorite drawings toolbar"
 msgstr "Показать панель избранных инструментов"

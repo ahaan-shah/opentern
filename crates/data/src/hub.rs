@@ -2226,7 +2226,7 @@ fn search_worker(dir: PathBuf, demo: bool, rx: Receiver<(u64, String)>, out: Out
                         } else {
                             "USD".into()
                         },
-                        tick_size: if forex { 0.00001 } else { 0.01 },
+                        tick_size: if forex { opentern_core::forex_tick(&q) } else { 0.01 },
                         min_qty: 0.0,
                         timezone: if forex { "UTC".into() } else { "America/New_York".into() },
                     }),

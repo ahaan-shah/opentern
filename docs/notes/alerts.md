@@ -78,3 +78,5 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   the tags' rects as last painted, made clickable after the scale's own response so
   they win the press). The menu closes on a press only over a layer below
   `Order::Foreground` (`layer_id_at`), so the colour picker and tooltips never close it.
+- **Delete all** (Alerts panel, the bin beside "+"): the first click arms it for 4 s
+  (a red "Delete all"; Esc disarms), the second deletes every alert.

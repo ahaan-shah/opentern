@@ -14,6 +14,12 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   empty means `FibLevel::standard(tool)`, so older drawings and the standard set store
   nothing. Edited in the bar's Levels panel (`drawbar.rs`, an `Area` under the bar, not a
   popup: egui keeps one popup open and each level's colour picker is one).
+- **Settings → Drawings** (`settings.rs` `drawings_page`): after drawing, keep the
+  tool or back to the cursor (`App::back_to_cursor`, store key `after_drawing`,
+  applied where `DrawUi::finished` is read in `shell.rs`; Brush keeps its tool), and
+  each tool's default look: the same `draw_styles` the drawing bar's star saves
+  (`save_drawing_default`, `reset_drawing_default`). Rows lay their controls from the
+  right using last frame's width (`drawing-default-w`), as the bars do.
 - **Text tool** (Nov 2026, from PR #11's ideas): `DrawStyle::font` is its size,
   `bold`, `angle` (degrees on screen). `TextBox` in `draw.rs` is the box (anchor =
   bottom-left, turned about it); handles: anchor (moves), the baseline's right end
@@ -68,7 +74,15 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   (panic-safe), so every "the chart" code path works per chart. Each slot has its own
   `ChartUi`, scripts and strategy runs; inactive charts poll scripts, strategies and
   paper lines each frame. Pressing a cell activates it. Layout JSON is now
-  `LayoutState { grid, sync, active, charts }` (old single-chart JSON still loads).
+  `LayoutState { grid, sync, active, cells, charts }` (old single-chart JSON still loads).
+  `cells` are dragged sizes (unit rects; `None` = the grid's own; checked by
+  `cells_fit`): `dividers` finds the edges, `move_divider` moves every cell edge at
+  that position (so the grid stays tiled) down to `MIN_W`×`MIN_H` per chart; edges
+  are interacted after the charts (they win the press) and a press on one doesn't
+  activate a chart. `Multi::maximized` (Alt+Enter, not saved) paints one chart in
+  the whole area and follows Alt+Left/Right (`step_active`). Date-range sync uses the
+  leader's real plot width and re-syncs when any chart's width changes
+  (`last_view` holds every width).
   Session ids come from `chart::new_session_id()` (global). Drawings saved on one
   chart reload on other charts with the same symbol. Alerts still evaluate against
   the active chart's studies only.

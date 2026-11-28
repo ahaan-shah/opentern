@@ -318,6 +318,9 @@ msgstr "Ajustar preços por dividendos"
 msgid "After"
 msgstr "Depois de"
 
+msgid "After drawing"
+msgstr "Depois de desenhar"
+
 msgid "After hours"
 msgstr "Após o pregão"
 
@@ -577,6 +580,9 @@ msgstr ""
 
 msgid "BOP"
 msgstr ""
+
+msgid "Back to the cursor"
+msgstr "Voltar ao cursor"
 
 msgid "Background"
 msgstr "Fundo"
@@ -1429,6 +1435,9 @@ msgstr "Camadas mais profundas, bordas finas, um verde mais vivo, e diálogos, m
 msgid "Default"
 msgstr "Padrão"
 
+msgid "Default look"
+msgstr "Aparência padrão"
+
 msgid "Defaults  {0}"
 msgstr "Padrões  {0}"
 
@@ -1440,6 +1449,15 @@ msgstr "Excluir"
 
 msgid "Delete alert"
 msgstr "Excluir alerta"
+
+msgid "Delete all"
+msgstr "Excluir todos"
+
+msgid "Delete all alerts"
+msgstr "Excluir todos os alertas"
+
+msgid "Delete every alert. This can't be undone."
+msgstr "Exclui todos os alertas. Não dá para desfazer."
 
 msgid "Delete folder (if empty)"
 msgstr "Excluir pasta (se vazia)"
@@ -1586,6 +1604,9 @@ msgstr "Arraste sobre o gráfico de capital do Relatório da estratégia para ve
 msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arraste para escalar · clique duplo para ajustar · clique direito para opções"
 
+msgid "Draw again with the same tool until you pick another or press Esc."
+msgstr "Desenhe de novo com a mesma ferramenta até escolher outra ou apertar Esc."
+
 msgid "Draw again without picking again"
 msgstr "Desenhe de novo sem escolher de novo"
 
@@ -1654,6 +1675,9 @@ msgstr ""
 
 msgid "EXT"
 msgstr ""
+
+msgid "Each drawing is one go; pick the tool again for the next."
+msgstr "Um desenho por vez; escolha a ferramenta de novo para o próximo."
 
 msgid "Each symbol's own"
 msgstr "A de cada símbolo"
@@ -2371,6 +2395,9 @@ msgstr "Continuar verificando alertas"
 msgid "Keep checking, even after a restart"
 msgstr "Continuar verificando, mesmo após reiniciar"
 
+msgid "Keep the tool"
+msgstr "Manter a ferramenta"
+
 msgid "Keeps what's here and updates anything with the same name. A backup is saved first."
 msgstr "Mantém o que já existe e atualiza o que tiver o mesmo nome. Um backup é salvo antes."
 
@@ -2897,6 +2924,9 @@ msgstr "Maximizar"
 
 msgid "Maximize panel"
 msgstr "Maximizar painel"
+
+msgid "Maximize this chart"
+msgstr "Maximizar este gráfico"
 
 msgid "May"
 msgstr "mai"
@@ -4194,6 +4224,12 @@ msgstr "Redefinir"
 msgid "Reset account"
 msgstr "Redefinir conta"
 
+msgid "Reset all"
+msgstr "Redefinir tudo"
+
+msgid "Reset chart sizes"
+msgstr "Redefinir tamanhos"
+
 msgid "Reset levels"
 msgstr "Restaurar níveis"
 
@@ -4603,6 +4639,9 @@ msgstr "Mostrar R de Pearson"
 
 msgid "Show all (double-click)"
 msgstr "Mostrar tudo (clique duplo)"
+
+msgid "Show all charts"
+msgstr "Mostrar todos os gráficos"
 
 msgid "Show favorite drawings toolbar"
 msgstr "Mostrar barra de ferramentas favoritas"

@@ -62,6 +62,7 @@ impl App {
             grid: Grid::One,
             sync: Default::default(),
             active: 0,
+            cells: None,
             charts: vec![c.state()],
         };
         let json = serde_json::to_string(&state).unwrap_or_default();

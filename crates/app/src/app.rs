@@ -145,6 +145,9 @@ pub struct App {
     pub(crate) python_notice: Option<crate::pywatch::PyWatch>,
     /// Per-tool default drawing styles ("Save as default" on the drawing bar).
     pub(crate) draw_styles: HashMap<Tool, DrawStyle>,
+    /// Settings → Drawings: after each drawing, back to the cursor (else
+    /// the tool stays picked until another is, or Esc).
+    pub(crate) back_to_cursor: bool,
     /// The other charts of a multi-chart layout (`None` at the active
     /// chart's place; see `multi.rs`).
     pub slots: Vec<Option<crate::multi::Slot>>,
@@ -314,6 +317,7 @@ impl App {
             python_notice: None,
             egui_ctx: ctx.clone(),
             draw_styles: HashMap::new(),
+            back_to_cursor: false,
             slots: vec![None],
             active: 0,
             multi: Default::default(),
@@ -325,6 +329,7 @@ impl App {
             last_frame: None,
             panics: 0,
         };
+        app.back_to_cursor = app.store.value(crate::settings::AFTER_DRAWING).as_deref() == Some("cursor");
         for t in app.store.templates("drawing") {
             if let (Some(tool), Ok(style)) = (
                 crate::chart::draw::Group::ALL
@@ -1542,10 +1547,15 @@ impl App {
             return;
         }
         // A symbol on a chart shows the chart's price in the watchlist too
-        // (whichever arrived last has already reached the chart).
+        // (whichever arrived last has already reached the chart). Only once
+        // the chart is live: a chart just opened shows the cached bars
+        // first, and their last close is old (it flashed in the watchlist).
         let mut moved = Vec::new();
         let slots = self.slots.iter().flatten().map(|s| &s.chart);
-        for c in std::iter::once(&self.chart).chain(slots) {
+        for c in std::iter::once(&self.chart)
+            .chain(slots)
+            .filter(|c| c.status == opentern_data::hub::Status::Live)
+        {
             if let (Some(p), Some(q)) = (c.last_price(), self.quotes.get_mut(&c.symbol.id))
                 && q.0 != p
             {
@@ -1782,6 +1792,20 @@ impl App {
                     self.chart_ui.draw.cancel();
                     self.pick_tool(Tool::Cross);
                 }
+                // Alt+Left/Right: the previous or next chart of a layout;
+                // Alt+Enter: the active one alone, or back to the grid.
+                egui::Event::Key {
+                    key: key @ (egui::Key::ArrowLeft | egui::Key::ArrowRight),
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt && self.chart_count() > 1 => self.step_active(key == egui::Key::ArrowRight),
+                egui::Event::Key {
+                    key: egui::Key::Enter,
+                    pressed: true,
+                    modifiers,
+                    ..
+                } if modifiers.alt => self.toggle_maximized(),
                 egui::Event::Key {
                     key: egui::Key::ArrowLeft,
                     pressed: true,

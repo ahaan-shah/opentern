@@ -320,7 +320,7 @@ fn bar_frame(ui: &mut egui::Ui, t: &theme::Theme, add: impl FnOnce(&mut egui::Ui
 }
 
 /// A line's width and style.
-fn width_and_line(ui: &mut egui::Ui, style: &mut DrawStyle) {
+pub(crate) fn width_and_line(ui: &mut egui::Ui, style: &mut DrawStyle) {
     w::combo("draw-width")
         .width(50.0)
         .selected_text(trf!("{}px", style.width))
@@ -347,7 +347,7 @@ fn width_and_line(ui: &mut egui::Ui, style: &mut DrawStyle) {
 /// The text's size, as TradingView offers them.
 const TEXT_SIZES: [u8; 11] = [10, 11, 12, 14, 16, 20, 24, 28, 32, 40, 56];
 
-fn text_size(ui: &mut egui::Ui, font: &mut u8) {
+pub(crate) fn text_size(ui: &mut egui::Ui, font: &mut u8) {
     w::combo("draw-text-size")
         .width(54.0)
         .selected_text(font.to_string())

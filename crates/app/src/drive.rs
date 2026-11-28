@@ -2393,5 +2393,80 @@ mod formula_tests {
         assert!(bad.is_empty(), "{bad:#?}");
     }
 
+    #[test]
+    fn charts_resize_switch_and_maximize() {
+        use crate::multi::Grid;
+        let mut d = Driver::new("multi-resize");
+        d.app.set_grid(Grid::TwoCols);
+        d.frame(vec![]);
+        d.frame(vec![]);
+        let full = d.app.grid_rect;
+        // Drag the edge between the two charts to the right.
+        let edge = pos2((full.left() + full.width() * 0.5).round(), full.center().y);
+        d.drag(edge, edge + vec2(120.0, 0.0));
+        let cells = d.app.multi.cells.clone().expect("dragged sizes");
+        assert!(cells[0][2] > 0.55, "the left chart grew: {cells:?}");
+        assert_eq!(cells[0][2], cells[1][0], "still tiled");
+        assert_eq!(d.app.active, 0, "dragging an edge isn't a click on a chart");
+        assert_eq!(d.app.layout_state().cells, Some(cells), "saved with the layout");
+        // Never smaller than a usable chart.
+        d.frame(vec![]);
+        let edge = pos2(
+            full.left() + full.width() * d.app.multi.cells.as_ref().unwrap()[0][2],
+            full.center().y,
+        );
+        d.drag(edge, pos2(full.right() + 50.0, full.center().y));
+        let right = d.app.multi.cells.as_ref().unwrap()[1];
+        assert!((right[2] - right[0]) * full.width() >= 259.0, "{right:?}");
+
+        // Date range sync shows the same span on charts of different widths
+        // (it assumed 800 px for the leader, and didn't redo it on a resize).
+        d.app.multi.sync.date_range = true;
+        for _ in 0..4 {
+            d.frame(vec![]);
+        }
+        let bars_shown = |d: &mut Driver, i: usize| {
+            d.app
+                .with_slot(i, |a| a.chart_ui.main_rect.width() / a.chart.view.bar_w)
+                .unwrap()
+        };
+        let (a, b) = (bars_shown(&mut d, 0), bars_shown(&mut d, 1));
+        assert!((a - b).abs() / a < 0.03, "same dates across: {a} vs {b} bars");
+        d.app.multi.sync.date_range = false;
+
+        d.key(Key::ArrowRight, Modifiers::ALT);
+        assert_eq!(d.app.active, 1);
+        d.key(Key::ArrowRight, Modifiers::ALT);
+        assert_eq!(d.app.active, 0, "round the grid");
+        d.key(Key::ArrowLeft, Modifiers::ALT);
+        assert_eq!(d.app.active, 1);
+        d.key(Key::Enter, Modifiers::ALT);
+        assert_eq!(d.app.multi.maximized, Some(1));
+        d.frame(vec![]);
+        assert!(
+            (d.app.chart_ui.main_rect.width() - full.width()).abs() < 120.0,
+            "alone, it takes the whole area"
+        );
+        d.key(Key::ArrowLeft, Modifiers::ALT);
+        assert_eq!(d.app.multi.maximized, Some(0), "the shown chart follows");
+        d.key(Key::Enter, Modifiers::ALT);
+        assert_eq!(d.app.multi.maximized, None);
+        d.app.set_grid(Grid::Four);
+        assert!(d.app.multi.cells.is_none(), "a new grid starts even");
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn back_to_the_cursor_after_drawing_when_asked() {
+        let mut d = Driver::new("after-drawing");
+        d.pick(Tool::HorizontalLine);
+        d.click(d.at(0.5, 0.4));
+        assert_eq!(d.app.layout.tool, Tool::HorizontalLine, "the tool stays by default");
+        d.app.back_to_cursor = true;
+        d.click(d.at(0.5, 0.6));
+        assert_eq!(d.app.chart.drawings.len(), 2);
+        assert_eq!(d.app.layout.tool, Tool::Cross, "back to the cursor");
+    }
+
     const STRATEGY: &str = "//@version=6\nstrategy(\"EMA Cross\", overlay=true)\nf = ta.ema(close, input.int(9, \"Fast\"))\ns = ta.ema(close, input.int(21, \"Slow\"))\nif ta.crossover(f, s)\n    strategy.entry(\"Long\", strategy.long)\nif ta.crossunder(f, s)\n    strategy.entry(\"Short\", strategy.short)\n";
 }

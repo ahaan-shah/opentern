@@ -285,7 +285,7 @@ impl Cache {
             .conn
             .prepare("SELECT id, description, kind, currency, tick, tz, lot FROM symbols")?;
         q.query_map([], |r| {
-            Ok(Symbol {
+            let mut s = Symbol {
                 id: r.get(0)?,
                 description: r.get(1)?,
                 kind: kind_from(&r.get::<_, String>(2)?),
@@ -293,7 +293,12 @@ impl Cache {
                 tick_size: r.get(4)?,
                 min_qty: r.get(6)?,
                 timezone: r.get(5)?,
-            })
+            };
+            // Pairs found by search before 0.3.9 were saved with a cent step.
+            if s.kind == AssetKind::Forex {
+                s.tick_size = s.tick_size.min(opentern_core::forex_tick(s.ticker()));
+            }
+            Ok(s)
         })?
         .collect()
     }

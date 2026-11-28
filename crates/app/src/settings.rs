@@ -16,6 +16,7 @@ use egui::{Align2, CornerRadius, Rect, Sense, Stroke, Ui, pos2, vec2};
 pub enum Cat {
     General,
     Chart,
+    Drawings,
     Providers,
     Shortcuts,
     Transfer,
@@ -23,9 +24,10 @@ pub enum Cat {
 }
 
 impl Cat {
-    pub const ALL: [Cat; 6] = [
+    pub const ALL: [Cat; 7] = [
         Cat::General,
         Cat::Chart,
+        Cat::Drawings,
         Cat::Providers,
         Cat::Shortcuts,
         Cat::Transfer,
@@ -36,6 +38,7 @@ impl Cat {
         match self {
             Cat::General => nt!("General"),
             Cat::Chart => nt!("Chart"),
+            Cat::Drawings => nt!("Drawings"),
             Cat::Providers => nt!("Data providers"),
             Cat::Shortcuts => nt!("Keyboard shortcuts"),
             Cat::Transfer => nt!("Export and import"),
@@ -47,6 +50,7 @@ impl Cat {
         match self {
             Cat::General => ph::SLIDERS_HORIZONTAL,
             Cat::Chart => ph::CHART_LINE,
+            Cat::Drawings => ph::PENCIL_SIMPLE_LINE,
             Cat::Providers => ph::DATABASE,
             Cat::Shortcuts => ph::KEYBOARD,
             Cat::Transfer => ph::ARROWS_LEFT_RIGHT,
@@ -142,6 +146,10 @@ impl SettingsPage {
 /// Set while the price cache is being cleared.
 static CLEARING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 const CACHE_SIZE_ID: &str = "settings-cache-size";
+
+/// Settings → Drawings: what a tool does once a drawing is placed
+/// ("cursor": back to the cursor; else it stays picked).
+pub const AFTER_DRAWING: &str = "after_drawing";
 
 impl App {
     /// Opens Settings at `cat` (or closes it if it's already showing that).
@@ -252,6 +260,7 @@ impl App {
                     .providers
                     .get_or_insert_with(|| self.providers_form())
                     .page(ui, self, t),
+                Cat::Drawings => self.drawings_page(ui, t),
                 Cat::Shortcuts => self.shortcuts_page(ui, t, &mut page.recording),
                 Cat::Transfer => page
                     .transfer
@@ -865,6 +874,188 @@ impl App {
     /// beside it; keys two shortcuts share are edged in orange with a "!".
     /// Keys that belong to typing or a place are listed but fixed
     /// (`keys.rs`).
+    /// Settings → Drawings: what happens after a drawing, and the look
+    /// every tool's new drawings start with (the same defaults the drawing
+    /// bar's star saves).
+    fn drawings_page(&mut self, ui: &mut Ui, t: &Theme) {
+        use crate::chart::draw::{DrawStyle, Group, Tool};
+        crate::dialogs::section(ui, t, tr("After drawing"));
+        ui.add_space(4.0);
+        let mut back = self.back_to_cursor;
+        crate::widgets::radio(ui, &mut back, false, tr("Keep the tool"))
+            .on_hover_text(tr("Draw again with the same tool until you pick another or press Esc."));
+        ui.add_space(2.0);
+        crate::widgets::radio(ui, &mut back, true, tr("Back to the cursor"))
+            .on_hover_text(tr("Each drawing is one go; pick the tool again for the next."));
+        if back != self.back_to_cursor {
+            self.back_to_cursor = back;
+            let _ = self
+                .store
+                .set_value(AFTER_DRAWING, if back { "cursor" } else { "keep" });
+        }
+        ui.add_space(22.0);
+        crate::dialogs::section(ui, t, tr("Default look"));
+        // "Reset all" at the heading's right, once any tool has its own look.
+        let head = ui.min_rect();
+        if !self.draw_styles.is_empty() {
+            let r = Rect::from_min_max(
+                pos2(head.right() - 120.0, head.bottom() - 34.0),
+                pos2(head.right(), head.bottom()),
+            );
+            let mut c = ui.new_child(
+                egui::UiBuilder::new()
+                    .max_rect(r)
+                    .layout(egui::Layout::right_to_left(egui::Align::Center)),
+            );
+            if w::secondary(&mut c, tr("Reset all")).clicked() {
+                let tools: Vec<Tool> = self.draw_styles.keys().copied().collect();
+                for tool in tools {
+                    self.reset_drawing_default(tool);
+                }
+            }
+        }
+        ui.add_space(4.0);
+        for g in Group::ALL.into_iter().filter(|g| *g != Group::Cursors) {
+            ui.add_space(10.0);
+            ui.label(
+                egui::RichText::new(tr(g.name()))
+                    .font(theme::medium(12.0))
+                    .color(t.text3),
+            );
+            ui.add_space(2.0);
+            for &tool in g.tools() {
+                let saved = self.draw_styles.get(&tool).cloned();
+                let mut style = saved.clone().unwrap_or_else(|| DrawStyle::for_tool(tool));
+                let was = style.clone();
+                let mut reset = false;
+                ui.push_id(tool.key(), |ui| {
+                    let (row, _) = ui.allocate_exact_size(vec2(ui.available_width(), 38.0), Sense::hover());
+                    let hover = ui.rect_contains_pointer(row);
+                    ui.painter().rect_filled(
+                        row,
+                        CornerRadius::same(7),
+                        motion::with_alpha(t.hover_wash(), if hover { 1.0 } else { 0.0 }),
+                    );
+                    // The controls at the right edge (as the drawing bar has
+                    // them; their width is last frame's), a sample of the look
+                    // left of them, and the name in what's left.
+                    let w_id = egui::Id::new(("drawing-default-w", tool.key()));
+                    let width: f32 = ui.data(|d| d.get_temp(w_id)).unwrap_or(200.0);
+                    let right = row.right() - 4.0;
+                    if saved.is_some() {
+                        let r = Rect::from_center_size(pos2(right - 14.0, row.center().y), vec2(28.0, 28.0));
+                        let resp = ui.interact(r, ui.id().with("reset"), Sense::click());
+                        reset = w::tool_button_look(
+                            ui,
+                            t,
+                            resp,
+                            ph::ARROW_COUNTER_CLOCKWISE,
+                            tr("Reset to default"),
+                            false,
+                        )
+                        .clicked();
+                    }
+                    let left = right - 34.0 - width;
+                    let mut c = ui.new_child(
+                        egui::UiBuilder::new()
+                            .max_rect(Rect::from_min_max(
+                                pos2(left, row.top()),
+                                pos2(right - 34.0, row.bottom()),
+                            ))
+                            .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                    );
+                    c.spacing_mut().item_spacing.x = 6.0;
+                    let fills = matches!(
+                        tool,
+                        Tool::Rectangle
+                            | Tool::Ellipse
+                            | Tool::Triangle
+                            | Tool::ParallelChannel
+                            | Tool::PriceRange
+                            | Tool::DateRange
+                            | Tool::DatePriceRange
+                    );
+                    {
+                        let c = &mut c;
+                        crate::dialogs::color::color_button(c, t, &mut style.color);
+                        if fills {
+                            crate::dialogs::color::color_button(c, t, &mut style.fill);
+                        }
+                        if tool == Tool::Text {
+                            crate::drawbar::text_size(c, &mut style.font);
+                            if w::tool_button(c, t, ph::TEXT_B, tr("Bold"), style.bold, 28.0).clicked() {
+                                style.bold = !style.bold;
+                            }
+                        } else if !matches!(tool, Tool::ArrowUp | Tool::ArrowDown) {
+                            crate::drawbar::width_and_line(c, &mut style);
+                        }
+                    }
+                    let used = c.min_rect().width();
+                    if (used - width).abs() > 0.5 {
+                        ui.data_mut(|d| d.insert_temp(w_id, used));
+                        ui.ctx().request_repaint();
+                    }
+                    let controls_left = left;
+                    let sample = Rect::from_min_max(
+                        pos2(controls_left - 58.0, row.center().y - 9.0),
+                        pos2(controls_left - 14.0, row.center().y + 9.0),
+                    );
+                    let p = ui.painter();
+                    let col = crate::chart::style::c32(style.color);
+                    if tool == Tool::Text {
+                        let font = style.text_font();
+                        p.text(
+                            sample.center(),
+                            Align2::CENTER_CENTER,
+                            "Aa",
+                            egui::FontId::new(font.size.min(18.0), font.family),
+                            col,
+                        );
+                    } else {
+                        if fills && style.fill.a() > 0 {
+                            p.rect_filled(sample, CornerRadius::same(3), crate::chart::style::c32(style.fill));
+                        }
+                        crate::chart::paint::styled_hline(
+                            p,
+                            sample.left(),
+                            sample.right(),
+                            sample.center().y,
+                            Stroke::new(style.width.max(1) as f32, col),
+                            style.line,
+                        );
+                    }
+                    p.text(
+                        pos2(row.left() + 16.0, row.center().y),
+                        Align2::CENTER_CENTER,
+                        tool.icon(),
+                        theme::regular(15.0),
+                        t.text2,
+                    );
+                    let font = theme::regular(13.0);
+                    let full = tr(tool.name());
+                    let name = crate::format::elide_to(p, full, &font, sample.left() - row.left() - 46.0);
+                    let cut = name != full;
+                    let at = p.text(
+                        pos2(row.left() + 34.0, row.center().y),
+                        Align2::LEFT_CENTER,
+                        name,
+                        font,
+                        t.text,
+                    );
+                    if cut {
+                        ui.interact(at, ui.id().with("name"), Sense::hover())
+                            .on_hover_text(full);
+                    }
+                });
+                if reset {
+                    self.reset_drawing_default(tool);
+                } else if style != was {
+                    self.save_drawing_default(tool, &style);
+                }
+            }
+        }
+    }
+
     fn shortcuts_page(&mut self, ui: &mut Ui, t: &Theme, recording: &mut Option<Action>) {
         use crate::chart::draw::Tool;
         // The next chord goes to the row that's waiting for it.

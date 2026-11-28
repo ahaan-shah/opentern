@@ -150,12 +150,23 @@ impl Symbol {
     /// A symbol known only by its id, until its details load.
     pub fn bare(id: &str) -> Symbol {
         let crypto = id.starts_with("BINANCE:");
+        let forex = id.starts_with("FX:");
         Symbol {
             id: id.to_string(),
             description: String::new(),
-            kind: if crypto { AssetKind::Crypto } else { AssetKind::Stock },
+            kind: if crypto {
+                AssetKind::Crypto
+            } else if forex {
+                AssetKind::Forex
+            } else {
+                AssetKind::Stock
+            },
             currency: String::new(),
-            tick_size: 0.01,
+            tick_size: if forex {
+                forex_tick(id.split_once(':').map_or(id, |(_, t)| t))
+            } else {
+                0.01
+            },
             min_qty: 0.0,
             timezone: utc(),
         }
@@ -171,6 +182,11 @@ impl Symbol {
 
     /// Decimal places implied by the tick size (0.01 → 2).
     pub fn precision(&self) -> usize {
+        // A currency pair saved before its step was known (0.01) still shows
+        // pips and their fraction.
+        if self.kind == AssetKind::Forex {
+            return decimals(self.tick_size).max(decimals(forex_tick(self.ticker())));
+        }
         decimals(self.tick_size)
     }
 
@@ -230,6 +246,14 @@ pub fn hyperliquid_tick(px: f64, sz_decimals: i64) -> f64 {
         most
     };
     sig.max(most).min(1.0)
+}
+
+/// A currency pair's price step, as quoted by brokers (and TradingView):
+/// a tenth of a pip, so 5 decimals, or 3 for pairs priced in yen
+/// (USDJPY 156.123). Takes the bare pair (`EURUSD`, `GBPJPY=X`).
+pub fn forex_tick(pair: &str) -> f64 {
+    let pair: String = pair.strip_suffix("=X").unwrap_or(pair).replace(['_', '/'], "");
+    if pair.get(3..6) == Some("JPY") { 0.001 } else { 0.00001 }
 }
 
 /// The watchlist a brand-new workspace starts with: liquid, public symbols
@@ -674,6 +698,15 @@ mod tests {
         assert_eq!(w[0].ticker(), "BTCUSDT");
         assert_eq!(w[0].precision(), 2);
         assert_eq!(w.iter().find(|s| s.id == "FX:EURUSD").unwrap().precision(), 5);
+        // Pairs found by search or typed: a tenth of a pip, yen pairs 3.
+        assert_eq!(Symbol::bare("FX:EURGBP").precision(), 5);
+        assert_eq!(Symbol::bare("FX:GBPJPY").precision(), 3);
+        assert_eq!(forex_tick("USDJPY=X"), 0.001);
+        assert_eq!(forex_tick("EUR_JPY"), 0.001);
+        // One saved with a cent step before still shows 5.
+        let mut old = Symbol::bare("FX:AUDUSD");
+        old.tick_size = 0.01;
+        assert_eq!(old.precision(), 5);
         assert_eq!(w.iter().find(|s| s.id == "NSE:NIFTY").unwrap().precision(), 2);
     }
 }

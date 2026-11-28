@@ -535,7 +535,12 @@ impl Yahoo {
                         .to_string(),
                     kind: kind(qt),
                     currency: String::new(),
-                    tick_size: 0.01,
+                    // Pairs quote to a tenth of a pip (Yahoo's search has no step).
+                    tick_size: if kind(qt) == AssetKind::Forex {
+                        opentern_core::forex_tick(symbol)
+                    } else {
+                        0.01
+                    },
                     min_qty: 0.0,
                     timezone: tz.into(),
                     id,

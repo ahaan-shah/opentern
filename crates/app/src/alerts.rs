@@ -527,6 +527,44 @@ impl App {
         }
     }
 
+    /// A bin beside "+": the first click asks (the button turns into a
+    /// red "Delete all" for a few seconds), the second deletes every alert.
+    fn delete_all_button(&mut self, ui: &mut Ui, t: &Theme) {
+        const ARMED: f64 = 4.0;
+        let id = egui::Id::new("alerts-delete-all");
+        let now = ui.input(|i| i.time);
+        let armed = ui
+            .data(|d| d.get_temp::<f64>(id))
+            .is_some_and(|at| now - at < ARMED && !ui.input(|i| i.key_pressed(egui::Key::Escape)));
+        if !armed {
+            ui.data_mut(|d| d.remove::<f64>(id));
+            if crate::widgets::tool_button(ui, t, crate::icons::ph::TRASH, tr("Delete all alerts"), false, 26.0)
+                .clicked()
+            {
+                ui.data_mut(|d| d.insert_temp(id, now));
+            }
+            return;
+        }
+        ui.ctx().request_repaint_after(std::time::Duration::from_millis(250));
+        let font = theme::medium(12.5);
+        let gal = ui.painter().layout_no_wrap(tr("Delete all").to_string(), font, t.neg);
+        let (r, resp) = ui.allocate_exact_size(vec2(gal.size().x + 20.0, 26.0), Sense::click());
+        let hover = crate::motion::hover(&resp);
+        ui.painter()
+            .rect_filled(r, CornerRadius::same(7), t.neg.gamma_multiply(0.14 + 0.1 * hover));
+        ui.painter().galley(r.center() - gal.size() / 2.0, gal, t.neg);
+        let resp = resp
+            .on_hover_cursor(egui::CursorIcon::PointingHand)
+            .on_hover_text(tr("Delete every alert. This can't be undone."));
+        if resp.clicked() {
+            ui.data_mut(|d| d.remove::<f64>(id));
+            let ids: Vec<i64> = self.alerts.list.iter().map(|(a, _)| a.id).collect();
+            for id in ids {
+                self.delete_alert(id);
+            }
+        }
+    }
+
     pub(crate) fn delete_alert(&mut self, id: i64) {
         if let Err(e) = self.store.delete_alert(id) {
             crate::diag::crumb(format!("couldn't delete an alert: {e}"));
@@ -692,6 +730,9 @@ impl App {
                     .clicked()
                 {
                     self.open_alert_dialog(None);
+                }
+                if !self.alerts.list.is_empty() {
+                    self.delete_all_button(ui, t);
                 }
             });
         });
