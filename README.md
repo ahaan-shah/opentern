@@ -31,12 +31,32 @@ opens faster and asks your computer for less.
 - Any interval, including custom ones like 7m, 45m or 2h, with scroll-back history.
 - Log, percent and locked scales. Compare or overlay other symbols, or chart a
   formula like `BTCUSDT/ETHUSDT`.
-- Up to 8 charts in one layout, with symbol, interval, crosshair and time kept in sync.
+- **Workspaces:** a row of tabs above the top bar, each its own set of charts
+  (symbol, interval, indicators, grid). Only the one shown loads, so many stay
+  cheap. `Ctrl Tab`, `Alt 1` to `9`, `Ctrl T` and `Ctrl W`, as in a browser.
+- Up to 8 charts in one layout, with symbol, interval, crosshair and time kept in
+  sync. Drag the edges between them to resize, and `Alt Enter` shows one alone.
 - Bar replay: pick a date and play the market forward bar by bar.
 - 27 drawing tools in TradingView's groups: trend lines, Fib, pitchfork, channels,
   long/short positions, measures, anchored VWAP and volume profiles. Drawings are
-  saved per symbol.
+  saved per symbol. Star your favourites for a bar of their own over the chart.
 - Logos for coins and companies, as on TradingView.
+
+<img src="site/media/position.webp" alt="A Long position sizing the trade from the account and the risk" width="900">
+
+**Plan the trade on the chart.** Long and Short positions work out the quantity
+from your account size and risk, and show what the stop risks and the target
+wins. Pick your own Fib levels, write text along a line or inside a box, size and
+turn it, and save a drawing's style as a template. Your price alerts can show as
+lines you drag to move. Ctrl+click or box-select several drawings to move,
+colour or delete them together.
+
+<table>
+<tr>
+<td><img src="site/media/drawings.webp" alt="Text along a trend line, a demand zone, alert lines and the favourite drawings toolbar"></td>
+<td><img src="site/media/fib.webp" alt="A Fib retracement with its Levels panel open"></td>
+</tr>
+</table>
 
 **102 of TradingView's built-in indicators**, written in Rust from Pine-exact `ta.*`
 primitives, so they match TradingView's numbers. They keep TradingView's default
@@ -116,7 +136,8 @@ after a restart.
 
 **Markets.**
 - **Crypto:** Binance, Bybit, OKX, Coinbase and Kraken. Free, live and with deep history.
-  Perpetual futures on Binance, Bybit and OKX too, with their funding rates.
+  Perpetual futures on Binance, Bybit, OKX and Hyperliquid too, with their funding
+  rates, plus Hyperliquid's gold, oil, forex, index and stock perpetuals.
 - **Indices worldwide:** the S&P 500, Nasdaq, Dow, Nikkei 225, FTSE 100, DAX, CAC 40,
   Euro Stoxx 50, Hang Seng, KOSPI, ASX 200, TSX, Ibovespa and more, plus US Treasury
   yields, VIX, India VIX, the MOVE index and the dollar index (Yahoo, free).
@@ -233,7 +254,7 @@ if ta.crossunder(f, s)
 
 The shortcuts are TradingView's, and every drawing tool has one. The full list
 is in Settings → Keyboard shortcuts (the keyboard button beside the theme
-switch).
+switch), where you can change any of them.
 
 | Keys | Does |
 |---|---|
@@ -248,6 +269,9 @@ switch).
 | `Alt S` | Save a snapshot |
 | `Alt M` | Market overview |
 | `Ctrl Alt H` | Hide all drawings |
+| `Ctrl T` · `Ctrl W` · `Ctrl Shift T` | New · close · reopen a workspace |
+| `Ctrl Tab` · `Alt 1`…`9` | Next workspace · go to one |
+| `Alt` + arrows · `Alt Enter` | Move to the chart beside · show the active chart alone |
 | `Shift F` | Full screen |
 | `Ctrl Z` / `Ctrl Y` | Undo / redo |
 | `←` `→` | Step one bar |
