@@ -925,11 +925,23 @@ msgstr "通道设置"
 msgid "Chart"
 msgstr "图表"
 
+msgid "Chart above"
+msgstr "上方图表"
+
 msgid "Chart basic styles"
 msgstr "图表基本样式"
 
+msgid "Chart below"
+msgstr "下方图表"
+
 msgid "Chart settings"
 msgstr "图表设置"
+
+msgid "Chart to the left"
+msgstr "左侧图表"
+
+msgid "Chart to the right"
+msgstr "右侧图表"
 
 msgid "Chart type"
 msgstr "图表类型"
@@ -1058,6 +1070,12 @@ msgstr "关闭"
 
 msgid "Close ({0})"
 msgstr "关闭 ({0})"
+
+msgid "Close others"
+msgstr "关闭其他"
+
+msgid "Close workspace"
+msgstr "关闭工作区"
 
 msgid "Closed"
 msgstr "休市"
@@ -1579,6 +1597,9 @@ msgstr "点线"
 
 msgid "Double EMA"
 msgstr "双重 EMA"
+
+msgid "Double-click"
+msgstr "双击"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "双击将这些参数应用到图表"
@@ -2937,6 +2958,9 @@ msgstr "最大值"
 msgid "Maximize"
 msgstr "最大化目标"
 
+msgid "Maximize chart, or show all"
+msgstr "最大化图表或显示全部"
+
 msgid "Maximize panel"
 msgstr "最大化面板"
 
@@ -3002,6 +3026,9 @@ msgstr "中期 RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期 RCI 长度"
+
+msgid "Middle-click"
+msgstr "中键单击"
 
 msgid "Middle|text"
 msgstr "中间"
@@ -3112,6 +3139,9 @@ msgstr "穆哈兰姆"
 
 msgid "Muhurat trading"
 msgstr "Muhurat 交易"
+
+msgid "Multi-chart"
+msgstr "多图表"
 
 msgid "Multiplier"
 msgstr "乘数"
@@ -3237,6 +3267,9 @@ msgstr "新建脚本"
 msgid "New section"
 msgstr "新建分组"
 
+msgid "New workspace"
+msgstr "新建工作区"
+
 msgid "News"
 msgstr "新闻"
 
@@ -3246,6 +3279,9 @@ msgstr "下次财报 {0}\n预期 {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "下次再平衡 {0}（4 月 1 日和 10 月 1 日）。"
+
+msgid "Next workspace"
+msgstr "下一个工作区"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "除英语外新增九种语言。默认跟随系统语言，可在设置 → 常规 → 语言中更改。"
@@ -3898,6 +3934,9 @@ msgstr "请按键"
 msgid "Previous 7 days"
 msgstr "过去 7 天"
 
+msgid "Previous workspace"
+msgstr "上一个工作区"
+
 msgid "Price"
 msgstr "价格"
 
@@ -4225,6 +4264,9 @@ msgstr "重命名"
 
 msgid "Renko"
 msgstr "砖形图"
+
+msgid "Reopen closed workspace"
+msgstr "重新打开已关闭的工作区"
 
 msgid "Replace"
 msgstr "替换"
@@ -5864,6 +5906,39 @@ msgstr "伍迪 CCI"
 
 msgid "Working"
 msgstr "工作中"
+
+msgid "Workspace"
+msgstr "工作区"
+
+msgid "Workspace 1"
+msgstr "工作区 1"
+
+msgid "Workspace 2"
+msgstr "工作区 2"
+
+msgid "Workspace 3"
+msgstr "工作区 3"
+
+msgid "Workspace 4"
+msgstr "工作区 4"
+
+msgid "Workspace 5"
+msgstr "工作区 5"
+
+msgid "Workspace 6"
+msgstr "工作区 6"
+
+msgid "Workspace 7"
+msgstr "工作区 7"
+
+msgid "Workspace 8"
+msgstr "工作区 8"
+
+msgid "Workspace 9"
+msgstr "工作区 9"
+
+msgid "Workspaces"
+msgstr "工作区"
 
 #, message
 msgid "Wrote {0}"

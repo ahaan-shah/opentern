@@ -925,11 +925,23 @@ msgstr "Kanaleinstellungen"
 msgid "Chart"
 msgstr "Chart"
 
+msgid "Chart above"
+msgstr "Chart darüber"
+
 msgid "Chart basic styles"
 msgstr "Chart-Grundstile"
 
+msgid "Chart below"
+msgstr "Chart darunter"
+
 msgid "Chart settings"
 msgstr "Charteinstellungen"
+
+msgid "Chart to the left"
+msgstr "Chart links"
+
+msgid "Chart to the right"
+msgstr "Chart rechts"
 
 msgid "Chart type"
 msgstr "Charttyp"
@@ -1058,6 +1070,12 @@ msgstr "Schließen"
 
 msgid "Close ({0})"
 msgstr "Schließen ({0})"
+
+msgid "Close others"
+msgstr "Andere schließen"
+
+msgid "Close workspace"
+msgstr "Arbeitsbereich schließen"
 
 msgid "Closed"
 msgstr "Geschlossen"
@@ -1579,6 +1597,9 @@ msgstr "Gepunktet"
 
 msgid "Double EMA"
 msgstr "Doppelter EMA"
+
+msgid "Double-click"
+msgstr "Doppelklick"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Doppelklick, um diese Eingaben auf den Chart zu übernehmen"
@@ -2937,6 +2958,9 @@ msgstr "Höchstwert"
 msgid "Maximize"
 msgstr "Maximieren"
 
+msgid "Maximize chart, or show all"
+msgstr "Chart maximieren oder alle zeigen"
+
 msgid "Maximize panel"
 msgstr "Panel maximieren"
 
@@ -3002,6 +3026,9 @@ msgstr "Mittlerer RCI"
 
 msgid "Middle RCI Length"
 msgstr "Länge des mittleren RCI"
+
+msgid "Middle-click"
+msgstr "Mittelklick"
 
 msgid "Middle|text"
 msgstr "Mitte"
@@ -3112,6 +3139,9 @@ msgstr ""
 
 msgid "Muhurat trading"
 msgstr "Muhurat-Handel"
+
+msgid "Multi-chart"
+msgstr "Mehrfach-Chart"
 
 msgid "Multiplier"
 msgstr "Multiplikator"
@@ -3237,6 +3267,9 @@ msgstr "Neues Skript"
 msgid "New section"
 msgstr "Neuer Abschnitt"
 
+msgid "New workspace"
+msgstr "Neuer Arbeitsbereich"
+
 msgid "News"
 msgstr "Nachrichten"
 
@@ -3246,6 +3279,9 @@ msgstr "Nächste Quartalszahlen {0}\nSchätzung {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Nächste Neugewichtung {0} (1. April und 1. Oktober)."
+
+msgid "Next workspace"
+msgstr "Nächster Arbeitsbereich"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "Neun Sprachen neben Englisch. Es folgt der Systemsprache; eine andere wählst du unter Einstellungen → Allgemein → Sprache."
@@ -3898,6 +3934,9 @@ msgstr "Tasten drücken"
 msgid "Previous 7 days"
 msgstr "Letzte 7 Tage"
 
+msgid "Previous workspace"
+msgstr "Vorheriger Arbeitsbereich"
+
 msgid "Price"
 msgstr "Preis"
 
@@ -4225,6 +4264,9 @@ msgstr "Umbenennen"
 
 msgid "Renko"
 msgstr "Renko"
+
+msgid "Reopen closed workspace"
+msgstr "Geschlossenen Arbeitsbereich wieder öffnen"
 
 msgid "Replace"
 msgstr "Ersetzen"
@@ -5864,6 +5906,39 @@ msgstr "Woodies CCI"
 
 msgid "Working"
 msgstr "Arbeitet"
+
+msgid "Workspace"
+msgstr "Arbeitsbereich"
+
+msgid "Workspace 1"
+msgstr "Arbeitsbereich 1"
+
+msgid "Workspace 2"
+msgstr "Arbeitsbereich 2"
+
+msgid "Workspace 3"
+msgstr "Arbeitsbereich 3"
+
+msgid "Workspace 4"
+msgstr "Arbeitsbereich 4"
+
+msgid "Workspace 5"
+msgstr "Arbeitsbereich 5"
+
+msgid "Workspace 6"
+msgstr "Arbeitsbereich 6"
+
+msgid "Workspace 7"
+msgstr "Arbeitsbereich 7"
+
+msgid "Workspace 8"
+msgstr "Arbeitsbereich 8"
+
+msgid "Workspace 9"
+msgstr "Arbeitsbereich 9"
+
+msgid "Workspaces"
+msgstr "Arbeitsbereiche"
 
 #, message
 msgid "Wrote {0}"

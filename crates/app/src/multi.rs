@@ -191,6 +191,50 @@ fn move_divider(cells: &mut [[f32; 4]], d: Divider, to: f32, min: f32) -> bool {
     true
 }
 
+/// The cell beside cell `from` in direction (`dx`, `dy`): of those that
+/// way, the ones in line with it first (sharing some of its height for a
+/// step across, its width for a step up or down), then the nearest. None
+/// that way: the farthest the other way, in line (it wraps round).
+fn neighbour(cells: &[[f32; 4]], from: usize, dx: i32, dy: i32) -> Option<usize> {
+    const EPS: f32 = 1e-4;
+    let a = *cells.get(from)?;
+    let across = dx != 0;
+    // Along the step's axis: start and end of a cell; across it: the span.
+    let (s0, s1, o0, o1) = if across { (0, 2, 1, 3) } else { (1, 3, 0, 2) };
+    let dir = if across { dx } else { dy } as f32;
+    let overlap = |c: &[f32; 4]| c[o1].min(a[o1]) - c[o0].max(a[o0]) > EPS;
+    let centre = |c: &[f32; 4], i0: usize, i1: usize| (c[i0] + c[i1]) / 2.0;
+    let off = |c: &[f32; 4]| (centre(c, o0, o1) - centre(&a, o0, o1)).abs();
+    let others = || cells.iter().enumerate().filter(move |(i, _)| *i != from);
+    let ahead = others()
+        .filter(|(_, c)| {
+            if dir > 0.0 {
+                c[s0] >= a[s1] - EPS
+            } else {
+                c[s1] <= a[s0] + EPS
+            }
+        })
+        .min_by(|(_, x), (_, y)| {
+            let key = |c: &[f32; 4]| {
+                let gap = if dir > 0.0 { c[s0] - a[s1] } else { a[s0] - c[s1] };
+                (!overlap(c), gap, off(c))
+            };
+            let (kx, ky) = (key(x), key(y));
+            kx.0.cmp(&ky.0).then(kx.1.total_cmp(&ky.1)).then(kx.2.total_cmp(&ky.2))
+        })
+        .map(|(i, _)| i);
+    ahead.or_else(|| {
+        // Wrap: the far end the other way, in line with it.
+        others()
+            .filter(|(_, c)| overlap(c))
+            .max_by(|(_, x), (_, y)| {
+                let far = |c: &[f32; 4]| -dir * centre(c, s0, s1);
+                far(x).total_cmp(&far(y)).then(off(y).total_cmp(&off(x)))
+            })
+            .map(|(i, _)| i)
+    })
+}
+
 /// Whether saved cells still fit `n` charts: inside the area, none
 /// empty, adding up to all of it.
 fn cells_fit(cells: &[[f32; 4]], n: usize) -> bool {
@@ -357,12 +401,16 @@ impl App {
         self.multi.changed += 1;
     }
 
-    /// Alt+Left/Right: the chart before or after the active one, round the
-    /// grid.
-    pub fn step_active(&mut self, forward: bool) {
+    /// Alt+arrows: the chart beside the active one that way (`dx`, `dy`
+    /// are -1, 0 or 1), the nearest in line first. Past the edge it wraps
+    /// round to the far side, as a browser's tabs do.
+    pub fn step_chart(&mut self, dx: i32, dy: i32) {
         let n = self.chart_count();
-        if n > 1 {
-            self.activate((self.active + if forward { 1 } else { n - 1 }) % n);
+        if n <= 1 {
+            return;
+        }
+        if let Some(i) = neighbour(&self.unit_cells(), self.active, dx, dy) {
+            self.activate(i);
         }
     }
 
@@ -391,7 +439,7 @@ impl App {
     /// Bumps on any change worth saving in the layout.
     pub(crate) fn layout_version(&self) -> u64 {
         let others: u64 = self.slots.iter().flatten().map(|s| s.chart.changed).sum();
-        self.chart.changed + others + self.multi.changed
+        self.chart.changed + others + self.multi.changed + self.ws.changed
     }
 
     pub(crate) fn layout_state(&self) -> LayoutState {
@@ -879,6 +927,26 @@ pub fn index_at(bars: &[opentern_core::Bar], step: i64, t: i64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn arrows_step_to_the_chart_that_way() {
+        // 2×2: 0 1 / 2 3.
+        let c = Grid::Four.unit_cells();
+        assert_eq!(neighbour(&c, 0, 1, 0), Some(1));
+        assert_eq!(neighbour(&c, 0, 0, 1), Some(2));
+        assert_eq!(neighbour(&c, 3, 0, -1), Some(1));
+        assert_eq!(neighbour(&c, 3, -1, 0), Some(2));
+        assert_eq!(neighbour(&c, 1, 1, 0), Some(0), "wraps round");
+        assert_eq!(neighbour(&c, 2, 0, 1), Some(0));
+        // A big chart at the left and three stacked at the right.
+        let c = Grid::BigLeftThree.unit_cells();
+        assert_eq!(neighbour(&c, 0, 1, 0), Some(2), "the one level with its middle");
+        assert_eq!(neighbour(&c, 3, -1, 0), Some(0));
+        assert_eq!(neighbour(&c, 1, 0, 1), Some(2));
+        assert_eq!(neighbour(&c, 0, 0, 1), None, "nothing above or below the big one");
+        // Two side by side: up and down go nowhere.
+        assert_eq!(neighbour(&Grid::TwoCols.unit_cells(), 0, 0, 1), None);
+    }
 
     #[test]
     fn dividers_move_and_keep_the_grid_tiled() {

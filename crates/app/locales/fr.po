@@ -925,11 +925,23 @@ msgstr "Paramètres du canal"
 msgid "Chart"
 msgstr "Graphique"
 
+msgid "Chart above"
+msgstr "Graphique au-dessus"
+
 msgid "Chart basic styles"
 msgstr "Styles de base du graphique"
 
+msgid "Chart below"
+msgstr "Graphique en dessous"
+
 msgid "Chart settings"
 msgstr "Paramètres du graphique"
+
+msgid "Chart to the left"
+msgstr "Graphique à gauche"
+
+msgid "Chart to the right"
+msgstr "Graphique à droite"
 
 msgid "Chart type"
 msgstr "Type de graphique"
@@ -1058,6 +1070,12 @@ msgstr "Fermer"
 
 msgid "Close ({0})"
 msgstr "Fermer ({0})"
+
+msgid "Close others"
+msgstr "Fermer les autres"
+
+msgid "Close workspace"
+msgstr "Fermer l’espace"
 
 msgid "Closed"
 msgstr "Fermé"
@@ -1579,6 +1597,9 @@ msgstr "Pointillés"
 
 msgid "Double EMA"
 msgstr "EMA double"
+
+msgid "Double-click"
+msgstr "Double-clic"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Double-cliquez pour appliquer ces paramètres au graphique"
@@ -2937,6 +2958,9 @@ msgstr "Valeur max."
 msgid "Maximize"
 msgstr "Maximiser"
 
+msgid "Maximize chart, or show all"
+msgstr "Agrandir le graphique ou tout afficher"
+
 msgid "Maximize panel"
 msgstr "Agrandir le panneau"
 
@@ -3002,6 +3026,9 @@ msgstr "RCI moyen"
 
 msgid "Middle RCI Length"
 msgstr "Longueur du RCI moyen"
+
+msgid "Middle-click"
+msgstr "Clic du milieu"
 
 msgid "Middle|text"
 msgstr "Milieu"
@@ -3112,6 +3139,9 @@ msgstr ""
 
 msgid "Muhurat trading"
 msgstr "Séance Muhurat"
+
+msgid "Multi-chart"
+msgstr "Multi-graphique"
 
 msgid "Multiplier"
 msgstr "Multiplicateur"
@@ -3237,6 +3267,9 @@ msgstr "Nouveau script"
 msgid "New section"
 msgstr "Nouvelle section"
 
+msgid "New workspace"
+msgstr "Nouvel espace"
+
 msgid "News"
 msgstr "Actualités"
 
@@ -3246,6 +3279,9 @@ msgstr "Prochains résultats {0}\nEstimation {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Prochain rééquilibrage {0} (1er avril et 1er octobre)."
+
+msgid "Next workspace"
+msgstr "Espace suivant"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "Neuf langues en plus de l'anglais. L'app suit celle du système ; choisissez-en une autre dans Paramètres → Général → Langue."
@@ -3898,6 +3934,9 @@ msgstr "Appuyez sur les touches"
 msgid "Previous 7 days"
 msgstr "7 derniers jours"
 
+msgid "Previous workspace"
+msgstr "Espace précédent"
+
 msgid "Price"
 msgstr "Prix"
 
@@ -4225,6 +4264,9 @@ msgstr "Renommer"
 
 msgid "Renko"
 msgstr "Renko"
+
+msgid "Reopen closed workspace"
+msgstr "Rouvrir l’espace fermé"
 
 msgid "Replace"
 msgstr "Remplacer"
@@ -5864,6 +5906,39 @@ msgstr "CCI de Woodie"
 
 msgid "Working"
 msgstr "Au travail"
+
+msgid "Workspace"
+msgstr "Espace"
+
+msgid "Workspace 1"
+msgstr "Espace 1"
+
+msgid "Workspace 2"
+msgstr "Espace 2"
+
+msgid "Workspace 3"
+msgstr "Espace 3"
+
+msgid "Workspace 4"
+msgstr "Espace 4"
+
+msgid "Workspace 5"
+msgstr "Espace 5"
+
+msgid "Workspace 6"
+msgstr "Espace 6"
+
+msgid "Workspace 7"
+msgstr "Espace 7"
+
+msgid "Workspace 8"
+msgstr "Espace 8"
+
+msgid "Workspace 9"
+msgstr "Espace 9"
+
+msgid "Workspaces"
+msgstr "Espaces"
 
 #, message
 msgid "Wrote {0}"

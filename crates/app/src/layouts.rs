@@ -7,12 +7,13 @@ use crate::i18n::{tr, trf};
 use crate::icons::ph;
 use crate::multi::{Grid, LayoutState};
 use crate::theme::Theme;
+use crate::workspaces::LayoutSet;
 use egui::Ui;
 use opentern_core::Timeframe;
 
 impl App {
     fn chart_json(&self) -> String {
-        serde_json::to_string(&self.layout_state()).unwrap_or_default()
+        serde_json::to_string(&self.layout_set()).unwrap_or_default()
     }
 
     /// Saves the current layout now.
@@ -37,13 +38,13 @@ impl App {
             .layout_json(id)
             .ok()
             .flatten()
-            .and_then(|j| LayoutState::parse(&j))
+            .and_then(|j| LayoutSet::parse(&j))
         else {
             return;
         };
         self.layout_id = id;
         self.layout_name = info.name;
-        self.install_layout(state);
+        self.install_set(state);
         let _ = self.store.set_value("layout_id", &id.to_string());
     }
 
@@ -65,11 +66,12 @@ impl App {
             cells: None,
             charts: vec![c.state()],
         };
-        let json = serde_json::to_string(&state).unwrap_or_default();
+        let set = LayoutSet::one(state);
+        let json = serde_json::to_string(&set).unwrap_or_default();
         if let Ok(id) = self.store.create_layout(&self.layout_name, &json) {
             self.layout_id = id;
         }
-        self.install_layout(state);
+        self.install_set(set);
         let _ = self.store.set_value("layout_id", &self.layout_id.to_string());
     }
 

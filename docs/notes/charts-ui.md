@@ -82,6 +82,22 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   (Chart settings → Symbol). Bricks formed on one bar get times 1 ms apart so the
   time↔index maps stay strictly increasing. HA ticks update incrementally; the
   others rebuild everything on each tick. Not done: range bars (need ticks).
+- **Workspaces** (`workspaces.rs`, Nov 2026; the maintainer picked numbered pills
+  in their own row above the top bar, the layout menu staying in the top bar):
+  each is a whole `LayoutState` (its charts, grid, sync, sizes). Only the shown one
+  is live in `App`; the others are `Ws::saved` and nothing of them loads or
+  streams (`switch_workspace` saves the shown one, then `install_layout` the
+  other). A named layout saves them all as `LayoutSet { version: 3, current,
+  workspaces: [{ name?, layout }] }`; `LayoutSet::parse` reads older layouts as
+  one workspace. A pill's name is the one given (right-click → Rename, or a
+  double-click; empty goes back) or its main chart's ticker (chart 0 of the grid,
+  the big one). The shown pill is accent-soft with a filled number square; the
+  others muted. Drag to reorder (`drop_index`), middle-click closes, the menu has
+  Rename, Duplicate, Close, Close others. Keys (`keys::Action::WORKSPACES`, all
+  changeable): Ctrl+Tab / Ctrl+Shift+Tab, Alt+1…9, Ctrl+T (new, on the active
+  chart's symbol, interval and indicators), Ctrl+W (never the last), Ctrl+Shift+T
+  (the last 10 closed, this run only). `Chord::usable` now allows Tab, Enter and
+  the arrows with Ctrl or Alt. Still: `workspaces`. The agent acts on the shown one.
 - **Multi-chart** (`multi.rs`): 15 grids for 1–8 charts; sync symbol, interval,
   crosshair (default on), time, date range. **The active chart lives in
   `App::chart`; the others in `App::slots`, swapped into place by `with_slot`**
@@ -94,7 +110,9 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   that position (so the grid stays tiled) down to `MIN_W`×`MIN_H` per chart; edges
   are interacted after the charts (they win the press) and a press on one doesn't
   activate a chart. `Multi::maximized` (Alt+Enter, not saved) paints one chart in
-  the whole area and follows Alt+Left/Right (`step_active`). Date-range sync uses the
+  the whole area and follows the Alt+arrows (`step_chart` → `neighbour`: the
+  nearest chart that way, in line first, wrapping round; all four directions,
+  `keys::Action::CHARTS`). Date-range sync uses the
   leader's real plot width and re-syncs when any chart's width changes
   (`last_view` holds every width).
   Session ids come from `chart::new_session_id()` (global). Drawings saved on one

@@ -925,11 +925,23 @@ msgstr "Kanalinställningar"
 msgid "Chart"
 msgstr "Diagram"
 
+msgid "Chart above"
+msgstr "Diagrammet ovanför"
+
 msgid "Chart basic styles"
 msgstr "Diagrammets grundstilar"
 
+msgid "Chart below"
+msgstr "Diagrammet nedanför"
+
 msgid "Chart settings"
 msgstr "Diagraminställningar"
+
+msgid "Chart to the left"
+msgstr "Diagrammet till vänster"
+
+msgid "Chart to the right"
+msgstr "Diagrammet till höger"
 
 msgid "Chart type"
 msgstr "Diagramtyp"
@@ -1058,6 +1070,12 @@ msgstr "Stäng"
 
 msgid "Close ({0})"
 msgstr "Stäng ({0})"
+
+msgid "Close others"
+msgstr "Stäng andra"
+
+msgid "Close workspace"
+msgstr "Stäng arbetsyta"
 
 msgid "Closed"
 msgstr "Stängd"
@@ -1579,6 +1597,9 @@ msgstr "Prickad"
 
 msgid "Double EMA"
 msgstr "Dubbel EMA"
+
+msgid "Double-click"
+msgstr "Dubbelklick"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Dubbelklicka för att använda dessa indata i diagrammet"
@@ -2937,6 +2958,9 @@ msgstr "Maxvärde"
 msgid "Maximize"
 msgstr "Maximera"
 
+msgid "Maximize chart, or show all"
+msgstr "Maximera diagrammet eller visa alla"
+
 msgid "Maximize panel"
 msgstr "Maximera panelen"
 
@@ -3002,6 +3026,9 @@ msgstr "Mellan-RCI"
 
 msgid "Middle RCI Length"
 msgstr "Längd på mellan-RCI"
+
+msgid "Middle-click"
+msgstr "Mittenklick"
 
 msgid "Middle|text"
 msgstr "Mitten"
@@ -3112,6 +3139,9 @@ msgstr ""
 
 msgid "Muhurat trading"
 msgstr "Muhurathandel"
+
+msgid "Multi-chart"
+msgstr "Flera diagram"
 
 msgid "Multiplier"
 msgstr "Multiplikator"
@@ -3237,6 +3267,9 @@ msgstr "Nytt skript"
 msgid "New section"
 msgstr "Nytt avsnitt"
 
+msgid "New workspace"
+msgstr "Ny arbetsyta"
+
 msgid "News"
 msgstr "Nyheter"
 
@@ -3246,6 +3279,9 @@ msgstr "Nästa rapport {0}\nPrognos {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Nästa omviktning {0} (1 april och 1 oktober)."
+
+msgid "Next workspace"
+msgstr "Nästa arbetsyta"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "Nio språk utöver engelska. Appen följer systemets språk; välj ett annat i Inställningar → Allmänt → Språk."
@@ -3898,6 +3934,9 @@ msgstr "Tryck på tangenterna"
 msgid "Previous 7 days"
 msgstr "Senaste 7 dagarna"
 
+msgid "Previous workspace"
+msgstr "Föregående arbetsyta"
+
 msgid "Price"
 msgstr "Pris"
 
@@ -4225,6 +4264,9 @@ msgstr "Byt namn"
 
 msgid "Renko"
 msgstr "Renko"
+
+msgid "Reopen closed workspace"
+msgstr "Öppna stängd arbetsyta igen"
 
 msgid "Replace"
 msgstr "Ersätt"
@@ -5864,6 +5906,39 @@ msgstr "Woodies CCI"
 
 msgid "Working"
 msgstr "Arbetar"
+
+msgid "Workspace"
+msgstr "Arbetsyta"
+
+msgid "Workspace 1"
+msgstr "Arbetsyta 1"
+
+msgid "Workspace 2"
+msgstr "Arbetsyta 2"
+
+msgid "Workspace 3"
+msgstr "Arbetsyta 3"
+
+msgid "Workspace 4"
+msgstr "Arbetsyta 4"
+
+msgid "Workspace 5"
+msgstr "Arbetsyta 5"
+
+msgid "Workspace 6"
+msgstr "Arbetsyta 6"
+
+msgid "Workspace 7"
+msgstr "Arbetsyta 7"
+
+msgid "Workspace 8"
+msgstr "Arbetsyta 8"
+
+msgid "Workspace 9"
+msgstr "Arbetsyta 9"
+
+msgid "Workspaces"
+msgstr "Arbetsytor"
 
 #, message
 msgid "Wrote {0}"

@@ -2318,7 +2318,7 @@ mod drive_tests {
         let plus = d
             .text_rects(crate::icons::ph::PLUS)
             .into_iter()
-            .find(|r| r.bottom() < compare.top() && r.left() < 400.0)
+            .find(|r| r.bottom() < compare.top() && r.left() < 400.0 && r.top() > crate::workspaces::BAR_H)
             .expect("new index button");
         let map = plus.center() - egui::vec2(30.0, 0.0);
         d.click(map);

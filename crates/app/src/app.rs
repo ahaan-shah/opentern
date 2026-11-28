@@ -79,6 +79,8 @@ pub struct App {
     pub price_menu: Option<PriceMenu>,
     /// A right-clicked alert line's menu: (chart, alert, where).
     pub alert_menu: Option<(u64, i64, egui::Pos2)>,
+    /// The workspaces above the top bar (`workspaces.rs`).
+    pub ws: crate::workspaces::Workspaces,
     /// The chart's right-click menu: (chart, where, the price there).
     pub chart_menu: Option<(u64, egui::Pos2, Option<f64>)>,
     /// The Settings page, when open (it takes the chart area).
@@ -123,6 +125,8 @@ pub struct App {
     still_alert_menu: bool,
     /// `chart-menu`: the chart's right-click menu, once bars are in.
     still_chart_menu: bool,
+    /// `workspaces`: three more workspaces in the row (one renamed).
+    still_workspaces: bool,
     /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
     /// (with its Levels panel open) once bars are in.
     still_fib: Option<bool>,
@@ -231,7 +235,7 @@ impl App {
             .unwrap_or((1, tr("Untitled").to_string()));
         let saved = current
             .and_then(|l| store.layout_json(l.id).ok().flatten())
-            .and_then(|j| crate::multi::LayoutState::parse(&j));
+            .and_then(|j| crate::workspaces::LayoutSet::parse(&j));
         let fresh = saved.is_none();
         let chart = {
             // A brand-new workspace: Bitcoin hourly with volume, in the
@@ -288,6 +292,7 @@ impl App {
             price_menu: None,
             alert_menu: None,
             chart_menu: None,
+            ws: Default::default(),
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -314,6 +319,7 @@ impl App {
             still_alert_lines: false,
             still_alert_menu: false,
             still_chart_menu: false,
+            still_workspaces: false,
             still_fib: None,
             still_tool: None,
             still_price_menu: false,
@@ -353,7 +359,7 @@ impl App {
         }
         app.send_credentials();
         match saved {
-            Some(l) => app.install_layout(l),
+            Some(l) => app.install_set(l),
             None => {
                 app.load_drawings();
                 app.open_chart();
@@ -519,6 +525,8 @@ impl App {
                 // Handled in `new` (needs the egui context).
             } else if part == "text" || part.starts_with("text:") {
                 self.still_text = Some(part.trim_start_matches("text").trim_start_matches(':').to_string());
+            } else if part == "workspaces" {
+                self.still_workspaces = true;
             } else if part == "chart-menu" {
                 self.still_chart_menu = true;
             } else if part == "alert-lines" || part == "alert-lines:menu" {
@@ -1564,6 +1572,26 @@ impl App {
                 _ => {}
             }
         }
+        if std::mem::take(&mut self.still_workspaces) {
+            let starter = opentern_core::starter_watchlist();
+            let pick = |t: &str| starter.iter().find(|s| s.ticker() == t).cloned();
+            for (ticker, name) in [("ETHUSDT", None), ("NIFTY", None), ("AAPL", Some("Swing ideas"))] {
+                let Some(sym) = pick(ticker) else { continue };
+                let mut st = self.chart.state();
+                st.symbol = sym;
+                self.ws.list.push(crate::workspaces::Ws {
+                    name: name.map(str::to_string),
+                    saved: Some(crate::multi::LayoutState {
+                        version: 2,
+                        grid: crate::multi::Grid::One,
+                        sync: Default::default(),
+                        active: 0,
+                        cells: None,
+                        charts: vec![st],
+                    }),
+                });
+            }
+        }
         if self.still_chart_menu
             && let Some(b) = self.chart.bars.last()
         {
@@ -1914,7 +1942,7 @@ impl App {
         if !force && self.last_save.elapsed() < Duration::from_secs(2) {
             return;
         }
-        if let Ok(j) = serde_json::to_string(&self.layout_state())
+        if let Ok(j) = serde_json::to_string(&self.layout_set())
             && let Err(e) = self.store.save_layout(self.layout_id, &self.layout_name, &j)
         {
             crate::diag::crumb(format!("couldn't save layout: {e}"));
@@ -1997,20 +2025,6 @@ impl App {
                     self.chart_ui.draw.cancel();
                     self.pick_tool(Tool::Cross);
                 }
-                // Alt+Left/Right: the previous or next chart of a layout;
-                // Alt+Enter: the active one alone, or back to the grid.
-                egui::Event::Key {
-                    key: key @ (egui::Key::ArrowLeft | egui::Key::ArrowRight),
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt && self.chart_count() > 1 => self.step_active(key == egui::Key::ArrowRight),
-                egui::Event::Key {
-                    key: egui::Key::Enter,
-                    pressed: true,
-                    modifiers,
-                    ..
-                } if modifiers.alt => self.toggle_maximized(),
                 egui::Event::Key {
                     key: egui::Key::ArrowLeft,
                     pressed: true,
@@ -2052,6 +2066,17 @@ impl App {
             Action::LogScale => self.toggle_log_scale(),
             Action::PercentScale => self.toggle_percent_scale(),
             Action::AutoScale => self.toggle_auto_scale(),
+            Action::NextWorkspace => self.step_workspace(1),
+            Action::PrevWorkspace => self.step_workspace(-1),
+            Action::NewWorkspace => self.new_workspace(),
+            Action::CloseWorkspace => self.close_workspace(self.ws.current),
+            Action::ReopenWorkspace => self.reopen_workspace(),
+            Action::Workspace(n) => self.switch_workspace(n as usize - 1),
+            Action::ChartLeft => self.step_chart(-1, 0),
+            Action::ChartRight => self.step_chart(1, 0),
+            Action::ChartUp => self.step_chart(0, -1),
+            Action::ChartDown => self.step_chart(0, 1),
+            Action::MaximizeChart => self.toggle_maximized(),
             Action::Tool(tool) => self.pick_tool(tool),
         }
     }

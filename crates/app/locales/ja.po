@@ -925,11 +925,23 @@ msgstr "チャネル設定"
 msgid "Chart"
 msgstr "チャート"
 
+msgid "Chart above"
+msgstr "上のチャート"
+
 msgid "Chart basic styles"
 msgstr "チャートの基本スタイル"
 
+msgid "Chart below"
+msgstr "下のチャート"
+
 msgid "Chart settings"
 msgstr "チャート設定"
+
+msgid "Chart to the left"
+msgstr "左のチャート"
+
+msgid "Chart to the right"
+msgstr "右のチャート"
 
 msgid "Chart type"
 msgstr "チャートタイプ"
@@ -1058,6 +1070,12 @@ msgstr "閉じる"
 
 msgid "Close ({0})"
 msgstr "閉じる ({0})"
+
+msgid "Close others"
+msgstr "他を閉じる"
+
+msgid "Close workspace"
+msgstr "ワークスペースを閉じる"
 
 msgid "Closed"
 msgstr "休場"
@@ -1579,6 +1597,9 @@ msgstr "点線"
 
 msgid "Double EMA"
 msgstr "二重EMA"
+
+msgid "Double-click"
+msgstr "ダブルクリック"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "ダブルクリックでこの入力をチャートに適用"
@@ -2937,6 +2958,9 @@ msgstr "最大値"
 msgid "Maximize"
 msgstr "最大化する指標"
 
+msgid "Maximize chart, or show all"
+msgstr "チャートを最大化、またはすべて表示"
+
 msgid "Maximize panel"
 msgstr "パネルを最大化"
 
@@ -3002,6 +3026,9 @@ msgstr "中期RCI"
 
 msgid "Middle RCI Length"
 msgstr "中期RCIの期間"
+
+msgid "Middle-click"
+msgstr "中クリック"
 
 msgid "Middle|text"
 msgstr "中央"
@@ -3112,6 +3139,9 @@ msgstr "ムハッラム"
 
 msgid "Muhurat trading"
 msgstr "ムフーラト取引"
+
+msgid "Multi-chart"
+msgstr "マルチチャート"
 
 msgid "Multiplier"
 msgstr "倍率"
@@ -3237,6 +3267,9 @@ msgstr "新しいスクリプト"
 msgid "New section"
 msgstr "新しいセクション"
 
+msgid "New workspace"
+msgstr "新しいワークスペース"
+
 msgid "News"
 msgstr "ニュース"
 
@@ -3246,6 +3279,9 @@ msgstr "次の決算 {0}\n予想 {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "次回のリバランス: {0}(4月1日と10月1日)。"
+
+msgid "Next workspace"
+msgstr "次のワークスペース"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "英語のほかに9言語に対応しました。システムの言語に従い、設定 → 一般 → 言語で変更できます。"
@@ -3898,6 +3934,9 @@ msgstr "キーを押してください"
 msgid "Previous 7 days"
 msgstr "過去7日間"
 
+msgid "Previous workspace"
+msgstr "前のワークスペース"
+
 msgid "Price"
 msgstr "価格"
 
@@ -4225,6 +4264,9 @@ msgstr "名前を変更"
 
 msgid "Renko"
 msgstr "練行足"
+
+msgid "Reopen closed workspace"
+msgstr "閉じたワークスペースを再度開く"
 
 msgid "Replace"
 msgstr "置き換え"
@@ -5864,6 +5906,39 @@ msgstr "ウッディーズCCI"
 
 msgid "Working"
 msgstr "作業中"
+
+msgid "Workspace"
+msgstr "ワークスペース"
+
+msgid "Workspace 1"
+msgstr "ワークスペース 1"
+
+msgid "Workspace 2"
+msgstr "ワークスペース 2"
+
+msgid "Workspace 3"
+msgstr "ワークスペース 3"
+
+msgid "Workspace 4"
+msgstr "ワークスペース 4"
+
+msgid "Workspace 5"
+msgstr "ワークスペース 5"
+
+msgid "Workspace 6"
+msgstr "ワークスペース 6"
+
+msgid "Workspace 7"
+msgstr "ワークスペース 7"
+
+msgid "Workspace 8"
+msgstr "ワークスペース 8"
+
+msgid "Workspace 9"
+msgstr "ワークスペース 9"
+
+msgid "Workspaces"
+msgstr "ワークスペース"
 
 #, message
 msgid "Wrote {0}"

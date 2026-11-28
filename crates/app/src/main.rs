@@ -69,6 +69,7 @@ mod watcher;
 mod watchlists;
 mod whatsnew;
 mod widgets;
+mod workspaces;
 
 use opentern_core::Store;
 use std::path::PathBuf;

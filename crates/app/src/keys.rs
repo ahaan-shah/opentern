@@ -33,6 +33,21 @@ pub enum Action {
     LogScale,
     PercentScale,
     AutoScale,
+    /// Workspaces (the row above the top bar), as a browser's tabs.
+    NextWorkspace,
+    PrevWorkspace,
+    NewWorkspace,
+    CloseWorkspace,
+    ReopenWorkspace,
+    /// Workspace 1 to 9.
+    Workspace(u8),
+    /// A multi-chart layout: the chart left, right, above or below the
+    /// active one, and the active one alone (and back).
+    ChartLeft,
+    ChartRight,
+    ChartUp,
+    ChartDown,
+    MaximizeChart,
     /// Picks a drawing tool.
     Tool(Tool),
 }
@@ -51,6 +66,29 @@ impl Action {
         Action::HideDrawings,
     ];
     pub const SCALE: [Action; 3] = [Action::LogScale, Action::PercentScale, Action::AutoScale];
+    pub const WORKSPACES: [Action; 14] = [
+        Action::NextWorkspace,
+        Action::PrevWorkspace,
+        Action::NewWorkspace,
+        Action::CloseWorkspace,
+        Action::ReopenWorkspace,
+        Action::Workspace(1),
+        Action::Workspace(2),
+        Action::Workspace(3),
+        Action::Workspace(4),
+        Action::Workspace(5),
+        Action::Workspace(6),
+        Action::Workspace(7),
+        Action::Workspace(8),
+        Action::Workspace(9),
+    ];
+    pub const CHARTS: [Action; 5] = [
+        Action::ChartLeft,
+        Action::ChartRight,
+        Action::ChartUp,
+        Action::ChartDown,
+        Action::MaximizeChart,
+    ];
 
     /// Every action: the general ones, the price scale's and the drawing
     /// tools (all but the cursor, which is Esc).
@@ -58,6 +96,8 @@ impl Action {
         Action::GENERAL
             .into_iter()
             .chain(Action::SCALE)
+            .chain(Action::WORKSPACES)
+            .chain(Action::CHARTS)
             .chain(Tool::ALL.into_iter().filter(|t| *t != Tool::Cross).map(Action::Tool))
     }
 
@@ -76,6 +116,27 @@ impl Action {
             Action::LogScale => nt!("Log"),
             Action::PercentScale => nt!("Percent"),
             Action::AutoScale => nt!("Auto"),
+            Action::NextWorkspace => nt!("Next workspace"),
+            Action::PrevWorkspace => nt!("Previous workspace"),
+            Action::NewWorkspace => nt!("New workspace"),
+            Action::CloseWorkspace => nt!("Close workspace"),
+            Action::ReopenWorkspace => nt!("Reopen closed workspace"),
+            Action::Workspace(n) => match n {
+                1 => nt!("Workspace 1"),
+                2 => nt!("Workspace 2"),
+                3 => nt!("Workspace 3"),
+                4 => nt!("Workspace 4"),
+                5 => nt!("Workspace 5"),
+                6 => nt!("Workspace 6"),
+                7 => nt!("Workspace 7"),
+                8 => nt!("Workspace 8"),
+                _ => nt!("Workspace 9"),
+            },
+            Action::ChartLeft => nt!("Chart to the left"),
+            Action::ChartRight => nt!("Chart to the right"),
+            Action::ChartUp => nt!("Chart above"),
+            Action::ChartDown => nt!("Chart below"),
+            Action::MaximizeChart => nt!("Maximize chart, or show all"),
             Action::Tool(t) => t.name(),
         }
     }
@@ -109,6 +170,17 @@ impl Action {
             Action::LogScale => "Alt L",
             Action::PercentScale => "Alt P",
             Action::AutoScale => "Alt U",
+            Action::NextWorkspace => "Ctrl Tab",
+            Action::PrevWorkspace => "Ctrl Shift Tab",
+            Action::NewWorkspace => "Ctrl T",
+            Action::CloseWorkspace => "Ctrl W",
+            Action::ReopenWorkspace => "Ctrl Shift T",
+            Action::Workspace(n) => return Chord::parse(&format!("Alt {n}")),
+            Action::ChartLeft => "Alt ArrowLeft",
+            Action::ChartRight => "Alt ArrowRight",
+            Action::ChartUp => "Alt ArrowUp",
+            Action::ChartDown => "Alt ArrowDown",
+            Action::MaximizeChart => "Alt Enter",
             Action::Tool(t) => t.shortcut(),
         };
         Chord::parse(s)
@@ -185,14 +257,11 @@ impl Chord {
 
     /// Whether it can be given to an action: it needs Ctrl (Cmd) or Alt,
     /// as plain keys and Shift+letter are typing (F1 to F12 are fine
-    /// alone), and keys with a fixed job (Esc, Delete, Enter, Tab, the
-    /// arrows) are left to it.
+    /// alone). Esc, Delete and Backspace keep their job; Enter, Tab and
+    /// the arrows only with Ctrl or Alt (alone they type, step and move).
     pub fn usable(self) -> bool {
         use Key::*;
-        let fixed = matches!(
-            self.key,
-            Escape | Delete | Backspace | Enter | Tab | ArrowLeft | ArrowRight | ArrowUp | ArrowDown
-        );
+        let fixed = matches!(self.key, Escape | Delete | Backspace);
         let function = matches!(self.key, F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12);
         !fixed && (self.command || self.alt || function)
     }

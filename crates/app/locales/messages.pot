@@ -925,10 +925,22 @@ msgstr ""
 msgid "Chart"
 msgstr ""
 
+msgid "Chart above"
+msgstr ""
+
 msgid "Chart basic styles"
 msgstr ""
 
+msgid "Chart below"
+msgstr ""
+
 msgid "Chart settings"
+msgstr ""
+
+msgid "Chart to the left"
+msgstr ""
+
+msgid "Chart to the right"
 msgstr ""
 
 msgid "Chart type"
@@ -1057,6 +1069,12 @@ msgid "Close"
 msgstr ""
 
 msgid "Close ({0})"
+msgstr ""
+
+msgid "Close others"
+msgstr ""
+
+msgid "Close workspace"
 msgstr ""
 
 msgid "Closed"
@@ -1578,6 +1596,9 @@ msgid "Dotted"
 msgstr ""
 
 msgid "Double EMA"
+msgstr ""
+
+msgid "Double-click"
 msgstr ""
 
 msgid "Double-click to put these inputs on the chart"
@@ -2937,6 +2958,9 @@ msgstr ""
 msgid "Maximize"
 msgstr ""
 
+msgid "Maximize chart, or show all"
+msgstr ""
+
 msgid "Maximize panel"
 msgstr ""
 
@@ -3001,6 +3025,9 @@ msgid "Middle RCI"
 msgstr ""
 
 msgid "Middle RCI Length"
+msgstr ""
+
+msgid "Middle-click"
 msgstr ""
 
 msgid "Middle|text"
@@ -3111,6 +3138,9 @@ msgid "Muharram"
 msgstr ""
 
 msgid "Muhurat trading"
+msgstr ""
+
+msgid "Multi-chart"
 msgstr ""
 
 msgid "Multiplier"
@@ -3237,6 +3267,9 @@ msgstr ""
 msgid "New section"
 msgstr ""
 
+msgid "New workspace"
+msgstr ""
+
 msgid "News"
 msgstr ""
 
@@ -3245,6 +3278,9 @@ msgstr ""
 
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
+msgstr ""
+
+msgid "Next workspace"
 msgstr ""
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
@@ -3898,6 +3934,9 @@ msgstr ""
 msgid "Previous 7 days"
 msgstr ""
 
+msgid "Previous workspace"
+msgstr ""
+
 msgid "Price"
 msgstr ""
 
@@ -4224,6 +4263,9 @@ msgid "Rename"
 msgstr ""
 
 msgid "Renko"
+msgstr ""
+
+msgid "Reopen closed workspace"
 msgstr ""
 
 msgid "Replace"
@@ -5863,6 +5905,39 @@ msgid "Woodies CCI"
 msgstr ""
 
 msgid "Working"
+msgstr ""
+
+msgid "Workspace"
+msgstr ""
+
+msgid "Workspace 1"
+msgstr ""
+
+msgid "Workspace 2"
+msgstr ""
+
+msgid "Workspace 3"
+msgstr ""
+
+msgid "Workspace 4"
+msgstr ""
+
+msgid "Workspace 5"
+msgstr ""
+
+msgid "Workspace 6"
+msgstr ""
+
+msgid "Workspace 7"
+msgstr ""
+
+msgid "Workspace 8"
+msgstr ""
+
+msgid "Workspace 9"
+msgstr ""
+
+msgid "Workspaces"
 msgstr ""
 
 #, message

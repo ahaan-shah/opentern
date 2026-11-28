@@ -925,11 +925,23 @@ msgstr "Настройки канала"
 msgid "Chart"
 msgstr "График"
 
+msgid "Chart above"
+msgstr "График выше"
+
 msgid "Chart basic styles"
 msgstr "Основные стили графика"
 
+msgid "Chart below"
+msgstr "График ниже"
+
 msgid "Chart settings"
 msgstr "Настройки графика"
+
+msgid "Chart to the left"
+msgstr "График слева"
+
+msgid "Chart to the right"
+msgstr "График справа"
 
 msgid "Chart type"
 msgstr "Тип графика"
@@ -1058,6 +1070,12 @@ msgstr "Закрыть"
 
 msgid "Close ({0})"
 msgstr "Закрыть ({0})"
+
+msgid "Close others"
+msgstr "Закрыть остальные"
+
+msgid "Close workspace"
+msgstr "Закрыть рабочую область"
 
 msgid "Closed"
 msgstr "Закрыто"
@@ -1579,6 +1597,9 @@ msgstr "Пунктир"
 
 msgid "Double EMA"
 msgstr "Двойная EMA"
+
+msgid "Double-click"
+msgstr "Двойной щелчок"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "Дважды щёлкните, чтобы применить эти параметры на графике"
@@ -2937,6 +2958,9 @@ msgstr "Макс. значение"
 msgid "Maximize"
 msgstr "Максимизировать"
 
+msgid "Maximize chart, or show all"
+msgstr "Развернуть график или показать все"
+
 msgid "Maximize panel"
 msgstr "Развернуть панель"
 
@@ -3002,6 +3026,9 @@ msgstr "Средний RCI"
 
 msgid "Middle RCI Length"
 msgstr "Длина среднего RCI"
+
+msgid "Middle-click"
+msgstr "Средний щелчок"
 
 msgid "Middle|text"
 msgstr "Посередине"
@@ -3112,6 +3139,9 @@ msgstr "Мухаррам"
 
 msgid "Muhurat trading"
 msgstr "Торги Мухурат"
+
+msgid "Multi-chart"
+msgstr "Несколько графиков"
 
 msgid "Multiplier"
 msgstr "Множитель"
@@ -3237,6 +3267,9 @@ msgstr "Новый скрипт"
 msgid "New section"
 msgstr "Новый раздел"
 
+msgid "New workspace"
+msgstr "Новая рабочая область"
+
 msgid "News"
 msgstr "Новости"
 
@@ -3246,6 +3279,9 @@ msgstr "Следующий отчёт {0}\nПрогноз {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "Следующая ребалансировка {0} (1 апреля и 1 октября)."
+
+msgid "Next workspace"
+msgstr "Следующая рабочая область"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "Девять языков помимо английского. Язык берётся из системы; другой можно выбрать в разделе Настройки → Общие → Язык."
@@ -3898,6 +3934,9 @@ msgstr "Нажмите клавиши"
 msgid "Previous 7 days"
 msgstr "Последние 7 дней"
 
+msgid "Previous workspace"
+msgstr "Предыдущая рабочая область"
+
 msgid "Price"
 msgstr "Цена"
 
@@ -4225,6 +4264,9 @@ msgstr "Переименовать"
 
 msgid "Renko"
 msgstr "Ренко"
+
+msgid "Reopen closed workspace"
+msgstr "Вернуть закрытую рабочую область"
 
 msgid "Replace"
 msgstr "Заменить"
@@ -5864,6 +5906,39 @@ msgstr "CCI Вуди"
 
 msgid "Working"
 msgstr "Работает"
+
+msgid "Workspace"
+msgstr "Рабочая область"
+
+msgid "Workspace 1"
+msgstr "Рабочая область 1"
+
+msgid "Workspace 2"
+msgstr "Рабочая область 2"
+
+msgid "Workspace 3"
+msgstr "Рабочая область 3"
+
+msgid "Workspace 4"
+msgstr "Рабочая область 4"
+
+msgid "Workspace 5"
+msgstr "Рабочая область 5"
+
+msgid "Workspace 6"
+msgstr "Рабочая область 6"
+
+msgid "Workspace 7"
+msgstr "Рабочая область 7"
+
+msgid "Workspace 8"
+msgstr "Рабочая область 8"
+
+msgid "Workspace 9"
+msgstr "Рабочая область 9"
+
+msgid "Workspaces"
+msgstr "Рабочие области"
 
 #, message
 msgid "Wrote {0}"

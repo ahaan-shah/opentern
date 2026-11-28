@@ -1122,6 +1122,18 @@ impl App {
             shortcut_row(ui, t, None, tr(what), keys);
         }
         ui.add_space(18.0);
+        crate::dialogs::section(ui, t, tr("Workspaces"));
+        for a in Action::WORKSPACES {
+            clicked |= self.shortcut_edit_row(ui, t, None, a, recording);
+        }
+        shortcut_row(ui, t, None, tr("Rename"), tr("Double-click"));
+        shortcut_row(ui, t, None, tr("Close"), tr("Middle-click"));
+        ui.add_space(18.0);
+        crate::dialogs::section(ui, t, tr("Multi-chart"));
+        for a in Action::CHARTS {
+            clicked |= self.shortcut_edit_row(ui, t, None, a, recording);
+        }
+        ui.add_space(18.0);
         crate::dialogs::section(ui, t, tr("Price scale"));
         for a in Action::SCALE {
             clicked |= self.shortcut_edit_row(ui, t, None, a, recording);

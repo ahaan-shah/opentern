@@ -925,11 +925,23 @@ msgstr "चैनल सेटिंग्स"
 msgid "Chart"
 msgstr "चार्ट"
 
+msgid "Chart above"
+msgstr "ऊपर वाला चार्ट"
+
 msgid "Chart basic styles"
 msgstr "चार्ट की मूल शैलियाँ"
 
+msgid "Chart below"
+msgstr "नीचे वाला चार्ट"
+
 msgid "Chart settings"
 msgstr "चार्ट सेटिंग्स"
+
+msgid "Chart to the left"
+msgstr "बाईं ओर का चार्ट"
+
+msgid "Chart to the right"
+msgstr "दाईं ओर का चार्ट"
 
 msgid "Chart type"
 msgstr "चार्ट प्रकार"
@@ -1058,6 +1070,12 @@ msgstr "बंद करें"
 
 msgid "Close ({0})"
 msgstr "बंद करें ({0})"
+
+msgid "Close others"
+msgstr "बाकी बंद करें"
+
+msgid "Close workspace"
+msgstr "वर्कस्पेस बंद करें"
 
 msgid "Closed"
 msgstr "बंद"
@@ -1579,6 +1597,9 @@ msgstr "बिंदीदार"
 
 msgid "Double EMA"
 msgstr "डबल EMA"
+
+msgid "Double-click"
+msgstr "डबल-क्लिक"
 
 msgid "Double-click to put these inputs on the chart"
 msgstr "ये इनपुट चार्ट पर लगाने के लिए डबल-क्लिक करें"
@@ -2937,6 +2958,9 @@ msgstr "अधिकतम मान"
 msgid "Maximize"
 msgstr "अधिकतम करें"
 
+msgid "Maximize chart, or show all"
+msgstr "चार्ट बड़ा करें, या सभी दिखाएँ"
+
 msgid "Maximize panel"
 msgstr "पैनल बड़ा करें"
 
@@ -3002,6 +3026,9 @@ msgstr "मध्य RCI"
 
 msgid "Middle RCI Length"
 msgstr "मध्य RCI लंबाई"
+
+msgid "Middle-click"
+msgstr "मिडल-क्लिक"
 
 msgid "Middle|text"
 msgstr "मध्य"
@@ -3112,6 +3139,9 @@ msgstr "मुहर्रम"
 
 msgid "Muhurat trading"
 msgstr "मुहूर्त ट्रेडिंग"
+
+msgid "Multi-chart"
+msgstr "मल्टी-चार्ट"
 
 msgid "Multiplier"
 msgstr "गुणक"
@@ -3237,6 +3267,9 @@ msgstr "नई स्क्रिप्ट"
 msgid "New section"
 msgstr "नया सेक्शन"
 
+msgid "New workspace"
+msgstr "नया वर्कस्पेस"
+
 msgid "News"
 msgstr "समाचार"
 
@@ -3246,6 +3279,9 @@ msgstr "अगले नतीजे {0}\nअनुमान {1}"
 #, message
 msgid "Next rebalance {0} (1 April and 1 October)."
 msgstr "अगला पुनर्संतुलन {0} (1 अप्रैल और 1 अक्टूबर)।"
+
+msgid "Next workspace"
+msgstr "अगला वर्कस्पेस"
 
 msgid "Nine languages besides English. It follows your system's; pick another in Settings → General → Language."
 msgstr "अंग्रेज़ी के अलावा नौ भाषाएँ। यह आपके सिस्टम की भाषा अपनाता है; दूसरी भाषा सेटिंग्स → सामान्य → भाषा में चुनें।"
@@ -3898,6 +3934,9 @@ msgstr "कुंजियाँ दबाएँ"
 msgid "Previous 7 days"
 msgstr "पिछले 7 दिन"
 
+msgid "Previous workspace"
+msgstr "पिछला वर्कस्पेस"
+
 msgid "Price"
 msgstr "भाव"
 
@@ -4225,6 +4264,9 @@ msgstr "नाम बदलें"
 
 msgid "Renko"
 msgstr "रेन्को"
+
+msgid "Reopen closed workspace"
+msgstr "बंद वर्कस्पेस फिर खोलें"
 
 msgid "Replace"
 msgstr "बदलें"
@@ -5864,6 +5906,39 @@ msgstr "वुडीज़ CCI"
 
 msgid "Working"
 msgstr "काम कर रहा है"
+
+msgid "Workspace"
+msgstr "वर्कस्पेस"
+
+msgid "Workspace 1"
+msgstr "वर्कस्पेस 1"
+
+msgid "Workspace 2"
+msgstr "वर्कस्पेस 2"
+
+msgid "Workspace 3"
+msgstr "वर्कस्पेस 3"
+
+msgid "Workspace 4"
+msgstr "वर्कस्पेस 4"
+
+msgid "Workspace 5"
+msgstr "वर्कस्पेस 5"
+
+msgid "Workspace 6"
+msgstr "वर्कस्पेस 6"
+
+msgid "Workspace 7"
+msgstr "वर्कस्पेस 7"
+
+msgid "Workspace 8"
+msgstr "वर्कस्पेस 8"
+
+msgid "Workspace 9"
+msgstr "वर्कस्पेस 9"
+
+msgid "Workspaces"
+msgstr "वर्कस्पेस"
 
 #, message
 msgid "Wrote {0}"

@@ -194,6 +194,13 @@ impl App {
     /// take the full width or height.
     pub(crate) fn shell(&mut self, ui: &mut Ui) {
         let t = self.t();
+        // The workspaces, above everything (they hold the rest).
+        egui::Panel::top("workspaces")
+            .exact_size(crate::workspaces::BAR_H)
+            .resizable(false)
+            .show_separator_line(false)
+            .frame(egui::Frame::new().fill(t.bg).inner_margin(Margin::symmetric(10, 0)))
+            .show(ui, |ui| self.workspace_bar(ui, &t));
         egui::Panel::top("top-bar")
             .exact_size(TOP_H)
             .resizable(false)

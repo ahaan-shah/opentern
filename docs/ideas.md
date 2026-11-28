@@ -3,57 +3,6 @@
 Ideas the maintainer wants kept but not built yet. Don't start one without
 their go; when one is built, move its notes into the right `docs/notes/` file and delete it here.
 
-## Workspaces: one chart per numbered pill (Nov 2026)
-Several charts in the same layout, each its own: BTCUSDT in workspace 1,
-ETHUSDT in 2, and so on, each with its own symbol, interval, indicators,
-drawings and scripts, and its own multi-chart setup (the layout menu's
-"Charts in this window" grid and its "Keep in sync" choices: one workspace
-can be a single chart, another a 2×2 grid). Everything else is shared (the
-app's panels and their sizes, the watchlist), so switching looks like the
-same app with other charts in it.
-
-- **Where:** a new row right under the top bar, across the chart area (the chart
-  gives up that much height). Hidden while there's only one workspace, so
-  nothing changes until a second is made.
-- **Look (the maintainer's pick of four mockups; locked in):**
-  ![Workspaces as numbered pills](images/workspaces-numbered-pills.png)
-  Small numbered pills, as
-  Hyprland's workspaces: `1 BTCUSDT  2 ETHUSDT  3 NIFTY  4 AAPL  +`. The number
-  sits in a small rounded square; the open pill is green (accent-soft
-  background, accent text, the number's square filled with the accent and dark
-  text); others are muted text on nothing, with the usual hover wash. The name
-  is the symbol it opened on, or a name the person gives it. A tooltip says the
-  symbol, interval and shortcut ("ETHUSDT · 4h  Alt+2"). `+` (an icon button)
-  makes a new one on the current symbol.
-- **Right-click a pill** opens a menu in the app's own menu style
-  (`widgets::menu_row` and friends, like the drawing toolbar's flyouts and the
-  study menu): Rename, Duplicate (same symbol, interval and indicators, to try
-  a variation), Close (Ctrl+W), Close others.
-- **Keys:** Alt+1…9 to a workspace, Ctrl+Tab / Ctrl+Shift+Tab to the next and
-  previous, Ctrl+T new, Ctrl+W close; all of them changeable in Settings →
-  Keyboard shortcuts. Drag a pill to reorder.
-- **Decided (the maintainer, Nov 2026):**
-  - Hidden workspaces don't stream: only the shown one has live data
-    sessions; the others load again on switching (from the bar cache first,
-    so it's quick).
-  - Alerts and strategies belong to the chart they were made on, like
-    indicators: a strategy added on workspace 1's chart runs there, not on
-    the others. (Alerts keep firing in the background as today, whichever
-    workspace is shown.)
-  - The agent acts on the shown workspace unless told otherwise ("on
-    workspace 2", "on the ETH one"); its tools take an optional workspace.
-  - Workspaces are saved per named layout. A layout is a whole set of them
-    (for example, one layout of crypto charts and another of Indian stocks,
-    each with ten or more workspaces), each with
-    its own charts, indicators, drawings and scripts. Opening a layout brings
-    all its workspaces back at once, as they were left, with the one that was
-    open shown. (So "Save layout" and the layout menu save and switch whole
-    sets, not one chart.) Ten or more workspaces must stay cheap: hidden ones
-    hold only their saved state until shown, nothing loads or streams.
-  - Strategies on hidden workspaces pause until their workspace is shown
-    again, then catch up on the bars they missed (the Strategy Report covers
-    the shown workspace's strategies).
-
 ## Scripts recalculate in the background (Nov 2026)
 Today a script's full recalculation (adding it, new inputs, a new symbol or
 interval, more history) runs on the UI thread in `Chart::run_study`, so a

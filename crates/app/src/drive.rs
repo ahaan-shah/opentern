@@ -2539,5 +2539,127 @@ mod formula_tests {
         assert_eq!(now[0].t, before[0].t);
     }
 
+    #[test]
+    fn workspaces_switch_keep_their_own_charts_and_come_back() {
+        use crate::multi::Grid;
+        let mut d = Driver::new("workspaces");
+        let ctrl = Modifiers::COMMAND;
+        let eth = opentern_core::starter_watchlist()
+            .into_iter()
+            .find(|s| s.ticker() == "ETHUSDT")
+            .unwrap();
+        let btc_id = d.app.chart.symbol.id.clone();
+        assert_eq!(d.app.ws.list.len(), 1);
+
+        // Ctrl+T: a new one on the same symbol, shown; it gets ETH and a grid.
+        d.key(Key::T, ctrl);
+        assert_eq!((d.app.ws.list.len(), d.app.ws.current), (2, 1));
+        d.app.open_symbol(eth.clone());
+        d.wait(|a| !a.chart.bars.is_empty());
+        d.app.set_grid(Grid::TwoCols);
+        d.frame(vec![]);
+        assert_eq!(d.app.ws_title(1), "ETHUSDT", "named after its main chart");
+
+        // Alt+1 goes back: BTC, one chart; Ctrl+Tab forward again: ETH, two.
+        d.key(Key::Num1, Modifiers::ALT);
+        assert_eq!(d.app.ws.current, 0);
+        assert_eq!(d.app.chart.symbol.id, btc_id);
+        assert_eq!(d.app.chart_count(), 1);
+        d.key(Key::Tab, ctrl);
+        assert_eq!(d.app.ws.current, 1);
+        assert_eq!(d.app.chart.symbol.id, eth.id);
+        assert_eq!(d.app.chart_count(), 2, "its own grid");
+        d.key(Key::Tab, ctrl | Modifiers::SHIFT);
+        assert_eq!(d.app.ws.current, 0, "Ctrl+Shift+Tab: back");
+
+        // Rename, reorder, then close and bring back.
+        d.app.rename_workspace(1, "  Swing  ");
+        assert_eq!(d.app.ws_title(1), "Swing");
+        d.app.move_workspace(1, 0);
+        assert_eq!(d.app.ws_title(0), "Swing");
+        assert_eq!(d.app.ws.current, 1, "the shown one moved along");
+        d.key(Key::W, ctrl);
+        assert_eq!(d.app.ws.list.len(), 1);
+        assert_eq!(d.app.chart.symbol.id, eth.id, "its neighbour is shown");
+        d.key(Key::W, ctrl);
+        assert_eq!(d.app.ws.list.len(), 1, "never the last one");
+        d.key(Key::T, ctrl | Modifiers::SHIFT);
+        assert_eq!(d.app.ws.list.len(), 2, "Ctrl+Shift+T reopens it");
+        assert_eq!(d.app.chart.symbol.id, btc_id);
+        assert_eq!(d.app.ws_title(0), "Swing");
+
+        // Everything comes back after a restart, on the one that was shown.
+        let shown = d.app.ws.current;
+        let dir = d.dir.clone();
+        d.app.on_exit_for_tests();
+        std::mem::forget(d);
+        let mut again = Driver::open(dir);
+        assert_eq!(again.app.ws.list.len(), 2);
+        assert_eq!(again.app.ws.current, shown);
+        assert_eq!(again.app.ws_title(0), "Swing");
+        again.app.switch_workspace(0);
+        assert_eq!(again.app.chart_count(), 2, "the grid came back");
+        assert_eq!(again.app.chart.symbol.id, eth.id);
+        assert_eq!(again.app.panics, 0);
+    }
+
+    #[test]
+    fn workspace_pills_click_drag_rename_and_menu() {
+        use crate::i18n::tr;
+        let mut d = Driver::new("workspace-pills");
+        d.app.new_workspace();
+        d.app.new_workspace();
+        d.app.rename_workspace(1, "Two");
+        d.app.rename_workspace(2, "Three");
+        d.frame(vec![]);
+        // A pill: the text in the row above the top bar.
+        let pill = |d: &mut Driver, name: &str| {
+            d.text_rects(name)
+                .into_iter()
+                .find(|r| r.top() < crate::workspaces::BAR_H)
+                .unwrap_or_else(|| panic!("no pill {name}"))
+        };
+        let one = d.app.ws_title(0);
+        let p = pill(&mut d, &one).center();
+        d.click(p);
+        assert_eq!(d.app.ws.current, 0, "a click shows it");
+
+        // Drag "Two" past "Three".
+        let from = pill(&mut d, "Two").center();
+        let past = pill(&mut d, "Three").right_center() + vec2(10.0, 0.0);
+        d.drag(from, past);
+        assert_eq!(
+            (d.app.ws_title(1), d.app.ws_title(2)),
+            ("Three".to_string(), "Two".to_string())
+        );
+
+        // Rename (the menu, or a double-click): the field, type, Enter.
+        let p = pill(&mut d, "Three").center();
+        d.right_click(p);
+        let at = d.text_rect(tr("Rename")).expect("Rename").center();
+        d.click(at);
+        assert_eq!(d.app.ws.list.len(), 3);
+        d.frame(vec![]);
+        d.frame(vec![Event::Key {
+            key: Key::A,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Modifiers::COMMAND,
+        }]);
+        d.frame(vec![Event::Text("Swing".into())]);
+        d.key(Key::Enter, Modifiers::NONE);
+        assert_eq!(d.app.ws_title(1), "Swing");
+
+        // Right-click: Close others.
+        let p = pill(&mut d, "Swing").center();
+        d.right_click(p);
+        let at = d.text_rect(tr("Close others")).expect("menu").center();
+        d.click(at);
+        assert_eq!(d.app.ws.list.len(), 1);
+        assert_eq!(d.app.ws_title(0), "Swing");
+        assert_eq!(d.app.panics, 0);
+    }
+
     const STRATEGY: &str = "//@version=6\nstrategy(\"EMA Cross\", overlay=true)\nf = ta.ema(close, input.int(9, \"Fast\"))\ns = ta.ema(close, input.int(21, \"Slow\"))\nif ta.crossover(f, s)\n    strategy.entry(\"Long\", strategy.long)\nif ta.crossunder(f, s)\n    strategy.entry(\"Short\", strategy.short)\n";
 }
