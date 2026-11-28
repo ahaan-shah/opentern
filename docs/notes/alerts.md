@@ -74,4 +74,7 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   draws them under the scale tags with their price tag and, near the pointer, a name
   pill at the left; with the cross a line drags (`Action::MoveAlert` →
   `App::move_alert`) and right-clicks (`Action::AlertMenu` → `alert_line_menu`: edit,
-  delete, colour, style, width).
+  delete, colour, style, width). Their price tags do the same (`ChartUi::alert_tags`,
+  the tags' rects as last painted, made clickable after the scale's own response so
+  they win the press). The menu closes on a press only over a layer below
+  `Order::Foreground` (`layer_id_at`), so the colour picker and tooltips never close it.

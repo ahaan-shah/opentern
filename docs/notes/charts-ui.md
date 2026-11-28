@@ -20,7 +20,10 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   (`drag_text` 1: size from how far along the baseline), the knob `TURN_GAP` above
   (2: turns, snapping to 0/45/90… and `line_angles`, the trend lines' slopes, within
   3°). Text sizes for hit-tests come from `TEXT_SIZES` (a thread-local of the last
-  layouts; a guess before the first paint).
+  layouts; a guess before the first paint). Every tool's handles are
+  `draw::paint_handle`: a white dot in a ring of the drawing's colour (dark grey for
+  very light colours), a soft shadow, bigger with a halo under the pointer; the
+  text's knob is a filled disc with `ARROW_CLOCKWISE`.
 - **Text on lines and boxes** (`Tool::carries_text`): `DrawStyle::text_at`
   (`TextAt { along: Start|Middle|End, side: Above|On|Below }`; none = `TextAt::usual`,
   so old drawings keep their place). `carried_text` places it along the anchors' segment
@@ -102,8 +105,8 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   Calendar (NYSE/NSE holidays and early closes as date tiles with pills, the
   symbol's dividends and splits by year), Notifications
   (alerts, snapshots, updates; dot on the rail when unread). Every `App::notify`
-  also pops up a card (`notes::card`) at the charts' top right, left of the price
-  scale, for 6 s: the dialogs' border and green sheen (`dialogs::border_stroke`,
+  also pops up a card (`notes::card`) at the app's top right, under the top bar
+  (over the side panel), for 6 s: the dialogs' border and green sheen (`dialogs::border_stroke`,
   `sheen`), icon disc, title, text, × on hover; held while pointed at. Side panel
   lists (Alerts, Object tree, Notifications) use the watchlist's rounded hover rows,
   no rules between rows, plain-case headings (`objects::heading`, `object_row`). Hub requests

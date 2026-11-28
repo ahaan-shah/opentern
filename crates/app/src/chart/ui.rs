@@ -77,6 +77,8 @@ pub struct ChartUi {
     pub pinned_price: Option<f64>,
     /// An alert line being dragged: (alert, price under the pointer).
     pub alert_drag: Option<(i64, f64)>,
+    /// The alerts' price tags as last painted, to right-click or drag.
+    pub alert_tags: Vec<(i64, Rect)>,
 }
 
 impl Default for ChartUi {
@@ -93,6 +95,7 @@ impl Default for ChartUi {
             paper_drag: None,
             pinned_price: None,
             alert_drag: None,
+            alert_tags: Vec::new(),
         }
     }
 }
@@ -109,6 +112,10 @@ struct PaneGeo {
 
 /// How long until a countdown showing `left` ms (whole seconds, rounded
 /// down) shows the next second, a few ms past so it has turned over.
+/// A label on the price scale: its height, text, colour, a second line
+/// (the countdown) and the alert it belongs to (right-click it).
+type ScaleTag = (f32, String, Color32, Option<String>, Option<i64>);
+
 fn next_second(left: i64) -> std::time::Duration {
     std::time::Duration::from_millis(left.rem_euclid(1000) as u64 + 5)
 }
@@ -757,6 +764,42 @@ pub fn show(
         chart.panes[k].scale.auto = true;
     }
     let scale_resp = scale_resp.on_hover_cursor(egui::CursorIcon::ResizeVertical);
+    // An alert's price tag on the scale (as last painted): a bigger target
+    // than its line. Right-click for its menu, drag to move it. Made after
+    // the scale's own response, so it wins the press.
+    if interactive
+        && !paper_used
+        && !tools.tool.is_drawing()
+        && !cui.draw.busy()
+        && let Some(g) = geos.first()
+    {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        for (id, r) in cui.alert_tags.clone() {
+            let resp = ui.interact(r, Id::new(("alert-tag", chart.id, id)), Sense::click_and_drag());
+            if resp.hovered() || resp.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::ResizeVertical);
+            }
+            if resp.dragged()
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                cui.alert_drag = Some((id, (g.y.value(p.y) / tick).round() * tick));
+            }
+            if resp.drag_stopped()
+                && let Some((id, v)) = cui.alert_drag.take()
+            {
+                actions.push(Action::MoveAlert(id, v));
+            }
+            if resp.secondary_clicked()
+                && let Some(p) = resp.interact_pointer_pos()
+            {
+                actions.push(Action::AlertMenu(id, p));
+            }
+        }
+    }
     // Own scales: drag to zoom, double-click to fit, right-click for options.
     for (ci, col, y) in owns.iter_mut() {
         let resp = ui.interact(
@@ -1140,9 +1183,10 @@ pub fn show(
 
     // ---- last-value labels on the price scale
     let tag_h = 18.0;
+    cui.alert_tags.clear();
     for (k, g) in geos.iter().enumerate() {
         let pane_id = chart.panes[k].id;
-        let mut tags: Vec<(f32, String, Color32, Option<String>)> = Vec::new();
+        let mut tags: Vec<ScaleTag> = Vec::new();
         if k == 0
             && let Some(b) = chart.bars.last()
         {
@@ -1169,7 +1213,7 @@ pub fn show(
                         .then(|| chart.tf.millis())
                         .flatten()
                         .map(|len| format::countdown(b.time + len - jiff::Timestamp::now().as_millisecond()));
-                tags.push((yy, text, col, countdown));
+                tags.push((yy, text, col, countdown, None));
             }
             // Alert lines, under the other labels' lines.
             let a_col = c32(chart.style.alert_color);
@@ -1190,7 +1234,7 @@ pub fn show(
                     Stroke::new(chart.style.alert_width.max(1) as f32, a_col),
                     chart.style.alert_style,
                 );
-                tags.push((yy, format::price(price, prec), a_col, None));
+                tags.push((yy, format::price(price, prec), a_col, None, Some(a.id)));
                 // Its name at the left while the pointer is on it, as the
                 // paper orders' tags.
                 let near = pointer.is_some_and(|p| g.rect.contains(p) && (p.y - yy).abs() <= 5.0)
@@ -1225,7 +1269,7 @@ pub fn show(
                         Some(base) if base > 0.0 => format::signed_pct((e.price / base - 1.0) * 100.0),
                         _ => format::price(e.price, prec),
                     };
-                    tags.push((yy, text, col, None));
+                    tags.push((yy, text, col, None, None));
                 }
             }
         }
@@ -1250,7 +1294,7 @@ pub fn show(
                     }
                     let ci = s.inst.out.colors[pi][n - 1] as usize;
                     let col = c32(*look.colors.get(ci).unwrap_or(&look.colors[0])).to_opaque();
-                    tags.push((g.y.y(v), fmt(v), col, None));
+                    tags.push((g.y.y(v), fmt(v), col, None, None));
                 }
             }
         }
@@ -1264,6 +1308,7 @@ pub fn show(
                     g.y.y(b.close),
                     format::price(b.close, c.symbol.precision()),
                     c32(c.color),
+                    None,
                     None,
                 ));
             }
@@ -1279,8 +1324,11 @@ pub fn show(
             .collect();
         paint::spread(&mut boxes, 1.0, g.rect.top(), g.rect.bottom());
         for (top, h, i) in boxes {
-            let (_, text, col, countdown) = &tags[i];
+            let (_, text, col, countdown, alert) = &tags[i];
             let r = Rect::from_min_size(pos2(scale_col.left() + 1.0, top), vec2(scale_w - 2.0, h));
+            if let Some(id) = alert {
+                cui.alert_tags.push((*id, r));
+            }
             let yy = top + tag_h / 2.0;
             painter.rect_filled(r, CornerRadius::same(3), *col);
             let fg = paint::text_on(*col);

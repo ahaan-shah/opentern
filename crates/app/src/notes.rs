@@ -58,16 +58,16 @@ impl App {
         ctx.request_repaint_after(std::time::Duration::from_millis(50));
         let t = self.t();
         const W: f32 = 320.0;
-        // The top right of the charts: clear of the side panel and its
-        // rail, under the top bar (the screen's corner before a layout).
-        let area = if self.grid_rect.is_positive() {
-            self.grid_rect
+        // The app's top right corner, just under the top bar (over the side
+        // panel, if one is open: it's only there for a few seconds).
+        let screen = ctx.content_rect();
+        let top = if self.grid_rect.is_positive() {
+            self.grid_rect.top()
         } else {
-            ctx.content_rect().shrink2(vec2(64.0, 44.0))
+            screen.top() + 44.0
         };
-        // Left of the price scale, so the last price stays in sight.
-        let right = area.right() - 92.0;
-        let mut y = area.top() + 12.0;
+        let right = screen.right() - 12.0;
+        let mut y = top + 10.0;
         let mut open = None;
         let mut close = None;
         let mut held = None;

@@ -518,6 +518,14 @@ mod tests {
         assert_eq!(d.app.chart.alerts[0].price, moved, "the line follows");
         assert!(d.app.chart.drawings.is_empty(), "no drawing from the drag");
 
+        // Its price tag on the scale opens the menu too.
+        let (tid, tag) = d.app.chart_ui.alert_tags[0];
+        assert_eq!(tid, id);
+        d.right_click(tag.center());
+        assert!(d.app.alert_menu.is_some(), "the tag's menu");
+        d.app.alert_menu = None;
+        d.frame(vec![]);
+
         let y2 = y + 60.0;
         d.right_click(pos2(x, y2));
         assert!(d.app.alert_menu.is_some(), "its menu");

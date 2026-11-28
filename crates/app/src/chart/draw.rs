@@ -1343,11 +1343,48 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
         );
     }
     if sel {
+        let hover = p.ctx().pointer_hover_pos();
         for (i, q) in handle_points(d, g).into_iter().enumerate() {
-            let _ = i;
-            p.circle_filled(q, 5.0, bg);
-            p.circle_stroke(q, 5.0, Stroke::new(1.5, c32(d.style.color)));
+            let knob = d.tool == Text && i == 2;
+            paint_handle(
+                p,
+                q,
+                c32(d.style.color),
+                knob,
+                hover.is_some_and(|h| h.distance(q) <= 8.0),
+            );
         }
+    }
+}
+
+/// One of a selected drawing's handles: a small white dot in a ring of the
+/// drawing's colour, lifted by a soft shadow, a little bigger with a halo
+/// under the pointer. The text's turning knob carries a turn arrow.
+fn paint_handle(p: &Painter, q: Pos2, color: Color32, knob: bool, hover: bool) {
+    // A very light colour would vanish around the white dot.
+    let [r, g, b, _] = color.to_array();
+    let ring = if (r as u32 * 299 + g as u32 * 587 + b as u32 * 114) / 1000 > 200 {
+        Color32::from_gray(70)
+    } else {
+        color.to_opaque()
+    };
+    let rad = if knob { 8.0 } else { 4.5 } + if hover { 1.0 } else { 0.0 };
+    if hover {
+        p.circle_filled(q, rad + 4.0, ring.gamma_multiply(0.22));
+    }
+    p.circle_filled(q + vec2(0.0, 1.0), rad + 1.5, Color32::from_black_alpha(60));
+    p.circle_filled(q, rad, ring);
+    if knob {
+        // Filled in the ring's colour with a white turn arrow on top.
+        p.text(
+            q,
+            Align2::CENTER_CENTER,
+            egui_phosphor::regular::ARROW_CLOCKWISE,
+            theme::regular(rad * 1.3),
+            Color32::WHITE,
+        );
+    } else {
+        p.circle_filled(q, rad - 1.75, Color32::WHITE);
     }
 }
 

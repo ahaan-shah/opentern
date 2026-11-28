@@ -117,6 +117,8 @@ pub struct App {
     /// drawings with text; `alert-lines`: two price alerts as lines.
     still_text: Option<String>,
     still_alert_lines: bool,
+    /// `alert-lines:menu`: the first alert line's menu, once the lines show.
+    still_alert_menu: bool,
     /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
     /// (with its Levels panel open) once bars are in.
     still_fib: Option<bool>,
@@ -299,6 +301,7 @@ impl App {
             still_measure: false,
             still_text: None,
             still_alert_lines: false,
+            still_alert_menu: false,
             still_fib: None,
             still_price_menu: false,
             still_replay: false,
@@ -501,8 +504,9 @@ impl App {
                 // Handled in `new` (needs the egui context).
             } else if part == "text" || part.starts_with("text:") {
                 self.still_text = Some(part.trim_start_matches("text").trim_start_matches(':').to_string());
-            } else if part == "alert-lines" {
+            } else if part == "alert-lines" || part == "alert-lines:menu" {
                 self.still_alert_lines = true;
+                self.still_alert_menu = part.ends_with(":menu");
             } else if part == "note" {
                 // A sample notification, for screenshots of the widget.
                 self.notify(
@@ -1235,8 +1239,18 @@ impl App {
                             }
                         }
                         w::vdivider(ui, &t);
-                        let width = trf!("{}px", style.alert_width);
-                        if w::tool_button(ui, &t, &width, tr("Line width"), false, 36.0).clicked() {
+                        // The width as text, at the menu's size (a tool
+                        // button's glyph size is for icons).
+                        let (_, resp) = ui.allocate_exact_size(egui::vec2(40.0, 28.0), egui::Sense::click());
+                        let resp = w::tool_button_look(ui, &t, resp, "", tr("Line width"), false);
+                        ui.painter().text(
+                            resp.rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            trf!("{}px", style.alert_width),
+                            crate::theme::regular(12.5),
+                            crate::motion::lerp_color(t.text2, t.text, crate::motion::hover(&resp)),
+                        );
+                        if resp.clicked() {
                             style.alert_width = style.alert_width % 4 + 1;
                         }
                     });
@@ -1253,9 +1267,18 @@ impl App {
             self.delete_alert(id);
             close = true;
         }
-        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
-            && !area.response.contains_pointer()
-            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered())
+        // A press closes it only when it lands on a layer under the menu
+        // (the chart, a panel). The menu's own buttons, the colour picker
+        // and any tooltip are layers at its order or above, so a press there
+        // (even in the frame a popup opens or a tooltip fades) keeps it.
+        let clicked_outside = ctx
+            .input(|i| i.pointer.any_pressed().then(|| i.pointer.interact_pos()).flatten())
+            .is_some_and(|p| {
+                !area.response.rect.contains(p)
+                    && ctx
+                        .layer_id_at(p)
+                        .is_none_or(|l| l != area.response.layer_id && l.order < egui::Order::Foreground)
+            })
             && !egui::Popup::is_any_open(ctx);
         if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.alert_menu = None;
@@ -1337,6 +1360,12 @@ impl App {
                 }
                 _ => {}
             }
+        }
+        if self.still_alert_menu
+            && let Some(a) = self.chart.alerts.first()
+        {
+            self.still_alert_menu = false;
+            self.alert_menu = Some((self.chart.id, a.id, self.grid_rect.center()));
         }
         if std::mem::take(&mut self.still_alert_lines) {
             use opentern_engine::alerts::{Alert, Condition, Op};

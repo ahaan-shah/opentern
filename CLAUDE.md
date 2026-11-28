@@ -281,7 +281,7 @@ OPENTERN_PRIVATE_CORPUS=<dir> cargo test -p opentern-series --test golden  # Tra
 MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer random-input soak
 ```
 Stills also take `compare:<ticker>:scale|pane`, `favbar` or `favbar:vertical` (the favourite drawings toolbar), `measure` (a quick measure once
-bars are in), `fib` or `fib:levels` (a selected Fib, its Levels panel open), `price-menu` (the "+" menu by the price scale), `text` or `text:select|several|panel` (sample drawings with text), `alert-lines` (two price alerts as lines), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
+bars are in), `fib` or `fib:levels` (a selected Fib, its Levels panel open), `price-menu` (the "+" menu by the price scale), `text` or `text:select|several|panel` (sample drawings with text), `alert-lines` or `alert-lines:menu` (two price alerts as lines; the first one's menu open), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
 maximized), `trades` (Strategy Report → List of trades), `gradient` (gradient canvas), `replay:play` (a replay under way) and
 `lang:<code>` (e.g. `lang:ja`) and `settings:<general|chart|providers|shortcuts|about>` (add `scroll-end` to start at the bottom).
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo
