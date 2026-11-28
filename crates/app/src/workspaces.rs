@@ -141,6 +141,7 @@ impl App {
         };
         if let Some(l) = shown {
             self.install_layout(l);
+            self.follow_first_style();
         }
     }
 
@@ -166,6 +167,7 @@ impl App {
         self.ws.renaming = None;
         self.ws.reveal = true;
         self.install_layout(next);
+        self.follow_first_style();
         self.ws.changed += 1;
     }
 
@@ -326,6 +328,24 @@ impl App {
         }
         let c = self.ws.list.get(i)?.saved.as_ref()?.charts.first()?;
         Some((c.symbol.ticker().to_string(), c.tf.label()))
+    }
+
+    /// The shown workspace's charts take workspace 1's look (Chart
+    /// settings), unless their look was changed here.
+    pub(crate) fn follow_first_style(&mut self) {
+        if self.ws.current == 0 {
+            return;
+        }
+        let Some(style) = self.ws_main_style(0) else { return };
+        self.each_chart(|a| {
+            let c = &mut a.chart;
+            if c.has_own_style() {
+                c.style_own = true;
+            } else {
+                c.style = style.clone();
+                c.style_given = Some(style.clone());
+            }
+        });
     }
 
     /// Workspace `i`'s main chart's look (Chart settings).

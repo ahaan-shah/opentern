@@ -169,6 +169,15 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   model menu and usage card grow leftwards to stay in the pane; code blocks float
   their copy button (no header row unless there's a language). Still:
   `claude-menu:<mode|model|usage>` opens one of them.
+- **Tools for the newer parts** (`claude/more.rs`, Nov 2026): `workspaces` (list,
+  switch, new without the search window, close, reopen, rename, duplicate, move);
+  `drawings` takes the whole look everywhere (`more::style_from`: text_position,
+  bold, angle, Fib levels, position sizing, stop/target and up/down colours, locked)
+  and gains edit, defaults (Settings → Drawings and after_drawing), templates and
+  template; list gives each drawing's look and a position's qty/risk/reward
+  (`style_json`); `chart_view` gains maximize, reset_sizes and alert_lines; `alerts`
+  gains move and delete_all (refused without `confirm: true`: the agent asks first).
+  Tested in `the_agent_uses_workspaces_and_the_newer_drawing_tools`.
 - **Same Claude as the terminal:** "Default" passes no `--model` (Claude Code's own
   default, the user's settings), no effort flag, and `--append-system-prompt` only
   adds facts (scripts folder, tools, strategies → strategy_report, paper only), never

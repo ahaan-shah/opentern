@@ -33,7 +33,7 @@ const CHART_MIN: f32 = 180.0;
 fn panel_max_h(window_h: f32) -> f32 {
     (window_h - crate::workspaces::BAR_H - TOP_H - RANGE_H - TABS_H - GAP - CHART_MIN).max(140.0)
 }
-const CARD_R: f32 = 9.0;
+pub(crate) const CARD_R: f32 = 9.0;
 
 /// Widgets the right rail opens in the widget panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

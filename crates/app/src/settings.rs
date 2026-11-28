@@ -965,16 +965,7 @@ impl App {
                             .layout(egui::Layout::left_to_right(egui::Align::Center)),
                     );
                     c.spacing_mut().item_spacing.x = 6.0;
-                    let fills = matches!(
-                        tool,
-                        Tool::Rectangle
-                            | Tool::Ellipse
-                            | Tool::Triangle
-                            | Tool::ParallelChannel
-                            | Tool::PriceRange
-                            | Tool::DateRange
-                            | Tool::DatePriceRange
-                    );
+                    let fills = tool.two_colors();
                     {
                         let c = &mut c;
                         crate::dialogs::color::color_button(c, t, &mut style.color);

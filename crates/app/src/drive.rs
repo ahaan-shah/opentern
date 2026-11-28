@@ -2568,6 +2568,19 @@ mod formula_tests {
         assert!(matches!(d.app.modal, Some(crate::dialogs::Modal::Symbol(_))));
         assert_eq!(d.app.ws_title(1), tr("New"));
         assert_eq!(d.app.chart.style, look, "workspace 1's chart settings");
+        // It keeps following workspace 1 until its own look is changed.
+        d.app.switch_workspace(0);
+        d.app.chart.style.show_grid_horz = !d.app.chart.style.show_grid_horz;
+        let changed = d.app.chart.style.clone();
+        d.app.switch_workspace(1);
+        assert_eq!(d.app.chart.style, changed, "follows the change");
+        d.app.chart.style.watermark = !d.app.chart.style.watermark;
+        let own = d.app.chart.style.clone();
+        d.app.switch_workspace(0);
+        d.app.chart.style.show_grid_vert = true;
+        d.app.switch_workspace(1);
+        assert_eq!(d.app.chart.style, own, "changed here: its own now");
+        d.app.switch_workspace(1);
         d.app.modal = None;
         d.app.open_symbol(eth.clone());
         d.wait(|a| !a.chart.bars.is_empty());

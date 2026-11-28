@@ -140,10 +140,20 @@ pub fn specs() -> Value {
             &["file"]
         ),
         tool(
-            "chart_view",
-            "Changes how the active chart looks. Actions: chart_type {type: candles, hollow candles, bars, heikin ashi, line, area, baseline, renko, …}; go_to {from, to?} scrolls and zooms to a date range, loading older history; view (what's in view now: dates, bars, price range); pan {bars: negative = back in time, positive = forward}; zoom {bars: how many to show, or factor: 2 = closer, 0.5 = further}; price_range {low, high} fixes the price scale (neither = fit the bars again); reset (back to the latest bar); scale {log?, percent?, auto?}; layout {charts: 1-8} splits the window into that many charts; activate {chart: 1-based number} picks which one the tools act on; compare {symbol, mode: percent|scale|pane}; remove_compare {symbol}; indicator_template {name}.",
+            "workspaces",
+            "The workspaces: numbered pills above the top bar, each its own charts (symbol, interval, indicators, grid); only the shown one is live, and every other tool acts on it. Actions: list (number, name, symbol, interval, charts, shown); switch {number}; new (a blank one, shown: then open_symbol); close {number?} (the shown one without number; never the last); reopen (the last closed); rename {number?, name} (empty name: named after its symbol again); duplicate {number?}; move {number, to}. Numbers are 1-based, as on the pills.",
             json!({
-                "action": s("chart_type, go_to, view, pan, zoom, price_range, reset, scale, layout, activate, compare, remove_compare or indicator_template."),
+                "action": s("list, switch, new, close, reopen, rename, duplicate or move."),
+                "number": t("integer"), "to": t("integer"), "name": t("string"),
+            }),
+            &["action"]
+        ),
+        tool(
+            "chart_view",
+            "Changes how the active chart looks. Actions: chart_type {type: candles, hollow candles, bars, heikin ashi, line, area, baseline, renko, …}; go_to {from, to?} scrolls and zooms to a date range, loading older history; view (what's in view now: dates, bars, price range); pan {bars: negative = back in time, positive = forward}; zoom {bars: how many to show, or factor: 2 = closer, 0.5 = further}; price_range {low, high} fixes the price scale (neither = fit the bars again); reset (back to the latest bar); scale {log?, percent?, auto?}; layout {charts: 1-8} splits the window into that many charts; activate {chart: 1-based number} picks which one the tools act on; maximize {on?} shows the active chart alone (or all again); reset_sizes evens out charts the user resized; compare {symbol, mode: percent|scale|pane}; remove_compare {symbol}; indicator_template {name}; alert_lines {on?, color?, width?, line_style?} shows the price alerts as lines on the chart (dragging one moves its alert).",
+            json!({
+                "action": s("chart_type, go_to, view, pan, zoom, price_range, reset, scale, layout, activate, maximize, reset_sizes, compare, remove_compare, indicator_template or alert_lines."),
+                "on": t("boolean"), "color": t("string"), "width": t("number"), "line_style": t("string"),
                 "type": t("string"), "from": t("string"), "to": t("string"),
                 "bars": t("number"), "factor": t("number"), "low": t("number"), "high": t("number"),
                 "log": t("boolean"), "percent": t("boolean"), "auto": t("boolean"),
@@ -164,9 +174,18 @@ pub fn specs() -> Value {
         ),
         tool(
             "drawings",
-            "Draws on the active chart, as the user would with the drawing tools (saved per symbol; the user can undo). Actions: add {drawings: [{tool, points: [{time | bars_ago, price}], text?, color?, width?, line_style?, fill?, extend_left?, extend_right?, font_size?}]}; list; remove {ids}; clear (every drawing on the symbol, the user's too). Tools: trend_line, ray, extended_line, arrow, horizontal_line, horizontal_ray, vertical_line, cross_line, parallel_channel, fib_retracement, fib_extension, pitchfork, path, triangle, long_position, short_position, price_range, date_range, date_price_range, rectangle, ellipse, brush, text, arrow_up, arrow_down, anchored_vwap, fixed_range_volume_profile, anchored_volume_profile. Points: 1 for horizontal/vertical lines, text, arrows, anchored tools; 3 for parallel_channel, fib_extension, pitchfork, triangle and long/short_position (entry, target, stop; the last two at the box's end time); 2+ for path and brush; else 2. price may be a number or open/high/low/close of that bar; without time or bars_ago a point is on the latest bar. text labels any of them. Colours: #RRGGBB or red, green, orange, purple, yellow, gray.",
+            "Draws on the active chart, as the user would with the drawing tools (saved per symbol; the user can undo). Actions: add {drawings: [{tool, points: [{time | bars_ago, price}], text?, color?, width?, line_style?, fill?, extend_left?, extend_right?, font_size?}]}; list; remove {ids}; clear (every drawing on the symbol, the user's too). Tools: trend_line, ray, extended_line, arrow, horizontal_line, horizontal_ray, vertical_line, cross_line, parallel_channel, fib_retracement, fib_extension, pitchfork, path, triangle, long_position, short_position, price_range, date_range, date_price_range, rectangle, ellipse, brush, text, arrow_up, arrow_down, anchored_vwap, fixed_range_volume_profile, anchored_volume_profile. Points: 1 for horizontal/vertical lines, text, arrows, anchored tools; 3 for parallel_channel, fib_extension, pitchfork, triangle and long/short_position (entry, target, stop; the last two at the box's end time); 2+ for path and brush; else 2. price may be a number or open/high/low/close of that bar; without time or bars_ago a point is on the latest bar. text labels any of them. Colours: #RRGGBB or red, green, orange, purple, yellow, gray. Look: color, fill (a box's fill; a position's stop colour, color being its target; a volume profile's down volume, color its up), width 1-4, line_style solid|dashed|dotted, extend_left/right, font_size 8-120, bold, locked; text tool: angle (degrees, clockwise); lines and boxes with text: text_position {along: start|middle|end, side: above|on|below (inside for a rectangle)}; fib_retracement/fib_extension: levels [numbers or {value, color?, on?}] or \"standard\"; long/short_position: sizing {account, risk, risk_unit: percent|amount, lot} (list then gives qty, risk_amount, reward_amount). More actions: edit {id or ids, any of the above, text?, points? (all of them), hidden?}; defaults {tool?, …look, reset?, after_drawing?: keep|cursor} sets Settings → Drawings (the look new drawings of that tool get; whether the tool stays picked after a drawing) and lists it; templates {tool?} lists saved looks; template {id, name, do: apply|save|delete}.",
             json!({
-                "action": s("add, list, remove or clear."),
+                "action": s("add, list, edit, remove, clear, defaults, templates or template."),
+                "id": t("integer"), "tool": t("string"), "name": t("string"), "do": t("string"),
+                "after_drawing": t("string"), "reset": t("boolean"),
+                "text": t("string"), "color": t("string"), "fill": t("string"), "width": t("number"),
+                "line_style": t("string"), "font_size": t("number"), "bold": t("boolean"),
+                "angle": t("number"), "locked": t("boolean"), "hidden": t("boolean"),
+                "text_position": {"type": "object", "description": "{along, side}"},
+                "levels": {"description": "Fib levels: a list, or \"standard\"."},
+                "sizing": {"type": "object", "description": "{account, risk, risk_unit, lot}"},
+                "points": {"type": "array", "items": {"type": "object"}, "description": "For edit."},
                 "drawings": {"type": "array", "items": {"type": "object"}, "description": "For add."},
                 "ids": {"type": "array", "items": {"type": "integer"}, "description": "For remove."},
             }),
@@ -250,9 +269,10 @@ pub fn specs() -> Value {
         ),
         tool(
             "alerts",
-            "The user's alerts. Actions: list; create {value, op?: crossing|crossing_up|crossing_down|greater_than|less_than, symbol?, indicator?, plot?, freq?: once|once_per_bar|once_per_bar_close|every_time, message?, name?} (a price alert, or with indicator: a plot of a study on the chart against value, or against the price without value); delete {id}; pause {id}; resume {id}.",
+            "The user's alerts. Actions: list; create {value, op?: crossing|crossing_up|crossing_down|greater_than|less_than, symbol?, indicator?, plot?, freq?: once|once_per_bar|once_per_bar_close|every_time, message?, name?} (a price alert, or with indicator: a plot of a study on the chart against value, or against the price without value); delete {id}; pause {id}; resume {id}; move {id, price} (a price alert's level, as dragging its line); delete_all {confirm: true} (every alert, no undo: ask the user first).",
             json!({
-                "action": s("list, create, delete, pause or resume."),
+                "action": s("list, create, delete, pause, resume, move or delete_all."),
+                "price": t("number"), "confirm": t("boolean"),
                 "value": t("number"), "op": t("string"), "symbol": t("string"),
                 "indicator": t("string"), "plot": t("string"), "freq": t("string"),
                 "message": t("string"), "name": t("string"), "id": t("integer"),
@@ -518,9 +538,15 @@ impl App {
                 text(format!("{f} is open in the Script Editor."))
             }
             "scripting_guide" => text(GUIDE),
-            "chart_view" => return self.tool_chart_view((chat, request, id), a),
+            "chart_view" => match self.tool_chart_view_more(a) {
+                Some(v) => v,
+                None => return self.tool_chart_view((chat, request, id), a),
+            },
             "indicator" => self.tool_indicator(a),
-            "drawings" => return self.tool_drawings((chat, request, id), a),
+            "drawings" => match self.tool_drawings_more(a) {
+                Some(v) => v,
+                None => return self.tool_drawings((chat, request, id), a),
+            },
             "replay" => return self.tool_replay((chat, request, id), a),
             "snapshot" => return self.tool_snapshot((chat, request, id)),
             "watchlist" => return self.tool_watchlist((chat, request, id), a),
@@ -528,7 +554,11 @@ impl App {
             "strategy_settings" => self.tool_strategy_settings(a),
             "strategy_lab" => return self.tool_strategy_lab((chat, request, id), a),
             "paper_trading" => self.tool_paper(a),
-            "alerts" => self.tool_alerts(a),
+            "alerts" => match self.tool_alerts_more(a) {
+                Some(v) => v,
+                None => self.tool_alerts(a),
+            },
+            "workspaces" => self.tool_workspaces(a),
             "open_panel" => self.tool_open_panel(a),
             "seasonality" => return self.tool_seasonality((chat, request, id), a),
             "custom_index" => return self.tool_custom_index((chat, request, id), a),

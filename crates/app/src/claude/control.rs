@@ -78,7 +78,7 @@ pub fn norm(s: &str) -> String {
 }
 
 /// `TrendLine` → `trend_line`.
-fn snake(s: &str) -> String {
+pub(super) fn snake(s: &str) -> String {
     let mut out = String::new();
     for (i, c) in s.chars().enumerate() {
         if c.is_uppercase() && i > 0 {
@@ -115,16 +115,16 @@ pub fn iso(ms: i64) -> String {
         .unwrap_or_default()
 }
 
-fn num(a: &Value, k: &str) -> Option<f64> {
+pub(super) fn num(a: &Value, k: &str) -> Option<f64> {
     a.get(k)
         .and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.trim().parse().ok())))
 }
 
-fn flag(a: &Value, k: &str) -> Option<bool> {
+pub(super) fn flag(a: &Value, k: &str) -> Option<bool> {
     a.get(k).and_then(Value::as_bool)
 }
 
-fn st<'a>(a: &'a Value, k: &str) -> &'a str {
+pub(super) fn st<'a>(a: &'a Value, k: &str) -> &'a str {
     a.get(k).and_then(Value::as_str).unwrap_or("").trim()
 }
 
@@ -146,7 +146,7 @@ fn list(a: &Value, k: &str) -> Vec<String> {
 }
 
 /// The drawing tools the agent can use, by their snake_case name.
-fn drawing_tools() -> impl Iterator<Item = Tool> {
+pub(super) fn drawing_tools() -> impl Iterator<Item = Tool> {
     Tool::ALL.into_iter().filter(|t| t.is_drawing())
 }
 
@@ -771,7 +771,7 @@ impl App {
 
     /// A point given as {time | bars_ago, price}; price may be a number or
     /// "open"/"high"/"low"/"close" of the bar at that time.
-    fn anchor_of(&self, p: &Value) -> Result<Anchor, String> {
+    pub(super) fn anchor_of(&self, p: &Value) -> Result<Anchor, String> {
         let bars = &self.chart.bars;
         let last = bars.last().ok_or("The chart has no bars yet.")?;
         let t = if let Some(k) = p.get("bars_ago").and_then(Value::as_f64) {
@@ -860,39 +860,14 @@ impl App {
             .get(&tool)
             .cloned()
             .unwrap_or_else(|| DrawStyle::for_tool(tool));
-        if let Some(c) = d.get("color").and_then(Value::as_str) {
-            style.color = crate::scripting::parse_color(c);
-            style.fill = style.color.transp(80);
-        }
-        if let Some(c) = d.get("fill").and_then(Value::as_str) {
-            style.fill = crate::scripting::parse_color(c);
-        }
-        if let Some(w) = num(d, "width") {
-            style.width = w.clamp(1.0, 4.0) as u8;
-        }
-        if let Some(f) = num(d, "font_size") {
-            style.font = f.clamp(8.0, 40.0) as u8;
-        }
-        use opentern_series::study::LineStyle;
-        match norm(st(d, "line_style")).as_str() {
-            "dashed" => style.line = LineStyle::Dashed,
-            "dotted" => style.line = LineStyle::Dotted,
-            "solid" => style.line = LineStyle::Solid,
-            _ => {}
-        }
-        if let Some(v) = flag(d, "extend_left") {
-            style.extend_left = v;
-        }
-        if let Some(v) = flag(d, "extend_right") {
-            style.extend_right = v;
-        }
+        super::more::style_from(tool, d, &mut style)?;
         Ok(Drawing {
             id,
             tool,
             pts,
             style,
             text: st(d, "text").to_string(),
-            locked: false,
+            locked: flag(d, "locked").unwrap_or(false),
             hidden: false,
         })
     }
@@ -978,6 +953,8 @@ impl App {
                             "points": d.pts.iter().map(|p| json!({"time": iso(p.t), "price": p.p})).collect::<Vec<_>>(),
                             "text": d.text,
                             "hidden": d.hidden,
+                            "locked": d.locked,
+                            "style": super::more::style_json(d),
                         })
                     })
                     .collect();
@@ -1935,6 +1912,110 @@ mod drive_tests {
         let t = r["content"][0]["text"].as_str().unwrap_or("").to_string();
         assert!(!r["isError"].as_bool().unwrap_or(false), "tool failed: {t}");
         t
+    }
+
+    #[test]
+    fn the_agent_uses_workspaces_and_the_newer_drawing_tools() {
+        use crate::chart::draw::{Along, Side, Tool};
+        let mut d = Driver::new("agent-newer");
+        // Workspaces.
+        ok(&call(&mut d, "workspaces", json!({"action": "new"})));
+        assert_eq!(d.app.ws.list.len(), 2);
+        assert!(d.app.modal.is_none(), "no search window for the agent");
+        ok(&call(
+            &mut d,
+            "workspaces",
+            json!({"action": "rename", "number": 2, "name": "Scratch"}),
+        ));
+        let l = ok(&call(&mut d, "workspaces", json!({"action": "list"})));
+        assert!(l.contains("Scratch") && l.contains("\"shown\": true"), "{l}");
+        ok(&call(&mut d, "workspaces", json!({"action": "switch", "number": 1})));
+        assert_eq!(d.app.ws.current, 0);
+        ok(&call(
+            &mut d,
+            "workspaces",
+            json!({"action": "move", "number": 2, "to": 1}),
+        ));
+        assert_eq!(d.app.ws_title(0), "Scratch");
+        ok(&call(&mut d, "workspaces", json!({"action": "close", "number": 1})));
+        assert_eq!(d.app.ws.list.len(), 1);
+
+        // A line with text placed, a position sized, a Fib with levels.
+        let r = ok(&call(
+            &mut d,
+            "drawings",
+            json!({"action": "add", "drawings": [
+                {"tool": "trend_line", "points": [{"bars_ago": 40, "price": "low"}, {"bars_ago": 5, "price": "high"}],
+                 "text": "Support", "text_position": {"along": "end", "side": "below"}, "bold": true},
+                {"tool": "long_position", "points": [{"bars_ago": 20, "price": 100.0}, {"bars_ago": 5, "price": 120.0}, {"bars_ago": 5, "price": 90.0}],
+                 "sizing": {"account": 5000, "risk": 2, "lot": 1}, "stop_color": "#AA0000"},
+                {"tool": "fib_retracement", "points": [{"bars_ago": 30, "price": "low"}, {"bars_ago": 2, "price": "high"}],
+                 "levels": [0, 0.5, {"value": 0.618, "color": "orange"}, 1]}
+            ]}),
+        ));
+        assert!(r.contains("added"), "{r}");
+        let ds = &d.app.chart.drawings;
+        let at = ds[0].style.text_at(Tool::TrendLine);
+        assert_eq!((at.along, at.side), (Along::End, Side::Below));
+        assert!(ds[0].style.bold);
+        assert_eq!(ds[2].style.levels.as_ref().map(|l| l.len()), Some(4));
+        let list = ok(&call(&mut d, "drawings", json!({"action": "list"})));
+        // 2% of 5,000 is 100; a 10 stop takes 10, in whole lots.
+        assert!(list.contains("\"qty\": 10.0"), "{list}");
+        assert!(list.contains("#AA0000"), "the stop colour: {list}");
+
+        // Edit one, set a default, back to the cursor after drawing.
+        let id = d.app.chart.drawings[0].id;
+        ok(&call(
+            &mut d,
+            "drawings",
+            json!({"action": "edit", "id": id, "color": "#FF0000", "text": "Floor", "locked": true}),
+        ));
+        let e = &d.app.chart.drawings[0];
+        assert_eq!((e.text.as_str(), e.locked), ("Floor", true));
+        ok(&call(
+            &mut d,
+            "drawings",
+            json!({"action": "defaults", "tool": "ray", "width": 3, "after_drawing": "cursor"}),
+        ));
+        assert_eq!(d.app.draw_styles[&Tool::Ray].width, 3);
+        assert!(d.app.back_to_cursor);
+        ok(&call(
+            &mut d,
+            "drawings",
+            json!({"action": "template", "id": id, "name": "Red", "do": "save"}),
+        ));
+        let t = ok(&call(
+            &mut d,
+            "drawings",
+            json!({"action": "templates", "tool": "trend_line"}),
+        ));
+        assert!(t.contains("Red"), "{t}");
+
+        // Alert lines and alerts.
+        let r = ok(&call(
+            &mut d,
+            "chart_view",
+            json!({"action": "alert_lines", "on": true, "line_style": "solid"}),
+        ));
+        assert!(r.contains("\"alert_lines\": true"), "{r}");
+        ok(&call(&mut d, "alerts", json!({"action": "create", "value": 100.0})));
+        let aid = d.app.alerts.list[0].0.id;
+        ok(&call(
+            &mut d,
+            "alerts",
+            json!({"action": "move", "id": aid, "price": 105.0}),
+        ));
+        assert!(d.app.alerts.list[0].0.condition.summary().contains("105"));
+        let no = call(&mut d, "alerts", json!({"action": "delete_all"}));
+        assert!(no["isError"].as_bool().unwrap_or(false), "asks to confirm");
+        ok(&call(
+            &mut d,
+            "alerts",
+            json!({"action": "delete_all", "confirm": true}),
+        ));
+        assert!(d.app.alerts.list.is_empty());
+        assert_eq!(d.app.panics, 0);
     }
 
     #[test]

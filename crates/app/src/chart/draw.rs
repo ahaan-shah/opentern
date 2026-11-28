@@ -314,6 +314,26 @@ impl Tool {
         }
     }
 
+    /// Tools with a second colour on their bar: a fill, or (positions,
+    /// volume profiles) the colour of their other side.
+    pub fn two_colors(self) -> bool {
+        use Tool::*;
+        matches!(
+            self,
+            Rectangle
+                | Ellipse
+                | Triangle
+                | ParallelChannel
+                | PriceRange
+                | DateRange
+                | DatePriceRange
+                | LongPosition
+                | ShortPosition
+                | FixedRangeVolumeProfile
+                | AnchoredVolumeProfile
+        )
+    }
+
     pub fn is_drawing(self) -> bool {
         !matches!(self, Tool::Cross | Tool::Eraser | Tool::Zoom | Tool::Measure)
     }
@@ -604,6 +624,13 @@ impl DrawStyle {
             },
             FixedRangeVolumeProfile | AnchoredVolumeProfile => DrawStyle {
                 color: Rgba::hex(0x2962FF),
+                fill: Rgba::hex(0xFBC02D),
+                width: 1,
+                ..d
+            },
+            LongPosition | ShortPosition => DrawStyle {
+                color: Rgba::hex(0x089981),
+                fill: Rgba::hex(0xF23645),
                 width: 1,
                 ..d
             },
@@ -1239,8 +1266,10 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
         LongPosition | ShortPosition => {
             if let Some((x0, x1, e, t, st)) = position_parts(d, g) {
                 let (ye, yt, ys) = (g.y.y(e), g.y.y(t), g.y.y(st));
-                let green = Color32::from_rgba_unmultiplied(8, 153, 129, 60);
-                let red = Color32::from_rgba_unmultiplied(242, 54, 69, 60);
+                // The colours are the drawing's: target (its colour) and
+                // stop (its second colour).
+                let (tc, sc) = position_colors(&d.style);
+                let (green, red) = (tc.gamma_multiply(0.24), sc.gamma_multiply(0.24));
                 p.rect_filled(
                     Rect::from_x_y_ranges(x0..=x1, ye.min(yt)..=ye.max(yt)),
                     CornerRadius::ZERO,
@@ -1258,8 +1287,6 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 } else {
                     0.0
                 };
-                let tc = Color32::from_rgb(8, 153, 129);
-                let sc = Color32::from_rgb(242, 54, 69);
                 let cx = (x0 + x1) / 2.0;
                 let (up_t, up_s) = (yt < ye, ys < ye);
                 let place = |up: bool| if up { Align2::CENTER_BOTTOM } else { Align2::CENTER_TOP };
@@ -1338,7 +1365,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
         }
         FixedRangeVolumeProfile | AnchoredVolumeProfile if !d.pts.is_empty() => {
             if let Some((prof, x0, x1)) = range_profile(d, g) {
-                let look = super::profile::ProfileLook::default();
+                let look = profile_look(&d.style);
                 let width = ((x1 - x0) * 0.3).max(40.0);
                 super::profile::paint_profile(p, &prof, &look, &g.y, x0, width, false, (x0, x1));
                 let (top, bot) = (g.y.y(prof.lo + prof.step * prof.rows() as f64), g.y.y(prof.lo));
@@ -1475,6 +1502,37 @@ fn paint_handle(p: &Painter, q: Pos2, color: Color32, knob: bool, hover: bool) {
     }
 }
 
+/// Saved before these tools had colours of their own: the default style's.
+fn old_default(st: &DrawStyle) -> bool {
+    st.color == Rgba::hex(0x2962FF) && st.fill == Rgba::hex(0x2962FF).transp(80)
+}
+
+/// A long or short position's target and stop colours: its colour and its
+/// second colour (green and red to start with).
+pub fn position_colors(st: &DrawStyle) -> (Color32, Color32) {
+    if old_default(st) {
+        return (Color32::from_rgb(8, 153, 129), Color32::from_rgb(242, 54, 69));
+    }
+    (c32(st.color).to_opaque(), c32(st.fill).to_opaque())
+}
+
+/// A volume profile drawing's look: up volume in its colour, down volume
+/// in its second colour, the value area stronger, as TradingView's.
+fn profile_look(st: &DrawStyle) -> super::profile::ProfileLook {
+    let mut look = super::profile::ProfileLook::default();
+    let down = if st.fill == Rgba::hex(0x2962FF).transp(80) {
+        Rgba::hex(0xFBC02D)
+    } else {
+        st.fill
+    };
+    let with = |c: Rgba, a: u32| c32(Rgba((c.0 & 0xFFFF_FF00) | a));
+    look.up = with(st.color, 0x4D);
+    look.va_up = with(st.color, 0xB3);
+    look.down = with(down, 0x4D);
+    look.va_down = with(down, 0xB3);
+    look
+}
+
 /// The bars a volume-profile tool covers: between its two points, or
 /// from its point to the last bar.
 fn tool_range(d: &Drawing, g: &Geo) -> Option<(usize, usize)> {
@@ -1536,8 +1594,9 @@ fn measure(p: &Painter, d: &Drawing, g: &Geo, a: Pos2, b: Pos2, s: Stroke) {
             format::signed_pct(pct)
         ),
     };
+    // Up in the drawing's colour, down in red.
     let col = if dp >= 0.0 {
-        Color32::from_rgb(41, 98, 255)
+        s.color.to_opaque()
     } else {
         Color32::from_rgb(242, 54, 69)
     };

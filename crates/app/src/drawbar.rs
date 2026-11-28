@@ -78,16 +78,7 @@ impl App {
                             );
                             w::vdivider(ui, &t);
                             color_button(ui, &t, &mut edit.style.color);
-                            let fills = matches!(
-                                d.tool,
-                                Tool::Rectangle
-                                    | Tool::Ellipse
-                                    | Tool::Triangle
-                                    | Tool::ParallelChannel
-                                    | Tool::PriceRange
-                                    | Tool::DateRange
-                                    | Tool::DatePriceRange
-                            );
+                            let fills = d.tool.two_colors();
                             if fills {
                                 color_button(ui, &t, &mut edit.style.fill);
                             }

@@ -658,12 +658,24 @@ impl App {
         }
         // The active chart's outline (none when it's shown alone).
         if let Some(r) = cells.get(self.active).filter(|_| self.multi.maximized.is_none()) {
-            ui.painter().rect_stroke(
-                *r,
-                CornerRadius::ZERO,
-                Stroke::new(1.5, t.accent),
-                egui::StrokeKind::Inside,
+            // Rounded where it meets the chart area's own rounded corners,
+            // square between charts.
+            let round = |x: bool, y: bool| if x && y { crate::shell::CARD_R as u8 } else { 0 };
+            let near = |a: f32, b: f32| (a - b).abs() < 1.5;
+            let (l, rt, tp, bt) = (
+                near(r.left(), full.left()),
+                near(r.right(), full.right()),
+                near(r.top(), full.top()),
+                near(r.bottom(), full.bottom()),
             );
+            let corners = CornerRadius {
+                nw: round(l, tp),
+                ne: round(rt, tp),
+                sw: round(l, bt),
+                se: round(rt, bt),
+            };
+            ui.painter()
+                .rect_stroke(*r, corners, Stroke::new(1.5, t.accent), egui::StrokeKind::Inside);
         }
         // Drag an edge to resize the charts on both sides. Made after the
         // charts, so the edge wins the press.

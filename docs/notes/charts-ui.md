@@ -105,7 +105,14 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   = following) goes into `Chart::pending_view` and is put back on the first bars
   (`replace_bars`); a symbol or interval change drops it. A blank chart shows only a "Pick a
   symbol" button (`Action::PickSymbol`; no legend, watermark, scale numbers or
-  "Loading…"). New workspaces take workspace 1's main chart's `ChartStyle`. The pills
+  "Loading…"). Charts in other workspaces follow workspace 1's main chart's `ChartStyle`
+  (`follow_first_style` on every switch) until their look is changed there
+  (`Chart::style_given` vs `style`; saved as `ChartState::own_style`). The blank
+  chart's button is in the dialogs' look (`rounded_gradient`: their glow as one mesh).
+  The multi-chart's active outline rounds only where it meets the chart area's corners
+  (`shell::CARD_R`). Drawings use their own colours: `Tool::two_colors` (a fill, a
+  position's stop, a volume profile's down volume) on the bar and in Settings; older
+  positions and profiles (the default blue style) keep green/red and blue/yellow. The pills
   scroll sideways when they don't fit (hidden bar, the wheel scrolls them), and
   `Workspaces::reveal` keeps the shown one (and "+") in sight after a switch.
   Rows: `BAR_H` 34, `TOP_H` 32. Speed: `many_workspaces_stay_smooth` (ignored; set

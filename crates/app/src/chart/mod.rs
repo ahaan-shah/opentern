@@ -253,6 +253,10 @@ pub struct Chart {
     pub view: View,
     /// A saved view to put back once the bars are in.
     pub pending_view: Option<SavedView>,
+    /// Its look was set in this workspace (it no longer follows workspace 1).
+    pub style_own: bool,
+    /// The look it was given from workspace 1: a change from it makes it its own.
+    pub style_given: Option<style::ChartStyle>,
     pub log: bool,
     pub percent: bool,
     next_uid: u64,
@@ -394,6 +398,9 @@ pub struct ChartState {
     /// Where it was scrolled and zoomed, so it comes back as it was left.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub view: Option<SavedView>,
+    /// Its look was changed here; otherwise it follows workspace 1's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub own_style: bool,
 }
 
 /// A chart's scroll and zoom as saved: the bar width and the time at the
@@ -460,6 +467,8 @@ impl Chart {
             style: ChartStyle::default(),
             view: View::default(),
             pending_view: None,
+            style_own: false,
+            style_given: None,
             log: false,
             percent: false,
             next_uid: 1,
@@ -513,6 +522,7 @@ impl Chart {
             c.panes = s.panes;
         }
         c.pending_view = s.view;
+        c.style_own = s.own_style;
         for k in 0..c.compares.len() {
             let p = c.compares[k].pane;
             if c.compares[k].mode == CompareMode::Pane && (p == 0 || !c.panes.iter().any(|x| x.id == p)) {
@@ -590,7 +600,14 @@ impl Chart {
                 })
                 .collect(),
             view: self.saved_view(),
+            own_style: self.has_own_style(),
         }
+    }
+
+    /// Whether its look is its own: set so, or changed from the one it was
+    /// given.
+    pub fn has_own_style(&self) -> bool {
+        self.style_own || self.style_given.as_ref().is_some_and(|g| *g != self.style)
     }
 
     /// The view to save: none until the bars are in (then a pending one

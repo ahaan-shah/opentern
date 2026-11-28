@@ -123,6 +123,38 @@ struct PaneGeo {
 /// (the countdown) and the alert it belongs to (right-click it).
 type ScaleTag = (f32, String, Color32, Option<String>, Option<i64>);
 
+/// A rounded rectangle filled top to bottom from `top` to `bottom` (a fan
+/// of triangles from its middle, each corner its own arc).
+fn rounded_gradient(r: Rect, radius: f32, top: Color32, bottom: Color32) -> egui::Shape {
+    let radius = radius.min(r.height() / 2.0).min(r.width() / 2.0);
+    let mut pts = Vec::new();
+    // Corners clockwise from the top left, each a quarter circle.
+    let corners = [
+        (pos2(r.left() + radius, r.top() + radius), std::f32::consts::PI),
+        (pos2(r.right() - radius, r.top() + radius), 1.5 * std::f32::consts::PI),
+        (pos2(r.right() - radius, r.bottom() - radius), 0.0),
+        (pos2(r.left() + radius, r.bottom() - radius), 0.5 * std::f32::consts::PI),
+    ];
+    for (c, start) in corners {
+        for k in 0..=8 {
+            let a = start + std::f32::consts::FRAC_PI_2 * k as f32 / 8.0;
+            pts.push(c + vec2(a.cos(), a.sin()) * radius);
+        }
+    }
+    let colour = |p: Pos2| top.lerp_to_gamma(bottom, ((p.y - r.top()) / r.height()).clamp(0.0, 1.0));
+    let mut mesh = egui::Mesh::default();
+    let mid = r.center();
+    mesh.colored_vertex(mid, colour(mid));
+    for p in &pts {
+        mesh.colored_vertex(*p, colour(*p));
+    }
+    let n = pts.len() as u32;
+    for i in 0..n {
+        mesh.add_triangle(0, 1 + i, 1 + (i + 1) % n);
+    }
+    egui::Shape::mesh(mesh)
+}
+
 fn next_second(left: i64) -> std::time::Duration {
     std::time::Duration::from_millis(left.rem_euclid(1000) as u64 + 5)
 }
@@ -1638,12 +1670,37 @@ pub fn show(
         let gal = painter.layout_no_wrap(label, font, t.text);
         let r = Rect::from_center_size(g.rect.center(), gal.size() + vec2(32.0, 18.0));
         let resp = ui.interact(r, Id::new(("chart-pick", chart.id)), Sense::click());
+        // In the dialogs' look (Symbol search's): their fill, the green glow
+        // at the top, their border and shadow.
         let hov = motion::toggle(ui.ctx(), resp.id, resp.hovered(), motion::MICRO);
-        painter.rect_filled(r, CornerRadius::same(10), motion::lerp_color(t.elevated, t.hover, hov));
+        let radius = 12;
+        painter.add(
+            egui::Shadow {
+                offset: [0, 10],
+                blur: 28,
+                spread: 0,
+                color: t.shadow(),
+            }
+            .as_shape(r, CornerRadius::same(radius)),
+        );
+        // The dialogs' glow (their accent tint, strongest at the top) as one
+        // smooth gradient in the button's own rounded shape.
+        let glow = {
+            let a = t.accent;
+            let q = |c: u8| (c as f32 * 0.25).round() as u8;
+            let tint = if t.dark {
+                Color32::from_rgb(q(a.r()), q(a.g()), q(a.b()))
+            } else {
+                a
+            };
+            t.popup().lerp_to_gamma(tint, if t.dark { 0.42 } else { 0.07 })
+        };
+        painter.add(rounded_gradient(r, radius as f32, glow, t.popup()));
+        painter.rect_filled(r, CornerRadius::same(radius), motion::with_alpha(t.hover_wash(), hov));
         painter.rect_stroke(
             r,
-            CornerRadius::same(10),
-            Stroke::new(1.0, t.border),
+            CornerRadius::same(radius),
+            crate::dialogs::border_stroke(t),
             egui::StrokeKind::Inside,
         );
         painter.galley(r.center() - gal.size() / 2.0, gal, t.text);
