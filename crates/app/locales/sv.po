@@ -250,6 +250,9 @@ msgstr "Konto-ID"
 msgid "Account settings"
 msgstr "Kontoinställningar"
 
+msgid "Account size"
+msgstr "Kontostorlek"
+
 msgid "Account size required"
 msgstr "Nödvändig kontostorlek"
 
@@ -264,6 +267,9 @@ msgstr "Aktivt"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Lägg först till en strategi i diagrammet. En strategi är ett skript som börjar med strategy(…)."
+
+msgid "Add alert at {0}"
+msgstr "Lägg till larm vid {0}"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "Skapa larm för {ticker} vid {0}"
@@ -400,6 +406,9 @@ msgstr "Används också av {0}"
 
 msgid "Americas"
 msgstr "Amerika"
+
+msgid "Amount"
+msgstr "Belopp"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Ett larm utlöstes medan Opentern var stängt"
@@ -1169,6 +1178,9 @@ msgstr "Kopiera"
 
 msgid "Copy image"
 msgstr "Kopiera bild"
+
+msgid "Copy price {0}"
+msgstr "Kopiera priset {0}"
 
 msgid "Corpus Christi"
 msgstr "Kristi lekamens fest"
@@ -2703,6 +2715,9 @@ msgstr "Förlustsvit, sämsta 5 %"
 msgid "Losing trades"
 msgstr "Förlustaffärer"
 
+msgid "Lot size"
+msgstr "Lotstorlek"
+
 msgid "Low"
 msgstr "Låg"
 
@@ -3850,6 +3865,9 @@ msgstr "Port"
 msgid "Portfolio"
 msgstr "Portfölj"
 
+msgid "Position size"
+msgstr "Positionsstorlek"
+
 msgid "Positions {0}"
 msgstr "Positioner {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Python-strategier körs i en egen process, så labbet kan inte köra om 
 
 msgid "Qty"
 msgstr "Antal"
+
+msgid "Qty: {0}"
+msgstr "Antal: {0}"
 
 msgid "Quantity"
 msgstr "Kvantitet"
@@ -4170,12 +4191,18 @@ msgstr "Ta bort från bevakningslistan"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "Ta bort från bevakningslistan (Skift+Retur)"
 
+msgid "Remove indicators"
+msgstr "Ta bort indikatorer"
+
 msgid "Remove section"
 msgstr "Ta bort avsnitt"
 
 #, message
 msgid "Remove {0}"
 msgstr "Ta bort {0}"
+
+msgid "Remove {0} indicators"
+msgstr "Ta bort {0} indikatorer"
 
 msgid "Remove {k} indicators"
 msgstr "Ta bort {k} indikatorer"
@@ -4229,6 +4256,9 @@ msgstr "Återställ alla"
 
 msgid "Reset chart sizes"
 msgstr "Återställ diagramstorlekar"
+
+msgid "Reset chart view"
+msgstr "Återställ diagramvyn"
 
 msgid "Reset levels"
 msgstr "Återställ nivåer"
@@ -4302,11 +4332,17 @@ msgstr "Staplar till höger"
 msgid "Rises and falls"
 msgstr "Upp- och nedgångar"
 
+msgid "Risk"
+msgstr "Risk"
+
 msgid "Risk/performance ratios"
 msgstr "Risk- och resultatmått"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "Risk/vinst-kvot: {rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "Risk: {0} · Vinst: {1}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruin vid nedgång"
@@ -5192,6 +5228,9 @@ msgstr "Den andra enheten kör en annan version av Opentern. Uppdatera båda och
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "Porten ska vara ett tal, oftast 587 eller 465."
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "Antalet avrundas nedåt till den; 0 för valfritt."
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "Samma sak, och den startar även när du loggar in på datorn, så att larmen fortsätter efter en omstart."

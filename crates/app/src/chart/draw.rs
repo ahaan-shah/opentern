@@ -368,6 +368,74 @@ pub struct DrawStyle {
     /// Where a line's or a box's text sits; none is the tool's usual place.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text_at: Option<TextAt>,
+    /// Long and short positions: the account and risk that size them;
+    /// none is `Sizing::default()`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sizing: Option<Sizing>,
+}
+
+/// How a long or short position is sized, as TradingView's tool: the
+/// account, the risk (a share of it or an amount) and the lot size the
+/// quantity rounds down to (0: any).
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Sizing {
+    pub account: f64,
+    pub risk: f64,
+    pub risk_pct: bool,
+    pub lot: f64,
+}
+
+impl Default for Sizing {
+    fn default() -> Self {
+        Sizing {
+            account: 10_000.0,
+            risk: 1.0,
+            risk_pct: true,
+            lot: 0.0,
+        }
+    }
+}
+
+impl Sizing {
+    /// The quantity for an entry and a stop, and the risk it then takes
+    /// (after rounding to the lot). None when entry and stop meet.
+    pub fn qty(&self, entry: f64, stop: f64) -> Option<(f64, f64)> {
+        let per = (entry - stop).abs();
+        let amount = if self.risk_pct {
+            self.account * self.risk / 100.0
+        } else {
+            self.risk
+        };
+        // NaN fails these too.
+        if per.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater)
+            || amount.partial_cmp(&0.0) != Some(std::cmp::Ordering::Greater)
+            || !amount.is_finite()
+        {
+            return None;
+        }
+        let mut q = amount / per;
+        if self.lot > 0.0 {
+            q = (q / self.lot + 1e-9).floor() * self.lot;
+        }
+        Some((q, q * per))
+    }
+
+    /// A quantity as it's read: to the lot's decimals, else by its size.
+    pub fn qty_text(&self, q: f64) -> String {
+        let d = if self.lot > 0.0 {
+            (0..8)
+                .find(|&d| ((self.lot * 10f64.powi(d)).round() - self.lot * 10f64.powi(d)).abs() < 1e-9)
+                .unwrap_or(8) as usize
+        } else if q >= 100.0 {
+            0
+        } else if q >= 1.0 {
+            2
+        } else {
+            4
+        };
+        format::price(q, d)
+    }
 }
 
 /// Where the text on a line or a box sits: along it (left, middle,
@@ -450,6 +518,7 @@ impl Default for DrawStyle {
             bold: false,
             angle: 0.0,
             text_at: None,
+            sizing: None,
         }
     }
 }
@@ -1218,14 +1287,33 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     Color32::WHITE,
                     sc,
                 );
-                label(
-                    p,
-                    pos2(x1 + 6.0, ye),
-                    Align2::LEFT_CENTER,
-                    &trf!("Risk/reward ratio: {rr:.2}"),
-                    Color32::WHITE,
-                    Color32::from_gray(90),
-                );
+                // The size: how much to buy or sell so the stop loses the
+                // risk asked for, and what that wins at the target.
+                let sizing = d.style.sizing.unwrap_or_default();
+                let mut text = trf!("Risk/reward ratio: {rr:.2}");
+                if let Some((q, risk)) = sizing.qty(e, st) {
+                    text.push('\n');
+                    text.push_str(&trf!("Qty: {}", sizing.qty_text(q)));
+                    text.push('\n');
+                    text.push_str(&trf!(
+                        "Risk: {} · Reward: {}",
+                        format::price(risk, 2),
+                        format::price(q * (t - e).abs(), 2)
+                    ));
+                }
+                // Right of the position, or left of it when that would run
+                // under the price scale.
+                let w = p
+                    .layout_no_wrap(text.clone(), theme::medium(12.0), Color32::WHITE)
+                    .size()
+                    .x
+                    + 12.0;
+                let (at, align) = if x1 + 6.0 + w > g.rect.right() && x0 - 6.0 - w > g.rect.left() {
+                    (pos2(x0 - 6.0, ye), Align2::RIGHT_CENTER)
+                } else {
+                    (pos2(x1 + 6.0, ye), Align2::LEFT_CENTER)
+                };
+                label(p, at, align, &text, Color32::WHITE, Color32::from_gray(90));
             }
         }
         AnchoredVwap if !d.pts.is_empty() => {
@@ -1578,6 +1666,22 @@ pub fn handle_points(d: &Drawing, g: &Geo) -> Vec<Pos2> {
             vec![a, b, pos2((a.x + b.x) / 2.0, (a.y + b.y) / 2.0 + off)]
         }
         Tool::Text => TextBox::of(d, g).map(|b| b.handles().to_vec()).unwrap_or_default(),
+        // Its two corners first (as drawn), the other two, then the middle
+        // of each side: top (first point's price), right, bottom, left.
+        Tool::Rectangle if d.pts.len() >= 2 => {
+            let (a, b) = (g.pos(d.pts[0]), g.pos(d.pts[1]));
+            let (mx, my) = ((a.x + b.x) / 2.0, (a.y + b.y) / 2.0);
+            vec![
+                a,
+                b,
+                pos2(b.x, a.y),
+                pos2(a.x, b.y),
+                pos2(mx, a.y),
+                pos2(b.x, my),
+                pos2(mx, b.y),
+                pos2(a.x, my),
+            ]
+        }
         Tool::LongPosition | Tool::ShortPosition if d.pts.len() >= 3 => {
             let x0 = g.tm.x(d.pts[0].t);
             let x1 = g.tm.x(d.pts[1].t);
@@ -1714,6 +1818,17 @@ pub fn drag(d: &mut Drawing, part: Part, from: Anchor, to: Anchor, tm: &TimeMap)
                     d.pts[1].t = to.t;
                     d.pts[2].t = to.t;
                 }
+            },
+            // A rectangle's corners move a time and a price, its sides one.
+            Tool::Rectangle if d.pts.len() >= 2 => match k {
+                0 => d.pts[0] = to,
+                1 => d.pts[1] = to,
+                2 => (d.pts[1].t, d.pts[0].p) = (to.t, to.p),
+                3 => (d.pts[0].t, d.pts[1].p) = (to.t, to.p),
+                4 => d.pts[0].p = to.p,
+                5 => d.pts[1].t = to.t,
+                6 => d.pts[1].p = to.p,
+                _ => d.pts[0].t = to.t,
             },
             Tool::HorizontalLine => {
                 if let Some(a) = d.pts.first_mut() {
@@ -2068,6 +2183,27 @@ mod tests {
 
     /// A trend line's text runs along it, above by default, and selects
     /// the line when clicked; old drawings load with the usual place.
+    #[test]
+    fn positions_size_to_the_risk() {
+        let s = Sizing::default();
+        // 1% of 10,000 is 100; a 50 stop takes 2.
+        let (q, risk) = s.qty(1000.0, 950.0).unwrap();
+        assert!((q - 2.0).abs() < 1e-9 && (risk - 100.0).abs() < 1e-9);
+        let lots = Sizing {
+            risk: 130.0,
+            risk_pct: false,
+            lot: 1.0,
+            ..s
+        };
+        let (q, risk) = lots.qty(100.0, 90.0).unwrap();
+        assert_eq!(q, 13.0);
+        assert_eq!(risk, 130.0);
+        let (q, _) = Sizing { lot: 5.0, ..lots }.qty(100.0, 90.0).unwrap();
+        assert_eq!(q, 10.0, "rounds down to the lot");
+        assert!(s.qty(100.0, 100.0).is_none(), "no stop distance");
+        assert_eq!(Sizing { lot: 0.01, ..s }.qty_text(1.5), "1.50");
+    }
+
     #[test]
     fn line_text_runs_along_the_line() {
         let b = bars();

@@ -79,6 +79,8 @@ pub struct App {
     pub price_menu: Option<PriceMenu>,
     /// A right-clicked alert line's menu: (chart, alert, where).
     pub alert_menu: Option<(u64, i64, egui::Pos2)>,
+    /// The chart's right-click menu: (chart, where, the price there).
+    pub chart_menu: Option<(u64, egui::Pos2, Option<f64>)>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -119,9 +121,14 @@ pub struct App {
     still_alert_lines: bool,
     /// `alert-lines:menu`: the first alert line's menu, once the lines show.
     still_alert_menu: bool,
+    /// `chart-menu`: the chart's right-click menu, once bars are in.
+    still_chart_menu: bool,
     /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
     /// (with its Levels panel open) once bars are in.
     still_fib: Option<bool>,
+    /// `position`, `position:sizing` or `rect`: one selected drawing of that
+    /// kind (with the sizing panel open).
+    still_tool: Option<(Tool, bool)>,
     /// `OPENTERN_STILL=price-menu`: the "+" menu by the price scale.
     still_price_menu: bool,
     /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
@@ -280,6 +287,7 @@ impl App {
             compare_menu: None,
             price_menu: None,
             alert_menu: None,
+            chart_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -305,7 +313,9 @@ impl App {
             still_text: None,
             still_alert_lines: false,
             still_alert_menu: false,
+            still_chart_menu: false,
             still_fib: None,
+            still_tool: None,
             still_price_menu: false,
             still_replay: false,
             still_colors: None,
@@ -509,6 +519,8 @@ impl App {
                 // Handled in `new` (needs the egui context).
             } else if part == "text" || part.starts_with("text:") {
                 self.still_text = Some(part.trim_start_matches("text").trim_start_matches(':').to_string());
+            } else if part == "chart-menu" {
+                self.still_chart_menu = true;
             } else if part == "alert-lines" || part == "alert-lines:menu" {
                 self.still_alert_lines = true;
                 self.still_alert_menu = part.ends_with(":menu");
@@ -631,6 +643,13 @@ impl App {
                 self.still_price_menu = true;
             } else if part == "fib" || part == "fib:levels" {
                 self.still_fib = Some(part == "fib:levels");
+            } else if part == "position" || part == "position:sizing" || part == "rect" {
+                let tool = if part == "rect" {
+                    Tool::Rectangle
+                } else {
+                    Tool::LongPosition
+                };
+                self.still_tool = Some((tool, part.ends_with(":sizing")));
             } else if part == "favbar" || part == "favbar:vertical" {
                 self.layout.fav_toolbar = true;
                 self.layout.fav_toolbar_vertical = part == "favbar:vertical";
@@ -1116,9 +1135,6 @@ impl App {
                 Action::CompareMenu(i, pos) => self.compare_menu = Some((i, pos)),
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
                 Action::RemoveCompare(i) => self.remove_compare(i),
-                Action::ChartSettings => {
-                    self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)))
-                }
                 Action::PaperMove(id, price) => self.paper_move(id, price),
                 Action::PaperCancel(id) => self.paper_cancel(id),
                 Action::PaperClose => {
@@ -1126,6 +1142,7 @@ impl App {
                     self.paper_close(&id);
                 }
                 Action::AlertMenu(id, pos) => self.alert_menu = Some((self.chart.id, id, pos)),
+                Action::ChartMenu { pos, price } => self.chart_menu = Some((self.chart.id, pos, price)),
                 Action::MoveAlert(id, price) => self.move_alert(id, price),
                 Action::PriceMenu { price, text, pos } => {
                     self.price_menu = Some(PriceMenu {
@@ -1187,6 +1204,187 @@ impl App {
             && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
         if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.price_menu = None;
+        }
+    }
+
+    /// The chart's right-click menu, in the dialogs' look (a smaller card):
+    /// reset the view, copy the price, add an alert there, remove the
+    /// drawings (undo brings them back) or the indicators (asks once:
+    /// there's no undo for those), and Chart settings.
+    fn chart_menu(&mut self, ctx: &egui::Context) {
+        let Some((chart, pos, price)) = self.chart_menu else {
+            return;
+        };
+        if chart != self.chart.id {
+            self.chart_menu = None;
+            return;
+        }
+        use crate::icons::ph;
+        use crate::widgets as w;
+        let t = self.t();
+        let armed_id = egui::Id::new("chart-menu-remove-indicators");
+        let armed = ctx.data(|d| d.get_temp::<bool>(armed_id)).unwrap_or(false);
+        let prec = self.chart.precision();
+        let price_text = price.map(|p| crate::format::price(p, prec));
+        let drawings = self.chart.drawings.len();
+        let studies = self.chart.studies.len();
+        let remove_n = if studies == 1 {
+            tr("Remove 1 indicator").to_string()
+        } else {
+            trf!("Remove {} indicators", studies)
+        };
+        let (reset_key, alert_key) = (
+            self.keys.label(crate::keys::Action::ResetView),
+            self.keys.label(crate::keys::Action::Alert),
+        );
+        enum Pick {
+            Reset,
+            Copy(String),
+            Alert(f64),
+            Drawings,
+            Studies,
+            Settings,
+        }
+        let mut pick = None;
+        let area = egui::Area::new(egui::Id::new("chart-menu"))
+            .order(egui::Order::Foreground)
+            .fixed_pos(pos + egui::vec2(2.0, 2.0))
+            .constrain(true)
+            .show(ctx, |ui| {
+                let frame = egui::Frame::new()
+                    .fill(t.popup())
+                    .stroke(crate::dialogs::border_stroke(&t))
+                    .corner_radius(egui::CornerRadius::same(12))
+                    .inner_margin(egui::Margin::same(6))
+                    .shadow(egui::Shadow {
+                        offset: [0, 10],
+                        blur: 28,
+                        spread: 0,
+                        color: t.shadow(),
+                    });
+                frame.show(ui, |ui| {
+                    let slots = crate::dialogs::sheen_slots(ui);
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    let alert = price_text
+                        .as_ref()
+                        .map(|p| trf!("Add alert at {}", p))
+                        .unwrap_or_default();
+                    let copy = price_text
+                        .as_ref()
+                        .map(|p| trf!("Copy price {}", p))
+                        .unwrap_or_default();
+                    let width = [
+                        w::menu_row_width(ui, true, tr("Reset chart view"), &reset_key, 0.0),
+                        w::menu_row_width(ui, true, &alert, &alert_key, 0.0),
+                        w::menu_row_width(ui, true, &copy, "", 0.0),
+                        w::menu_row_width(ui, true, &remove_n, "", 0.0),
+                    ]
+                    .into_iter()
+                    .fold(220.0f32, f32::max);
+                    ui.set_width(width);
+                    if w::menu_item(
+                        ui,
+                        &t,
+                        Some(ph::ARROWS_COUNTER_CLOCKWISE),
+                        tr("Reset chart view"),
+                        &reset_key,
+                        false,
+                    )
+                    .clicked()
+                    {
+                        pick = Some(Pick::Reset);
+                    }
+                    if let (Some(p), Some(text)) = (price, price_text.clone()) {
+                        if w::menu_item(ui, &t, Some(ph::COPY), &copy, "", false).clicked() {
+                            pick = Some(Pick::Copy(text));
+                        }
+                        if w::menu_item(ui, &t, Some(ph::ALARM), &alert, &alert_key, false).clicked() {
+                            pick = Some(Pick::Alert(p));
+                        }
+                    }
+                    w::menu_rule(ui, &t);
+                    if w::menu_row(
+                        ui,
+                        &t,
+                        Some(ph::PENCIL_SIMPLE_SLASH),
+                        tr("Remove drawings"),
+                        "",
+                        false,
+                        drawings > 0,
+                    )
+                    .clicked()
+                    {
+                        pick = Some(Pick::Drawings);
+                    }
+                    let resp = if armed {
+                        w::menu_danger(ui, &t, Some(ph::TRASH), &remove_n)
+                    } else {
+                        w::menu_row(
+                            ui,
+                            &t,
+                            Some(ph::FUNCTION),
+                            tr("Remove indicators"),
+                            "",
+                            false,
+                            studies > 0,
+                        )
+                    };
+                    if resp.clicked() {
+                        pick = Some(Pick::Studies);
+                    }
+                    w::menu_rule(ui, &t);
+                    if w::menu_item(ui, &t, Some(ph::GEAR_SIX), tr("Chart settings"), "", false).clicked() {
+                        pick = Some(Pick::Settings);
+                    }
+                    let inside = ui.min_rect().expand(6.0);
+                    crate::dialogs::sheen(ui, &t, &slots[..slots.len() - 1], inside, 11);
+                    let border = crate::dialogs::border_stroke(&t);
+                    ui.painter().set(
+                        slots[slots.len() - 1],
+                        egui::Shape::Rect(egui::epaint::RectShape::new(
+                            inside.expand(border.width),
+                            egui::CornerRadius::same(12),
+                            egui::Color32::TRANSPARENT,
+                            border,
+                            egui::StrokeKind::Inside,
+                        )),
+                    );
+                });
+            });
+        let mut close = true;
+        match pick {
+            Some(Pick::Reset) => self.chart.reset_view(),
+            Some(Pick::Copy(text)) => ctx.copy_text(text),
+            Some(Pick::Alert(p)) => self.open_alert_at(p),
+            Some(Pick::Drawings) => {
+                self.chart.push_undo();
+                self.chart.drawings.clear();
+                self.chart.drawings_changed += 1;
+                self.chart_ui.draw.select(None);
+            }
+            Some(Pick::Studies) if !armed => {
+                ctx.data_mut(|d| d.insert_temp(armed_id, true));
+                close = false;
+            }
+            Some(Pick::Studies) => {
+                let uids: Vec<u64> = self.chart.studies.iter().map(|s| s.uid).collect();
+                for uid in uids {
+                    self.chart.remove_study(uid);
+                }
+            }
+            Some(Pick::Settings) => {
+                self.modal = Some(Modal::ChartSettings(crate::dialogs::ChartSettings::new(self)));
+            }
+            None => {
+                let outside = ctx
+                    .input(|i| i.pointer.any_pressed().then(|| i.pointer.interact_pos()).flatten())
+                    .is_some_and(|p| !area.response.rect.contains(p));
+                close = outside || ctx.input(|i| i.key_pressed(egui::Key::Escape));
+            }
+        }
+        if close {
+            self.chart_menu = None;
+            ctx.data_mut(|d| d.remove::<bool>(armed_id));
         }
     }
 
@@ -1365,6 +1563,13 @@ impl App {
                 }
                 _ => {}
             }
+        }
+        if self.still_chart_menu
+            && let Some(b) = self.chart.bars.last()
+        {
+            self.still_chart_menu = false;
+            let at = self.grid_rect.center() - egui::vec2(120.0, 120.0);
+            self.chart_menu = Some((self.chart.id, at, Some(b.close)));
         }
         if self.still_alert_menu
             && let Some(a) = self.chart.alerts.first()
@@ -1916,6 +2121,47 @@ impl App {
                 ctx.data_mut(|m| m.insert_temp(egui::Id::new("fib-levels-open"), id));
             }
         }
+        if let Some((tool, panel)) = self.still_tool
+            && self.chart.bars.len() > 80
+        {
+            self.still_tool = None;
+            use crate::chart::draw::Anchor;
+            let n = self.chart.bars.len();
+            let (a, b) = (self.chart.bars[n - 45], self.chart.bars[n - 12]);
+            let e = a.close;
+            let pts = if tool == Tool::Rectangle {
+                vec![
+                    Anchor { t: a.time, p: e * 1.01 },
+                    Anchor {
+                        t: b.time,
+                        p: e * 0.985,
+                    },
+                ]
+            } else {
+                vec![
+                    Anchor { t: a.time, p: e },
+                    Anchor { t: b.time, p: e * 1.03 },
+                    Anchor {
+                        t: b.time,
+                        p: e * 0.985,
+                    },
+                ]
+            };
+            let id = self.chart.next_drawing_id();
+            self.chart.drawings.push(Drawing {
+                id,
+                tool,
+                pts,
+                style: DrawStyle::for_tool(tool),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            });
+            self.chart_ui.draw.selected = Some(id);
+            if panel {
+                ctx.data_mut(|m| m.insert_temp(egui::Id::new("fib-levels-open"), id));
+            }
+        }
         if self.chart.bars.len() > 80 {
             self.still_samples();
         }
@@ -1983,6 +2229,7 @@ impl App {
         self.compare_menu(&ctx);
         self.price_menu(&ctx);
         self.alert_line_menu(&ctx);
+        self.chart_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -2016,6 +2263,7 @@ impl App {
         self.compare_menu = None;
         self.price_menu = None;
         self.alert_menu = None;
+        self.chart_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }

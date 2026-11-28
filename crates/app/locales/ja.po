@@ -250,6 +250,9 @@ msgstr "口座ID"
 msgid "Account settings"
 msgstr "口座設定"
 
+msgid "Account size"
+msgstr "口座サイズ"
+
 msgid "Account size required"
 msgstr "必要口座資金"
 
@@ -264,6 +267,9 @@ msgstr "有効"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
+
+msgid "Add alert at {0}"
+msgstr "{0} にアラートを追加"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "{ticker} の {0} にアラートを作成"
@@ -400,6 +406,9 @@ msgstr "{0}でも使用中"
 
 msgid "Americas"
 msgstr "南北アメリカ"
+
+msgid "Amount"
+msgstr "金額"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Opentern終了中にアラートが発動しました"
@@ -1169,6 +1178,9 @@ msgstr "コピー"
 
 msgid "Copy image"
 msgstr "画像をコピー"
+
+msgid "Copy price {0}"
+msgstr "価格 {0} をコピー"
 
 msgid "Corpus Christi"
 msgstr "聖体の祝日"
@@ -2703,6 +2715,9 @@ msgstr "連敗 (ワースト5%)"
 msgid "Losing trades"
 msgstr "負けトレード"
 
+msgid "Lot size"
+msgstr "ロットサイズ"
+
 msgid "Low"
 msgstr "低"
 
@@ -3850,6 +3865,9 @@ msgstr "ポート"
 msgid "Portfolio"
 msgstr "ポートフォリオ"
 
+msgid "Position size"
+msgstr "ポジションサイズ"
+
 msgid "Positions {0}"
 msgstr "ポジション {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Pythonのストラテジーは別プロセスで動くため、ラボで
 
 msgid "Qty"
 msgstr "数量"
+
+msgid "Qty: {0}"
+msgstr "数量: {0}"
 
 msgid "Quantity"
 msgstr "数量"
@@ -4170,12 +4191,18 @@ msgstr "ウォッチリストから削除"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "ウォッチリストから削除 (Shift+Enter)"
 
+msgid "Remove indicators"
+msgstr "インジケーターを削除"
+
 msgid "Remove section"
 msgstr "セクションを削除"
 
 #, message
 msgid "Remove {0}"
 msgstr "{0}を削除"
+
+msgid "Remove {0} indicators"
+msgstr "{0} 個のインジケーターを削除"
 
 msgid "Remove {k} indicators"
 msgstr "インジケーターを{k}件削除"
@@ -4229,6 +4256,9 @@ msgstr "すべてリセット"
 
 msgid "Reset chart sizes"
 msgstr "チャートのサイズをリセット"
+
+msgid "Reset chart view"
+msgstr "チャート表示をリセット"
 
 msgid "Reset levels"
 msgstr "水準をリセット"
@@ -4302,11 +4332,17 @@ msgstr "右の足数"
 msgid "Rises and falls"
 msgstr "上昇と下落"
 
+msgid "Risk"
+msgstr "リスク"
+
 msgid "Risk/performance ratios"
 msgstr "リスク/パフォーマンス比率"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "リスクリワード比: {rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "リスク: {0} · リワード: {1}"
 
 msgid "Ruin at drawdown"
 msgstr "破産とみなすドローダウン"
@@ -5192,6 +5228,9 @@ msgstr "もう一方のデバイスのOpenternはバージョンが異なりま�
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "ポートは数字です。通常は587か465です。"
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "数量はこの単位に切り下げます。0 で制限なし。"
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "同じ動作に加え、コンピューターへのログイン時にも起動するため、再起動後もアラートが続きます。"

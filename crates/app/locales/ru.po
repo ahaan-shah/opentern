@@ -250,6 +250,9 @@ msgstr "ID счёта"
 msgid "Account settings"
 msgstr "Настройки счёта"
 
+msgid "Account size"
+msgstr "Размер счёта"
+
 msgid "Account size required"
 msgstr "Необходимый размер счёта"
 
@@ -264,6 +267,9 @@ msgstr "Активно"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Сначала добавьте стратегию на график. Стратегия — это скрипт, который начинается с strategy(…)."
+
+msgid "Add alert at {0}"
+msgstr "Оповещение на {0}"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "Создать оповещение по {ticker} на {0}"
@@ -400,6 +406,9 @@ msgstr "Также используется: {0}"
 
 msgid "Americas"
 msgstr "Америка"
+
+msgid "Amount"
+msgstr "Сумма"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Пока Opentern был закрыт, сработало оповещение"
@@ -1169,6 +1178,9 @@ msgstr "Копировать"
 
 msgid "Copy image"
 msgstr "Копировать изображение"
+
+msgid "Copy price {0}"
+msgstr "Копировать цену {0}"
 
 msgid "Corpus Christi"
 msgstr "Праздник Тела Христова"
@@ -2703,6 +2715,9 @@ msgstr "Серия убытков, худшие 5%"
 msgid "Losing trades"
 msgstr "Убыточные сделки"
 
+msgid "Lot size"
+msgstr "Размер лота"
+
 msgid "Low"
 msgstr "Низкое"
 
@@ -3850,6 +3865,9 @@ msgstr "Порт"
 msgid "Portfolio"
 msgstr "Портфель"
 
+msgid "Position size"
+msgstr "Размер позиции"
+
 msgid "Positions {0}"
 msgstr "Позиции {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Стратегии Python выполняются в отдельном �
 
 msgid "Qty"
 msgstr "Кол-во"
+
+msgid "Qty: {0}"
+msgstr "Кол-во: {0}"
 
 msgid "Quantity"
 msgstr "Количество"
@@ -4170,12 +4191,18 @@ msgstr "Убрать из списка"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "Убрать из списка (Shift+Enter)"
 
+msgid "Remove indicators"
+msgstr "Удалить индикаторы"
+
 msgid "Remove section"
 msgstr "Убрать раздел"
 
 #, message
 msgid "Remove {0}"
 msgstr "Убрать {0}"
+
+msgid "Remove {0} indicators"
+msgstr "Удалить индикаторы: {0}"
 
 msgid "Remove {k} indicators"
 msgstr "Убрать индикаторы: {k}"
@@ -4229,6 +4256,9 @@ msgstr "Сбросить все"
 
 msgid "Reset chart sizes"
 msgstr "Сбросить размеры графиков"
+
+msgid "Reset chart view"
+msgstr "Сбросить вид графика"
 
 msgid "Reset levels"
 msgstr "Сбросить уровни"
@@ -4302,11 +4332,17 @@ msgstr "Баров справа"
 msgid "Rises and falls"
 msgstr "Рост и падение"
 
+msgid "Risk"
+msgstr "Риск"
+
 msgid "Risk/performance ratios"
 msgstr "Показатели риска и доходности"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "Соотношение риск/прибыль: {rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "Риск: {0} · Прибыль: {1}"
 
 msgid "Ruin at drawdown"
 msgstr "Разорение при просадке"
@@ -5192,6 +5228,9 @@ msgstr "На другом устройстве другая версия Openter
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "Порт должен быть числом, обычно 587 или 465."
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "Количество округляется вниз до него; 0 — любое."
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "То же самое, и запускается при входе в систему, чтобы оповещения работали после перезагрузки."

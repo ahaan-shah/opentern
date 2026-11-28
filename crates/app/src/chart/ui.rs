@@ -33,7 +33,6 @@ pub enum Action {
     /// on its legend row or price scale).
     CompareMenu(usize, Pos2),
     MoreHistory,
-    ChartSettings,
     RemoveCompare(usize),
     /// Chart trading: a paper order's line was dragged to a new price.
     PaperMove(u64, f64),
@@ -47,6 +46,12 @@ pub enum Action {
         price: f64,
         text: String,
         pos: Pos2,
+    },
+    /// The chart was right-clicked: its menu at `pos`, with the price there
+    /// (on the main pane; none on a lower one).
+    ChartMenu {
+        pos: Pos2,
+        price: Option<f64>,
     },
     /// An alert line was right-clicked: its menu at the position.
     AlertMenu(i64, Pos2),
@@ -702,8 +707,20 @@ pub fn show(
             pane.scale.hi = hi;
         }
     }
-    if plot_resp.secondary_clicked() && !alert_used {
-        actions.push(Action::ChartSettings);
+    if plot_resp.secondary_clicked()
+        && !alert_used
+        && let Some(p) = plot_resp.interact_pointer_pos()
+    {
+        let tick = if chart.symbol.tick_size > 0.0 {
+            chart.symbol.tick_size
+        } else {
+            0.01
+        };
+        let price = geos
+            .first()
+            .filter(|g| g.rect.contains(p))
+            .map(|g| (g.y.value(p.y) / tick).round() * tick);
+        actions.push(Action::ChartMenu { pos: p, price });
     }
     if plot_resp.hovered() && interactive {
         let (scroll, zoom) = ui.input(|i| (i.smooth_scroll_delta, i.zoom_delta()));

@@ -250,6 +250,9 @@ msgstr "ID du compte"
 msgid "Account settings"
 msgstr "Paramètres du compte"
 
+msgid "Account size"
+msgstr "Taille du compte"
+
 msgid "Account size required"
 msgstr "Taille de compte requise"
 
@@ -264,6 +267,9 @@ msgstr "Active"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Ajoutez d'abord une stratégie au graphique. Une stratégie est un script qui commence par strategy(…)."
+
+msgid "Add alert at {0}"
+msgstr "Ajouter une alerte à {0}"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "Créer une alerte sur {ticker} à {0}"
@@ -400,6 +406,9 @@ msgstr "Aussi utilisé par {0}"
 
 msgid "Americas"
 msgstr "Amériques"
+
+msgid "Amount"
+msgstr "Montant"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Une alerte s'est déclenchée pendant qu'Opentern était fermé"
@@ -1169,6 +1178,9 @@ msgstr "Copier"
 
 msgid "Copy image"
 msgstr "Copier l'image"
+
+msgid "Copy price {0}"
+msgstr "Copier le prix {0}"
 
 msgid "Corpus Christi"
 msgstr "Fête-Dieu"
@@ -2703,6 +2715,9 @@ msgstr "Série perdante, pire 5 %"
 msgid "Losing trades"
 msgstr "Transactions perdantes"
 
+msgid "Lot size"
+msgstr "Taille du lot"
+
 msgid "Low"
 msgstr "Faible"
 
@@ -3850,6 +3865,9 @@ msgstr "Port"
 msgid "Portfolio"
 msgstr "Portefeuille"
 
+msgid "Position size"
+msgstr "Taille de position"
+
 msgid "Positions {0}"
 msgstr "Positions {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Les stratégies Python s'exécutent dans leur propre processus, le labo 
 
 msgid "Qty"
 msgstr "Qté"
+
+msgid "Qty: {0}"
+msgstr "Qté : {0}"
 
 msgid "Quantity"
 msgstr "Quantité"
@@ -4170,12 +4191,18 @@ msgstr "Retirer de la liste"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "Retirer de la liste (Maj+Entrée)"
 
+msgid "Remove indicators"
+msgstr "Retirer les indicateurs"
+
 msgid "Remove section"
 msgstr "Retirer la section"
 
 #, message
 msgid "Remove {0}"
 msgstr "Retirer {0}"
+
+msgid "Remove {0} indicators"
+msgstr "Retirer {0} indicateurs"
 
 msgid "Remove {k} indicators"
 msgstr "Retirer {k} indicateurs"
@@ -4229,6 +4256,9 @@ msgstr "Tout réinitialiser"
 
 msgid "Reset chart sizes"
 msgstr "Réinitialiser les tailles"
+
+msgid "Reset chart view"
+msgstr "Réinitialiser la vue"
 
 msgid "Reset levels"
 msgstr "Réinitialiser les niveaux"
@@ -4302,11 +4332,17 @@ msgstr "Barres à droite"
 msgid "Rises and falls"
 msgstr "Hausses et baisses"
 
+msgid "Risk"
+msgstr "Risque"
+
 msgid "Risk/performance ratios"
 msgstr "Ratios risque/performance"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "Ratio risque/gain : {rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "Risque : {0} · Gain : {1}"
 
 msgid "Ruin at drawdown"
 msgstr "Ruine au drawdown"
@@ -5192,6 +5228,9 @@ msgstr "L'autre appareil utilise une version différente d'Opentern. Mettez les 
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "Le port doit être un nombre, en général 587 ou 465."
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "La quantité est arrondie à l’inférieur ; 0 pour aucune."
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "Pareil, et il démarre aussi à l'ouverture de votre session, pour que les alertes continuent après un redémarrage."

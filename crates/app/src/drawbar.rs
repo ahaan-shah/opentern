@@ -36,8 +36,10 @@ impl App {
         // The Fib levels panel, open for this drawing only. A panel, not a
         // popup: egui keeps one popup open, and each level's colour is one.
         let fib = matches!(d.tool, Tool::FibRetracement | Tool::FibExtension);
+        // A position's sizing panel takes the same place (one or the other).
+        let position = matches!(d.tool, Tool::LongPosition | Tool::ShortPosition);
         let levels_key = egui::Id::new("fib-levels-open");
-        let mut levels_open = fib && ctx.data(|m| m.get_temp::<u64>(levels_key)) == Some(id);
+        let mut levels_open = (fib || position) && ctx.data(|m| m.get_temp::<u64>(levels_key)) == Some(id);
         let mut levels_x = anchor.x;
         // The Text panel (lines and boxes), the same way.
         let text_key = egui::Id::new("drawing-text-open");
@@ -147,6 +149,14 @@ impl App {
                                 }
                                 levels_x = r.rect.left();
                             }
+                            if position {
+                                let r = w::tool_button(ui, &t, ph::CALCULATOR, tr("Position size"), levels_open, BTN);
+                                if r.clicked() {
+                                    levels_open = !levels_open;
+                                    text_open = false;
+                                }
+                                levels_x = r.rect.left();
+                            }
                             if matches!(
                                 d.tool,
                                 Tool::HorizontalLine | Tool::HorizontalRay | Tool::FibRetracement | Tool::FibExtension
@@ -196,7 +206,11 @@ impl App {
         if levels_open {
             ctx.data_mut(|m| m.insert_temp(levels_key, id));
             let at = Pos2::new(levels_x, bar.response.rect.bottom() + 6.0);
-            fib_levels_panel(ctx, &t, at, d.tool, &mut edit.style);
+            if position {
+                sizing_panel(ctx, &t, at, &mut edit.style);
+            } else {
+                fib_levels_panel(ctx, &t, at, d.tool, &mut edit.style);
+            }
         } else {
             ctx.data_mut(|m| m.remove_temp::<u64>(levels_key));
         }
@@ -421,6 +435,78 @@ fn text_panel(ctx: &egui::Context, t: &theme::Theme, at: Pos2, tool: Tool, d: &m
                     }
                 });
         });
+}
+
+/// A long or short position's sizing: account size, risk (a share of the
+/// account or an amount) and the lot size the quantity rounds down to.
+fn sizing_panel(ctx: &egui::Context, t: &theme::Theme, at: Pos2, style: &mut DrawStyle) {
+    use crate::chart::draw::Sizing;
+    let mut s = style.sizing.unwrap_or_default();
+    egui::Area::new(egui::Id::new("drawing-sizing"))
+        .order(egui::Order::Foreground)
+        .fixed_pos(at)
+        .constrain(true)
+        .show(ctx, |ui| {
+            egui::Frame::new()
+                .fill(t.popup())
+                .stroke(Stroke::new(1.0, t.edge()))
+                .corner_radius(CornerRadius::same(12))
+                .inner_margin(Margin::same(12))
+                .shadow(ui.visuals().popup_shadow)
+                .show(ui, |ui| {
+                    ui.spacing_mut().item_spacing = vec2(8.0, 8.0);
+                    let row = |ui: &mut egui::Ui, name: &str, add: &mut dyn FnMut(&mut egui::Ui)| {
+                        ui.horizontal(|ui| {
+                            let (r, _) = ui.allocate_exact_size(vec2(96.0, 28.0), egui::Sense::hover());
+                            ui.painter().text(
+                                r.left_center(),
+                                egui::Align2::LEFT_CENTER,
+                                name,
+                                theme::regular(13.0),
+                                t.text2,
+                            );
+                            add(ui);
+                        });
+                    };
+                    row(ui, tr("Account size"), &mut |ui| {
+                        ui.scope(|ui| {
+                            ui.set_width(150.0);
+                            w::number(
+                                ui,
+                                egui::Id::new("sizing-account"),
+                                &mut s.account,
+                                1000.0,
+                                0.0,
+                                1e12,
+                                2,
+                            );
+                        });
+                    });
+                    row(ui, tr("Risk"), &mut |ui| {
+                        ui.scope(|ui| {
+                            ui.set_width(90.0);
+                            let (step, dec) = if s.risk_pct { (0.5, 2) } else { (10.0, 2) };
+                            w::number(ui, egui::Id::new("sizing-risk"), &mut s.risk, step, 0.0, 1e12, dec);
+                        });
+                        w::segmented(ui, t, &mut s.risk_pct, &[(true, "%"), (false, tr("Amount"))]);
+                    });
+                    row(ui, tr("Lot size"), &mut |ui| {
+                        ui.scope(|ui| {
+                            ui.set_width(150.0);
+                            w::number(ui, egui::Id::new("sizing-lot"), &mut s.lot, 1.0, 0.0, 1e9, 4);
+                        })
+                        .response
+                        .on_hover_text(tr("The quantity rounds down to it; 0 for any."));
+                    });
+                });
+        });
+    if s.risk_pct {
+        s.risk = s.risk.min(100.0);
+    }
+    let now = (s != Sizing::default()).then_some(s);
+    if now != style.sizing {
+        style.sizing = now;
+    }
 }
 
 /// Its buttons' side, as on the favourite drawings toolbar.

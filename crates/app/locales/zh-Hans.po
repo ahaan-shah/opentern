@@ -250,6 +250,9 @@ msgstr "账户 ID"
 msgid "Account settings"
 msgstr "账户设置"
 
+msgid "Account size"
+msgstr "账户规模"
+
 msgid "Account size required"
 msgstr "所需账户规模"
 
@@ -264,6 +267,9 @@ msgstr "启用"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "请先向图表添加策略。策略是以 strategy(…) 开头的脚本。"
+
+msgid "Add alert at {0}"
+msgstr "在 {0} 添加警报"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "在 {0} 为 {ticker} 创建警报"
@@ -400,6 +406,9 @@ msgstr "{0}也在使用"
 
 msgid "Americas"
 msgstr "美洲"
+
+msgid "Amount"
+msgstr "金额"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Opentern 关闭期间触发了一个警报"
@@ -1169,6 +1178,9 @@ msgstr "复制"
 
 msgid "Copy image"
 msgstr "复制图片"
+
+msgid "Copy price {0}"
+msgstr "复制价格 {0}"
 
 msgid "Corpus Christi"
 msgstr "基督圣体节"
@@ -2703,6 +2715,9 @@ msgstr "连续亏损（最差 5%）"
 msgid "Losing trades"
 msgstr "亏损交易"
 
+msgid "Lot size"
+msgstr "手数"
+
 msgid "Low"
 msgstr "低"
 
@@ -3850,6 +3865,9 @@ msgstr "端口"
 msgid "Portfolio"
 msgstr "投资组合"
 
+msgid "Position size"
+msgstr "仓位大小"
+
 msgid "Positions {0}"
 msgstr "持仓 {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Python 策略在独立进程中运行，实验室暂时无法重新运�
 
 msgid "Qty"
 msgstr "数量"
+
+msgid "Qty: {0}"
+msgstr "数量：{0}"
 
 msgid "Quantity"
 msgstr "数量"
@@ -4170,12 +4191,18 @@ msgstr "移出自选"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "移出自选 (Shift+Enter)"
 
+msgid "Remove indicators"
+msgstr "移除指标"
+
 msgid "Remove section"
 msgstr "移除分组"
 
 #, message
 msgid "Remove {0}"
 msgstr "移除 {0}"
+
+msgid "Remove {0} indicators"
+msgstr "移除 {0} 个指标"
 
 msgid "Remove {k} indicators"
 msgstr "移除 {k} 个指标"
@@ -4229,6 +4256,9 @@ msgstr "全部重置"
 
 msgid "Reset chart sizes"
 msgstr "重置图表大小"
+
+msgid "Reset chart view"
+msgstr "重置图表视图"
 
 msgid "Reset levels"
 msgstr "重置价位"
@@ -4302,11 +4332,17 @@ msgstr "右侧 K 线数"
 msgid "Rises and falls"
 msgstr "涨跌"
 
+msgid "Risk"
+msgstr "风险"
+
 msgid "Risk/performance ratios"
 msgstr "风险/表现比率"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "风险回报比：{rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "风险：{0} · 收益：{1}"
 
 msgid "Ruin at drawdown"
 msgstr "破产回撤"
@@ -5192,6 +5228,9 @@ msgstr "另一台设备的 Opentern 版本不同。请更新两台设备后重�
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "端口应为数字，通常是 587 或 465。"
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "数量向下取整到该值；0 表示不限。"
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "同上，并且在你登录电脑时也会启动，重启后警报仍会继续。"

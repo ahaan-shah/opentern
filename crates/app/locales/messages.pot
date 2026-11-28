@@ -250,6 +250,9 @@ msgstr ""
 msgid "Account settings"
 msgstr ""
 
+msgid "Account size"
+msgstr ""
+
 msgid "Account size required"
 msgstr ""
 
@@ -263,6 +266,9 @@ msgid "Active"
 msgstr ""
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
+msgstr ""
+
+msgid "Add alert at {0}"
 msgstr ""
 
 msgid "Add alert on {ticker} at {0}"
@@ -399,6 +405,9 @@ msgid "Also used by {0}"
 msgstr ""
 
 msgid "Americas"
+msgstr ""
+
+msgid "Amount"
 msgstr ""
 
 msgid "An alert fired while Opentern was closed"
@@ -1168,6 +1177,9 @@ msgid "Copy"
 msgstr ""
 
 msgid "Copy image"
+msgstr ""
+
+msgid "Copy price {0}"
 msgstr ""
 
 msgid "Corpus Christi"
@@ -2703,6 +2715,9 @@ msgstr ""
 msgid "Losing trades"
 msgstr ""
 
+msgid "Lot size"
+msgstr ""
+
 msgid "Low"
 msgstr ""
 
@@ -3850,6 +3865,9 @@ msgstr ""
 msgid "Portfolio"
 msgstr ""
 
+msgid "Position size"
+msgstr ""
+
 msgid "Positions {0}"
 msgstr ""
 
@@ -3971,6 +3989,9 @@ msgid "Python strategies run in their own process, so the lab can't rerun them y
 msgstr ""
 
 msgid "Qty"
+msgstr ""
+
+msgid "Qty: {0}"
 msgstr ""
 
 msgid "Quantity"
@@ -4170,11 +4191,17 @@ msgstr ""
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr ""
 
+msgid "Remove indicators"
+msgstr ""
+
 msgid "Remove section"
 msgstr ""
 
 #, message
 msgid "Remove {0}"
+msgstr ""
+
+msgid "Remove {0} indicators"
 msgstr ""
 
 msgid "Remove {k} indicators"
@@ -4228,6 +4255,9 @@ msgid "Reset all"
 msgstr ""
 
 msgid "Reset chart sizes"
+msgstr ""
+
+msgid "Reset chart view"
 msgstr ""
 
 msgid "Reset levels"
@@ -4302,10 +4332,16 @@ msgstr ""
 msgid "Rises and falls"
 msgstr ""
 
+msgid "Risk"
+msgstr ""
+
 msgid "Risk/performance ratios"
 msgstr ""
 
 msgid "Risk/reward ratio: {rr}"
+msgstr ""
+
+msgid "Risk: {0} · Reward: {1}"
 msgstr ""
 
 msgid "Ruin at drawdown"
@@ -5191,6 +5227,9 @@ msgid "The other device runs a different version of Opentern. Update both, then 
 msgstr ""
 
 msgid "The port should be a number, usually 587 or 465."
+msgstr ""
+
+msgid "The quantity rounds down to it; 0 for any."
 msgstr ""
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."

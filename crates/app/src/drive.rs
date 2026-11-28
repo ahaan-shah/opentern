@@ -2468,5 +2468,76 @@ mod formula_tests {
         assert_eq!(d.app.layout.tool, Tool::Cross, "back to the cursor");
     }
 
+    #[test]
+    fn right_click_opens_the_chart_menu() {
+        use crate::i18n::tr;
+        let mut d = Driver::new("chart-menu");
+        d.pick(Tool::HorizontalLine);
+        d.click(d.at(0.4, 0.4));
+        d.pick(Tool::Cross);
+        assert_eq!(d.app.chart.drawings.len(), 1);
+        let studies = d.app.chart.studies.len();
+        assert!(studies > 0, "the demo chart has volume");
+
+        d.right_click(d.at(0.5, 0.5));
+        assert!(d.app.chart_menu.is_some(), "a menu, not Chart settings");
+        assert!(d.app.modal.is_none());
+        assert!(d.app.chart_menu.unwrap().2.is_some(), "with the price there");
+        let at = d.text_rect(tr("Remove drawings")).expect("Remove drawings").center();
+        d.click(at);
+        assert!(d.app.chart.drawings.is_empty());
+        assert!(d.app.chart_menu.is_none());
+        d.app.chart.undo();
+        assert_eq!(d.app.chart.drawings.len(), 1, "undo brings them back");
+
+        // Indicators have no undo: the first click asks.
+        d.right_click(d.at(0.5, 0.5));
+        let at = d
+            .text_rect(tr("Remove indicators"))
+            .expect("Remove indicators")
+            .center();
+        d.click(at);
+        assert_eq!(d.app.chart.studies.len(), studies, "not yet");
+        assert!(d.app.chart_menu.is_some(), "still open, asking");
+        let again = if studies == 1 {
+            tr("Remove 1 indicator").to_string()
+        } else {
+            crate::i18n::trf!("Remove {} indicators", studies)
+        };
+        let at = d.text_rect(&again).expect("asks").center();
+        d.click(at);
+        assert!(d.app.chart.studies.is_empty());
+
+        d.right_click(d.at(0.5, 0.5));
+        let at = d.text_rect(tr("Chart settings")).expect("Chart settings").center();
+        d.click(at);
+        assert!(matches!(d.app.modal, Some(crate::dialogs::Modal::ChartSettings(_))));
+        assert_eq!(d.app.panics, 0);
+    }
+
+    #[test]
+    fn rectangle_sides_and_corners_drag() {
+        let mut d = Driver::new("rect-handles");
+        d.pick(Tool::Rectangle);
+        let (a, b) = (d.at(0.3, 0.3), d.at(0.6, 0.6));
+        d.click(a);
+        d.click(b);
+        d.pick(Tool::Cross);
+        let before = d.app.chart.drawings[0].pts.clone();
+        // The right side's middle: only the right edge's time moves.
+        let mid_right = pos2(b.x, (a.y + b.y) / 2.0);
+        d.drag(mid_right, mid_right + vec2(60.0, 40.0));
+        let after = &d.app.chart.drawings[0].pts;
+        assert_eq!(after[0], before[0]);
+        assert_eq!(after[1].p, before[1].p, "its price stays");
+        assert!(after[1].t > before[1].t, "it moved right");
+        // The top side's middle: only the top's price.
+        let top = pos2((a.x + b.x) / 2.0 + 30.0, a.y);
+        d.drag(top, top + vec2(0.0, -50.0));
+        let now = &d.app.chart.drawings[0].pts;
+        assert!(now[0].p > before[0].p, "the top went up");
+        assert_eq!(now[0].t, before[0].t);
+    }
+
     const STRATEGY: &str = "//@version=6\nstrategy(\"EMA Cross\", overlay=true)\nf = ta.ema(close, input.int(9, \"Fast\"))\ns = ta.ema(close, input.int(21, \"Slow\"))\nif ta.crossover(f, s)\n    strategy.entry(\"Long\", strategy.long)\nif ta.crossunder(f, s)\n    strategy.entry(\"Short\", strategy.short)\n";
 }

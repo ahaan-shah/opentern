@@ -250,6 +250,9 @@ msgstr "खाता आईडी"
 msgid "Account settings"
 msgstr "खाता सेटिंग्स"
 
+msgid "Account size"
+msgstr "खाते का आकार"
+
 msgid "Account size required"
 msgstr "आवश्यक खाता आकार"
 
@@ -264,6 +267,9 @@ msgstr "सक्रिय"
 
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
+
+msgid "Add alert at {0}"
+msgstr "{0} पर अलर्ट जोड़ें"
 
 msgid "Add alert on {ticker} at {0}"
 msgstr "{ticker} पर {0} का अलर्ट बनाएँ"
@@ -400,6 +406,9 @@ msgstr "{0} भी इसका उपयोग करता है"
 
 msgid "Americas"
 msgstr "अमेरिका"
+
+msgid "Amount"
+msgstr "राशि"
 
 msgid "An alert fired while Opentern was closed"
 msgstr "Opentern बंद रहते एक अलर्ट चला"
@@ -1169,6 +1178,9 @@ msgstr "कॉपी करें"
 
 msgid "Copy image"
 msgstr "चित्र कॉपी करें"
+
+msgid "Copy price {0}"
+msgstr "कीमत {0} कॉपी करें"
 
 msgid "Corpus Christi"
 msgstr "कॉर्पस क्रिस्टी"
@@ -2703,6 +2715,9 @@ msgstr "लगातार हानि, सबसे खराब 5%"
 msgid "Losing trades"
 msgstr "हानि वाले ट्रेड"
 
+msgid "Lot size"
+msgstr "लॉट साइज़"
+
 msgid "Low"
 msgstr "कम"
 
@@ -3850,6 +3865,9 @@ msgstr "पोर्ट"
 msgid "Portfolio"
 msgstr "पोर्टफ़ोलियो"
 
+msgid "Position size"
+msgstr "पोज़िशन का आकार"
+
 msgid "Positions {0}"
 msgstr "पोज़िशन {0}"
 
@@ -3972,6 +3990,9 @@ msgstr "Python स्ट्रैटेजी अलग प्रोसेस �
 
 msgid "Qty"
 msgstr "मात्रा"
+
+msgid "Qty: {0}"
+msgstr "मात्रा: {0}"
 
 msgid "Quantity"
 msgstr "मात्रा"
@@ -4170,12 +4191,18 @@ msgstr "वॉचलिस्ट से हटाएँ"
 msgid "Remove from watchlist (Shift+Enter)"
 msgstr "वॉचलिस्ट से हटाएँ (Shift+Enter)"
 
+msgid "Remove indicators"
+msgstr "इंडिकेटर हटाएँ"
+
 msgid "Remove section"
 msgstr "सेक्शन हटाएँ"
 
 #, message
 msgid "Remove {0}"
 msgstr "{0} हटाएँ"
+
+msgid "Remove {0} indicators"
+msgstr "{0} इंडिकेटर हटाएँ"
 
 msgid "Remove {k} indicators"
 msgstr "{k} इंडिकेटर हटाएँ"
@@ -4229,6 +4256,9 @@ msgstr "सभी रीसेट करें"
 
 msgid "Reset chart sizes"
 msgstr "चार्ट के आकार रीसेट करें"
+
+msgid "Reset chart view"
+msgstr "चार्ट व्यू रीसेट करें"
 
 msgid "Reset levels"
 msgstr "स्तर रीसेट करें"
@@ -4302,11 +4332,17 @@ msgstr "दाएँ बार"
 msgid "Rises and falls"
 msgstr "उतार-चढ़ाव"
 
+msgid "Risk"
+msgstr "जोखिम"
+
 msgid "Risk/performance ratios"
 msgstr "जोखिम/प्रदर्शन अनुपात"
 
 msgid "Risk/reward ratio: {rr}"
 msgstr "जोखिम/लाभ अनुपात: {rr}"
+
+msgid "Risk: {0} · Reward: {1}"
+msgstr "जोखिम: {0} · लाभ: {1}"
 
 msgid "Ruin at drawdown"
 msgstr "इस ड्रॉडाउन पर बर्बादी"
@@ -5192,6 +5228,9 @@ msgstr "दूसरे डिवाइस पर Opentern का अलग स�
 
 msgid "The port should be a number, usually 587 or 465."
 msgstr "पोर्ट संख्या होनी चाहिए, आमतौर पर 587 या 465।"
+
+msgid "The quantity rounds down to it; 0 for any."
+msgstr "मात्रा इसके नीचे पूर्णांकित होती है; कोई भी हो तो 0।"
 
 msgid "The same, and it also starts when you log in to your computer, so alerts keep working after a restart."
 msgstr "वही, और कंप्यूटर में लॉग इन करने पर भी शुरू होता है, ताकि रीस्टार्ट के बाद अलर्ट चलते रहें।"

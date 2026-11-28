@@ -1373,6 +1373,7 @@ impl App {
             && self.study_menu.is_none()
             && self.compare_menu.is_none()
             && self.price_menu.is_none()
+            && self.chart_menu.is_none()
             && !egui::Popup::is_any_open(ui.ctx());
         let saved = self.draw_styles.clone();
         let styles = move |tool| {

@@ -14,6 +14,20 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   empty means `FibLevel::standard(tool)`, so older drawings and the standard set store
   nothing. Edited in the bar's Levels panel (`drawbar.rs`, an `Area` under the bar, not a
   popup: egui keeps one popup open and each level's colour picker is one).
+- **The chart's right-click menu** (`App::chart_menu`, `Action::ChartMenu { pos, price }`
+  from `chart/ui.rs`; the price only on the main pane): a small card in the dialogs'
+  look (`border_stroke`, `sheen`). Reset view, Copy price, Add alert at price
+  (`open_alert_at`), Remove drawings (`push_undo` first), Remove indicators (no
+  undo: the first click arms it, a red "Remove N indicators"), Chart settings. It
+  replaced right-click → Chart settings; the chart takes no input while it's open.
+- **Position size** (`DrawStyle::sizing: Option<Sizing>`; none = `Sizing::default()`,
+  10,000 account, 1% risk, any lot): `Sizing::qty` = risk ÷ |entry − stop|, rounded
+  down to the lot. Shown under the risk/reward ratio (left of the position when it
+  would run under the scale). The bar's calculator opens `drawbar::sizing_panel`
+  in the Fib Levels panel's place (`fib-levels-open`).
+- **Rectangle handles:** 8 (`handle_points`: the two drawn corners first, the other
+  two, then the sides' middles top/right/bottom/left); `drag` moves a time and a
+  price for a corner, one of them for a side.
 - **Settings → Drawings** (`settings.rs` `drawings_page`): after drawing, keep the
   tool or back to the cursor (`App::back_to_cursor`, store key `after_drawing`,
   applied where `DrawUi::finished` is read in `shell.rs`; Brush keeps its tool), and
