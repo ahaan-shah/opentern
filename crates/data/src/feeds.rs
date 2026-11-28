@@ -303,8 +303,9 @@ fn demo_hotlist(market: HotMarket, kind: HotKind) -> Vec<HotRow> {
 /// The query Yahoo's search understands for a symbol's news.
 fn news_query(sym: &Symbol) -> String {
     match sym.exchange() {
-        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => {
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID" => {
             let t = sym.ticker();
+            let t = t.strip_suffix(".P").unwrap_or(t);
             let base = ["USDT", "USDC", "USD", "BTC", "EUR"]
                 .iter()
                 .find_map(|q| t.strip_suffix(q).filter(|b| !b.is_empty()))

@@ -155,6 +155,11 @@ impl Provider for Demo {
 
 /// A made-up quote (last, previous close) for the watchlist in demo mode.
 pub fn quote(sym: &Symbol) -> (f64, f64) {
+    if sym.id == crate::nyfed::ID {
+        let d = crate::nyfed::demo_days();
+        let n = d.len();
+        return (d[n - 1].rate, d[n - 2].rate);
+    }
     let day = Timeframe::parse("1D").expect("valid");
     let bars = history(sym, day, 2);
     (bars[1].close, bars[0].close)

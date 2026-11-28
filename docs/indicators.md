@@ -131,11 +131,19 @@ error, smoothed. ADR on intraday charts uses completed days (as `request.securit
 lookahead off does on history). Moon Phases follows Meeus (minutes accurate). Trading
 Sessions shades Tokyo, London and New York regular hours.
 
+Bundled Pine built-ins (`crates/app/assets/scripts/`, listed in `sources::BUNDLED`):
+they need another symbol's bars, which only scripts can ask for. They run through
+the script pipeline under the path `@opentern/<file>` (source from the app, never
+the disk), show among the built-ins in the Indicators dialog, and open read-only
+in the editor.
+- Correlation Coefficient (`@opentern/correlation_coefficient.pine`, Oscillators):
+  `ta.correlation(src, request.security(symbol, timeframe.period, src), length)`,
+  defaults NASDAQ:GOOG, close, 20; lines at 1, 0, −1. Checked against a Pearson
+  correlation worked out independently (`correlation_coefficient_is_built_in_and_right`).
+
 Still to port:
 - Need data Opentern doesn't fetch yet: Advance/Decline Line and Ratio (market
-  breadth), Cumulative Volume Index (breadth), Open Interest (futures), Correlation
-  Coefficient (Pine scripts can now do it with `ta.correlation` and `request.security`
-  on another symbol, which fetches on demand; a Rust built-in needs the same feeds),
+  breadth), Cumulative Volume Index (breadth), Open Interest (futures),
   Cumulative Volume Delta and Up/Down Volume (intrabar volume).
 - Not yet, to get exactly right: Technical Ratings (26 sub-ratings whose exact
   buy/sell rules need TradingView's source) and Bollinger Bars (how it colours and

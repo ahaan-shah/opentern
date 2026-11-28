@@ -231,7 +231,7 @@ fn inputs_become_settings() {
     assert_eq!(ids, vec!["length", "source", "mode", "show", "colour"]);
     assert!(matches!(
         m.inputs[0].kind,
-        opentern_series::study::InputKind::Int { min: 1, max: 50 }
+        opentern_series::study::InputKind::Int { min: 1, max: 50, .. }
     ));
     assert_eq!(m.plots[0].colors[0].1.0, 0xFF0000FF);
     let b = bars(30);

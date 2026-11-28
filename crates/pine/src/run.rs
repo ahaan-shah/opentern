@@ -26,8 +26,19 @@ use std::sync::Arc;
 
 /// The most loop iterations allowed on one bar.
 const MAX_OPS: u64 = 5_000_000;
+/// Bound chains of orders that cause further intrabar recalculations.
+const MAX_FILL_EXECUTIONS: usize = 10_000;
 /// A colour that draws nothing (alpha 0; never 0, which means "palette").
 pub(crate) const INVISIBLE: u32 = 0xFFFF_FF00;
+
+/// What an `input.source` reads: a field of the bar, or another indicator's
+/// plot on the chart (the input is linked; see `opentern_series::study::link_key`).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Src {
+    Field(Field),
+    /// Linked: the values come with each bar (`Ctx::links`), by input id.
+    Link(&'static str),
+}
 
 #[derive(Clone, Debug)]
 pub(crate) struct Ring<T> {
@@ -140,6 +151,60 @@ impl Frame {
         }
     }
 
+    /// A copy without the histories, which change only when a bar is
+    /// committed, so a recalculation can take them back from the frame.
+    fn snapshot(&self) -> Frame {
+        Frame {
+            v: self.v.clone(),
+            hist: Vec::new(),
+            touched: self.touched.clone(),
+            inited: self.inited.clone(),
+            st: self.st.clone(),
+            calls: self
+                .calls
+                .iter()
+                .map(|c| c.as_ref().map(|c| Box::new(c.snapshot())))
+                .collect(),
+            secs: self.secs.clone(),
+        }
+    }
+
+    /// Moves the histories of `from`, the same frame later in the bar, into
+    /// a [`Frame::snapshot`].
+    fn take_hist(&mut self, from: &mut Frame, l: &Layout, funcs: &[Func]) {
+        self.hist = std::mem::take(&mut from.hist);
+        for (site, c) in self.calls.iter_mut().enumerate() {
+            if let Some(c) = c {
+                let layout = &funcs[l.calls[site] as usize].layout;
+                match from.calls.get_mut(site).and_then(|f| f.as_deref_mut()) {
+                    Some(f) => c.take_hist(f, layout, funcs),
+                    // A frame never goes away during a bar; if one did, its
+                    // histories had nothing committed.
+                    None => c.take_hist(&mut Frame::new(layout), layout, funcs),
+                }
+            }
+        }
+    }
+
+    fn retain_varip(&mut self, previous: &Frame, l: &Layout, funcs: &[Func], roots: &mut Vec<u32>) {
+        for &slot in &l.varips {
+            let i = slot as usize;
+            self.v[i] = previous.v[i].clone();
+            self.inited[i] = previous.inited[i];
+            if let V::Ref(id) = self.v[i] {
+                roots.push(id);
+            }
+        }
+        for (site, prior) in previous.calls.iter().enumerate() {
+            if let Some(prior) = prior {
+                let layout = &funcs[l.calls[site] as usize].layout;
+                self.calls[site]
+                    .get_or_insert_with(|| Box::new(Frame::new(layout)))
+                    .retain_varip(prior, layout, funcs, roots);
+            }
+        }
+    }
+
     pub fn refs(&self, out: &mut Vec<u32>) {
         fn walk(v: &V, out: &mut Vec<u32>) {
             match v {
@@ -237,6 +302,10 @@ pub(crate) struct G {
     pub keep_all: bool,
     /// Inside a request: nothing is drawn, ordered, logged or alerted.
     pub quiet: bool,
+    /// Other indicators' plots the linked `input.source`s read, and the
+    /// chart bar they're read at (from the `Ctx` of the bar being run).
+    pub links: opentern_series::study::Links,
+    pub link_at: usize,
     /// The local day of the newest bar, and the day's first bar's time.
     pub day: (i64, i64),
     /// Series `request.security` asked for that aren't loaded yet.
@@ -275,6 +344,8 @@ impl G {
             all: Arc::default(),
             keep_all: false,
             quiet: false,
+            links: Vec::new(),
+            link_at: 0,
             day: (i64::MIN, 0),
             wanted: Vec::new(),
             market,
@@ -535,7 +606,7 @@ pub(crate) type Args = smallvec::SmallVec<[V; 6]>;
 pub(crate) struct X<'a> {
     pub p: &'a Program,
     pub inputs: &'a [V],
-    pub srcs: &'a [Field],
+    pub srcs: &'a [Src],
     pub g: &'a mut G,
 }
 
@@ -567,10 +638,7 @@ impl X<'_> {
                 field(&b, *fld, self.g.index as i64, self.g)
             }
             E::In(i) => self.inputs[*i as usize].clone(),
-            E::InSrc(i) => {
-                let b = self.g.bar();
-                field(&b, self.srcs[*i as usize], self.g.index as i64, self.g)
-            }
+            E::InSrc(i) => self.src_value(*i, 0)?,
             E::Neg(x) => neg(&self.eval(x, f, root)?),
             E::Not(x) => V::Bool(!self.eval(x, f, root)?.truthy()),
             E::Bin(op, a, b) => {
@@ -640,7 +708,7 @@ impl X<'_> {
                 let Some(k) = index_of(&self.eval(k, f, root)?)? else {
                     return Ok(V::Na);
                 };
-                self.bar_back(self.srcs[*i as usize], k)
+                self.src_value(*i, k)?
             }
             E::If(branches, otherwise) => {
                 for (c, b) in branches {
@@ -797,6 +865,34 @@ fn order_args(fname: &str, params: &[&str], vals: Args, names: &[Option<Arc<str>
 }
 
 impl X<'_> {
+    /// An `input.source` `k` bars back: a bar field, or a linked
+    /// indicator's plot.
+    fn src_value(&self, i: u16, k: usize) -> R<V> {
+        match self.srcs[i as usize] {
+            Src::Field(fld) if k == 0 => {
+                let b = self.g.bar();
+                Ok(field(&b, fld, self.g.index as i64, self.g))
+            }
+            Src::Field(fld) => Ok(self.bar_back(fld, k)),
+            Src::Link(id) => {
+                // The plot has this chart's bars; a request runs on others.
+                if self.g.quiet {
+                    return Err(Stop::Err(
+                        "request.security() can't read another indicator's plot: it has this chart's bars only.".into(),
+                    ));
+                }
+                let v = self
+                    .g
+                    .links
+                    .iter()
+                    .find(|(key, _)| key == id)
+                    .and_then(|(_, series)| series.get(self.g.link_at.checked_sub(k)?).copied())
+                    .unwrap_or(f64::NAN);
+                Ok(if v.is_finite() { V::Float(v) } else { V::Na })
+            }
+        }
+    }
+
     fn bar_back(&self, fld: Field, k: usize) -> V {
         match self.g.bars.get(k) {
             Some(b) => field(b, fld, self.g.index as i64 - k as i64, self.g),
@@ -1360,7 +1456,7 @@ impl X<'_> {
 pub struct PineStudy {
     prog: Arc<Program>,
     inputs: Arc<[V]>,
-    srcs: Arc<[Field]>,
+    srcs: Arc<[Src]>,
     root: Frame,
     g: G,
     error: Option<Error>,
@@ -1425,9 +1521,14 @@ impl PineStudy {
                 Conv::FloatChoice => V::Float(text(inputs).parse().unwrap_or(0.0)),
             };
             if d.conv == Conv::Source {
-                srcs.push(Field::by_name(&text(inputs)).unwrap_or(Field::Close));
+                let t = text(inputs);
+                srcs.push(match Field::by_name(&t) {
+                    Some(f) => Src::Field(f),
+                    None if opentern_series::study::parse_link(&t).is_some() => Src::Link(id),
+                    None => Src::Field(Field::Close),
+                });
             } else {
-                srcs.push(Field::Close);
+                srcs.push(Src::Field(Field::Close));
             }
             vals.push(v);
         }
@@ -1442,14 +1543,8 @@ impl PineStudy {
                 prog.env.mincontract(),
             )));
         }
-        // Better said than silently different.
-        for (prop, what) in [
-            ("calc_on_order_fills", "recalculating after order fills"),
-            ("use_bar_magnifier", "the bar magnifier"),
-        ] {
-            if prog.props.get(prop).and_then(|v| v.as_bool()) == Some(true) {
-                g.log(format!("Note: this strategy uses {prop}. Opentern doesn't simulate {what}, so results can differ from TradingView's."));
-            }
+        if prog.props.get("use_bar_magnifier").and_then(|v| v.as_bool()) == Some(true) {
+            g.log("Note: this strategy uses use_bar_magnifier. Opentern doesn't simulate the bar magnifier, so results can differ from TradingView's.".into());
         }
         g.out = OutBuf {
             vals: vec![f64::NAN; prog.plots.len()],
@@ -1550,6 +1645,7 @@ impl PineStudy {
                 last_time: bars.last().map_or(0, |b| b.time),
                 // Every bar is closed history here.
                 loaded: bars.len() + 1,
+                links: &[],
             };
             o.values.fill(f64::NAN);
             o.colors.fill(0);
@@ -1674,14 +1770,38 @@ impl PineStudy {
         if day != g.day.0 {
             g.day = (day, b.time);
         }
-        g.out.reset();
-        g.pending_alerts.clear();
-        if let Some(br) = &mut g.broker {
-            if new_session {
-                br.new_day();
-            }
-            br.open_bar(index, &b);
+        if new_session && let Some(br) = &mut g.broker {
+            br.new_day();
         }
+        let result = if g.broker.as_ref().is_some_and(|br| br.props.calc_on_order_fills) {
+            self.fill_bar(index, &b)
+        } else {
+            if let Some(br) = &mut g.broker {
+                br.open_bar(index, &b);
+            }
+            self.execute().map(|()| {
+                if let Some(br) = &mut self.g.broker {
+                    br.close_bar(&b);
+                }
+            })
+        };
+        if let Err(e) = result {
+            let msg = match e {
+                Stop::Err(m) => m,
+                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
+            };
+            return Err(Error::at(self.g.line as usize, msg));
+        }
+        self.root.commit(&self.prog.layout, &self.prog.funcs, self.g.bar_no);
+        if self.g.heap.wants_gc() {
+            self.collect();
+        }
+        Ok(())
+    }
+
+    fn execute(&mut self) -> R<()> {
+        self.g.out.reset();
+        self.g.pending_alerts.clear();
         let prog = &*self.prog;
         let mut x = X {
             p: prog,
@@ -1689,26 +1809,73 @@ impl PineStudy {
             srcs: &self.srcs,
             g: &mut self.g,
         };
-        if let Err(e) = x.exec(&prog.root, &mut self.root, None) {
-            let msg = match e {
-                Stop::Err(m) => m,
-                Stop::Break | Stop::Continue => "break/continue outside a loop.".into(),
-            };
-            return Err(Error::at(self.g.line as usize, msg));
-        }
+        x.exec(&prog.root, &mut self.root, None)?;
         // Their text can name any plot, so it's written last.
         for (i, alert) in std::mem::take(&mut self.g.pending_alerts) {
             let message = natives::alert_placeholders(&self.g, &prog.alertconditions[i].message, &prog.plots);
             self.g.alerts.push(Alert { message, ..alert });
         }
-        if let Some(br) = &mut self.g.broker {
-            br.close_bar(&b);
-        }
-        self.root.commit(&prog.layout, &prog.funcs, self.g.bar_no);
-        if self.g.heap.wants_gc() {
-            self.collect();
-        }
         Ok(())
+    }
+
+    fn fill_bar(&mut self, index: usize, bar: &Bar) -> R<()> {
+        let broker = self.g.broker.as_mut().unwrap();
+        broker.begin_fill_bar(index, bar);
+        // Whether a fill can follow the closing calculation, which would
+        // run the script again.
+        let close_fills = broker.props.process_orders_on_close || self.prog.fills_at_close;
+        self.g.heap.begin_recalculations();
+        // The last committed Pine state, saved only on a bar the script can
+        // run on more than once: copying it is most of the cost.
+        let mut committed: Option<(Frame, Heap)> = None;
+        let mut executions = 0;
+
+        // Restore the last committed Pine state while keeping the broker,
+        // logs, alerts and intrabar-persistent values from the current bar.
+        // `again`: another calculation can follow this one.
+        let mut calculate = |study: &mut PineStudy, again: bool| -> R<()> {
+            if executions == MAX_FILL_EXECUTIONS {
+                return Err(Stop::Err("Too many order fill recalculations on one bar.".into()));
+            }
+            match &committed {
+                Some((frame, heap)) if executions != 0 => {
+                    let (layout, funcs) = (&study.prog.layout, &study.prog.funcs);
+                    let mut root = frame.clone();
+                    root.take_hist(&mut study.root, layout, funcs);
+                    let mut refs = Vec::new();
+                    root.retain_varip(&study.root, layout, funcs, &mut refs);
+                    study.root = root;
+                    study.g.heap = heap.rollback(std::mem::take(&mut study.g.heap), &study.prog.types, refs);
+                }
+                None if executions != 0 => {
+                    // `close_fills` rules this out; never carry on from a
+                    // calculation that should have been undone.
+                    return Err(Stop::Err(
+                        "Opentern couldn't recalculate this bar after an order fill.".into(),
+                    ));
+                }
+                None if again => committed = Some((study.root.snapshot(), study.g.heap.clone())),
+                _ => {}
+            }
+            executions += 1;
+            study.execute()
+        };
+
+        let result = (|| {
+            while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
+                calculate(self, true)?;
+            }
+            // Keep the ordinary closing calculation after the path's last callback.
+            calculate(self, close_fills)?;
+            self.g.broker.as_mut().unwrap().begin_close_fills();
+            while self.g.broker.as_mut().unwrap().next_bar_fill_group() {
+                calculate(self, true)?;
+            }
+            self.g.broker.as_mut().unwrap().finish_fill_bar(bar);
+            Ok(())
+        })();
+        self.g.heap.end_recalculations();
+        result
     }
 
     fn collect(&mut self) {
@@ -1724,6 +1891,18 @@ impl Study for PineStudy {
             return;
         }
         let g = &mut self.g;
+        // Linked sources line up with the chart's bars, not with a script
+        // that runs on a higher timeframe of its own.
+        let links: &[(String, Arc<Vec<f64>>)] = if self.higher.is_none() { c.links } else { &[] };
+        let same = g.links.len() == links.len()
+            && g.links
+                .iter()
+                .zip(links)
+                .all(|(a, b)| a.0 == b.0 && Arc::ptr_eq(&a.1, &b.1));
+        if !same {
+            g.links = links.to_vec();
+        }
+        g.link_at = c.index;
         g.main_tf = c.tf;
         g.last_time = c.last_time;
         g.loaded = c.loaded;

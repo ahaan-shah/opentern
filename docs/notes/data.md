@@ -28,7 +28,8 @@ every data change (scripts re-run on it).
   credentials restarts open chart sessions. Quotes for non-Yahoo, non-Binance symbols
   come from two daily bars every 30 s. Search loads Bybit/OKX/Coinbase/Kraken lists
   (daily since Nov 2026; a coin search with no match asks Binance's exchangeInfo
-  for that pair at once, alongside Yahoo's search), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows;
+  for that pair at once, alongside Yahoo's search), ties prefer Binance, Coinbase, Bybit, OKX, Kraken; `EXCHANGE:` narrows,
+  and `EXCHANGE:` alone lists that exchange (`hub::browse`: major coins first, up to 500);
   `OANDA:X` / `IBKR:X` are offered as typed.
 - **OKX gotcha:** `www.okx.com` is unreachable from some networks (it is from this
   machine); the adapter falls back to `app.okx.com` / `my.okx.com` and remembers.
@@ -128,6 +129,31 @@ every data change (scripts re-run on it).
   `Market::of` checks ids for `TVC:` ones. Icons: flags
   (`assets/flags/`, flag-icons MIT, `logos::flag_of`) for non-US/India
   indices, yields and DXY; badges for the rest.
+- **The Fed funds rate** (`NYFED:EFFR`, Nov 2026, `nyfed.rs`): the New York
+  Fed's markets API, keyless. `…/effr/search.json?startDate=2000-07-01&endDate=…`
+  gives the whole history (~6,600 days, 1.5 MB) once per run; then
+  `…/effr/last/10.json`. Every caller (chart, quotes every 30 s, alerts,
+  search prices) goes through one memo (`nyfed::days`) whose `next_check` asks
+  only after 9:05 and 14:35 New York on weekdays (every 15 min between them
+  while the previous business day is missing; 5 min after a failure). Fields:
+  `effectiveDate`, `percentRate`, `targetRateFrom`/`To` (before 16 Dec 2008
+  only `From`: one target), `revisionIndicator` "r". Bars: O=H=L=C, volume 0,
+  UTC midnight; weeks and months resampled in the provider; no intraday
+  (`nyfed::DAILY_ONLY`). `since()` returns a week extra so revisions replace
+  bars. The target band (`chart::ui::target_band`) and legend "Target …" read
+  `nyfed::targets()` (never fetches). `opentern_core::daily_only(id)`: step
+  line instead of candles, no market dot ("Daily" tag with the source and
+  terms instead), never stale, change in bp. Search aliases:
+  `opentern_core::search_aliases`. Terms checked 27 Nov 2026 (page updated
+  9 Jun 2023): automated access OK if it doesn't burden the site; store and
+  redistribute OK for personal or business purposes; the notice
+  (`nyfed::NOTICE`, kept in English) wherever it's shown; no endorsement or
+  name in advertising. Live test: `fed_funds_rate_from_the_new_york_fed`.
+- **Fed funds futures** (`CBOT:ZQ1!`, Nov 2026): `opentern_core::futures()`, kind
+  `Futures`, Yahoo's `ZQ=F` (Yahoo's search tags it `CBT`, `id_for` maps it back).
+  Tick 0.0025 (CBOT's front month), hours and the 10-minute delay like the commodities,
+  the US flag as its icon, search aliases "ZQ", "ZQ=F", "fed funds futures". Before
+  this, `ZQ=F` opened only as a raw Yahoo ticker (no name, wrong tick, no delay tag).
 - **Perpetuals** (`….P`, TradingView's name): `Binance::perp()` (fapi; its
   market streams are under `/market/ws/` since late 2026: the old `/ws/`
   path connects and sends nothing), `Bybit::perp()` (`category=linear`),
@@ -137,6 +163,41 @@ every data change (scripts re-run on it).
   per-pair streams. `Request::Funding` → legend "Funding +0.0034% 3h 11m"
   (`App::poll_funding`, once a minute). Perpetuals never get a spot
   `successor`. Not yet: open interest.
+- **Hyperliquid perpetuals** (`hyperliquid.rs`, Nov 2026; verified live by
+  `live::hyperliquid_perpetuals`): everything is a POST of JSON to
+  `api.hyperliquid.xyz/info` (`provider::post_json`): `candleSnapshot`
+  (by start/end time; asked in pages of 4000, under the 5000 a reply holds),
+  `metaAndAssetCtxs` (the list, list source `hyperliquid_perp`, and funding:
+  hourly, paid on the hour), `l2Book` (the DOM, 20 levels a side). Live bars
+  from `wss://api.hyperliquid.xyz/ws` (`candle` subscription, `{"method":"ping"}`
+  every 30 s: it drops a connection quiet for a minute). Ids are
+  `HYPERLIQUID:<coin>USDC.P` (USDC, as Hyperliquid's app names them) with the coin's own case (`kPEPE` is 1000 PEPE).
+  **Only the newest 5000 candles of each interval exist** (1m ≈ 3.5 days);
+  paging back stops there. Tick size isn't published: five significant
+  figures, at most `6 - szDecimals` decimals, whole numbers always
+  (`opentern_core::hyperliquid_tick`). The list stores the step at the mark
+  price when it's fetched; after that it follows the price: `Symbol::tick_at`/
+  `precision_at` work it out from the price and the lot step (`min_qty` =
+  `10^-szDecimals`), and a chart (and each compared symbol) calls `retick` on
+  every new bar, so the scale, DOM, paper orders and `syminfo.mintick` keep up.
+- **Hyperliquid builder dexes (HIP-3)**: `perpDexs` names them (xyz, para, io,
+  km…); each dex's `metaAndAssetCtxs` takes `"dex"` and names its markets
+  `xyz:GOLD`. Ids put the dex before an underscore, `HYPERLIQUID:XYZ_GOLDUSDC.P`
+  (a hyphen would read as a formula's minus), quoted in the dex's collateral
+  (`collateralToken`, a `spotMeta` token index: USDC, USDH, USDE, USDT0).
+  Candles, the stream and `l2Book` take `xyz:GOLD` as the coin; funding asks
+  that dex. Search ranks them by the name after the underscore. The same asset
+  can be on several dexes (NVDA on xyz and io). Kind is `Crypto` (they trade
+  around the clock). Spot is still left out. Hyperliquid lists only tickers,
+  so `hyperliquid::name_of` names the ones a ticker doesn't explain (SpaceX's
+  SPCX, OpenAI, gold, crude oil) in the description; a US company in the
+  results (Yahoo's "tesla" → NASDAQ:TSLA) brings its perpetuals right after
+  it (`hub::with_hyperliquid`, by `hyperliquid::underlying`). Logos: the app
+  draws what a market follows (`logos::stand_in`: gold's picture, EURUSD's
+  flags, the S&P's badge, the company's logo tried on NASDAQ, NYSE and AMEX);
+  private companies and crypto gauges keep a letter. Prices checked against
+  spot on 27 Nov 2026 (gold 3,649.50 vs Binance's gold index 3,650.66; COMEX
+  futures sit higher by their premium).
 - **Delisted pairs:** Binance keeps listing pairs it stopped (status
   BREAK, e.g. XMRUSDT): `ticker/price` and `24hr` still return the last
   trade from years ago, klines end then, and a `tradingDay` batch with any

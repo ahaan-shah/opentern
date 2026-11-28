@@ -2933,7 +2933,7 @@ fn metric_table(
                                 }
                             }
                             "Price" | "Value" if row.price.is_finite() && row.price > 0.0 => {
-                                let d = row.symbol.as_ref().map_or(2, |s| s.precision().max(2));
+                                let d = row.symbol.as_ref().map_or(2, |s| s.precision_at(row.price).max(2));
                                 p.text(
                                     right,
                                     Align2::RIGHT_CENTER,

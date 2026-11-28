@@ -22,7 +22,7 @@ pub const TOP_H: f32 = 44.0;
 pub const TOOLBAR_W: f32 = 48.0;
 pub const RAIL_W: f32 = 46.0;
 pub const RANGE_H: f32 = 32.0;
-pub const TABS_H: f32 = 32.0;
+pub const TABS_H: f32 = 40.0;
 /// The gap between cards, and their corner radius.
 pub const GAP: f32 = 5.0;
 /// The least the chart keeps when the bottom panel grows (legend, a few
@@ -506,20 +506,25 @@ impl App {
                     self.chart.toggle_replay();
                 }
                 w::vdivider(ui, t);
-                let undo = egui::Button::new(ph::ARROW_U_UP_LEFT).frame(false);
+                // Undo and redo look like the drawing toolbar's buttons.
+                let undo_tip = self.keys.tip(tr("Undo"), Action::Undo);
+                let can_undo = self.chart.can_undo();
                 if ui
-                    .add_enabled_ui(self.chart.can_undo(), |ui| w::eased(ui, undo))
+                    .add_enabled_ui(can_undo, |ui| {
+                        w::tool_button(ui, t, ph::ARROW_U_UP_LEFT, &undo_tip, false, 30.0)
+                    })
                     .inner
-                    .on_hover_text(self.keys.tip(tr("Undo"), Action::Undo))
                     .clicked()
                 {
                     self.chart.undo();
                 }
-                let redo = egui::Button::new(ph::ARROW_U_UP_RIGHT).frame(false);
+                let redo_tip = self.keys.tip(tr("Redo"), Action::Redo);
+                let can_redo = self.chart.can_redo();
                 if ui
-                    .add_enabled_ui(self.chart.can_redo(), |ui| w::eased(ui, redo))
+                    .add_enabled_ui(can_redo, |ui| {
+                        w::tool_button(ui, t, ph::ARROW_U_UP_RIGHT, &redo_tip, false, 30.0)
+                    })
                     .inner
-                    .on_hover_text(self.keys.tip(tr("Redo"), Action::Redo))
                     .clicked()
                 {
                     self.chart.redo();
@@ -1367,6 +1372,8 @@ impl App {
         let interactive = self.modal.is_none()
             && self.study_menu.is_none()
             && self.compare_menu.is_none()
+            && self.chart_menu.is_none()
+            && self.price_menu.is_none()
             && !egui::Popup::is_any_open(ui.ctx());
         let saved = self.draw_styles.clone();
         let styles = move |tool| {

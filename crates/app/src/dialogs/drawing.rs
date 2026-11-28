@@ -107,7 +107,7 @@ impl DrawingSettings {
 
             // Bottom actions: Template menu, Cancel, OK.
             ui.horizontal(|ui| {
-                let tpl_kind = format!("drawing:{}", self.drawing.tool.id());
+                let tpl_kind = crate::dialogs::TemplateKind::Drawing(self.drawing.tool).key();
                 let tpl_list = app.store.templates(&tpl_kind).to_vec();
                 crate::widgets::combo("draw-template")
                     .width(110.0)
@@ -115,7 +115,7 @@ impl DrawingSettings {
                     .show_ui(ui, |ui| {
                         if ui.button(tr("Save Drawing Template As...")).clicked() {
                             app.modal = Some(crate::dialogs::Modal::SaveTemplate {
-                                kind: crate::dialogs::TemplateKind::Drawing(self.drawing.tool.id().to_string()),
+                                kind: crate::dialogs::TemplateKind::Drawing(self.drawing.tool),
                                 name: String::new(),
                             });
                             ui.close();
@@ -520,7 +520,7 @@ fn show_style_tab(ui: &mut Ui, t: &Theme, d: &mut Drawing) -> bool {
         ui.add_space(4.0);
         crate::widgets::menu_heading(ui, t, &tr("LEVELS").to_uppercase());
 
-        let levels = d.style.fib_levels.get_or_insert_with(default_fib_levels);
+        let levels = d.style.levels.get_or_insert_with(default_fib_levels);
         let half = levels.len().div_ceil(2);
         ui.columns(2, |cols| {
             for (col_idx, ui) in cols.iter_mut().enumerate() {

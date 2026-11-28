@@ -8,7 +8,7 @@ or the right note in the same commit. `AGENTS.md` is a symlink to this file. Sib
 project and design reference: `~/projects/magpie` (read its `CLAUDE.md`; a lot is reused
 from it, see `docs/design.md` §3).
 
-**Status (Nov 2026, v0.3.6):** Phases 0–13 built and committed (one commit per phase, as the
+**Status (Nov 2026, v0.3.8):** Phases 0–13 built and committed (one commit per phase, as the
 maintainer asked), plus most loose ends. Phase 14 (ship) has started: the repo is
 public on GitHub (since v0.1.2, 21 Oct 2026); releases build for Linux, macOS and Windows.
 Read "Resume here" below first.
@@ -132,7 +132,12 @@ their own from the first launch. Nothing about the maintainer may be baked in.
   overview, only while it's open, fetches the S&P 500 list (jsDelivr) and the NIFTY
   500 list (niftyindices.com) at most weekly, Yahoo's
   screener, spark and batch quotes, plus Binance's 24h and trading-day tickers
-  and daily bars for coins. **No CoinGecko** (removed Nov 2026, the
+  and daily bars for coins. The Fed funds rate (`NYFED:EFFR`) comes from
+  `markets.newyorkfed.org` (keyless; `data/src/nyfed.rs`), only while it's on a
+  chart, in a watchlist or in an alert: the whole history once per run, then the
+  last 10 days after 9:05 and 14:35 New York time. **Not FRED** (its terms forbid
+  caching). The New York Fed's notice (`nyfed::NOTICE`) stays in English, in the
+  legend tooltip and the README. **No CoinGecko** (removed Nov 2026, the
   maintainer's call: its keyless API is "for testing" and needs a visible
   credit; prices come from the exchanges anyway). The agent
   panel (`docs/notes/agents.md`) only talks through the user's own Claude Code or
@@ -209,16 +214,17 @@ user-facing changes to a fresh `## Unreleased` section at the top of
 3. **Phase 14:** still to do: notarizing the macOS app (`docs/notes/release.md`).
 
 **Loose ends from earlier phases** (fit in where natural):
-- Correlation Coefficient as a Rust built-in (needs feeds for built-ins; Pine can
-  do it now); Technical Ratings and Bollinger Bars (need TradingView's source or
+- Technical Ratings and Bollinger Bars (need TradingView's source or
   an export); the breadth/OI/intrabar-volume built-ins (`docs/indicators.md`).
 - Keyed providers (Alpaca, OANDA, Upstox, IBKR) have never run against a real
   account. NSE 2026 holidays are in (from brokers' copies of NSE's list; check
   against the circular); add 2027's when announced.
 
-**Testing the app for the maintainer:** build with `cargo build --profile fast`.
-Launch with a throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). It
-helps to drop a few demo scripts in `<data-dir>/scripts/`. Never use their real
+**Testing the app for the maintainer:** run `scripts/dev-install.sh` (fast build,
+installed as "Opentern Dev" in their app launcher, replacing the last one). A binary
+named `opentern-dev` keeps its own workspace and never updates itself
+(`opentern_core::dev_copy`). For your own checks, launch `target/fast/opentern` with a
+throwaway `--data-dir` through `hyprctl` (see `CLAUDE.local.md`). Never use their real
 workspace.
 
 **Releasing:** only when asked, and only after the maintainer has tried the build
@@ -275,7 +281,7 @@ OPENTERN_PRIVATE_CORPUS=<dir> cargo test -p opentern-series --test golden  # Tra
 MONKEY_FRAMES=5000 cargo test -p opentern monkey                   # longer random-input soak
 ```
 Stills also take `compare:<ticker>:scale|pane`, `favbar` or `favbar:vertical` (the favourite drawings toolbar), `measure` (a quick measure once
-bars are in), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
+bars are in), `fib` or `fib:levels` (a selected Fib, its Levels panel open), `price-menu` (the "+" menu by the price scale), `note` (a sample notification), `tab:<name>`, `max` (bottom panel
 maximized), `trades` (Strategy Report → List of trades), `gradient` (gradient canvas), `replay:play` (a replay under way) and
 `lang:<code>` (e.g. `lang:ja`) and `settings:<general|chart|providers|shortcuts|about>` (add `scroll-end` to start at the bottom).
 `crates/app/src/drive.rs` drives the real app headlessly (synthetic mouse/keys, demo

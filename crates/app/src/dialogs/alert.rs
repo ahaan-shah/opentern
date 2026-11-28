@@ -24,7 +24,7 @@ pub struct AlertForm {
     sources: Vec<Source>,
     sel: usize,
     op: Op,
-    value: f64,
+    pub(crate) value: f64,
     /// Plot alerts: compare with the price instead of a value.
     vs_price: bool,
     expire: bool,
@@ -48,7 +48,16 @@ pub struct AlertForm {
 impl App {
     /// Opens the alert dialog for a new alert on the chart (or to edit one).
     pub(crate) fn open_alert_dialog(&mut self, edit: Option<Alert>) {
-        let price = self.last_price(&self.chart.symbol.id).unwrap_or(0.0);
+        self.alert_dialog(edit, None);
+    }
+
+    /// A new price alert at `price` (the "+" by the price scale).
+    pub(crate) fn open_alert_at(&mut self, price: f64) {
+        self.alert_dialog(None, Some(price));
+    }
+
+    fn alert_dialog(&mut self, edit: Option<Alert>, at: Option<f64>) {
+        let price = at.or_else(|| self.last_price(&self.chart.symbol.id)).unwrap_or(0.0);
         let mut sources = vec![Source {
             label: msg!("Price: {}", self.chart.symbol.ticker()),
             cond: Condition::Price {

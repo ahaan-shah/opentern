@@ -18,8 +18,10 @@ pub mod fundamentals;
 #[cfg(test)]
 mod fuzz;
 pub mod hub;
+pub mod hyperliquid;
 pub mod ibkr;
 pub mod kraken;
+pub mod nyfed;
 pub mod oanda;
 pub mod okx;
 pub mod overview;

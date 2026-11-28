@@ -49,10 +49,43 @@ mod tests {
             },
         );
         json_target(
+            "new york fed effr",
+            json!({"refRates":[
+                {"effectiveDate":"2026-11-24","type":"EFFR","percentRate":3.88,"targetRateFrom":3.75,"targetRateTo":4.0,"revisionIndicator":""},
+                {"effectiveDate":"2000-07-03","type":"EFFR","percentRate":7.03,"targetRateFrom":6.5,"revisionIndicator":"r"}
+            ]}),
+            |v| {
+                let days = crate::nyfed::parse(v);
+                let _ = crate::nyfed::bars(&days);
+            },
+        );
+        json_target(
             "bybit ws",
             json!({"topic":"kline.60.BTCUSDT","data":[{"start":1700000000000i64,"open":"1","close":"2","high":"3","low":"0.5","volume":"7"}]}),
             |v| {
                 let _ = crate::bybit::parse_ws(v);
+            },
+        );
+        json_target(
+            "hyperliquid candles",
+            json!([{"t":1700000000000i64,"T":1700003599999i64,"s":"BTC","i":"1h","o":"1","c":"2","h":"3","l":"0.5","v":"7","n":4}]),
+            |v| {
+                let _ = crate::hyperliquid::parse_candles(v);
+            },
+        );
+        json_target(
+            "hyperliquid ws",
+            json!({"channel":"candle","data":{"t":1700000000000i64,"o":"1","c":"2","h":"3","l":"0.5","v":"7"}}),
+            |v| {
+                let _ = crate::hyperliquid::parse_ws(v);
+            },
+        );
+        json_target(
+            "hyperliquid meta",
+            json!([{"universe":[{"name":"BTC","szDecimals":5}]},[{"funding":"0.0000125","markPx":"97000"}]]),
+            |v| {
+                let _ = crate::hyperliquid::parse_perps(v, "USDC");
+                let _ = crate::hyperliquid::parse_funding(v, "BTC");
             },
         );
         json_target(

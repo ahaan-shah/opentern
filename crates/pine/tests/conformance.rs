@@ -363,6 +363,7 @@ fn timing_step_overhead() {
                     count: b.len(),
                     last_time: b.last().map_or(0, |b| b.time),
                     loaded: b.len() + 1,
+                    links: &[],
                 };
                 st.step(&c, &mut o);
             }

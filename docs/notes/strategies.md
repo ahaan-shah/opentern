@@ -8,12 +8,39 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
   trailing stops, OCA cancel/reduce, exit `qty_percent` of the entered size,
   `allow_entry_in`, running max drawdown/run-up, and **pyramiding fixed to TradingView's
   rule** (0 and 1 = one entry). `docs/metrics.md` records the fill model.
+- With `calc_on_order_fills`, Pine resumes the simulated OHLC path after
+  each fill group. Fills at one tick are grouped, and a reversal exposes
+  the closing and opening legs separately. The ordinary closing calculation
+  runs after the path's callbacks. Rollback keeps the broker and `varip`
+  state, and each bar commits history and equity once. TradingView cases
+  awaiting external confirmation are listed in `crates/pine/tests/oracles/order_fills/`.
+  Cost: the committed state is saved only on a bar that can run more than
+  once (a fill on the path, or `process_orders_on_close`, `immediately` or
+  `strategy.risk.*`, which `Program::fills_at_close` finds at compile time).
+  The saved frame leaves out the histories (they change only at commit), heap
+  objects are `Arc`s copied on write, and a rollback puts back only the places
+  marked changed. Recalculations reuse places free when the bar began; before
+  that the object table grew every bar (a label strategy took 23 s on 20,000
+  bars).
 - `app/src/strategy.rs`: strategy runs are rebuilt only when `data_version`, `changed` or
   a Python result (`ScriptRun::out_seq`) changes; Python strategies replay their
   `intents` through a broker. Strategy Report tab: Overview (KPI cards, compact on short
-  panels; equity, buy & hold and drawdown chart with hover), Performance, Trades
+  panels; the equity chart), Performance, Trades
   analysis, Risk/performance ratios, List of trades (virtualised rows, Export → CSV in
   `<workspace>/exports/`), Properties. Short tab names under 980 px.
+- The Overview's equity chart (`app/src/equity.rs`, Nov 2026, from PR #9 redone):
+  `Curves` per run (P&L, buy & hold from the first bar's open as the report's
+  figure, drawdown from the bar-close peak as Max equity drawdown, the worst
+  drawdown's peak/low/recovery, trades by exit bar). The legend toggles each line;
+  Regular (P&L from 0) / Percent, and Log (`ln(capital + P&L)`, or of 100% + %;
+  off while equity reaches zero). Drag to zoom, wheel zooms, horizontal scroll pans,
+  double-click or the magnifier shows all (`equity::View`, in `Strategies`, for the
+  app's run, reset for another strategy). While zoomed a row gives the range's net
+  profit, Max equity drawdown and trades closed in it. A click scrolls the price
+  chart to that bar (`App::show_bar`). The worst drawdown, peak to recovery, is a
+  deeper shade of the drawdown colour in its strip. The tooltip lists the lines, the worst
+  drawdown when inside it, and up to three trades that closed on the bar. Colours
+  are in Strategy settings, the same for every strategy (`report_colors`).
 - Chart: `Chart::marks` (fills as arrows with "Long +1" labels, dashed entry→exit links,
   the open position's average price) and `Chart::paper` (paper position solid, orders
   dashed, with tags).

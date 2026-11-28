@@ -32,7 +32,15 @@ impl App {
             let mut remove_study = None;
             let mut settings = None;
             let ids: Vec<u64> = self.chart.studies.iter().map(|s| s.uid).collect();
-            for uid in ids {
+            // Titles name a linked source's study, so they need the chart.
+            let titles: Vec<String> = self
+                .chart
+                .studies
+                .iter()
+                .map(|s| self.chart.study_title(s, true))
+                .collect();
+            for (k, uid) in ids.into_iter().enumerate() {
+                let title = titles[k].clone();
                 let Some(s) = self.chart.studies.iter_mut().find(|s| s.uid == uid) else {
                     continue;
                 };
@@ -50,7 +58,6 @@ impl App {
                             s.visible = !s.visible;
                         }
                         ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                            let title = s.title(true);
                             ui.add(egui::Label::new(format!("{}  {title}", ph::FUNCTION)).truncate())
                                 .on_hover_text(title);
                         });
@@ -160,7 +167,7 @@ impl App {
         row(ui, tr("Volume"), format::compact_for(b.volume, &c.symbol));
         for s in &c.studies {
             ui.add_space(4.0);
-            let title = s.title(true);
+            let title = c.study_title(s, true);
             ui.add(egui::Label::new(egui::RichText::new(&title).font(theme::medium(12.5))).truncate())
                 .on_hover_text(&title);
             for (pi, spec) in s.meta().plots.iter().enumerate() {

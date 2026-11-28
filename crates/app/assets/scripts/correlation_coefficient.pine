@@ -1,0 +1,13 @@
+//@version=6
+// Correlation Coefficient: how closely this chart's prices move with
+// another symbol's over the last `Length` bars, from -1 (opposite) through
+// 0 (unrelated) to 1 (together). Written for Opentern (MIT).
+indicator("Correlation Coefficient", shorttitle = "CC", format = format.price, precision = 2)
+sym = input.symbol("NASDAQ:GOOG", "Symbol", confirm = true)
+src = input.source(close, "Source")
+length = input.int(20, "Length", minval = 1)
+other = request.security(sym, timeframe.period, src)
+plot(ta.correlation(src, other, length), "Correlation", color = #2962FF)
+hline(1, "Upper", color = #787B86, linestyle = hline.style_dashed)
+hline(0, "Zero", color = #787B86, linestyle = hline.style_dotted)
+hline(-1, "Lower", color = #787B86, linestyle = hline.style_dashed)

@@ -8,7 +8,7 @@ use crate::chart::{MarkFill, TradeMarks};
 use crate::i18n::{msg, nt, tr, trf, trm};
 use crate::shell::small_button;
 use crate::theme::{self, Theme};
-use egui::{Align, Align2, Color32, CornerRadius, Layout, Rect, Sense, Stroke, Ui, pos2, vec2};
+use egui::{Align, Align2, Color32, CornerRadius, Layout, Sense, Stroke, Ui, pos2, vec2};
 use opentern_core::{Bar, Symbol, Timeframe};
 use opentern_engine::{Broker, Order, OrderKind, Props, Report, Trade};
 use opentern_pine::PineStudy;
@@ -20,6 +20,7 @@ pub struct StrategyRun {
     pub name: String,
     pub broker: Broker,
     pub report: Report,
+    pub curves: crate::equity::Curves,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -74,6 +75,11 @@ pub struct Strategies {
     pub selected: Option<u64>,
     pub tab: ReportTab,
     pub status: String,
+    /// How the Overview's equity chart is looked at.
+    pub equity: crate::equity::View,
+    /// Its lines' colours (none for the theme's), from settings key
+    /// `report_colors`, read once.
+    pub colors: Option<[Option<opentern_series::Rgba>; 3]>,
 }
 
 impl Strategies {
@@ -269,11 +275,13 @@ impl App {
                 }
             };
             let report = Report::new(&broker, &self.chart.bars);
+            let curves = crate::equity::Curves::new(&broker, &self.chart.bars);
             runs.push(StrategyRun {
                 uid: s.uid,
                 name: s.meta().short.to_string(),
                 broker,
                 report,
+                curves,
             });
         }
         self.strategies.runs = runs;
@@ -404,8 +412,23 @@ impl App {
             ccy,
             tz: self.chart.tz.clone(),
         };
+        if self.strategies.colors.is_none() {
+            let saved = self.store.value(crate::equity::COLORS_KEY).unwrap_or_default();
+            self.strategies.colors = Some(crate::equity::parse_colors(&saved));
+        }
+        let colors = crate::equity::colors(t, &self.strategies.colors.unwrap_or_default());
+        let mut jump = None;
         match self.strategies.tab {
-            ReportTab::Overview => overview(ui, t, run, &self.chart.bars, &ctx),
+            ReportTab::Overview => {
+                let mut view = std::mem::take(&mut self.strategies.equity);
+                // Another strategy starts from all of its bars.
+                if view.of != run.uid {
+                    view.range = None;
+                    view.of = run.uid;
+                }
+                jump = overview(ui, t, run, &mut view, colors, &ctx);
+                self.strategies.equity = view;
+            }
             ReportTab::Performance => performance(ui, t, &run.report, &ctx),
             ReportTab::Trades => trades_analysis(ui, t, &run.report, &ctx),
             ReportTab::Ratios => ratios(ui, t, &run.report, &ctx),
@@ -415,6 +438,21 @@ impl App {
                 let tf = self.chart.tf.label();
                 properties(ui, t, run, &self.chart.bars, &sym, &tf, &ctx)
             }
+        }
+        if let Some(i) = jump {
+            self.show_bar(i);
+        }
+    }
+
+    /// Scrolls the price chart so bar `i` is in the middle, at its zoom.
+    fn show_bar(&mut self, i: usize) {
+        let width = self.chart_ui.main_rect.width();
+        let width = if width > 50.0 { width } else { 900.0 };
+        let span = (width / self.chart.view.bar_w) as f64;
+        let last = self.chart.last_index();
+        self.chart.view.right = (i as f64 + span / 2.0).min(last + crate::chart::RIGHT_MARGIN);
+        for p in &mut self.chart.panes {
+            p.scale.auto = true;
         }
     }
 
@@ -553,7 +591,16 @@ pub(crate) fn tone(t: &Theme, v: f64) -> Color32 {
 
 // ------------------------------------------------------------- overview
 
-fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
+/// The headline numbers and the equity chart. Returns the bar to show on
+/// the price chart when the chart was clicked.
+fn overview(
+    ui: &mut Ui,
+    t: &Theme,
+    run: &StrategyRun,
+    view: &mut crate::equity::View,
+    colors: [Color32; 3],
+    f: &Fmt,
+) -> Option<usize> {
     let r = &run.report;
     let cap = r.initial_capital;
     let net = r.all.net_profit;
@@ -603,11 +650,10 @@ fn overview(ui: &mut Ui, t: &Theme, run: &StrategyRun, bars: &[Bar], f: &Fmt) {
     let h = ui.available_height();
     if h < 90.0 {
         ui.label(egui::RichText::new(tr("Make the panel taller to see the equity curve.")).color(t.text3));
-        return;
+        return None;
     }
-    let size = vec2(ui.available_width(), h);
-    let (rect, resp) = ui.allocate_exact_size(size, Sense::hover());
-    equity_chart(ui, t, &run.broker, bars, rect, resp.hover_pos(), f);
+    let (_, rect) = ui.allocate_space(vec2(ui.available_width(), h));
+    crate::equity::show(ui, t, &run.broker, &run.curves, view, colors, f, rect)
 }
 
 /// A headline number in a card of width `w` (one line when `compact`).
@@ -678,162 +724,6 @@ pub(crate) fn kpi(ui: &mut Ui, t: &Theme, w: f32, compact: bool, label: &str, va
         }
     }
 }
-
-/// Equity (accent), buy & hold (muted) and drawdown (under the zero line
-/// of its own strip), with a hover read-out.
-fn equity_chart(ui: &Ui, t: &Theme, b: &Broker, bars: &[Bar], rect: Rect, hover: Option<egui::Pos2>, f: &Fmt) {
-    let p = ui.painter_at(rect);
-    let n = b.equity.len().min(bars.len());
-    if n < 2 {
-        return;
-    }
-    let cap = b.props.initial_capital;
-    let first_open = bars[0].open;
-    let hold: Vec<f64> = bars[..n]
-        .iter()
-        .map(|x| {
-            if first_open > 0.0 {
-                cap * x.close / first_open
-            } else {
-                cap
-            }
-        })
-        .collect();
-    let mut peak = f64::MIN;
-    let dd: Vec<f64> = b.equity[..n]
-        .iter()
-        .map(|e| {
-            peak = peak.max(*e);
-            peak - e
-        })
-        .collect();
-    let max_dd = dd.iter().cloned().fold(0.0, f64::max);
-    let right_gutter = 86.0;
-    let plot = Rect::from_min_max(rect.min, pos2(rect.right() - right_gutter, rect.bottom()));
-    let dd_h = (plot.height() * 0.22).min(70.0);
-    let eq_rect = Rect::from_min_max(plot.min, pos2(plot.right(), plot.bottom() - dd_h - 6.0));
-    let dd_rect = Rect::from_min_max(pos2(plot.left(), plot.bottom() - dd_h), plot.max);
-    let (lo, hi) = b.equity[..n]
-        .iter()
-        .chain(&hold)
-        .fold((f64::MAX, f64::MIN), |(l, h), v| (l.min(*v), h.max(*v)));
-    let pad = ((hi - lo) * 0.06).max(1e-9);
-    let (lo, hi) = (lo - pad, hi + pad);
-    let xs = |i: usize| plot.left() + plot.width() * i as f32 / (n - 1) as f32;
-    let ys = |v: f64| eq_rect.bottom() - eq_rect.height() * ((v - lo) / (hi - lo)) as f32;
-    // Grid and scale.
-    let font = egui::FontId::proportional(11.0);
-    for k in 0..4 {
-        let v = lo + (hi - lo) * k as f64 / 4.0;
-        let y = ys(v);
-        p.hline(eq_rect.x_range(), y, Stroke::new(1.0, t.border.gamma_multiply(0.6)));
-        // The lowest label would sit on the drawdown strip's.
-        if k == 0 {
-            continue;
-        }
-        p.text(
-            pos2(plot.right() + 8.0, y),
-            Align2::LEFT_CENTER,
-            grouped(v, 0),
-            font.clone(),
-            t.text3,
-        );
-    }
-    let base = ys(cap);
-    p.hline(eq_rect.x_range(), base, Stroke::new(1.0, t.text3.gamma_multiply(0.5)));
-    // Area under equity, tinted by gain or loss against the starting capital.
-    let line: Vec<egui::Pos2> = (0..n).map(|i| pos2(xs(i), ys(b.equity[i]))).collect();
-    let mut mesh = egui::Mesh::default();
-    for i in 0..n - 1 {
-        let (a, c) = (line[i], line[i + 1]);
-        let col = if b.equity[i] >= cap { t.pos } else { t.neg }.gamma_multiply(0.12);
-        let idx = mesh.vertices.len() as u32;
-        mesh.colored_vertex(a, col);
-        mesh.colored_vertex(c, col);
-        mesh.colored_vertex(pos2(c.x, base), col);
-        mesh.colored_vertex(pos2(a.x, base), col);
-        mesh.add_triangle(idx, idx + 1, idx + 2);
-        mesh.add_triangle(idx, idx + 2, idx + 3);
-    }
-    p.add(mesh);
-    let hold_line: Vec<egui::Pos2> = (0..n).map(|i| pos2(xs(i), ys(hold[i]))).collect();
-    p.add(egui::Shape::line(hold_line, Stroke::new(1.0, t.text3)));
-    p.add(egui::Shape::line(line.clone(), Stroke::new(1.6, t.accent)));
-    // Drawdown strip.
-    if max_dd > 0.0 {
-        let mut mesh = egui::Mesh::default();
-        let col = t.neg.gamma_multiply(0.55);
-        for (i, d) in dd.iter().enumerate() {
-            if *d <= 0.0 {
-                continue;
-            }
-            let h = dd_rect.height() * (*d / max_dd) as f32;
-            let w = (plot.width() / n as f32).max(1.0);
-            let r = Rect::from_min_size(pos2(xs(i) - w / 2.0, dd_rect.top()), vec2(w, h));
-            mesh.add_colored_rect(r, col);
-        }
-        p.add(mesh);
-        p.text(
-            pos2(plot.right() + 8.0, dd_rect.bottom() - 6.0),
-            Align2::LEFT_CENTER,
-            format!("−{}", grouped(max_dd, 0)),
-            font.clone(),
-            t.neg,
-        );
-    }
-    p.hline(dd_rect.x_range(), dd_rect.top(), Stroke::new(1.0, t.border));
-    // Legend.
-    let legend = [
-        (tr("Equity"), t.accent),
-        (tr("Buy & hold"), t.text3),
-        (tr("Drawdown"), t.neg),
-    ];
-    let mut x = eq_rect.left() + 6.0;
-    for (name, c) in legend {
-        p.rect_filled(
-            Rect::from_center_size(pos2(x + 5.0, eq_rect.top() + 9.0), vec2(10.0, 3.0)),
-            1.0,
-            c,
-        );
-        let g = p.layout_no_wrap(name.to_string(), font.clone(), t.text2);
-        let w = g.size().x;
-        p.galley(pos2(x + 14.0, eq_rect.top() + 2.0), g, t.text2);
-        x += w + 28.0;
-    }
-    // Hover read-out.
-    if let Some(h) = hover.filter(|h| plot.contains(*h)) {
-        let i = (((h.x - plot.left()) / plot.width()) * (n - 1) as f32)
-            .round()
-            .clamp(0.0, (n - 1) as f32) as usize;
-        let xx = xs(i);
-        p.vline(xx, plot.y_range(), Stroke::new(1.0, t.text3.gamma_multiply(0.6)));
-        p.circle_filled(line[i], 3.5, t.accent);
-        let text = trf!(
-            "{}\nEquity  {}\nBuy & hold  {}\nDrawdown  {}",
-            time_text(bars[i].time, &f.tz),
-            f.money(b.equity[i]),
-            f.money(hold[i]),
-            f.money(-dd[i]),
-        );
-        let g = p.layout(text, font, t.text, 220.0);
-        let size = g.size() + vec2(16.0, 12.0);
-        let mut at = pos2(xx + 12.0, eq_rect.top() + 24.0);
-        if at.x + size.x > plot.right() {
-            at.x = xx - 12.0 - size.x;
-        }
-        let r = Rect::from_min_size(at, size);
-        p.rect(
-            r,
-            CornerRadius::same(6),
-            t.elevated,
-            Stroke::new(1.0, t.border),
-            egui::StrokeKind::Inside,
-        );
-        p.galley(r.min + vec2(8.0, 6.0), g, t.text);
-    }
-}
-
-// ------------------------------------------------------------- tables
 
 /// A metrics table: a label column and value columns (All / Long / Short).
 pub(crate) fn table(ui: &mut Ui, t: &Theme, id: &str, headers: &[&str], rows: &[(&str, Vec<(String, Color32)>)]) {

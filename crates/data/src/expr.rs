@@ -308,7 +308,7 @@ pub fn guess_currency(id: &str) -> String {
         "NSE" | "BSE" => "INR".into(),
         "AMEX" | "NASDAQ" | "NYSE" | "ARCA" | "BATS" | "CBOE" | "COMEX" | "NYMEX" | "CBOT" | "CME" => "USD".into(),
         "FX" | "OANDA" if t.replace('_', "").len() == 6 => t.replace('_', "")[3..].to_string(),
-        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" => {
+        "BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID" => {
             let t = t.replace(['-', '/'], "");
             crate::provider::split_pair(&t)
                 .map(|(_, q)| q.to_string())

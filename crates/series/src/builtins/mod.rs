@@ -45,7 +45,7 @@ pub(crate) fn int(id: &'static str, title: &'static str, default: i64, min: i64,
     InputSpec {
         id,
         title,
-        kind: InputKind::Int { min, max },
+        kind: InputKind::Int { min, max, step: 1 },
         default: Value::Int(default),
         group: None,
     }

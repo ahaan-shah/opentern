@@ -199,14 +199,65 @@ impl Symbol {
             }
             return 5;
         }
-        let mut p = 0;
-        let mut t = self.tick_size;
-        while p < 10 && (t - t.round()).abs() > 1e-9 {
-            t *= 10.0;
-            p += 1;
-        }
-        p
+        decimals(self.tick_size)
     }
+
+    /// The price step at `px`. Hyperliquid's perpetuals have none fixed:
+    /// it follows the price (`hyperliquid_tick`, sized by the lot step);
+    /// every other market keeps its `tick_size`.
+    pub fn tick_at(&self, px: f64) -> f64 {
+        match self.hyperliquid_sz() {
+            Some(sz) if px > 0.0 && px.is_finite() => hyperliquid_tick(px, sz),
+            _ => self.tick_size,
+        }
+    }
+
+    /// Decimal places for a price of `px` (`tick_at`).
+    pub fn precision_at(&self, px: f64) -> usize {
+        decimals(self.tick_at(px))
+    }
+
+    /// Sets `tick_size` to the step at `px`; true when it changed.
+    pub fn retick(&mut self, px: f64) -> bool {
+        let t = self.tick_at(px);
+        if (t - self.tick_size).abs() > t * 1e-9 {
+            self.tick_size = t;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// A Hyperliquid perpetual's size decimals, from its lot step
+    /// (`10^-szDecimals`); None for other markets or before the lot loads.
+    fn hyperliquid_sz(&self) -> Option<i64> {
+        (self.exchange() == "HYPERLIQUID" && self.id.ends_with(".P") && self.min_qty > 0.0)
+            .then(|| (-self.min_qty.log10()).round() as i64)
+    }
+}
+
+/// Decimal places in a step (0.01 → 2).
+fn decimals(tick: f64) -> usize {
+    let mut p = 0;
+    let mut t = tick;
+    while p < 10 && (t - t.round()).abs() > 1e-9 {
+        t *= 10.0;
+        p += 1;
+    }
+    p
+}
+
+/// The price step Hyperliquid allows on a perpetual at `px`: five
+/// significant figures, at most `6 - szDecimals` decimals, and whole
+/// numbers always.
+pub fn hyperliquid_tick(px: f64, sz_decimals: i64) -> f64 {
+    let most = 10f64.powi(-(6 - sz_decimals.clamp(0, 6)) as i32);
+    let sig = if px > 0.0 && px.is_finite() {
+        10f64.powi(px.log10().floor() as i32 - 4)
+    } else {
+        most
+    };
+    sig.max(most).min(1.0)
 }
 
 /// True if `t` looks like a standard 6-character forex currency pair.
@@ -289,6 +340,24 @@ pub fn commodities() -> Vec<Symbol> {
         s("ICEUS:CT1!", "Cotton", "USX", 0.01),
         s("CME:LE1!", "Live Cattle", "USX", 0.025),
     ]
+}
+
+/// Financial futures, as TradingView's continuous front month (`ZQ1!`),
+/// served by Yahoo's front month (`ZQ=F`). Hours like the commodities'.
+pub const FED_FUNDS_FUTURES: &str = "CBOT:ZQ1!";
+
+pub fn futures() -> Vec<Symbol> {
+    vec![Symbol {
+        id: FED_FUNDS_FUTURES.into(),
+        // Priced as 100 minus the month's average rate; CBOT's tick for the
+        // front month is a quarter of a basis point.
+        description: "30-Day Fed Funds Futures".into(),
+        kind: AssetKind::Futures,
+        currency: "USD".into(),
+        tick_size: 0.0025,
+        min_qty: 0.0,
+        timezone: "America/New_York".into(),
+    }]
 }
 
 /// Indices, rates and volatility, served by Yahoo: (our id, Yahoo's
@@ -416,7 +485,8 @@ pub const INDICES: &[(&str, &str, &str, &str, &str, f64)] = &[
     ),
 ];
 
-/// Every index, rate and volatility index above, as symbols.
+/// Every index, rate and volatility index above, as symbols, and the Fed
+/// funds rate.
 pub fn indices() -> Vec<Symbol> {
     INDICES
         .iter()
@@ -429,7 +499,53 @@ pub fn indices() -> Vec<Symbol> {
             min_qty: 0.0,
             timezone: (*tz).into(),
         })
+        .chain(std::iter::once(fed_funds()))
         .collect()
+}
+
+/// The effective federal funds rate, from the New York Fed (not Yahoo).
+pub const FED_FUNDS: &str = "NYFED:EFFR";
+
+/// The effective federal funds rate as a symbol: one value a business day.
+pub fn fed_funds() -> Symbol {
+    Symbol {
+        id: FED_FUNDS.into(),
+        description: "US Effective Federal Funds Rate".into(),
+        kind: AssetKind::Index,
+        currency: "%".into(),
+        tick_size: 0.01,
+        min_qty: 0.0,
+        timezone: "America/New_York".into(),
+    }
+}
+
+/// Other words search finds a symbol by (upper case, as typed).
+pub fn search_aliases(id: &str) -> &'static [&'static str] {
+    match id {
+        FED_FUNDS => &[
+            "FED FUNDS",
+            "FED FUNDS RATE",
+            "FEDFUNDS",
+            "FED RATE",
+            "INTEREST RATE",
+            "DFF",
+        ],
+        FED_FUNDS_FUTURES => &[
+            "ZQ",
+            "ZQ=F",
+            "ZQ1",
+            "FED FUNDS FUTURES",
+            "FED FUNDS FUTURE",
+            "30-DAY FED FUNDS",
+            "30 DAY FED FUNDS",
+        ],
+        _ => &[],
+    }
+}
+
+/// Whether a symbol is published once a day rather than traded.
+pub fn daily_only(id: &str) -> bool {
+    id == FED_FUNDS
 }
 
 /// Our index id → Yahoo's ticker (`TVC:NI225` → `^N225`).
@@ -505,6 +621,33 @@ pub fn commodity_of(s: &Symbol) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hyperliquid_steps_follow_the_live_price() {
+        let mut s = Symbol::bare("HYPERLIQUID:BTCUSDC.P");
+        s.min_qty = 0.00001; // szDecimals 5
+        s.tick_size = 1.0;
+        assert_eq!(s.precision_at(59_819.0), 0);
+        assert_eq!(s.precision_at(9_500.0), 1);
+        assert!(s.retick(9_500.0));
+        assert_eq!(s.precision(), 1);
+        assert!(!s.retick(9_400.0));
+        assert!(s.retick(10_200.0));
+        assert_eq!(s.tick_size, 1.0);
+        // A coin around 1, capped at 6 - szDecimals decimals.
+        let mut c = Symbol::bare("HYPERLIQUID:ARBUSDC.P");
+        c.min_qty = 0.1;
+        assert_eq!(c.precision_at(0.99), 5);
+        assert_eq!(c.precision_at(1.01), 4);
+        // Before the lot step loads, and on other markets, the fixed step.
+        c.min_qty = 0.0;
+        c.tick_size = 0.001;
+        assert_eq!(c.tick_at(0.99), 0.001);
+        let mut b = Symbol::bare("BINANCE:BTCUSDT");
+        b.min_qty = 0.00001;
+        assert!(!b.retick(9_500.0));
+        assert_eq!(b.tick_at(9_500.0), 0.01);
+    }
 
     #[test]
     fn indices_map_both_ways() {

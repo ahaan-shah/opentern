@@ -787,7 +787,7 @@ impl App {
                                 } else if *f == Field::Volume {
                                     crate::format::compact_for(v, &r.symbol)
                                 } else if *f == Field::Last {
-                                    crate::format::price(v, r.symbol.precision().max(2))
+                                    crate::format::price(v, r.symbol.precision_at(v).max(2))
                                 } else {
                                     format!("{v:.2}")
                                 };

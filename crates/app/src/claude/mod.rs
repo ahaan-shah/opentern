@@ -832,6 +832,9 @@ impl App {
              Pine scripts (.pine) follow TradingView's Pine Script v5/v6. Luau (.luau), JavaScript (.js), \
              TypeScript (.ts) and Python (.py) scripts use Opentern's own API: call mcp__opentern__scripting_guide \
              before writing one.\n\n\
+             Language: when the user asks you to build an indicator, a strategy or any other script, write it \
+             in Pine Script v6, unless their message asks for another language. When you change an existing \
+             script, keep its language unless they ask to convert it.\n\n\
              The mcp__opentern tools let you do what the user can do with clicks: see the chart (get_chart, \
              get_bars, snapshot for a picture), change it (open_symbol, set_timeframe, chart_view for chart type, \
              dates, scales, multi-chart layouts and compares), indicators and scripts (list_indicators, \

@@ -1480,6 +1480,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "fontconfig-parser"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbc773e24e02d4ddd8395fd30dc147524273a83e54e0f312d986ea30de5f5646"
+dependencies = [
+ "roxmltree",
+]
+
+[[package]]
+name = "fontdb"
+version = "0.24.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2660c5e9157bf76d2db1294e4a9feba604ef610819a3b591088d0d8392a3290f"
+dependencies = [
+ "fontconfig-parser",
+ "log",
+ "slotmap",
+ "tinyvec",
+]
+
+[[package]]
 name = "foreign-types"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3232,7 +3253,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "opentern"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "arboard",
  "base64 0.22.1",
@@ -3240,9 +3261,12 @@ dependencies = [
  "eframe",
  "egui",
  "egui-phosphor",
+ "fontdb",
+ "getrandom 0.3.4",
  "jiff",
  "lettre",
  "libc",
+ "memmap2",
  "notify",
  "notify-rust",
  "opentern-core",
@@ -3268,7 +3292,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-core"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "chacha20poly1305",
  "directories",
@@ -3290,7 +3314,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-data"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "crossbeam-channel",
  "flate2",
@@ -3305,7 +3329,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-engine"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "jiff",
  "opentern-core",
@@ -3316,11 +3340,11 @@ dependencies = [
 
 [[package]]
 name = "opentern-i18n-macros"
-version = "0.3.7"
+version = "0.3.8"
 
 [[package]]
 name = "opentern-pine"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "jiff",
  "opentern-core",
@@ -3333,7 +3357,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-script"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "crossbeam-channel",
  "jiff",
@@ -3351,7 +3375,7 @@ dependencies = [
 
 [[package]]
 name = "opentern-series"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
  "jiff",
  "opentern-core",
@@ -5160,6 +5184,12 @@ dependencies = [
  "displaydoc",
  "zerovec",
 ]
+
+[[package]]
+name = "tinyvec"
+version = "1.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"

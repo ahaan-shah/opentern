@@ -23,6 +23,17 @@ const RECENTS_KEY: &str = "recent_symbols";
 /// How many recent symbols are kept.
 const RECENTS_MAX: usize = 40;
 
+/// The "+" menu by the price scale, open on chart `chart`.
+#[derive(Clone, Debug)]
+pub struct PriceMenu {
+    pub chart: u64,
+    pub price: f64,
+    /// The price as the scale shows it.
+    pub text: String,
+    /// Where the menu's top-right corner goes.
+    pub pos: egui::Pos2,
+}
+
 pub struct App {
     pub store: Store,
     pub theme: ThemeState,
@@ -66,7 +77,8 @@ pub struct App {
     pub study_menu: Option<(u64, egui::Pos2)>,
     pub compare_menu: Option<(usize, egui::Pos2)>,
     pub chart_menu: Option<(egui::Pos2, f64)>,
-    pub plus_menu: Option<(egui::Pos2, f64)>,
+    /// The menu from the "+" by the price scale.
+    pub price_menu: Option<PriceMenu>,
     /// The Settings page, when open (it takes the chart area).
     pub settings: Option<crate::settings::SettingsPage>,
     pub scripts: Vec<crate::scripting::ScriptRun>,
@@ -101,6 +113,11 @@ pub struct App {
     pub(crate) still_menu: Option<String>,
     /// `OPENTERN_STILL=measure`: show a measure once bars are in.
     still_measure: bool,
+    /// `OPENTERN_STILL=fib` (or `fib:levels`): a selected Fib retracement
+    /// (with its Levels panel open) once bars are in.
+    still_fib: Option<bool>,
+    /// `OPENTERN_STILL=price-menu`: the "+" menu by the price scale.
+    still_price_menu: bool,
     /// `OPENTERN_STILL=replay:play`: start a replay once bars are in.
     still_replay: bool,
     /// `OPENTERN_STILL=colors[:custom]`: the colour picker on its own.
@@ -156,7 +173,7 @@ impl App {
             .unwrap_or_default();
         // Before the alerts load: a background process watching them
         // hands over first.
-        let lock = crate::daemon::take_app_lock(store.dir());
+        let lock = crate::instance::take_lock().or_else(|| crate::daemon::take_app_lock(store.dir()));
         let mut app = App::with_context(&cc.egui_ctx, layout, store, demo);
         app.app_lock = lock;
         app
@@ -169,6 +186,12 @@ impl App {
         let keys = crate::keys::Keymap::load(&store);
         crate::i18n::set(crate::i18n::Lang::saved(&store));
         theme::install_fonts(ctx, &store.settings().font);
+        // The computer's fonts as fallbacks, found in the background (not in
+        // tests and drills: their text stays the same everywhere).
+        if !headless() {
+            let wake = ctx.clone();
+            crate::sysfonts::start(move || wake.request_repaint());
+        }
         crate::popups::install(ctx);
         let theme = ThemeState::new(ctx, &store.settings().theme);
         let wake_ctx = ctx.clone();
@@ -250,7 +273,7 @@ impl App {
             study_menu: None,
             compare_menu: None,
             chart_menu: None,
-            plus_menu: None,
+            price_menu: None,
             settings: None,
             scripts: Vec::new(),
             strategies: Default::default(),
@@ -273,6 +296,8 @@ impl App {
             grid_rect: egui::Rect::NOTHING,
             still_menu: None,
             still_measure: false,
+            still_fib: None,
+            still_price_menu: false,
             still_replay: false,
             still_colors: None,
             still_claude: None,
@@ -392,13 +417,14 @@ impl App {
                 // exchange, a stock elsewhere).
                 let crypto = matches!(
                     id.split(':').next(),
-                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN")
+                    Some("BINANCE" | "BYBIT" | "OKX" | "COINBASE" | "KRAKEN" | "HYPERLIQUID")
                 );
                 let s = opentern_core::starter_watchlist()
                     .into_iter()
                     .chain(opentern_core::indices())
                     .chain(opentern_core::commodities())
                     .chain(opentern_core::spot_commodities())
+                    .chain(opentern_core::futures())
                     .find(|s| s.id == id)
                     .unwrap_or_else(|| Symbol {
                         kind: if crypto {
@@ -588,6 +614,10 @@ impl App {
                 }
             } else if part == "measure" {
                 self.still_measure = true;
+            } else if part == "price-menu" {
+                self.still_price_menu = true;
+            } else if part == "fib" || part == "fib:levels" {
+                self.still_fib = Some(part == "fib:levels");
             } else if part == "favbar" || part == "favbar:vertical" {
                 self.layout.fav_toolbar = true;
                 self.layout.fav_toolbar_vertical = part == "favbar:vertical";
@@ -608,6 +638,11 @@ impl App {
                     let mut s = self.chart.style.clone();
                     s.kind = k;
                     self.set_chart_style(s);
+                }
+            } else if part == "rename" {
+                // The Script Editor's explorer renaming its first script.
+                if let Some(f) = self.script_files().into_iter().find(|f| !f.contains('/')) {
+                    self.editor.renaming = Some((f.clone(), f));
                 }
             } else if let Some(tab) = part.strip_prefix("tab:") {
                 self.layout.tab = crate::shell::Tab::ALL
@@ -812,6 +847,44 @@ impl App {
             && self.store.save_template("drawing", &tool.key(), &j).is_ok()
         {
             self.draw_styles.insert(tool, style.clone());
+        }
+    }
+
+    /// The style a drawing template of this tool saves: the selected
+    /// drawing's, else the one new drawings get.
+    fn drawing_style_now(&self, tool: Tool) -> DrawStyle {
+        self.chart_ui
+            .draw
+            .selected
+            .and_then(|id| self.chart.drawings.iter().find(|d| d.id == id && d.tool == tool))
+            .map(|d| d.style.clone())
+            .or_else(|| self.draw_styles.get(&tool).cloned())
+            .unwrap_or_else(|| DrawStyle::for_tool(tool))
+    }
+
+    /// A saved drawing template's style, if it's still there and readable.
+    pub(crate) fn drawing_template(&self, tool: Tool, name: &str) -> Option<DrawStyle> {
+        let current = TemplateKind::Drawing(tool).key();
+        let legacy = format!("drawing:{}", tool.id());
+        let t = self
+            .store
+            .templates(&current)
+            .iter()
+            .chain(
+                (legacy != current)
+                    .then(|| self.store.templates(&legacy))
+                    .into_iter()
+                    .flatten(),
+            )
+            .find(|t| t.name == name)?;
+        serde_json::from_str(&t.json).ok()
+    }
+
+    /// Back to TradingView's style for this tool: new drawings forget the
+    /// starred style. Named templates are kept.
+    pub(crate) fn reset_drawing_default(&mut self, tool: Tool) {
+        if self.draw_styles.remove(&tool).is_some() {
+            let _ = self.store.delete_template("drawing", &tool.key());
         }
     }
 
@@ -1044,17 +1117,8 @@ impl App {
                 panes: self.chart.panes.clone(),
             })
             .ok(),
-            TemplateKind::Drawing(_) => {
-                let id = match self.chart_ui.draw.selected {
-                    Some(id) => id,
-                    None => return,
-                };
-                let d = match self.chart.drawings.iter().find(|d| d.id == id) {
-                    Some(d) => d,
-                    None => return,
-                };
-                serde_json::to_string(&d.style).ok()
-            }
+            // The selected drawing's style, else what new ones would get.
+            TemplateKind::Drawing(tool) => serde_json::to_string(&self.drawing_style_now(*tool)).ok(),
         };
         if let Some(j) = json
             && let Err(e) = self.store.save_template(&kind.key(), name, &j)
@@ -1065,6 +1129,12 @@ impl App {
 
     pub fn delete_template(&mut self, kind: TemplateKind, name: &str) {
         let _ = self.store.delete_template(&kind.key(), name);
+        if let TemplateKind::Drawing(tool) = kind {
+            let legacy = format!("drawing:{}", tool.id());
+            if legacy != format!("drawing:{}", tool.key()) {
+                let _ = self.store.delete_template(&legacy, name);
+            }
+        }
     }
 
     pub fn set_default_template(&mut self, kind: TemplateKind, name: Option<&str>) {
@@ -1095,10 +1165,8 @@ impl App {
                 Action::MoreHistory => self.hub.send(Request::More { chart: self.chart.id }),
                 Action::RemoveCompare(i) => self.remove_compare(i),
                 Action::ChartMenu(pos, price) => {
+                    self.price_menu = None;
                     self.chart_menu = Some((pos, price));
-                }
-                Action::CrosshairPlusMenu(pos, price) => {
-                    self.plus_menu = Some((pos, price));
                 }
                 Action::DeleteAlert(id) => {
                     self.delete_alert(id);
@@ -1115,8 +1183,137 @@ impl App {
                     let id = self.chart.symbol.id.clone();
                     self.paper_close(&id);
                 }
+                Action::PriceMenu { price, text, pos } => {
+                    self.chart_menu = None;
+                    self.price_menu = Some(PriceMenu {
+                        chart: self.chart.id,
+                        price,
+                        text,
+                        pos,
+                    })
+                }
             }
         }
+    }
+
+    /// The "+" menu: an alert or a horizontal line at the crosshair's price.
+    fn price_menu(&mut self, ctx: &egui::Context) {
+        // Its price stays marked on the chart while it's open.
+        self.chart_ui.pinned_price = self
+            .price_menu
+            .as_ref()
+            .filter(|m| m.chart == self.chart.id)
+            .map(|m| m.price);
+        let Some(m) = self.price_menu.clone() else { return };
+        if m.chart != self.chart.id {
+            self.price_menu = None;
+            return;
+        }
+        let t = self.t();
+        let ticker = self.chart.symbol.ticker().to_string();
+        let mut close = false;
+        let mut add_ray = false;
+        let area = egui::Area::new(egui::Id::new("price-menu"))
+            .order(egui::Order::Foreground)
+            .pivot(egui::Align2::RIGHT_TOP)
+            .fixed_pos(m.pos)
+            .constrain(true)
+            .show(ctx, |ui| {
+                egui::Frame::menu(ui.style()).show(ui, |ui| {
+                    use crate::icons::ph;
+                    use crate::widgets as w;
+                    let alert = trf!("Add alert on {ticker} at {}", m.text);
+                    let line = trf!("Draw horizontal line at {}", m.text);
+                    let ray = trf!("Draw horizontal ray at {}", m.text);
+                    // As wide as its longer row: at the scale, it would
+                    // otherwise stretch across the chart.
+                    let width = [
+                        w::menu_row_width(ui, true, &alert, "", 0.0),
+                        w::menu_row_width(ui, true, &line, "", 0.0),
+                        w::menu_row_width(ui, true, &ray, "", 0.0),
+                    ]
+                    .into_iter()
+                    .max_by(f32::total_cmp)
+                    .unwrap_or(0.0);
+                    ui.set_width(width.max(200.0));
+                    ui.spacing_mut().item_spacing.y = 1.0;
+                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert, "", false).clicked() {
+                        self.open_alert_at(m.price);
+                        close = true;
+                    }
+                    if w::menu_item(ui, &t, Some(ph::MINUS), &line, "", false).clicked() {
+                        self.add_horizontal_line(m.price);
+                        close = true;
+                    }
+                    if w::menu_item(ui, &t, Some(ph::ARROW_RIGHT), &ray, "", false).clicked() {
+                        add_ray = true;
+                        close = true;
+                    }
+                });
+            });
+        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
+            && !area.response.contains_pointer()
+            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
+        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.price_menu = None;
+        }
+        if add_ray {
+            self.add_horizontal_ray(m.price);
+        }
+    }
+
+    /// A horizontal line at `price` on the active chart, in the style new
+    /// ones get, selected (as if drawn with the tool).
+    fn add_horizontal_line(&mut self, price: f64) {
+        let tool = Tool::HorizontalLine;
+        let Some(t) = self.chart.bars.last().map(|b| b.time) else {
+            return;
+        };
+        let style = self
+            .draw_styles
+            .get(&tool)
+            .cloned()
+            .unwrap_or_else(|| DrawStyle::for_tool(tool));
+        let id = self.chart.next_drawing_id();
+        self.chart.push_undo();
+        self.chart.drawings.push(Drawing {
+            id,
+            tool,
+            pts: vec![crate::chart::draw::Anchor { t, p: price }],
+            style,
+            text: String::new(),
+            locked: false,
+            hidden: false,
+        });
+        self.chart.drawings_changed += 1;
+        self.chart_ui.draw.selected = Some(id);
+    }
+
+    fn add_horizontal_ray(&mut self, price: f64) {
+        let tool = Tool::HorizontalRay;
+        let t = self
+            .chart_ui
+            .hover_time
+            .or_else(|| self.chart.bars.last().map(|b| b.time))
+            .unwrap_or(0);
+        let style = self
+            .draw_styles
+            .get(&tool)
+            .cloned()
+            .unwrap_or_else(|| DrawStyle::for_tool(tool));
+        let id = self.chart.next_drawing_id();
+        self.chart.push_undo();
+        self.chart.drawings.push(Drawing {
+            id,
+            tool,
+            pts: vec![crate::chart::draw::Anchor { t, p: price }],
+            style,
+            text: String::new(),
+            locked: false,
+            hidden: false,
+        });
+        self.chart.drawings_changed += 1;
+        self.chart_ui.draw.selected = Some(id);
     }
 
     /// A compared symbol's options: where it goes, hide, remove.
@@ -1289,108 +1486,6 @@ impl App {
         }
     }
 
-    /// Menu opened by clicking the (+) button on the crosshair priceline (Images #36 & #37).
-    fn plus_menu(&mut self, ctx: &egui::Context) {
-        let Some((pos, price)) = self.plus_menu else { return };
-        let t = self.t();
-        let mut close = false;
-        let mut add_alert = false;
-        let mut draw_hline = false;
-        let mut draw_hray = false;
-        let sym_ticker = self.chart.symbol.ticker().to_string();
-        let prec = self.chart.precision();
-        let price_str = format::price(price, prec);
-
-        let area = egui::Area::new(egui::Id::new("crosshair-plus-popover"))
-            .order(egui::Order::Foreground)
-            .fixed_pos(pos)
-            .pivot(egui::Align2::RIGHT_TOP)
-            .show(ctx, |ui| {
-                egui::Frame::menu(ui.style()).show(ui, |ui| {
-                    ui.set_width(260.0);
-                    ui.spacing_mut().item_spacing.y = 1.0;
-                    use crate::icons::ph;
-                    use crate::widgets as w;
-
-                    let alert_label = trf!("Add alert on {} at {}", sym_ticker, price_str);
-                    if w::menu_item(ui, &t, Some(ph::ALARM), &alert_label, shortcut!("Alt A"), false).clicked() {
-                        add_alert = true;
-                        close = true;
-                    }
-
-                    w::menu_rule(ui, &t);
-
-                    let hline_label = trf!("Draw horizontal line at {}", price_str);
-                    if w::menu_item(ui, &t, Some(ph::MINUS), &hline_label, shortcut!("Alt H"), false).clicked() {
-                        draw_hline = true;
-                        close = true;
-                    }
-
-                    let hray_label = trf!("Draw horizontal ray at {}", price_str);
-                    if w::menu_item(
-                        ui,
-                        &t,
-                        Some(ph::ARROW_RIGHT),
-                        &hray_label,
-                        shortcut!("Alt Shift H"),
-                        false,
-                    )
-                    .clicked()
-                    {
-                        draw_hray = true;
-                        close = true;
-                    }
-                });
-            });
-
-        let clicked_outside = ctx.input(|i| i.pointer.any_pressed())
-            && !area.response.contains_pointer()
-            && !ctx.input(|i| i.pointer.any_down() && area.response.hovered());
-        if close || clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-            self.plus_menu = None;
-        }
-        if add_alert {
-            self.open_alert_dialog_at(price);
-        }
-        if draw_hline {
-            let id = self.chart.next_drawing_id();
-            let d = crate::chart::draw::Drawing {
-                id,
-                tool: Tool::HorizontalLine,
-                pts: vec![crate::chart::draw::Anchor { t: 0, p: price }],
-                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalLine),
-                text: String::new(),
-                locked: false,
-                hidden: false,
-            };
-            self.chart.push_undo();
-            self.chart.drawings.push(d);
-            self.chart.drawings_changed += 1;
-            self.chart_ui.draw.selected = Some(id);
-        }
-        if draw_hray {
-            let id = self.chart.next_drawing_id();
-            let start_t = self
-                .chart_ui
-                .hover_time
-                .or_else(|| self.chart.bars.last().map(|b| b.time))
-                .unwrap_or(0);
-            let d = crate::chart::draw::Drawing {
-                id,
-                tool: Tool::HorizontalRay,
-                pts: vec![crate::chart::draw::Anchor { t: start_t, p: price }],
-                style: crate::chart::draw::DrawStyle::for_tool(Tool::HorizontalRay),
-                text: String::new(),
-                locked: false,
-                hidden: false,
-            };
-            self.chart.push_undo();
-            self.chart.drawings.push(d);
-            self.chart.drawings_changed += 1;
-            self.chart_ui.draw.selected = Some(id);
-        }
-    }
-
     /// The small menu from a legend row's "…" button.
     fn study_menu(&mut self, ctx: &egui::Context) {
         let Some((uid, pos)) = self.study_menu else { return };
@@ -1540,7 +1635,7 @@ impl App {
                 Event::OverviewPrices { seq, market, result } => self.overview_prices(seq, market, result),
                 Event::Fundamentals { symbol, result, .. } => self.indices_fundamentals(&symbol, result),
                 Event::Peek { quotes, .. } => {
-                    if let Some(Modal::Symbol(s)) = &mut self.modal {
+                    if let Some(s) = self.modal.as_mut().and_then(Modal::search_mut) {
                         for (id, last, prev) in quotes {
                             s.peek.insert(id, (last, prev));
                         }
@@ -1553,17 +1648,20 @@ impl App {
                 }
                 // What's known shows at once; the full answer replaces it.
                 // Enter waits for the full one (`got`).
-                Event::Search { seq, results, done } => match &mut self.modal {
-                    Some(Modal::Symbol(s)) if seq == self.search_seq => {
-                        s.results = results;
-                        s.quick = seq;
-                        if done {
-                            s.got = seq;
+                Event::Search { seq, results, done } if seq == self.search_seq => match &mut self.modal {
+                    Some(Modal::Index(e)) => e.results = results,
+                    Some(m) => {
+                        if let Some(s) = m.search_mut() {
+                            s.results = results;
+                            s.quick = seq;
+                            if done {
+                                s.got = seq;
+                            }
                         }
                     }
-                    Some(Modal::Index(e)) if seq == self.search_seq => e.results = results,
-                    _ => {}
+                    None => {}
                 },
+                Event::Search { .. } => {}
                 e @ (Event::Bars { chart, .. }
                 | Event::Tick { chart, .. }
                 | Event::Status { chart, .. }
@@ -1750,6 +1848,10 @@ impl App {
         let ctx = ui.ctx().clone();
         self.theme.tick(&ctx);
         theme::tick_scrollbars(&ctx);
+        // The computer's fallback fonts were found: put them behind ours.
+        if crate::sysfonts::take_ready() {
+            theme::install_fonts(&ctx, &self.store.settings().font);
+        }
         self.logos.poll(&ctx);
         let now = ctx.input(|i| i.time);
         if self.onboarding.as_ref().is_some_and(|o| o.covers(now)) {
@@ -1769,6 +1871,43 @@ impl App {
             let n = self.chart.bars.len();
             self.chart.toggle_replay();
             self.chart.replay_from(n - 1161);
+        }
+        if self.still_price_menu
+            && let Some(b) = self.chart.bars.last().copied()
+            && self.chart_ui.main_rect.width() > 100.0
+        {
+            self.still_price_menu = false;
+            let r = self.chart_ui.main_rect;
+            self.price_menu = Some(PriceMenu {
+                chart: self.chart.id,
+                price: b.close,
+                text: crate::format::price(b.close, self.chart.precision()),
+                pos: egui::pos2(r.right(), r.center().y),
+            });
+        }
+        if let Some(levels) = self.still_fib
+            && self.chart.bars.len() > 80
+        {
+            self.still_fib = None;
+            let n = self.chart.bars.len();
+            let (a, b) = (self.chart.bars[n - 60], self.chart.bars[n - 12]);
+            let id = self.chart.next_drawing_id();
+            self.chart.drawings.push(Drawing {
+                id,
+                tool: Tool::FibRetracement,
+                pts: vec![
+                    crate::chart::draw::Anchor { t: a.time, p: a.low },
+                    crate::chart::draw::Anchor { t: b.time, p: b.high },
+                ],
+                style: DrawStyle::for_tool(Tool::FibRetracement),
+                text: String::new(),
+                locked: false,
+                hidden: false,
+            });
+            self.chart_ui.draw.selected = Some(id);
+            if levels {
+                ctx.data_mut(|m| m.insert_temp(egui::Id::new("fib-levels-open"), id));
+            }
         }
         if self.still_measure && self.chart.bars.len() > 80 {
             self.still_measure = false;
@@ -1915,7 +2054,7 @@ impl App {
         self.study_menu(&ctx);
         self.compare_menu(&ctx);
         self.chart_menu(&ctx);
-        self.plus_menu(&ctx);
+        self.price_menu(&ctx);
         self.autosave(false);
         self.save_drawings(false);
         self.onboarding_overlay(&ctx);
@@ -1947,7 +2086,7 @@ impl App {
         self.study_menu = None;
         self.compare_menu = None;
         self.chart_menu = None;
-        self.plus_menu = None;
+        self.price_menu = None;
         if self.panics <= 3 {
             self.layout = Arrangement::default();
         }
@@ -1998,6 +2137,13 @@ impl eframe::App for App {
             }
         }
         self.last_frame = Some(Instant::now());
+        // Opened again while open: come forward instead.
+        if crate::instance::poll(ui.ctx()) {
+            let ctx = ui.ctx();
+            ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(false));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+        }
         crate::diag::frame_begin();
         // Crash shield: a bug in one frame must never take the app down.
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.frame(ui)));

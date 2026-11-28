@@ -359,7 +359,7 @@ struct JsVm {
 }
 
 impl Vm for JsVm {
-    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3]) -> Result<(), ScriptError> {
+    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3], extra: &[(String, f64)]) -> Result<(), ScriptError> {
         self.deadline
             .store(now_ns() + BAR_BUDGET.as_nanos() as u64, Ordering::Relaxed);
         let file = &self.file;
@@ -374,6 +374,9 @@ impl Vm for JsVm {
                 }
                 for (k, v) in BAR_FLAGS.iter().zip(flags) {
                     bar.set(*k, *v)?;
+                }
+                for (k, v) in extra {
+                    bar.set(k.as_str(), *v)?;
                 }
                 f.call::<_, ()>((bar,))
             };

@@ -334,6 +334,8 @@ pub(crate) struct TypeDef {
     pub fields: Vec<String>,
     /// Declared types, where written.
     pub ftypes: Vec<Option<String>>,
+    /// Fields that keep their value between order-fill recalculations.
+    pub varip_fields: Vec<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -410,6 +412,10 @@ pub(crate) struct Program {
     pub timeframe_gaps: bool,
     /// It makes requests.
     pub requests: bool,
+    /// It can make orders fill at the close without
+    /// `process_orders_on_close`: `strategy.close(…, immediately)` or
+    /// `strategy.risk.*`.
+    pub fills_at_close: bool,
     /// Request bodies compiled last (see [`Body::Late`]).
     pub late: Vec<SecBody>,
 }
@@ -682,6 +688,7 @@ struct Cx {
     timeframe: Option<String>,
     timeframe_gaps: bool,
     requests: bool,
+    fills_at_close: bool,
     /// Enums: members and their titles (a member's value is its title).
     enums: HashMap<String, Vec<(String, String)>>,
     /// While compiling an imported library: its alias, so its own names
@@ -749,6 +756,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         timeframe: None,
         timeframe_gaps: true,
         requests: false,
+        fills_at_close: false,
         enums: HashMap::new(),
         lib_prefix: None,
         importing: Vec::new(),
@@ -794,6 +802,7 @@ pub(crate) fn compile(prog: &ast::Block, version: u8, env: Env, _file: &str) -> 
         timeframe: cx.timeframe,
         timeframe_gaps: cx.timeframe_gaps,
         requests: cx.requests,
+        fills_at_close: cx.fills_at_close,
         late,
     })
 }
@@ -1357,18 +1366,23 @@ impl Cx {
             }
             Stmt::Type { name, fields, line } => {
                 self.line = *line;
-                for (_, d, _) in fields {
-                    if let Some(e) = d {
+                for field in fields {
+                    if let Some(e) = &field.default {
                         self.expr(e)?;
                     }
                 }
                 self.types.push(TypeDef {
                     name: name.clone(),
-                    fields: fields.iter().map(|f| f.0.clone()).collect(),
-                    ftypes: fields.iter().map(|f| f.2.clone()).collect(),
+                    fields: fields.iter().map(|field| field.name.clone()).collect(),
+                    ftypes: fields.iter().map(|field| field.ty.clone()).collect(),
+                    varip_fields: fields
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, field)| field.varip.then_some(i))
+                        .collect(),
                 });
                 self.type_defaults
-                    .push(fields.iter().map(|f| f.1.clone().map(Rc::new)).collect());
+                    .push(fields.iter().map(|field| field.default.clone().map(Rc::new)).collect());
                 Ok(None)
             }
             Stmt::Enum { name, members, line } => {
@@ -2283,6 +2297,16 @@ impl Cx {
     }
 
     fn nat(&mut self, f: &'static NatDef, mut args: Vec<E>) -> E {
+        let immediately = match f.name {
+            "strategy.close" => args.get(5),
+            "strategy.close_all" => args.get(2),
+            _ => None,
+        };
+        if f.name.starts_with("strategy.risk.")
+            || immediately.is_some_and(|a| !matches!(a, E::K(V::Na | V::Bool(false))))
+        {
+            self.fills_at_close = true;
+        }
         // A window whose length can change from bar to bar keeps the values
         // a longer one will need.
         if f.window
@@ -3024,6 +3048,7 @@ impl Cx {
         let minval = get(self, "minval")?;
         let maxval = get(self, "maxval")?;
         let step = get(self, "step")?;
+        let confirm = get(self, "confirm")?;
         let options: Vec<V> = match params.iter().position(|p| *p == "options").and_then(|k| b[k]) {
             Some(Expr::Tuple(items)) => {
                 let mut out = Vec::new();
@@ -3111,6 +3136,7 @@ impl Cx {
                     InputKind::Int {
                         min: minval.as_ref().and_then(|v| v.i()).unwrap_or(-1_000_000_000_000),
                         max: maxval.as_ref().and_then(|v| v.i()).unwrap_or(1_000_000_000_000),
+                        step: step.as_ref().and_then(|v| v.i()).filter(|s| *s > 0).unwrap_or(1),
                     },
                     Value::Int(defval.i().unwrap_or(0)),
                     Conv::Int,
@@ -3123,6 +3149,13 @@ impl Cx {
                     },
                     Value::Float(defval.f()),
                     Conv::Float,
+                ),
+                ("input.symbol", _) => (
+                    InputKind::Symbol {
+                        confirm: confirm.as_ref().is_some_and(|v| v.truthy()),
+                    },
+                    Value::Text(defval.as_str().unwrap_or("").into()),
+                    Conv::Str,
                 ),
                 ("input.time", _) => (
                     InputKind::Text,

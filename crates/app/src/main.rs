@@ -28,12 +28,14 @@ mod dialogs;
 mod dom;
 mod drawbar;
 mod editor;
+mod equity;
 mod favbar;
 mod feeds;
 mod format;
 mod i18n;
 mod icons;
 mod indices;
+mod instance;
 mod keys;
 mod lab;
 mod layouts;
@@ -58,6 +60,7 @@ mod side;
 mod snapshot;
 mod sources;
 mod strategy;
+mod sysfonts;
 mod theme;
 mod timezones;
 mod transfer;
@@ -148,9 +151,28 @@ fn main() -> eframe::Result<()> {
     if daemon {
         std::process::exit(daemon::run(dir, demo));
     }
+    // One window per workspace: a second launch brings the first forward.
+    let relaunch = std::env::var_os(instance::RELAUNCH).is_some();
+    // SAFETY: nothing else runs yet; the variable is for this start only.
+    unsafe { std::env::remove_var(instance::RELAUNCH) };
+    match instance::claim(&dir, relaunch) {
+        instance::Outcome::Only => {}
+        instance::Outcome::Surfaced => return Ok(()),
+        instance::Outcome::Busy => {
+            // Open, but not answering (still starting, or stuck).
+            if !app::headless() {
+                let _ = rfd::MessageDialog::new()
+                    .set_title("Opentern")
+                    .set_description(tr("Opentern is already open."))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }
+            return Ok(());
+        }
+    }
     // An import waiting from the last run goes in before the workspace opens.
     if opentern_core::transfer::pending(&dir) {
-        daemon::apply_pending_import(&dir);
+        opentern_core::transfer::apply_pending(&dir);
     }
     let store = match Store::open(&dir) {
         Ok(s) => s,
@@ -187,8 +209,12 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_icon(icon)
-            .with_title("Opentern")
-            .with_app_id("opentern")
+            .with_title(if opentern_core::dev_copy() {
+                "Opentern Dev"
+            } else {
+                "Opentern"
+            })
+            .with_app_id(opentern_core::app_name())
             .with_inner_size([1440.0, 900.0])
             .with_min_inner_size([1000.0, 640.0]),
         multisampling: 0,

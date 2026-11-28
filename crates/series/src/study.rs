@@ -66,6 +66,22 @@ impl Source {
     }
 }
 
+/// A study's `Source` input set to another indicator's plot on the same
+/// chart ("indicator on indicator", as on TradingView): `study:<uid>:<plot>`.
+pub fn link_key(uid: u64, plot: usize) -> String {
+    format!("study:{uid}:{plot}")
+}
+
+/// The study uid and plot index a [`link_key`] names.
+pub fn parse_link(text: &str) -> Option<(u64, usize)> {
+    let (uid, plot) = text.strip_prefix("study:")?.split_once(':')?;
+    Some((uid.parse().ok()?, plot.parse().ok()?))
+}
+
+/// The other indicators' plots a study reads, by the id of the `Source`
+/// input set to each: one value per bar of the chart (`NaN` = none).
+pub type Links = Vec<(String, std::sync::Arc<Vec<f64>>)>;
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Value {
     Int(i64),
@@ -79,6 +95,8 @@ pub enum InputKind {
     Int {
         min: i64,
         max: i64,
+        /// What one arrow-key press adds (Pine's `step`; 1 when unset).
+        step: i64,
     },
     Float {
         min: f64,
@@ -92,6 +110,11 @@ pub enum InputKind {
     Text,
     /// A colour, stored as "#RRGGBBAA" text.
     Color,
+    /// A symbol ("NASDAQ:GOOG"), picked with the symbol search. `confirm`
+    /// (Pine's `confirm = true`) opens the settings when the study is added.
+    Symbol {
+        confirm: bool,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -398,14 +421,18 @@ impl Inputs {
         for spec in &meta.inputs {
             let Some(v) = self.values.get(spec.id) else { continue };
             let ok = match (&spec.kind, v) {
-                (InputKind::Int { min, max }, Value::Int(x)) => Some(Value::Int((*x).clamp(*min, *max))),
-                (InputKind::Int { min, max }, Value::Float(x)) => Some(Value::Int((*x as i64).clamp(*min, *max))),
+                (InputKind::Int { min, max, .. }, Value::Int(x)) => Some(Value::Int((*x).clamp(*min, *max))),
+                (InputKind::Int { min, max, .. }, Value::Float(x)) => Some(Value::Int((*x as i64).clamp(*min, *max))),
                 (InputKind::Float { min, max, .. }, Value::Float(x)) => Some(Value::Float(x.clamp(*min, *max))),
                 (InputKind::Float { min, max, .. }, Value::Int(x)) => Some(Value::Float((*x as f64).clamp(*min, *max))),
                 (InputKind::Bool, Value::Bool(_)) => Some(v.clone()),
-                (InputKind::Source, Value::Text(s)) if Source::ALL.iter().any(|x| x.name() == s) => Some(v.clone()),
+                (InputKind::Source, Value::Text(s))
+                    if Source::ALL.iter().any(|x| x.name() == s) || parse_link(s).is_some() =>
+                {
+                    Some(v.clone())
+                }
                 (InputKind::Choice(opts), Value::Text(s)) if opts.contains(&s.as_str()) => Some(v.clone()),
-                (InputKind::Text, Value::Text(_)) => Some(v.clone()),
+                (InputKind::Text | InputKind::Symbol { .. }, Value::Text(_)) => Some(v.clone()),
                 (InputKind::Color, Value::Text(t)) if t.starts_with('#') => Some(v.clone()),
                 _ => None,
             };
@@ -414,6 +441,22 @@ impl Inputs {
             }
         }
         out
+    }
+
+    /// The input values in the legend, with `show` naming a text value
+    /// that isn't plain (a linked source).
+    pub fn summary_with(&self, meta: &Meta, show: impl Fn(&str) -> Option<String>) -> String {
+        meta.inputs
+            .iter()
+            .filter(|i| !matches!(i.kind, InputKind::Color))
+            .filter_map(|i| match self.values.get(i.id)? {
+                Value::Int(v) => Some(v.to_string()),
+                Value::Float(v) => Some(trim_float(*v)),
+                Value::Text(s) => Some(show(s).unwrap_or_else(|| s.clone())),
+                Value::Bool(_) => None,
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
     }
 
     /// The input values in the legend: "RSI 14 close".
@@ -453,11 +496,33 @@ pub struct Ctx<'a> {
     /// Bars there were when the study started, the forming one included:
     /// from that one on they're realtime.
     pub loaded: usize,
+    /// Other indicators' plots this study's `Source` inputs read.
+    pub links: &'a [(String, std::sync::Arc<Vec<f64>>)],
 }
 
 impl Ctx<'_> {
+    /// The study's source on this bar: the bar field `s`, or, when its
+    /// "source" input is another indicator's plot, that plot's value. (A
+    /// built-in has one `Source` input, "source"; fixed fields such as
+    /// `Source::Hl2.of(bar)` don't go through here.)
     pub fn src(&self, s: Source) -> f64 {
-        s.of(self.bar)
+        match self.link("source", 0) {
+            Some(v) => v,
+            None => s.of(self.bar),
+        }
+    }
+
+    /// Linked input `id`'s value `back` bars ago: `None` when the input isn't
+    /// linked, `Some(NaN)` when the plot has nothing there.
+    pub fn link(&self, id: &str, back: usize) -> Option<f64> {
+        let (_, series) = self.links.iter().find(|(k, _)| k == id)?;
+        Some(
+            self.index
+                .checked_sub(back)
+                .and_then(|i| series.get(i))
+                .copied()
+                .unwrap_or(f64::NAN),
+        )
     }
 }
 
@@ -639,6 +704,9 @@ pub struct Instance {
     loaded: usize,
     done: usize,
     scratch: Out,
+    /// Other indicators' plots its `Source` inputs read (set by the chart
+    /// before each run).
+    links: Links,
 }
 
 impl Instance {
@@ -684,7 +752,27 @@ impl Instance {
             scratch: Out::new(meta.plots.len(), meta.fills.len()),
             meta,
             inputs,
+            links: Vec::new(),
         }
+    }
+
+    /// The `Source` inputs set to another indicator's plot: (input id,
+    /// study uid, plot index).
+    pub fn linked_inputs(&self) -> Vec<(&'static str, u64, usize)> {
+        self.meta
+            .inputs
+            .iter()
+            .filter(|i| matches!(i.kind, InputKind::Source))
+            .filter_map(|i| {
+                let (uid, plot) = parse_link(self.inputs.text(i.id))?;
+                Some((i.id, uid, plot))
+            })
+            .collect()
+    }
+
+    /// The plots its linked inputs read, before a run.
+    pub fn set_links(&mut self, links: Links) {
+        self.links = links;
     }
 
     /// Starts over on a new series (new history, changed inputs).
@@ -801,6 +889,7 @@ impl Instance {
                 count: n,
                 last_time: bars[n - 1].time,
                 loaded: self.loaded,
+                links: &self.links,
             };
             self.committed.step(&c, &mut self.scratch);
             self.out.write(i, &self.scratch);
@@ -823,6 +912,7 @@ impl Instance {
             count: n,
             last_time: bars[n - 1].time,
             loaded: self.loaded,
+            links: &self.links,
         };
         forming.step(&c, &mut self.scratch);
         self.out.write(n - 1, &self.scratch);

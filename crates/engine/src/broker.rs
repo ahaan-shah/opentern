@@ -8,6 +8,9 @@
 //!    [`Broker::submit`] (it can read the position meanwhile).
 //! 3. [`Broker::close_bar`] fills market orders at the close when
 //!    `process_orders_on_close` is set, and records equity.
+//!
+//! Pine strategies with `calc_on_order_fills` use a resumable intrabar path
+//! and recalculate between groups of fills.
 
 use opentern_core::Bar;
 use serde::{Deserialize, Serialize};
@@ -40,6 +43,7 @@ pub struct Props {
     /// Ticks added against every market and stop fill.
     pub slippage: u32,
     pub process_orders_on_close: bool,
+    pub calc_on_order_fills: bool,
     /// The symbol's tick size (for slippage and tick-based exits).
     pub mintick: f64,
     /// Margin for longs and shorts, percent (100 = no leverage).
@@ -92,6 +96,7 @@ impl Default for Props {
             commission_value: 0.0,
             slippage: 0,
             process_orders_on_close: false,
+            calc_on_order_fills: false,
             mintick: 0.01,
             margin_long: 100.0,
             margin_short: 100.0,
@@ -146,6 +151,7 @@ impl Props {
                 .get("process_orders_on_close")
                 .and_then(|x| x.as_bool())
                 .unwrap_or(false),
+            calc_on_order_fills: v.get("calc_on_order_fills").and_then(|x| x.as_bool()).unwrap_or(false),
             mintick: if mintick > 0.0 { mintick } else { d.mintick },
             margin_long: f("margin_long", margin),
             margin_short: f("margin_short", margin),
@@ -177,6 +183,7 @@ impl Props {
             "commission_value": self.commission_value,
             "slippage": self.slippage,
             "process_orders_on_close": self.process_orders_on_close,
+            "calc_on_order_fills": self.calc_on_order_fills,
             "margin_long": self.margin_long,
             "margin_short": self.margin_short,
             "close_entries_rule": if self.close_any { "ANY" } else { "FIFO" },
@@ -391,6 +398,42 @@ impl Risk {
     }
 }
 
+/// The price that triggers a fill and the price credited by the broker.
+#[derive(Clone, Copy)]
+struct PriceHit {
+    tick: f64,
+    fill: f64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct BarExecution {
+    path: [f64; 4],
+    vertex: usize,
+    at_vertex: bool,
+    price: f64,
+    margin_due: bool,
+    on_close: bool,
+    /// Orders created or changed at this point cannot execute here.
+    deferred: Vec<(String, OrderKind)>,
+    /// The opening leg of a reversal after the closing leg has filled.
+    reversal: Option<(Order, f64)>,
+}
+
+#[derive(Clone, Copy)]
+enum PathOrder {
+    Market,
+    Price {
+        fill: f64,
+    },
+    ArmLimit,
+    Exit {
+        fill: f64,
+        qty: f64,
+        buy: bool,
+        kind: usize,
+    },
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Broker {
     pub props: Props,
@@ -422,8 +465,8 @@ pub struct Broker {
     #[serde(default)]
     pub margin_calls: Vec<f64>,
     bar: usize,
-    /// The close of the bar the strategy is running on: orders sized from
-    /// cash or equity are sized at it when placed, as TradingView does.
+    /// Orders sized from cash or equity use the closing price in ordinary
+    /// execution and the current path price during fill callbacks.
     #[serde(default)]
     mark: f64,
     time: i64,
@@ -434,6 +477,8 @@ pub struct Broker {
     trough: Option<f64>,
     #[serde(default)]
     pub risk: Risk,
+    #[serde(skip)]
+    execution: Option<BarExecution>,
 }
 
 impl Broker {
@@ -570,6 +615,13 @@ impl Broker {
             // The same stop-limit placed again is still armed.
             o.armed |= old.armed && old.stop == o.stop && old.limit == o.limit && old.long == o.long;
         }
+        if let Some(execution) = &mut self.execution {
+            // A restated order keeps its queue position and eligibility.
+            if self.pending.contains(&o) {
+                return;
+            }
+            execution.deferred.push((o.id.clone(), o.kind));
+        }
         self.pending.retain(|p| !(p.id == o.id && p.kind == o.kind));
         self.pending.push(o);
     }
@@ -700,20 +752,40 @@ impl Broker {
     /// Slippage is for market and stop orders; a limit fills at its price
     /// or better.
     fn fill_price(&self, o: &Order, price: f64) -> f64 {
-        if o.limit.is_some() {
+        if o.kind == OrderKind::Close {
+            let long = self.position_size() > 0.0;
+            self.slip(price, !long)
+        } else if o.limit.is_some() {
             price
         } else {
             self.slip(price, o.long)
         }
     }
 
-    /// Where a limit fills on the way from `a` to `b`, if it does.
-    fn limit_hit(&self, limit: f64, buy: bool, a: f64, b: f64) -> Option<f64> {
+    /// Where a limit triggers and what it fills for on the way from `a` to `b`.
+    fn limit_hit(&self, limit: f64, buy: bool, a: f64, b: f64) -> Option<PriceHit> {
+        let tick = Self::trigger(Some(self.limit_level(limit, buy)), None, buy, a, b)?;
+        Some(PriceHit {
+            tick,
+            fill: if buy { limit.min(a) } else { limit.max(a) },
+        })
+    }
+
+    fn limit_level(&self, limit: f64, buy: bool) -> f64 {
         let past = self.props.limit_ticks as f64 * self.props.mintick;
         // A hair's width of rounding isn't a missed fill.
         let past = (past - self.props.mintick * 1e-6).max(0.0);
-        let level = if buy { limit - past } else { limit + past };
-        Self::trigger(Some(level), None, buy, a, b).map(|_| if buy { limit.min(a) } else { limit.max(a) })
+        if buy { limit - past } else { limit + past }
+    }
+
+    fn path_limit_hit(&self, limit: f64, buy: bool, cursor: &BarExecution, end: f64) -> Option<PriceHit> {
+        let mut hit = self.limit_hit(limit, buy, cursor.price, end)?;
+        // The verification level is a trigger within the bar, including
+        // for other orders evaluated after reaching that same tick.
+        if !(cursor.vertex == 0 && cursor.at_vertex) && cursor.price == self.limit_level(limit, buy) {
+            hit.fill = limit;
+        }
+        Some(hit)
     }
 
     /// Where an entry or order fills on the way from `a` to `b`, if it does.
@@ -722,9 +794,9 @@ impl Broker {
             (Some(l), Some(s)) if !o.armed => {
                 let at = Self::trigger(None, Some(s), o.long, a, b)?;
                 o.armed = true;
-                self.limit_hit(l, o.long, at, b)
+                self.limit_hit(l, o.long, at, b).map(|hit| hit.fill)
             }
-            (Some(l), _) => self.limit_hit(l, o.long, a, b),
+            (Some(l), _) => self.limit_hit(l, o.long, a, b).map(|hit| hit.fill),
             (None, stop) => Self::trigger(None, stop, o.long, a, b),
         }
     }
@@ -856,6 +928,10 @@ impl Broker {
     /// Executes an entry/order/close that has triggered at `price`;
     /// returns the quantity filled.
     fn execute(&mut self, o: &Order, price: f64) -> f64 {
+        self.execute_at_price(o, self.fill_price(o, price))
+    }
+
+    fn execute_at_price(&mut self, o: &Order, p: f64) -> f64 {
         match o.kind {
             OrderKind::Close => {
                 let open = self.open_qty(&o.id);
@@ -863,8 +939,6 @@ impl Broker {
                     Some(q) => q.min(open),
                     None => open * o.qty_percent / 100.0,
                 };
-                let long = self.position_size() > 0.0;
-                let p = self.slip(price, !long);
                 self.close(
                     &o.id,
                     q,
@@ -876,7 +950,6 @@ impl Broker {
             OrderKind::Entry => {
                 let pos = self.position_size();
                 let opposite = (pos > 0.0 && !o.long) || (pos < 0.0 && o.long);
-                let p = self.fill_price(o, price);
                 // strategy.risk.allow_entry_in: an entry the other way only
                 // closes the position.
                 if self.props.allow_entry_in.is_some_and(|l| l != o.long) {
@@ -906,7 +979,6 @@ impl Broker {
             }
             OrderKind::Order => {
                 let pos = self.position_size();
-                let p = self.fill_price(o, price);
                 let mut qty = o.qty.unwrap_or_else(|| self.default_qty(p));
                 let mut filled = 0.0;
                 // Against the position, an order reduces it first.
@@ -946,36 +1018,62 @@ impl Broker {
     /// Tries an exit order on one segment of the intrabar path; returns
     /// the quantity closed. Updates its trailing stop when nothing fills.
     fn try_exit(&mut self, o: &mut Order, a: f64, b: f64) -> f64 {
-        let Some((long, qty, avg, limit, stop)) = self.exit_levels(o) else {
+        let Some(levels) = self.exit_levels(o) else {
             return 0.0;
         };
-        let t = self.props.mintick;
+        if let Some((p, qty, buy, kind)) = self.exit_hit(o, levels, a, b, None) {
+            return self.fill_exit(o, p.fill, qty, buy, kind);
+        }
+        Self::update_trail(self.props.mintick, Some(levels), o, a, b);
+        0.0
+    }
+
+    fn exit_hit(
+        &self,
+        o: &Order,
+        levels: ExitLevels,
+        a: f64,
+        b: f64,
+        cursor: Option<&BarExecution>,
+    ) -> Option<(PriceHit, f64, bool, usize)> {
+        let (long, qty, _, limit, stop) = levels;
         let buy = !long;
         let trail_stop = o.trail_best.map(|best| {
-            let off = o.trail_offset.unwrap_or(0.0) * t;
+            let off = o.trail_offset.unwrap_or(0.0) * self.props.mintick;
             if long { best - off } else { best + off }
         });
-        let hit_l = limit.and_then(|l| self.limit_hit(l, buy, a, b));
-        let hit_s = stop.and_then(|s| Self::trigger(None, Some(s), buy, a, b));
-        let hit_t = trail_stop.and_then(|s| Self::trigger(None, Some(s), buy, a, b));
-        // The fill nearest the segment start comes first: 0 target, 1 stop, 2 trailing.
-        let pick = [(hit_l, 0), (hit_s, 1), (hit_t, 2)]
+        let stop_hit = |s| Self::trigger(None, Some(s), buy, a, b).map(|p| PriceHit { tick: p, fill: p });
+        let hit_l = limit.and_then(|l| match cursor {
+            Some(cursor) => self.path_limit_hit(l, buy, cursor, b),
+            None => self.limit_hit(l, buy, a, b),
+        });
+        let hit_s = stop.and_then(stop_hit);
+        let hit_t = trail_stop.and_then(stop_hit);
+        [(hit_l, 0), (hit_s, 1), (hit_t, 2)]
             .into_iter()
             .filter_map(|(h, k)| h.map(|p| (p, k)))
-            .min_by(|x, y| (x.0 - a).abs().total_cmp(&(y.0 - a).abs()));
-        if let Some((p, k)) = pick {
-            let p = if k == 0 { p } else { self.slip(p, buy) };
-            let comment = match k {
-                0 if !o.comment_profit.is_empty() => &o.comment_profit,
-                1 if !o.comment_loss.is_empty() => &o.comment_loss,
-                2 if !o.comment_trailing.is_empty() => &o.comment_trailing,
-                _ => &o.comment,
-            }
-            .clone();
-            let from = o.from_entry.clone();
-            return self.close(&from, qty, p, &o.id, &comment);
-        }
-        if o.has_trail() {
+            .min_by(|x, y| {
+                let distance = |hit: PriceHit| ((if cursor.is_some() { hit.tick } else { hit.fill }) - a).abs();
+                distance(x.0).total_cmp(&distance(y.0))
+            })
+            .map(|(p, k)| (p, qty, buy, k))
+    }
+
+    fn fill_exit(&mut self, o: &Order, p: f64, qty: f64, buy: bool, kind: usize) -> f64 {
+        let price = if kind == 0 { p } else { self.slip(p, buy) };
+        let comment = match kind {
+            0 if !o.comment_profit.is_empty() => &o.comment_profit,
+            1 if !o.comment_loss.is_empty() => &o.comment_loss,
+            2 if !o.comment_trailing.is_empty() => &o.comment_trailing,
+            _ => &o.comment,
+        };
+        self.close(&o.from_entry, qty, price, &o.id, comment)
+    }
+
+    fn update_trail(t: f64, levels: Option<ExitLevels>, o: &mut Order, a: f64, b: f64) {
+        if let Some((long, _, avg, _, _)) = levels
+            && o.has_trail()
+        {
             let dir = if long { 1.0 } else { -1.0 };
             let act = o
                 .trail_price
@@ -987,7 +1085,6 @@ impl Broker {
                 None => None,
             };
         }
-        0.0
     }
 
     /// Stop/limit trigger for an order going `long` (buying) over a path
@@ -1080,11 +1177,7 @@ impl Broker {
         self.margin_call(bar.open);
         self.check_risk(bar.open);
         // Then stops and limits along the intrabar path.
-        let path = if (bar.high - bar.open).abs() <= (bar.open - bar.low).abs() {
-            [bar.open, bar.high, bar.low, bar.close]
-        } else {
-            [bar.open, bar.low, bar.high, bar.close]
-        };
+        let path = Self::path(bar);
         for seg in 0..3 {
             let (a, b) = (path[seg], path[seg + 1]);
             let mut k = 0;
@@ -1132,6 +1225,249 @@ impl Broker {
         }
     }
 
+    fn path(bar: &Bar) -> [f64; 4] {
+        if (bar.high - bar.open).abs() <= (bar.open - bar.low).abs() {
+            [bar.open, bar.high, bar.low, bar.close]
+        } else {
+            [bar.open, bar.low, bar.high, bar.close]
+        }
+    }
+
+    /// Starts the resumable execution used by strategies that recalculate on fills.
+    pub fn begin_fill_bar(&mut self, index: usize, bar: &Bar) {
+        self.bar = index;
+        self.time = bar.time;
+        self.mark = bar.open;
+        for lot in &mut self.lots {
+            lot.hi = lot.hi.max(bar.open);
+            lot.lo = lot.lo.min(bar.open);
+        }
+        self.execution = Some(BarExecution {
+            path: Self::path(bar),
+            vertex: 0,
+            at_vertex: true,
+            price: bar.open,
+            margin_due: true,
+            on_close: false,
+            deferred: Vec::new(),
+            reversal: None,
+        });
+    }
+
+    /// Advances to the next tick that fills orders. Orders at that tick
+    /// fill before the next recalculation.
+    pub fn next_bar_fill_group(&mut self) -> bool {
+        let mut cursor = self
+            .execution
+            .take()
+            .expect("begin_fill_bar must precede next_bar_fill_group");
+        let mut filled = self.advance_to_fill_group(&mut cursor);
+        if filled || cursor.on_close {
+            let before = self.fills.len();
+            self.check_risk(cursor.price);
+            filled |= self.fills.len() != before;
+        }
+        self.execution = Some(cursor);
+        filled
+    }
+
+    /// Allows the optional same-close order pass after the closing calculation.
+    pub fn begin_close_fills(&mut self) {
+        let cursor = self
+            .execution
+            .as_mut()
+            .expect("begin_fill_bar must precede begin_close_fills");
+        cursor.on_close = true;
+        cursor.deferred.clear();
+    }
+
+    pub fn finish_fill_bar(&mut self, bar: &Bar) {
+        self.execution = None;
+        self.record_close(bar);
+    }
+
+    fn path_order(&self, o: &Order, cursor: &BarExecution, end: f64) -> Option<(f64, PathOrder)> {
+        let a = cursor.price;
+        let market = o.kind == OrderKind::Close || (o.kind != OrderKind::Exit && o.limit.is_none() && o.stop.is_none());
+        if cursor.on_close && !(self.props.process_orders_on_close || (market && o.immediately)) {
+            return None;
+        }
+        if market {
+            return (cursor.at_vertex || o.immediately).then_some((a, PathOrder::Market));
+        }
+        if o.kind == OrderKind::Exit {
+            let (hit, qty, buy, kind) = self.exit_hit(o, self.exit_levels(o)?, a, end, Some(cursor))?;
+            return (qty > 1e-12).then_some((
+                hit.tick,
+                PathOrder::Exit {
+                    fill: hit.fill,
+                    qty,
+                    buy,
+                    kind,
+                },
+            ));
+        }
+        match (o.limit, o.stop) {
+            (Some(_), Some(stop)) if !o.armed => {
+                Self::trigger(None, Some(stop), o.long, a, end).map(|tick| (tick, PathOrder::ArmLimit))
+            }
+            (Some(limit), _) => self
+                .path_limit_hit(limit, o.long, cursor, end)
+                .map(|hit| (hit.tick, PathOrder::Price { fill: hit.fill })),
+            (None, stop) => {
+                Self::trigger(None, stop, o.long, a, end).map(|tick| (tick, PathOrder::Price { fill: tick }))
+            }
+        }
+    }
+
+    fn advance_to_fill_group(&mut self, cursor: &mut BarExecution) -> bool {
+        let mut filled_here = false;
+        loop {
+            if let Some((order, price)) = cursor.reversal.take()
+                && !self.halted()
+            {
+                let filled = self.execute_at_price(&order, price);
+                Self::oca(&order, filled, &mut self.pending);
+                if filled > 0.0 {
+                    return true;
+                }
+            }
+            let end = if cursor.at_vertex {
+                cursor.price
+            } else {
+                cursor.path[cursor.vertex + 1]
+            };
+            let next = self
+                .pending
+                .iter()
+                .enumerate()
+                .filter_map(|(i, o)| {
+                    let (price, action) = self.path_order(o, cursor, end)?;
+                    if !price.is_finite()
+                        || (price == cursor.price
+                            && !o.immediately
+                            && cursor.deferred.iter().any(|(id, kind)| *kind == o.kind && *id == o.id))
+                    {
+                        return None;
+                    }
+                    Some((i, price, action))
+                })
+                .min_by(|a, b| {
+                    let priority = |action| !matches!(action, PathOrder::Market);
+                    (a.1 - cursor.price)
+                        .abs()
+                        .total_cmp(&(b.1 - cursor.price).abs())
+                        .then_with(|| priority(a.2).cmp(&priority(b.2)))
+                });
+            if let Some((i, price, action)) = next
+                && (cursor.at_vertex || price != end)
+            {
+                if filled_here && price != cursor.price {
+                    return true;
+                }
+                self.move_fill_price(cursor, price);
+                if matches!(action, PathOrder::ArmLimit) {
+                    self.pending[i].armed = true;
+                    continue;
+                }
+                let order = self.pending.remove(i);
+                let filled = match action {
+                    PathOrder::Exit { fill, qty, buy, kind } => self.fill_exit(&order, fill, qty, buy, kind),
+                    PathOrder::Price { fill } => self.execute_at_fill(&order, fill, cursor),
+                    PathOrder::Market => self.execute_at_fill(&order, price, cursor),
+                    PathOrder::ArmLimit => unreachable!(),
+                };
+                Self::oca(&order, filled, &mut self.pending);
+                if filled > 0.0 {
+                    // The opening leg is a separate broker event. Keep the
+                    // recalculation between the two legs of a reversal.
+                    if cursor.reversal.is_some() {
+                        return true;
+                    }
+                    filled_here = true;
+                }
+                continue;
+            }
+            // Return before moving the cursor or handling a margin event.
+            // In particular, consecutive OHLC vertices can have equal prices.
+            if filled_here {
+                return true;
+            }
+            if !cursor.at_vertex {
+                self.move_fill_price(cursor, end);
+                cursor.vertex += 1;
+                cursor.at_vertex = true;
+                cursor.margin_due = true;
+                cursor.deferred.clear();
+                continue;
+            }
+            if cursor.margin_due {
+                cursor.margin_due = false;
+                let before = self.fills.len();
+                self.margin_call(cursor.price);
+                self.check_risk(cursor.price);
+                if self.fills.len() != before {
+                    return true;
+                }
+            }
+            if cursor.vertex == 3 {
+                return false;
+            }
+            self.update_fill_trails(cursor.price, cursor.price);
+            cursor.at_vertex = false;
+        }
+    }
+
+    fn move_fill_price(&mut self, cursor: &mut BarExecution, price: f64) {
+        let a = cursor.price;
+        if a == price {
+            return;
+        }
+        self.update_fill_trails(a, price);
+        for lot in &mut self.lots {
+            lot.hi = lot.hi.max(price);
+            lot.lo = lot.lo.min(price);
+        }
+        cursor.deferred.clear();
+        cursor.price = price;
+        self.mark = price;
+    }
+
+    fn update_fill_trails(&mut self, a: f64, price: f64) {
+        for i in 0..self.pending.len() {
+            if self.pending[i].has_trail() {
+                let levels = self.exit_levels(&self.pending[i]);
+                Self::update_trail(self.props.mintick, levels, &mut self.pending[i], a, price);
+            }
+        }
+    }
+
+    fn execute_at_fill(&mut self, order: &Order, price: f64, cursor: &mut BarExecution) -> f64 {
+        let pos = self.position_size();
+        let opposite = (pos > 0.0 && !order.long) || (pos < 0.0 && order.long);
+        let execution_price = self.fill_price(order, price);
+        if opposite && matches!(order.kind, OrderKind::Entry | OrderKind::Order) {
+            let qty = match order.kind {
+                OrderKind::Order => order.qty.unwrap_or_else(|| self.default_qty(execution_price)),
+                _ => pos.abs(),
+            };
+            let closed = self.close("", qty.min(pos.abs()), execution_price, &order.id, &order.comment);
+            if closed > 0.0 {
+                if order.kind == OrderKind::Entry {
+                    if self.props.allow_entry_in.is_none_or(|long| long == order.long) {
+                        cursor.reversal = Some((order.clone(), execution_price));
+                    }
+                } else if qty - closed > 1e-12 {
+                    let mut rest = order.clone();
+                    rest.qty = Some(qty - closed);
+                    cursor.reversal = Some((rest, execution_price));
+                }
+                return closed;
+            }
+        }
+        self.execute_at_price(order, execution_price)
+    }
+
     fn track_extremes(&mut self, eq: f64) {
         let (peak, trough) = match (self.peak, self.trough) {
             (Some(p), Some(t)) => (p.max(eq), t.min(eq)),
@@ -1171,8 +1507,12 @@ impl Broker {
                 self.pending = rest;
             }
         }
-        self.last_close = bar.close;
         self.check_risk(bar.close);
+        self.record_close(bar);
+    }
+
+    fn record_close(&mut self, bar: &Bar) {
+        self.last_close = bar.close;
         let eq = self.equity_at(bar.close);
         // Intrabar extremes of equity: open positions at the bar's high/low.
         let (a, b) = (self.equity_at(bar.high), self.equity_at(bar.low));
@@ -1199,6 +1539,7 @@ mod tests {
             commission_value: 1.5,
             slippage: 3,
             process_orders_on_close: true,
+            calc_on_order_fills: true,
             mintick: 0.5,
             margin_long: 50.0,
             margin_short: 25.0,
@@ -1211,7 +1552,7 @@ mod tests {
         assert_eq!(Props::from_json(&p.to_json(), 0.5, 0.0), p);
         let base = Props::default();
         let d = p.diff_json(&base);
-        assert_eq!(d.as_object().map(|o| o.len()), Some(12));
+        assert_eq!(d.as_object().map(|o| o.len()), Some(13));
         let mut q = base.clone();
         q.slippage = 2;
         assert_eq!(q.diff_json(&base), serde_json::json!({"slippage": 2}));

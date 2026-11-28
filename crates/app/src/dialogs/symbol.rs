@@ -19,10 +19,14 @@ pub enum Pick {
     Compare {
         mode: crate::chart::CompareMode,
     },
+    /// An indicator's symbol input: the pick goes to `picked`.
+    Input,
 }
 
 pub struct SymbolSearch {
     pub purpose: Pick,
+    /// What was picked, for `Pick::Input`.
+    pub picked: Option<Symbol>,
     pub query: String,
     pub results: Vec<Symbol>,
     pub seq: u64,
@@ -121,6 +125,7 @@ impl SymbolSearch {
     pub fn new(query: &str) -> SymbolSearch {
         SymbolSearch {
             purpose: Pick::Chart,
+            picked: None,
             query: query.to_string(),
             results: opentern_core::starter_watchlist(),
             seq: 0,
@@ -159,6 +164,14 @@ impl SymbolSearch {
         }
     }
 
+    /// Symbol search for an indicator's symbol input.
+    pub fn for_input() -> SymbolSearch {
+        SymbolSearch {
+            purpose: Pick::Input,
+            ..SymbolSearch::new("")
+        }
+    }
+
     pub fn show(&mut self, ui: &mut Ui, app: &mut App, t: &Theme) -> Done {
         let mut done = Done::Keep;
         let mut pick: Option<Symbol> = None;
@@ -166,6 +179,7 @@ impl SymbolSearch {
             Pick::Chart => tr("Symbol search"),
             Pick::Watchlist => tr("Add to watchlist"),
             Pick::Compare { .. } => tr("Compare symbol"),
+            Pick::Input => tr("Symbol search"),
         };
         if frame(ui, t, title, 700.0, |ui| {
             // Keys first, so the text field doesn't eat them.
@@ -536,7 +550,7 @@ impl SymbolSearch {
                                     c,
                                 );
                             }
-                            let d = s.precision().max(if last < 1.0 { 4 } else { 2 });
+                            let d = s.precision_at(last).max(if last < 1.0 { 4 } else { 2 });
                             let pr = p.text(
                                 pos2(change_x - CHANGE_W, y),
                                 Align2::RIGHT_CENTER,
@@ -598,6 +612,7 @@ impl SymbolSearch {
                 Pick::Chart => app.open_symbol_synced(s),
                 Pick::Watchlist => app.add_to_watchlist(s),
                 Pick::Compare { mode } => app.add_compare(s, mode),
+                Pick::Input => self.picked = Some(s),
             }
             done = Done::Close;
         }

@@ -334,7 +334,7 @@ impl Lang for Luau {
             .map(|(f, p)| format!("bar.{f} = {p}; "))
             .collect();
         let wrapper = format!(
-            "local bar = {{}}\nreturn function({})\n  {sets}\n  on_bar(bar)\n  return type(state) ~= \"table\" or next(state) ~= nil\nend",
+            "local bar = {{}}\nreturn function({}, extra)\n  {sets}\n  if extra then for k, v in extra do bar[k] = v end end\n  on_bar(bar)\n  return type(state) ~= \"table\" or next(state) ~= nil\nend",
             params.join(", ")
         );
         let step: Function = lua
@@ -362,12 +362,21 @@ struct LuauVm {
 }
 
 impl Vm for LuauVm {
-    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3]) -> Result<(), ScriptError> {
+    fn on_bar(&mut self, nums: &[f64; 11], flags: &[bool; 3], extra: &[(String, f64)]) -> Result<(), ScriptError> {
         self.deadline
             .store(now_ns() + BAR_BUDGET.as_nanos() as u64, Ordering::Relaxed);
+        let extra = if extra.is_empty() {
+            None
+        } else {
+            let t = self.lua.create_table().map_err(|e| error_of(&e, &self.file))?;
+            for (k, v) in extra {
+                t.raw_set(k.as_str(), *v).map_err(|e| error_of(&e, &self.file))?;
+            }
+            Some(t)
+        };
         let args = (
             nums[0], nums[1], nums[2], nums[3], nums[4], nums[5], nums[6], nums[7], nums[8], nums[9], nums[10],
-            flags[0], flags[1], flags[2],
+            flags[0], flags[1], flags[2], extra,
         );
         self.has_state = self.step.call::<bool>(args).map_err(|e| error_of(&e, &self.file))?;
         Ok(())

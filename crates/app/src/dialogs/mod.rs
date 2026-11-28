@@ -14,14 +14,18 @@ mod symbol;
 
 use crate::app::App;
 use crate::theme::{self, Theme};
-use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, vec2};
+use egui::{Align, CornerRadius, Id, Layout, Margin, Ui, pos2, vec2};
 
 pub use alert::AlertForm;
 pub use chart_settings::ChartSettings;
 pub mod drawing;
 pub use drawing::DrawingSettings;
 pub use indicators::Indicators;
+#[cfg(test)]
+pub(crate) use indicators::{Entry, add_entry};
 pub use study::StudySettings;
+#[cfg(test)]
+pub(crate) use study::link_choices;
 pub use symbol::SymbolSearch;
 
 pub enum Modal {
@@ -54,7 +58,8 @@ pub enum Modal {
 pub enum TemplateKind {
     Chart,
     Indicators,
-    Drawing(String),
+    /// A drawing tool's named styles, distinct from its default style.
+    Drawing(crate::chart::draw::Tool),
 }
 
 impl TemplateKind {
@@ -62,7 +67,7 @@ impl TemplateKind {
         match self {
             TemplateKind::Chart => "chart".into(),
             TemplateKind::Indicators => "indicators".into(),
-            TemplateKind::Drawing(id) => format!("drawing:{id}"),
+            TemplateKind::Drawing(tool) => format!("drawing:{}", tool.key()),
         }
     }
 }
@@ -148,6 +153,18 @@ pub fn sheen(ui: &Ui, t: &Theme, slots: &[egui::layers::ShapeIdx], frame: egui::
 pub fn sheen_slots(ui: &Ui) -> Vec<egui::layers::ShapeIdx> {
     // 24 bands, then the border drawn again over them.
     (0..25).map(|_| ui.painter().add(egui::Shape::Noop)).collect()
+}
+
+impl Modal {
+    /// The symbol search on screen: the dialog itself, or one an
+    /// indicator's settings opened for a symbol input.
+    pub(crate) fn search_mut(&mut self) -> Option<&mut SymbolSearch> {
+        match self {
+            Modal::Symbol(s) => Some(s),
+            Modal::Study(s) => s.picking.as_mut().map(|(_, s)| s.as_mut()),
+            _ => None,
+        }
+    }
 }
 
 impl App {
@@ -427,16 +444,17 @@ pub fn form_row(ui: &mut Ui, t: &Theme, label: &str, control: impl FnOnce(&mut U
 /// [`form_row`] with a label column `w` wide.
 pub fn form_row_w(ui: &mut Ui, t: &Theme, w: f32, label: &str, control: impl FnOnce(&mut Ui)) {
     ui.horizontal(|ui| {
+        // A long label wraps inside its column rather than running under
+        // the control.
+        let galley = ui
+            .painter()
+            .layout(label.to_string(), theme::regular(13.0), t.text2, w - 12.0);
         // As tall as a field or a dropdown, so the label sits on the
         // control's centre line.
-        let (r, _) = ui.allocate_exact_size(vec2(w, 34.0), egui::Sense::hover());
-        ui.painter().text(
-            r.left_center(),
-            egui::Align2::LEFT_CENTER,
-            label,
-            theme::regular(13.0),
-            t.text2,
-        );
+        let h = (galley.size().y + 8.0).max(34.0);
+        let (r, _) = ui.allocate_exact_size(vec2(w, h), egui::Sense::hover());
+        ui.painter()
+            .galley(pos2(r.left(), r.center().y - galley.size().y / 2.0), galley, t.text2);
         control(ui);
     });
 }

@@ -569,7 +569,7 @@ impl Fly {
             p.text(
                 pos2(r.left() + 12.0, y),
                 Align2::LEFT_CENTER,
-                crate::format::price(*last, s.precision()),
+                crate::format::price(*last, s.precision_at(*last)),
                 theme::regular(11.5),
                 motion::with_alpha(t.text2, a),
             );
@@ -817,7 +817,7 @@ fn first_chart(
                         p.text(
                             pos2(r.left() + 12.0, y),
                             Align2::LEFT_CENTER,
-                            crate::format::price(*last, s.precision()),
+                            crate::format::price(*last, s.precision_at(*last)),
                             theme::regular(11.5),
                             t.text2,
                         );

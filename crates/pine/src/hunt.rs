@@ -2089,9 +2089,9 @@ fn background_offsets_to_the_left() {
 
 #[test]
 fn what_is_not_simulated_is_said() {
-    let src = "//@version=6\nstrategy(\"T\", calc_on_order_fills = true)\nplot(close)";
+    let src = "//@version=6\nstrategy(\"T\", use_bar_magnifier = true)\nplot(close)";
     let st = compile(src, "t", Env::default()).unwrap().study(&Inputs::default());
-    assert!(st.logs()[0].contains("calc_on_order_fills"));
+    assert!(st.logs()[0].contains("use_bar_magnifier"));
 }
 
 #[test]

@@ -89,6 +89,9 @@ msgstr "1 минута"
 msgid "1 month"
 msgstr "1 месяц"
 
+msgid "1 more trade"
+msgstr "Ещё 1 сделка"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "В 1 скрипте есть несохранённые изменения. Сохраните его, чтобы включить их."
 
@@ -136,6 +139,9 @@ msgstr "Доходность 6М"
 
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Скрипт Python запускается в Python вашей системы. В зависимости от кода он может читать и менять ваши файлы и выходить в интернет, в том числе код, который пишет для вас агент. Запускайте только те, которым доверяете."
+
+msgid "A deeper equity chart"
+msgstr "Более подробный график капитала"
 
 msgid "A fast, local-first market analysis terminal."
 msgstr "Быстрый локальный терминал для анализа рынков."
@@ -256,14 +262,17 @@ msgstr "Активно"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Сначала добавьте стратегию на график. Стратегия — это скрипт, который начинается с strategy(…)."
 
-msgid "Add alert on {0} at {1}"
-msgstr ""
-
 msgid "Add alert on {0} at {1}..."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Создать оповещение по {ticker} на {0}"
+
 msgid "Add filter"
 msgstr "Добавить фильтр"
+
+msgid "Add level"
+msgstr "Добавить уровень"
 
 msgid "Add section"
 msgstr "Добавить раздел"
@@ -332,6 +341,9 @@ msgstr "Оповещение"
 
 msgid "Alert created"
 msgstr ""
+
+msgid "Alert or line from the price scale"
+msgstr "Оповещение или линия от ценовой шкалы"
 
 msgid "Alerts"
 msgstr "Оповещения"
@@ -575,9 +587,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "ВСТРОЕННЫЕ ИНДИКАТОРЫ"
-
 msgid "Background"
 msgstr "Фон"
 
@@ -727,6 +736,9 @@ msgstr "Кисть"
 msgid "Buddha's Birthday"
 msgstr "День рождения Будды"
 
+msgid "Built-in indicators"
+msgstr "Встроенные индикаторы"
+
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Встроенный код, только чтение. Сделайте копию, чтобы изменить и запустить его."
 
@@ -781,6 +793,9 @@ msgstr ""
 
 msgid "CSV"
 msgstr ""
+
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "С 1 марта 2016 года рассчитывается по более широкому кругу сделок; более ранние значения — в том виде, в каком были опубликованы."
 
 msgid "Calendar"
 msgstr "Календарь"
@@ -966,6 +981,9 @@ msgstr "Изм.% сегодня"
 msgid "Children's Day"
 msgstr "День детей"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Выбирайте уровни Fib кнопкой «Уровни» на его панели и сохраняйте стиль любого рисунка как шаблон."
+
 msgid "Choose a scripts folder"
 msgstr "Выберите папку скриптов"
 
@@ -1034,6 +1052,9 @@ msgstr "Очистка…"
 
 msgid "Click a bar to start from it"
 msgstr "Щёлкните бар, чтобы начать с него"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "Нажмите + у ценовой шкалы, чтобы добавить оповещение или горизонтальную линию на этой цене."
 
 msgid "Close"
 msgstr "Закрыть"
@@ -1172,6 +1193,9 @@ msgstr ""
 
 msgid "Corpus Christi"
 msgstr "Праздник Тела Христова"
+
+msgid "Correlation Coefficient"
+msgstr "Коэффициент корреляции"
 
 msgid "Costs"
 msgstr "Издержки"
@@ -1586,6 +1610,9 @@ msgstr "Подсветка нисходящего тренда"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "Проведите по графику капитала в отчёте о стратегии, чтобы увидеть прибыль, просадку и сделки за отрезок. А также проценты, логарифмическая шкала и свои цвета."
+
 msgid "Drag to move"
 msgstr ""
 
@@ -1593,7 +1620,7 @@ msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Тяните для масштаба · двойной щелчок — вместить · правый щелчок — параметры"
 
 msgid "Draw horizontal line at {0}"
-msgstr ""
+msgstr "Провести горизонтальную линию на {0}"
 
 msgid "Draw horizontal ray at {0}"
 msgstr ""
@@ -1657,9 +1684,6 @@ msgstr ""
 
 msgid "EV/EBITDA"
 msgstr ""
-
-msgid "EXPLORER"
-msgstr "ПРОВОДНИК"
 
 msgid "EXT"
 msgstr ""
@@ -1829,6 +1853,9 @@ msgstr "Истекло"
 
 msgid "Expires"
 msgstr "Истекает"
+
+msgid "Explorer"
+msgstr "Проводник"
 
 msgid "Exponential"
 msgstr "Экспоненциальная"
@@ -2199,6 +2226,16 @@ msgstr "Насколько цена выше или ниже 50-дневной �
 msgid "Hull Moving Average"
 msgstr "Скользящая средняя Хала"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "У Hyperliquid нет баров {0}"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Бессрочные фьючерсы Hyperliquid, а также рынки золота, нефти, валют, индексов и акций. Введите HYPERLIQUID: в поиске символа, чтобы увидеть все."
+
 #, message
 msgid "IBKR doesn't know {0}."
 msgstr "IBKR не знает {0}."
@@ -2272,6 +2309,9 @@ msgstr "Рынки Индии"
 
 msgid "Indian large caps"
 msgstr "Крупные компании Индии"
+
+msgid "Indicator"
+msgstr "Индикатор"
 
 msgid "Indicator inputs"
 msgstr "Параметры индикаторов"
@@ -2609,6 +2649,9 @@ msgstr "Лог"
 
 msgid "Log scale"
 msgstr "Логарифмическая шкала"
+
+msgid "Log scale needs equity above zero"
+msgstr "Для логарифмической шкалы капитал должен быть выше нуля"
 
 msgid "London"
 msgstr "Лондон"
@@ -3103,6 +3146,9 @@ msgstr "Муниципальные выборы (Махараштра)"
 msgid "My plan includes SIP"
 msgstr "Мой тариф включает SIP"
 
+msgid "My scripts"
+msgstr "Мои скрипты"
+
 msgid "NEW SCRIPT HERE"
 msgstr "НОВЫЙ СКРИПТ"
 
@@ -3305,6 +3351,9 @@ msgstr "Ни один прогон не выполнил условия (мал�
 msgid "No script"
 msgstr "Без скрипта"
 
+msgid "No scripts yet"
+msgstr "Скриптов пока нет"
+
 msgid "No scripts yet. Press + to start one."
 msgstr "Скриптов пока нет. Нажмите +, чтобы создать."
 
@@ -3427,9 +3476,6 @@ msgstr "Стакан бессрочных контрактов OKX считае�
 msgid "OPEN LAYOUT"
 msgstr "ОТКРЫТЬ МАКЕТ"
 
-msgid "OUTLINE"
-msgstr "СТРУКТУРА"
-
 msgid "OUTPUT"
 msgstr "ВЫВОД"
 
@@ -3545,6 +3591,9 @@ msgstr "Экспорт Opentern"
 msgid "Opentern in your language"
 msgstr "Opentern на вашем языке"
 
+msgid "Opentern is already open."
+msgstr "Opentern уже открыт."
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern открыт в другом окне. Закройте его и импортируйте."
 
@@ -3619,6 +3668,9 @@ msgstr "P&L вне выборки"
 
 msgid "Out-of-sample bars"
 msgstr "Баров вне выборки"
+
+msgid "Outline"
+msgstr "Структура"
 
 msgid "Output"
 msgstr "Вывод"
@@ -3769,9 +3821,6 @@ msgstr "Результаты"
 
 msgid "Periods"
 msgstr "Периоды"
-
-msgid "Pick a new starting bar"
-msgstr "Выбрать другой начальный бар"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -3930,6 +3979,9 @@ msgstr "Прибыльные окна"
 msgid "Properties"
 msgstr "Свойства"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "Публикуется ФРБ Нью-Йорка около 9:00 по нью-йоркскому времени за предыдущий рабочий день."
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "Применить лучшие параметры к стратегии на графике"
 
@@ -4061,9 +4113,6 @@ msgstr "Прочитать сезонность"
 msgid "Read {0}"
 msgstr "Прочитать {0}"
 
-msgid "Real time"
-msgstr "Реальное время"
-
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Цены Индии в реальном времени со счётом Upstox. Создайте приложение на upstox.com/developer и вставьте его токен доступа (действует до следующего утра)."
 
@@ -4098,6 +4147,9 @@ msgstr "Повторить"
 
 msgid "Refresh"
 msgstr "Обновить"
+
+msgid "Regular"
+msgstr "Обычный"
 
 msgid "Rel volume"
 msgstr "Отн. объём"
@@ -4208,6 +4260,9 @@ msgstr "Сбросить счёт"
 msgid "Reset chart view"
 msgstr ""
 
+msgid "Reset levels"
+msgstr "Сбросить уровни"
+
 msgid "Reset settings"
 msgstr "Сбросить настройки"
 
@@ -4216,6 +4271,9 @@ msgstr "Чтобы сменить валюту, сбросьте счёт"
 
 msgid "Reset the chart view"
 msgstr "Сбросить вид графика"
+
+msgid "Reset to default"
+msgstr "Сбросить по умолчанию"
 
 msgid "Respect for the Aged Day"
 msgstr "День почитания пожилых"
@@ -4319,9 +4377,6 @@ msgstr "СОХРАНЁННЫЕ"
 msgid "SCALE"
 msgstr "ШКАЛА"
 
-msgid "SCRIPTS"
-msgstr "СКРИПТЫ"
-
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: цены со всех бирж США, а не только IEX"
 
@@ -4398,13 +4453,16 @@ msgid "Save chart template"
 msgstr "Сохранить шаблон графика"
 
 msgid "Save drawing template"
-msgstr ""
+msgstr "Сохранить шаблон рисунка"
 
 msgid "Save indicator template"
 msgstr "Сохранить шаблон индикаторов"
 
 msgid "Save layout"
 msgstr "Сохранить макет"
+
+msgid "Save template as"
+msgstr "Сохранить шаблон как"
 
 msgid "Save the results as CSV"
 msgstr "Сохранить результаты в CSV"
@@ -4617,6 +4675,9 @@ msgstr "Показывать POC"
 
 msgid "Show Pearson's R"
 msgstr "Показывать R Пирсона"
+
+msgid "Show all (double-click)"
+msgstr "Показать всё (двойной щелчок)"
 
 msgid "Show favorite drawings toolbar"
 msgstr "Показать панель избранных инструментов"
@@ -4909,6 +4970,9 @@ msgstr "Остановлено."
 msgid "Stop|order"
 msgstr "Стоп"
 
+msgid "Strategy"
+msgstr "Стратегия"
+
 msgid "Strategy Lab"
 msgstr "Лаборатория стратегий"
 
@@ -5037,6 +5101,12 @@ msgstr "Тейк-профит"
 msgid "Target color"
 msgstr ""
 
+msgid "Target {lo}%"
+msgstr "Цель {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "Цель {lo}–{hi}%"
+
 msgid "Teachers' Day"
 msgstr "День учителя"
 
@@ -5062,7 +5132,7 @@ msgid "Telegram chat id"
 msgstr "ID чата Telegram"
 
 msgid "Template"
-msgstr ""
+msgstr "Шаблон"
 
 msgid "Template  {0}"
 msgstr "Шаблон  {0}"
@@ -5117,6 +5187,18 @@ msgstr "Это {0} комбинаций на окно, больше лимита
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "Это {combos} комбинаций, больше лимита сетки {MAX_GRID}. Сузьте диапазоны или выберите случайный или байесовский поиск."
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "Ставка по федеральным фондам публикуется раз в день. Выберите 1D или больше."
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "ФРБ Нью-Йорка не прислал ставок."
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "Не удалось загрузить ставки ФРБ Нью-Йорка."
 
 msgid "The account was reset."
 msgstr "Счёт сброшен."
@@ -5216,6 +5298,9 @@ msgstr "Думает"
 msgid "This device"
 msgstr "Это устройство"
 
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Этот и новые рисунки вернутся к стандартному стилю"
+
 msgid "This file has a Python script"
 msgstr "В этом файле есть скрипт Python"
 
@@ -5228,6 +5313,10 @@ msgstr "Скриптов Python в этом файле: {0}"
 #, message
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "Файл создан более новой версией Opentern. Обновите Opentern, чтобы импортировать его."
+
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "Это версия для разработки: она не обновляется сама."
 
 msgid "This is a library: import it from another script."
 msgstr "Это библиотека: импортируйте её из другого скрипта."
@@ -5326,6 +5415,9 @@ msgstr "Всего сделок"
 
 msgid "Trade #"
 msgstr "Сделка №"
+
+msgid "Trade {0} · {1}"
+msgstr "Сделка {0} · {1}"
 
 msgid "Trades"
 msgstr "Сделки"
@@ -5873,6 +5965,9 @@ msgstr "Годовой"
 msgid "Yes, reset"
 msgstr "Да, сбросить"
 
+msgid "Your Fib levels and drawing templates"
+msgstr "Свои уровни Fib и шаблоны рисунков"
+
 msgid "Your address"
 msgstr "Ваш адрес"
 
@@ -6019,9 +6114,6 @@ msgstr "к SMA 50 %"
 msgid "your other device"
 msgstr "другое устройство"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nКапитал  {1}\nКупить и держать  {2}\nПросадка  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\nНовой цены нет {1}"
 
@@ -6110,6 +6202,9 @@ msgstr "{0} не установлен"
 
 msgid "{0} min"
 msgstr "{0} мин"
+
+msgid "{0} more trades"
+msgstr "Ещё сделок: {0}"
 
 msgid "{0} per contract"
 msgstr "{0} за контракт"
@@ -6309,6 +6404,9 @@ msgstr "Прогонов: {p} из {combos} комбинаций, баров н�
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\nбаров: {nb}, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} б. п."
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · сработало {1}×"

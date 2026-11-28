@@ -35,6 +35,7 @@ pub(crate) fn fuzz_books(v: &serde_json::Value) {
     let _ = parse_pairs(v);
     let _ = parse_coinbase(v);
     let _ = parse_kraken(v);
+    let _ = parse_hyperliquid(v);
     let _ = levels(v);
     let _ = levels(&v["bids"]);
 }
@@ -49,6 +50,28 @@ fn parse_pairs(v: &serde_json::Value) -> Book {
 fn parse_coinbase(v: &serde_json::Value) -> Book {
     // Rows are [price, size, orders].
     parse_pairs(v)
+}
+
+/// Hyperliquid's `l2Book`: `{"levels":[[bids…],[asks…]]}`, each level
+/// `{"px","sz","n"}`.
+fn parse_hyperliquid(v: &serde_json::Value) -> Book {
+    let side = |i: usize| -> Vec<(f64, f64)> {
+        v["levels"][i]
+            .as_array()
+            .map(|rows| {
+                rows.iter()
+                    .filter_map(|r| {
+                        let p = provider::num(&r["px"])?;
+                        (p > 0.0).then_some((p, provider::num(&r["sz"])?))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    Book {
+        bids: side(0),
+        asks: side(1),
+    }
 }
 
 fn parse_kraken(v: &serde_json::Value) -> Result<Book> {
@@ -136,6 +159,7 @@ pub fn book(sym: &Symbol, last: f64, demo: bool) -> Result<Book> {
                 &format!("https://api.kraken.com/0/public/Depth?pair={pair}&count=50"),
             )?)?
         }
+        "HYPERLIQUID" => parse_hyperliquid(&crate::hyperliquid::Hyperliquid::default().book(sym)?),
         _ => {
             return Err(Error::Bad(
                 "There's no free order book for this market. The DOM works for crypto exchanges.".into(),
@@ -150,6 +174,19 @@ pub fn book(sym: &Symbol, last: f64, demo: bool) -> Result<Book> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_hyperliquid_books() {
+        let v: serde_json::Value = serde_json::from_str(
+            r#"{"coin":"BTC","time":1,"levels":[[{"px":"97000","sz":"1.5","n":3},{"px":"96999","sz":"0.2","n":1}],
+                [{"px":"97001","sz":"0.4","n":2}]]}"#,
+        )
+        .unwrap();
+        let b = parse_hyperliquid(&v);
+        assert_eq!(b.bids, vec![(97000.0, 1.5), (96999.0, 0.2)]);
+        assert_eq!(b.asks, vec![(97001.0, 0.4)]);
+        assert!(parse_hyperliquid(&serde_json::Value::Null).bids.is_empty());
+    }
 
     #[test]
     fn parses_exchange_books() {

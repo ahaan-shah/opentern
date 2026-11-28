@@ -699,7 +699,7 @@ impl App {
                     };
                     let as_text = v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string());
                     let val = match &spec.kind {
-                        InputKind::Int { min, max } => v
+                        InputKind::Int { min, max, .. } => v
                             .as_f64()
                             .or_else(|| as_text.parse().ok())
                             .map(|x| In::Int((x.round() as i64).clamp(*min, *max))),
@@ -751,6 +751,7 @@ impl App {
                             InputKind::Source => json!("source: open, high, low, close, hl2, hlc3, ohlc4, hlcc4"),
                             InputKind::Choice(o) => json!({ "one_of": o }),
                             InputKind::Color => json!("colour #RRGGBBAA"),
+                            InputKind::Symbol { .. } => json!("symbol, e.g. NASDAQ:AAPL or BINANCE:BTCUSDT"),
                             _ => json!("text"),
                         };
                         json!({"id": s.id, "title": s.title, "value": cur, "kind": kind})

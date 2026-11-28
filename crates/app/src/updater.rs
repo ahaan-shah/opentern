@@ -113,6 +113,14 @@ impl Updater {
         if self.busy() || matches!(self.phase, Phase::Ready(_)) {
             return;
         }
+        // A development copy is replaced by the next dev build, never by a
+        // release.
+        if opentern_core::dev_copy() {
+            if manual {
+                self.phase = Phase::Failed(msg!("This is a development copy: it doesn't update itself.").to_string());
+            }
+            return;
+        }
         self.manual = manual;
         self.started = ctx.input(|i| i.time);
         self.held = None;
@@ -216,6 +224,8 @@ impl Updater {
         }
         let mut cmd = std::process::Command::new(exe);
         cmd.args(std::env::args_os().skip(1));
+        // Waits for this window to let go of the workspace.
+        cmd.env(crate::instance::RELAUNCH, "1");
         if self.relaunch_only {
             // A screenshot's instructions are for the run that got them.
             cmd.env_remove("OPENTERN_STILL");

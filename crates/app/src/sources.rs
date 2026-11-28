@@ -3,6 +3,38 @@
 //! ports). The editor opens these read-only, like TradingView's "Source
 //! code", and can copy one into the scripts folder.
 
+/// A built-in written in Pine and shipped with the app, at the path
+/// `@opentern/<file>` (never a real folder: the pipeline reads its source
+/// from the app, not the disk). It runs like a
+/// script (it needs `request.security`, which only scripts have), and the
+/// Indicators dialog lists it with the other built-ins.
+pub struct Bundled {
+    pub file: &'static str,
+    pub name: &'static str,
+    pub category: opentern_series::study::Category,
+    pub source: &'static str,
+}
+
+pub const BUNDLED: &[Bundled] = &[Bundled {
+    file: "@opentern/correlation_coefficient.pine",
+    name: "Correlation Coefficient",
+    category: opentern_series::study::Category::Oscillators,
+    source: include_str!("../assets/scripts/correlation_coefficient.pine"),
+}];
+
+/// A bundled script's source, by its path (`@opentern/…`).
+pub fn bundled_source(file: &str) -> Option<&'static str> {
+    BUNDLED.iter().find(|b| b.file == file).map(|b| b.source)
+}
+
+/// A script's source: bundled, else from `dir`.
+pub fn script_source(dir: &std::path::Path, file: &str) -> std::io::Result<String> {
+    match bundled_source(file) {
+        Some(s) => Ok(s.to_string()),
+        None => std::fs::read_to_string(dir.join(file)),
+    }
+}
+
 /// (built-in id, Pine source). Only ids that name a built-in are used.
 pub const SOURCES: &[(&str, &str)] = &[
     ("ad", include_str!("../../pine/tests/corpus/ad.pine")),

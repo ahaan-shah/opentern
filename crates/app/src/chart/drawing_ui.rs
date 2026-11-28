@@ -30,8 +30,7 @@ pub struct DrawUi {
     zoom_from: Option<Pos2>,
     /// The quick measure on screen (the Measure tool, or Shift+drag).
     measure: Option<Measure>,
-    /// The tool finished a drawing (the app switches back to the cross
-    /// unless "stay in drawing mode" is on).
+    /// The tool finished its job (the Zoom tool then puts itself down).
     pub finished: bool,
 }
 
@@ -44,6 +43,11 @@ pub struct Measure {
 }
 
 impl DrawUi {
+    /// A drawing is being placed or dragged, or a measure is under way.
+    pub fn busy(&self) -> bool {
+        self.placing.is_some() || self.drag.is_some() || self.measure.is_some_and(|m| !m.done)
+    }
+
     pub fn measure(&self) -> Option<Measure> {
         self.measure
     }

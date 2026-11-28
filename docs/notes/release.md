@@ -54,7 +54,11 @@ Moved out of `CLAUDE.md` (Nov 2026) to keep the briefing short. Keep it current:
 - **`install.sh`**: curl with `--connect-timeout 10 --retry 4 --speed-limit
   1024 --speed-time 30`; a download or unpack that can't be saved in
   `$TMPDIR` (a full `/tmp`, or a per-user quota) moves to the cache folder;
-  curl's exit codes are said in words. **`install.ps1`**: 60 s per request,
+  curl's exit codes are said in words. **`install.ps1`**: the same logo, bar
+  and ticks when `$Host.UI.SupportsVirtualTerminal` (ASCII source: the logo's
+  characters come from `[char]` codes, since 5.1 reads a saved copy in the
+  code page; never write `` `e `` before a word, it's ESC in PowerShell 7);
+  plain lines and a thrown error otherwise. 30 s timeouts per request,
   four tries, `%LOCALAPPDATA%` when the temp folder is full, `SHA256SUMS`
   required. CI's `installers` job runs both for real on every push (Linux with
   a 1 MB temp folder).
@@ -89,7 +93,10 @@ must match `install.sh` / `install.ps1` and the README.
    = … }` path dep in `crates/*/Cargo.toml`, README's `OPENTERN_VERSION=`
    example; `cargo update -w`.
 2. **What's new notes**: an entry for the version at the top of
-   `whatsnew::RELEASES` (a test fails without it). Then the
+   `whatsnew::RELEASES` (a test fails without it). A small release gets up
+   to 4 points; a big one gets more, one for each headline feature (the
+   maintainer, Nov 2026: 0.3.8's four left out Indicators on indicators and
+   the Fed funds rate). Order them by how big and useful each is. Then the
    `CHANGELOG.md` entry (`## X.Y.Z (date)`; if there's a `## Unreleased`
    section, rename it and check it covers everything since the last tag): a short plain summary, then New /
    Changed / Fixed / Removed, each item leading with a bold user-facing result.

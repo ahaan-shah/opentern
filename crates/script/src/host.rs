@@ -245,7 +245,7 @@ pub fn color_fn(name: &str, a: &[Val]) -> Result<Val, String> {
 
 #[derive(Clone, Debug)]
 pub enum InKind {
-    Int { min: i64, max: i64 },
+    Int { min: i64, max: i64, step: i64 },
     Float { min: f64, max: f64, step: f64 },
     Bool,
     Text,
@@ -397,6 +397,7 @@ impl Decl {
                 InKind::Int {
                     min: opts.opt_num("min").map(|v| v as i64).unwrap_or(-1_000_000_000),
                     max: opts.opt_num("max").map(|v| v as i64).unwrap_or(1_000_000_000),
+                    step: opts.opt_num("step").map(|v| v as i64).filter(|s| *s > 0).unwrap_or(1),
                 },
                 Value::Int(if dflt.num().is_nan() { 0 } else { dflt.num() as i64 }),
             ),
@@ -473,7 +474,11 @@ impl Decl {
                 id: leak(i.id.clone()),
                 title: leak(i.title.clone()),
                 kind: match &i.kind {
-                    InKind::Int { min, max } => InputKind::Int { min: *min, max: *max },
+                    InKind::Int { min, max, step } => InputKind::Int {
+                        min: *min,
+                        max: *max,
+                        step: *step,
+                    },
                     InKind::Float { min, max, step } => InputKind::Float {
                         min: *min,
                         max: *max,

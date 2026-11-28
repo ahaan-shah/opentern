@@ -98,7 +98,7 @@ Magpie's themes, fonts, spacing, motion and hover rules provide the look. Sketch
 
 - **Left drawing toolbar.** Grouped tools with flyouts that remember the last tool used
   (lines, Fib/Gann, patterns, forecasting/measure, shapes/brushes, text/notes, icons). At
-  the bottom: measure, zoom, magnet (weak/strong), stay-in-drawing mode, lock all, hide
+  the bottom: measure, zoom, magnet (weak/strong), lock all, hide
   all, remove. There's also a favorites floating toolbar.
 - **Top bar.** Symbol search, compare/overlay, interval (favorites shown inline, the rest
   in a menu, custom intervals allowed), chart type, Indicators (`/`), indicator templates,

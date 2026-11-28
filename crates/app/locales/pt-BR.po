@@ -89,6 +89,9 @@ msgstr "1 minuto"
 msgid "1 month"
 msgstr "1 mês"
 
+msgid "1 more trade"
+msgstr "Mais 1 operação"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 script tem alterações não salvas. Salve-o para incluí-las."
 
@@ -136,6 +139,9 @@ msgstr "Retorno 6M"
 
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Um script Python roda no Python do seu sistema. Dependendo do código, ele pode ler e alterar seus arquivos e acessar a internet, inclusive código que um agente escreva para você. Rode só os que você confia."
+
+msgid "A deeper equity chart"
+msgstr "Um gráfico de capital mais completo"
 
 msgid "A fast, local-first market analysis terminal."
 msgstr "Um terminal de análise de mercado rápido e local."
@@ -256,14 +262,17 @@ msgstr "Ativo"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "Adicione primeiro uma estratégia ao gráfico. Uma estratégia é um script que começa com strategy(…)."
 
-msgid "Add alert on {0} at {1}"
-msgstr ""
-
 msgid "Add alert on {0} at {1}..."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "Criar alerta de {ticker} em {0}"
+
 msgid "Add filter"
 msgstr "Adicionar filtro"
+
+msgid "Add level"
+msgstr "Adicionar nível"
 
 msgid "Add section"
 msgstr "Adicionar seção"
@@ -332,6 +341,9 @@ msgstr "Alerta"
 
 msgid "Alert created"
 msgstr ""
+
+msgid "Alert or line from the price scale"
+msgstr "Alerta ou linha a partir da escala de preços"
 
 msgid "Alerts"
 msgstr "Alertas"
@@ -575,9 +587,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "INDICADORES INTEGRADOS"
-
 msgid "Background"
 msgstr "Fundo"
 
@@ -727,6 +736,9 @@ msgstr "Pincel"
 msgid "Buddha's Birthday"
 msgstr "Aniversário de Buda"
 
+msgid "Built-in indicators"
+msgstr "Indicadores integrados"
+
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "Código integrado, somente leitura. Faça uma cópia para alterar e rodar."
 
@@ -781,6 +793,9 @@ msgstr ""
 
 msgid "CSV"
 msgstr ""
+
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "Calculada com um conjunto mais amplo de operações desde 1º de março de 2016; os valores anteriores são os publicados na época."
 
 msgid "Calendar"
 msgstr "Calendário"
@@ -966,6 +981,9 @@ msgstr "Var% hoje"
 msgid "Children's Day"
 msgstr "Dia das Crianças"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Escolha os níveis de um Fib em Níveis na barra dele e salve o estilo de qualquer desenho como modelo."
+
 msgid "Choose a scripts folder"
 msgstr "Escolha uma pasta de scripts"
 
@@ -1034,6 +1052,9 @@ msgstr "Limpando…"
 
 msgid "Click a bar to start from it"
 msgstr "Clique em uma barra para começar dela"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "Clique no + junto à escala de preços para adicionar um alerta ou uma linha horizontal nesse preço."
 
 msgid "Close"
 msgstr "Fechar"
@@ -1172,6 +1193,9 @@ msgstr ""
 
 msgid "Corpus Christi"
 msgstr "Corpus Christi"
+
+msgid "Correlation Coefficient"
+msgstr "Coeficiente de correlação"
 
 msgid "Costs"
 msgstr "Custos"
@@ -1586,6 +1610,9 @@ msgstr "Destaque de tendência de baixa"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "Arraste sobre o gráfico de capital do Relatório da estratégia para ver o lucro, o drawdown e as operações de um trecho. Também em porcentagem, escala logarítmica e com as suas cores."
+
 msgid "Drag to move"
 msgstr ""
 
@@ -1593,7 +1620,7 @@ msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "Arraste para escalar · clique duplo para ajustar · clique direito para opções"
 
 msgid "Draw horizontal line at {0}"
-msgstr ""
+msgstr "Desenhar linha horizontal em {0}"
 
 msgid "Draw horizontal ray at {0}"
 msgstr ""
@@ -1657,9 +1684,6 @@ msgstr ""
 
 msgid "EV/EBITDA"
 msgstr ""
-
-msgid "EXPLORER"
-msgstr "EXPLORADOR"
 
 msgid "EXT"
 msgstr ""
@@ -1829,6 +1853,9 @@ msgstr "Expirado"
 
 msgid "Expires"
 msgstr "Expira"
+
+msgid "Explorer"
+msgstr "Explorador"
 
 msgid "Exponential"
 msgstr "Exponencial"
@@ -2199,6 +2226,16 @@ msgstr "A que distância o preço está da média de 50 dias"
 msgid "Hull Moving Average"
 msgstr "Média móvel de Hull"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid não tem barras de {0}"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Os perpétuos da Hyperliquid e os mercados de ouro, petróleo, câmbio, índices e ações dela. Digite HYPERLIQUID: na busca de símbolos para ver todos."
+
 #, message
 msgid "IBKR doesn't know {0}."
 msgstr "A IBKR não conhece {0}."
@@ -2272,6 +2309,9 @@ msgstr "Mercados indianos"
 
 msgid "Indian large caps"
 msgstr "Grandes empresas indianas"
+
+msgid "Indicator"
+msgstr "Indicador"
 
 msgid "Indicator inputs"
 msgstr "Parâmetros do indicador"
@@ -2609,6 +2649,9 @@ msgstr "Log"
 
 msgid "Log scale"
 msgstr "Escala logarítmica"
+
+msgid "Log scale needs equity above zero"
+msgstr "A escala logarítmica precisa de capital acima de zero"
 
 msgid "London"
 msgstr "Londres"
@@ -3103,6 +3146,9 @@ msgstr "Eleições municipais (Maharashtra)"
 msgid "My plan includes SIP"
 msgstr "Meu plano inclui SIP"
 
+msgid "My scripts"
+msgstr "Meus scripts"
+
 msgid "NEW SCRIPT HERE"
 msgstr "NOVO SCRIPT AQUI"
 
@@ -3305,6 +3351,9 @@ msgstr "Nenhum teste atendeu às condições (poucas operações, ou o script fa
 msgid "No script"
 msgstr "Sem script"
 
+msgid "No scripts yet"
+msgstr "Nenhum script ainda"
+
 msgid "No scripts yet. Press + to start one."
 msgstr "Nenhum script ainda. Aperte + para começar um."
 
@@ -3427,9 +3476,6 @@ msgstr "O livro de ofertas dos perpétuos da OKX conta contratos, por isso não 
 msgid "OPEN LAYOUT"
 msgstr "ABRIR LAYOUT"
 
-msgid "OUTLINE"
-msgstr "ESTRUTURA"
-
 msgid "OUTPUT"
 msgstr "SAÍDA"
 
@@ -3545,6 +3591,9 @@ msgstr "Exportação do Opentern"
 msgid "Opentern in your language"
 msgstr "Opentern no seu idioma"
 
+msgid "Opentern is already open."
+msgstr "O Opentern já está aberto."
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "O Opentern está aberto em outra janela. Feche-a e depois importe."
 
@@ -3619,6 +3668,9 @@ msgstr "L&P fora da amostra"
 
 msgid "Out-of-sample bars"
 msgstr "Barras fora da amostra"
+
+msgid "Outline"
+msgstr "Estrutura"
 
 msgid "Output"
 msgstr "Saída"
@@ -3769,9 +3821,6 @@ msgstr "Desempenho"
 
 msgid "Periods"
 msgstr "Períodos"
-
-msgid "Pick a new starting bar"
-msgstr "Escolher outra barra inicial"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -3930,6 +3979,9 @@ msgstr "Janelas lucrativas"
 msgid "Properties"
 msgstr "Propriedades"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "Publicada pelo Fed de Nova York por volta das 9h, horário de Nova York, para o dia útil anterior."
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "Levar os melhores parâmetros à estratégia do gráfico"
 
@@ -4061,9 +4113,6 @@ msgstr "Ler a sazonalidade"
 msgid "Read {0}"
 msgstr "Ler {0}"
 
-msgid "Real time"
-msgstr "Tempo real"
-
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Preços indianos em tempo real com uma conta Upstox. Crie um app em upstox.com/developer e cole o token de acesso (vale até a manhã seguinte)."
 
@@ -4098,6 +4147,9 @@ msgstr "Refazer"
 
 msgid "Refresh"
 msgstr "Atualizar"
+
+msgid "Regular"
+msgstr "Normal"
 
 msgid "Rel volume"
 msgstr "Volume rel."
@@ -4208,6 +4260,9 @@ msgstr "Redefinir conta"
 msgid "Reset chart view"
 msgstr ""
 
+msgid "Reset levels"
+msgstr "Restaurar níveis"
+
 msgid "Reset settings"
 msgstr "Redefinir configurações"
 
@@ -4216,6 +4271,9 @@ msgstr "Redefina a conta para mudar a moeda"
 
 msgid "Reset the chart view"
 msgstr "Redefinir a visão do gráfico"
+
+msgid "Reset to default"
+msgstr "Restaurar padrão"
 
 msgid "Respect for the Aged Day"
 msgstr "Dia do Respeito aos Idosos"
@@ -4319,9 +4377,6 @@ msgstr "SALVOS"
 msgid "SCALE"
 msgstr "ESCALA"
 
-msgid "SCRIPTS"
-msgstr "SCRIPTS"
-
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: preços de todas as bolsas dos EUA, não só IEX"
 
@@ -4398,13 +4453,16 @@ msgid "Save chart template"
 msgstr "Salvar modelo de gráfico"
 
 msgid "Save drawing template"
-msgstr ""
+msgstr "Salvar modelo de desenho"
 
 msgid "Save indicator template"
 msgstr "Salvar modelo de indicadores"
 
 msgid "Save layout"
 msgstr "Salvar layout"
+
+msgid "Save template as"
+msgstr "Salvar modelo como"
 
 msgid "Save the results as CSV"
 msgstr "Salvar os resultados em CSV"
@@ -4617,6 +4675,9 @@ msgstr "Mostrar POC"
 
 msgid "Show Pearson's R"
 msgstr "Mostrar R de Pearson"
+
+msgid "Show all (double-click)"
+msgstr "Mostrar tudo (clique duplo)"
 
 msgid "Show favorite drawings toolbar"
 msgstr "Mostrar barra de ferramentas favoritas"
@@ -4909,6 +4970,9 @@ msgstr "Parado."
 msgid "Stop|order"
 msgstr "Stop"
 
+msgid "Strategy"
+msgstr "Estratégia"
+
 msgid "Strategy Lab"
 msgstr "Laboratório de estratégias"
 
@@ -5037,6 +5101,12 @@ msgstr "Realizar lucro"
 msgid "Target color"
 msgstr ""
 
+msgid "Target {lo}%"
+msgstr "Meta {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "Meta {lo}–{hi}%"
+
 msgid "Teachers' Day"
 msgstr "Dia dos Professores"
 
@@ -5062,7 +5132,7 @@ msgid "Telegram chat id"
 msgstr "ID do chat do Telegram"
 
 msgid "Template"
-msgstr ""
+msgstr "Modelo"
 
 msgid "Template  {0}"
 msgstr "Modelo  {0}"
@@ -5117,6 +5187,18 @@ msgstr "São {0} combinações por janela, mais que as {1} da grade. Reduza as f
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "São {combos} combinações, mais que as {MAX_GRID} da grade. Reduza as faixas ou use Aleatória ou Bayesiana."
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "A taxa dos fed funds é publicada uma vez por dia. Escolha 1D ou mais."
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "O Fed de Nova York não enviou taxas."
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "As taxas do Fed de Nova York não carregaram."
 
 msgid "The account was reset."
 msgstr "A conta foi redefinida."
@@ -5216,6 +5298,9 @@ msgstr "Pensando"
 msgid "This device"
 msgstr "Este dispositivo"
 
+msgid "This drawing and new ones go back to the standard style"
+msgstr "Este desenho e os novos voltam ao estilo padrão"
+
 msgid "This file has a Python script"
 msgstr "Este arquivo tem um script Python"
 
@@ -5228,6 +5313,10 @@ msgstr "Este arquivo tem {0} scripts Python"
 #, message
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "Este arquivo é de uma versão mais nova do Opentern. Atualize o Opentern para importá-lo."
+
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "Esta é uma cópia de desenvolvimento: ela não se atualiza sozinha."
 
 msgid "This is a library: import it from another script."
 msgstr "É uma biblioteca: importe-a em outro script."
@@ -5326,6 +5415,9 @@ msgstr "Total de operações"
 
 msgid "Trade #"
 msgstr "Operação nº"
+
+msgid "Trade {0} · {1}"
+msgstr "Operação {0} · {1}"
 
 msgid "Trades"
 msgstr "Operações"
@@ -5873,6 +5965,9 @@ msgstr "Anual"
 msgid "Yes, reset"
 msgstr "Sim, redefinir"
 
+msgid "Your Fib levels and drawing templates"
+msgstr "Seus níveis de Fib e modelos de desenho"
+
 msgid "Your address"
 msgstr "Seu endereço"
 
@@ -6019,9 +6114,6 @@ msgstr "vs. SMA 50 %"
 msgid "your other device"
 msgstr "seu outro dispositivo"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nCapital  {1}\nComprar e manter  {2}\nDrawdown  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\nSem preço novo há {1}"
 
@@ -6110,6 +6202,9 @@ msgstr "{0} não está instalado"
 
 msgid "{0} min"
 msgstr "{0} min"
+
+msgid "{0} more trades"
+msgstr "Mais {0} operações"
 
 msgid "{0} per contract"
 msgstr "{0} por contrato"
@@ -6309,6 +6404,9 @@ msgstr "{p} testes de {combos} combinações nas {n} barras do gráfico."
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} barras, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} pb"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · disparou {1}×"

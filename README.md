@@ -120,6 +120,9 @@ after a restart.
 - **Indices worldwide:** the S&P 500, Nasdaq, Dow, Nikkei 225, FTSE 100, DAX, CAC 40,
   Euro Stoxx 50, Hang Seng, KOSPI, ASX 200, TSX, Ibovespa and more, plus US Treasury
   yields, VIX, India VIX, the MOVE index and the dollar index (Yahoo, free).
+- **The Fed funds rate:** the US effective federal funds rate (EFFR), daily since
+  July 2000, with the Fed's target range as a band behind it. From the Federal
+  Reserve Bank of New York, free; search "fed funds".
 - **US Markets (NYSE, Nasdaq): stocks, ETFs, plus forex and commodities:** Yahoo by default, delayed.
   Add your own Alpaca, OANDA or Interactive Brokers keys for live data.
 - **Indian Markets (NSE, BSE):** Yahoo by default, or Upstox with your own keys.
@@ -161,7 +164,7 @@ What the script does on each platform:
 - **macOS:** installs `Opentern.app` (universal, Apple Silicon + Intel) into `/Applications`.
 
 The script checks every download against the release's `SHA256SUMS`. To pin a
-version, set `OPENTERN_VERSION=0.3.7`.
+version, set `OPENTERN_VERSION=0.3.8`.
 
 The app isn't notarized yet. If macOS refuses to open it the first time,
 right-click the app and choose **Open**, or run
@@ -260,6 +263,8 @@ Everything stays on your computer. There's no account, no sign-in and no
 telemetry. Opentern only goes online for the market data providers you use, a
 check for a new release on GitHub (you can turn it off in Settings), symbol
 logos (also optional), and the agent CLI you choose, when you send it a message.
+The Fed funds rate comes from the New York Fed (`markets.newyorkfed.org`), only
+while it's on a chart, in a watchlist or in an alert, a few times a day.
 The market overview, while it's open, also fetches the S&P 500 and NIFTY 500
 member lists (weekly).
 API keys are kept in your system's keychain, never in a file.
@@ -288,6 +293,19 @@ Debian or Ubuntu: `pkg-config libdbus-1-dev libxkbcommon-dev libwayland-dev
 libgl1-mesa-dev libgtk-3-dev`). For day-to-day work, `cargo run --profile fast
 -- --demo` builds quicker.
 
+### Opentern Dev (Linux)
+
+`scripts/dev-install.sh` builds your checkout and installs it as **Opentern Dev**,
+next to the released app: `~/.local/bin/opentern-dev` and an entry in your app
+menu. It's a separate app: its own workspace (`~/.local/share/opentern-dev`), its
+own saved API keys, and it never updates itself. Run the script again to replace
+it with a newer build; `scripts/dev-install.sh --remove` takes it away (its
+workspace stays). The install command above always installs the released app,
+with its own updates.
+
+Opentern Dev is built from your copy of the code. Usually that's the same as the
+latest release; if `main` has changes that aren't released yet, you get them early.
+
 ## License
 
 [MIT](LICENSE). Indicators ported from MPL-2.0 Pine scripts stay MPL-2.0 file
@@ -306,6 +324,13 @@ workspace until you run them by hand, but it can't tell whether a script is
 safe. As the [license](LICENSE) says, Opentern comes with no warranty, and you
 use scripts, agents and their results at your own risk. Nothing in Opentern is
 financial advice.
+
+**The Fed funds rate** is the New York Fed's data, not ours: the MIT license
+covers Opentern's code only. The Effective Federal Funds Rate is subject to the
+Terms of Use posted at [newyorkfed.org](https://www.newyorkfed.org/privacy/termsofuse).
+Source: Federal Reserve Bank of New York. The New York Fed is not responsible
+for its publication in Opentern and does not endorse it; Opentern is not
+affiliated with the New York Fed.
 
 Pine Script® and TradingView® are trademarks of TradingView, Inc. Claude and the
 Claude logo are trademarks of Anthropic. OpenAI, Codex and the OpenAI logo are

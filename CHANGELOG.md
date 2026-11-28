@@ -15,6 +15,46 @@
 ### Changed
 - **Drawing tools return to the cursor after each drawing.** Pick the tool again to place another.
 
+### Fixed
+- **Hyperliquid prices keep the right decimals as they move.** Hyperliquid's price step depends on the price (five significant figures), so a coin that crosses 1, 10 or 1,000 (or BTC below 10,000) now shows and takes one decimal more or less right away, on the chart, in watchlists and in the DOM.
+
+## 0.3.8 (2026-11-28)
+
+Hyperliquid's markets, a deeper equity chart in the Strategy Report, Fib levels and drawing templates you choose, the Fed funds rate, indicators on indicators, and strategies that recalculate on order fills.
+
+### New
+- **The Fed funds rate.** Search "fed funds" or "EFFR" for the US effective federal funds rate, daily since July 2000, from the Federal Reserve Bank of New York. The Fed's target range shows as a band behind it and in the legend ("Target 3.75–4.00%"), and the day's change is in basis points. It's published once a day around 9:00 a.m. New York time, so it has daily, weekly and monthly charts only.
+- **Correlation Coefficient** is a built-in: how closely the chart moves with another symbol over the last bars, from −1 to 1. Adding it opens the symbol search to pick that symbol.
+- **Symbol inputs use the symbol search.** A script's `input.symbol` is picked like any symbol, from part of its name; with `confirm = true` the search opens as soon as the indicator is added.
+- **Indicators on indicators.** An indicator's Source can be another indicator's line on the chart, as on TradingView: an RSI of an EMA, a moving average of a script's plot, a script acting on another script's signal. Built-ins and scripts in every language can (in Luau, JavaScript and Python, `bar[src]` or `bars[src]` gives the line); the list never offers a loop, links come back with the layout, and removing the source puts its readers back on their own.
+- **Text in any language shows.** Characters the app's fonts don't have (Chinese, Japanese, Korean, Arabic, Hebrew, Thai, the Indian scripts and more, in your scripts and names) are drawn with your computer's own fonts, without making the app any bigger.
+- **30-Day Fed Funds Futures** (`CBOT:ZQ1!`): search "ZQ" or "fed funds futures". Prices are 100 minus the month's expected average rate, delayed 10 minutes.
+- **Your own scripts in the Indicators dialog.** "My scripts" lists the indicators and strategies in your scripts folder, by their titles; search finds them too, and they can be starred.
+- **Strategies can recalculate on order fills.** A Pine strategy with `calc_on_order_fills = true` runs again right after each fill, as on TradingView, so it can place orders for the rest of the same bar (a take-profit right after an entry, say). Thanks to the author of pull request #8.
+- **An exchange's symbols at a glance.** Type an exchange and a colon in the symbol search (`HYPERLIQUID:`, `BINANCE:`, `OKX:`) to list its symbols, the biggest coins first.
+- **Fib levels you choose.** Select a Fib retracement or trend-based extension and press Levels on its bar: switch each level on or off, change its value or colour, remove it, or type a new one (1.272, -0.27). Reset levels brings back the standard set, and the star keeps your levels for new Fibs. The retracement's levels above 1 (1.618, 2.618…) are there, off to start with.
+- **Hyperliquid perpetuals.** Search for a coin and pick its Hyperliquid perpetual (`HYPERLIQUID:BTCUSDC.P`, named in USDC as on Hyperliquid): chart, live bars, watchlist quotes, the hourly funding rate in the legend and the DOM's order book. The markets of Hyperliquid's builder-deployed dexes are there too (gold, silver, oil, forex, stock indices and stocks): search for `GOLD`, `SP500` or `EURUSD`, a company (Tesla) or a name like SpaceX; they read `XYZ_GOLDUSDC.P`, the dex first, and show gold's picture, the currency's flags, the index's badge or the company's logo. Hyperliquid keeps only its newest 5000 candles per interval, so 1-minute history goes back about 3.5 days (daily goes back to the listing).
+- **Alert or line from the price scale.** A + follows the pointer beside the price scale: click it to add an alert at that price (the alert dialog opens with it filled in) or draw a horizontal line there; the dashed line stays on that price while you choose.
+- **Drawing templates.** The Template button on a selected drawing's bar saves its style under a name (two setups for the same Fib, say) and applies a saved one with a click. Reset to default puts the drawing, and new ones of that kind, back to the standard style.
+
+### Changed
+- **One Opentern at a time.** Opening Opentern while it's already open brings the open window forward instead of starting a second copy, so settings and layouts are never saved over each other.
+- **The Windows installer looks like the others:** `install.ps1` shows the green logo, a progress bar and ticks in Windows Terminal and PowerShell's console, and plain lines anywhere else.
+- **The agent writes Pine.** Asked for an indicator or a strategy, Claude or Codex writes it in Pine Script unless you ask for another language, and keeps a script's own language when changing it.
+- **Drawing tools simply stay picked.** Draw as many as you like with a tool until you pick another, the cursor, or press Esc. The "Stay in drawing mode" button is gone.
+- **Replay controls** match the favorite drawings toolbar: the same rounded bar, icon buttons with their names in tooltips, and dividers.
+- **Indicator settings:** a long input name wraps instead of running under its box. Clicking a number puts the cursor where you click instead of selecting it all, and ↑/↓ step it by the script's `step` (1 for whole numbers when a script sets none).
+- **Easier to hit:** indicator names and their buttons on the chart are a little larger.
+- **Date ranges (1D to All) no longer jump:** the chart shows the chosen range from the first bars on, instead of showing them at the old zoom for a moment and then snapping.
+- **Top bar icons** are the size of the drawing toolbar's, and undo and redo look like its buttons.
+- **A tidier Script Editor explorer:** rounded rows like the watchlist's, headings in plain case, folders whose arrows turn as they open, a rename box that lines up with the name, and a script you drag follows the pointer to the folder it lands in.
+- **Calmer panels:** the bottom panel's tab strip has more room above and below, the line that resizes it is bolder, and the open file in the Script Editor is marked along its bottom edge.
+- **A deeper equity chart in the Strategy Report.** Its legend turns Equity, Buy & hold and Drawdown on and off; it shows money or percent, on a linear or log scale, with dates along the bottom. Drag across it to zoom into a range and see that range's profit, drawdown and trades; double-click to see everything again. Click it to show that day on the price chart. The worst drawdown stands out in the drawdown strip, the tooltip lists the trades that closed on a bar, and the three lines' colours are in Strategy settings. Buy & hold now matches the report's Buy & hold return. Thanks to the author of pull request #9.
+
+### Fixed
+- The countdown to the bar's close on the price label ticks once a second. It used to pause for nearly two seconds and then catch up.
+- The macOS installer stopped with "left_part?: unbound variable" before downloading. macOS runs the script with an older shell that misread the progress bar's dots.
+
 ## 0.3.7 (2026-11-26)
 
 A favorite drawings toolbar, keyboard shortcuts you can change, and drawing tools that stay picked.

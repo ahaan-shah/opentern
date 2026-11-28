@@ -237,6 +237,16 @@ pub fn signed_pct(v: f64) -> String {
     format!("{}{:.2}%", if v > 0.0 { "+" } else { "" }, v)
 }
 
+/// A change in a rate, in basis points: "+25 bp", "0 bp", "−8 bp".
+pub fn bp(change_pct_points: f64) -> String {
+    if !change_pct_points.is_finite() {
+        return "—".into();
+    }
+    let n = (change_pct_points * 100.0).round() as i64;
+    let sign = if n > 0 { "+" } else { "" };
+    trf!("{sign}{n} bp")
+}
+
 /// The time under the crosshair: "Tue 09 Oct '26 14:35" for intraday,
 /// "Tue 09 Oct '26" for daily, "Oct '26" for monthly.
 pub fn crosshair_time(t: i64, tf: Timeframe, tz: &jiff::tz::TimeZone) -> String {

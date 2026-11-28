@@ -52,7 +52,7 @@ up to 5,000 bars back.
 | `input.float(title, default, { min, max, step, group })` | |
 | `input.bool(title, default)` | |
 | `input.string(title, default, { options = {...} })` | With `options` it shows a dropdown |
-| `input.source(title, "close")` | Returns a name. Use `bar[name]` |
+| `input.source(title, "close")` | Returns a name. Use `bar[name]` (also another indicator's line, when the Source is set to one) |
 | `input.color(title, "#2962FF")` | |
 | `hline(title, price, { color, style })` | `style` is `"solid"`, `"dashed"` or `"dotted"` |
 

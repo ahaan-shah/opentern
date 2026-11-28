@@ -89,6 +89,9 @@ msgstr "1 मिनट"
 msgid "1 month"
 msgstr "1 महीना"
 
+msgid "1 more trade"
+msgstr "1 और ट्रेड"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1 स्क्रिप्ट में बिना सहेजे बदलाव हैं। शामिल करने के लिए सहेजें।"
 
@@ -136,6 +139,9 @@ msgstr "6 माह रिटर्न"
 
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Python स्क्रिप्ट आपके सिस्टम के Python में चलती है। कोड के अनुसार यह आपकी फ़ाइलें पढ़ और बदल सकती है और इंटरनेट पर जा सकती है; एजेंट का लिखा कोड भी। केवल भरोसेमंद स्क्रिप्ट चलाएँ।"
+
+msgid "A deeper equity chart"
+msgstr "गहरा इक्विटी चार्ट"
 
 msgid "A fast, local-first market analysis terminal."
 msgstr "तेज़, लोकल-फ़र्स्ट मार्केट विश्लेषण टर्मिनल।"
@@ -256,14 +262,17 @@ msgstr "सक्रिय"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "पहले चार्ट पर स्ट्रैटेजी जोड़ें। स्ट्रैटेजी वह स्क्रिप्ट है जो strategy(…) से शुरू होती है।"
 
-msgid "Add alert on {0} at {1}"
-msgstr ""
-
 msgid "Add alert on {0} at {1}..."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "{ticker} पर {0} का अलर्ट बनाएँ"
+
 msgid "Add filter"
 msgstr "फ़िल्टर जोड़ें"
+
+msgid "Add level"
+msgstr "स्तर जोड़ें"
 
 msgid "Add section"
 msgstr "सेक्शन जोड़ें"
@@ -332,6 +341,9 @@ msgstr "अलर्ट"
 
 msgid "Alert created"
 msgstr ""
+
+msgid "Alert or line from the price scale"
+msgstr "प्राइस स्केल से अलर्ट या रेखा"
 
 msgid "Alerts"
 msgstr "अलर्ट"
@@ -575,9 +587,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "अंतर्निहित इंडिकेटर"
-
 msgid "Background"
 msgstr "पृष्ठभूमि"
 
@@ -727,6 +736,9 @@ msgstr "ब्रश"
 msgid "Buddha's Birthday"
 msgstr "बुद्ध जयंती"
 
+msgid "Built-in indicators"
+msgstr "अंतर्निहित इंडिकेटर"
+
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "अंतर्निहित स्रोत, केवल पढ़ने योग्य। बदलने और चलाने के लिए प्रति बनाएँ।"
 
@@ -781,6 +793,9 @@ msgstr ""
 
 msgid "CSV"
 msgstr ""
+
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "1 मार्च 2016 से सौदों के व्यापक समूह से गणना; पहले के मान उस समय प्रकाशित रूप में।"
 
 msgid "Calendar"
 msgstr "कैलेंडर"
@@ -966,6 +981,9 @@ msgstr "बदल% आज"
 msgid "Children's Day"
 msgstr "बाल दिवस"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Fib की पट्टी पर स्तर से उसके स्तर चुनें, और किसी भी ड्रॉइंग की शैली को टेम्पलेट के रूप में सहेजें।"
+
 msgid "Choose a scripts folder"
 msgstr "स्क्रिप्ट फ़ोल्डर चुनें"
 
@@ -1034,6 +1052,9 @@ msgstr "साफ़ हो रहा है…"
 
 msgid "Click a bar to start from it"
 msgstr "जहाँ से शुरू करना हो उस बार पर क्लिक करें"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "उस कीमत पर अलर्ट या क्षैतिज रेखा जोड़ने के लिए प्राइस स्केल के पास + पर क्लिक करें।"
 
 msgid "Close"
 msgstr "बंद करें"
@@ -1172,6 +1193,9 @@ msgstr ""
 
 msgid "Corpus Christi"
 msgstr "कॉर्पस क्रिस्टी"
+
+msgid "Correlation Coefficient"
+msgstr "सहसंबंध गुणांक"
 
 msgid "Costs"
 msgstr "लागत"
@@ -1586,6 +1610,9 @@ msgstr "डाउनट्रेंड हाइलाइटर"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr "डॉ. बाबासाहेब आंबेडकर जयंती"
 
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "किसी अवधि का मुनाफ़ा, ड्रॉडाउन और ट्रेड देखने के लिए स्ट्रैटेजी रिपोर्ट के इक्विटी चार्ट पर खींचें। प्रतिशत, लॉग स्केल और आपके अपने रंग भी।"
+
 msgid "Drag to move"
 msgstr ""
 
@@ -1593,7 +1620,7 @@ msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "स्केल के लिए खींचें · फ़िट के लिए डबल-क्लिक · विकल्पों के लिए राइट-क्लिक"
 
 msgid "Draw horizontal line at {0}"
-msgstr ""
+msgstr "{0} पर क्षैतिज रेखा खींचें"
 
 msgid "Draw horizontal ray at {0}"
 msgstr ""
@@ -1657,9 +1684,6 @@ msgstr ""
 
 msgid "EV/EBITDA"
 msgstr ""
-
-msgid "EXPLORER"
-msgstr "एक्सप्लोरर"
 
 msgid "EXT"
 msgstr ""
@@ -1829,6 +1853,9 @@ msgstr "समाप्त"
 
 msgid "Expires"
 msgstr "समाप्ति"
+
+msgid "Explorer"
+msgstr "एक्सप्लोरर"
 
 msgid "Exponential"
 msgstr "एक्सपोनेंशियल"
@@ -2199,6 +2226,16 @@ msgstr "भाव अपने 50-दिन औसत से कितना ऊ
 msgid "Hull Moving Average"
 msgstr "हल मूविंग एवरेज"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquid के पास {0} बार नहीं हैं"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Hyperliquid के परपेचुअल, और उसके सोना, तेल, फ़ॉरेक्स, इंडेक्स और शेयर बाज़ार। सभी देखने के लिए सिंबल खोज में HYPERLIQUID: लिखें।"
+
 #, message
 msgid "IBKR doesn't know {0}."
 msgstr "IBKR को {0} नहीं मिला।"
@@ -2272,6 +2309,9 @@ msgstr "भारतीय बाज़ार"
 
 msgid "Indian large caps"
 msgstr "भारतीय लार्ज कैप"
+
+msgid "Indicator"
+msgstr "संकेतक"
 
 msgid "Indicator inputs"
 msgstr "इंडिकेटर इनपुट"
@@ -2609,6 +2649,9 @@ msgstr "लॉग"
 
 msgid "Log scale"
 msgstr "लॉग स्केल"
+
+msgid "Log scale needs equity above zero"
+msgstr "लॉग स्केल के लिए इक्विटी शून्य से ऊपर होनी चाहिए"
 
 msgid "London"
 msgstr "लंदन"
@@ -3103,6 +3146,9 @@ msgstr "नगर निगम चुनाव (महाराष्ट्र)"
 msgid "My plan includes SIP"
 msgstr "मेरे प्लान में SIP है"
 
+msgid "My scripts"
+msgstr "मेरी स्क्रिप्ट"
+
 msgid "NEW SCRIPT HERE"
 msgstr "यहाँ नई स्क्रिप्ट"
 
@@ -3305,6 +3351,9 @@ msgstr "कोई रन शर्तें पूरी नहीं कर स
 msgid "No script"
 msgstr "कोई स्क्रिप्ट नहीं"
 
+msgid "No scripts yet"
+msgstr "अभी कोई स्क्रिप्ट नहीं"
+
 msgid "No scripts yet. Press + to start one."
 msgstr "अभी कोई स्क्रिप्ट नहीं। शुरू करने के लिए + दबाएँ।"
 
@@ -3427,9 +3476,6 @@ msgstr "OKX की परपेचुअल ऑर्डर बुक कॉन�
 msgid "OPEN LAYOUT"
 msgstr "लेआउट खोलें"
 
-msgid "OUTLINE"
-msgstr "रूपरेखा"
-
 msgid "OUTPUT"
 msgstr "आउटपुट"
 
@@ -3545,6 +3591,9 @@ msgstr "Opentern निर्यात"
 msgid "Opentern in your language"
 msgstr "Opentern आपकी भाषा में"
 
+msgid "Opentern is already open."
+msgstr "Opentern पहले से खुला है।"
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Opentern दूसरी विंडो में खुला है। उसे बंद करके आयात करें।"
 
@@ -3619,6 +3668,9 @@ msgstr "आउट-ऑफ़-सैंपल लाभ-हानि"
 
 msgid "Out-of-sample bars"
 msgstr "आउट-ऑफ़-सैंपल बार"
+
+msgid "Outline"
+msgstr "रूपरेखा"
 
 msgid "Output"
 msgstr "आउटपुट"
@@ -3769,9 +3821,6 @@ msgstr "प्रदर्शन"
 
 msgid "Periods"
 msgstr "अवधियाँ"
-
-msgid "Pick a new starting bar"
-msgstr "नया प्रारंभिक बार चुनें"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -3930,6 +3979,9 @@ msgstr "लाभप्रद विंडो"
 msgid "Properties"
 msgstr "गुण"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "न्यूयॉर्क फ़ेड द्वारा न्यूयॉर्क समय के अनुसार लगभग सुबह 9:00 बजे, पिछले कारोबारी दिन के लिए प्रकाशित।"
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "सर्वोत्तम इनपुट चार्ट की स्ट्रैटेजी पर लगाएँ"
 
@@ -4061,9 +4113,6 @@ msgstr "मौसमी रुझान पढ़ें"
 msgid "Read {0}"
 msgstr "{0} पढ़ें"
 
-msgid "Real time"
-msgstr "रियल टाइम"
-
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Upstox खाते से भारतीय रियल-टाइम भाव। upstox.com/developer पर ऐप बनाकर उसका एक्सेस टोकन पेस्ट करें (अगली सुबह तक चलता है)।"
 
@@ -4098,6 +4147,9 @@ msgstr "फिर करें"
 
 msgid "Refresh"
 msgstr "ताज़ा करें"
+
+msgid "Regular"
+msgstr "सामान्य"
 
 msgid "Rel volume"
 msgstr "सापेक्ष वॉल्यूम"
@@ -4208,6 +4260,9 @@ msgstr "खाता रीसेट करें"
 msgid "Reset chart view"
 msgstr ""
 
+msgid "Reset levels"
+msgstr "स्तर रीसेट करें"
+
 msgid "Reset settings"
 msgstr "सेटिंग्स रीसेट करें"
 
@@ -4216,6 +4271,9 @@ msgstr "मुद्रा बदलने के लिए खाता री�
 
 msgid "Reset the chart view"
 msgstr "चार्ट दृश्य रीसेट करें"
+
+msgid "Reset to default"
+msgstr "डिफ़ॉल्ट पर रीसेट करें"
 
 msgid "Respect for the Aged Day"
 msgstr "वृद्ध सम्मान दिवस"
@@ -4319,9 +4377,6 @@ msgstr "सहेजे हुए"
 msgid "SCALE"
 msgstr "स्केल"
 
-msgid "SCRIPTS"
-msgstr "स्क्रिप्ट"
-
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: केवल IEX नहीं, सभी अमेरिकी एक्सचेंजों के भाव"
 
@@ -4398,13 +4453,16 @@ msgid "Save chart template"
 msgstr "चार्ट टेम्पलेट सहेजें"
 
 msgid "Save drawing template"
-msgstr ""
+msgstr "ड्रॉइंग टेम्पलेट सहेजें"
 
 msgid "Save indicator template"
 msgstr "इंडिकेटर टेम्पलेट सहेजें"
 
 msgid "Save layout"
 msgstr "लेआउट सहेजें"
+
+msgid "Save template as"
+msgstr "टेम्पलेट इस नाम से सहेजें"
 
 msgid "Save the results as CSV"
 msgstr "परिणाम CSV में सहेजें"
@@ -4617,6 +4675,9 @@ msgstr "POC दिखाएँ"
 
 msgid "Show Pearson's R"
 msgstr "पियर्सन R दिखाएँ"
+
+msgid "Show all (double-click)"
+msgstr "सब दिखाएँ (डबल-क्लिक)"
 
 msgid "Show favorite drawings toolbar"
 msgstr "पसंदीदा ड्रॉइंग टूलबार दिखाएँ"
@@ -4909,6 +4970,9 @@ msgstr "रुका।"
 msgid "Stop|order"
 msgstr "स्टॉप"
 
+msgid "Strategy"
+msgstr "रणनीति"
+
 msgid "Strategy Lab"
 msgstr "स्ट्रैटेजी लैब"
 
@@ -5037,6 +5101,12 @@ msgstr "टेक प्रॉफ़िट"
 msgid "Target color"
 msgstr ""
 
+msgid "Target {lo}%"
+msgstr "लक्ष्य {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "लक्ष्य {lo}–{hi}%"
+
 msgid "Teachers' Day"
 msgstr "शिक्षक दिवस"
 
@@ -5062,7 +5132,7 @@ msgid "Telegram chat id"
 msgstr "Telegram चैट आईडी"
 
 msgid "Template"
-msgstr ""
+msgstr "टेम्पलेट"
 
 msgid "Template  {0}"
 msgstr "टेम्पलेट  {0}"
@@ -5117,6 +5187,18 @@ msgstr "प्रति विंडो {0} संयोजन हैं, ग्
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "{combos} संयोजन हैं, ग्रिड की सीमा {MAX_GRID} से अधिक। रेंज घटाएँ या यादृच्छिक या बेज़ियन चुनें।"
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "फ़ेड फ़ंड्स दर दिन में एक बार प्रकाशित होती है। 1D या उससे लंबा चुनें।"
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "न्यूयॉर्क फ़ेड ने कोई दर नहीं भेजी।"
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "न्यूयॉर्क फ़ेड की दरें लोड नहीं हुईं।"
 
 msgid "The account was reset."
 msgstr "खाता रीसेट हुआ।"
@@ -5216,6 +5298,9 @@ msgstr "सोच रहा है"
 msgid "This device"
 msgstr "यह डिवाइस"
 
+msgid "This drawing and new ones go back to the standard style"
+msgstr "यह और नई ड्रॉइंग मानक शैली पर लौट आएँगी"
+
 msgid "This file has a Python script"
 msgstr "इस फ़ाइल में एक Python स्क्रिप्ट है"
 
@@ -5228,6 +5313,10 @@ msgstr "इस फ़ाइल में {0} Python स्क्रिप्ट 
 #, message
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "यह फ़ाइल Opentern के नए संस्करण से बनी है। आयात के लिए Opentern अपडेट करें।"
+
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "यह डेवलपमेंट कॉपी है: यह अपने आप अपडेट नहीं होती।"
 
 msgid "This is a library: import it from another script."
 msgstr "यह लाइब्रेरी है: दूसरी स्क्रिप्ट से आयात करें।"
@@ -5326,6 +5415,9 @@ msgstr "कुल ट्रेड"
 
 msgid "Trade #"
 msgstr "ट्रेड सं."
+
+msgid "Trade {0} · {1}"
+msgstr "ट्रेड {0} · {1}"
 
 msgid "Trades"
 msgstr "ट्रेड"
@@ -5873,6 +5965,9 @@ msgstr "वार्षिक"
 msgid "Yes, reset"
 msgstr "हाँ, रीसेट करें"
 
+msgid "Your Fib levels and drawing templates"
+msgstr "आपके Fib स्तर और ड्रॉइंग टेम्पलेट"
+
 msgid "Your address"
 msgstr "आपका पता"
 
@@ -6019,9 +6114,6 @@ msgstr "SMA 50 से %"
 msgid "your other device"
 msgstr "आपका दूसरा डिवाइस"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\nइक्विटी  {1}\nखरीदें और रखें  {2}\nड्रॉडाउन  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\n{1} से नया भाव नहीं"
 
@@ -6110,6 +6202,9 @@ msgstr "{0} इंस्टॉल नहीं है"
 
 msgid "{0} min"
 msgstr "{0} मिनट"
+
+msgid "{0} more trades"
+msgstr "{0} और ट्रेड"
 
 msgid "{0} per contract"
 msgstr "{0} प्रति कॉन्ट्रैक्ट"
@@ -6309,6 +6404,9 @@ msgstr "चार्ट के {n} बार पर {combos} संयोजन�
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb} बार, {time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} bp"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · {1} बार चला"

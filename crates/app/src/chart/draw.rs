@@ -402,9 +402,17 @@ pub enum TextHAlign {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FibLevel {
+    #[serde(rename = "on", alias = "enabled")]
     pub enabled: bool,
+    #[serde(rename = "value", alias = "level")]
     pub level: f64,
     pub color: Rgba,
+}
+
+impl FibLevel {
+    pub fn standard(_tool: Tool) -> Vec<FibLevel> {
+        default_fib_levels()
+    }
 }
 
 pub fn default_fib_levels() -> Vec<FibLevel> {
@@ -609,12 +617,20 @@ pub struct DrawStyle {
     pub show_trendline: bool,
     pub trendline_color: Option<Rgba>,
     pub trendline_style: LineStyle,
-    pub fib_levels: Option<Vec<FibLevel>>,
+    #[serde(alias = "fib_levels", skip_serializing_if = "Option::is_none")]
+    pub levels: Option<Vec<FibLevel>>,
     pub fib_use_one_color: bool,
     pub fib_one_color: Option<Rgba>,
     pub fib_background: bool,
     pub fib_opacity: u8,
     pub position_params: Option<PositionParams>,
+}
+
+impl DrawStyle {
+    /// The Fib levels to draw, in the order they were set.
+    pub fn fib_levels(&self, tool: Tool) -> Vec<FibLevel> {
+        self.levels.clone().unwrap_or_else(|| FibLevel::standard(tool))
+    }
 }
 
 impl Default for DrawStyle {
@@ -640,7 +656,7 @@ impl Default for DrawStyle {
             show_trendline: true,
             trendline_color: None,
             trendline_style: LineStyle::Dashed,
-            fib_levels: None,
+            levels: None,
             fib_use_one_color: false,
             fib_one_color: None,
             fib_background: true,
@@ -673,7 +689,7 @@ impl DrawStyle {
             FibRetracement => DrawStyle {
                 color: Rgba::hex(0x787B86),
                 width: 1,
-                fib_levels: Some(default_fib_levels()),
+                levels: Some(default_fib_levels()),
                 fib_background: true,
                 show_trendline: true,
                 ..d
@@ -763,6 +779,29 @@ pub const FIB_LEVELS: [(f64, u32); 11] = [
     (3.618, 0x9C27B0),
     (4.236, 0xE91E63),
 ];
+
+/// The levels a Fib draws: those switched on, lowest value first.
+fn shown_levels(d: &Drawing) -> Vec<FibLevel> {
+    let mut v: Vec<_> = d
+        .style
+        .fib_levels(d.tool)
+        .into_iter()
+        .filter(|l| l.enabled && l.level.is_finite())
+        .collect();
+    v.sort_by(|a, b| a.level.total_cmp(&b.level));
+    v
+}
+
+/// Where a Fib's level 0 is and the price one level spans. Retracement:
+/// 1 at the start, 0 at the end. Extension: from the third point by the
+/// first leg's height.
+fn fib_base_span(d: &Drawing) -> (f64, f64) {
+    if d.tool == Tool::FibExtension && d.pts.len() >= 3 {
+        (d.pts[2].p, d.pts[1].p - d.pts[0].p)
+    } else {
+        (d.pts[1].p, d.pts[0].p - d.pts[1].p)
+    }
+}
 
 /// Maps times to x and back, using the bars (fractional between bars,
 /// extrapolated past either end with the interval's length).
@@ -1079,11 +1118,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             // Retracement: 1 at the start, 0 at the end. Extension: levels
             // from the third point by the first leg's height.
             let (x0, x1) = (pts[0].x.min(pts[pts.len() - 1].x), pts[0].x.max(pts[pts.len() - 1].x));
-            let (base, span) = if d.tool == FibExtension && d.pts.len() >= 3 {
-                (d.pts[2].p, d.pts[1].p - d.pts[0].p)
-            } else {
-                (d.pts[1].p, d.pts[0].p - d.pts[1].p)
-            };
+            let (base, span) = fib_base_span(d);
             let (x0, x1) = if d.style.extend_left && d.style.extend_right {
                 (r.left(), r.right())
             } else if d.style.extend_left {
@@ -1093,8 +1128,6 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
             } else {
                 (x0, x1)
             };
-
-            // Trend line
             if d.style.show_trendline {
                 let tl_color = d
                     .style
@@ -1105,25 +1138,14 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                 line(p, pts[0], pts[1], tl_stroke, d.style.trendline_style);
             }
 
-            let default_lvls = default_fib_levels();
-            let levels = d.style.fib_levels.as_ref().unwrap_or(&default_lvls);
-            let mut active_levels: Vec<(f64, Color32)> = levels
-                .iter()
-                .filter(|lvl| lvl.enabled)
-                .map(|lvl| {
-                    let col = if d.style.fib_use_one_color {
-                        d.style.fib_one_color.map(c32).unwrap_or_else(|| c32(lvl.color))
-                    } else {
-                        c32(lvl.color)
-                    };
-                    (lvl.level, col)
-                })
-                .collect();
-            active_levels.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-
             let mut prev: Option<(f32, Color32)> = None;
-            for (lvl, col) in active_levels {
-                let price = base + span * lvl;
+            for level in shown_levels(d) {
+                let col = if d.style.fib_use_one_color {
+                    d.style.fib_one_color.map(c32).unwrap_or_else(|| c32(level.color))
+                } else {
+                    c32(level.color)
+                };
+                let price = base + span * level.level;
                 let y = g.y.y(price);
                 if d.style.fib_background
                     && let Some((py, pc)) = prev
@@ -1143,7 +1165,7 @@ pub fn paint(p: &Painter, d: &Drawing, g: &Geo, sel: bool, bg: Color32) {
                     p.text(
                         pos2(x0 - 4.0, y),
                         Align2::RIGHT_CENTER,
-                        format!("{lvl} ({})", format::price(price, g.decimals)),
+                        format!("{} ({})", level.level, format::price(price, g.decimals)),
                         theme::regular(11.0),
                         col,
                     );
@@ -1767,13 +1789,11 @@ pub fn hit(d: &Drawing, g: &Geo, p: Pos2) -> Option<Part> {
             };
             let mut rect = Rect::from_two_pos(a, b);
             if matches!(d.tool, FibRetracement | FibExtension) {
-                rect = rect.expand2(vec2(0.0, 4.0));
-                if d.tool == FibExtension && d.pts.len() >= 3 {
-                    let span = d.pts[1].p - d.pts[0].p;
-                    let ys = FIB_LEVELS.iter().map(|(l, _)| g.y.y(d.pts[2].p + span * l));
-                    let (lo, hi) = ys.fold((f32::MAX, f32::MIN), |(l, h), y| (l.min(y), h.max(y)));
-                    rect = Rect::from_x_y_ranges(rect.x_range(), lo..=hi);
-                }
+                // Every level that's drawn, even those past 0 and 1.
+                let (base, span) = fib_base_span(d);
+                let ys = shown_levels(d).into_iter().map(|l| g.y.y(base + span * l.level));
+                let (lo, hi) = ys.fold((rect.top(), rect.bottom()), |(l, h), y| (l.min(y), h.max(y)));
+                rect = Rect::from_x_y_ranges(rect.x_range(), lo..=hi).expand2(vec2(0.0, 4.0));
             }
             rect.contains(p)
         }
@@ -2196,5 +2216,58 @@ mod tests {
         assert_eq!(p.risk_val, 15.0);
         assert_eq!(p.currency, "USD");
         assert_eq!(p.qty_decimals, 2);
+    }
+
+    /// Drawings saved before levels were editable keep TradingView's set;
+    /// edited levels are drawn on, in value order, and saved.
+    #[test]
+    fn fib_levels_default_edit_and_round_trip() {
+        let old = r#"{"id":1,"tool":"FibRetracement","pts":[{"t":0,"p":110.0},{"t":60000,"p":100.0}],
+            "style":{"color":0,"width":1,"line":"Solid","fill":0,"extend_left":false,
+            "extend_right":false,"font":14,"labels":true}}"#;
+        let mut d: Drawing = serde_json::from_str(old).unwrap();
+        assert!(d.style.levels.is_none());
+        let shown: Vec<f64> = shown_levels(&d).iter().map(|l| l.level).collect();
+        assert_eq!(
+            shown,
+            [-4.0, -3.0, -2.0, -1.0, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 3.0, 4.0]
+        );
+        assert_eq!(
+            FibLevel::standard(Tool::FibExtension)
+                .iter()
+                .filter(|l| l.enabled)
+                .count(),
+            12
+        );
+        // An untouched style saves no levels at all.
+        assert!(!serde_json::to_string(&d.style).unwrap().contains("levels"));
+
+        let mut levels = d.style.fib_levels(d.tool);
+        levels.retain(|l| l.level != 0.236);
+        levels.iter_mut().find(|l| l.level == 1.618).unwrap().enabled = true;
+        levels.push(FibLevel {
+            level: -0.27,
+            color: Rgba::hex(0x2962FF),
+            enabled: true,
+        });
+        d.style.levels = Some(levels);
+        let shown: Vec<f64> = shown_levels(&d).iter().map(|l| l.level).collect();
+        assert_eq!(
+            shown,
+            [
+                -4.0, -3.0, -2.0, -1.0, -0.27, 0.0, 0.25, 0.5, 0.75, 1.0, 1.618, 2.0, 3.0, 4.0
+            ]
+        );
+        // 0 at the end point, 1 at the start.
+        assert_eq!(fib_base_span(&d), (100.0, 10.0));
+
+        let back: Drawing = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
+        assert_eq!(back, d);
+
+        // Every level removed stays removed, also after a save.
+        d.style.levels = Some(Vec::new());
+        assert!(shown_levels(&d).is_empty());
+        let back: Drawing = serde_json::from_str(&serde_json::to_string(&d).unwrap()).unwrap();
+        assert!(shown_levels(&back).is_empty());
     }
 }

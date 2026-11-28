@@ -355,7 +355,17 @@ fn texts() -> Texts {
     add(&mut all, opentern_data::provider::NO_INTERNET, true);
     add(&mut all, "Couldn't reach the data service.", true);
     add(&mut all, opentern_data::provider::GONE, true);
-    // Built-in indicators.
+    for m in [
+        opentern_data::nyfed::DAILY_ONLY,
+        opentern_data::nyfed::NO_RATES,
+        opentern_data::nyfed::DIDNT_LOAD,
+    ] {
+        add(&mut all, m, true);
+    }
+    // Built-in indicators (the bundled Pine ones too).
+    for b in crate::sources::BUNDLED {
+        add(&mut all, b.name, false);
+    }
     for m in opentern_series::builtins::all() {
         let mut one = |s: &str| add(&mut all, s, false);
         one(m.name);

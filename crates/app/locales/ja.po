@@ -89,6 +89,9 @@ msgstr "1分"
 msgid "1 month"
 msgstr "1か月"
 
+msgid "1 more trade"
+msgstr "他 1 件のトレード"
+
 msgid "1 script has unsaved changes. Save it to include them."
 msgstr "1個のスクリプトに未保存の変更があります。含めるには保存してください。"
 
@@ -136,6 +139,9 @@ msgstr "6か月リターン"
 
 msgid "A Python script runs in your own system's Python. Based on the code, it can read and change your files and go online, and that includes code an agent writes for you. Only run the ones you trust."
 msgstr "Pythonスクリプトはお使いのシステムのPythonで動きます。コードによってはファイルの読み書きやインターネット接続ができ、エージェントが書いたコードも同様です。信頼できるものだけを実行してください。"
+
+msgid "A deeper equity chart"
+msgstr "さらに詳しい資産チャート"
 
 msgid "A fast, local-first market analysis terminal."
 msgstr "高速でローカルファーストな市場分析ターミナル。"
@@ -256,14 +262,17 @@ msgstr "有効"
 msgid "Add a strategy to the chart first. A strategy is a script that starts with strategy(…)."
 msgstr "まずチャートにストラテジーを追加してください。ストラテジーは strategy(…) で始まるスクリプトです。"
 
-msgid "Add alert on {0} at {1}"
-msgstr ""
-
 msgid "Add alert on {0} at {1}..."
 msgstr ""
 
+msgid "Add alert on {ticker} at {0}"
+msgstr "{ticker} の {0} にアラートを作成"
+
 msgid "Add filter"
 msgstr "フィルターを追加"
+
+msgid "Add level"
+msgstr "水準を追加"
 
 msgid "Add section"
 msgstr "セクションを追加"
@@ -332,6 +341,9 @@ msgstr "アラート"
 
 msgid "Alert created"
 msgstr ""
+
+msgid "Alert or line from the price scale"
+msgstr "価格スケールからアラートや水平線"
 
 msgid "Alerts"
 msgstr "アラート"
@@ -575,9 +587,6 @@ msgstr ""
 msgid "BOP"
 msgstr ""
 
-msgid "BUILT-IN INDICATORS"
-msgstr "内蔵インジケーター"
-
 msgid "Background"
 msgstr "背景"
 
@@ -727,6 +736,9 @@ msgstr "ブラシ"
 msgid "Buddha's Birthday"
 msgstr "釈迦誕生日"
 
+msgid "Built-in indicators"
+msgstr "内蔵インジケーター"
+
 msgid "Built-in source, read-only. Make a copy to change and run it."
 msgstr "内蔵ソース(読み取り専用)。変更して実行するにはコピーを作成してください。"
 
@@ -781,6 +793,9 @@ msgstr ""
 
 msgid "CSV"
 msgstr ""
+
+msgid "Calculated from a broader set of trades since 1 March 2016; earlier values are as published then."
+msgstr "2016年3月1日以降はより広い取引から算出。それ以前の値は当時の公表どおり。"
 
 msgid "Calendar"
 msgstr "カレンダー"
@@ -966,6 +981,9 @@ msgstr "本日変化%"
 msgid "Children's Day"
 msgstr "こどもの日"
 
+msgid "Choose a Fib's levels with Levels on its bar, and save any drawing's style as a template."
+msgstr "Fib のバーの「水準」で水準を選び、どの描画のスタイルもテンプレートとして保存できます。"
+
 msgid "Choose a scripts folder"
 msgstr "スクリプトフォルダーを選択"
 
@@ -1034,6 +1052,9 @@ msgstr "消去中…"
 
 msgid "Click a bar to start from it"
 msgstr "開始する足をクリック"
+
+msgid "Click the + by the price scale to add an alert or a horizontal line at that price."
+msgstr "価格スケール横の + をクリックすると、その価格にアラートや水平線を追加できます。"
 
 msgid "Close"
 msgstr "閉じる"
@@ -1172,6 +1193,9 @@ msgstr ""
 
 msgid "Corpus Christi"
 msgstr "聖体の祝日"
+
+msgid "Correlation Coefficient"
+msgstr "相関係数"
 
 msgid "Costs"
 msgstr "コスト"
@@ -1586,6 +1610,9 @@ msgstr "下降トレンドの強調"
 msgid "Dr. Baba Saheb Ambedkar Jayanti"
 msgstr ""
 
+msgid "Drag across the Strategy Report's equity chart to see a range's profit, drawdown and trades. Percent, log scale and your own colours too."
+msgstr "ストラテジーレポートの資産チャートをドラッグすると、その期間の損益・ドローダウン・取引を表示します。パーセント表示、対数スケール、好きな色にも対応。"
+
 msgid "Drag to move"
 msgstr ""
 
@@ -1593,7 +1620,7 @@ msgid "Drag to scale · double-click to fit · right-click for options"
 msgstr "ドラッグで拡大縮小 · ダブルクリックで合わせる · 右クリックでオプション"
 
 msgid "Draw horizontal line at {0}"
-msgstr ""
+msgstr "{0} に水平線を引く"
 
 msgid "Draw horizontal ray at {0}"
 msgstr ""
@@ -1657,9 +1684,6 @@ msgstr ""
 
 msgid "EV/EBITDA"
 msgstr ""
-
-msgid "EXPLORER"
-msgstr "エクスプローラー"
 
 msgid "EXT"
 msgstr ""
@@ -1829,6 +1853,9 @@ msgstr "期限切れ"
 
 msgid "Expires"
 msgstr "有効期限"
+
+msgid "Explorer"
+msgstr "エクスプローラー"
 
 msgid "Exponential"
 msgstr "指数"
@@ -2199,6 +2226,16 @@ msgstr "価格が50日平均からどれだけ離れているか"
 msgid "Hull Moving Average"
 msgstr "ハル移動平均"
 
+msgid "Hyperliquid"
+msgstr "Hyperliquid"
+
+#, message
+msgid "Hyperliquid has no {0} bars"
+msgstr "Hyperliquidに{0}足はありません"
+
+msgid "Hyperliquid's perpetuals, and its gold, oil, forex, index and stock markets. Type HYPERLIQUID: in the symbol search to see them all."
+msgstr "Hyperliquid の無期限先物に加え、金・原油・為替・指数・株式の市場も。銘柄検索で HYPERLIQUID: と入力するとすべて表示されます。"
+
 #, message
 msgid "IBKR doesn't know {0}."
 msgstr "IBKRに{0}はありません。"
@@ -2272,6 +2309,9 @@ msgstr "インド市場"
 
 msgid "Indian large caps"
 msgstr "インド大型株"
+
+msgid "Indicator"
+msgstr "インジケーター"
 
 msgid "Indicator inputs"
 msgstr "インジケーターの入力"
@@ -2609,6 +2649,9 @@ msgstr "対数"
 
 msgid "Log scale"
 msgstr "対数スケール"
+
+msgid "Log scale needs equity above zero"
+msgstr "対数スケールには資産がゼロより上である必要があります"
 
 msgid "London"
 msgstr "ロンドン"
@@ -3103,6 +3146,9 @@ msgstr "自治体選挙 (マハラシュトラ)"
 msgid "My plan includes SIP"
 msgstr "プランにSIPが含まれる"
 
+msgid "My scripts"
+msgstr "マイスクリプト"
+
 msgid "NEW SCRIPT HERE"
 msgstr "ここに新規スクリプト"
 
@@ -3305,6 +3351,9 @@ msgstr "条件を満たす実行はありませんでした(トレードが少�
 msgid "No script"
 msgstr "スクリプトなし"
 
+msgid "No scripts yet"
+msgstr "スクリプトはまだありません"
+
 msgid "No scripts yet. Press + to start one."
 msgstr "スクリプトはまだありません。+を押して始めましょう。"
 
@@ -3427,9 +3476,6 @@ msgstr "OKXの無期限板は枚数表示のため表示されません。Binanc
 msgid "OPEN LAYOUT"
 msgstr "レイアウトを開く"
 
-msgid "OUTLINE"
-msgstr "アウトライン"
-
 msgid "OUTPUT"
 msgstr "出力"
 
@@ -3545,6 +3591,9 @@ msgstr "Openternエクスポート"
 msgid "Opentern in your language"
 msgstr "あなたの言語で使える Opentern"
 
+msgid "Opentern is already open."
+msgstr "Opentern はすでに開いています。"
+
 msgid "Opentern is open in another window. Close it, then import."
 msgstr "Openternが別のウィンドウで開いています。閉じてからインポートしてください。"
 
@@ -3619,6 +3668,9 @@ msgstr "アウトオブサンプル損益"
 
 msgid "Out-of-sample bars"
 msgstr "アウトオブサンプル足数"
+
+msgid "Outline"
+msgstr "アウトライン"
 
 msgid "Output"
 msgstr "出力"
@@ -3769,9 +3821,6 @@ msgstr "パフォーマンス"
 
 msgid "Periods"
 msgstr "期間数"
-
-msgid "Pick a new starting bar"
-msgstr "新しい開始足を選択"
 
 #, message
 msgid "Pick at least one input to optimize."
@@ -3930,6 +3979,9 @@ msgstr "利益が出た期間"
 msgid "Properties"
 msgstr "プロパティ"
 
+msgid "Published by the New York Fed around 9:00 a.m. New York time, for the previous business day."
+msgstr "ニューヨーク連銀がニューヨーク時間の午前9時ごろ、前営業日分を公表します。"
+
 msgid "Put the best inputs on the chart's strategy"
 msgstr "最良の入力をチャートのストラテジーに適用"
 
@@ -4061,9 +4113,6 @@ msgstr "季節性を読む"
 msgid "Read {0}"
 msgstr "{0}を読む"
 
-msgid "Real time"
-msgstr "リアルタイム"
-
 msgid "Real-time Indian prices with an Upstox account. Make an app at upstox.com/developer and paste its access token (it lasts until the next morning)."
 msgstr "Upstox口座によるインドのリアルタイム価格。upstox.com/developer でアプリを作り、アクセストークンを貼り付けます(翌朝まで有効)。"
 
@@ -4098,6 +4147,9 @@ msgstr "やり直す"
 
 msgid "Refresh"
 msgstr "更新"
+
+msgid "Regular"
+msgstr "標準"
 
 msgid "Rel volume"
 msgstr "相対出来高"
@@ -4208,6 +4260,9 @@ msgstr "口座をリセット"
 msgid "Reset chart view"
 msgstr ""
 
+msgid "Reset levels"
+msgstr "水準をリセット"
+
 msgid "Reset settings"
 msgstr "設定をリセット"
 
@@ -4216,6 +4271,9 @@ msgstr "通貨を変えるには口座をリセットしてください"
 
 msgid "Reset the chart view"
 msgstr "チャート表示をリセット"
+
+msgid "Reset to default"
+msgstr "デフォルトに戻す"
 
 msgid "Respect for the Aged Day"
 msgstr "敬老の日"
@@ -4319,9 +4377,6 @@ msgstr "保存済み"
 msgid "SCALE"
 msgstr "スケール"
 
-msgid "SCRIPTS"
-msgstr "スクリプト"
-
 msgid "SIP: prices from all US exchanges, not just IEX"
 msgstr "SIP: IEXだけでなく全米取引所の価格"
 
@@ -4398,13 +4453,16 @@ msgid "Save chart template"
 msgstr "チャートテンプレートを保存"
 
 msgid "Save drawing template"
-msgstr ""
+msgstr "描画テンプレートを保存"
 
 msgid "Save indicator template"
 msgstr "インジケーターテンプレートを保存"
 
 msgid "Save layout"
 msgstr "レイアウトを保存"
+
+msgid "Save template as"
+msgstr "テンプレートとして保存"
 
 msgid "Save the results as CSV"
 msgstr "結果をCSVで保存"
@@ -4617,6 +4675,9 @@ msgstr "POCを表示"
 
 msgid "Show Pearson's R"
 msgstr "ピアソンのRを表示"
+
+msgid "Show all (double-click)"
+msgstr "すべて表示（ダブルクリック）"
 
 msgid "Show favorite drawings toolbar"
 msgstr "お気に入り描画ツールバーを表示"
@@ -4909,6 +4970,9 @@ msgstr "停止しました。"
 msgid "Stop|order"
 msgstr "逆指値"
 
+msgid "Strategy"
+msgstr "ストラテジー"
+
 msgid "Strategy Lab"
 msgstr "ストラテジーラボ"
 
@@ -5037,6 +5101,12 @@ msgstr "テイクプロフィット"
 msgid "Target color"
 msgstr ""
 
+msgid "Target {lo}%"
+msgstr "誘導目標 {lo}%"
+
+msgid "Target {lo}–{hi}%"
+msgstr "誘導目標 {lo}–{hi}%"
+
 msgid "Teachers' Day"
 msgstr "教師の日"
 
@@ -5062,7 +5132,7 @@ msgid "Telegram chat id"
 msgstr "TelegramチャットID"
 
 msgid "Template"
-msgstr ""
+msgstr "テンプレート"
 
 msgid "Template  {0}"
 msgstr "テンプレート  {0}"
@@ -5117,6 +5187,18 @@ msgstr "期間あたり{0}通りで、グリッドの上限{1}を超えていま
 #, message
 msgid "That's {combos} combinations, more than the grid's {MAX_GRID}. Narrow the ranges or use Random or Bayesian."
 msgstr "{combos}通りで、グリッドの上限{MAX_GRID}を超えています。範囲を狭めるか、ランダムまたはベイズを使ってください。"
+
+#, message
+msgid "The Fed funds rate is published once a day. Pick 1D or longer."
+msgstr "FF金利は1日1回公表されます。1D以上を選んでください。"
+
+#, message
+msgid "The New York Fed sent no rates."
+msgstr "ニューヨーク連銀から金利が届きませんでした。"
+
+#, message
+msgid "The New York Fed's rates didn't load."
+msgstr "ニューヨーク連銀の金利を読み込めませんでした。"
 
 msgid "The account was reset."
 msgstr "口座をリセットしました。"
@@ -5216,6 +5298,9 @@ msgstr "考え中"
 msgid "This device"
 msgstr "このデバイス"
 
+msgid "This drawing and new ones go back to the standard style"
+msgstr "この描画と新しい描画が標準のスタイルに戻ります"
+
 msgid "This file has a Python script"
 msgstr "このファイルにはPythonスクリプトが1個あります"
 
@@ -5228,6 +5313,10 @@ msgstr "このファイルにはPythonスクリプトが{0}個あります"
 #, message
 msgid "This file was made by a newer version of Opentern. Update Opentern to import it."
 msgstr "このファイルは新しいバージョンのOpenternで作られています。Openternを更新するとインポートできます。"
+
+#, message
+msgid "This is a development copy: it doesn't update itself."
+msgstr "これは開発用のコピーです。自動では更新されません。"
 
 msgid "This is a library: import it from another script."
 msgstr "これはライブラリです。別のスクリプトからインポートしてください。"
@@ -5326,6 +5415,9 @@ msgstr "総トレード数"
 
 msgid "Trade #"
 msgstr "トレード番号"
+
+msgid "Trade {0} · {1}"
+msgstr "トレード {0} · {1}"
 
 msgid "Trades"
 msgstr "トレード"
@@ -5873,6 +5965,9 @@ msgstr "年次"
 msgid "Yes, reset"
 msgstr "リセットする"
 
+msgid "Your Fib levels and drawing templates"
+msgstr "Fib の水準と描画テンプレート"
+
 msgid "Your address"
 msgstr "自分のアドレス"
 
@@ -6019,9 +6114,6 @@ msgstr "対 SMA 50 %"
 msgid "your other device"
 msgstr "もう一方のデバイス"
 
-msgid "{0}\nEquity  {1}\nBuy & hold  {2}\nDrawdown  {3}"
-msgstr "{0}\n資産  {1}\nバイ&ホールド  {2}\nドローダウン  {3}"
-
 msgid "{0}\nNo new price for {1}"
 msgstr "{0}\n{1}間、新しい価格がありません"
 
@@ -6110,6 +6202,9 @@ msgstr "{0}はインストールされていません"
 
 msgid "{0} min"
 msgstr "{0}分"
+
+msgid "{0} more trades"
+msgstr "他 {0} 件のトレード"
 
 msgid "{0} per contract"
 msgstr "1枚あたり {0}"
@@ -6309,6 +6404,9 @@ msgstr "チャートの{n}本で、{combos}通りのうち{p}回実行。"
 
 msgid "{sign}{0} ({1}) {sign}{2}\n{nb} bars, {time}"
 msgstr "{sign}{0} ({1}) {sign}{2}\n{nb}本、{time}"
+
+msgid "{sign}{n} bp"
+msgstr "{sign}{n} bp"
 
 msgid "{state} · {0} · fired {1}×"
 msgstr "{state} · {0} · {1}回発動"
