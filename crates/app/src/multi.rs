@@ -674,8 +674,30 @@ impl App {
                 sw: round(l, bt),
                 se: round(rt, bt),
             };
-            ui.painter()
-                .rect_stroke(*r, corners, Stroke::new(1.5, t.accent), egui::StrokeKind::Inside);
+            // Whole pixels for its edges and its width, so every side is as
+            // thick as the others (half pixels round unevenly).
+            let ppp = ui.ctx().pixels_per_point();
+            let width = (1.5 * ppp).round().max(1.0) / ppp;
+            // The chart area's own border is drawn over its outer edge: on
+            // the sides that meet it, the outline sits inside it, so it
+            // shows as thick there as between charts.
+            let edge = 1.0;
+            let inner = egui::Rect::from_min_max(
+                pos2(
+                    r.left() + if l { edge } else { 0.0 },
+                    r.top() + if tp { edge } else { 0.0 },
+                ),
+                pos2(
+                    r.right() - if rt { edge } else { 0.0 },
+                    r.bottom() - if bt { edge } else { 0.0 },
+                ),
+            );
+            ui.painter().rect_stroke(
+                egui::emath::GuiRounding::round_to_pixels(inner, ppp),
+                corners,
+                Stroke::new(width, t.accent),
+                egui::StrokeKind::Inside,
+            );
         }
         // Drag an edge to resize the charts on both sides. Made after the
         // charts, so the edge wins the press.
